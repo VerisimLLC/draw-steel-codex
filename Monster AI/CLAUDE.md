@@ -465,6 +465,19 @@ normal altitude calculator and gives altitude priority over its horizontal
 collision and positioning heuristics, selecting the highest legal requested
 altitude before breaking ties tactically.
 
+A pull that moves the target always wins. When none does (an adjacent enemy
+can move no closer), the handler considers pulls that leave the target in
+place for the collision alone (`StandingPullCollisionValue`), only when a
+creature pulls an enemy creature. For an adjacent enemy that means a pull into
+the puller itself: both take the squares left as damage. `SelfCollisionWorthIt`
+takes it only when the puller is not a minion, the target would take damage,
+and the puller survives the hit: then always when the puller takes none or the
+hit drops the target (Temporary Stamina counted), otherwise only while the
+puller stays above half its Stamina. When the only pull left is into the
+puller and it is not worth it, the handler answers with no movement
+(`PULL DECLINED` in the log) instead of asking a Director. A pull by an object
+(a trap) is left as before.
+
 #### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 
 A **tactic** is a passive scoring modifier that adjusts the edge count when evaluating strike targets. Tactics don't execute anything -- they bias which target/position the AI prefers.

@@ -44,6 +44,66 @@ function TacPanel.IsReadOnly(element)
     return element:HasClass("readonly") or element:FindParentWithClass("readonly") ~= nil
 end
 
+--- True when the movement controls (the altitude + / -) may move this token.
+--- A player always moves a token they control, even in a read-only panel:
+--- Encounter of the Week shows every hero's panel read-only, and without
+--- this a hero with Wings had no way to take off. Elsewhere a read-only
+--- panel only ever shows tokens the local player can't control.
+--- @param element Panel
+--- @param token nil|CharacterToken
+--- @return boolean
+function TacPanel.CanMoveToken(element, token)
+    if token == nil or not token.valid then
+        return false
+    end
+    return token.canControl or not TacPanel.IsReadOnly(element)
+end
+
+--- The move type for a voluntary step up or down by a creature that can fly.
+--- A creature that may only fly horizontally (the levitation from the Ghost's
+--- Spirited Away) has to climb instead. With nothing to climb, the step is
+--- refused: a note floats over the token and nil is returned.
+--- @param token CharacterToken
+--- @return nil|string
+function TacPanel.VerticalFlightMoveTypeOrWarn(token)
+    if token.properties:CanFlyVertically() then
+        return "fly"
+    end
+    if token.canCurrentlyClimb then
+        return "climb"
+    end
+    token.properties:FloatLabel("Can only fly horizontally", "#ff8822ff")
+    return nil
+end
+
+--Alt+Up / Alt+Down fly any creature that can fly; send them through the same
+--check as the +/- buttons. Lua reloads don't reset these commands, so the
+--engine originals are kept in a global and only ever wrapped once.
+local g_engineFlyCommands = rawget(_G, "g_engineFlyCommands")
+if g_engineFlyCommands == nil then
+    g_engineFlyCommands = { flyup = rawget(Commands, "flyup"), flydown = rawget(Commands, "flydown") }
+    rawset(_G, "g_engineFlyCommands", g_engineFlyCommands)
+end
+
+for name, engineCommand in pairs(g_engineFlyCommands) do
+    Commands[name] = function(...)
+        local token = dmhub.currentToken
+        if token ~= nil and token.valid and token.properties ~= nil and token.properties:CanFly() then
+            local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+            if moveType == nil then
+                return
+            end
+            if moveType == "climb" then
+                --The engine command would switch the creature back to flying.
+                token.properties:SetAndUploadCurrentMoveType("climb")
+                token:MoveVertical(token.floorAltitude + (name == "flyup" and 1 or -1))
+                return
+            end
+        end
+        return engineCommand(...)
+    end
+end
+
 local TacPanelSizes = {}
 
 TacPanelSizes.Panels = {
@@ -1703,6 +1763,19 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
         color = "@fgPending",
     },
     {
+        selectors = {"panel", "growing-resources-container"},
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+    },
+    -- Gap only on stacked sections, so single-table classes keep their spacing.
+    {
+        selectors = {"panel", "growing-resources", "gr-stacked"},
+        tmargin = 4,
+    },
+    {
         selectors = {"panel", "growing-resources"},
         width = "100%-8",
         height = "auto",
@@ -1764,7 +1837,7 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
     -- "expiring": benefit was active earlier this turn but the resource has since
     -- been spent below its threshold. It still applies until end of turn, shown
     -- muted (no brightness boost; child labels fade their accent). See
-    -- GrowingHRTable's high-water-mark logic.
+    -- GrowingHRSection's high-water-mark logic.
     {
         selectors = {"panel", "gr-row", "expiring"},
         bgcolor = "@bgAlt",
@@ -2975,7 +3048,7 @@ function TacPanel.Portrait()
                 if portrait.hasSpineAnimation or (portrait ~= token.portrait and not token.popoutPortrait) then
                     element.selfStyle.imageRect = nil
                 else
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    element.selfStyle.imageRect = CardPortraitRect(token, Styles.portraitWidthPercentOfHeight*0.01, portrait)
                 end
             end,
         },
@@ -3331,6 +3404,9 @@ function TacPanel.HeroTokenBox()
         linger = function(element)
             if element.data.token then
                 local text = HERO_TOKEN_TOOLTIP
+                if not TacPanel.IsReadOnly(element) then
+                    text = text .. "\n<i>Click the token to spend Hero Tokens.</i>"
+                end
                 local history = element.data.token.properties:GetHeroTokenHistory()
                 if history ~= nil and #history > 0 then
                     text = text .. "\n<b>Recent Changes:</b>"
@@ -3375,6 +3451,17 @@ function TacPanel.HeroTokenBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
+                --the at-will spends (2 surges, Recovery-value Stamina); see
+                --CharacterResource.HeroTokenSpendOptions.
+                press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
+                    local token = element.parent.parent.data.token
+                    element.popup = gui.ContextMenu{
+                        entries = CharacterResource.HeroTokenSpendMenuEntries(token, function()
+                            element.popup = nil
+                        end),
+                    }
+                end,
             },
             gui.Input{
                 classes = {"tokenbox", "value", "hero-tokens"},
@@ -4471,6 +4558,25 @@ function TacPanel.RecoveriesBox()
         return recoveryid, recoveryInfo
     end
 
+    -- Under strict rules a player in combat may not spend a Recovery from this box:
+    -- in combat the rules allow it only through the Catch Breath maneuver (or an
+    -- ability). Out of combat Recoveries are spent freely, and the Director is exempt.
+    local function StrictCombatSpend()
+        local q = dmhub.initiativeQueue
+        return StrictActionEconomyEnforced() and q ~= nil and not q.hidden
+    end
+
+    local catchBreathMessage = "Strict rules: in combat, spend a Recovery with the **Catch Breath** maneuver."
+    -- The 2-token Stamina spend lives in the Hero Tokens menu
+    -- (CharacterResource.HeroTokenSpendOptions), which enforces its own strict rules.
+    local heroTokenMenuMessage = "Strict rules: in combat, spend 2 Hero Tokens for Stamina from the **Hero Tokens** menu."
+
+    -- Refuse a click: error sound plus a tooltip saying why.
+    local function Refuse(element, message)
+        audio.FireSoundEvent("UI.Error_Generic")
+        element.tooltip = TacPanel.Tooltip(message)
+    end
+
     -- Build and show the "spend an ally's shared recovery" context menu on the
     -- given element. Returns true if a menu was shown (i.e. there is at least
     -- one bonded ally with a spendable recovery), false otherwise.
@@ -4524,6 +4630,12 @@ function TacPanel.RecoveriesBox()
 
         if #entries == 0 then return false end
 
+        -- An ally's Recovery is still a Recovery: Catch Breath only in combat.
+        if StrictCombatSpend() then
+            Refuse(element, catchBreathMessage)
+            return false
+        end
+
         element.popup = gui.ContextMenu{
             entries = entries,
         }
@@ -4559,9 +4671,14 @@ function TacPanel.RecoveriesBox()
             elseif quantity <= 0 then
                 if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
                     usageNote = "Click to spend 2 hero tokens as a Recovery"
+                    if StrictCombatSpend() then
+                        usageNote = heroTokenMenuMessage
+                    end
                 else
                     usageNote = "No Recoveries left"
                 end
+            elseif StrictCombatSpend() then
+                usageNote = catchBreathMessage
             end
 
             local lines = {usageNote}
@@ -4627,6 +4744,11 @@ function TacPanel.RecoveriesBox()
             end
 
             if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                return
+            end
+
+            if StrictCombatSpend() then
+                Refuse(element, cond(useHeroTokens, heroTokenMenuMessage, catchBreathMessage))
                 return
             end
 
@@ -5073,7 +5195,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetCurrentHitpoints(value)
+                        token.properties:SetStaminaDirect(value)
                     end,
                 }
             end
@@ -5852,8 +5974,10 @@ function TacPanel.AltitudeBox()
             local canFly = token.properties:CanFly()
             local canClimb = token.canCurrentlyClimb
             local canBurrow = token.properties:CanBurrow()
+            --anyone in the water can dive (the map water level, or painted water).
+            local inWater = token.properties:CurrentMoveType() == "swim"
             --a ceiling clinger away from any wall can't "currently climb", but needs - to let go.
-            local visible = canFly or canClimb or canBurrow or token.properties:IsClingingToCeiling()
+            local visible = canFly or canClimb or canBurrow or inWater or token.properties:IsClingingToCeiling()
             element:SetClass("collapsed", not visible)
         end,
         refreshToken = function(element, token)
@@ -5874,6 +5998,8 @@ function TacPanel.AltitudeBox()
                     element.text = "Burrowing"
                 elseif moveType == "climb" then
                     element.text = cond(token.properties:IsClingingToCeiling(), "Clinging", "Climbing")
+                elseif moveType == "swim" then
+                    element.text = cond(token.distanceBelowGround > 0, "Underwater", "Swimming")
                 else
                     element.text = "On Ground"
                 end
@@ -5905,16 +6031,34 @@ function TacPanel.AltitudeBox()
                 classes = {"altitude-btn-stack"},
                 floating = true,
                 halign = "right",
+                --editOnly (hidden in a read-only panel) only for tokens the
+                --player can't control: see TacPanel.CanMoveToken.
+                refreshCharacter = function(element, token)
+                    local canControl = token ~= nil and token.valid and token.canControl
+                    element:SetClass("editOnly", not canControl)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "+",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
-                            if token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            --a diver swims up toward the surface; only at the surface can it take off.
+                            local diving = token.properties:CurrentMoveType() == "swim" and token.distanceBelowGround > 0
+                            if diving then
+                                --swim up.
+                            elseif token.properties:CanFly() then
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
@@ -5934,25 +6078,43 @@ function TacPanel.AltitudeBox()
                     end,
                 },
                 gui.Label{
-                    classes = {"altitude-btn-sep", "editOnly"},
+                    classes = {"altitude-btn-sep"},
                     text = "/",
                 },
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "-",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
-                            if token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            local burrowingDown = false
+                            if token.properties:CurrentMoveType() == "swim" then
+                                --in the water, down is a dive (the engine stops it at the bed).
+                            elseif token.properties:CanFly() then
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
                                 token.properties:SetAndUploadCurrentMoveType("burrow")
+                                burrowingDown = true
                             end
-                            token:MoveVertical(token.floorAltitude - 1)
+                            local targetAltitude = token.floorAltitude - 1
+                            if burrowingDown and token.properties:CalculateNamedCustomAttribute("Cannot Drag Underground") > 0 then
+                                --can't drag grabbed creatures underground: let go first (this
+                                --waits a game update, hence the coroutine), then dig.
+                                dmhub.Coroutine(function()
+                                    ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+                                    if token.valid then
+                                        token:MoveVertical(targetAltitude)
+                                    end
+                                end)
+                            else
+                                token:MoveVertical(targetAltitude)
+                            end
                         end
                     end,
                     refreshCharacter = function(element, token)
@@ -6344,8 +6506,10 @@ function TacPanel.GrowingHRRow(entry, creature)
         gui.Label{
             classes = {"label", "gr-text"},
             text = StringInterpolateGoblinScript(entry.description, creature),
-            update = function(element, newEntry)
-                local text = StringInterpolateGoblinScript(newEntry.description, creature)
+            update = function(element, newEntry, newCreature)
+                -- Rows are reused when the panel switches heroes, so fill in the
+                -- text for the current hero, not the one the row was built for.
+                local text = StringInterpolateGoblinScript(newEntry.description, newCreature or creature)
                 element.text = text
                 element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
             end,
@@ -6353,28 +6517,72 @@ function TacPanel.GrowingHRRow(entry, creature)
     }
 end
 
---- Display the growing heroic resource table
+--- Display every growing heroic resource table the creature has, one
+--- collapsible section per table. Sections are cached by modifier guid so each
+--- keeps its own collapsed state and row panels across refreshes.
 --- @return Panel
 function TacPanel.GrowingHRTable()
     return gui.Panel{
-        classes = {"growing-resources", "collapsed"},
-        data = { token = nil, rows = {}, collapsed = false },
+        classes = {"growing-resources-container", "collapsed"},
+        data = { sections = {} },
         refreshCharacter = function(element, token)
-            element.data.token = token
             local creature = token.properties
             if (not creature:IsHero()) and (not creature:IsCompanion()) then
                 element:SetClass("collapsed", true)
                 return
             end
 
-            local growingResources = creature:GetGrowingResourcesTable()
-            if growingResources == nil then
+            local tables = creature:GetGrowingResourcesTables()
+            if #tables == 0 then
                 element:SetClass("collapsed", true)
                 return
             end
 
             element:SetClass("collapsed", false)
-            element:FireEventTree("setTitle", growingResources.name:upper())
+
+            local sections = element.data.sections
+            local newSections = {}
+            local children = {}
+            for i, growingResources in ipairs(tables) do
+                local key = growingResources:try_get("guid") or string.format("index-%d", i)
+                -- A copied modifier can keep its source's guid; give it its own section.
+                if newSections[key] ~= nil then
+                    key = string.format("%s-%d", key, i)
+                end
+                local section = sections[key]
+                if section == nil or not section.valid then
+                    section = TacPanel.GrowingHRSection()
+                end
+                newSections[key] = section
+                section:SetClass("gr-stacked", #children > 0)
+                section:FireEvent("refreshSection", creature, growingResources)
+                children[#children + 1] = section
+            end
+
+            element.data.sections = newSections
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
+--- One growing heroic resource table: a title bar that collapses it and a row
+--- per progression entry the creature's level allows. Driven by its parent
+--- container through the refreshSection event.
+--- @return Panel
+function TacPanel.GrowingHRSection()
+    return gui.Panel{
+        classes = {"growing-resources"},
+        data = { rows = {}, collapsed = false },
+        refreshSection = function(element, creature, growingResources)
+            -- Every table is shown now, so an unnamed one gets a blank title
+            -- instead of breaking the whole panel.
+            element:FireEventTree("setTitle", (growingResources:try_get("name") or ""):upper())
 
             local characterLevel = creature:CharacterLevel()
             local characterResources = creature:GetProgressionResource()
@@ -6398,7 +6606,7 @@ function TacPanel.GrowingHRTable()
                     rows[index] = row
                     index = index + 1
 
-                    row:FireEventTree("update", entry)
+                    row:FireEventTree("update", entry, creature)
                     local available = entry.resources <= characterResources
                     row:SetClass("available", available)
                     row:SetClass("expiring", (not available) and entry.resources <= resourcesHigh)
@@ -6414,12 +6622,6 @@ function TacPanel.GrowingHRTable()
 
             element.data.rows = rows
             element:FireEventTree("setContent", rowChildren)
-        end,
-        refreshToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-        setToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
         end,
         gui.Panel{
             classes = {"panel", "gr-title"},
@@ -7783,7 +7985,10 @@ function TacPanel.Summoner()
             vmargin = 4,
 
             gui.Button{
-                classes = {"sizeM", "editOnly"},
+                --Shown to whoever controls the summoner, even when the panel
+                --is read-only. It used to be hidden on your own hero in
+                --Encounter of the Week.
+                classes = {"sizeM", "collapsed"},
                 halign = "center",
                 width = 175,
                 height = 40,
@@ -7794,11 +7999,11 @@ function TacPanel.Summoner()
                 data = { token = nil },
                 refreshToken = function(element, token)
                     element.data.token = token
+                    element:SetClass("collapsed", token == nil or not token.valid or not token.canControlAsUser)
                 end,
                 press = function(element)
-                    if TacPanel.IsReadOnly(element) then return end
                     local token = element.data.token
-                    if token == nil or not token.valid then return end
+                    if token == nil or not token.valid or not token.canControlAsUser then return end
                     local ability = MCDMUtils.GetStandardAbility("Summoner Sacrifice Minions")
                     if ability == nil then return end
                     local clone = ability:MakeTemporaryClone()
@@ -7878,8 +8083,10 @@ function TacPanel.Summoner()
             },
 
             -- Opens the squad manager modal; the panel itself is read-only.
+            -- Shown only to whoever controls the summoner, like Sacrifice
+            -- Minions above.
             gui.Button{
-                classes = {"sizeS", "editOnly"},
+                classes = {"sizeS", "collapsed"},
                 halign = "center",
                 width = 150,
                 height = 28,
@@ -7888,14 +8095,14 @@ function TacPanel.Summoner()
                 data = { token = nil },
                 refreshToken = function(element, token)
                     element.data.token = token
+                    element:SetClass("collapsed", token == nil or not token.valid or not token.canControlAsUser)
                 end,
                 hover = function(element)
                     element.tooltip = gui.Tooltip("Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.")
                 end,
                 press = function(element)
-                    if TacPanel.IsReadOnly(element) then return end
                     local token = element.data.token
-                    if token == nil or not token.valid then return end
+                    if token == nil or not token.valid or not token.canControlAsUser then return end
                     DrawSteelMinion.ShowSquadManager(token)
                 end,
             },
@@ -8481,7 +8688,7 @@ local function KnownLanguages(creature)
             languages[#languages + 1] = language
         end
     end
-    table.sort(languages, function(a, b) return a.name < b.name end)
+    table.sort(languages, function(a, b) return a:DisplayName() < b:DisplayName() end)
     return languages
 end
 
@@ -8585,8 +8792,9 @@ function TacPanel.SkillLanguages()
 
                 -- Languages
                 local names = {}
-                for _, language in ipairs(KnownLanguages(creature)) do
-                    names[#names + 1] = language.name
+                local knownLanguages = KnownLanguages(creature)
+                for _, language in ipairs(knownLanguages) do
+                    names[#names + 1] = language:DisplayName()
                 end
                 if #names > 0 then
                     --The prefix now carries the labelling for monsters too:
@@ -8598,6 +8806,7 @@ function TacPanel.SkillLanguages()
                         textWrap = true,
                         markdown = true,
                         text = ThemeEngine.ResolveTokens(text),
+                        hover = Language.ListTooltipHover(knownLanguages),
                     }
                 end
                 element.children = children
@@ -11285,7 +11494,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetCurrentHitpoints(n)
+                                    token.properties:SetStaminaDirect(n)
                                 end,
                             }
                         end

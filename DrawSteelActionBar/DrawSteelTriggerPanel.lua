@@ -121,6 +121,8 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
     local trigid = trigger.id
     controller:FireEventTree("chooseTarget", {
         sourceToken = sourceToken,
+        --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+        chooserToken = triggerToken,
         radius = range,
         targets = targets,
         reasons = retargetReasons,
@@ -170,6 +172,91 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
             }
         end,
     })
+end
+
+--- Runs the trigger-before ability of an enhancement option (an additional
+--- cost modifier), if it has one, instead of the main modifier's retarget
+--- picker. That ability decides the outcome itself, for example by giving the
+--- trigger a new target. It gets the struck creature as the `target` symbol and
+--- the trigger's id as `parenttriggerid`. The attacker's roll waits (resolving)
+--- until the ability finishes.
+--- @param triggerToken CharacterToken the token that owns the trigger
+--- @param trigger ActiveTrigger
+--- @param index number which enhancement option was pressed
+--- @param targetId string|nil the creature the triggering roll targets
+--- @param chosenTargetId string|nil set when the press picked a target on the map
+--- @return boolean handled false when the option has no trigger-before ability
+local function RunEnhancementTriggerBefore(triggerToken, trigger, index, targetId, chosenTargetId)
+    --powerRollModifier is false (not nil) on triggers that have none.
+    if trigger.triggered or not trigger.powerRollModifier then
+        return false
+    end
+    local additionalModifiers = triggerToken.properties:GetAdditionalCostModifiersForPowerTableTrigger(trigger.powerRollModifier)
+    local enhancement = additionalModifiers[index]
+    if enhancement == nil or not enhancement:try_get("hasTriggerBefore", false) then
+        return false
+    end
+    local triggerBefore = enhancement:try_get("triggerBefore")
+    if triggerBefore == nil then
+        return false
+    end
+
+    local trigid = trigger.id
+
+    --commit to the option first, so the nested ability finds the trigger
+    --already activated with this index when it looks it up.
+    triggerToken:ModifyProperties{
+        undoable = false,
+        description = "Trigger",
+        execute = function()
+            trigger.triggered = index
+            trigger.retargetid = nil
+            trigger.dismissed = true
+            trigger.resolving = true
+            if chosenTargetId ~= nil then
+                trigger.chosenTargetId = chosenTargetId
+            end
+            triggerToken.properties:DispatchAvailableTrigger(trigger)
+        end,
+    }
+
+    local symbols = { parenttriggerid = trigid }
+    local targetToken = targetId ~= nil and dmhub.GetTokenById(targetId) or nil
+    if targetToken ~= nil then
+        symbols.target = targetToken.properties
+    end
+
+    --on a retargeting trigger, the option only applies if the nested ability
+    --picked a new target; otherwise (e.g. it was cancelled) withdraw it
+    --so the strike is unchanged and the option's cost is not charged.
+    local needsRetarget = trigger.powerRollModifier.powerRollModifier:try_get("changeTarget", false)
+
+    triggerBefore:Trigger(enhancement, triggerToken.properties, enhancement:AppendSymbols(symbols), nil, { mod = trigger.powerRollModifier }, {
+        complete = function()
+            --let the attacker's roll continue, even if this panel has closed.
+            if not triggerToken.valid then
+                return
+            end
+            local live = triggerToken.properties:GetAvailableTriggers() or {}
+            local liveTrigger = live[trigid]
+            if liveTrigger ~= nil and liveTrigger.resolving then
+                triggerToken:ModifyProperties{
+                    undoable = false,
+                    description = "Trigger",
+                    execute = function()
+                        liveTrigger.resolving = false
+                        if needsRetarget and liveTrigger.triggered == index and not liveTrigger.retargetid then
+                            liveTrigger.triggered = false
+                            liveTrigger.dismissed = false
+                        end
+                        triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                    end,
+                }
+            end
+        end,
+    })
+
+    return true
 end
 
 -- A triggered action offered against several targets of one roll (Parry when a
@@ -603,7 +690,8 @@ mod.shared.CreateTriggerPanel = function()
             dismissAllPanel,
 
 			refresh = function(element)
-                g_token = dmhub.selectedOrPrimaryTokens[1]
+                --(a creature selected off the board has no triggers to fire here.)
+                g_token = DrawSteelActionBar._operate.SelectedBoardToken()
 
                 local parentElement = element
 				if g_token == nil or not g_token.valid then
@@ -803,6 +891,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
+                                            --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                            chooserToken = g_token,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
@@ -841,32 +931,59 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
-                                    --set when we start a trigger-before action below: the accept then
-                                    --flags the record as resolving, holding the caster's roll until
-                                    --the complete callback clears it.
-                                    local waitingOnTriggerBefore = false
+                                    --true when this press starts a trigger-before action (e.g. Inertial
+                                    --Shield's Elemental Absorption): the record is flagged resolving,
+                                    --holding the caster's roll until the complete callback clears it.
+                                    local waitingOnTriggerBefore = (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") and true or false
+                                    if waitingOnTriggerBefore then
+                                        --we commit to it if we use the trigger so we disappear the trigger.
+                                        dismiss = true
+                                    end
 
-                                    if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
+                                    --Commit the accept (and the resolving flag) BEFORE starting the
+                                    --trigger-before action. That action can finish synchronously and
+                                    --call complete() at once; if the flag were set afterwards, nothing
+                                    --would clear it and the caster's roll would hang until its backstop.
+									g_token:ModifyProperties{
+										undoable = false,
+										description = "Trigger",
+										execute = function()
+
+                                            trigger.dismissed = dismiss
+
+                                            if trigger.triggered then
+                                                trigger.triggered = false
+                                                trigger.retargetid = nil
+                                            else
+                                                trigger.triggered = true
+                                            end
+
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
+                                            end
+											g_token.properties:DispatchAvailableTrigger(trigger)
+										end,
+									}
+
+                                    if waitingOnTriggerBefore then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
                                         local triggerToken = g_token
 
-                                        --we commit to it if we use the trigger so we disappear the trigger.
-                                        dismiss = true
-                                        waitingOnTriggerBefore = true
-
-                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
+                                        --parenttriggerid lets the before-ability find the trigger that started it.
+                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
                                                 --set when resolution continues in the retarget picker,
                                                 --which then owns clearing the resolving flag.
                                                 local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
+                                                    --Bail-outs below skip to the flag clear, never past it.
                                                     if availableTriggers == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
                                                     local trigger = availableTriggers[key]
                                                     if trigger == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
 
                                                     local condition = trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("triggerBeforeCondition", "")
@@ -877,7 +994,7 @@ mod.shared.CreateTriggerPanel = function()
                                                         end
                                                         local caster = dmhub.GetTokenById(trigger.casterid)
                                                         if target == nil or caster == nil then
-                                                            return
+                                                            goto clearResolving
                                                         end
                                                         local symbols = {
                                                             triggerer = triggerToken.properties:LookupSymbol{},
@@ -919,6 +1036,7 @@ mod.shared.CreateTriggerPanel = function()
                                                     end
                                                 end
 
+                                                ::clearResolving::
                                                 --The caster's roll dialog holds its roll while the record's
                                                 --resolving flag is set, so the trigger-before action (e.g.
                                                 --Parry's shift) lands before damage and forced movement.
@@ -942,30 +1060,6 @@ mod.shared.CreateTriggerPanel = function()
                                             end,
                                         })
                                     end
-
-									g_token:ModifyProperties{
-										undoable = false,
-										description = "Trigger",
-										execute = function()
-
-                                            trigger.dismissed = dismiss
-
-                                            if trigger.triggered then
-                                                trigger.triggered = false
-                                                trigger.retargetid = nil
-                                            else
-                                                trigger.triggered = true
-                                            end
-
-                                            --the trigger-before action (e.g. Parry's shift) is still
-                                            --running: mark the record so the caster's roll dialog holds
-                                            --the roll until the complete callback clears this.
-                                            if waitingOnTriggerBefore then
-                                                trigger.resolving = true
-                                            end
-											g_token.properties:DispatchAvailableTrigger(trigger)
-										end,
-									}
 
 								end,
 								refresh = function(element)
@@ -1003,6 +1097,11 @@ mod.shared.CreateTriggerPanel = function()
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
+                                        --an option with its own trigger-before ability resolves itself.
+                                        if RunEnhancementTriggerBefore(g_token, trigger, index, trigger.targets[1], nil) then
+                                            return
+                                        end
+
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(trigger.targets[1])
@@ -1036,6 +1135,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
+                                                --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                                chooserToken = g_token,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,
@@ -1298,6 +1399,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
+                                            --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                            chooserToken = g_token,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
@@ -1340,32 +1443,64 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
-                                    --set when we start a trigger-before action below: the accept then
-                                    --flags the record as resolving, holding the caster's roll until
-                                    --the complete callback clears it.
-                                    local waitingOnTriggerBefore = false
+                                    --true when this press starts a trigger-before action (e.g. Inertial
+                                    --Shield's Elemental Absorption): the record is flagged resolving,
+                                    --holding the caster's roll until the complete callback clears it.
+                                    local waitingOnTriggerBefore = (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") and true or false
+                                    if waitingOnTriggerBefore then
+                                        --we commit to it if we use the trigger so we disappear the trigger.
+                                        dismiss = true
+                                    end
 
-                                    if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
+                                    --Commit the accept (and the resolving flag) BEFORE starting the
+                                    --trigger-before action. That action can finish synchronously and
+                                    --call complete() at once; if the flag were set afterwards, nothing
+                                    --would clear it and the caster's roll would hang until its backstop.
+									g_token:ModifyProperties{
+										undoable = false,
+										description = "Trigger",
+										execute = function()
+
+                                            trigger.dismissed = dismiss
+
+                                            if trigger.triggered then
+                                                trigger.triggered = false
+                                                trigger.retargetid = nil
+                                                trigger.chosenTargetId = false
+                                            else
+                                                trigger.triggered = true
+                                                --the pick tells the roll dialog which target's roll this changes.
+                                                if chosenTargetId ~= nil then
+                                                    trigger.chosenTargetId = chosenTargetId
+                                                end
+                                            end
+
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
+                                            end
+											g_token.properties:DispatchAvailableTrigger(trigger)
+										end,
+									}
+
+                                    if waitingOnTriggerBefore then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
                                         local triggerToken = g_token
 
-                                        --we commit to it if we use the trigger so we disappear the trigger.
-                                        dismiss = true
-                                        waitingOnTriggerBefore = true
-
-                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
+                                        --parenttriggerid lets the before-ability find the trigger that started it.
+                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
                                                 --set when resolution continues in the retarget picker,
                                                 --which then owns clearing the resolving flag.
                                                 local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
+                                                    --Bail-outs below skip to the flag clear, never past it.
                                                     if availableTriggers == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
                                                     local trigger = availableTriggers[key]
                                                     if trigger == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
 
                                                     --e.g. Parry: did the shift end adjacent to the target it was used for?
@@ -1377,7 +1512,7 @@ mod.shared.CreateTriggerPanel = function()
                                                         end
                                                         local caster = dmhub.GetTokenById(trigger.casterid)
                                                         if target == nil or caster == nil then
-                                                            return
+                                                            goto clearResolving
                                                         end
                                                         local symbols = {
                                                             triggerer = triggerToken.properties:LookupSymbol{},
@@ -1419,6 +1554,7 @@ mod.shared.CreateTriggerPanel = function()
                                                     end
                                                 end
 
+                                                ::clearResolving::
                                                 --The caster's roll dialog holds its roll while the record's
                                                 --resolving flag is set, so the trigger-before action (e.g.
                                                 --Parry's shift) lands before damage and forced movement.
@@ -1442,35 +1578,6 @@ mod.shared.CreateTriggerPanel = function()
                                             end,
                                         })
                                     end
-
-									g_token:ModifyProperties{
-										undoable = false,
-										description = "Trigger",
-										execute = function()
-
-                                            trigger.dismissed = dismiss
-
-                                            if trigger.triggered then
-                                                trigger.triggered = false
-                                                trigger.retargetid = nil
-                                                trigger.chosenTargetId = false
-                                            else
-                                                trigger.triggered = true
-                                                --the pick tells the roll dialog which target's roll this changes.
-                                                if chosenTargetId ~= nil then
-                                                    trigger.chosenTargetId = chosenTargetId
-                                                end
-                                            end
-
-                                            --the trigger-before action (e.g. Parry's shift) is still
-                                            --running: mark the record so the caster's roll dialog holds
-                                            --the roll until the complete callback clears this.
-                                            if waitingOnTriggerBefore then
-                                                trigger.resolving = true
-                                            end
-											g_token.properties:DispatchAvailableTrigger(trigger)
-										end,
-									}
 
                                     if dismiss then
                                         triggerPanel:SetClass("collapsed", true)
@@ -1854,6 +1961,11 @@ mod.shared.CreateTriggerPanel = function()
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
+                                        --an option with its own trigger-before ability resolves itself.
+                                        if RunEnhancementTriggerBefore(g_token, trigger, index, targetId, chosenTargetId) then
+                                            return
+                                        end
+
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(targetId)
@@ -1887,6 +1999,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
+                                                --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                                chooserToken = g_token,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,

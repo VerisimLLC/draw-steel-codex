@@ -21,6 +21,7 @@ local mod = dmhub.GetModLoading()
 --- @field damageTable table
 --- @field tokenToTier table
 --- @field inflictedConditions table
+--- @field appliedOngoingEffects table<string, boolean> ids of the ongoing effect instances this cast applied or refreshed.
 --- @field retargets table
 --- @field forcedMovementDamageDealt number
 --- @field forcedMovementPaths table
@@ -264,6 +265,18 @@ ActivatedAbilityCast.helpSymbols = {
         desc = "True if any forced movement caused by this ability collided with a creature or object.",
     },
 
+    negatedforcedmovement = {
+        name = "Negated Forced Movement",
+        type = "number",
+        desc = "In the custom trigger of a power roll modifier with Negate Forced Movement: how many squares the target would have been force moved, after stability and bonuses. 0 otherwise.",
+    },
+
+    negatedforcedmovementtype = {
+        name = "Negated Forced Movement Type",
+        type = "text",
+        desc = "In the custom trigger of a power roll modifier with Negate Forced Movement: the type of forced movement that was negated (push, pull, slide, vertical_push, vertical_pull or vertical_slide). Empty otherwise.",
+    },
+
     forcedmovementcreaturecollision = {
         name = "Forced Movement Creature Collision",
         type = "boolean",
@@ -287,6 +300,13 @@ ActivatedAbilityCast.helpSymbols = {
         name = "Forced Movement Creature Count",
         type = "number",
         desc = "The number of unique creatures that were actually force moved by this ability (excludes creatures that resisted due to stability or could not be moved).",
+    },
+
+    wasforcemoved = {
+        name = "Was Force Moved",
+        type = "function",
+        desc = "Returns true if the given creature was actually force moved by this ability (false if it resisted due to stability or could not be moved).",
+        examples = {"Was Force Moved(Target)"},
     },
 
     forcedmovementdamagedealt = {
@@ -714,6 +734,14 @@ ActivatedAbilityCast.lookupSymbols = {
         return c.forcedMovementCollision
     end,
 
+    negatedforcedmovement = function(cast)
+        return cast:try_get("negatedForcedMovement", 0)
+    end,
+
+    negatedforcedmovementtype = function(cast)
+        return cast:try_get("negatedForcedMovementType", "")
+    end,
+
     forcedmovementcreaturecollision = function(c)
         return next(c:try_get("forcedMovementCreatureCollisionIds", {})) ~= nil
     end,
@@ -737,6 +765,26 @@ ActivatedAbilityCast.lookupSymbols = {
                 local tok = dmhub.LookupToken(target)
                 if tok ~= nil then
                     local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+                    return ids[tok.charid] == true
+                end
+            end
+
+            return false
+        end
+    end,
+
+    -- Per-creature form of Forced Movement Creature Count: reads the ids that
+    -- RecordForcedMovementCreature stores as each forced move resolves.
+    wasforcemoved = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    local ids = c:try_get("forcedMovementCreatureIds", {})
                     return ids[tok.charid] == true
                 end
             end
@@ -955,6 +1003,16 @@ function ActivatedAbilityCast:RecordInflictedCondition(conditionid, charid)
     local list = inflictedConditions[conditionid] or {}
     list[#list+1] = charid
     inflictedConditions[conditionid] = list
+end
+
+--- Remember an ongoing effect instance this cast applied or refreshed.
+--- @param effectInstance CharacterOngoingEffectInstance
+function ActivatedAbilityCast:RecordAppliedOngoingEffect(effectInstance)
+    --older effects have no id of their own: they all share "deprecated", so skip them.
+    if effectInstance.id == "deprecated" then
+        return
+    end
+    self:get_or_add("appliedOngoingEffects", {})[effectInstance.id] = true
 end
 
 function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, isRolledDamage, patrondamage)

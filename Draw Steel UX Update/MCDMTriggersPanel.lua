@@ -416,6 +416,10 @@ local function RenderTriggerCard(triggerDisplay, caster, collapsedSet, manualAbi
 					else
 						ability = manualAbilityEntry.ability:GenerateManualVersion()
 					end
+					--Strict rules: players use triggers from their prompts, not by hand.
+					if (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") and ability:AbilityFilterFailureMessage(token.properties) ~= nil then
+						return
+					end
 					gamehud.actionBarPanel:FireEventTree("invokeAbility", token, ability, {})
 				end,
 			},

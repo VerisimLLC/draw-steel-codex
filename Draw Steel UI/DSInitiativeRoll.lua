@@ -419,7 +419,7 @@ local function createDrawSteelBanner(options)
                     elseif roll ~= nil then
                         --a caller may hold the start of combat once the winner
                         --is known (Encounter of the Week lets the heroes arrange
-                        --themselves when they win): it gets the result and a
+                        --themselves, whichever side won): it gets the result and a
                         --begin function to call when it is ready.
                         local heroesWin = m_heroesWin
                         local begun = false
@@ -1208,7 +1208,7 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         local portrait = tok.offTokenPortrait
         local imageRect = nil
         if portrait == tok.portrait or tok.popoutPortrait then
-            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+            imageRect = CardPortraitRect(tok, portraitAspect, portrait)
         end
 
         local quantityLabel = nil
@@ -2756,7 +2756,14 @@ Commands.RegisterMacro{
     command = function(str)
     local args = string.split(str or "", " ")
 
-    local tokens = dmhub.selectedTokens
+    --only tokens on this map join its combat, not creatures selected off the
+    --board (a tabletop card's).
+    local tokens = {}
+    for _, tok in ipairs(dmhub.selectedTokens) do
+        if tok.onBoard then
+            tokens[#tokens+1] = tok
+        end
+    end
 
     print("ARGS::", #args)
     if #args == 4 then
@@ -2850,8 +2857,13 @@ Commands.RegisterMacro{
     end
 
 
-    for _,tok in ipairs(dmhub.allObjectTokens) do
-        tok.properties:DispatchEvent("beginround")
+    --Objects get round 1's Begin Round here; later rounds reach them from
+    --GameHud:NewRound. Not when creatures join a running combat, or every
+    --object would get an extra Begin Round (a ticking grenade going off early).
+    if isNewCombat then
+        for _,tok in ipairs(dmhub.allObjectTokens) do
+            tok.properties:DispatchEvent("beginround")
+        end
     end
 
     local averageVictories = 0

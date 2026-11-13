@@ -101,6 +101,18 @@ function gui.IconEditor(args)
 		imageType = ImageTypeMapping[library]
 	end
 
+	--The library a finished upload belongs in. The engine stores an opaque image chosen as a
+	--Popout Avatar as a plain Avatar, so file it under Avatar to match how it will render.
+	local function UploadLibrary(assetid)
+		if library == "popoutavatars" then
+			local asset = assets.imagesTable[assetid]
+			if asset ~= nil and asset.imageType == "Avatar" then
+				return "Avatar"
+			end
+		end
+		return library
+	end
+
 	--Live-edit: open the currently-selected image in the external editor and, on commit, replace the
 	--underlying image asset in place (same asset id, new image bytes) so every use of it updates --
 	--mirrors the map-object "Live Edit" flow but driven from this picker. Patron-gated.
@@ -872,7 +884,7 @@ function gui.IconEditor(args)
 								upload = function(imageid)
 									uploadComplete = true
 									if library ~= nil and library ~= 'AvatarFrame' then
-										dmhub.AddAndUploadImageToLibrary(library, imageid)
+										dmhub.AddAndUploadImageToLibrary(UploadLibrary(imageid), imageid)
 									end
 								end,
 							}
@@ -949,7 +961,7 @@ function gui.IconEditor(args)
 							upload = function(imageid)
 								uploadComplete = true
 								if library ~= nil and library ~= 'AvatarFrame' then
-									dmhub.AddAndUploadImageToLibrary(library, imageid)
+									dmhub.AddAndUploadImageToLibrary(UploadLibrary(imageid), imageid)
 								end
 							end,
 						}
@@ -1156,7 +1168,7 @@ function gui.IconEditor(args)
 				upload = function(imageid)
 					uploadComplete = true
 					if library ~= nil then
-						dmhub.AddAndUploadImageToLibrary(library, imageid)
+						dmhub.AddAndUploadImageToLibrary(UploadLibrary(imageid), imageid)
 					end
 
 					if i == 1 then
@@ -1166,7 +1178,7 @@ function gui.IconEditor(args)
 				end,
 				addlocal = function(imageid)
 					if library ~= nil then
-						dmhub.AddImageToLibraryLocally(library, imageid)
+						dmhub.AddImageToLibraryLocally(UploadLibrary(imageid), imageid)
 					end
 
 					if i == 1 then

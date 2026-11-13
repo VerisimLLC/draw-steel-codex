@@ -9,6 +9,10 @@ local mod = dmhub.GetModLoading()
 --Everything reads the character through dmhub.GetCharacterById, which
 --resolves lobby-game characters as well as map tokens.
 --Design/plan doc: EncounterOfTheWeek/EncounterOfTheWeek.md.
+
+local T = UIText.T
+local TP = UIText.Plural
+
 --- Hero collection ----------------------------------------------------------
 
 --A hero whose player never typed a name still has to label its card with
@@ -18,7 +22,7 @@ local function HeroDisplayName(tok)
     local name = nil
     pcall(function() name = tok.name end)
     if name == nil or name == "" then
-        return "Unnamed Hero"
+        return T("herocard.name.unnamed")
     end
     return name
 end
@@ -37,10 +41,10 @@ local function HeroPlayerName(tok)
     local owner = nil
     pcall(function() owner = tok.ownerId end)
     if owner == nil or owner == "" then
-        return "Unclaimed"
+        return T("herocard.player.unclaimed")
     end
     if owner == "PARTY" then
-        return "The party"
+        return T("herocard.player.party")
     end
     local name = owner
     pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
@@ -133,8 +137,8 @@ local function CollectConditions(c)
             entries[#entries+1] = {
                 icon = info.iconid,
                 display = info.display or {},
-                name = info.name or "Condition",
                 condid = condid,
+                name = info.name or T("herocard.condition.fallback"),
             }
         end
     end
@@ -162,8 +166,8 @@ local function CollectConditions(c)
                 entries[#entries+1] = {
                     icon = icon,
                     display = display or {},
-                    name = info.name or "Effect",
                     effectid = (not builtin[entry]) and entry.ongoingEffectid or nil,
+                    name = info.name or T("herocard.effect.fallback"),
                 }
             end
         end
@@ -463,6 +467,38 @@ local g_heroCardRules = {
         textAlignment = "center",
         textWrap = false,
     },
+    --the "+" that spends a Recovery (CreateSpendRecoveryButton): a green
+    --disc the size of the recoveries circle, brighter on hover.
+    {
+        selectors = {"eotwSpendRecovery"},
+        width = 14,
+        height = 14,
+        valign = "center",
+        halign = "left",
+        rmargin = 3,
+        cornerRadius = 7,
+        bgimage = "panels/square.png",
+        bgcolor = "#2f7d3acc",
+        border = 1,
+        borderColor = "#9fe3a8cc",
+    },
+    {
+        selectors = {"eotwSpendRecovery", "hover"},
+        bgcolor = "#3fa64dff",
+        borderColor = "#ffffffff",
+    },
+    {
+        selectors = {"eotwSpendRecoveryLabel"},
+        fontSize = 13,
+        bold = true,
+        color = "#ffffff",
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        textWrap = false,
+    },
     {
         selectors = {"eotwSurgeIcon"},
         width = 12,
@@ -521,6 +557,18 @@ local g_heroCardRules = {
         borderColor = "#80ffa0ff",
         transitionTime = 0.45,
         easing = "easeOutCubic",
+    },
+    --the speech balloon hanging off the card's left edge while the hero's
+    --player talks on Discord voice (CreateVoiceBalloon).
+    {
+        selectors = {"eotwVoiceBalloon"},
+        bgcolor = "@bg",
+        border = 1,
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"eotwVoiceBalloonIcon"},
+        bgcolor = "@fgStrong",
     },
 }
 
@@ -827,7 +875,7 @@ local function CreateResourceRow(charid)
             if tok ~= nil and tok.valid and tok.properties ~= nil then
                 local name = nil
                 pcall(function() name = tok.properties:GetHeroicResourceName() end)
-                gui.Tooltip(name or "Heroic Resource")(element)
+                gui.Tooltip(name or T("herocard.heroic_resource.fallback"))(element)
             end
         end,
     }
@@ -899,21 +947,92 @@ local function CreateRecoveriesCircle(charid)
                 recoveryValue = c:RecoveryAmount()
             end)
             local lines = {
-                string.format("<b>Recoveries: %d / %d</b>", current, max),
+                T("herocard.recoveries.tooltip_count", { current = string.format("%d", current), max = string.format("%d", max) }),
             }
             if recoveryValue ~= nil then
-                lines[#lines+1] = string.format("Recovery Value: %d Stamina", recoveryValue)
+                lines[#lines+1] = T("herocard.recoveries.tooltip_value", { value = string.format("%d", recoveryValue) })
             end
             gui.Tooltip(table.concat(lines, "\n"))(element)
         end,
     }
 end
 
+--Can the local user spend one of this hero's Recoveries right now? They
+--must control the hero, be below max Stamina and have a Recovery left.
+--Returns the Stamina it would give, or nil.
+local function SpendableRecovery(tok)
+    if tok == nil or not tok.valid or tok.properties == nil or IsCardHeroDead(tok) then
+        return nil
+    end
+    local mine = nil
+    pcall(function() mine = tok.canControlAsUser end)
+    if mine == nil then
+        pcall(function() mine = tok.canControl end)
+    end
+    if mine ~= true then
+        return nil
+    end
+    local amount = nil
+    pcall(function()
+        local c = tok.properties
+        local id = CharacterResource.recoveryResourceId
+        local left = (c:GetResources()[id] or 0) - (c:GetResourceUsage(id, "long") or 0)
+        if left > 0 and c:CurrentHitpoints() < c:MaxHitpoints() then
+            amount = c:RecoveryAmount()
+        end
+    end)
+    return amount
+end
+
+--The small "+" beside the recoveries circle: spends one Recovery to regain
+--Recovery-value Stamina, no action needed (EotW montages and the screens
+--before a fight). Collapsed whenever SpendableRecovery says no; barHolder
+--gives up the button's room while it shows.
+local function CreateSpendRecoveryButton(charid, barHolder)
+    return gui.Panel{
+        classes = {"eotwSpendRecovery", "collapsed"},
+        --Keep the press from reaching the card, which opens the character panel.
+        swallowPress = true,
+        refreshCard = function(element)
+            local show = SpendableRecovery(dmhub.GetCharacterById(charid)) ~= nil
+            if show ~= not element:HasClass("collapsed") then
+                element:SetClass("collapsed", not show)
+                barHolder.selfStyle.width = cond(show, "100%-36", "100%-19")
+            end
+        end,
+        linger = function(element)
+            local amount = SpendableRecovery(dmhub.GetCharacterById(charid))
+            if amount ~= nil then
+                gui.Tooltip(T("herocard.recoveries.spend_tooltip", { amount = string.format("%d", amount) }))(element)
+            end
+        end,
+        press = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if SpendableRecovery(tok) == nil then
+                return
+            end
+            ---@cast tok -nil
+            audio.FireSoundEvent("Mouse.Click")
+            tok:ModifyProperties{
+                description = "Use Recovery",
+                execute = function()
+                    local props = tok.properties
+                    props:Heal(props:RecoveryAmount(), "Use Recovery")
+                    props:ConsumeResource(CharacterResource.recoveryResourceId, "long", 1, "Used Recovery")
+                end,
+            }
+            element:FireEvent("refreshCard")
+        end,
+        gui.Label{ classes = {"eotwSpendRecoveryLabel"}, text = "+", interactable = false },
+    }
+end
+
 --The hero card's stamina row: the recoveries circle on the left, the
 --stamina bar filling the rest. The bar keeps firing staminaLost /
 --staminaGained up through this row to the card. noRecoveries drops the
---circle (a monster or NPC card: they have no recoveries).
-local function CreateStaminaRow(charid, noRecoveries)
+--circle (a monster or NPC card: they have no recoveries). spendRecovery
+--adds the "+" that spends one (CreateSpendRecoveryButton).
+local function CreateStaminaRow(charid, noRecoveries, spendRecovery)
     if noRecoveries then
         return gui.Panel{
             width = "100%",
@@ -924,6 +1043,19 @@ local function CreateStaminaRow(charid, noRecoveries)
             CreateStaminaBar(charid),
         }
     end
+    local barHolder = gui.Panel{
+        width = "100%-19",
+        height = "auto",
+        valign = "center",
+        interactable = false,
+        CreateStaminaBar(charid),
+    }
+    ---@type Panel[]
+    local children = { CreateRecoveriesCircle(charid) }
+    if spendRecovery then
+        children[#children+1] = CreateSpendRecoveryButton(charid, barHolder)
+    end
+    children[#children+1] = barHolder
     return gui.Panel{
         width = "100%",
         height = 16,
@@ -931,14 +1063,7 @@ local function CreateStaminaRow(charid, noRecoveries)
         halign = "center",
         valign = "center",
         interactable = false,
-        CreateRecoveriesCircle(charid),
-        gui.Panel{
-            width = "100%-19",
-            height = "auto",
-            valign = "center",
-            interactable = false,
-            CreateStaminaBar(charid),
-        },
+        children = children,
     }
 end
 
@@ -1016,7 +1141,7 @@ local function CreateIntelligenceBadge(charid, overlayHeight)
         borderColor = "#9cc4ffff",
         data = { count = 0 },
         linger = function(element)
-            gui.Tooltip(string.format("%d Intelligence earned, to spend before the fight", element.data.count))(element)
+            gui.Tooltip(T("herocard.intelligence.tooltip", { count = string.format("%d", element.data.count) }))(element)
         end,
         refreshCard = function(element)
             local count = 0
@@ -1079,7 +1204,7 @@ local function CreateDowntimeBadge(charid)
         borderColor = "#e0a43aff",
         data = { count = 0 },
         linger = function(element)
-            gui.Tooltip(string.format("%d Downtime %s to spend on projects", element.data.count, cond(element.data.count == 1, "Activity", "Activities")))(element)
+            gui.Tooltip(TP("herocard.downtime.tooltip", element.data.count))(element)
         end,
         refreshCard = function(element)
             local count = 0
@@ -1184,15 +1309,57 @@ local function CreateTriggerCorner(charid)
             end
             table.sort(lines)
             local name = HeroDisplayName(tok)
-            local tip = string.format("%s has a trigger available.", name)
+            local tip = T("herocard.trigger.tooltip", { hero = name })
             if #lines > 0 then
-                tip = tip .. "\n\n" .. table.concat(lines, "\n")
+                tip = T("herocard.trigger.tooltip_list", { hero = name, triggers = table.concat(lines, "\n") })
             end
-            tip = tip .. "\n\nClick to jump to " .. name .. "."
             badge.data.tooltipText = tip
             element:SetClass("collapsed", false)
         end,
         badge,
+    }
+end
+
+--A speech balloon on the card's left edge, half outside it, while this
+--hero's player is talking on Discord voice, and for the same short linger
+--after as the token's Talk emote (DiscordVoice.IsTokenSpeaking). It polls
+--on its own think because the card's refreshCard comes only about once a
+--second, far too slow to follow speech. The think sits on an invisible
+--holder because a collapsed or hidden panel does not think.
+local function CreateVoiceBalloon(charid)
+    local balloon = gui.Panel{
+        classes = {"eotwVoiceBalloon", "collapsed"},
+        width = 26,
+        height = 26,
+        cornerRadius = 13,
+        bgimage = "panels/square.png",
+        interactable = false,
+        gui.Panel{
+            classes = {"eotwVoiceBalloonIcon"},
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/chat-circle-dots-fill.png",
+            interactable = false,
+        },
+    }
+    return gui.Panel{
+        floating = true,
+        halign = "left",
+        valign = "top",
+        x = -12,
+        y = 30,
+        width = 26,
+        height = 26,
+        interactable = false,
+        thinkTime = 0.1,
+        think = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            local speaking = voice ~= nil and voice.IsTokenSpeaking(charid)
+            balloon:SetClass("collapsed", not speaking)
+        end,
+        balloon,
     }
 end
 
@@ -1331,17 +1498,73 @@ local function CreateSkillsLine(charid)
     }
 end
 
+--True when an image id is a cloud-asset GUID whose asset record has not
+--loaded. The engine draws such an id as a plain white square until the
+--record arrives -- e.g. for a few seconds after re-entering the lobby, whose
+--asset records load after its characters. Other id kinds never count.
+---@param id any
+---@return boolean
+local function IsUnregisteredAssetId(id)
+    if type(id) ~= "string" then
+        return false
+    end
+    if string.match(id, "^%x+%-%x+%-%x+%-%x+%-%x+$") == nil then
+        return false
+    end
+    local known = false
+    pcall(function() known = assets.allAssets[id] ~= nil end)
+    return not known
+end
+
+local PORTRAIT_RECORD_POLL_SECONDS = 0.25
+
+local ApplyPortrait
+
+--Re-applies a portrait that was waiting on its asset record, once the record
+--has loaded. One chain per panel: element.data.eotwPortraitWait holds the
+--latest request and is cleared by whichever ApplyPortrait call settles it.
+---@param element Panel
+local function SchedulePortraitRetry(element)
+    dmhub.Schedule(PORTRAIT_RECORD_POLL_SECONDS, function()
+        if mod.unloaded or not element.valid then
+            return
+        end
+        local wait = element.data.eotwPortraitWait
+        if wait == nil then
+            return
+        end
+        if IsUnregisteredAssetId(wait.portrait) then
+            SchedulePortraitRetry(element)
+            return
+        end
+        element.data.eotwPortraitWait = nil
+        --pcall: the token may be a detached snapshot copy, or gone by now.
+        pcall(ApplyPortrait, element, wait.tok, wait.aspect)
+    end)
+end
+
 --Paints a hero's portrait as a panel's full-bleed background, cropped to the
 --panel's shape the way the hero card crops it. `aspect` is the panel's
 --width / height. Leaves the panel alone when the hero has no art, so its own
---dark ground shows. Returns true when art was applied.
+--dark ground shows. Returns true when art was applied. Art whose asset
+--record has not loaded yet is treated as no art for now, and applied by
+--itself once the record arrives (rather than showing white meanwhile).
 ---@param element Panel
 ---@param tok CharacterToken
 ---@param aspect number
 ---@return boolean
-local function ApplyPortrait(element, tok, aspect)
+ApplyPortrait = function(element, tok, aspect)
     local portrait = nil
     pcall(function() portrait = tok.offTokenPortrait end)
+    local waiting = element.data.eotwPortraitWait
+    if IsUnregisteredAssetId(portrait) then
+        element.data.eotwPortraitWait = { tok = tok, aspect = aspect, portrait = portrait }
+        if waiting == nil then
+            SchedulePortraitRetry(element)
+        end
+        return false
+    end
+    element.data.eotwPortraitWait = nil
     if portrait == nil or portrait == "" then
         return false
     end
@@ -1350,7 +1573,7 @@ local function ApplyPortrait(element, tok, aspect)
     element.bgimage = portrait
     element.selfStyle.bgcolor = "white"
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(aspect, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, aspect, portrait) end)
     element.selfStyle.imageRect = rect
     return true
 end
@@ -1378,12 +1601,22 @@ end
 --              cards show the characteristics but not the skills.
 --  showResources  the heroic resource row under the stamina bar (default
 --              true). The town has no use for it outside an encounter.
+--  spendRecovery  a small "+" beside the recoveries circle that spends one
+--              Recovery for Stamina, shown only while the local user controls
+--              a hurt hero with a Recovery left (the EotW montage, narrative
+--              and prep stages: out of combat, so it costs no action)
 --  showDowntime   the hammer chip with the hero's unspent Downtime
 --              Activities (the town's cards; see CreateDowntimeBadge)
 --  noRecoveries   no recoveries circle beside the stamina bar (a monster or
 --              NPC card on the tabletop view's table, Tabletop.lua)
 --  displayName    function(tok) -> the name on the card (default: the
 --              hero's name, "Unnamed Hero" when it has none)
+--  extraChips  function(charid) -> a list of extra status chips to show
+--              beside the condition icons, for states that are not real
+--              conditions on the creature (the EotW narrative's Weary).
+--              Each: { key, icon, tooltip, count (a corner badge when >= 2),
+--              tint (icon colour), borderColor }. key must change whenever
+--              the chip's look does; it is what rebuilds the row.
 --  passPress   the card does not swallow presses, so a draggable panel
 --              around it can be dragged by the card (the tabletop view's
 --              NPC cards); the host must swallow them instead
@@ -1434,11 +1667,18 @@ local function CreateHeroCard(entry, opts)
                 return
             end
             local entries = CollectConditions(tok.properties)
+            local extras = {}
+            if opts.extraChips ~= nil then
+                extras = opts.extraChips(charid) or {}
+            end
             local parts = {}
             for _, cond in ipairs(entries) do
                 --the ids ride in the signature because each chip's right-click
                 --menu captures them: two effects can share an icon.
                 parts[#parts+1] = string.format("%s:%s:%s", tostring(cond.icon), tostring(cond.condid), tostring(cond.effectid))
+            end
+            for _, chip in ipairs(extras) do
+                parts[#parts+1] = tostring(chip.key or chip.icon)
             end
             local sig = table.concat(parts, "|")
             if sig == element.data.signature then
@@ -1446,6 +1686,56 @@ local function CreateHeroCard(entry, opts)
             end
             element.data.signature = sig
             local icons = {}
+            for _, chip in ipairs(extras) do
+                local tooltip = chip.tooltip
+                local count = tonumber(chip.count) or 0
+                icons[#icons+1] = gui.Panel{
+                    halign = "right",
+                    width = CONDITION_CHIP_SIZE,
+                    height = CONDITION_CHIP_SIZE,
+                    lmargin = 3,
+                    bmargin = 3,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#000000cc",
+                    cornerRadius = 6,
+                    border = 2,
+                    borderColor = chip.borderColor or "#cc2222ff",
+                    linger = function(iconElement)
+                        if tooltip ~= nil then
+                            gui.Tooltip(tooltip)(iconElement)
+                        end
+                    end,
+                    gui.Panel{
+                        width = CONDITION_ICON_SIZE,
+                        height = CONDITION_ICON_SIZE,
+                        halign = "center",
+                        valign = "center",
+                        bgimage = chip.icon,
+                        bgcolor = chip.tint or "white",
+                        interactable = false,
+                    },
+                    --how many (a double bane is "2"), in the chip's corner.
+                    gui.Label{
+                        classes = {cond(count >= 2, nil, "collapsed")},
+                        floating = true,
+                        halign = "right",
+                        valign = "bottom",
+                        x = 4,
+                        y = 4,
+                        width = 13,
+                        height = 13,
+                        fontSize = 10,
+                        bold = true,
+                        color = "#ffffff",
+                        textAlignment = "center",
+                        bgimage = "panels/square.png",
+                        bgcolor = chip.borderColor or "#cc2222ff",
+                        cornerRadius = 6,
+                        text = tostring(count),
+                        interactable = false,
+                    },
+                }
+            end
             for _, cond in ipairs(entries) do
                 local condName = cond.name
                 local condid = cond.condid
@@ -1527,7 +1817,7 @@ local function CreateHeroCard(entry, opts)
     if showSkills then
         overlayChildren[#overlayChildren+1] = CreateSkillsLine(charid)
     end
-    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid, opts.noRecoveries)
+    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid, opts.noRecoveries, opts.spendRecovery == true)
     if showResources then
         overlayChildren[#overlayChildren+1] = CreateResourceRow(charid)
     end
@@ -1620,6 +1910,7 @@ local function CreateHeroCard(entry, opts)
         width = CARD_WIDTH,
         height = cardHeight,
         halign = opts.halign or "right",
+        valign = opts.valign,
         cornerRadius = 8,
         bgimage = "panels/square.png",
         --passPress lets the press through to a draggable host around the card.
@@ -1672,6 +1963,8 @@ local function CreateHeroCard(entry, opts)
     cardArgs[#cardArgs+1] = deadMark
     cardArgs[#cardArgs+1] = hurtFlash
     cardArgs[#cardArgs+1] = healFlash
+    --after the washes too, so a hurt flash does not tint the balloon.
+    cardArgs[#cardArgs+1] = CreateVoiceBalloon(charid)
     --opts.dismiss = {tooltip=, click=}: an X in the top-right corner that
     --shows only while the card is hovered. A direct child of the card so
     --"parent:hover" reaches it; after the washes so it sits on top.
@@ -1704,7 +1997,7 @@ local function CreateHeroCard(entry, opts)
                     scale = 1.15,
                 },
             },
-            hover = gui.Tooltip(opts.dismiss.tooltip or "Dismiss"),
+            hover = gui.Tooltip(opts.dismiss.tooltip or T("herocard.dismiss.tooltip")),
             --on click, not press: a handled click stops here, but an
             --unhandled one bubbles up to the card, whose click opens the
             --hero's sheet. swallowPress covers cards that open on press.
@@ -1713,6 +2006,12 @@ local function CreateHeroCard(entry, opts)
                 opts.dismiss.click(element)
             end,
         }
+    end
+    --PROTOTYPE: the card's back and the hover button that turns the card
+    --over to it (HeroCardBack.lua).
+    local cardBack = rawget(_G, "HeroCardBack")
+    if cardBack ~= nil then
+        cardBack.Decorate(cardArgs, charid, CARD_WIDTH, cardHeight)
     end
     if opts.click ~= nil then
         cardArgs.click = function(element)

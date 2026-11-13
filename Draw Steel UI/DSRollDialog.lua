@@ -15,7 +15,36 @@ RollDialog = {
     --Fired (no args) when a roll dialog is cancelled, so intercepting mods
     --(e.g. physical dice) can abandon any pending external roll request.
     OnRollCancelled = false,
+    --How many roll dialogs (this pop-up and the embedded one) are preparing a roll
+    --right now. Kept by each dialog's OnShow/OnHide; read by ClearStrandedPreviewDice.
+    shownCount = 0,
 }
+
+--Each dialog calls these from its OnShow/OnHide. Clamped at 0 because a hot reload
+--resets the count while dialogs that were already open still call NoteHidden.
+function RollDialog.NoteShown()
+    RollDialog.shownCount = RollDialog.shownCount + 1
+end
+
+function RollDialog.NoteHidden()
+    RollDialog.shownCount = math.max(0, RollDialog.shownCount - 1)
+end
+
+--Call after a roll dialog throws its dice or is cancelled. Once no roll dialog is
+--preparing a roll, no transient preview die should remain, so clear any that do.
+--They get stranded when two dialogs overlap: a preview die is anchored to the cage
+--that was newest when it was placed, but the throw picks the cage that is newest
+--then, so it can throw another dialog's die and leave this one behind. A stranded
+--die keeps __previewdice true and hides the action bar until restart (MYWPRZ28).
+--ClearChatPreviewDice leaves the Dice dock and shop dice alone.
+function RollDialog.ClearStrandedPreviewDice()
+    dmhub.Schedule(0.05, function()
+        if mod.unloaded or RollDialog.shownCount > 0 then
+            return
+        end
+        pcall(function() dmhub.ClearChatPreviewDice() end)
+    end)
+end
 
 --== Re-roll rules ==========================================================
 --
@@ -388,6 +417,7 @@ function GameHud.CreateRollDialog(self)
         m_richStatus = dmhub.PushUserRichStatus(richStatus)
 
         m_shown = m_shown + 1
+        RollDialog.NoteShown()
     end
 
     local OnHide = function()
@@ -400,6 +430,7 @@ function GameHud.CreateRollDialog(self)
         if m_shown > 0 then
             chat.events:Pop()
             m_shown = m_shown - 1
+            RollDialog.NoteHidden()
         end
     end
 
@@ -681,6 +712,7 @@ function GameHud.CreateRollDialog(self)
     --- @field rollProperties nil|RollProperties
     --- @field targetCreature nil|creature
     --- @field noCancelOnceThrown nil|boolean once the dice are thrown, no close (X) or ESC back to the options.
+    --- @field noCancel nil|boolean no Cancel, close (X) or ESC at all: the roll must be made.
     --- @field aiRoll nil|boolean the running Monster AI rolls and accepts this roll itself.
 
     --- @type DSRollDialogOptions
@@ -775,7 +807,8 @@ function GameHud.CreateRollDialog(self)
 
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
-    CalculateRollText = function(calculationOptions)
+    --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
+    CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
 
         local rollDisallowed = nil
@@ -873,6 +906,14 @@ function GameHud.CreateRollDialog(self)
         if rollProperties ~= nil then
             -- Check for roll requirements and update modifiers that fail
             resultPanel:FireEventTree("prepareBeforeRollProperties", rollInfo, enabledModifiers, rollProperties)
+
+            --The check may have turned on or off a modifier whose own edge/bane the text
+            --above already counted (e.g. Convocation of Quartz's "bane unless it already
+            --has one"). Build the text again; that check ignores its own bane, so it is stable.
+            if not requirementPass and CharacterModifier.RollRequirementChangedRollText(enabledModifiers, GetEnabledModifiers()) then
+                return CalculateRollText(calculationOptions, true)
+            end
+
             resultPanel:FireEventTree('prepare', m_options)
 
             enabledModifiers = GetEnabledModifiers()
@@ -2352,6 +2393,17 @@ function GameHud.CreateRollDialog(self)
                                             return
                                         end
 
+                                        --At least 1, and no more than the roller can pay for.
+                                        num = math.max(1, math.floor(num))
+                                        local maxCharges = nil
+                                        if creature ~= nil then
+                                            maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
+                                        end
+                                        if maxCharges ~= nil and maxCharges >= 1 then
+                                            num = math.min(num, maxCharges)
+                                        end
+                                        element.text = tostring(num)
+
                                         mod.context.charges = num
 
                                         resultPanel:FireEventTree('prepare', m_options)
@@ -3277,12 +3329,14 @@ function GameHud.CreateRollDialog(self)
                 m_options = options
                 m_forceDiceTower = options.dicetower or false
 
-                --this dialog is reused: a fresh roll can always be backed out
-                --of until its dice are thrown (see submit).
-                resultPanel.data.cancelWithdrawn = false
-                cancelButton:SetClass("collapsed", false)
+                --this dialog is reused: a fresh roll can be backed out of
+                --until its dice are thrown (see submit), unless it was shown
+                --with noCancel.
+                local noCancel = options.noCancel == true
+                resultPanel.data.cancelWithdrawn = noCancel
+                cancelButton:SetClass("collapsed", noCancel)
                 if closeButton ~= nil and closeButton.valid then
-                    closeButton:SetClass("collapsed", false)
+                    closeButton:SetClass("collapsed", noCancel)
                 end
 
                 targetHints = options.targetHints
@@ -3534,6 +3588,7 @@ function GameHud.CreateRollDialog(self)
                                     end
 
                                     m_resolveState.current = t
+                                    UpdateAITriggerHint(nil)
                                     UpdateTriggerReactionPanel(m_resolveState)
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
@@ -3550,43 +3605,36 @@ function GameHud.CreateRollDialog(self)
                                     local t = dmhub.Time()
                                     if m_timerState == nil then
                                         --print("AI:: Dialog SET TIMER STATE")
-                                        --Encounter of the Week: no countdown. Start already
-                                        --paused (full dice, "Click to dismiss") so the timer
-                                        --never auto-proceeds; a click proceeds. pcall-guarded:
-                                        --the EotW codemod may not be loaded in this game.
+                                        --Shown as a Tip banner notice with a "Dismiss Triggers" button (see
+                                        --UpdateAITriggerHint). Encounter of the Week: no countdown, the roll
+                                        --waits until the heroes act or someone dismisses. Elsewhere the roll
+                                        --proceeds after 5s. pcall-guarded: the EotW codemod may not be loaded.
                                         local eotw = false
                                         pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
                                         m_timerState = {
                                             start = t,
-                                            current = t,
                                             expire = t + 5,
                                             paused = eotw or nil,
-                                            text = cond(eotw, "Triggers available. Click to dismiss.", "Triggers available. Click to pause."),
                                             callback = function()
-                                                if m_timerState ~= nil then
-                                                    if m_timerState.paused then
-                                                        UpdateTriggerReactionPanel(nil)
-                                                        if proceedAfterRollButton.valid then
-                                                            proceedAfterRollButton:FireEventTree("press")
-                                                        end
-                                                        return
-                                                    else
-                                                        m_timerState.text = "Triggers available. Click to dismiss."
-                                                        m_timerState.paused = true
-                                                        UpdateTriggerReactionPanel(m_timerState)
-                                                    end
+                                                UpdateAITriggerHint(nil)
+                                                if proceedAfterRollButton.valid then
+                                                    proceedAfterRollButton:FireEventTree("press")
                                                 end
                                             end,
                                         }
                                     end
 
-                                    m_timerState.current = t
-                                    UpdateTriggerReactionPanel(m_timerState)
+                                    local hintText = "Triggers available."
+                                    if not m_timerState.paused then
+                                        hintText = string.format("Triggers available. Proceeding in %ds.", math.max(1, math.ceil(m_timerState.expire - t)))
+                                    end
+                                    UpdateAITriggerHint{ text = hintText, callback = m_timerState.callback }
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
                                     end)
                                 else
                                     UpdateTriggerReactionPanel(nil)
+                                    UpdateAITriggerHint(nil)
                                     proceedAfterRollButton:FireEventTree("press")
                                 end
                             end
@@ -4046,6 +4094,7 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 chat.PreviewChat('')
+                RollDialog.ClearStrandedPreviewDice()
             end,
         },
     }

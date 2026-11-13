@@ -229,12 +229,16 @@ end
 --- @field encounterGroupIndex? integer Encounter waves: index of the group within the authored encounter.
 --- @field isDuplicate? boolean Set on tokens created by the Duplicate summon behavior.
 --- @field duplicateSourceId? string Duplicates: charid of the token that was duplicated.
---- @field hiddenInvisibilityApplied? boolean True when invisibleToPlayers was applied by the Hidden condition sync.
+--- @field hiddenInvisibilityApplied? boolean Legacy: true when the old Hidden sync set invisibleToPlayers; cleared (and the token revealed) by the host on refresh.
 --- @field eotwAllyOf? string Encounter of the Week: charid of the hero this ally belongs to.
 --- @field eotwReinforcement? string Encounter of the Week: id of the reinforcements section this monster arrived with.
+--- @field eotwBaseLevel? integer Encounter of the Week: the Level this monster spawned at, before level balancing (ApplyLevelBoost).
+--- @field eotwBaseEV? number Encounter of the Week: this monster's EV when it spawned, for level balancing's strongest-first order.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
+--- @field levelUpSeen? integer Heroes: Level up has shown pages up to this Level; it shows one for each Level above (set when a respite raises the Level; HeroBuildPools.lua).
+--- @field rungSeen? integer Heroes: how far through the slow-start steps of 1st Level Level up has shown them (2-4 = that step, 5 = all of 1st Level; set when the Director's /slowstartlevel chat command moves a Hero).
 --- @field extraLevelInfo? table Characters: additional level data; read via ExtraLevelInfo().
 --- @field mtime? number|string Characters: ServerTimestamp when the character was created (the placeholder string until the server resolves it).
 --- @field originalid? string Characters: the charid the character was created with.
@@ -257,11 +261,13 @@ end
 --- @field actionbar? table<string, table<string, integer>> Action bar ordering: tab -> ability id -> slot index.
 --- @field languageSpeaking? string Language id the creature is currently speaking in chat.
 --- @field gold? number Legacy gold amount; read via GetGold (0 when absent).
+--- @field pendingFinishLater? table<string, FinishLaterRecord> Abilities used this turn with targets left to finish (Double Strike), keyed by ability guid. See "Finish targets later" in MCDMActivatedAbility.lua.
 --- @field _tmp_freeMovement? boolean Transient: movement in progress is not charged against speed.
 --- @field _tmp_suppressTeleportEvent? boolean Transient: suppress the teleport event for the next teleport.
 --- @field _tmp_portalForcedMoveDest? string Transient: loc string a forced move is taking this creature to through a portal.
 --- @field _tmp_forcedMovementCast? ActivatedAbilityCast Transient: the cast forcing this creature's current movement.
 --- @field _tmp_squadParticipants? table<string, boolean> Transient: charids of squad members joining the current squad invoke.
+--- @field _tmp_hiddenFromPlayers? boolean Transient: read by the engine; players (not the Director or its controllers) do not see the token (CharacterToken.hiddenFromLocalViewer).
 --- @field _tmp_squadParticipantsTurn? string Transient: turn key _tmp_squadParticipants was stamped on.
 --- @field _tmp_aiReactionOutbox? table<string, string> Transient: AI reaction requests awaiting delivery, id -> JSON.
 --- @field _tmp_runawayStacks? integer Transient: Runaway Expansion growth stacks.
@@ -549,6 +555,11 @@ end
 --- If the creature has a fly speed.
 --- @return boolean
 function creature:CanFly()
+	--Set for the moment of a voluntary drop (Drop to Ground): the engine turns
+	--any fall into flight for a creature that can fly.
+	if self:try_get("_tmp_droppingToGround", false) then
+		return false
+	end
 	return self:GetSpeed("fly") > 0
 end
 
@@ -2268,7 +2279,29 @@ end
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
 	local originalAmount = amount
+
+    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
+    --two count as ONE damage instance. If the hit landed anything, flat immunity and
+    --weakness were fully applied to it already, so the extra goes on unmodified. If it
+    --landed nothing, resist the combined raw amount instead (immunity may be left over).
+    local continuesInstance = symbols ~= nil and symbols.continuesInstance or nil
+    local priorLanded = 0
+    local skipResistance = false
+    if continuesInstance ~= nil then
+        priorLanded = math.max(0, math.floor(continuesInstance.landed or 0))
+        if priorLanded > 0 then
+            skipResistance = true
+        else
+            amount = amount + math.max(0, math.floor(continuesInstance.raw or 0))
+        end
+    end
+
 	local resistanceEntry = self:DamageResistance(damageType, keywords)
+    if skipResistance then
+        --an empty entry makes every resistance step below a no-op.
+        resistanceEntry = {} --[[@as table]]
+    end
 	local resistance = resistanceEntry.resistance
 
 
@@ -2303,7 +2336,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
         ignoreImmunity = true
     end
 
-	local note = string.format('%d damage from %s', amount, sourceDescription)
+	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
+    if skipResistance then
+        note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif continuesInstance ~= nil then
+        note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
+    end
 
 	if resistanceEntry.percent ~= nil then
 		amount = math.floor(amount * resistanceEntry.percent)
@@ -2363,7 +2401,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     -- the ATTACKER carrying the "Relentless Damage Penalty" custom attribute, so this whole block
     -- is a no-op for every creature that isn't under the Relentless Taunt effect. Applies to the
     -- already-resistance-reduced amount (like a victim immunity), floored at 0.
-    if attacker ~= nil and amount > 0 then
+    if attacker ~= nil and amount > 0 and not skipResistance then
         local relentlessPenalty = attacker:CalculateNamedCustomAttribute("Relentless Damage Penalty") or 0
         if relentlessPenalty > 0 then
             local exemptToken = attacker:RelentlessDamageCaster()
@@ -4983,7 +5021,982 @@ function creature:SetAndUploadCeilingCling(cling)
     end
 end
 
+---------------------------------------------------------------------------------------
+--Per-creature modifier cache (CreatureCache). See CREATURE_CACHE_REFERENCE.md.
+--
+--A creature's modifier lists (_tmp_modifiers_excluding_auras, _tmp_modifiers) and its
+--attribute caches (_tmp_attr, _tmp_calculatedAttributes) used to be valid for one
+--dmhub.ngameupdate only, so ANY game update -- another creature moving, a session ping --
+--rebuilt every creature on the map. Now each creature keeps them across updates while
+--its validity key holds. The key records, when the lists were built:
+--  global   -- everything outside character records: initiative, documents, map objects,
+--              compendium tables, markup zones, tile rules, the current map.
+--  rev      -- this creature's own record revision (dmhub.CharacterRecordRevision).
+--  tokenSig -- token state read per update: squeezed, concealment, the auras touching it
+--              (with their casters), and the creatures it summoned.
+--  deps     -- every other creature read while building or computing an attribute: the
+--              engine records token reads (dmhub.BeginDependencyScope) and the accessors
+--              below record reads of another creature's modifiers or attributes. A dep is
+--              stale if its record changed or it was rebuilt since (its _tmp_ccSerial).
+--  wildcard -- a token query ran (all tokens, tokens at a loc, ...): the result can change
+--              when ANY character changes, so any character change rebuilds this creature.
+--Explicit Invalidate() still forces a rebuild. dev:creaturecacheverify checks every reuse
+--against a fresh rebuild and logs CREATURECACHE:: mismatches.
+---------------------------------------------------------------------------------------
+
+---@class CreatureCacheKey
+---@field charid string
+---@field rev integer
+---@field global string
+---@field charseq integer
+---@field wildcard boolean
+---@field attrWildcard boolean|nil the token query ran while computing an attribute
+---@field tokenSig string
+---@field invis boolean
+---@field deps table<string, {rev: integer, serial: integer, attr: boolean|nil}> attr: read while computing an attribute
+---@field hasFull boolean true once the full list (with auras) was built under this key
+
+---@class CreatureCacheFrame
+---@field creature creature|false false for a suspended (recording-off) frame
+---@field luaDeps table<table, boolean>
+---@field attr boolean|nil an attribute computation's scope (g_cc.BeginScope)
+
+local g_cc = {
+    enabled = true,
+    verify = false,
+    --bumped on every rebuild; each creature's _tmp_ccSerial is the value of its last one.
+    serial = 0,
+    --bumped by refreshTables-style events that no sequence number covers.
+    epoch = 0,
+    --NonCharacterSeq: the last dmhub.nonCharacterUpdateSeq sampled, and the value keyed on.
+    ---@type integer|nil
+    ncSeen = nil,
+    ncEffective = 0,
+    ---@type CreatureCacheFrame[]
+    stack = {},
+    --charid -> set of creatures whose key depends on that charid (weak keys).
+    ---@type table<string, table<table, boolean>>
+    dependents = {},
+    validating = {},
+    --creatures whose list is being built right now (nesting count).
+    building = {},
+    globalKeyUpdate = -1,
+    globalKey = "",
+    summonsUpdate = -1,
+    ---@type table<string, CharacterToken[]>
+    summons = {},
+    ---@type {name: string, fn: fun(token: CharacterToken): string}[]
+    signatures = {},
+    stats = { hits = 0, partial = 0, rebuilds = 0, kept = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 },
+}
+CreatureCache = g_cc
+
+local g_noSummons = {}
+
+local function CountReason(reason)
+    g_cc.stats.reasons[reason] = (g_cc.stats.reasons[reason] or 0) + 1
+end
+
+--Runs fn with recording switched off: reads made by cache bookkeeping belong to nobody.
+local function Suspended(fn, ...)
+    g_cc.stack[#g_cc.stack+1] = { creature = false, luaDeps = {} }
+    dmhub.BeginDependencyScope()
+    local ok, a, b = pcall(fn, ...)
+    dmhub.EndDependencyScope()
+    g_cc.stack[#g_cc.stack] = nil
+    if not ok then
+        error(a, 0)
+    end
+    return a, b
+end
+
+local function CharidOf(c)
+    local id = rawget(c, "_tmp_ccCharid")
+    if id == nil then
+        id = dmhub.LookupTokenId(c) or false
+        rawset(c, "_tmp_ccCharid", id)
+    end
+    return id or nil
+end
+
+--The creature table for a charid, on this map or elsewhere in the game.
+local function CreatureOf(charid)
+    local tok = dmhub.GetTokenById(charid) or dmhub.GetCharacterById(charid)
+    if tok == nil then
+        return nil
+    end
+    return tok.properties
+end
+
+local function SerialOf(c)
+    if c == nil then
+        return -1
+    end
+    return rawget(c, "_tmp_ccSerial") or 0
+end
+
+--The serial of c's last modifier rebuild: unchanged while its modifiers and attributes are.
+g_cc.SerialOf = SerialOf
+
+--Shared-document writes that no creature's modifiers or attributes read: docid prefix ->
+--set of first fields under the document (nil = any). See g_cc.RegisterRulesNeutralDocument.
+---@type {prefix: string, fields: table<string, boolean>|nil}[]
+local g_neutralDocs = {}
+
+--Declares writes to some fields of a shared document rules-neutral: a heartbeat or a
+--status line that only UI and scripts read. Without this, every write rebuilds every
+--creature's modifiers on the next update. docidPrefix matches the document id from its
+--start ("mapscripts-" covers every map's document); each entry of fields names a top-level
+--field of the document, and nil means any field (a write replacing the whole document never
+--counts as neutral). Only register what NO modifier build, attribute or token hud reads:
+--verify mode cannot see a change it was told to ignore.
+---@param docidPrefix string
+---@param fields string[]|nil
+function g_cc.RegisterRulesNeutralDocument(docidPrefix, fields)
+    local set = nil
+    if fields ~= nil then
+        set = {}
+        for _,f in ipairs(fields) do
+            set[f] = true
+        end
+    end
+    for _,entry in ipairs(g_neutralDocs) do
+        if entry.prefix == docidPrefix then
+            entry.fields = set
+            return
+        end
+    end
+    g_neutralDocs[#g_neutralDocs+1] = { prefix = docidPrefix, fields = set }
+end
+
+--Game data paths that no creature's modifiers or attributes read, as prefixes ending in "/".
+---@type string[]
+local g_neutralPaths = {}
+
+--Declares every write under a game data path rules-neutral, like RegisterRulesNeutralDocument
+--for data outside shared documents. prefix ends in "/" and names a folder, so a write replacing
+--the folder itself still counts as a change. Same rule: only what nothing a creature's modifiers,
+--attributes or token hud read.
+---@param prefix string
+function g_cc.RegisterRulesNeutralPath(prefix)
+    for _,p in ipairs(g_neutralPaths) do
+        if p == prefix then
+            return
+        end
+    end
+    g_neutralPaths[#g_neutralPaths+1] = prefix
+end
+
+--Audio assets: sound files the table plays, never read by rules. They arrive in bursts while a
+--game loads, each one rebuilding every creature.
+g_cc.RegisterRulesNeutralPath("/assets/audio/")
+
+--path is a game update path, e.g. /modDocuments/{modguid}/documents/{docid}/{field}/...
+local function IsNeutralPath(path)
+    for _,prefix in ipairs(g_neutralPaths) do
+        if #path > #prefix and string.sub(path, 1, #prefix) == prefix then
+            return true
+        end
+    end
+    local docid, field = string.match(path, "^/modDocuments/[^/]+/documents/([^/]+)/([^/]+)")
+    if docid == nil then
+        return false
+    end
+    for _,entry in ipairs(g_neutralDocs) do
+        if (entry.fields == nil or entry.fields[field]) and string.sub(docid, 1, #entry.prefix) == entry.prefix then
+            return true
+        end
+    end
+    return false
+end
+
+--dmhub.nonCharacterUpdateSeq, minus the updates that only wrote rules-neutral document
+--fields. The engine lists the paths behind its last 16 advances; when every advance since
+--the last sample is listed and neutral, the value we key on does not move.
+local function NonCharacterSeq()
+    local seq = dmhub.nonCharacterUpdateSeq
+    if seq == g_cc.ncSeen then
+        return g_cc.ncEffective
+    end
+
+    local neutral = false
+    if #g_neutralDocs > 0 and g_cc.ncSeen ~= nil and seq > g_cc.ncSeen then
+        local paths = dmhub.recentNonCharacterPaths or {}
+        --the list holds every advance after ncSeen if it is not full yet, or if it still
+        --reaches back to an update at or before ncSeen.
+        local covered = #paths < 16
+        local seenAny = false
+        neutral = true
+        for _,entry in ipairs(paths) do
+            local n, path = string.match(entry, "^(%d+):(.*)$")
+            n = tonumber(n)
+            if n == nil then
+                neutral = false
+                break
+            elseif n <= g_cc.ncSeen then
+                covered = true
+            elseif IsNeutralPath(path) then
+                seenAny = true
+            else
+                neutral = false
+                break
+            end
+        end
+        neutral = neutral and covered and seenAny
+    end
+
+    if not neutral then
+        g_cc.ncEffective = g_cc.ncEffective + 1
+    end
+    g_cc.ncSeen = seq
+    return g_cc.ncEffective
+end
+
+--Everything outside character records, sampled once per game update like every other
+--ngameupdate cache: a change that moves none of these and no update is as invisible as before.
+function g_cc.GlobalKey()
+    local u = dmhub.ngameupdate
+    if g_cc.globalKeyUpdate ~= u then
+        g_cc.globalKeyUpdate = u
+        g_cc.globalKey = string.format("%d|%d|%d|%d|%s|%s|%d", NonCharacterSeq(), dmhub.tablesUpdateId,
+            dmhub.markupZonesSeq, dmhub.terrainRulesSeq, tostring(game.currentMapId), tostring(game.currentFloorId), g_cc.epoch)
+    end
+    return g_cc.globalKey
+end
+
+--Tokens whose summonerid is charid, from one scan per game update. Replaces a scan over
+--every token inside each creature's build, which would make every creature wildcard.
+function g_cc.SummonsOf(charid)
+    local u = dmhub.ngameupdate
+    if g_cc.summonsUpdate ~= u then
+        local index = {}
+        Suspended(function()
+            for _,tok in ipairs(dmhub.GetTokens()) do
+                local summonerid = tok.valid and tok.summonerid or nil
+                if summonerid ~= nil and tok.properties ~= nil then
+                    local list = index[summonerid]
+                    if list == nil then
+                        list = {}
+                        index[summonerid] = list
+                    end
+                    list[#list+1] = tok
+                end
+            end
+        end)
+        g_cc.summons = index
+        g_cc.summonsUpdate = u
+    end
+    return g_cc.summons[charid] or g_noSummons
+end
+
+local function AuraKey(aura)
+    local inst = aura.auraInstance
+    if inst == nil then
+        return "?", nil
+    end
+    local casterid = inst:try_get("casterid")
+    --a child view (subaura) is rebuilt on demand and has no guid of its own: its identity
+    --changes every time, which only costs a rebuild.
+    local guid = rawget(inst, "guid") or tostring(inst)
+    return string.format("%s:%s", tostring(casterid), tostring(guid)), casterid
+end
+
+--Token state the build reads every update that is not (only) in this creature's record.
+--casters, if given, collects the charids of the casters of touching auras.
+function g_cc.TokenSignature(token, casters)
+    local auraParts = {}
+    local auras = token:GetAurasTouching()
+    if auras ~= nil then
+        for _,aura in ipairs(auras) do
+            local key, casterid = AuraKey(aura)
+            auraParts[#auraParts+1] = key
+            if casters ~= nil and casterid ~= nil then
+                casters[casterid] = true
+            end
+        end
+        table.sort(auraParts)
+    end
+
+    local summonParts = {}
+    for _,summon in ipairs(g_cc.SummonsOf(token.charid)) do
+        summonParts[#summonParts+1] = summon.charid
+    end
+
+    local extraParts = {}
+    for _,entry in ipairs(g_cc.signatures) do
+        local ok, sig = pcall(entry.fn, token)
+        extraParts[#extraParts+1] = ok and tostring(sig) or "?"
+    end
+
+    return string.format("%s%s|%s|%s|%s", token.squeezed and "s" or "-", token.hasConcealment and "c" or "-",
+        table.concat(auraParts, ","), table.concat(summonParts, ","), table.concat(extraParts, "|"))
+end
+
+--For a relationship found by scanning every token once per update (like g_cc.SummonsOf):
+--fn(token) returns a string naming the creatures related to this token (say, the
+--passengers it carries), and becomes part of every key, so a creature joining or
+--leaving the relationship rebuilds the creatures it relates to. Build the index with
+--g_cc.Untracked, or the scan makes whichever creature triggered it depend on every token.
+---@param name string
+---@param fn fun(token: CharacterToken): string
+function g_cc.RegisterSignature(name, fn)
+    for _,entry in ipairs(g_cc.signatures) do
+        if entry.name == name then
+            entry.fn = fn
+            return
+        end
+    end
+    g_cc.signatures[#g_cc.signatures+1] = { name = name, fn = fn }
+end
+
+--Runs fn(...) without recording what it reads into any creature's cache key.
+function g_cc.Untracked(fn, ...)
+    return Suspended(fn, ...)
+end
+
+--The build counts invisibility marked in the previous update toward "Concealed" (see
+--GetActiveModifiersExcludingAuras), so whether that mark is current is an input.
+function g_cc.InvisibleStamp(c)
+    return (rawget(c, "_tmp_concealedInvisibleUpdate") or -10) >= dmhub.ngameupdate - 1
+end
+
+--Another creature's computation is reading c's modifiers or attributes: it depends on c.
+function g_cc.NoteRead(c)
+    local top = g_cc.stack[#g_cc.stack]
+    if top ~= nil and top.creature ~= c then
+        top.luaDeps[c] = true
+    end
+end
+
+--Opens a recording scope for a computation of c. Returns nil when c's scope is already the
+--innermost one: its reads then go to that scope. An attribute scope (attr) always opens, so
+--what attribute formulas read is told apart from what the list build read (see KeepSerial).
+---@param attr boolean|nil
+---@return CreatureCacheFrame|nil
+function g_cc.BeginScope(c, attr)
+    local top = g_cc.stack[#g_cc.stack]
+    if top ~= nil and top.creature == c and not attr then
+        return nil
+    end
+    ---@type CreatureCacheFrame
+    local frame = { creature = c, luaDeps = {}, attr = attr or nil }
+    g_cc.stack[#g_cc.stack+1] = frame
+    dmhub.BeginDependencyScope()
+    return frame
+end
+
+--attr: the read happened while computing an attribute (see g_cc.BeginScope).
+local function AddDep(key, c, charid, attr)
+    if charid == key.charid then
+        return
+    end
+    local existing = key.deps[charid]
+    if existing ~= nil then
+        if attr then
+            existing.attr = true
+        end
+        return
+    end
+    key.deps[charid] = { rev = dmhub.CharacterRecordRevision(charid), serial = SerialOf(CreatureOf(charid)), attr = attr or nil }
+    local set = g_cc.dependents[charid]
+    if set == nil then
+        set = setmetatable({}, {__mode = "k"})
+        g_cc.dependents[charid] = set
+    end
+    set[c] = true
+end
+
+--Closes frame and adds what it recorded to c's current key.
+function g_cc.EndScope(c, frame)
+    if frame == nil then
+        return
+    end
+    if g_cc.stack[#g_cc.stack] == frame then
+        g_cc.stack[#g_cc.stack] = nil
+    end
+    local rec = dmhub.EndDependencyScope()
+
+    local key = rawget(c, "_tmp_ccKey")
+    if key == nil then
+        return
+    end
+
+    if rec == nil then
+        --the engine discarded the scope: we do not know what was read.
+        rawset(c, "_tmp_ccKey", nil)
+        return
+    end
+
+    Suspended(function()
+        if rec.wildcard then
+            if g_cc.verify and not key.wildcard and rec.wildcardTrace ~= nil then
+                local tok = dmhub.GetTokenById(key.charid)
+                print(string.format("CREATURECACHE:: %s depends on every token (a token query ran):%s",
+                    tok ~= nil and tostring(tok.name) or key.charid, rec.wildcardTrace))
+            end
+            key.wildcard = true
+            if frame.attr then
+                key.attrWildcard = true
+            end
+        end
+        for charid,_ in pairs(rec.tokens) do
+            AddDep(key, c, charid, frame.attr)
+        end
+        for other,_ in pairs(frame.luaDeps) do
+            local charid = CharidOf(other)
+            if charid ~= nil then
+                AddDep(key, c, charid, frame.attr)
+            else
+                --read a creature that is not a token we can watch: give up caching.
+                rawset(c, "_tmp_ccKey", nil)
+                return
+            end
+        end
+    end)
+end
+
+--State a build leaves on the creature outside its lists, which other creatures can read.
+local function DerivedState(c)
+    return string.format("%s|%s|%s", tostring(rawget(c, "_tmp_concealed")), tostring(rawget(c, "_tmp_creaturesize")),
+        tostring(rawget(c, "_tmp_disguised")))
+end
+
+--True if two modifier lists hold the same entries: each pair is one table, or two tables
+--whose fields are the same values (modifiers compared by identity, never by content).
+local function SameList(a, b)
+    if a == nil or b == nil or #a ~= #b then
+        return false
+    end
+    for i = 1, #a do
+        local ea, eb = a[i], b[i]
+        if not rawequal(ea, eb) then
+            if type(ea) ~= "table" or type(eb) ~= "table" then
+                return false
+            end
+            local n = 0
+            for k,v in pairs(ea) do
+                if not rawequal(v, rawget(eb, k)) then
+                    return false
+                end
+                n = n + 1
+            end
+            for _ in pairs(eb) do
+                n = n - 1
+            end
+            if n ~= 0 then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Whether a rebuild of c may keep its serial, so nothing that read c rebuilds. Only when the
+--rebuild was caused by nothing but changes to creatures read in the list build (their record
+--or their rebuild) or a list-build token query possibly seeing new tokens (Revalidate stashed
+--_tmp_ccPrev this update), and it
+--reproduced the same entries and derived state. Its record,
+--token, global state and attribute inputs are then unchanged too, so everything readable of
+--c is. This is what lets creatures that read each other settle. which: "excl" or "full".
+local function KeepSerial(c, prev, which)
+    if prev == nil or prev.update ~= dmhub.ngameupdate or rawget(c, "_tmp_ccKey") == nil then
+        return false
+    end
+    if which == "excl" then
+        return SameList(prev.excl, rawget(c, "_tmp_modifiers_excluding_auras"))
+    end
+    return prev.exclSame == true and SameList(prev.full, rawget(c, "_tmp_modifiers")) and prev.derived == DerivedState(c)
+end
+
+--c was rebuilt: give it a new serial, and make every creature that read it check again.
+--A dependent already rebuilt in this game update keeps its lists until the next one (it
+--stays registered, and its key still holds the old serial): creatures that read each other
+--(Angulotl "count nearby enemies" and the heroes, ZQ6SMF8D) would otherwise unstamp each
+--other on every rebuild and never settle, rebuilding every creature on every read. Before
+--the cache every creature was built at most once per update, so this is no staler than that.
+local function NotifyRebuilt(c)
+    g_cc.serial = g_cc.serial + 1
+    rawset(c, "_tmp_ccSerial", g_cc.serial)
+    g_cc.stats.rebuilds = g_cc.stats.rebuilds + 1
+
+    local u = dmhub.ngameupdate
+    rawset(c, "_tmp_ccRebuiltUpdate", u)
+
+    local charid = CharidOf(c)
+    local set = nil
+    if charid ~= nil then
+        set = g_cc.dependents[charid]
+        g_cc.dependents[charid] = nil
+    end
+    if set ~= nil then
+        local kept = nil
+        for d,_ in pairs(set) do
+            if d ~= c then
+                if rawget(d, "_tmp_ccRebuiltUpdate") == u then
+                    kept = kept or setmetatable({}, { __mode = "k" })
+                    kept[d] = true
+                else
+                    rawset(d, "_tmp_modifiersRefresh", nil)
+                    rawset(d, "_tmp_modifiersRefreshExcludingAuras", nil)
+                end
+            end
+        end
+        if kept ~= nil and charid ~= nil then
+            g_cc.dependents[charid] = kept
+        end
+    end
+end
+
+--c was rebuilt and came out the same (KeepSerial): its serial stands, so nothing that read it
+--has to check again. It still counts as rebuilt this update for NotifyRebuilt.
+local function NoteKept(c)
+    g_cc.stats.rebuilds = g_cc.stats.rebuilds + 1
+    g_cc.stats.kept = g_cc.stats.kept + 1
+    rawset(c, "_tmp_ccRebuiltUpdate", dmhub.ngameupdate)
+end
+
+--Starts a rebuild of c's modifiers excluding auras: snapshots the inputs into a new key
+--BEFORE anything is read, so a change during the build fails the next check.
+---@return CreatureCacheFrame|nil
+function g_cc.BeginBuild(c)
+    local key = nil
+    local charid = g_cc.enabled and CharidOf(c) or nil
+    if charid ~= nil then
+        key = Suspended(function()
+            local rev = dmhub.CharacterRecordRevision(charid)
+            local token = dmhub.GetTokenById(charid)
+            if rev < 0 or token == nil or not token.valid then
+                return nil
+            end
+            local casters = {}
+            ---@type CreatureCacheKey
+            local k = {
+                charid = charid,
+                rev = rev,
+                global = g_cc.GlobalKey(),
+                charseq = dmhub.characterUpdateSeq,
+                wildcard = false,
+                tokenSig = g_cc.TokenSignature(token, casters),
+                invis = g_cc.InvisibleStamp(c),
+                deps = {},
+                hasFull = false,
+            }
+            return k, casters
+        end)
+    end
+
+    if key == nil then
+        g_cc.stats.uncacheable = g_cc.stats.uncacheable + 1
+    end
+
+    rawset(c, "_tmp_ccKey", key)
+    rawset(c, "_tmp_modifiersRefresh", nil)
+    rawset(c, "_tmp_attr", nil)
+    rawset(c, "_tmp_calculatedAttributes", nil)
+    g_cc.building[c] = (g_cc.building[c] or 0) + 1
+    return g_cc.BeginScope(c)
+end
+
+local function EndBuilding(c)
+    local n = (g_cc.building[c] or 1) - 1
+    g_cc.building[c] = n > 0 and n or nil
+end
+
+--Ends a rebuild started by BeginBuild (ok = false if it errored).
+function g_cc.EndBuild(c, frame, ok)
+    EndBuilding(c)
+    g_cc.EndScope(c, frame)
+    local key = rawget(c, "_tmp_ccKey")
+    if key ~= nil then
+        if not ok then
+            rawset(c, "_tmp_ccKey", nil)
+        else
+            --the auras touching us come from their casters' modifiers.
+            Suspended(function()
+                local token = dmhub.GetTokenById(key.charid)
+                local casters = {}
+                if token ~= nil then
+                    g_cc.TokenSignature(token, casters)
+                end
+                for casterid,_ in pairs(casters) do
+                    AddDep(key, c, casterid)
+                end
+            end)
+        end
+    end
+    local prev = rawget(c, "_tmp_ccPrev")
+    if ok and KeepSerial(c, prev, "excl") then
+        ---@cast prev -nil
+        prev.exclSame = true
+        NoteKept(c)
+    else
+        rawset(c, "_tmp_ccPrev", nil)
+        NotifyRebuilt(c)
+    end
+end
+
+--Starts a build of the full list (the aura part) in GetActiveModifiers.
+function g_cc.BeginFull(c)
+    g_cc.building[c] = (g_cc.building[c] or 0) + 1
+    return g_cc.BeginScope(c)
+end
+
+--Ends a build of the full list started by BeginFull.
+function g_cc.EndFull(c, frame, ok)
+    EndBuilding(c)
+    g_cc.EndScope(c, frame)
+    local key = rawget(c, "_tmp_ccKey")
+    if key ~= nil then
+        if ok then
+            key.hasFull = true
+        else
+            rawset(c, "_tmp_ccKey", nil)
+        end
+    end
+    local prev = rawget(c, "_tmp_ccPrev")
+    rawset(c, "_tmp_ccPrev", nil)
+    if ok and KeepSerial(c, prev, "full") then
+        NoteKept(c)
+    else
+        NotifyRebuilt(c)
+    end
+end
+
+--Runs an attribute computation of c inside a recording scope, so what it reads joins c's key.
+function g_cc.Scoped(c, fn, ...)
+    if rawget(c, "_tmp_ccKey") == nil then
+        return fn(...)
+    end
+    local frame = g_cc.BeginScope(c, true)
+    if frame == nil then
+        return fn(...)
+    end
+    local ok, result = pcall(fn, ...)
+    g_cc.EndScope(c, frame)
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
+---@return integer state, string|nil reason
+local function RevalidateInner(c, key)
+    if key.global ~= g_cc.GlobalKey() then
+        return 0, "global"
+    end
+    --some character changed and we ran a token query. Like a moved list-build dependency,
+    --the rebuild may come out the same, so the other causes are ruled out first.
+    local wildcardMoved = key.wildcard and key.charseq ~= dmhub.characterUpdateSeq
+    if wildcardMoved and key.attrWildcard then
+        return 0, "wildcardattr"
+    end
+    if dmhub.CharacterRecordRevision(key.charid) ~= key.rev then
+        return 0, "own"
+    end
+    local token = dmhub.GetTokenById(key.charid)
+    if token == nil or not token.valid then
+        return 0, "token"
+    end
+    if g_cc.TokenSignature(token) ~= key.tokenSig then
+        return 0, "tokensig"
+    end
+    if g_cc.InvisibleStamp(c) ~= key.invis then
+        return 0, "invisible"
+    end
+    --a dependency that changed but was read only in the list build is the case where the
+    --rebuild may come out the same (see KeepSerial), so the scan goes on to rule out every
+    --other cause. One read while computing an attribute always rebuilds in full.
+    local depRevChanged, depSerialChanged = false, false
+    for charid, dep in pairs(key.deps) do
+        local revChanged = dmhub.CharacterRecordRevision(charid) ~= dep.rev
+        if revChanged and dep.attr then
+            return 0, "deprevattr"
+        end
+        local other = CreatureOf(charid)
+        if other ~= nil and other ~= c and not g_cc.validating[other] then
+            --bring the dependency up to date before comparing what we saw of it.
+            other:GetActiveModifiers()
+        end
+        local serialChanged = SerialOf(other) ~= dep.serial
+        if serialChanged and dep.attr then
+            return 0, "depserialattr"
+        end
+        depRevChanged = depRevChanged or revChanged
+        depSerialChanged = depSerialChanged or serialChanged
+    end
+    if depRevChanged then
+        return 0, "deprev"
+    end
+    if depSerialChanged then
+        return 0, "depserial"
+    end
+    if wildcardMoved then
+        return 0, "wildcard"
+    end
+
+    local u = dmhub.ngameupdate
+    rawset(c, "_tmp_ccRevalidated", u)
+    rawset(c, "_tmp_modifiersRefreshExcludingAuras", u)
+    if key.hasFull and rawget(c, "_tmp_modifiers") ~= nil then
+        rawset(c, "_tmp_modifiersRefresh", u)
+        local attr = rawget(c, "_tmp_attr")
+        if attr ~= nil then
+            attr.nupdate = u
+        end
+        return 2, nil
+    end
+    return 1, nil
+end
+
+local g_ccVerify --forward declaration: defined below.
+
+--Checks whether c's cached lists are still valid for this game update. Returns 2 if the
+--full list (and attribute caches) can be reused, 1 if only the list excluding auras can,
+--0 if c must be rebuilt. A valid result restamps the caches with dmhub.ngameupdate.
+function g_cc.Revalidate(c)
+    if not g_cc.enabled then
+        rawset(c, "_tmp_ccPrev", nil)
+        return 0
+    end
+    if g_cc.building[c] ~= nil or g_cc.validating[c] then
+        --asked again while its own list is being built or checked: no reuse. (The full
+        --build asks for the list excluding auras this way; _tmp_ccPrev is for that build.)
+        return 0
+    end
+    local key = rawget(c, "_tmp_ccKey")
+    if key == nil or rawget(c, "_tmp_modifiers_excluding_auras") == nil then
+        --leaves _tmp_ccPrev alone: RefreshToken clears the key between the failed check
+        --that stashed it and the rebuild that uses it.
+        CountReason("nokey")
+        return 0
+    end
+
+    g_cc.validating[c] = true
+    local ok, state, reason = pcall(Suspended, RevalidateInner, c, key)
+    g_cc.validating[c] = nil
+
+    if not ok then
+        dmhub.CloudError(string.format("CreatureCache: revalidate failed: %s", tostring(state)))
+        state, reason = 0, "error"
+    end
+
+    if state == 0 then
+        CountReason(reason or "?")
+        --only a list-build dependency or token query moved: keep what the rebuild must reproduce for the
+        --serial to stay (see KeepSerial).
+        local prev = nil
+        if reason == "depserial" or reason == "deprev" or reason == "wildcard" then
+            prev = {
+                update = dmhub.ngameupdate,
+                excl = rawget(c, "_tmp_modifiers_excluding_auras"),
+                full = key.hasFull and rawget(c, "_tmp_modifiers") or nil,
+                derived = DerivedState(c),
+            }
+        end
+        rawset(c, "_tmp_ccPrev", prev)
+        rawset(c, "_tmp_ccKey", nil)
+        rawset(c, "_tmp_modifiersRefresh", nil)
+        rawset(c, "_tmp_modifiersRefreshExcludingAuras", nil)
+        return 0
+    end
+
+    if state == 2 then
+        g_cc.stats.hits = g_cc.stats.hits + 1
+    else
+        g_cc.stats.partial = g_cc.stats.partial + 1
+    end
+
+    if g_cc.verify and #g_cc.stack == 0 then
+        return g_ccVerify(c, state)
+    end
+    return state
+end
+
+--Fields a still-valid creature keeps through the per-update Invalidate in RefreshToken.
+local g_ccKeep = {"_tmp_modifiers", "_tmp_modifiers_excluding_auras", "_tmp_attr", "_tmp_calculatedAttributes",
+    "_tmp_creaturesize", "_tmp_ccKey", "_tmp_ccSerial", "_tmp_modifiersRefresh", "_tmp_modifiersRefreshExcludingAuras"}
+
+--Invalidate() everything except the still-valid modifier and attribute caches.
+function g_cc.SoftInvalidate(c)
+    local saved = {}
+    for i,k in ipairs(g_ccKeep) do
+        saved[i] = rawget(c, k)
+    end
+    c:Invalidate()
+    for i,k in ipairs(g_ccKeep) do
+        rawset(c, k, saved[i])
+    end
+    rawset(c, "_tmp_ccRevalidated", nil)
+end
+
+function g_cc.Reset()
+    g_cc.epoch = g_cc.epoch + 1
+    g_cc.dependents = {}
+    g_cc.globalKeyUpdate = -1
+    g_cc.summonsUpdate = -1
+end
+
+function g_cc.ResetStats()
+    g_cc.stats = { hits = 0, partial = 0, rebuilds = 0, kept = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 }
+end
+
+--Verification ------------------------------------------------------------------------
+
+local function Field(t, k)
+    local ok, v = pcall(function() return rawget(t, k) or t[k] end)
+    return ok and v or nil
+end
+
+local function ModSig(list)
+    local parts = {}
+    for i,entry in ipairs(list or {}) do
+        local m = entry.mod
+        --name + behavior, not guid: some features generate their modifiers (with a new
+        --guid) on every build. What the modifiers do is checked through the attributes.
+        local id = m ~= nil and string.format("%s#%s", tostring(Field(m, "name")), tostring(Field(m, "behavior"))) or "?"
+        local effect = entry.ongoingEffect ~= nil and Field(entry.ongoingEffect, "ongoingEffectid") or ""
+        parts[i] = string.format("%s/%s/%s", tostring(id), tostring(entry.stacks or ""), tostring(effect))
+    end
+    return parts
+end
+
+local function DiffSig(a, b)
+    if #a ~= #b then
+        return string.format("count %d -> %d", #a, #b)
+    end
+    for i = 1, #a do
+        if a[i] ~= b[i] then
+            return string.format("#%d %s -> %s", i, a[i], b[i])
+        end
+    end
+    return nil
+end
+
+--Rebuilds c from scratch and compares with what the cache would have returned. Leaves the
+--fresh state in place, so verification never changes behaviour, only reports.
+g_ccVerify = function(c, state)
+    g_cc.stats.verifyRuns = g_cc.stats.verifyRuns + 1
+
+    local key = rawget(c, "_tmp_ccKey")
+    local oldExcluding = ModSig(rawget(c, "_tmp_modifiers_excluding_auras"))
+    local oldFull = state == 2 and ModSig(rawget(c, "_tmp_modifiers")) or nil
+    local oldAttr = {}
+    local attr = state == 2 and rawget(c, "_tmp_attr") or nil
+    local args = attr ~= nil and rawget(attr, "__args") or nil
+    if args ~= nil and attr ~= nil then
+        for k,v in pairs(args) do
+            oldAttr[k] = { name = v[1], base = v[2], value = attr[k] }
+        end
+    end
+
+    rawset(c, "_tmp_ccKey", nil)
+    c:Invalidate()
+    local okRebuild, err = pcall(function()
+        c:GetActiveModifiersExcludingAuras()
+        if state == 2 then
+            c:GetActiveModifiers()
+        end
+    end)
+    if not okRebuild then
+        print("CREATURECACHE:: verify rebuild failed:", err)
+        return state
+    end
+
+    local problems = {}
+    local d = DiffSig(oldExcluding, ModSig(rawget(c, "_tmp_modifiers_excluding_auras")))
+    if d ~= nil then
+        problems[#problems+1] = "excluding auras: " .. d
+    end
+    if oldFull ~= nil then
+        d = DiffSig(oldFull, ModSig(rawget(c, "_tmp_modifiers")))
+        if d ~= nil then
+            problems[#problems+1] = "full: " .. d
+        end
+        for k,entry in pairs(oldAttr) do
+            local okAttr, fresh = pcall(c.CalculateAttribute, c, entry.name, entry.base)
+            if okAttr and fresh ~= entry.value and not (type(fresh) == "table" and type(entry.value) == "table") then
+                problems[#problems+1] = string.format("attribute %s: %s -> %s", k, tostring(entry.value), tostring(fresh))
+            end
+        end
+    end
+
+    if #problems > 0 then
+        g_cc.stats.verifyMismatches = g_cc.stats.verifyMismatches + 1
+        local deps = {}
+        for charid,_ in pairs(key ~= nil and key.deps or {}) do
+            deps[#deps+1] = charid
+        end
+        local tok = dmhub.LookupToken(c)
+        print(string.format("CREATURECACHE:: MISMATCH %s (%s): %s || wildcard=%s deps=%s",
+            tok ~= nil and tostring(tok.name) or "?", tostring(key ~= nil and key.charid or "?"),
+            table.concat(problems, "; "), tostring(key ~= nil and key.wildcard), table.concat(deps, ",")))
+    end
+
+    return rawget(c, "_tmp_modifiersRefresh") == dmhub.ngameupdate and 2 or 1
+end
+
+local g_ccSetting
+g_ccSetting = setting{
+    id = "dev:creaturecache",
+    description = "Keep each creature's modifiers across game updates until something they depend on changes",
+    default = true,
+    storage = "preference",
+    onchange = function()
+        g_cc.enabled = g_ccSetting:Get() ~= false
+        g_cc.Reset()
+    end,
+}
+
+local g_ccVerifySetting
+g_ccVerifySetting = setting{
+    id = "dev:creaturecacheverify",
+    description = "Check every reused creature modifier cache against a fresh rebuild (CREATURECACHE:: lines)",
+    default = false,
+    storage = "preference",
+    onchange = function()
+        g_cc.verify = g_ccVerifySetting:Get() == true
+        dmhub.dependencyWildcardTrace = g_cc.verify
+    end,
+}
+
+pcall(function()
+    g_cc.enabled = g_ccSetting:Get() ~= false
+    g_cc.verify = g_ccVerifySetting:Get() == true
+    dmhub.dependencyWildcardTrace = g_cc.verify
+end)
+
+dmhub.RegisterEventHandler("refreshTables", function()
+    g_cc.Reset()
+end)
+
+Commands.RegisterMacro{
+    name = "creaturecache",
+    summary = "per-creature modifier cache",
+    doc = "Usage: /creaturecache on | off | verify on | verify off | stats | reset\nKeeps each creature's modifiers across game updates until something they depend on changes. verify checks every reuse against a fresh rebuild and prints CREATURECACHE:: mismatches.",
+    command = function(str)
+        local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
+        if arg == "on" or arg == "off" then
+            g_ccSetting:Set(arg == "on")
+        elseif arg == "verify on" or arg == "verify off" then
+            g_ccVerifySetting:Set(arg == "verify on")
+        elseif arg == "reset" then
+            g_cc.ResetStats()
+        end
+        local s = g_cc.stats
+        local reasons = {}
+        for k,v in pairs(s.reasons) do
+            reasons[#reasons+1] = string.format("%s=%d", k, v)
+        end
+        table.sort(reasons)
+        print(string.format("CREATURECACHE:: %s, verify %s; hits=%d partial=%d rebuilds=%d (kept serial %d) uncacheable=%d verify runs=%d mismatches=%d; rebuild reasons: %s",
+            g_cc.enabled and "on" or "off", g_cc.verify and "on" or "off", s.hits, s.partial, s.rebuilds, s.kept, s.uncacheable,
+            s.verifyRuns, s.verifyMismatches, table.concat(reasons, " ")))
+    end,
+}
+
 function creature:Invalidate()
+	self._tmp_ccKey = nil
+	self._tmp_ccPrev = nil
 	self._tmp_modifiers = nil
 	self._tmp_modifiersRefresh = nil
 	self._tmp_modifiersRefreshExcludingAuras = nil
@@ -5021,9 +6034,26 @@ function creature:RefreshToken(token)
     local _ = g_profileRefreshToken.Begin
 	self:ValidateAndRepair()
 
-	if self:try_get("_tmp_modifiersRefresh") ~= dmhub.ngameupdate then
-        --only invalidate if we haven't already refreshed this update.
-        self:Invalidate()
+	local refreshed = self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate
+	if refreshed and rawget(self, "_tmp_ccRevalidated") == dmhub.ngameupdate then
+        --reused (not rebuilt) earlier this update. The engine polls every creature's
+        --auras BEFORE it rebuilds the aura index, so that check saw the old auras:
+        --check again now that the index is current.
+        refreshed = false
+        rawset(self, "_tmp_modifiersRefresh", nil)
+        rawset(self, "_tmp_modifiersRefreshExcludingAuras", nil)
+	end
+	if not refreshed then
+        --only invalidate if we haven't already refreshed this update. Modifier lists whose
+        --inputs did not change survive (see CreatureCache above).
+        if g_cc.Revalidate(self) > 0 then
+            g_cc.SoftInvalidate(self)
+        else
+            --keep what Revalidate stashed for the rebuild (see KeepSerial).
+            local prev = rawget(self, "_tmp_ccPrev")
+            self:Invalidate()
+            rawset(self, "_tmp_ccPrev", prev)
+        end
 	end
 
 	local builtinEffects = {}
@@ -5089,6 +6119,15 @@ function creature:RefreshToken(token)
     self._tmp_tokenOpacity = self:CalculateAttribute("tokenopacity", 1)
     self._tmp_tokenBrightness = self:CalculateAttribute("tokenbrightness", 1)
 
+    --a summon waiting for its arrival animation stays unseen (see "Summon
+    --arrival animation" in AbilitySummon.lua). Looked up at call time.
+    if self:try_get("summonEmergeHide", false) then
+        local summonBehavior = rawget(_G, "ActivatedAbilitySummonBehavior")
+        if summonBehavior ~= nil then
+            summonBehavior.RefreshEmergeHide(self, token)
+        end
+    end
+
 	--check if any inflicted conditions or ongoing effects no longer sustain.
 	if token.activeControllerId == nil then
         if self:has_key("inflictedConditions") then
@@ -5097,7 +6136,21 @@ function creature:RefreshToken(token)
             for k,v in pairs(self.inflictedConditions) do
                 local conditionInfo = conditionsTable[k]
                 if conditionInfo ~= nil and conditionInfo.sustainFormula ~= "" then
-                    local result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    --A caster deleted from the game would make ConditionCaster() return
+                    --nil, the formula error, and the error default keep the condition
+                    --forever (a grab outliving its grabber). End it instead. A despawned
+                    --caster counts as gone too: a killed squad minion is despawned but
+                    --still found, and its IsDead() reads the squad's pooled Stamina.
+                    local casterInfo = v.casterInfo
+                    local casterGone = false
+                    if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+                        local casterToken = dmhub.GetCharacterById(casterInfo.tokenid)
+                        casterGone = casterToken == nil or casterToken.despawned == true
+                    end
+                    local result = 0
+                    if not casterGone then
+                        result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    end
                     if not GoblinScriptTrue(result) then
                         removes = removes or {}
                         removes[#removes+1] = k
@@ -5227,6 +6280,14 @@ function creature:PumpRemoteInvokes()
 			dmhub.Coroutine(function()
 				invoke:Invoke()
 			end)
+		else
+			--Dropped as stale: release any Monster AI reaction marker waiting on
+			--it, or the AI would sit on the marker until it expired.
+			local activityId = invoke:try_get("aiActivityId")
+			local reactionId = invoke:try_get("aiReactionId")
+			if type(activityId) == "string" and type(reactionId) == "string" then
+				self:CompletePendingAIActivityReaction(activityId, reactionId)
+			end
 		end
 	end
 end
@@ -5250,17 +6311,7 @@ function creature:GetCalculatedCreatureSizeAsNumber()
 end
 
 
---gets a list of CharacterModifier objects which are currently active on this creature.
-function creature:GetActiveModifiers()
-	if self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate then
-		return self._tmp_modifiers
-	end
-
-	--protect against recursion.
-	if rawget(self, "_tmp_calculatingActiveModifiers") then
-		return self._tmp_calculatingActiveModifiers
-	end
-
+local function BuildActiveModifiers(self)
 	self._tmp_appearance = nil
 	self._tmp_creaturesize = self:GetBaseCreatureSize()
  
@@ -5298,11 +6349,36 @@ function creature:GetActiveModifiers()
 	return result
 end
 
-function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
-	if self:try_get("_tmp_modifiersRefreshExcludingAuras") == dmhub.ngameupdate then
-		return self._tmp_modifiers_excluding_auras
+--gets a list of CharacterModifier objects which are currently active on this creature.
+function creature:GetActiveModifiers()
+	if self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate then
+		g_cc.NoteRead(self)
+		return self._tmp_modifiers
 	end
 
+	--protect against recursion.
+	if rawget(self, "_tmp_calculatingActiveModifiers") then
+		return self._tmp_calculatingActiveModifiers
+	end
+
+	g_cc.NoteRead(self)
+	if g_cc.Revalidate(self) == 2 then
+		return self._tmp_modifiers
+	end
+
+	local frame = g_cc.BeginFull(self)
+	rawset(self, "_tmp_attr", nil)
+	rawset(self, "_tmp_calculatedAttributes", nil)
+	local ok, result = pcall(BuildActiveModifiers, self)
+	g_cc.EndFull(self, frame, ok)
+	if not ok then
+		self._tmp_calculatingActiveModifiers = nil
+		error(result, 0)
+	end
+	return result
+end
+
+local function BuildActiveModifiersExcludingAuras(self, calculatingModifiers)
 	--refresh concealment before modifiers are filtered: filterConditions using the
 	--"Concealed" symbol read _tmp_concealed, and it must reflect the token's current
 	--location rather than the previous game update's value, or concealment-gated
@@ -5341,6 +6417,26 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 	self._tmp_modifiersRefreshExcludingAuras = dmhub.ngameupdate
 
 	return self._tmp_modifiers_excluding_auras
+end
+
+function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
+	if self:try_get("_tmp_modifiersRefreshExcludingAuras") == dmhub.ngameupdate then
+		g_cc.NoteRead(self)
+		return rawget(self, "_tmp_modifiers_excluding_auras")
+	end
+
+	g_cc.NoteRead(self)
+	if g_cc.Revalidate(self) > 0 then
+		return rawget(self, "_tmp_modifiers_excluding_auras")
+	end
+
+	local frame = g_cc.BeginBuild(self)
+	local ok, result = pcall(BuildActiveModifiersExcludingAuras, self, calculatingModifiers)
+	g_cc.EndBuild(self, frame, ok)
+	if not ok then
+		error(result, 0)
+	end
+	return result
 end
 
 function creature:FillModifiersFromAuras(result)
@@ -5754,7 +6850,9 @@ function creature:FillTemporalActiveModifiers(result)
     --mid-calculation (e.g., beastheart <-> companion via modcompanion/modsummoner).
     if tok ~= nil and tok.valid and tok.charid ~= nil and CharacterModifier.FillSummonerModifiers ~= nil then
         local myCharId = tok.charid
-        for _,summonTok in ipairs(dmhub.GetTokens()) do
+        --g_cc.SummonsOf scans the tokens once per update; scanning them here would make
+        --every creature's cached modifiers depend on every token.
+        for _,summonTok in ipairs(g_cc.SummonsOf(myCharId)) do
             if summonTok.valid and summonTok.summonerid == myCharId and summonTok.properties ~= nil then
                 local summonCreature = summonTok.properties
                 for _,summonMod in ipairs(summonCreature:GetActiveModifiers()) do
@@ -5974,12 +7072,16 @@ function creature:FillTemporalActiveModifiers(result)
 end
 
 
+local ComputeAttribute --forward declaration: defined below.
+
 --given the name of an attribute and its base value, calculates all modifiers and provides a final value.
 function creature:CalculateAttribute(attributeName, baseValue, mods)
 
 	local cache = nil
 	local key = nil
-	
+
+	g_cc.NoteRead(self)
+
 	if mods == nil then
         if not rawget(self, "_tmp_calculatingActiveModifiers") then
             --if we aren't already calculating modifiers, then we can get the modifiers early, here.
@@ -5997,8 +7099,16 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 			cache = {nupdate = dmhub.ngameupdate}
 			self._tmp_attr = cache
 		end
+
+		--the value is cached as long as the modifiers are, so what computing it reads
+		--joins this creature's cache key.
+		return g_cc.Scoped(self, ComputeAttribute, self, attributeName, baseValue, mods, cache, key)
 	end
 
+	return ComputeAttribute(self, attributeName, baseValue, mods, cache, key)
+end
+
+ComputeAttribute = function(self, attributeName, baseValue, mods, cache, key)
 	if baseValue == nil then
 		baseValue = 0
 	end
@@ -6047,6 +7157,15 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 		--cache and key are assigned together in the mods == nil branch above.
 		---@cast key -nil
 		cache[key] = result
+		if g_cc.verify then
+			--what verification needs to recompute this entry.
+			local args = rawget(cache, "__args")
+			if args == nil then
+				args = {}
+				cache.__args = args
+			end
+			args[key] = { attributeName, baseValue }
+		end
 	end
 
 	return result
@@ -6716,7 +7835,6 @@ function creature:OnMove(path)
         local otherTokenAltitude = otherToken.floorAltitude
 
         local adj = otherToken.properties:AdjacentLocations()
-        print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
         local moveNextTo = false
 
@@ -6741,11 +7859,14 @@ function creature:OnMove(path)
             occupyingLocationMap[#allTokensFiltered] = occupying
             altitudeMap[#allTokensFiltered] = otherTokenAltitude
             tileSizeMap[#allTokensFiltered] = otherTokenTileSize
+            --adj is the creature's cached array (AdjacentLocations): extend a
+            --copy, or every move check grows the cache.
+            local adjAndOccupied = table.shallow_copy(adj)
             for _,loc in ipairs(occupying) do
-                adj[#adj+1] = loc
+                adjAndOccupied[#adjAndOccupied+1] = loc
             end
 
-            adjacentLocationMap[#allTokensFiltered] = adj
+            adjacentLocationMap[#allTokensFiltered] = adjAndOccupied
         end
     end
 
@@ -6795,7 +7916,6 @@ function creature:OnMove(path)
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
         local locs = ourToken:LocsOccupyingWhenAt(step)
-        print("LOCS::", #locs, "checking tokens:", #allTokens)
 
         for j,otherToken in ipairs(allTokens) do
             local grabbedBy = otherToken.properties._tmp_grabbedby == ourCharid
@@ -6834,9 +7954,7 @@ function creature:OnMove(path)
                     end
                 end
 
-                print("LOCS:: TRYING FOR", otherToken.charid, ourToken.charid, otherToken.properties:CanUseTriggeredAbilities())
                 if otherToken.charid ~= ourToken.charid and otherToken.properties:CanUseTriggeredAbilities() then
-                    print("LOCS:: CHECK ADJACENCY", otherToken.charid)
                     local adjacent = false
                     local adj = adjacentLocationMap[j]
                     for _,adjLoc in ipairs(adj) do
@@ -6862,7 +7980,6 @@ function creature:OnMove(path)
                     end
 
                     if adjacent then
-                    print("LOCS:: IS ADJACENT", otherToken.charid)
                         adjacentTokens[otherToken.charid] = otherToken
                     end
                 end
@@ -8422,7 +9539,7 @@ creature.helpSymbols = {
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features and ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature, counting height too (a creature far above or below is not nearby). This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features and ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
 		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")", "OBJ.Count Nearby Creatures(5, \"Judged\")"},
 	},
 
@@ -8546,12 +9663,26 @@ creature.helpSymbols = {
 		desc = "The names of any ongoing effects affecting the creature.",
 		examples = {'Ongoing Effects has "Rage"'},
 	},
+
+	abilitiesusedthisround = {
+		name = "Abilities Used This Round",
+		type = "set",
+		desc = "The names of the abilities the creature has used in the current combat round. Empty outside combat.",
+		examples = {'Abilities Used This Round has Ability.Name'},
+	},
 	
 	stacks = {
 		name = "Stacks",
 		type = "function",
 		desc = "Given the name of an ongoing effect, provides the number of stacks of that effect.",
 		examples = {},
+	},
+
+	itemcount = {
+		name = "ItemCount",
+		type = "function",
+		desc = "Given the name of an item, provides how many of it the creature carries, counting equipped copies.",
+		examples = {'ItemCount("Bluepowder Barrel") < Might'},
 	},
 
     casterset = {
@@ -9189,6 +10320,9 @@ creature.lookupSymbols = {
         end
     end,
 
+	--Casters are looked up with GetCharacterById, not GetTokenById: a dead
+	--creature is a despawned corpse, which GetTokenById cannot see, and
+	--formulas like "not Grabber.dead" need the dead caster to be found.
 	conditioncaster = function(c)
 		return function(condname)
 			condname = string.lower(condname)
@@ -9205,7 +10339,7 @@ creature.lookupSymbols = {
 					local cond = conditionsTable[ongoingEffectInfo.condition]
 					if (cond ~= nil and string.lower(cond.name) == condname) or string.lower(ongoingEffectInfo.name) == condname then
 						seqFound = effectInfo.seq
-						local casterTok = dmhub.GetTokenById(effectInfo.casterInfo.tokenid)
+						local casterTok = dmhub.GetCharacterById(effectInfo.casterInfo.tokenid)
 						if casterTok ~= nil then
 							result = GenerateSymbols(casterTok.properties)
 						end
@@ -9220,7 +10354,7 @@ creature.lookupSymbols = {
 			for key,entry in pairs(c:try_get("inflictedConditions") or {}) do
 				local cond = conditionsTable[key]
 				if cond ~= nil and string.lower(cond.name) == condname  and entry.casterInfo ~= nil then
-					local casterTok = dmhub.GetTokenById(entry.casterInfo.tokenid)
+					local casterTok = dmhub.GetCharacterById(entry.casterInfo.tokenid)
 					if casterTok ~= nil then
 						result = GenerateSymbols(casterTok.properties)
 					end
@@ -9321,6 +10455,17 @@ creature.lookupSymbols = {
 		}
 	end,
 
+	abilitiesusedthisround = function(c)
+		local strings = {}
+		for name,_ in pairs(c:AbilitiesUsedThisRound()) do
+			strings[#strings+1] = name
+		end
+
+		return StringSet.new{
+			strings = strings,
+		}
+	end,
+
 	stacks = function(c)
 		return function(name)
 			name = string.lower(name)
@@ -9335,6 +10480,36 @@ creature.lookupSymbols = {
 			end	
 
 			return 0
+		end
+	end,
+
+	--Counts carried and equipped items whose name matches, ignoring case.
+	itemcount = function(c)
+		return function(name)
+			if type(name) ~= "string" then
+				return 0
+			end
+			name = string.lower(name)
+			local gearTable = GetTableCached(equipment.tableName)
+
+			local itemids = {}
+			for itemid,_ in pairs(c:try_get("inventory", {})) do
+				itemids[itemid] = true
+			end
+			for _,equipid in pairs(c:try_get("equipment", {})) do
+				if type(equipid) == "string" then
+					itemids[equipid] = true
+				end
+			end
+
+			local total = 0
+			for itemid,_ in pairs(itemids) do
+				local item = gearTable[itemid]
+				if item ~= nil and type(item.name) == "string" and string.lower(item.name) == name then
+					total = total + c:GetItemQuantityIncludingEquipment(itemid)
+				end
+			end
+			return total
 		end
 	end,
 
@@ -9681,7 +10856,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -9703,6 +10890,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -9717,7 +10907,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -9762,12 +10952,28 @@ function creature:BeginTurn()
             local auras = self:GetAurasAffecting(token, {includeAdjacentOnly = true})
             if auras ~= nil then
                 for i,auraInfo in ipairs(auras) do
-                    self:EnterAura(auraInfo, creature.AuraTokenOnlyAdjacent(auraInfo, token), true)
+                    local adjacentOnly = creature.AuraTokenOnlyAdjacent(auraInfo, token)
+                    self:EnterAura(auraInfo, adjacentOnly, true)
+
+                    --Move damage that also hits a creature starting its turn inside
+                    --(e.g. Wall of Fire). One instance, credited to the aura's caster.
+                    local auraInstance = auraInfo.auraInstance
+                    if not adjacentOnly and auraInstance.aura:try_get("movedamageStartTurn", false) then
+                        local damageInfo = auraInstance:GetDamageInfo()
+                        if damageInfo ~= nil and damageInfo.damage > 0 then
+                            self:AuraDamage(token, {
+                                type = damageInfo.type,
+                                amount = damageInfo.damage,
+                                instances = 1,
+                                aura = auraInstance,
+                            })
+                        end
+                    end
                 end
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -10067,6 +11273,10 @@ end
 
 function creature:EndRound(token)
 
+    --"At the end of each round" triggers see the round as it ended, before
+    --round-scoped effects and auras expire below.
+    self:DispatchEvent("endround")
+
     --remove ongoing effects.
 	if self:has_key("ongoingEffects") then
 		local hasRemoves = false
@@ -10180,10 +11390,14 @@ function creature:GetTriggeredAbilities()
 		mod.mod:FillTriggeredAbilities(mod, self, result)
 	end
 
+	--only the modifiers that can change an ability: the rest would hand every trigger back
+	--untouched, and running all ~100 of a hero's over each of its ~25 triggers was most of the cost.
+	local abilityMods = CharacterModifier.AbilityModifiers(mods)
+
 	local j = 1
 	for i = 1,#result do
 		local entry = result[i]
-		local modified = self:ApplyAbilityModifiers(entry.ability, mods, "triggered")
+		local modified = self:ApplyAbilityModifiers(entry.ability, abilityMods, "triggered")
 		if modified ~= nil then
 			entry.ability = modified
 			result[j] = entry
@@ -10203,12 +11417,16 @@ function creature:RemoveOngoingEffectsOnTrigger(eventName, info)
         return false
     end
 
+	--ids of effects the event must not end, e.g. the ones a strike applied to its own target.
+	local keepOngoingEffects = info ~= nil and info.keepOngoingEffects or nil
+
 	if self:has_key("ongoingEffects") then
 		local ongoingEffectsTable = GetTableCached(CharacterOngoingEffect.tableName)
 		local removeIndexes = nil
 		for i,effectInstance in ipairs(self.ongoingEffects) do
 			local ongoingEffect = ongoingEffectsTable[effectInstance.ongoingEffectid]
-			if ongoingEffect ~= nil and ongoingEffect.endTrigger == eventName then
+			if ongoingEffect ~= nil and ongoingEffect.endTrigger == eventName
+				and not (keepOngoingEffects ~= nil and keepOngoingEffects[effectInstance.id]) then
 				if removeIndexes == nil then
 					removeIndexes = {}
 				end
@@ -10363,6 +11581,10 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 end
 
 local g_aiActivityReactionExpirySeconds = 600
+
+--Identifies this run of the app: kept in _G across Lua reloads, new on every
+--launch. See creature:CompleteReactionsOrphanedByRestart.
+g_appLaunchId = rawget(_G, "g_appLaunchId") or dmhub.GenerateGuid()
 
 --The Monster AI activity (a move or an ability cast) currently in flight on
 --this client, or nil. MonsterAI sets it around each action it takes; while it
@@ -10924,7 +12146,7 @@ function creature:DispatchEvent(eventName, info)
 
 	local token = dmhub.LookupToken(self)
 	---@cast token -nil
-	local activecontroller = token.activeControllerId
+	local activecontroller = TokenPromptControllerId(token)
 
 	--we are the best choice to handle this event.
 	if activecontroller == nil then
@@ -11160,7 +12382,16 @@ ActiveTrigger.expiryTimestamp = 0
 --clients without keeping the prompt card alive after the player has made a
 --choice. The activity is a monster move (opportunity attacks) or an ability
 --cast (Repulsive Ward and other prompts its damage or effects provoke).
-function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName)
+--state defaults to "awaiting_choice", which expects a prompt card keyed by
+--reactionId in availableTriggers. Pass "resolving" for a reaction the player
+--already chose without one -- a power-roll trigger accepted on the monster's
+--roll whose effect resolves after the roll -- so the AI does not report the
+--marker as having no matching prompt.
+--- @param activityId string
+--- @param reactionId string
+--- @param abilityName string|nil
+--- @param state nil|"awaiting_choice"|"resolving"
+function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName, state)
     if type(activityId) ~= "string" or activityId == "" or type(reactionId) ~= "string" or reactionId == "" then
         return
     end
@@ -11175,20 +12406,30 @@ function creature:BeginPendingAIActivityReaction(activityId, reactionId, ability
         undoable = false,
         combine = true,
         execute = function()
-            local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
-            for id,entry in pairs(pendingReactions) do
-                if type(entry) == "table" and entry.state == "completed" and entry.timestamp ~= nil
-                    and TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
-                    pendingReactions[id] = nil
-                end
-            end
-            pendingReactions[reactionId] = {
-                activityId = activityId,
-                timestamp = ServerTimestamp(),
-                state = "awaiting_choice",
-                ability = abilityName,
-            }
+            self:AddPendingAIActivityReaction(activityId, reactionId, abilityName, state)
         end,
+    }
+end
+
+--The marker write BeginPendingAIActivityReaction makes, for a caller already
+--inside a ModifyProperties that needs the marker in the same write.
+--- @param activityId string
+--- @param reactionId string
+--- @param abilityName string|nil
+--- @param state nil|"awaiting_choice"|"resolving"
+function creature:AddPendingAIActivityReaction(activityId, reactionId, abilityName, state)
+    local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
+    for id,entry in pairs(pendingReactions) do
+        if type(entry) == "table" and entry.state == "completed" and entry.timestamp ~= nil
+            and TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
+            pendingReactions[id] = nil
+        end
+    end
+    pendingReactions[reactionId] = {
+        activityId = activityId,
+        timestamp = ServerTimestamp(),
+        state = state or "awaiting_choice",
+        ability = abilityName,
     }
 end
 
@@ -11216,19 +12457,39 @@ function creature:CompletePendingAIActivityReaction(activityId, reactionId)
             --Retain completion so late callbacks can see that this reaction
             --already ended. A later Begin call collects old terminal records.
             pendingReactions[reactionId] = {activityId = entry.activityId,
-                timestamp = ServerTimestamp(), state = "completed"}
+                timestamp = ServerTimestamp(), state = "completed", ability = entry.ability}
         end,
     }
 end
 
+--Who accepted the reaction and when are stamped on the marker, so a cast that
+--never reports back can be told apart from one still running (EMHPEMCY): the
+--banner offers Skip once it is old, and the accepter's next launch clears it.
 function creature:SetAIActivityReactionResolving(activityId, reactionId)
     local entry = self:try_get("pendingAIActivityReactions", {})[reactionId]
     local token = dmhub.LookupToken(self)
     if token ~= nil and entry ~= nil and entry.activityId == activityId and entry.state ~= "completed" then
         token:ModifyProperties{
             description = "Resolve AI Reaction", undoable = false,
-            execute = function() entry.state = "resolving" end,
+            execute = function()
+                entry.state = "resolving"
+                entry.resolvingSince = ServerTimestamp()
+                entry.resolvingBy = dmhub.userid
+                entry.resolvingLaunch = g_appLaunchId
+            end,
         }
+    end
+end
+
+--Completes the "resolving" markers this user accepted in an earlier run of the
+--app. Their casts died with that run (a crash or restart mid-roll), so nothing
+--else would complete them. Markers from before the stamps were added are left.
+function creature:CompleteReactionsOrphanedByRestart()
+    for id,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.state == "resolving" and entry.resolvingBy == dmhub.userid
+            and entry.resolvingLaunch ~= nil and entry.resolvingLaunch ~= g_appLaunchId then
+            self:CompletePendingAIActivityReaction(entry.activityId, id)
+        end
     end
 end
 
@@ -11270,6 +12531,31 @@ function creature:CountPendingAIActivityReactions(activityId)
         end
     end
     return result
+end
+
+--The name of this hero's accepted trigger whose cast may still claim the turn,
+--or nil. The prompt card goes the moment it is accepted, but Hesitation Is
+--Weakness only moves initiative once its cast runs, so TriggeredAbility.lua
+--leaves a "turn-claim" marker in the card's removal write. Anything that hands
+--the turn on (the Monster AI's turn choice, the end-of-turn handoff) must wait
+--on it, or its initiative write crosses the claim's (BR8M9Z2W, AH6SYXTP).
+--- @return string|nil
+function creature:TurnClaimResolving()
+    --Completed markers hold a little longer: the claim's initiative write
+    --lands just after the cast finishes. The limit stops a completion lost in
+    --transit from holding the table for good.
+    local waitSeconds = 60
+    local settleSeconds = 2
+    for _,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == "turn-claim" then
+            local age = EventTimestampAge(entry.timestamp)
+            local limit = entry.state == "completed" and settleSeconds or waitSeconds
+            if age ~= nil and age < limit then
+                return type(entry.ability) == "string" and entry.ability or "trigger"
+            end
+        end
+    end
+    return nil
 end
 
 --How long a trigger prompt stays available before it ages out. This is a
@@ -11911,9 +13197,35 @@ local function RouteMergedTriggerAccept(availableTriggers, triggerInfo)
 	triggerInfo.dismissed = true
 end
 
+--Dismissing any prompt of a merged group declines the whole group: its members
+--share the one triggered action. Dismissing only the front prompt promoted the
+--next member to a fresh card, and the Monster AI kept waiting on it (W5VTYKV7).
+local function RouteMergedTriggerDismiss(availableTriggers, triggerInfo)
+	if (not triggerInfo.dismissed) or triggerInfo.triggered then
+		return
+	end
+
+	local front = triggerInfo
+	if triggerInfo.mergedInto ~= false then
+		front = availableTriggers[triggerInfo.mergedInto] or triggerInfo
+	end
+	if front.mergeMembers == false then
+		return
+	end
+
+	for _,id in pairs(front.mergeMembers) do
+		local other = availableTriggers[id]
+		if other ~= nil and other.id ~= triggerInfo.id and (not other.triggered) then
+			other.dismissed = true
+		end
+	end
+end
+
 --- @param triggerInfo ActiveTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
     print("RECALCULATE:: DISPATCH TRIGGER:", triggerInfo)
+    --Before the clearOnDismiss early-out, whose clear would promote a member.
+    RouteMergedTriggerDismiss(self:get_or_add("availableTriggers", {}), triggerInfo)
     if triggerInfo.clearOnDismiss and (triggerInfo.dismissed or (self:get_or_add("_tmp_clearedTriggers", {})[triggerInfo.id] == true)) then
         self:ClearAvailableTrigger(triggerInfo)
         return
@@ -12072,6 +13384,37 @@ function creature:LegacyAuraEntryAvailable(info, level)
 	end
 
 	return true
+end
+
+--- The names of the abilities this creature has used in the current combat
+--- round, as {[ability name] = true}. Keyed by name because separate abilities
+--- can share a guid (Melee and Ranged Free Strike). Recorded by
+--- ActivatedAbility:FireUseAbility and read by rules like the Talent's Flashback
+--- ("an ability they've previously used this round"). Empty outside combat.
+--- @return table<string, boolean>
+function creature:AbilitiesUsedThisRound()
+    local q = dmhub.initiativeQueue
+    local roundId = q and q:GetRoundId()
+    if roundId == nil or self:try_get("abilitiesUsedRoundId") ~= roundId then
+        return {}
+    end
+    return self:try_get("abilitiesUsedThisRound", {})
+end
+
+--- Records that this creature used an ability this round. Call inside
+--- ModifyProperties. Does nothing outside combat.
+--- @param ability ActivatedAbility
+function creature:RecordAbilityUsedThisRound(ability)
+    local q = dmhub.initiativeQueue
+    local roundId = q and q:GetRoundId()
+    if roundId == nil then
+        return
+    end
+    if self:try_get("abilitiesUsedRoundId") ~= roundId then
+        self.abilitiesUsedRoundId = roundId
+        self.abilitiesUsedThisRound = {}
+    end
+    self.abilitiesUsedThisRound[ability.name] = true
 end
 
 --These opt-in triggers keep movement entry independent from turn start.
@@ -12282,7 +13625,9 @@ end
 --already cleared "until rest" effects itself -- the respite game mode clears them
 --when the respite begins, so ending that respite must not clear them a second time
 --and wipe anything gained during it (e.g. a respite activity's bonus).
-function creature:Rest(restType, keepOngoingEffects)
+--Pass keepLevel = true to bank the XP without raising the Level: Encounter of
+--the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
+function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
 
 	if restType == 'long' then
@@ -12306,9 +13651,11 @@ function creature:Rest(restType, keepOngoingEffects)
 			local newXp = curXp + victories
 			local xpNextLevel = level * xpPerLevel
 			local newLevel = level
-			local levelingUp = newXp >= xpNextLevel
+			local levelingUp = newXp >= xpNextLevel and not keepLevel
 			if levelingUp then
-				newLevel = math.floor(newXp / xpPerLevel) + 1
+				--Stop at the top Level a Hero can reach (10 in Draw Steel); XP keeps counting.
+				--Only classes[1].level is written below, so monsters (Level = cr) are untouched.
+				newLevel = math.min(math.floor(newXp / xpPerLevel) + 1, GameSystem.numLevels)
 				if newLevel > level then
 					local classes = self:try_get("classes", {})
 					if classes and #classes > 0 then
@@ -13487,13 +14834,25 @@ function creature:Render(args, options)
 		--languages.
 		gui.Label{
 			classes = "description",
+			--with plain language names on, hovering lists the in-world names.
+			hover = function(element)
+				local known = {}
+				local languagesTable = GetTableCached(Language.tableName)
+				for langid,b in pairs(self:LanguagesKnown()) do
+					known[#known+1] = languagesTable[langid]
+				end
+				local hover = Language.ListTooltipHover(known)
+				if hover ~= nil then
+					hover(element)
+				end
+			end,
 			create = function(element)
 				local textItems = {}
 				local languagesTable = GetTableCached(Language.tableName)
 				for langid,b in pairs(self:LanguagesKnown()) do
 					local lang = languagesTable[langid]
 					if lang ~= nil then
-						textItems[#textItems+1] = lang.name
+						textItems[#textItems+1] = lang:DisplayName()
 					end
 				end
 

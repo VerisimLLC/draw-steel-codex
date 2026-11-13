@@ -6,6 +6,7 @@
 --- @field playing boolean
 --- @field mixGroupId any
 --- @field solo boolean
+--- @field loop boolean Whether this instance starts its clip again each time it reaches the end, until stopped. asset:Play() starts with it off; scene sounds (SceneElements.lua) turn it on for a looping clip.
 --- @field pitch number
 --- @field delay number
 --- @field time number

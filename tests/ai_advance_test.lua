@@ -16,6 +16,10 @@ end
 MonsterAI = {TokenIsLiveCombatant = function(t) return t.valid end,
     LogDecision = noop, TokenLogName = tostring, LocLogName = tostring,
     TargetsLogName = tostring, Sleep = noop}
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
+--No hero takes the turn mid-move in these tests.
+MonsterAI.TurnTakenBeforeMove = function() return false end
 function RunYieldingFunction(fn)
     local ok, err = pcall(fn)
     if not ok then return false, err end
@@ -112,6 +116,10 @@ print("AI advance route and action-economy tests passed")
 local prefix = 'local g_moveResultExecuted="executed"; local g_moveResultNone="none";\n'
 assert(load(prefix .. section("function MonsterAI:FindAndExecuteMove()", "function MonsterAI:DistanceFromNearestEnemy")))()
 assert(load(section("function MonsterAI:MovesInScoringOrder()", "function MonsterAI.MoveMatchesMonster")))()
+--the score weight helpers are file locals in MonsterAI.lua.
+WeightedScoringInfo, ScoreWeightLogSuffix = assert(load(
+    section("local function WeightedScoringInfo", "local function FindMaliceAbilityByName")
+    .. "\nreturn WeightedScoringInfo, ScoreWeightLogSuffix"))()
 MonsterAI.SetMoveLogContext = noop
 MonsterAI.SetLogContext = noop
 MonsterAI.LogMove = noop
@@ -119,6 +127,10 @@ MonsterAI.AbilitiesLogName = tostring
 MonsterAI.AbilityActionsLogName = tostring
 MonsterAI.ScoringPlanLogName = tostring
 MonsterAI.MoveMatchesMonster = function() return true end
+--no zone holds this actor (the Hold directive's own checks need a map).
+MonsterAI.Holds = function() return false end
+--the actor does not avoid opportunity attacks (one scoring pass).
+MonsterAI.OpportunityAttackers = function() return nil end
 local actor = {valid = true, properties = {minion = false, monster_type = "Test",
     has_key = function() return true end}}
 local selector = setmetatable({token = actor, abilities = {}, moves = {}, try_get = try_get}, {__index = MonsterAI})
@@ -154,6 +166,35 @@ selector.moves.fallback = nil
 selector.moves.strike.score = function() return {score = 0.2} end
 print("AI advance selection priority tests passed")
 
+-- Score weights (aiScoreWeights on the monster) multiply each move's score.
+actor.properties.try_get = try_get
+selector.attacked = false
+selector.moves.other = {id = "other", score = function() return {score = 0.5} end,
+    execute = function() selector.usedOther = true end}
+actor.properties.aiScoreWeights = {{move = "strike", weight = 3}}
+assert(selector:FindAndExecuteMove() == "executed" and selector.attacked and not selector.usedOther,
+    "a favored move (0.2 x 3) beats a better unweighted one (0.5)")
+selector.attacked = false
+actor.properties.aiScoreWeights = {{move = "other", weight = 0}}
+assert(selector:FindAndExecuteMove() == "executed" and selector.attacked and not selector.usedOther,
+    "a move weighted 0% is never used")
+selector.attacked = false
+fallbackScored = false
+selector.moves.other = nil
+selector.moves.strike.score = function() return {score = 0.5} end
+selector.moves.fallback = {id = "fallback", maxScore = 0.2,
+    score = function() fallbackScored = true; return {score = 0.2} end,
+    execute = function() selector.usedFallback = true end}
+actor.properties.aiScoreWeights = {{move = "fallback", weight = 5}}
+assert(selector:FindAndExecuteMove() == "executed" and fallbackScored and selector.usedFallback
+    and not selector.attacked, "a capped move's maxScore is weighted too, so it is still scored")
+selector.moves.fallback = nil
+selector.usedFallback = false
+selector.moves.strike.score = function() return {score = 0.2} end
+actor.properties.aiScoreWeights = nil
+actor.properties.try_get = nil
+print("AI score weight tests passed")
+
 -- Band callbacks historically discard ExecuteAbility's false return. The
 -- execution marker must still quarantine them and allow a lower-scoring move.
 assert(load('local g_moveResultFailed="failed"; local g_moveResultUnsafe="unsafe"; ' ..
@@ -168,4 +209,23 @@ assert(selector:FindAndExecuteMove() == "executed" and selector.advanced,
 selector._tmp_failedMoves = {}
 selector.moves.strike.execute = function() return false end
 assert(selector:FindAndExecuteMove() == "failed", "explicit false also fails the move")
+
+-- A move stopped short after moving (a trap, a reaction) is re-planned once
+-- from where the creature stands; a second shortfall quarantines it, so a
+-- move that keeps falling short cannot repeat for the rest of the turn.
+selector._tmp_failedMoves = {}
+selector._tmp_shortMoveRetries = {}
+local shortfalls = 0
+selector.moves.strike.execute = function()
+    shortfalls = shortfalls + 1
+    selector._tmp_moveFailure = "movement did not reach the planned destination"
+    selector._tmp_moveFellShort = true
+end
+assert(selector:FindAndExecuteMove() == "failed" and not selector._tmp_failedMoves.strike,
+    "first shortfall is re-planned, not quarantined")
+assert(selector:FindAndExecuteMove() == "failed" and selector._tmp_failedMoves.strike,
+    "second shortfall quarantines the move")
+selector.advanced = false
+for _=1,4 do selector:FindAndExecuteMove() end
+assert(shortfalls == 2 and selector.advanced, "a quarantined move is never tried again this turn")
 print("AI failed move fallback tests passed")

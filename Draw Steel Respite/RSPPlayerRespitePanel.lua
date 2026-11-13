@@ -22,6 +22,8 @@ local IDLE_INSTRUCTIONS = [[
 No respite is being offered right now.
 
 When the Director offers one, this window will fill in.
+
+The party's incomplete downtime projects are listed here.
 ]]
 
 --- @param charid string
@@ -61,6 +63,51 @@ local function BuildCommitButton()
     }
 end
 
+--- What each activity shows between Respites, stacked under its name the way
+--- the Director's feed stacks its sections.
+--- @return Panel
+local function BuildIdleArea()
+    local sections = {}
+
+    -- Reading an unset global raises; without the registry there is nothing to show.
+    local registry = rawget(_G, "RSPActivity")
+    if registry ~= nil then
+        for _, activity in ipairs(registry.All()) do
+            local paint = activity:try_get("paintIdle")
+            if paint ~= nil then
+                sections[#sections + 1] = gui.Panel{
+                    width = RSPConstants.feedSectionWidth,
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "left",
+                    vmargin = 6,
+
+                    gui.Label{
+                        classes = {"sizeM", "bold"},
+                        width = "100%",
+                        height = "auto",
+                        halign = "left",
+                        bmargin = 2,
+                        text = activity:try_get("idleTitle") or activity.name,
+                    },
+
+                    paint{roster = RSPSession.Roster},
+                }
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        vscroll = true,
+        children = sections,
+    }
+end
+
 --- What a player sees with no Respite on offer. The Game menu entry is always
 --- there, so this is what it opens onto between Respites.
 --- @param onClose fun() dismisses the window on this client
@@ -70,10 +117,7 @@ function RSPPlayerRespitePanel.IdleStep(onClose)
         phase = RSPConstants.phaseSetup,
         orientation = RSPConstants.orientSide,
         instructions = IDLE_INSTRUCTIONS,
-        working = gui.Panel{
-            width = "100%",
-            height = "100%",
-        },
+        working = BuildIdleArea(),
 
         footerRight = gui.Button{
             classes = {"sizeL"},

@@ -50,7 +50,7 @@ local mod = dmhub.GetModLoading()
 --- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
 --- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
 --- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
---- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement": GoblinScript ability filter.
+--- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement", "castingorigin": GoblinScript ability filter.
 --- @field targetFilter? string "powertabletrigger": GoblinScript target filter.
 --- @field additionalModifier? CharacterModifier "powertableadditional": the "power" modifier it adds.
 --- @field original? string "powertableadditional": original text.
@@ -1527,7 +1527,8 @@ CharacterModifier.RegisterType('conditionimmunity', "Condition Immunity")
 --a non-empty string, creature:GetConditionImmunityMessage reads it (via try_get) so
 --the immunity-blocked speech can be overridden with a context-specific line instead
 --of the generic "I can't be <Name>!". Used e.g. by Olothec transformation effects
---that block hiding.
+--that block hiding. Optional field: modifier.silent -- when true the immunity blocks
+--the condition with no speech at all (bookkeeping immunities; see MCDMCreature.lua).
 CharacterModifier.TypeInfo.conditionimmunity = {
 	init = function(modifier)
 		modifier.conditions = {}
@@ -2143,6 +2144,12 @@ CharacterModifier.TypeInfo.activated = {
 
 	fillActivatedAbilities = function(modifier, creature, result)
 		result[#result+1] = modifier.activatedAbility
+	end,
+
+	--modifyAbility below only acts for suppressOthers, so the ability passes skip the rest
+	--(see CharacterModifier.AbilityModifiers). A hero has ~25 of these modifiers.
+	leavesAbilitiesUnchanged = function(modifier)
+		return not modifier:try_get("suppressOthers", false)
 	end,
 
     modifyAbility = function(modifier, creature, ability)
@@ -3686,6 +3693,15 @@ end
 function CharacterModifier:ConsumeResource(creature, modContext)
 	local result = self:ConsumeResourceInternal(creature, modContext)
 
+	--A trigger augmentation (an additional cost modifier) replaces its trigger's
+	--modifier in the roll, carrying it as baseModifier. The base's own cost (e.g. a
+	--Malice cost) is still owed, so charge it too. Only its resourceCostType cost: the
+	--triggered action itself is paid by TriggerPayCost. Its triggerOnUse runs below.
+	local baseModifier = self:try_get("baseModifier") --[[@as CharacterModifier|nil]]
+	if baseModifier ~= nil and not self:try_get("overrideBase", false) then
+		baseModifier:ConsumeResourceCost(creature, modContext)
+	end
+
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.triggerOnUse ~= nil then
 		typeInfo.triggerOnUse(self, creature, modContext)
@@ -3694,8 +3710,11 @@ function CharacterModifier:ConsumeResource(creature, modContext)
 	return result
 end
 
-function CharacterModifier:ConsumeResourceInternal(creature, modContext)
-
+--- Charges only the modifier's resourceCostType cost (surges, epic, or the creature's
+--- Heroic resource / Malice). Split out so a trigger augmentation can bill its base.
+--- @param creature creature
+--- @param modContext nil|table
+function CharacterModifier:ConsumeResourceCost(creature, modContext)
     local costType = self:try_get("resourceCostType", "none")
     print("CONSUME:: IN INTERNAL CONSUME", costType, self:try_get("overrideCost", false))
     if costType == "surges" then
@@ -3719,6 +3738,12 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
         print("CONSUME:: ConsumeResources:", creature.resourceid, cost, creature.resourceRefresh)
         creature:ConsumeResource(creature.resourceid, creature.resourceRefresh, cost, string.format("%s", self.name))
     end
+end
+
+function CharacterModifier:ConsumeResourceInternal(creature, modContext)
+
+    local costType = self:try_get("resourceCostType", "none")
+    self:ConsumeResourceCost(creature, modContext)
 
 
 	local result = false
@@ -3814,6 +3839,57 @@ function CharacterModifier:HasResourcesAvailable(creature)
 	end
 
 	return creature:GetResourceUsage(self:GetResourceRefreshId(), refreshType) < self:GetNumberOfCharges(creature)
+end
+
+--- True when using this modifier spends something the roller chooses to pay: a positive
+--- Malice/Heroic, epic or surge cost. Cost overrides and reductions are not spends.
+--- @param creature creature
+--- @return boolean
+function CharacterModifier:IsPaidSpend(creature)
+    if self:try_get("resourceCostType", "none") == "none" or self:try_get("overrideCost", false) then
+        return false
+    end
+    local cost = self:ResolveResourceCostAmount(creature)
+    return type(cost) == "number" and cost > 0
+end
+
+--- True when the modifier has a limited number of uses that refresh (once per round,
+--- per encounter, per victory, ...), e.g. Barbed Tail. Spending a use is the roller's choice.
+--- @return boolean
+function CharacterModifier:IsUsageLimited()
+    local refreshType = self:GetResourceRefreshType()
+    return refreshType ~= "none" and refreshType ~= "perspell"
+end
+
+--- How many times the creature can pay this modifier's cost (the most charges a "multicost"
+--- modifier can buy, e.g. To the Uttermost End's extra Ferocity), counting what the
+--- ability being cast has already committed to spend.
+--- @param creature creature
+--- @param expectedCostOfCurrentCast nil|table Resource id -> amount the ability itself costs.
+--- @return integer|nil nil when there is no positive cost to limit by.
+function CharacterModifier:MaxAffordableCharges(creature, expectedCostOfCurrentCast)
+    --resourceCostAmount defaults to "1" even on free modifiers (e.g. Barbed Tail), so
+    --check the cost type first or a free option reads as unaffordable.
+    local costType = self:try_get("resourceCostType", "none")
+    if costType == "none" then
+        return nil
+    end
+    local costPerCharge = self:ResolveResourceCostAmount(creature)
+    if type(costPerCharge) ~= "number" or costPerCharge <= 0 then
+        return nil
+    end
+    local available
+    if costType == "surges" then
+        available = creature:GetAvailableSurges()
+    elseif costType == "epic" then
+        available = creature:GetEpicResources()
+    else
+        available = tonumber(creature:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0
+        if expectedCostOfCurrentCast ~= nil and not self:try_get("overrideCost", false) then
+            available = available - (expectedCostOfCurrentCast[creature:GetHeroicOrMaliceId()] or 0)
+        end
+    end
+    return math.max(0, math.floor((tonumber(available) or 0) / costPerCharge))
 end
 
 function CharacterModifier:DescribeResourceAvailability(creature, charges, expectedCostOfCurrentCast)
@@ -4251,15 +4327,80 @@ function CharacterModifier:FillConditionImmunities(modContext, creature, result)
 	end
 end
 
+--- Marks the modes a Modify Abilities "Add Mode" adds, so we can tell which
+--- modifier added them.
+--- @param modifier CharacterModifier
+--- @return string
+function CharacterModifier.AddedModeMarker(modifier)
+	return tostring(modifier:try_get("guid", modifier.behavior))
+end
+
 function CharacterModifier:ModifyAbility(modContext, creature, ability)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	local fn = typeInfo.modifyAbility
 	if fn ~= nil then
 		self:InstallSymbolsFromContext(modContext)
-		return fn(self, creature, ability)
+		local result = fn(self, creature, ability)
+
+		--A mode added by an earlier modifier holds its own copy of the ability.
+		--Modify that copy too, or picking the mode would lose this modifier.
+		if result ~= nil and result.multipleModes then
+			local marker = CharacterModifier.AddedModeMarker(self)
+			for _,mode in ipairs(result:try_get("modeList", {})) do
+				if mode.addedBy ~= nil and mode.addedBy ~= marker and mode.variation ~= nil then
+					--The copy belongs to this result alone, so mark it temporary
+					--while fn runs and fn changes it in place instead of copying it.
+					--Then unmark it again (see AddModes for why it must not stay marked).
+					local variation = mode.variation
+					variation._tmp_temporaryClone = true
+					variation = fn(self, creature, variation) or variation
+					variation._tmp_temporaryClone = nil
+					mode.variation._tmp_temporaryClone = nil
+					mode.variation = variation
+				end
+			end
+		end
+
+		return result
 	end
 
 	return ability
+end
+
+--- The entries of a modifier list (as from creature:GetActiveModifiers) whose ModifyAbility
+--- can change an ability, in their original order. Every other entry hands back any ability
+--- it is given untouched, so the passes that run each ability through every modifier
+--- (GetActivatedAbilities, GetTriggeredAbilities) loop over this list instead: a hero has
+--- ~100 modifiers and usually 1-3 of them do anything to abilities. A type whose
+--- modifyAbility does nothing for some of its modifiers says so with
+--- typeInfo.leavesAbilitiesUnchanged(modifier), which must then be true only when
+--- modifyAbility returns every ability unchanged.
+--- @param modifiers table[]
+--- @param excludeKitModifications nil|boolean also leave out "kitmodifyability" modifiers
+--- @return table[]
+function CharacterModifier.AbilityModifiers(modifiers, excludeKitModifications)
+	local result = {}
+	local baseModifyAbility = CharacterModifier.ModifyAbility
+	for _,entry in ipairs(modifiers) do
+		local mod = entry.mod
+		local behavior = mod.behavior
+		local typeInfo = CharacterModifier.TypeInfo[behavior]
+		local keep
+		if excludeKitModifications and behavior == "kitmodifyability" then
+			keep = false
+		elseif not rawequal(mod.ModifyAbility, baseModifyAbility) then
+			--a type with its own ModifyAbility could do anything: always run it.
+			keep = true
+		elseif typeInfo == nil or typeInfo.modifyAbility == nil then
+			keep = false
+		else
+			keep = typeInfo.leavesAbilitiesUnchanged == nil or not typeInfo.leavesAbilitiesUnchanged(mod)
+		end
+		if keep then
+			result[#result+1] = entry
+		end
+	end
+	return result
 end
 
 function CharacterModifier:AlterBaseArmorClass(modContext, creature, armorClass)

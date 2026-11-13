@@ -25,8 +25,12 @@ local mod = dmhub.GetModLoading()
 --  data.agents = { [charid] = { owner, controller } }
 --                tokens of an away player and who runs them meanwhile. The
 --                record goes when the owner comes back.
---  data.events = { { seq, kind = "left"|"abandoned"|"returned"|"given", userid, name,
---                    controller, controllerName, heroNames, at }, ... }
+--  data.events = { { seq, kind = "left"|"abandoned"|"returned"|"given"|"newhost"|
+--                    "latejoin"|"latehero", userid, name, controller,
+--                    controllerName, heroNames, mode, at }, ... }
+--                (latejoin: the host let a newcomer in, mode "join"|"observe";
+--                latehero: a newcomer's heroes reached a montage after
+--                round 1 and act twice)
 --                the newest MAX_EVENTS changes, for the notices
 --  data.seq    = the last event's seq
 --  data.host   = the userid whose host tick last ran here; when another
@@ -39,6 +43,8 @@ local mod = dmhub.GetModLoading()
 --host reads it to tell the others and keep the heroes.
 --
 --Design: EncounterOfTheWeek.md, "Players leaving and coming back".
+
+local T = UIText.T
 
 EncounterPresence = rawget(_G, "EncounterPresence") or {}
 
@@ -93,7 +99,7 @@ local function DisplayName(userid)
         end)
     end
     if name == nil or name == "" then
-        return "A player"
+        return T("presence.player_fallback")
     end
     return name
 end
@@ -104,7 +110,7 @@ local function HeroName(tok)
     if montage ~= nil then
         return montage.HeroDisplayName(tok)
     end
-    return tok.name or "Unnamed Hero"
+    return tok.name or T("presence.hero_fallback")
 end
 
 local function IsHero(tok)
@@ -118,7 +124,7 @@ local function JoinNames(names)
     if #names <= 1 then
         return names[1] or ""
     end
-    return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+    return T("presence.names_and", { list = table.concat(names, ", ", 1, #names - 1), last = names[#names] })
 end
 EncounterPresence.JoinNames = JoinNames
 
@@ -196,6 +202,16 @@ local function AddEvent(data, event)
         table.remove(events, 1)
     end
     data.events = events
+
+    --analytics (the host writes these): who left, came back, abandoned or
+    --took over hosting, and where the party was when it happened.
+    local heroCount = type(event.heroNames) == "table" and #event.heroNames or nil
+    EotwAnalytics.Track("eotw_presence", {
+        event = event.kind,
+        member = event.userid,
+        memberHeroes = heroCount,
+        phase = EotwAnalytics.CurrentPhase(),
+    })
 end
 
 --- abandoning ------------------------------------------------------------------
@@ -536,6 +552,13 @@ function EncounterPresence.HostTick()
         if not ok then
             printf("EotW presence: montage turn sync failed: %s", tostring(err))
         end
+        local negotiation = rawget(_G, "EncounterNegotiation")
+        if negotiation ~= nil then
+            ok, err = pcall(negotiation.SyncTurnToOwners, awaySet)
+            if not ok then
+                printf("EotW presence: negotiation turn sync failed: %s", tostring(err))
+            end
+        end
     end
 end
 
@@ -551,54 +574,66 @@ local function EventText(e)
         end
         if e.controller == me then
             if heroes == "" then
-                return string.format("%s has left. You control what they controlled until they return.", e.name)
+                return T("presence.left.you_control_nothing", { name = e.name })
             end
-            return string.format("%s has left. You control %s until they return.", e.name, heroes)
+            return T("presence.left.you_control", { name = e.name, heroes = heroes })
         end
         if heroes == "" then
-            return string.format("%s has left.", e.name)
+            return T("presence.left.no_heroes", { name = e.name })
         end
-        return string.format("%s has left. %s controls %s until they return.", e.name, e.controllerName, heroes)
+        return T("presence.left.other_controls", { name = e.name, controller = e.controllerName, heroes = heroes })
     elseif e.kind == "abandoned" then
         if e.userid == me then
             return nil
         end
         if heroes == "" then
-            return string.format("%s has abandoned the game.", e.name)
+            return T("presence.abandoned.no_heroes", { name = e.name })
         end
         if e.controller == me then
-            return string.format("%s has abandoned the game. You control %s from now on.", e.name, heroes)
+            return T("presence.abandoned.you_control", { name = e.name, heroes = heroes })
         end
-        return string.format("%s has abandoned the game. %s controls %s from now on.", e.name, e.controllerName, heroes)
+        return T("presence.abandoned.other_controls", { name = e.name, controller = e.controllerName, heroes = heroes })
     elseif e.kind == "newhost" then
         if e.userid == me then
-            return string.format("You are now the host, taking over from %s.", e.previousName or "the previous host")
+            return T("presence.newhost.you", { previous = e.previousName or T("presence.newhost.previous_fallback") })
         end
-        return string.format("%s is now the host.", e.name)
+        return T("presence.newhost.other", { name = e.name })
     elseif e.kind == "returned" then
         if e.userid == me then
             if heroes == "" then
-                return "Welcome back."
+                return T("presence.returned.you")
             end
-            return string.format("Welcome back. You control %s again.", heroes)
+            return T("presence.returned.you_control", { heroes = heroes })
         end
         if heroes == "" then
-            return string.format("%s is back.", e.name)
+            return T("presence.returned.no_heroes", { name = e.name })
         end
-        return string.format("%s is back and controls %s again.", e.name, heroes)
+        return T("presence.returned.other_controls", { name = e.name, heroes = heroes })
+    elseif e.kind == "latejoin" then
+        if e.userid == me then
+            return nil
+        end
+        if e.mode == "observe" then
+            return T("presence.latejoin.watching", { name = e.name })
+        end
+        return T("presence.latejoin.joining", { name = e.name, heroes = heroes })
+    elseif e.kind == "latehero" then
+        return T("presence.latehero.twice", { heroes = heroes })
     elseif e.kind == "given" then
-        local untilText = string.format(" until %s returns", e.name)
-        if e.abandoned then
-            untilText = ""
-        end
         if e.controller == me then
-            return string.format("You now control %s%s.", heroes, untilText)
+            if e.abandoned then
+                return T("presence.given.you_control_abandoned", { heroes = heroes })
+            end
+            return T("presence.given.you_control", { heroes = heroes, name = e.name })
         end
         if IsDMOrPlayerHost() then
             --the host did this themselves.
             return nil
         end
-        return string.format("%s now controls %s%s.", e.controllerName, heroes, untilText)
+        if e.abandoned then
+            return T("presence.given.other_controls_abandoned", { controller = e.controllerName, heroes = heroes })
+        end
+        return T("presence.given.other_controls", { controller = e.controllerName, heroes = heroes, name = e.name })
     end
     return nil
 end
@@ -613,7 +648,7 @@ local function ShowToast(text, e)
     if (e.kind == "left" or e.kind == "abandoned") and e.controller == dmhub.loginUserid and #(e.heroNames or {}) > 0
         and titleBar.OpenPlayersPopout ~= nil then
         actions = {
-            { text = "Reassign", click = function() titleBar.OpenPlayersPopout() end },
+            { text = T("presence.notice.reassign_button"), click = function() titleBar.OpenPlayersPopout() end },
         }
     end
     titleBar.ShowPlayersToast{
@@ -738,11 +773,11 @@ local function RequestHost(action)
                 printf("EotW presence: %s of game %s accepted", action, tostring(gameid))
                 return
             end
-            local message = type(data) == "table" and data.error or "invalid response"
+            local message = type(data) == "table" and data.error or T("presence.host_request.invalid_response")
             printf("EotW presence: %s refused: %s", action, tostring(message))
             local titleBar = rawget(_G, "CodexTitleBar")
             if titleBar ~= nil and titleBar.ShowPlayersToast ~= nil then
-                titleBar.ShowPlayersToast{ text = string.format("Could not take over hosting: %s", tostring(message)) }
+                titleBar.ShowPlayersToast{ text = T("presence.host_request.refused", { message = tostring(message) }) }
             end
         end,
         error = function(message)
@@ -750,7 +785,7 @@ local function RequestHost(action)
             printf("EotW presence: %s failed: %s", action, tostring(message))
             local titleBar = rawget(_G, "CodexTitleBar")
             if titleBar ~= nil and titleBar.ShowPlayersToast ~= nil then
-                titleBar.ShowPlayersToast{ text = string.format("Could not reach the server to change the host: %s", tostring(message)) }
+                titleBar.ShowPlayersToast{ text = T("presence.host_request.unreachable", { message = tostring(message) }) }
             end
         end,
     }
@@ -794,14 +829,14 @@ local function WatchHost()
         --the owner, back in a game another player is now hosting.
         if dmhub.isGameOwner then
             ShowHostNotice(RECLAIM_TOAST,
-                string.format("Welcome back. %s is hosting the game while you were away.", JoinNames((function()
+                T("presence.reclaim.notice", { hosts = JoinNames((function()
                     local names = {}
                     for _, userid in ipairs(present) do
                         names[#names + 1] = DisplayName(userid)
                     end
                     return names
-                end)())),
-                { { text = "Reclaim Host", click = function() RequestHost("reclaim") end } })
+                end)()) }),
+                { { text = T("presence.reclaim.button"), click = function() RequestHost("reclaim") end } })
         end
         return
     end
@@ -821,10 +856,234 @@ local function WatchHost()
             names[#names + 1] = DisplayName(userid)
         end
         return names
-    end)()) or "The host"
+    end)()) or T("presence.hostgone.host_fallback")
     ShowHostNotice(HOSTGONE_TOAST,
-        string.format("%s, the host, has left. Nobody can play on until someone takes over hosting.", hostName),
-        { { text = "Claim Host", click = function() RequestHost("claim") end } })
+        T("presence.hostgone.notice", { host = hostName }),
+        { { text = T("presence.hostgone.button"), click = function() RequestHost("claim") end } })
+end
+
+--- newcomers to a game under way (the host) ----------------------------------------
+
+--A public game takes newcomers while it plays (design: EncounterOfTheWeek.md,
+--"Joining a game under way"). The host's client keeps the party's lobby
+--record alive and says what newcomers may do now (set-late-join every 30s,
+--and at once when the phase changes: "join" before combat and in round 1,
+--"observe" after, "closed" once the encounter is decided). A newcomer's
+--request shows here as a notice with Accept / Decline; accepting makes them
+--a member, and their town screen then brings them in. The game side of
+--their heroes arriving is EncounterOfTheWeekGame.LateHeroesHostTick.
+
+local LATE_HEARTBEAT_SECONDS = 30
+--a request notice clicked away comes back this soon while it still waits.
+local LATE_NOTICE_REPEAT_SECONDS = 5
+--once the encounter is decided the host drops the party's record this long
+--after (the Hall of Heroes record goes first), so its heroes are free for
+--new parties at once.
+local LATE_CLOSE_DROP_SECONDS = 15
+
+---@type {conn: LuaLobbyConnection|nil, gameid: string|nil, mode: string|nil, sentAt: number, shown: table<string, number>, answering: table<string, boolean>, closedAt: number|nil, dropped: boolean}
+local m_lateWatch = {
+    conn = nil,         --the shared lobby connection while hosting
+    gameid = nil,
+    mode = nil,         --the mode last sent
+    sentAt = 0,
+    shown = {},         --{ [userid] = when its notice was last put up }
+    answering = {},     --{ [userid] = true } while an answer is on its way
+    closedAt = nil,     --when the phase became "closed"
+    dropped = false,
+}
+
+local function LateNoticeId(userid)
+    return "eotw-latejoin-" .. userid
+end
+
+local function ReleaseLateConnection()
+    if m_lateWatch.conn ~= nil then
+        m_lateWatch.conn = nil
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        if eotw ~= nil and eotw.ReleaseLobbyConnection ~= nil then
+            eotw.ReleaseLobbyConnection()
+        end
+    end
+end
+
+local function RequestHeroNames(request)
+    local names = {}
+    for _, h in ipairs(type(request.heroes) == "table" and request.heroes or {}) do
+        names[#names + 1] = h.name or T("presence.hero_fallback")
+    end
+    return names
+end
+
+local function AnswerLateJoin(userid, request, accept)
+    local conn = m_lateWatch.conn
+    if conn == nil or m_lateWatch.answering[userid] then
+        return
+    end
+    m_lateWatch.answering[userid] = true
+    local name = request.name or T("presence.player_fallback")
+    conn:Request{
+        action = "answer-late-join",
+        args = { gameid = m_lateWatch.gameid, userid = userid, accept = accept },
+        success = function(result)
+            m_lateWatch.answering[userid] = nil
+            if not accept then
+                return
+            end
+            result = result or {}
+            if result.accepted == true then
+                local doc = GetDoc()
+                doc:BeginChange()
+                AddEvent(doc.data, {
+                    kind = "latejoin",
+                    userid = userid,
+                    name = name,
+                    mode = request.mode,
+                    heroNames = RequestHeroNames(request),
+                })
+                doc:CompleteChange("Encounter of the Week: a newcomer", { undoable = false })
+                printf("EotW late join: let %s in (%s)", tostring(name), tostring(request.mode))
+            else
+                local text = T("presence.latejoin.refused_late", { name = name })
+                if result.reason == "full" then
+                    text = T("presence.latejoin.refused_full", { name = name })
+                end
+                ShowToast(text, { kind = "latejoin-refused" })
+            end
+        end,
+        error = function(err)
+            m_lateWatch.answering[userid] = nil
+            printf("EotW late join: could not answer %s: %s", tostring(name), tostring(err))
+        end,
+    }
+end
+
+local function ShowLateRequest(userid, request)
+    local titleBar = rawget(_G, "CodexTitleBar")
+    if titleBar == nil or titleBar.ShowPlayersToast == nil then
+        return
+    end
+    local name = request.name or T("presence.player_fallback")
+    local text
+    if request.mode == "observe" then
+        text = T("presence.latejoin.request_watch", { name = name })
+    else
+        text = T("presence.latejoin.request_join", { name = name, heroes = JoinNames(RequestHeroNames(request)) })
+    end
+    titleBar.ShowPlayersToast{
+        id = LateNoticeId(userid),
+        text = text,
+        duration = 0,
+        actions = {
+            { text = T("presence.latejoin.accept_button"), click = function() AnswerLateJoin(userid, request, true) end },
+            { text = T("presence.latejoin.decline_button"), danger = true, click = function() AnswerLateJoin(userid, request, false) end },
+        },
+    }
+    m_lateWatch.shown[userid] = dmhub.Time()
+end
+
+local function WatchLateJoin()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or eotw.LateJoinPhase == nil or not IsDMOrPlayerHost() then
+        ReleaseLateConnection()
+        return
+    end
+    local gameid = dmhub.gameid
+    if m_lateWatch.gameid ~= gameid then
+        ReleaseLateConnection()
+        m_lateWatch.gameid = gameid
+        m_lateWatch.mode = nil
+        m_lateWatch.sentAt = 0
+        m_lateWatch.shown = {}
+        m_lateWatch.closedAt = nil
+        m_lateWatch.dropped = false
+    end
+    if m_lateWatch.dropped then
+        return
+    end
+    local conn = m_lateWatch.conn
+    --a connection closed for good never reconnects: let it go, and the
+    --next tick takes a fresh one.
+    if conn ~= nil and conn.status == "closed" then
+        ReleaseLateConnection()
+        return
+    end
+    if conn == nil then
+        conn = eotw.AcquireLobbyConnection()
+        if conn == nil then
+            return
+        end
+        m_lateWatch.conn = conn
+    end
+    if not conn.connected then
+        return
+    end
+    local record = conn:GetPath("/state/games/" .. gameid)
+    if type(record) ~= "table" or record.status == "open" then
+        return
+    end
+
+    local now = dmhub.Time()
+    local phase = eotw.LateJoinPhase()
+    if phase ~= m_lateWatch.mode or now - m_lateWatch.sentAt >= LATE_HEARTBEAT_SECONDS then
+        m_lateWatch.mode = phase
+        m_lateWatch.sentAt = now
+        conn:Request{
+            action = "set-late-join",
+            args = { gameid = gameid, mode = phase },
+            error = function(err)
+                printf("EotW late join: set-late-join failed: %s", tostring(err))
+            end,
+        }
+    end
+
+    --decided: once the closing word has gone, the record goes too.
+    if phase == "closed" then
+        m_lateWatch.closedAt = m_lateWatch.closedAt or now
+        if now - m_lateWatch.closedAt >= LATE_CLOSE_DROP_SECONDS and record.hostUserid == dmhub.loginUserid then
+            m_lateWatch.dropped = true
+            conn:Request{
+                action = "leave-game",
+                args = { gameid = gameid },
+                error = function() end,
+            }
+            printf("EotW late join: the encounter is decided; the party leaves the town's list")
+            ReleaseLateConnection()
+        end
+        return
+    end
+    m_lateWatch.closedAt = nil
+
+    --the requests waiting for an answer, each as a notice that stays up.
+    local titleBar = rawget(_G, "CodexTitleBar")
+    local requests = type(record.requests) == "table" and record.requests or {}
+    for userid, request in pairs(requests) do
+        if type(request) == "table" and not m_lateWatch.answering[userid] then
+            local showing = titleBar ~= nil and titleBar.HasPlayersToast ~= nil and titleBar.HasPlayersToast(LateNoticeId(userid))
+            local last = m_lateWatch.shown[userid]
+            if not showing and (last == nil or now - last >= LATE_NOTICE_REPEAT_SECONDS) then
+                ShowLateRequest(userid, request)
+            end
+        end
+    end
+    for userid, _ in pairs(m_lateWatch.shown) do
+        if requests[userid] == nil then
+            m_lateWatch.shown[userid] = nil
+            if titleBar ~= nil and titleBar.DismissPlayersToast ~= nil then
+                titleBar.DismissPlayersToast(LateNoticeId(userid))
+            end
+        end
+    end
+end
+
+--Host: a newcomer's heroes reached a montage after round 1, so they act
+--twice this round; everyone is told.
+---@param heroNames string[]
+function EncounterPresence.AnnounceLateHeroes(heroNames)
+    local doc = GetDoc()
+    doc:BeginChange()
+    AddEvent(doc.data, { kind = "latehero", heroNames = heroNames })
+    doc:CompleteChange("Encounter of the Week: latecomers in the montage", { undoable = false })
 end
 
 dmhub.Coroutine(function()
@@ -839,6 +1098,10 @@ dmhub.Coroutine(function()
             if not ok then
                 printf("EotW presence: host watcher failed: %s", tostring(err))
             end
+            ok, err = pcall(WatchLateJoin)
+            if not ok then
+                printf("EotW presence: late join watcher failed: %s", tostring(err))
+            end
         end
         coroutine.yield(0.5)
     end
@@ -846,26 +1109,66 @@ end)
 
 --- leaving the game ----------------------------------------------------------------
 
+--Ask the eotwAbandonGame cloud function to delete this game now, if no
+--other member still holds it. Fire and forget: the game's Lua unloads as
+--we leave, so the callbacks only log. The titlescreen repeats the call
+--(eotw:abandonedgame), which also catches a quit that cut this one off.
+local function RequestAbandonDelete(gameid)
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/eotwAbandonGame",
+        data = { gameid = gameid },
+        success = function(data)
+            if type(data) == "table" and data.ok then
+                printf("EotW presence: abandoned game %s is deleted (storage released: %s)", tostring(gameid), tostring(data.released))
+            else
+                printf("EotW presence: abandoned game %s stays for the others: %s", tostring(gameid),
+                    tostring(type(data) == "table" and data.error or "invalid response"))
+            end
+        end,
+        error = function(message)
+            printf("EotW presence: could not reach eotwAbandonGame for %s: %s", tostring(gameid), tostring(message))
+        end,
+    }
+end
+
 --Abandon this game for good, then go: proceed() quits the app or leaves the
 --game, whichever the player asked for. Our heroes stay behind as free
 --agents and we get nothing from the encounter. A note in our own
---"eotwleave-" document tells the host; the titlescreen's next refresh
---abandons the game there (eotw:abandonedgame): the eotwAbandonGame cloud
---function deletes it when no other member still holds it, owner or not.
+--"eotwleave-" document tells the host. As we go we ask eotwAbandonGame to
+--delete the game (it does when no other member still holds it, owner or
+--not); the titlescreen's next refresh (eotw:abandonedgame) asks again and
+--takes us off the game's player list.
 function EncounterPresence.Abandon(proceed)
     local me = dmhub.loginUserid
+    local gameid = dmhub.gameid
 
     local doc = mod:GetDocumentSnapshot(ABANDON_DOC_PREFIX .. me)
     doc:BeginChange()
     doc.data.abandoned = dmhub.serverTime
     doc:CompleteChange("Encounter of the Week: abandoned the game", { undoable = false })
 
-    dmhub.SetSettingValue("eotw:abandonedgame", dmhub.ToJson{ gameid = dmhub.gameid })
-    printf("EotW presence: abandoning game %s", tostring(dmhub.gameid))
+    dmhub.SetSettingValue("eotw:abandonedgame", dmhub.ToJson{ gameid = gameid })
+    printf("EotW presence: abandoning game %s", tostring(gameid))
+
+    --the beta survey asks what made us leave, back in town.
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw ~= nil and eotw.RecordPendingSurvey ~= nil then
+        local ok, err = pcall(eotw.RecordPendingSurvey, "abandoned")
+        if not ok then
+            printf("EotW presence: could not leave the survey invitation: %s", tostring(err))
+        end
+    end
+    --analytics: this player's run ends here, abandoned.
+    if eotw ~= nil and eotw.AnalyticsEndRun ~= nil then
+        pcall(eotw.AnalyticsEndRun, "abandoned", "abandon")
+    end
 
     --a moment for the note to reach the server before the connection goes.
-    --Not tied to mod.unloaded: the player must get out regardless.
+    --Not tied to mod.unloaded: the player must get out regardless. The
+    --delete is sent in the same frame we leave, after the note has landed;
+    --sent first so a quit cannot skip it.
     dmhub.Schedule(0.75, function()
+        RequestAbandonDelete(gameid)
         proceed()
     end)
 end
@@ -905,16 +1208,32 @@ function EncounterPresence.ConfirmExit(kind, proceed)
 
     local me = dmhub.loginUserid
     local isHost = IsDMOrPlayerHost()
+
+    --someone watching controls nothing, so there is nothing to come back to
+    --or give up: they just go. The town then takes them off the party, so
+    --they can ask again, to watch or to join.
+    if not isHost then
+        local controlsSomething = false
+        for _, tok in ipairs(dmhub.allTokens) do
+            if tok ~= nil and tok.valid and tok.ownerId == me then
+                controlsSomething = true
+                break
+            end
+        end
+        if not controlsSomething then
+            return false
+        end
+    end
     local othersPlaying = not EncounterPresence.IsLastMember(me)
 
     local notes = {}
     if isHost and othersPlaying then
-        notes[#notes + 1] = "You are the host: the others will be asked to take over hosting while you are away."
+        notes[#notes + 1] = T("presence.exit.note_host")
     end
     if othersPlaying then
-        notes[#notes + 1] = "Abandon Game gives it up for good. Your heroes stay with the party and fight on without you, and you earn nothing from this encounter."
+        notes[#notes + 1] = T("presence.exit.note_abandon")
     else
-        notes[#notes + 1] = "Abandon Game gives it up for good. You are the last player in it, so abandoning ends the game."
+        notes[#notes + 1] = T("presence.exit.note_abandon_last")
     end
 
     local function Close()
@@ -924,27 +1243,40 @@ function EncounterPresence.ConfirmExit(kind, proceed)
         m_exitDialog = nil
     end
 
+    --analytics: what the player chose at the exit prompt ("leave" keeps the
+    --run open for a resume; "abandon" also ends it, see Abandon).
+    local function TrackChoice(choice)
+        EotwAnalytics.Track("eotw_exit_choice", {
+            kind = kind,
+            choice = choice,
+            phase = EotwAnalytics.CurrentPhase(),
+            host = isHost,
+            othersPlaying = othersPlaying,
+        })
+    end
+
     local abandonButton
     abandonButton = gui.Button{
         classes = {"sizeL", "abandon"},
-        text = "Abandon Game",
+        text = T("presence.exit.abandon_button"),
         width = 220,
         halign = "right",
         hmargin = 8,
         data = { confirming = false },
         resetConfirm = function(element)
             element.data.confirming = false
-            element.text = "Abandon Game"
+            element.text = T("presence.exit.abandon_button")
         end,
         click = function(element)
             --a second click confirms: abandoning cannot be undone.
             if not element.data.confirming then
                 element.data.confirming = true
-                element.text = "Really abandon?"
+                element.text = T("presence.exit.abandon_confirm")
                 element:ScheduleEvent("resetConfirm", 4)
                 return
             end
             Close()
+            TrackChoice("abandon")
             EncounterPresence.Abandon(proceed)
         end,
     }
@@ -959,16 +1291,17 @@ function EncounterPresence.ConfirmExit(kind, proceed)
         captureEscape = true,
         escape = function(element)
             Close()
+            TrackChoice("cancel")
         end,
 
         gui.Label{
             classes = {"dialogTitle"},
-            text = kind == "quit" and "Quit the Encounter?" or "Leave the Encounter?",
+            text = kind == "quit" and T("presence.exit.title_quit") or T("presence.exit.title_leave"),
             hmargin = 16,
             tmargin = 12,
         },
         gui.Label{
-            text = "You are leaving the Encounter of the Week. You can resume later.",
+            text = T("presence.exit.body"),
             fontSize = 20,
             width = "100%-48",
             height = "auto",
@@ -995,11 +1328,12 @@ function EncounterPresence.ConfirmExit(kind, proceed)
             flow = "horizontal",
             gui.Button{
                 classes = {"sizeL"},
-                text = "Cancel",
+                text = T("presence.exit.cancel_button"),
                 halign = "left",
                 hmargin = 8,
                 click = function()
                     Close()
+                    TrackChoice("cancel")
                 end,
             },
             gui.Panel{
@@ -1010,10 +1344,11 @@ function EncounterPresence.ConfirmExit(kind, proceed)
                 flow = "horizontal",
                 gui.Button{
                     classes = {"sizeL"},
-                    text = kind == "quit" and "Quit" or "Leave",
+                    text = kind == "quit" and T("presence.exit.quit_button") or T("presence.exit.leave_button"),
                     hmargin = 8,
                     click = function()
                         Close()
+                        TrackChoice(kind == "quit" and "quit" or "leave")
                         proceed()
                     end,
                 },
@@ -1113,8 +1448,9 @@ local function HeroRow(tok, data, players)
                 halign = "left",
             },
             gui.Label{
-                text = isAgent and string.format("Free agent: %s's hero%s", DisplayName(rec.owner),
-                    EncounterPresence.HasAbandoned(rec.owner) and " (abandoned)" or "") or "",
+                text = isAgent and (EncounterPresence.HasAbandoned(rec.owner)
+                    and T("presence.players.free_agent_abandoned", { owner = DisplayName(rec.owner) })
+                    or T("presence.players.free_agent", { owner = DisplayName(rec.owner) })) or "",
                 fontSize = 11,
                 italics = true,
                 color = "#c9a860",
@@ -1169,14 +1505,14 @@ local function HeroRow(tok, data, players)
 end
 
 local function PlayerBlock(p, data, players)
-    local statusText = "Here"
+    local statusText = T("presence.players.status_here")
     if p.status == "away" then
-        statusText = "Away"
+        statusText = T("presence.players.status_away")
     elseif p.status == "abandoned" then
-        statusText = "Abandoned"
+        statusText = T("presence.players.status_abandoned")
     end
     if p.host then
-        statusText = statusText .. " - Host"
+        statusText = T("presence.players.status_host", { status = statusText })
     end
     local rows = {
         gui.Panel{
@@ -1216,11 +1552,11 @@ local function PlayerBlock(p, data, players)
         rows[#rows + 1] = HeroRow(tok, data, players)
     end
     if #heroes == 0 then
-        local text = "No heroes"
+        local text = T("presence.players.no_heroes")
         if p.status == "away" then
-            text = "Their heroes are free agents until they return"
+            text = T("presence.players.no_heroes_away")
         elseif p.status == "abandoned" then
-            text = "Their heroes fight on as free agents"
+            text = T("presence.players.no_heroes_abandoned")
         end
         rows[#rows + 1] = gui.Label{
             text = text,
@@ -1276,9 +1612,9 @@ function EncounterPresence.CreatePlayersPopout()
         list.children = children
     end
 
-    local hint = "Free agents are heroes whose player has left. They go back to their player when they return."
+    local hint = T("presence.players.hint")
     if IsDMOrPlayerHost() then
-        hint = hint .. " As the host you control them, and you can hand them to another player here."
+        hint = T("presence.players.hint_host")
     end
 
     return gui.Panel{
@@ -1300,7 +1636,7 @@ function EncounterPresence.CreatePlayersPopout()
         end,
 
         gui.Label{
-            text = "Players",
+            text = T("presence.players.title"),
             fontSize = 18,
             bold = true,
             color = "#f0f0f0",

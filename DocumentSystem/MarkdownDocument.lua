@@ -13,6 +13,81 @@ MarkdownDocument.vscroll = false
 MarkdownDocument.styleSheetId = false
 MarkdownDocument.acceptsRichTagDrops = true
 
+-- Backslash escapes, CommonMark style: "\*" shows a literal *, "\[" a literal [,
+-- and so on for any ASCII punctuation (the engine's MarkdownParser drops the
+-- backslash when it renders). The Lua scanners below (spoilers, rich tags, the
+-- seamless editor's decorations) mask escaped pairs first so an escaped
+-- character never reads as markup. A mask keeps every byte offset: "\X" becomes
+-- "\15" plus a letter or digit standing for X, two bytes for two bytes. It stays
+-- plain ASCII so masked text can go through the engine's regex (C# strings) and
+-- come back intact, and \15 never occurs in real text. "\\" masks as a pair
+-- too, so "\\*" is a backslash then a real *.
+local g_escapeMaskOf = {}
+local g_escapeUnmaskOf = {}
+do
+    local punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    local codes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+    for i = 1, #punctuation do
+        local c = punctuation:sub(i, i)
+        local code = codes:sub(i, i)
+        g_escapeMaskOf[c] = "\15" .. code
+        g_escapeUnmaskOf[code] = "\\" .. c
+    end
+end
+
+--- Masks every backslash escape in text (same byte length), so pattern scans
+--- skip escaped characters. Undo with MarkdownDocument.UnmaskEscapes.
+--- @param text string
+--- @return string
+function MarkdownDocument.MaskEscapes(text)
+    if string.find(text, "\\", 1, true) == nil then
+        return text
+    end
+    return (text:gsub("\\(%p)", g_escapeMaskOf))
+end
+
+--- Restores the escapes MarkdownDocument.MaskEscapes masked.
+--- @param text string
+--- @return string
+function MarkdownDocument.UnmaskEscapes(text)
+    if string.find(text, "\15", 1, true) == nil then
+        return text
+    end
+    return (text:gsub("\15([A-Z0-5])", g_escapeUnmaskOf))
+end
+
+--- Escapes text so the journal shows it exactly as written: every character
+--- that could start markup is backslash-escaped, and the line-start markers
+--- (headings, bullets, quotes, tables, rules, ???, :::, + Title, 1.) are
+--- defused. Line breaks are kept. For importing plain text.
+--- @param text string
+--- @return string
+function MarkdownDocument.EscapeText(text)
+    local lines = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        --anywhere in a line: backslashes before punctuation, emphasis,
+        --links/tags/checkboxes, spoilers, code, TMP tags, and the :< :>
+        --justification markers. A lone _ or ~ is ordinary text; only doubled
+        --ones are markup.
+        line = line:gsub("\\(%p)", "\\\\%1")
+        line = line:gsub("[%*%[%]{}`<]", "\\%0")
+        --every character of a run of two or more ("___" would otherwise
+        --leave a live "__" behind).
+        line = line:gsub("__+", function(run) return (run:gsub("_", "\\_")) end)
+        line = line:gsub("~~+", function(run) return (run:gsub("~", "\\~")) end)
+        line = line:gsub(":>", "\\:>")
+        --line starts: whatever follows the leading spaces.
+        local indent, rest = line:match("^(%s*)(.*)$")
+        if rest:match("^[#>|+%-]") or rest:match("^%?%?%?") or rest:match("^:::") then
+            rest = "\\" .. rest
+        elseif rest:match("^%d+[%.%)] ") then
+            rest = rest:gsub("^(%d+)([%.%)])", "%1\\%2")
+        end
+        lines[#lines + 1] = indent .. rest
+    end
+    return table.concat(lines, "\n")
+end
+
 local g_markdownStyle = gui.MarkdownStyle {
     ["#  "] = "<size=200%><b>", ["/#  "] = "</b></size>",
     ["# "] = "<size=200%><b>", ["/# "] = "</b></size>",
@@ -1250,6 +1325,8 @@ local function ColorizeLinks(content, link)
     link = link or {}
     local color = SkinColor(link.color)
     if color == nil then return content end
+    --escaped brackets (\[) are text, not links.
+    content = MarkdownDocument.MaskEscapes(content)
     local open = string.format("<color=%s>", color)
     local close = "</color>"
     if link.underline ~= false then
@@ -1281,7 +1358,7 @@ local function ColorizeLinks(content, link)
         if styled == nil then return nil end
         return "[" .. styled .. "](" .. label .. ")"
     end)
-    return content
+    return MarkdownDocument.UnmaskEscapes(content)
 end
 
 -- Test hook.
@@ -1315,8 +1392,10 @@ end
 local function ColorizeSecrets(text, color, depth)
     depth = depth or 0
     if color == nil or type(text) ~= "string" or text == "" then return text, depth end
+    --escaped braces (\{) are text, not secrets.
+    text = MarkdownDocument.MaskEscapes(text)
     --A continuation line carries no brace of its own but still needs the colour.
-    if depth == 0 and string.find(text, "{", 1, true) == nil then return text, depth end
+    if depth == 0 and string.find(text, "{", 1, true) == nil then return MarkdownDocument.UnmaskEscapes(text), depth end
 
     local open = string.format("<color=%s>", color)
     local out = {}
@@ -1374,7 +1453,7 @@ local function ColorizeSecrets(text, color, depth)
     end
 
     if depth > 0 then out[#out + 1] = "</color>" end
-    return table.concat(out), depth
+    return MarkdownDocument.UnmaskEscapes(table.concat(out)), depth
 end
 
 MarkdownDocument.__ColorizeSecrets = ColorizeSecrets
@@ -1450,13 +1529,15 @@ MarkdownDocument.__ApplySkinToText = ApplySkinToText
 local function ApplyInlineClasses(text, classes)
     if type(text) ~= "string" or text == "" then return text end
     classes = classes or {}
-    return (text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
+    --escaped braces (\{.x }) are text, not class spans.
+    text = MarkdownDocument.MaskEscapes(text)
+    return MarkdownDocument.UnmaskEscapes((text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
         local cls = classes[name]
         if type(cls) == "table" and cls.kind == "inline" then
             return SkinClassTextMarkup(cls.text, inner)
         end
         return inner
-    end))
+    end)))
 end
 
 -- Test hook.
@@ -1720,6 +1801,8 @@ local function CloakText(s, map)
 end
 
 local function StripSpoilers(text, ink)
+    --escaped braces (\{) are text, not spoilers; restored on the way out.
+    text = MarkdownDocument.MaskEscapes(text)
     local redact = ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
     if ink ~= nil then
         redact = string.format("<alpha=#FF><mark=%s><color=%s>", ink, ink)
@@ -1794,7 +1877,7 @@ local function StripSpoilers(text, ink)
 
                     local canSpeak = false
                     if bestLanguage ~= nil then
-                        result = result .. string.format("(in %s) ", bestLanguage.name)
+                        result = result .. string.format("(in %s) ", bestLanguage:DisplayName())
 
                         if not dmhub.isDM then
                             local token = dmhub.currentToken
@@ -1863,7 +1946,7 @@ local function StripSpoilers(text, ink)
         i = b + 1
     end
 
-    return result
+    return MarkdownDocument.UnmaskEscapes(result)
 end
 
 local g_hardwiredPowerTableList = {
@@ -2226,7 +2309,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         if tableMatch ~= nil then
             EmitText()
 
-            local cells = string.split_with_square_brackets(tableMatch.row, "|")
+            --an escaped pipe (\|) is text inside a cell, not a cell break.
+            local cells = string.split_with_square_brackets(MarkdownDocument.MaskEscapes(tableMatch.row), "|")
+            for ci, cell in ipairs(cells) do
+                cells[ci] = MarkdownDocument.UnmaskEscapes(cell)
+            end
 
             --GitHub-style header separator (|---|:---:|), only recognized
             --directly under a table's first row (the GFM position). It is not
@@ -2343,8 +2430,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         local justification = nil
 
         while str ~= "" do
-            local match = regex.MatchGroups(str,
+            --escaped characters (\{ \[ \:) are masked so they cannot start a
+            --spoiler, tag, embed, checkbox or justification; every group
+            --comes back unmasked (the mask keeps lengths).
+            local match = regex.MatchGroups(MarkdownDocument.MaskEscapes(str),
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
+            if match ~= nil then
+                for k, v in pairs(match) do
+                    if type(v) == "string" then
+                        match[k] = MarkdownDocument.UnmaskEscapes(v)
+                    end
+                end
+            end
             if match == nil then
                 if textStartLine == nil and str ~= "" then textStartLine = currentLine end
                 if str ~= "" then textLastLine = currentLine end
@@ -2670,6 +2767,13 @@ end
 --
 --Note: pattern-based rich tags (RichTag.pattern) are not specially handled here;
 --they do not carry stored annotations, so they never contribute to the result.
+--The annotation keys GetReferencedAnnotations found in each document's text,
+--{ text = <text tokenized>, keys = { key, ... } }, for calls with no options.
+--Tokenizing a long document costs 10-40 ms and the encounter finders ask
+--several times a second; the keys only change when the text does. Weak keys:
+--a document dropped by a table refresh drops its entry.
+local g_referencedKeysCache = setmetatable({}, { __mode = "k" })
+
 function MarkdownDocument:GetReferencedAnnotations(options)
     local result = {}
     local annotations = self:try_get("annotations")
@@ -2677,8 +2781,26 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         return result
     end
 
-    local tokens = BreakdownRichTags(self:GetTextContent(), nil, options or {})
+    local text = self:GetTextContent()
+    --a "???" conditional line is evaluated against the game state as the text
+    --is tokenized, so its tags can change while the text does not: never cache.
+    local cacheable = options == nil and string.find(text, "???", 1, true) == nil
+    if cacheable then
+        local cached = g_referencedKeysCache[self]
+        if cached ~= nil and cached.text == text then
+            for _, key in ipairs(cached.keys) do
+                local annotation = annotations[key]
+                if annotation ~= nil then
+                    result[#result + 1] = { key = key, annotation = annotation }
+                end
+            end
+            return result
+        end
+    end
+
+    local tokens = BreakdownRichTags(text, nil, options or {})
     local tagsSeen = {}
+    local keys = {}
     for _, token in ipairs(tokens) do
         if token.type == "tag" then
             local fullname = token.text
@@ -2692,6 +2814,7 @@ function MarkdownDocument:GetReferencedAnnotations(options)
                     index = index + 1
                 end
                 tagsSeen[candidate] = true
+                keys[#keys + 1] = candidate
 
                 local annotation = annotations[candidate]
                 if annotation ~= nil then
@@ -2701,6 +2824,9 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         end
     end
 
+    if cacheable then
+        g_referencedKeysCache[self] = { text = text, keys = keys }
+    end
     return result
 end
 
@@ -5426,23 +5552,58 @@ end
 --id appearing in the other page's annotations, which generically catches
 --widget-held references (an exit's nextDocid, a cue's opendoc step)
 --without knowing each widget's schema.
+--The text every other document contributes to the related-entries scan
+--(its lowercased content and its annotations as JSON), cached per document
+--object: building it for every document cost ~250 ms per render of a page
+--in an adventure with a few hundred documents (mostly the annotations
+--ToJson), and the welcome page renders as a game loads. Weak keys drop a
+--document replaced by a table update; refreshTables clears the lot in case
+--one was changed in place.
+local g_relatedScanCache = setmetatable({}, { __mode = "k" })
+
+--true once every document has a cache entry (WarmRelatedScanCo); until then a
+--page shows a placeholder that fills the footer in when the scan is done.
+local g_relatedScanWarm = false
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    g_relatedScanCache = setmetatable({}, { __mode = "k" })
+    g_relatedScanWarm = false
+end)
+
+local function AnnotationsJson(doc)
+    local result = ""
+    pcall(function()
+        local ann = doc:try_get("annotations")
+        if ann ~= nil and next(ann) ~= nil then
+            result = dmhub.ToJson(ann)
+        end
+    end)
+    return result
+end
+
+local function LowerTextContent(doc)
+    local result = ""
+    pcall(function() result = string.lower(doc:GetTextContent() or "") end)
+    return result
+end
+
+--{content = lowercased text, annotations = JSON or ""} for a document that
+--is not the one being rendered.
+local function RelatedScanEntry(doc)
+    local entry = g_relatedScanCache[doc]
+    if entry == nil then
+        entry = { content = LowerTextContent(doc), annotations = AnnotationsJson(doc) }
+        g_relatedScanCache[doc] = entry
+    end
+    return entry
+end
+
 local function CollectRelatedDocs(selfDoc)
     local docsTable = dmhub.GetTable(CustomDocument.tableName) or {}
     local isDM = dmhub.isDM
     local accessibleRoots = nil
     if not isDM then
         accessibleRoots = CustomDocument.GetAccessibleRoots()
-    end
-
-    local function AnnotationsJson(doc)
-        local result = ""
-        pcall(function()
-            local ann = doc:try_get("annotations")
-            if ann ~= nil and next(ann) ~= nil then
-                result = dmhub.ToJson(ann)
-            end
-        end)
-        return result
     end
 
     --true when content references a page with this description via any
@@ -5459,8 +5620,8 @@ local function CollectRelatedDocs(selfDoc)
 
     local mydesc = string.lower(selfDoc.description or "")
     local myid = selfDoc:try_get("id")
-    local mycontent = ""
-    pcall(function() mycontent = string.lower(selfDoc:GetTextContent() or "") end)
+    --the page being rendered may be mid-edit, so it is never read from the cache.
+    local mycontent = LowerTextContent(selfDoc)
     local myannotations = AnnotationsJson(selfDoc)
 
     local outgoing, incoming = {}, {}
@@ -5477,9 +5638,9 @@ local function CollectRelatedDocs(selfDoc)
                     outgoing[#outgoing + 1] = { id = id, name = desc }
                 end
 
-                local theircontent = ""
-                pcall(function() theircontent = string.lower(doc:GetTextContent() or "") end)
-                local theirann = AnnotationsJson(doc)
+                local scan = RelatedScanEntry(doc)
+                local theircontent = scan.content
+                local theirann = scan.annotations
                 if MentionsDesc(theircontent, mydesc)
                     or (myid ~= nil and theirann ~= "" and string.find(theirann, myid, 1, true)) then
                     incoming[#incoming + 1] = { id = id, name = desc }
@@ -5492,7 +5653,70 @@ local function CollectRelatedDocs(selfDoc)
     return outgoing, incoming
 end
 
-local function BuildRelatedFooter(selfDoc)
+--Fills the scan cache for every document, spending at most about
+--RELATED_SCAN_MS_PER_FRAME of each frame on it (one document with big
+--annotations can take several ms). Run from a dmhub.Coroutine; returns early
+--(cache partly filled) if keepGoing() turns false.
+local RELATED_SCAN_MS_PER_FRAME = 4
+local function WarmRelatedScanCo(keepGoing)
+    local docs = {}
+    for _, doc in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
+        docs[#docs + 1] = doc
+    end
+    local cache = g_relatedScanCache
+    local frameWatch = dmhub.Stopwatch()
+    for _, doc in ipairs(docs) do
+        if cache ~= g_relatedScanCache or not keepGoing() then
+            --tables refreshed (or the page went away) mid-scan.
+            return
+        end
+        if g_relatedScanCache[doc] == nil then
+            RelatedScanEntry(doc)
+            if frameWatch.milliseconds >= RELATED_SCAN_MS_PER_FRAME then
+                coroutine.yield(0)
+                frameWatch = dmhub.Stopwatch()
+            end
+        end
+    end
+    if cache == g_relatedScanCache then
+        g_relatedScanWarm = true
+    end
+end
+
+local BuildRelatedFooter
+
+--The related-entries footer, or -- while the scan cache is cold (the first page
+--rendered after a game loads or tables change) -- an empty panel that warms the
+--cache a few documents per frame and then builds the footer into itself, so the
+--page shows at once instead of stalling on the scan.
+local function RelatedFooterOrPlaceholder(selfDoc)
+    if g_relatedScanWarm then
+        return BuildRelatedFooter(selfDoc)
+    end
+    local placeholder
+    placeholder = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        create = function(element)
+            dmhub.Coroutine(function()
+                WarmRelatedScanCo(function()
+                    return (not mod.unloaded) and placeholder ~= nil and placeholder.valid
+                end)
+                if mod.unloaded or placeholder == nil or not placeholder.valid or not g_relatedScanWarm then
+                    return
+                end
+                local footer = BuildRelatedFooter(selfDoc)
+                if footer ~= nil then
+                    placeholder.children = { footer }
+                end
+            end)
+        end,
+    }
+    return placeholder
+end
+
+BuildRelatedFooter = function(selfDoc)
     local outgoing, incoming = CollectRelatedDocs(selfDoc)
     if #outgoing == 0 and #incoming == 0 then
         return nil
@@ -6390,7 +6614,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                 end
             end
             if m_relatedFooter then
-                local footer = BuildRelatedFooter(self)
+                local footer = RelatedFooterOrPlaceholder(self)
                 if footer ~= nil then
                     children[#children + 1] = footer
                 end
@@ -6559,6 +6783,9 @@ local g_richTagDescriptions = {
     follower = {desc = "Companion or follower", takesName = true},
     setting = {desc = "Game setting toggle", patternExample = "setting:settingid"},
     fishing = {desc = "Fishing activity", takesName = true},
+    sliderpuzzle = {desc = "Sliding tile puzzle made from an image", takesName = true, menuLabel = "slider puzzle"},
+    tornpuzzle = {desc = "Torn-paper puzzle made from an image", takesName = true, menuLabel = "torn puzzle"},
+    puzzle = {desc = "Puzzle: slider, torn note, or any registered puzzle type", takesName = true, menuLabel = "puzzle"},
 }
 
 -- The document text that inserts (or previews) a pattern-based rich tag, plus
@@ -8331,7 +8558,7 @@ local function CreateMarkdownToolbar(opts)
     local mediaTags  = { "image", "sound", "ability", "scene",
                          "encounter", "party", "follower" }
     local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
-                         "reminder", "timer", "setting" }
+                         "reminder", "timer", "setting", "puzzle" }
 
     --The option id stays the internal tag name (the change handler inserts by
     --tag name), but the label shown can differ -- see menuLabel above.
@@ -9194,7 +9421,21 @@ function Seamless.CompileDecorations(doc, text)
             --filler, same length) so later scans cannot see consumed syntax:
             --rich [[..]] tags first (never inline-styled), then bold before
             --italic (shared asterisks), then links.
-            local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+            --Backslash escapes go before all of them: the backslash hides (the
+            --renderer drops it too) and the pair is blanked, so "\*" can never
+            --open an emphasis run. "\\" is a pair as well.
+            local scratch = line
+            if string.find(line, "\\", 1, true) ~= nil then
+                local escFrom = 1
+                while true do
+                    local s = line:find("\\%p", escFrom)
+                    if s == nil then break end
+                    decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = G() }
+                    escFrom = s + 2
+                end
+                scratch = line:gsub("\\%p", "\1\1")
+            end
+            scratch = scratch:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
             --inner text ranges of each emphasis run, consumed by the glossary
             --pass below: blanking consumes them from scratch, but the display
@@ -9349,7 +9590,9 @@ function Seamless.LinkAtPosition(text, pos)
     --caret offset within the line, 0-based (bytes of the line before it).
     local rel = pos - (lineStart - 1)
 
-    local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+    --escaped brackets (\[) are text, never links.
+    local scratch = line:gsub("\\%p", "\1\1")
+    scratch = scratch:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
     --page embeds: [:Document Name]
     local searchFrom = 1

@@ -120,6 +120,16 @@ function MonsterKnowledge.EntryKey(prefix, name)
     return prefix .. ":" .. SanitizeKey(name)
 end
 
+--pcall targets for the creature checks below. Passed to pcall directly (not
+--wrapped in a closure) because KeyForToken runs per frame from the lifebars.
+local function CallIsHero(props) return props:IsHero() end
+local function CallIsHeroSummon(props) return props:IsHeroSummon() end
+local function CallGetKeywords(props) return props:try_get("keywords") end
+
+--Shared read-only results, so the per-frame lookups allocate nothing.
+local g_emptyRecords = {}
+local g_noStamina = { tier = 0 }
+
 --- The knowledge key for a token, or nil if it is not a monster players can
 --- learn about (heroes, hero summons and retainers are excluded).
 --- @param token nil|CharacterToken
@@ -136,7 +146,10 @@ function MonsterKnowledge.KeyForToken(token)
         return nil
     end
     local isHero = true
-    pcall(function() isHero = props:IsHero() end)
+    local ok, result = pcall(CallIsHero, props)
+    if ok then
+        isHero = result
+    end
     if isHero then
         return nil
     end
@@ -151,7 +164,10 @@ function MonsterKnowledge.KeyForToken(token)
     end
 
     local isHeroSummon = false
-    pcall(function() isHeroSummon = props:IsHeroSummon() end)
+    ok, result = pcall(CallIsHeroSummon, props)
+    if ok then
+        isHeroSummon = result
+    end
     if isHeroSummon then
         return nil
     end
@@ -244,12 +260,13 @@ function MonsterKnowledge.IsResistanceRevealed(key, damageType)
     return MonsterKnowledge.PlayersCanSeeResistance(key, damageType)
 end
 
---- The keyword records (doc.data.keywords), or an empty table.
+--- The keyword records (doc.data.keywords), or an empty table. Read-only:
+--- the empty table is shared.
 function MonsterKnowledge.KeywordRecords()
     local doc = mod:GetDocumentSnapshot(MonsterKnowledge.documentId)
     local data = doc.data
     if data == nil or type(data.keywords) ~= "table" then
-        return {}
+        return g_emptyRecords
     end
     return data.keywords
 end
@@ -261,9 +278,8 @@ function MonsterKnowledge.StaminaKnownByKeyword(props)
     if props == nil then
         return false
     end
-    local keywords = nil
-    pcall(function() keywords = props:try_get("keywords") end)
-    if type(keywords) ~= "table" then
+    local ok, keywords = pcall(CallGetKeywords, props)
+    if not ok or type(keywords) ~= "table" then
         return false
     end
     local records = MonsterKnowledge.KeywordRecords()
@@ -288,7 +304,7 @@ end
 --- @return { tier: number, estimate: nil|number, visible: boolean }
 function MonsterKnowledge.StaminaKnowledge(key, props)
     local record = MonsterKnowledge.GetRecord(key)
-    local stamina = (record ~= nil and record.stamina) or { tier = 0 }
+    local stamina = (record ~= nil and record.stamina) or g_noStamina
     local tier = stamina.tier or 0
     local estimate = stamina.estimate
     local hidden = record ~= nil and record.revealed ~= nil and record.revealed["stamina"] == false

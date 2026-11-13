@@ -1,0 +1,11 @@
+# Editor settings for the project standard. Line endings are enforced by
+# .gitattributes (LF in the repository); this only tells editors what to write.
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+insert_final_newline = unset
+
+[*.{bat,cmd,ps1}]
+end_of_line = crlf

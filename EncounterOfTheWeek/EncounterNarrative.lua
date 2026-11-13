@@ -1,5 +1,13 @@
 --Encounter of the Week: the narrative runtime.
 --
+--RETIRED as a runtime (2026-11-07): every narrative beat now plays on the
+--montage engine (EncounterGauntlet.lua; GAUNTLET_PLAN.md, "Merging into
+--Narrative"), and nothing starts this one any more. It stays for the shared
+--voter helpers (Voters, VoterKeyForUser, DECIDE_FLASH_SECONDS), which the
+--montage engine, Tactical Preparation and negotiation use, for
+--ActiveAnnounce and "/eotwnarrative", and until the old narrative stage is
+--retired with it (N3).
+--
 --Runs a "# Narrative" beat of the map's script (EncounterScript.lua): the
 --beat's "## sections" play one at a time, each showing its scene and its
 --text and asking the party to choose. A section either has to be AGREED
@@ -47,6 +55,8 @@
 --card's haul strip, which reads data.items).
 
 local mod = dmhub.GetModLoading()
+
+local T = UIText.T
 
 EncounterNarrative = rawget(_G, "EncounterNarrative") or {}
 
@@ -156,7 +166,7 @@ function EncounterNarrative.Voters(section, heroes)
         if entry == nil then
             local name = owner
             if owner == "PARTY" then
-                name = "The party"
+                name = T("narrative.party_name")
             else
                 pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
             end
@@ -386,6 +396,12 @@ end
 --party reads it and presses on, and pressing on is what dismisses it. No
 --timer -- a callout that timed out would go while somebody was still reading.
 function EncounterNarrative.ActiveAnnounce()
+    --a narrative plays on the montage engine, which keeps its callout.
+    local gauntlet = rawget(_G, "EncounterGauntlet")
+    local montageState = EncounterMontage.GetState()
+    if gauntlet ~= nil and montageState ~= nil and gauntlet.RunsNarrative(montageState.beatIndex) then
+        return gauntlet.ActiveAnnounce(montageState)
+    end
     local m = EncounterNarrative.GetState()
     local announce = m ~= nil and m.announce or nil
     if type(announce) ~= "table" or announce.text == nil then
@@ -457,7 +473,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
                 heroEntry = group.heroes[1],
                 userid = group.heroes[1] ~= nil and group.heroes[1].ownerId or nil,
                 entryName = section.name,
-                source = "Narrative",
+                source = T("narrative.effect_source"),
                 doc = doc,
             })
             for _, charid in ipairs(newAllies or {}) do
@@ -487,7 +503,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
             heroEntry = anchor,
             userid = anchor ~= nil and anchor.ownerId or nil,
             entryName = section.name,
-            source = "Narrative",
+            source = T("narrative.effect_source"),
             --the whole party chose this, so its Intelligence is everyone's,
             --not the anchor's.
             splitIntelligence = true,
@@ -519,6 +535,34 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
     m.log = m.log or {}
     m.log[#m.log + 1] = log
     m.seq = (tonumber(m.seq) or 0) + 1
+
+    --analytics (host): which way the party went. For an individual section,
+    --how many heroes took each option ("2,1,0" by option order).
+    local fields = {
+        section = section.name,
+        mode = section.mode,
+        options = #(section.options or {}),
+        landed = applied,
+    }
+    if section.mode == "individual" then
+        local counts = {}
+        for i = 1, #(section.options or {}) do
+            counts[i] = 0
+        end
+        for _, group in ipairs(result.groups or {}) do
+            counts[group.optionIndex] = #(group.heroNames or {})
+        end
+        local parts = {}
+        for i, n in ipairs(counts) do
+            parts[i] = tostring(n)
+        end
+        fields.optionCounts = table.concat(parts, ",")
+    else
+        fields.option = result.optionName
+        fields.optionIndex = optionIndex
+        fields.decidedBy = decidedBy
+    end
+    EotwAnalytics.Track("eotw_narrative_choice", fields)
 end
 
 --A split agreed-upon vote: the host picks a player at random and records the
@@ -557,6 +601,11 @@ end
 
 --Validate and apply one player request. Returns a line to log, or nil.
 local function HandleRequest(m, doc, userid, req, beat, heroes)
+    --handing an item to another hero works at any point in the beat.
+    if req.kind == "giveItem" then
+        return EncounterMontage.GiveItem(doc, heroes, userid, req)
+    end
+
     local sections = SectionsOf(beat)
     local section = sections[tonumber(m.sectionIndex) or 1]
     if section == nil then
@@ -588,7 +637,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             if key == nil then
                 return string.format("%s controls no hero and cannot choose", tostring(userid))
             end
-            name = key == "PARTY" and "The party" or nil
+            name = key == "PARTY" and T("narrative.party_name") or nil
             if name == nil then
                 pcall(function() name = dmhub.GetDisplayName(key) or key end)
             end
@@ -639,6 +688,11 @@ function EncounterNarrative.Begin(script, beat, beatIndex)
     }
     doc.data.stageDismissAt = nil
     ApplyUnlocks(doc, beat, beat.title or "Narrative")
+    --a series part's "When <condition>:" lines, against the story so far.
+    local whenOk, whenErr = pcall(EncounterMontage.ApplyWhenLines, doc, beat, beatIndex, nil)
+    if not whenOk then
+        printf("EotW story: When lines failed: %s", tostring(whenErr))
+    end
     doc:CompleteChange("Narrative started", { undoable = false })
     printf("EotW narrative: beat %d started (%d sections)", beatIndex, EncounterScript.SectionCount(beat))
     EncounterNarrative.Present(beatIndex)
@@ -917,16 +971,31 @@ pcall(function()
         doc = "Usage: /eotwnarrative start | stop | state | force | reset\nstart runs this map's first narrative beat right here (a dev host tick, for the authoring game); stop halts that driver; state prints who has chosen and who is still to; force resolves the section on the choices already in (a missing player); reset clears the narrative state.",
         command = function(str)
             local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
+            --a narrative on the montage engine: its state, driver and force
+            --live there ("/eotwgauntlet state" for the details).
+            local gauntlet = rawget(_G, "EncounterGauntlet")
+            local onMontage = false
+            if gauntlet ~= nil then
+                local montageState = EncounterMontage.GetState()
+                onMontage = montageState ~= nil and gauntlet.RunsNarrative(montageState.beatIndex)
+            end
             if arg == "start" then
                 --the item snapshot the real host takes on arrival, so a
                 --playtest's treasure is tracked like a real game's.
                 pcall(function() EncounterOfTheWeekGame.EnsureArrivalItems() end)
-                EncounterNarrative.StartDevDriver()
+                EncounterMontage.StartDevDriver("narrative")
             elseif arg == "stop" then
                 EncounterNarrative.StopDevDriver()
+                EncounterMontage.StopDevDriver()
                 print("EotW narrative: dev driver stopped")
             elseif arg == "force" then
-                local ok, err = EncounterNarrative.ForceResolve()
+                local ok, err
+                if onMontage then
+                    ---@cast gauntlet -nil
+                    ok, err = gauntlet.ForceResolve()
+                else
+                    ok, err = EncounterNarrative.ForceResolve()
+                end
                 printf("EotW narrative: force -> %s", tostring(ok and "resolved" or err))
             elseif arg == "reset" then
                 local doc = EncounterNarrative.GetDoc()
@@ -936,6 +1005,9 @@ pcall(function()
                 print("EotW narrative: state cleared")
             elseif arg == "json" then
                 print(json(EncounterNarrative.GetState()))
+            elseif onMontage then
+                ---@cast gauntlet -nil
+                gauntlet.PrintState()
             else
                 PrintState()
             end

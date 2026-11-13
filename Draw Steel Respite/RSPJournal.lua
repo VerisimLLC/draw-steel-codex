@@ -156,6 +156,7 @@ function RSPJournal.Build()
                 local entries = summarise{
                     charid = charid,
                     since = RSPSession.StartedAt,
+                    roster = RSPSession.Roster,
                 }
                 for _, entry in ipairs(entries or {}) do
                     said[#said + 1] = entry

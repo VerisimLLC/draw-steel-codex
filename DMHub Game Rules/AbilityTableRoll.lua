@@ -165,6 +165,8 @@ function ActivatedAbilityTableRollBehavior:Cast(ability, casterToken, targets, o
 
                                         token.partyid = target.token.partyid
 
+                                        ActivatedAbilitySummonBehavior.RunSummonHooks(target.token, token)
+
                                         token:UploadToken("Summon Monster")
                                         game.UpdateCharacterTokens()
                                     end

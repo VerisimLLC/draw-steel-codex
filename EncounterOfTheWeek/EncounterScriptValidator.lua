@@ -20,6 +20,9 @@
 
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+local TP = UIText.Plural
+
 EncounterScriptValidator = {}
 
 EncounterScriptValidator.panelName = "Encounter Script"
@@ -54,11 +57,11 @@ local function DocumentOptions()
         if doc.typeName == "MarkdownDocument" then
             local name = doc.description
             if type(name) ~= "string" or trim(name) == "" then
-                name = "(untitled)"
+                name = T("author.validator.documents.untitled")
             end
             found[#found + 1] = {
                 id = docid,
-                text = cond(docid == currentId, name .. "  [this map]", name),
+                text = cond(docid == currentId, T("author.validator.documents.this_map", { name = name }), name),
                 sortKey = lower(name),
                 current = docid == currentId,
             }
@@ -148,7 +151,9 @@ local function NameChecks(parse)
         end
         for _, section in ipairs(EncounterScript.NarrativeSections(beat)) do
             for _, o in ipairs(section.options) do
-                CollectZones(o.effects)
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    CollectZones(effects)
+                end
             end
         end
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
@@ -184,7 +189,18 @@ local function NameChecks(parse)
         elseif n.kind == "zone" then
             pcall(function() id = EncounterZones.FindKeyword(n.name) end)
         end
-        Check(id ~= nil, "%s '%s': %s", n.kind, n.name, cond(id ~= nil, "found", "NOT FOUND"))
+        local found = id ~= nil
+        local text
+        if n.kind == "item" then
+            text = cond(found, T("author.validator.names.item_found", { name = tostring(n.name) }), T("author.validator.names.item_not_found", { name = tostring(n.name) }))
+        elseif n.kind == "monster" then
+            text = cond(found, T("author.validator.names.monster_found", { name = tostring(n.name) }), T("author.validator.names.monster_not_found", { name = tostring(n.name) }))
+        elseif n.kind == "object" then
+            text = cond(found, T("author.validator.names.object_found", { name = tostring(n.name) }), T("author.validator.names.object_not_found", { name = tostring(n.name) }))
+        else
+            text = cond(found, T("author.validator.names.zone_found", { name = tostring(n.name) }), T("author.validator.names.zone_not_found", { name = tostring(n.name) }))
+        end
+        Check(found, "%s", text)
     end
     return out
 end
@@ -204,7 +220,7 @@ local function AttrProblems(attr)
         return problems
     end
     if next(characteristics or {}) == nil then
-        problems[#problems + 1] = string.format("'%s' names no characteristic; the test has nothing to roll", attr)
+        problems[#problems + 1] = T("author.validator.problems.no_characteristic", { attr = tostring(attr) })
     end
     local inside = string.match(attr or "", "%((.*)%)")
     for token in string.gmatch(inside or "", "[^,]+") do
@@ -219,7 +235,7 @@ local function AttrProblems(attr)
                 end
             end
             if not matched then
-                problems[#problems + 1] = string.format("'%s' is not a skill name; it adds nothing to the roll", token)
+                problems[#problems + 1] = T("author.validator.problems.not_a_skill", { skill = token })
             end
         end
     end
@@ -231,7 +247,10 @@ end
 --One row of the report: { depth, text, class }. `class` picks the colour
 --(see the styles below); the text may carry rich-text colour tags of its
 --own, which is how a tier line highlights the clauses that are rules.
+local GauntletRouteRows
+
 local function Report(parse)
+    local GauntletSectionRows
     local rows = {}
     local counts = { beats = 0, entries = 0, options = 0, rules = 0, flavour = 0 }
     local problems = {}
@@ -253,7 +272,7 @@ local function Report(parse)
             local described = EncounterScript.DescribeEffect(effect)
             if EncounterScript.EffectIsMechanical(effect) then
                 counts.rules = counts.rules + 1
-                Row(depth + 1, "rule", "%s%s", cond(effect.hidden, "(hidden) ", ""), described)
+                Row(depth + 1, "rule", "%s", cond(effect.hidden, T("author.validator.report.hidden_rule", { rule = tostring(described) }), described))
             else
                 counts.flavour = counts.flavour + 1
                 Row(depth + 1, cond(effect.unrecognized, "flavourUnknown", "flavour"), "%s", described)
@@ -263,65 +282,132 @@ local function Report(parse)
 
     local function Tags(entry)
         local tags = {}
-        if entry.required then tags[#tags + 1] = "Required" end
-        if entry.locked then tags[#tags + 1] = "Locked" end
-        if entry.temporary then tags[#tags + 1] = "Temporary" end
+        if entry.required then tags[#tags + 1] = T("author.validator.report.tag_required") end
+        if entry.locked then tags[#tags + 1] = T("author.validator.report.tag_locked") end
+        if entry.temporary then tags[#tags + 1] = T("author.validator.report.tag_temporary") end
         if #tags == 0 then
             return ""
         end
         return string.format("  (%s)", table.concat(tags, ", "))
     end
 
+    --A Gauntlet section: what kind it is, its tags, where it leaves to, the
+    --vote's question and how long its arrival scene is.
+    function GauntletSectionRows(entry)
+        local kind = T("author.validator.report.gauntlet_kind_challenge")
+        if entry.kind == "choice" then
+            kind = T("author.validator.report.gauntlet_kind_vote")
+        elseif entry.kind == "event" then
+            kind = T("author.validator.report.gauntlet_kind_event")
+        end
+        local tags = {}
+        if entry.detour then
+            tags[#tags + 1] = T("author.validator.report.gauntlet_tag_detour")
+        end
+        if entry.minPlayers ~= nil then
+            if entry.maxPlayers == nil then
+                tags[#tags + 1] = T("author.validator.report.gauntlet_tag_min", { min = entry.minPlayers })
+            else
+                tags[#tags + 1] = T("author.validator.report.gauntlet_tag_range", { min = entry.minPlayers, max = entry.maxPlayers })
+            end
+        end
+        local tagText = ""
+        if #tags > 0 then
+            tagText = string.format("  (%s)", table.concat(tags, ", "))
+        end
+        Row(2, "entry", "%s", T("author.validator.report.gauntlet_section", { kind = kind, name = tostring(entry.name), tags = tagText }))
+        if (entry.prompt or "") ~= "" then
+            Row(3, "note", "%s", T("author.validator.report.gauntlet_prompt", { prompt = entry.prompt }))
+        end
+        if entry.scene ~= nil and #entry.scene > 0 then
+            Row(3, "note", "%s", T("author.validator.report.gauntlet_arrival", { count = #entry.scene }))
+        end
+        if entry.exit ~= nil then
+            Row(3, "rule", "%s", T("author.validator.report.gauntlet_exit", { target = tostring(entry.exit.name) }))
+        end
+    end
+
     for bi, beat in ipairs(parse.beats or {}) do
         counts.beats = counts.beats + 1
-        Row(0, "beat", "Beat %d: %s  [%s]%s", bi, beat.title or "", beat.kind,
-            cond(beat.implicit, "  (implicit)", ""))
+        Row(0, "beat", "%s", cond(beat.implicit, T("author.validator.report.beat_implicit", { number = bi, title = beat.title or "", kind = tostring(beat.kind) }),
+            T("author.validator.report.beat", { number = bi, title = beat.title or "", kind = tostring(beat.kind) })))
         if beat.sceneTag ~= nil then
-            Row(1, "note", "scene: [[%s]]", beat.sceneTag)
+            Row(1, "note", "%s", T("author.validator.report.scene_tag", { tag = tostring(beat.sceneTag) }))
         end
         if beat.intro ~= nil and trim(beat.intro) ~= "" then
-            Row(1, "note", "intro: %s", beat.intro)
+            Row(1, "note", "%s", T("author.validator.report.intro", { intro = beat.intro }))
+        end
+        if beat.kind == "negotiation" then
+            for _, trait in ipairs(beat.traits) do
+                Row(1, "note", "%s", T("author.validator.negotiation.trait", { kind = trait.kind, trait = trait.name, start = trait.start }))
+            end
+            for _, argument in ipairs(beat.arguments) do
+                counts.options = counts.options + 1
+                Row(1, "note", "%s", T("author.validator.negotiation.argument", { argument = argument.name, kind = argument.kind }))
+            end
+            for _, problem in ipairs(EncounterScript.NegotiationProblems(beat, parse)) do
+                Problem("%s", T("author.validator.negotiation.problem", { npc = beat.name, problem = problem }))
+            end
+            local found = beat.playedBy ~= "" and EncounterMontage.FindMonster(beat.playedBy) or nil
+            if beat.playedBy ~= "" and found == nil then
+                Problem("%s", T("author.validator.negotiation.no_monster", { npc = beat.name, monster = beat.playedBy }))
+            end
         end
         for _, u in ipairs(beat.unlocks or {}) do
-            Row(1, "rule", "unlocks the %s feature when this beat opens", u.name)
+            Row(1, "rule", "%s", T("author.validator.report.unlocks_beat", { feature = tostring(u.name) }))
         end
 
         for _, ins in ipairs(beat.setup or {}) do
             if ins.kind == "placeobjects" then
-                Row(1, "rule", "setup %s: place %d x '%s' in %s zones%s", ins.label, ins.qty, ins.object, ins.zone,
-                    cond(ins.deleteOthers, ", delete the other " .. ins.zone .. " zones", ""))
+                Row(1, "rule", "%s", cond(ins.deleteOthers, T("author.validator.report.setup_place_delete", { label = tostring(ins.label), qty = ins.qty, object = tostring(ins.object), zone = tostring(ins.zone) }),
+                    T("author.validator.report.setup_place", { label = tostring(ins.label), qty = ins.qty, object = tostring(ins.object), zone = tostring(ins.zone) })))
             elseif ins.kind == "bystanders" then
-                Row(1, "rule", "setup %s: bystanders (no initiative): %s", ins.label, table.concat(ins.names or {}, ", "))
+                Row(1, "rule", "%s", T("author.validator.report.setup_bystanders", { label = tostring(ins.label), names = table.concat(ins.names or {}, ", ") }))
             elseif ins.kind == "victory" then
                 Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+            elseif ins.kind == "parallax" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
+            elseif ins.kind == "herolevel" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_hero_level", { level = tostring(ins.level) }))
+            elseif ins.kind == "aibehavior" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_ai_behavior", { label = tostring(ins.label), text = EncounterScript.DescribeAIBehavior(ins) }))
+                local monsterAI = rawget(_G, "MonsterAI")
+                if monsterAI ~= nil and monsterAI.FindBehavior(ins.behavior) == nil then
+                    local known = {}
+                    for id, _ in pairs(monsterAI.behaviors) do
+                        known[#known + 1] = id
+                    end
+                    table.sort(known)
+                    Problem("%s", T("author.validator.problems.unknown_ai_behavior", { where = tostring(EncounterScript.LineLabel(parse, ins.line)), behavior = tostring(ins.behavior), known = table.concat(known, ", ") }))
+                end
             else
-                Row(1, "flavourUnknown", "setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
-                Problem("%s: setup instruction '%s' is not understood", EncounterScript.LineLabel(parse, ins.line), ins.text)
+                Row(1, "flavourUnknown", "%s", T("author.validator.report.setup_unrecognized", { label = tostring(ins.label), text = tostring(ins.text) }))
+                Problem("%s", T("author.validator.problems.setup_not_understood", { where = tostring(EncounterScript.LineLabel(parse, ins.line)), text = tostring(ins.text) }))
             end
         end
 
         for _, r in ipairs(beat.reinforcements or {}) do
-            Row(1, "entry", "Reinforcements: %s", r.name)
-            Row(2, "rule", "arrive: %s", r.schedule ~= nil and EncounterScript.DescribeSchedule(r.schedule) or "NEVER (no Arrive: line)")
-            Row(2, "rule", "enter: %s", r.zone ~= nil and (r.zone .. " zone") or "the islands' saved positions")
+            Row(1, "entry", "%s", T("author.validator.report.reinforcements", { name = tostring(r.name) }))
+            Row(2, "rule", "%s", r.schedule ~= nil and T("author.validator.report.arrive", { schedule = tostring(EncounterScript.DescribeSchedule(r.schedule)) }) or T("author.validator.report.arrive_never"))
+            Row(2, "rule", "%s", r.zone ~= nil and T("author.validator.report.enter_zone", { zone = r.zone }) or T("author.validator.report.enter_saved"))
             if #r.islands > 1 then
-                Row(2, "note", "%d [[encounter]] islands take turns, one per arrival", #r.islands)
+                Row(2, "note", "%s", T("author.validator.report.islands_take_turns", { count = #r.islands }))
             else
-                Row(2, "note", "%d [[encounter]] island", #r.islands)
+                Row(2, "note", "%s", T("author.validator.report.islands", { count = #r.islands }))
             end
             for _, shout in ipairs(r.shouts or {}) do
-                Row(2, "flavour", "shout: \"%s\"", shout)
+                Row(2, "flavour", "%s", T("author.validator.report.shout", { text = tostring(shout) }))
             end
         end
 
         for _, section in ipairs(EncounterScript.NarrativeSections(beat)) do
-            Row(1, "entry", "Section: %s  (%s)", section.name, section.mode)
+            Row(1, "entry", "%s", T("author.validator.report.section", { name = tostring(section.name), mode = tostring(section.mode) }))
             for _, u in ipairs(section.unlocks or {}) do
-                Row(2, "rule", "unlocks the %s feature when this section arrives", u.name)
+                Row(2, "rule", "%s", T("author.validator.report.unlocks_section", { feature = tostring(u.name) }))
             end
             for _, o in ipairs(section.options) do
                 counts.options = counts.options + 1
-                Row(2, "option", "%s%s", o.name, cond(o.implicit, "  (implicit)", ""))
+                Row(2, "option", "%s", cond(o.implicit, T("author.validator.report.option_implicit", { name = tostring(o.name) }), o.name))
                 if #o.effects > 0 then
                     RulesFor(3, "", o.text)
                 end
@@ -329,58 +415,68 @@ local function Report(parse)
         end
 
         for _, round in ipairs(beat.rounds or {}) do
-            Row(1, "round", "Round %d%s", round.number, cond(round.implicit, "  (implicit)", ""))
+            --a Gauntlet's one round is implicit: its sections are what matter.
+            if not beat.gauntlet then
+                Row(1, "round", "%s", cond(round.implicit, T("author.validator.report.round_implicit", { number = round.number }), T("author.validator.report.round", { number = round.number })))
+            end
             for _, d in ipairs(round.scaling or {}) do
-                Row(2, "rule", "scaling: %s", d.text)
+                Row(2, "rule", "%s", T("author.validator.report.scaling", { text = tostring(d.text) }))
             end
             for _, entry in ipairs(round.entries) do
                 counts.entries = counts.entries + 1
-                Row(2, "entry", "%s: %s%s", cond(entry.kind == "threat", "Threat", "Opportunity"),
-                    entry.name, Tags(entry))
+                if beat.gauntlet then
+                    GauntletSectionRows(entry)
+                else
+                    Row(2, "entry", "%s", cond(entry.kind == "threat", T("author.validator.report.entry_threat", { name = tostring(entry.name), tags = Tags(entry) }),
+                        T("author.validator.report.entry_opportunity", { name = tostring(entry.name), tags = Tags(entry) })))
+                end
                 if entry.consequence ~= nil then
-                    RulesFor(3, "Consequence: ", entry.consequence.text)
+                    RulesFor(3, T("author.validator.report.consequence_label"), entry.consequence.text)
                 end
                 --one version of an option: its roll or its free rules, and
                 --its riders.
                 local function VersionRows(o, v, depth)
                     for _, rider in ipairs(v.riders or {}) do
                         Row(depth, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
-                            "%s: %s", cond(rider.effect == "allow", "Secret (only for)", EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
+                            "%s: %s", cond(rider.effect == "allow", T("author.validator.report.secret_rider"), EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
                     end
                     if v.roll ~= nil then
                         Row(depth, "roll", "%s: %s", v.roll.name, v.roll.attr)
                         for _, problem in ipairs(AttrProblems(v.roll.attr)) do
                             Row(depth + 1, "flavourUnknown", "%s", problem)
-                            Problem("%s: option '%s' -- %s", EncounterScript.LineLabel(parse, o.line), o.name, problem)
+                            Problem("%s", T("author.validator.problems.option_problem", { where = tostring(EncounterScript.LineLabel(parse, o.line)), option = tostring(o.name), problem = problem }))
                         end
                         for t in ipairs(v.roll.tiers) do
-                            local label = string.format("tier %d: ", t)
+                            local label = T("author.validator.report.tier_label", { tier = t })
                             if t == 4 then
-                                label = cond(v.roll.critAuto, "critical (automatic): ", "critical: ")
+                                label = cond(v.roll.critAuto, T("author.validator.report.critical_auto_label"), T("author.validator.report.critical_label"))
                             end
                             if v.roll.teasers[t] ~= nil then
-                                Row(depth + 1, "note", "%steaser '%s'", label, v.roll.teasers[t])
+                                Row(depth + 1, "note", "%s", T("author.validator.report.teaser", { label = label, teaser = tostring(v.roll.teasers[t]) }))
                             end
                             RulesFor(depth + 1, label, v.roll.tiers[t])
                         end
                         for _, rider in ipairs(v.roll.riders or {}) do
                             Row(depth + 1, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
-                                "%s: %s", cond(rider.effect == "allow", "Secret (only for)", EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
+                                "%s: %s", cond(rider.effect == "allow", T("author.validator.report.secret_rider"), EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
                         end
                     elseif v.free ~= nil then
-                        RulesFor(depth, "no roll: ", v.free.text)
+                        RulesFor(depth, T("author.validator.report.no_roll_label"), v.free.text)
                     elseif o.delve ~= nil and v == o then
-                        Row(depth, "note", "enters the delve '%s'", o.delve)
+                        Row(depth, "note", "%s", T("author.validator.report.enters_delve", { delve = tostring(o.delve) }))
                     else
-                        Row(depth, "flavourUnknown", "no power roll and no rules")
+                        Row(depth, "flavourUnknown", "%s", T("author.validator.report.no_rules"))
                     end
                 end
                 for _, o in ipairs(entry.options) do
                     counts.options = counts.options + 1
-                    Row(3, "option", "%s%s", o.name, cond(EncounterScript.OptionIsSecret(o), "  (SECRET)", ""))
+                    Row(3, "option", "%s", cond(EncounterScript.OptionIsSecret(o), T("author.validator.report.option_secret", { name = tostring(o.name) }), o.name))
                     VersionRows(o, o, 4)
+                    if o.route ~= nil then
+                        Row(4, "rule", "%s", T("author.validator.report.gauntlet_option_route", { target = tostring(o.route.name) }))
+                    end
                     for _, k in ipairs(o.knacks or {}) do
-                        Row(4, cond(k.requirement.unrecognized, "flavourUnknown", "knack"), "Knack -- if %s:", k.requirementText)
+                        Row(4, cond(k.requirement.unrecognized, "flavourUnknown", "knack"), "%s", T("author.validator.report.knack", { requirement = tostring(k.requirementText) }))
                         VersionRows(o, k, 5)
                     end
                 end
@@ -459,7 +555,7 @@ local function PartyHeroes(partyid)
         if isHero and inParty then
             local name = tok.name
             if type(name) ~= "string" or name == "" then
-                name = "(unnamed)"
+                name = T("author.validator.coverage.unnamed_hero")
                 pcall(function()
                     local props = tok.properties --[[@as character]]
                     local race = props:Race()
@@ -491,13 +587,13 @@ local function PartyOptions()
     local best, bestCount = "all", 0
     for partyid, n in pairs(counts) do
         local name = parties[partyid] ~= nil and parties[partyid].name or partyid
-        options[#options + 1] = { id = partyid, text = string.format("%s (%d heroes)", tostring(name), n) }
+        options[#options + 1] = { id = partyid, text = T("author.validator.coverage.party_option", { party = tostring(name), count = n }) }
         if n > bestCount then
             best, bestCount = partyid, n
         end
     end
     table.sort(options, function(a, b) return a.text < b.text end)
-    table.insert(options, 1, { id = "all", text = "All heroes in the game" })
+    table.insert(options, 1, { id = "all", text = T("author.validator.coverage.all_heroes") })
     return options, best
 end
 
@@ -530,6 +626,7 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
     local testsTotal, testsBare = 0, {}
     local oppTotal, oppBare = 0, {}
     local threatTotal, threatWith = 0, 0
+    local challengeTotal, challengeBare = 0, {}
     local byRequirement = {}
     local hookTotal = 0
     local perHero = {}
@@ -583,12 +680,24 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
             if entrySecrets > 0 then
                 threatWith = threatWith + 1
             end
+        elseif entry.kind == "challenge" and EncounterScript.GauntletSectionHasTest(entry) then
+            --a narrative challenge with a test, held to the opportunity
+            --standard: some hero's knack or secret option should make it
+            --theirs. (One with only No Roll options asks for no skill.)
+            challengeTotal = challengeTotal + 1
+            if entrySecrets == 0 then
+                challengeBare[#challengeBare + 1] = label
+            end
         end
     end
 
     for _, beat in ipairs(parse.beats or {}) do
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
             Visit(entry.name, entry, entry.round)
+        end
+        --a narrative's sections (only a challenge's tests count).
+        for _, entry in ipairs(EncounterScript.GauntletSections(beat)) do
+            Visit(entry.name, entry, nil)
         end
     end
     for _, delve in pairs(parse.delves or {}) do
@@ -597,15 +706,21 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
         end
     end
 
-    Row(0, cond(#testsBare == 0, "ok", "problem"), "Tests with a knack: %d of %d (standard: every test)", testsTotal - #testsBare, testsTotal)
+    Row(0, cond(#testsBare == 0, "ok", "problem"), "%s", T("author.validator.coverage.tests", { with = testsTotal - #testsBare, total = testsTotal }))
     for _, t in ipairs(testsBare) do
-        Row(1, "flavourUnknown", "no knack: %s", t)
+        Row(1, "flavourUnknown", "%s", T("author.validator.coverage.test_no_knack", { test = t }))
     end
-    Row(0, cond(#oppBare == 0, "ok", "problem"), "Opportunities with a secret option or knack: %d of %d (standard: most)", oppTotal - #oppBare, oppTotal)
+    Row(0, cond(#oppBare == 0, "ok", "problem"), "%s", T("author.validator.coverage.opportunities", { with = oppTotal - #oppBare, total = oppTotal }))
     for _, e in ipairs(oppBare) do
-        Row(1, "flavourUnknown", "none: %s", e)
+        Row(1, "flavourUnknown", "%s", T("author.validator.coverage.opportunity_none", { entry = e }))
     end
-    Row(0, "note", "Threats with a secret option or knack: %d of %d (standard: some)", threatWith, threatTotal)
+    Row(0, "note", "%s", T("author.validator.coverage.threats", { with = threatWith, total = threatTotal }))
+    if challengeTotal > 0 then
+        Row(0, cond(#challengeBare == 0, "ok", "problem"), "%s", T("author.validator.coverage.gauntlet_challenges", { with = challengeTotal - #challengeBare, total = challengeTotal }))
+        for _, e in ipairs(challengeBare) do
+            Row(1, "flavourUnknown", "%s", T("author.validator.coverage.opportunity_none", { entry = e }))
+        end
+    end
 
     --one requirement carrying too much of the montage (5 Zaliac edges)
     local heavy = {}
@@ -616,10 +731,10 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
     end
     table.sort(heavy)
     if #heavy > 0 then
-        Row(0, "flavourUnknown", "Leaning on one knack (over 15%% of %d hooks): %s", hookTotal, table.concat(heavy, ", "))
+        Row(0, "flavourUnknown", "%s", T("author.validator.coverage.leaning", { hooks = hookTotal, list = table.concat(heavy, ", ") }))
     end
 
-    Row(0, "note", "Heroes (%d) -- knacks each meets (standard: 3 or more)", #heroes)
+    Row(0, "note", "%s", T("author.validator.coverage.heroes", { count = #heroes }))
     for _, hero in ipairs(heroes) do
         local ph = perHero[hero.charid]
         local where = {}
@@ -628,6 +743,67 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
         end
         table.sort(where)
         Row(1, cond(ph.count >= 3, "ok", "problem"), "%s: %d  %s", hero.name, ph.count, table.concat(where, ", "))
+    end
+    return rows
+end
+
+--- Gauntlet routes -----------------------------------------------------------
+
+--The party sizes the route map is drawn for.
+local ROUTE_PARTY_SIZES = { 3, 4, 5 }
+--How many routes are spelled out per party size (all are counted).
+local ROUTE_LIST_LIMIT = 8
+
+--Rows for every narrative beat with a choice of route or a test: per party
+--size, the routes through it
+--(EncounterScript.GauntletRoutes) and how many tests the longest one asks
+--for, against the number of heroes (every roll after a hero's first is a
+--Weary bane).
+function GauntletRouteRows(parse)
+    local rows = {}
+    local function Row(depth, class, text)
+        rows[#rows + 1] = { depth = depth, class = class, text = text }
+    end
+    --a narrative read straight through with no tests has nothing to map.
+    local function WorthMapping(beat)
+        for _, size in ipairs(ROUTE_PARTY_SIZES) do
+            local routes = EncounterScript.GauntletRoutes(beat, size)
+            if #routes > 1 or (routes[1] ~= nil and routes[1].tests > 0) then
+                return true
+            end
+        end
+        return false
+    end
+    for bi, beat in ipairs(parse.beats or {}) do
+        if beat.gauntlet and WorthMapping(beat) then
+            Row(0, "beat", T("author.validator.routes.heading", { number = bi, title = tostring(beat.title or "") }))
+            for _, size in ipairs(ROUTE_PARTY_SIZES) do
+                local routes, more = EncounterScript.GauntletRoutes(beat, size)
+                local fewest, most = nil, 0
+                for _, r in ipairs(routes) do
+                    fewest = math.min(fewest or r.tests, r.tests)
+                    most = math.max(most, r.tests)
+                end
+                Row(1, "entry", T("author.validator.routes.party", { heroes = size, routes = #routes, fewest = fewest or 0, most = most }))
+                if most > size then
+                    Row(2, "note", T("author.validator.routes.weary", { heroes = size, tests = most, rolls = math.ceil(most / size) }))
+                end
+                for i, r in ipairs(routes) do
+                    if i > ROUTE_LIST_LIMIT then
+                        Row(2, "note", T("author.validator.routes.more", { count = #routes - ROUTE_LIST_LIMIT }))
+                        break
+                    end
+                    local names = {}
+                    for _, s in ipairs(r.sections) do
+                        names[#names + 1] = s.name
+                    end
+                    Row(2, "rule", TP("author.validator.routes.route", r.tests, { path = table.concat(names, " > ") }))
+                end
+                if more then
+                    Row(2, "note", T("author.validator.routes.truncated"))
+                end
+            end
+        end
     end
     return rows
 end
@@ -675,11 +851,38 @@ end
 --Build the report body for one document id. Returns the list of children.
 local g_coverageParty = nil
 
+--Only a warning: Proving Pits wins never reach a hero, so a module is reviewed before it joins the Town Gate.
+local CHALLENGE_LIMIT = 3
+
+--The largest if the fight has several [[encounter]] islands; a script's mid-fight ctx:SetVictories can't be seen from here.
+---@param docid string
+---@return integer|nil
+local function OpeningFightVictories(docid)
+    local victories = nil
+    pcall(function()
+        local doc = (dmhub.GetTable("documents") or {})[docid]
+        local script = EncounterMontage.LoadScript(docid, DocumentMap(doc))
+        if script == nil or script.parse == nil then
+            return
+        end
+        for _, beat in ipairs(script.parse.beats or {}) do
+            for _, island in ipairs(beat.islands or {}) do
+                local encounter = EncounterReinforcements.IslandEncounter(script, island)
+                if encounter ~= nil then
+                    local islandVictories = math.max(0, math.floor(tonumber(encounter:try_get("victories", 1)) or 1))
+                    victories = math.max(victories or 0, islandVictories)
+                end
+            end
+        end
+    end)
+    return victories
+end
+
 function EncounterScriptValidator.BuildReport(docid, partyid)
     local children = {}
     local parse = LoadDocument(docid)
     if parse == nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "No such document." }
+        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = T("author.validator.report.no_document") }
         return children
     end
 
@@ -690,12 +893,21 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
             problems[#problems + 1] = check.text
         end
     end
+    local docMap = DocumentMap((dmhub.GetTable("documents") or {})[docid])
+    if docMap ~= nil and CreatorCredit.MapWatermarkUnset(docMap) then
+        problems[#problems + 1] = T("author.validator.report.no_watermark")
+    end
+    local victories = OpeningFightVictories(docid)
+    local challengeVictories = victories ~= nil and victories + EncounterOfTheWeekGame.CHALLENGE_VICTORIES or nil
+    if challengeVictories ~= nil and challengeVictories > CHALLENGE_LIMIT then
+        problems[#problems + 1] = T("author.validator.report.victories_high", { challenge = challengeVictories, limit = CHALLENGE_LIMIT })
+    end
 
     children[#children + 1] = gui.Label{
         classes = {"eotwValSummary"},
-        text = string.format("%d beats, %d entries, %d options -- %d rules matched, %d text-only clauses -- %s",
-            counts.beats, counts.entries, counts.options, counts.rules, counts.flavour,
-            cond(#problems == 0, "no problems", string.format("%d PROBLEMS", #problems))),
+        text = cond(#problems == 0,
+            T("author.validator.report.summary_ok", { beats = counts.beats, entries = counts.entries, options = counts.options, rules = counts.rules, flavour = counts.flavour }),
+            T("author.validator.report.summary_problems", { beats = counts.beats, entries = counts.entries, options = counts.options, rules = counts.rules, flavour = counts.flavour, problems = #problems })),
     }
     --the sub-documents this one pulled in, so a link that silently stayed
     --prose (a typo'd name warns; a link to a monster does not) is visible.
@@ -706,16 +918,94 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     if #included > 0 then
         table.sort(included)
         children[#children + 1] = RowLabel{ depth = 0, class = "note",
-            text = string.format("includes %d sub-document%s: %s", #included, cond(#included == 1, "", "s"), table.concat(included, ", ")) }
+            text = TP("author.validator.report.includes", #included, { list = table.concat(included, ", ") }) }
     end
 
     if not parse.hasEncounterTag then
         children[#children + 1] = RowLabel{ depth = 0, class = "problem",
-            text = "no [[encounter]] island: this document spawns no combat" }
+            text = T("author.validator.report.no_encounter_island") }
+    end
+
+    if victories ~= nil then
+        children[#children + 1] = RowLabel{ depth = 0, class = "note",
+            text = TP("author.validator.report.victories", victories, { challenge = challengeVictories }) }
+    end
+
+    --one part of a series ("# Part N"): played after the part before it,
+    --either on its own map ("<series map> (Part <n>)") or on its own part of
+    --a shared map -- there its encounter's region bounds the map.
+    if parse.part ~= nil then
+        local title = parse.part.title
+        local note
+        if parse.part.number == 1 then
+            if title ~= nil then
+                note = T("author.validator.report.part_first_titled", { title = title })
+            else
+                note = T("author.validator.report.part_first")
+            end
+        elseif title ~= nil then
+            note = T("author.validator.report.part_later_titled", { number = parse.part.number, title = title, previous = parse.part.number - 1 })
+        else
+            note = T("author.validator.report.part_later", { number = parse.part.number, previous = parse.part.number - 1 })
+        end
+        local soon = parse.part.comingSoon
+        if soon ~= nil then
+            local marked = cond(soon.board == "gate",
+                "marked 'Coming soon at the Town Gate', so the Gate shows it locked and the Proving Pits can play it",
+                "marked 'Coming soon', so the town shows it locked")
+            note = string.format("Part %d%s of a series: %s%s", parse.part.number, title, marked,
+                cond(soon.text ~= nil, " (\"" .. tostring(soon.text) .. "\")", ""))
+        elseif parse.part.restFree then
+            note = note .. "; a rest does not lock it again"
+        end
+        children[#children + 1] = RowLabel{ depth = 0, class = "note", text = note }
+        local encounter = nil
+        pcall(function()
+            local doc = (dmhub.GetTable("documents") or {})[docid]
+            local tag = doc:try_get("annotations")["encounter"]
+            encounter = tag.encounter
+        end)
+        --A region only matters when other parts share this document's map.
+        local partsOnMap = 0
+        pcall(function()
+            local doc = (dmhub.GetTable("documents") or {})[docid]
+            for _, map in pairs(game.maps or {}) do
+                if CustomDocument.IsDocInAccessibleRoot(doc, { [map.id] = true }) then
+                    partsOnMap = #(EncounterMontage.ScriptForMap(map.id).parts or {})
+                    break
+                end
+            end
+        end)
+        if encounter ~= nil and encounter:GetRegion() == nil and partsOnMap > 1 then
+            children[#children + 1] = RowLabel{ depth = 0, class = "problem",
+                text = T("author.validator.report.part_no_region") }
+        end
+
+        --the story it carries forward: its tracks and its "# Results".
+        for _, decl in ipairs(parse.tracks or {}) do
+            local text = string.format("story track '%s'%s", decl.name, cond(decl.secret, " (secret: hidden, and raising it shows the Secret result line)", cond(decl.hidden, " (hidden from players)", "")))
+            if decl.description ~= nil then
+                text = text .. " -- " .. decl.description
+            end
+            children[#children + 1] = RowLabel{ depth = 0, class = "note", text = text }
+        end
+        if parse.results ~= nil then
+            local bars = parse.results.bars
+            local barsText = "the default bars"
+            if bars ~= nil then
+                barsText = string.format("total success at %g, partial at %g", bars.total, bars.partial)
+            else
+                bars = EncounterScript.DEFAULT_OUTCOME_BARS
+                barsText = string.format("the default bars (total success at %g, partial at %g)", bars.total, bars.partial)
+            end
+            children[#children + 1] = RowLabel{ depth = 0, class = "note",
+                text = string.format("# Results: score per hero against %s; %d result line%s", barsText,
+                    #(parse.results.lines or {}), cond(#(parse.results.lines or {}) == 1, "", "s")) }
+        end
     end
 
     if #problems > 0 then
-        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Problems" }
+        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = T("author.validator.report.problems_heading") }
         for _, p in ipairs(problems) do
             children[#children + 1] = RowLabel{ depth = 1, class = "problem", text = p }
         end
@@ -725,10 +1015,17 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     --typo'd rule ends up, so it is worth a read.
     if #textOnly > 0 then
         children[#children + 1] = gui.Label{ classes = {"eotwValSummary"},
-            text = string.format("Text-only clauses (%d) -- no rule matched; check for a typo'd rule among them", #textOnly) }
+            text = T("author.validator.report.text_only_heading", { count = #textOnly }) }
         for _, w in ipairs(textOnly) do
             children[#children + 1] = RowLabel{ depth = 1, class = "flavourUnknown", text = w }
         end
+    end
+
+    --every way through each Gauntlet, for the party sizes a week usually
+    --sees: how many routes, how many tests along them, and what that means
+    --for Weary banes.
+    for _, row in ipairs(GauntletRouteRows(parse)) do
+        children[#children + 1] = RowLabel(row)
     end
 
     --knack coverage against the chosen party (KNACKS_REFERENCE.md).
@@ -736,7 +1033,7 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     if g_coverageParty == nil then
         g_coverageParty = partyid or bestParty
     end
-    children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Knack coverage" }
+    children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = T("author.validator.coverage.heading") }
     children[#children + 1] = gui.Dropdown{
         options = partyOptions,
         idChosen = g_coverageParty,
@@ -757,17 +1054,17 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
             children[#children + 1] = RowLabel(row)
         end
     else
-        children[#children + 1] = RowLabel{ depth = 1, class = "problem", text = "coverage failed: " .. tostring(coverage) }
+        children[#children + 1] = RowLabel{ depth = 1, class = "problem", text = T("author.validator.coverage.failed", { error = tostring(coverage) }) }
     end
 
-    children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Script" }
+    children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = T("author.validator.report.script_heading") }
     for _, row in ipairs(rows) do
         children[#children + 1] = RowLabel(row)
     end
     --the name lookups in full, passes included: "found" is as worth seeing
     --as "NOT FOUND" when an author is wondering why nothing was granted.
     if #checks > 0 then
-        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Names" }
+        children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = T("author.validator.report.names_heading") }
         for _, check in ipairs(checks) do
             children[#children + 1] = RowLabel{ depth = 1, class = cond(check.ok, "ok", "problem"), text = check.text }
         end
@@ -799,7 +1096,7 @@ function EncounterScriptValidator.CreatePanel()
         if not ok then
             children = { gui.Label{
                 classes = {"eotwValSummary"},
-                text = string.format("Validation failed: %s", tostring(children)),
+                text = T("author.validator.panel.failed", { error = tostring(children) }),
             } }
         end
         body.children = children
@@ -834,7 +1131,7 @@ function EncounterScriptValidator.CreatePanel()
 
             picker,
             gui.Button{
-                text = "Re-check",
+                text = T("author.validator.panel.recheck_button"),
                 width = 86,
                 height = 30,
                 halign = "right",

@@ -1946,6 +1946,18 @@ local function AlarmBump(delta)
     )
 end
 
+--Grant (amount > 0) or spend (amount < 0) intel with a named ledger row, the
+--same row the tracker's own Grant/Spend buttons write. No affordability check.
+IntelTracker.Adjust = IntelAdjust
+
+--The alarm: its value, and a clamped +/- with a ledger row.
+function IntelTracker.Alarm()
+    if rawget(_G, "CampaignState") == nil then return 0 end
+    return CampaignState.GetCounter(ALARM_COUNTER)
+end
+IntelTracker.BumpAlarm = AlarmBump
+IntelTracker.ALARM_MAX = ALARM_MAX
+
 ----------------------------------------------------------------------
 -- The offer/spend workflow. The Director offers a NAMED spend at a price
 -- (optionally reducible, optionally gated on the party signalling ready);
@@ -2767,7 +2779,18 @@ local function CreateIntelLiveArea()
                 text = "LEDGER",
             }
 
+            --entries a campaign marked director = true (story beats, spoilers) are
+            --left out of the players' copy of the ledger.
             local ledger = CampaignState.Get().ledger
+            if not dmhub.isDM then
+                local visible = {}
+                for _, e in ipairs(ledger) do
+                    if not e.director then
+                        visible[#visible + 1] = e
+                    end
+                end
+                ledger = visible
+            end
             if #ledger == 0 then
                 children[#children + 1] = gui.Label {
                     classes = { "fgMuted" },
@@ -2851,8 +2874,58 @@ local function CreateIntelLiveArea()
     }
 end
 
+--A campaign can put one link under the pool, e.g. to the handout that explains
+--its intel: set IntelTracker.ReferenceLink to a function returning
+--{text = string, press = function, color = string|nil} (or nil for no link).
+--Checked once a second. The outer panel keeps thinking; only the link inside
+--collapses. color overrides the scheme's link colour.
+local function CreateIntelReferenceLink()
+    local m_press = nil
+    local link = gui.Label {
+        classes = { "link", "underline", "collapsed" },
+        bgimage = "panels/square.png",
+        bgcolor = "#00000001",
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        bmargin = 6,
+        text = "",
+        press = function()
+            if m_press ~= nil then
+                m_press()
+            end
+        end,
+    }
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        thinkTime = 1,
+        create = function(element)
+            element:FireEvent("think")
+        end,
+        think = function()
+            local provider = rawget(IntelTracker, "ReferenceLink")
+            local info = nil
+            if type(provider) == "function" then
+                local ok, result = pcall(provider)
+                if ok and type(result) == "table" then
+                    info = result
+                end
+            end
+            link:SetClass("collapsed", info == nil)
+            if info ~= nil then
+                link.text = info.text or ""
+                link.selfStyle.color = info.color
+                m_press = info.press
+            end
+        end,
+        children = { link },
+    }
+end
+
 local function CreateIntelTrackerPanel()
-    local children = { CreateIntelHeadline() }
+    local children = { CreateIntelHeadline(), CreateIntelReferenceLink() }
     if dmhub.isDM then
         children[#children + 1] = CreateIntelDirectorControls()
     end
@@ -2866,12 +2939,16 @@ local function CreateIntelTrackerPanel()
     }
 end
 
---The Intel Tracker is experimental: it only surfaces when the per-user
---"dev:trackintel" flag is on (toggle with "/toggle dev:trackintel" in chat).
---Flipping the flag registers/deregisters the dock panel live -- on the way
---out we hide any open instance first, since deregistering alone leaves the
---docked panel on screen. The roll dialog's "Re-roll for 1 Intel" button
---checks the same flag (see EmbeddedRollDialog.lua).
+--The Intel Tracker surfaces when a campaign switches it on for everyone (the
+--campaign-state flag below, which The Condemned's Campaign panel sets when the
+--party reaches the Crysopolis), or for one user with the experimental
+--"dev:trackintel" flag ("/toggle dev:trackintel" in chat). Either change
+--registers/deregisters the dock panel live -- on the way out we hide any open
+--instance first, since deregistering alone leaves the docked panel on screen.
+--The roll dialog's "Re-roll for 1 Intel" button asks IntelTracker.Enabled() too
+--(see EmbeddedRollDialog.lua).
+local INTEL_ENABLED_FLAG = "intel_tracker_enabled"
+
 local function RegisterIntelTrackerPanel()
     DockablePanel.Register {
         name = "Intel Tracker",
@@ -2886,23 +2963,51 @@ local function RegisterIntelTrackerPanel()
 end
 
 local g_trackIntelSetting
+
+--true when the Intel Tracker (and the intel re-roll) should be offered here.
+function IntelTracker.Enabled()
+    if g_trackIntelSetting ~= nil and g_trackIntelSetting:Get() then
+        return true
+    end
+    return rawget(_G, "CampaignState") ~= nil and CampaignState.GetFlag(INTEL_ENABLED_FLAG)
+end
+
+--registers or removes the dock panel to match IntelTracker.Enabled().
+local g_intelPanelRegistered = false
+local function SyncIntelTrackerPanel()
+    local want = IntelTracker.Enabled()
+    if want == g_intelPanelRegistered then
+        return
+    end
+    g_intelPanelRegistered = want
+    if want then
+        RegisterIntelTrackerPanel()
+    else
+        DockablePanel.LaunchPanelByName("Intel Tracker", "hide")
+        DockablePanel.Deregister("Intel Tracker")
+    end
+end
+
 g_trackIntelSetting = setting{
     id = "dev:trackintel",
     default = false,
     storage = "preference",
     onchange = function()
-        if g_trackIntelSetting:Get() then
-            RegisterIntelTrackerPanel()
-        else
-            DockablePanel.LaunchPanelByName("Intel Tracker", "hide")
-            DockablePanel.Deregister("Intel Tracker")
-        end
+        SyncIntelTrackerPanel()
     end,
 }
 
-if g_trackIntelSetting:Get() then
-    RegisterIntelTrackerPanel()
-end
+SyncIntelTrackerPanel()
+
+--the campaign flag can be flipped by the Director on any client, so watch for it.
+dmhub.Coroutine(function()
+    while not mod.unloaded do
+        coroutine.yield(1)
+        if not mod.unloaded then
+            SyncIntelTrackerPanel()
+        end
+    end
+end)
 
 ----------------------------------------------------------------------
 -- RichExit: the [[exit]] tag -- a scene card's exit block. Renders as

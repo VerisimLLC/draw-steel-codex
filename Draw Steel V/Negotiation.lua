@@ -752,7 +752,7 @@ CreateNegotiationDialog = function(options)
 				gui.Panel {
 
 					bgimage = token.portrait,
-					imageRect = token:GetPortraitRectForAspect(220 / 300),
+					imageRect = CardPortraitRect(token, 220 / 300),
 					bgcolor = "white",
 					width = 220,
 					height = 300,

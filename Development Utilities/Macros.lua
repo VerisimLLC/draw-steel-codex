@@ -135,3 +135,52 @@ Commands.RegisterMacro{
         chat.Send("corrupttest: local cache may briefly show the bad value; reload the sheet to confirm the server kept the good one.")
     end,
 }
+--Discord account link + voice chat prototype (DiscordControllerVoice.cs, DISCORD_REFERENCE.md).
+local function DiscordStatusText()
+    local s = dmhub.discordStatus
+    local lines = {}
+    lines[#lines+1] = "Discord account: " .. s.account .. (s.displayName ~= nil and (" (" .. s.displayName .. ")") or "")
+    if s.accountError ~= nil then
+        lines[#lines+1] = "  " .. s.accountError
+    end
+    lines[#lines+1] = "Voice: " .. s.voice .. (s.muted and " (muted)" or "")
+    if s.voiceError ~= nil then
+        lines[#lines+1] = "  " .. s.voiceError
+    end
+    for _,p in ipairs(s.participants) do
+        lines[#lines+1] = "  " .. p.name .. (p.speaking and " (speaking)" or "")
+    end
+    return table.concat(lines, "\n")
+end
+
+Commands.RegisterMacro{
+    name = "discord",
+    summary = "Discord link and voice (prototype)",
+    doc = "Usage: /discord [status|link|unlink|join|leave|mute|unmute]\nPrototype of Discord voice chat. link signs in to Discord (once per machine); join joins this game's voice call; leaving the game leaves it.",
+    command = function(str)
+        local arg = string.lower(string.match(str or "", "^%s*(%S*)") or "")
+        if arg == "" or arg == "status" then
+            dmhub.Log(DiscordStatusText())
+        elseif arg == "link" then
+            if dmhub.DiscordLink() then
+                dmhub.Log("Discord: approve Codex in the Discord window that opened, then run /discord status.")
+            else
+                dmhub.Log("Discord: cannot start linking.\n" .. DiscordStatusText())
+            end
+        elseif arg == "unlink" then
+            dmhub.DiscordUnlink()
+            dmhub.Log("Discord: unlinked.")
+        elseif arg == "join" then
+            local err = dmhub.DiscordJoinVoice()
+            dmhub.Log(err ~= nil and ("Discord: " .. err) or "Discord: joining voice...")
+        elseif arg == "leave" then
+            dmhub.DiscordLeaveVoice()
+            dmhub.Log("Discord: left voice.")
+        elseif arg == "mute" or arg == "unmute" then
+            dmhub.DiscordSetVoiceMuted(arg == "mute")
+            dmhub.Log("Discord: " .. (arg == "mute" and "muted." or "unmuted."))
+        else
+            dmhub.Log("Usage: /discord [status|link|unlink|join|leave|mute|unmute]")
+        end
+    end,
+}

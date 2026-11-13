@@ -224,6 +224,44 @@ local g_movementConstraintAnchorOptions = {
     { id = "all_matching", text = "All Matching Creatures" },
 }
 
+local g_movementConstraintPhrases = {
+    toward = "toward",
+    away = "away from",
+    not_closer = "without ending closer to",
+}
+
+local g_movementConstraintAnchorNames = {
+    caster = "the invoking creature",
+    attacker = "the attacker",
+    parent_target = "the parent target",
+    nearest_creature = "the nearest creature",
+    nearest_enemy = "the nearest enemy",
+    all_matching = "the matching creatures",
+}
+
+--- Rules-style phrase for a movement constraint, like "toward the nearest enemy within 3 squares of the
+--- target", appended to the generated forced-movement prompt. nil when the behavior has no constraint.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @return string|nil
+local function DescribeMovementConstraint(behavior)
+    local phrase = g_movementConstraintPhrases[behavior:try_get("movementConstraint", "none")]
+    if phrase == nil then
+        return nil
+    end
+
+    local anchorType = behavior:try_get("movementConstraintAnchor", "caster")
+    local text = phrase .. " " .. (g_movementConstraintAnchorNames[anchorType] or "the anchor")
+
+    --The distance only limits the anchors that are searched for (see CollectMovementConstraintCandidates).
+    --%g, not %d: the editor accepts a fractional distance, which %d would raise on.
+    local maxDistance = tonumber(behavior:try_get("movementConstraintAnchorDistance"))
+    if maxDistance ~= nil and (anchorType == "nearest_enemy" or anchorType == "nearest_creature" or anchorType == "all_matching") then
+        text = text .. string.format(" within %g square%s of the target", maxDistance, maxDistance == 1 and "" or "s")
+    end
+
+    return text
+end
+
 local function ResolveMovementConstraintToken(value)
     if type(value) == "function" then
         value = value("self")
@@ -305,6 +343,12 @@ local function ChooseNearestMovementConstraintAnchor(behavior, casterToken, move
         elseif distance == nearestDistance then
             nearest[#nearest+1] = candidate
         end
+    end
+
+    --Opt-in ("Offer Every Anchor in Range" in the invoke editor): every candidate in range is offered and the table decides which
+    --counts as nearest, since measuring around objects and big creatures is easy to dispute.
+    if behavior:try_get("movementConstraintPickAnyInRange", false) and #candidates > 1 then
+        nearest = candidates
     end
 
     if #nearest <= 1 then
@@ -706,6 +750,48 @@ local function FormTemporarySquad(members)
     end
 end
 
+--True when this invoke only prompts a player's own hero for its own ability, so a cancelled
+--prompt means the player backed out of the whole ability. Monsters, Monster AI and invokes
+--handed to other creatures keep committing up front.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @param casterToken CharacterToken
+--- @param targets nil|table
+--- @return boolean
+local function CanDeferCommitUntilInvokedCast(behavior, casterToken, targets)
+    if behavior.targeting ~= "prompt" and behavior.targeting ~= "prompt_inherit" then
+        return false
+    end
+    if casterToken == nil or not casterToken.valid or not casterToken.playerControlled then
+        return false
+    end
+    if creature.IsTokenAIControlled(casterToken.charid) then
+        return false
+    end
+    if targets == nil or #targets == 0 then
+        return false
+    end
+    for _,target in ipairs(targets) do
+        if target.token == nil or target.token.charid ~= casterToken.charid then
+            return false
+        end
+    end
+    return true
+end
+
+--True when every other behavior of the ability only runs for strain (Flashback's
+--"Strained:" damage and slow), so this invoke is the whole ability.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @param ability ActivatedAbility
+--- @return boolean
+local function InvokeIsWholeAbility(behavior, ability)
+    for _,other in ipairs(ability.behaviors) do
+        if not rawequal(other, behavior) and other:try_get("strainSelection", "") == "" then
+            return false
+        end
+    end
+    return true
+end
+
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
     --Resolve a "choose an ability off your class list" pick up front, before any
@@ -844,12 +930,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         end
 
         print("INVOKE:: Casting on", #targets, ability.name, "coroutine:", coroutine.running())
-        --TODO: maybe only commit to paying with more generous criteria -- only if an ability
-        --is actually used?
-        ability:CommitToPaying(casterToken, options)
+        --A player backing out of their own invoke prompt (Escape or Skip) has not used the
+        --ability, so the commit waits until the invoked ability starts casting (72PBXRQV).
+        --Everything else still commits here, before any prompt.
+        local deferCommit = (not options.pay) and CanDeferCommitUntilInvokedCast(self, casterToken, targets)
+        if not deferCommit then
+            ability:CommitToPaying(casterToken, options)
+        end
         for i,target in ipairs(targets) do
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
+                local promptOffered = false
 
                 local rangeOriginTokenId = nil
                 if rangeOrigin == "parent_primary_target" then
@@ -948,7 +1039,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --squad is only set up around the local cast further down.
                 if skipInvoke then
                     print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
-                elseif self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
+                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -983,7 +1074,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     --dispatch this to run on the controller.
                     local invocation = AbilityInvocation.new{
                         timestamp = ServerTimestamp(),
-                        userid = target.token.activeControllerId,
+                        userid = TokenPromptControllerId(target.token),
                         abilityType = self.abilityType,
                         namedAbility = self.namedAbility,
                         standardAbility = self.standardAbility,
@@ -1008,6 +1099,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     invocation.targetingOverride = self:GetTargetingOverride()
                     if self:try_get("movementConstraintStraightLine", false) then
                         invocation.abilityAttr.targeting = "straightpath"
+                    end
+
+                    --A cast held open for the Monster AI (e.g. In All This Confusion's
+                    --trigger) completes its own AI marker when it finishes -- before the
+                    --player has even seen this prompt. Give the prompt a marker of its
+                    --own, made now so the AI never sees a gap; AbilityInvocation:Invoke
+                    --completes it on the player's machine.
+                    if symbols.aiActivityId ~= nil and target.token.playerControlled then
+                        local aiReactionId = dmhub.GenerateGuid()
+                        invocation.aiActivityId = symbols.aiActivityId
+                        invocation.aiReactionId = aiReactionId
+                        target.token.properties:BeginPendingAIActivityReaction(symbols.aiActivityId, aiReactionId,
+                            ability.name, "resolving")
                     end
 
                     --Held back until the casts currently resolving on this
@@ -1077,7 +1181,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --The invoker's action type is kept so rules keyed on it still see the
                         --real action: Critical Hit needs Ability.Action on the roll this clone makes.
                         if self:try_get("suppressInvokedActionCost", false) then
-                            abilityClone.invokerActionResourceId = ability:ActionResource()
+                            abilityClone.invokerActionResourceId = ability:try_get("invokerActionResourceId") or ability:ActionResource()
                             abilityClone.actionResourceId = "none"
                         end
 
@@ -1254,6 +1358,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+                            --A constrained pull names its anchor ("toward the nearest enemy within 3 squares") and keeps the real distance.
+                            local constraintText = DescribeMovementConstraint(self)
+                            if constraintText ~= nil then
+                                local verb = cond(string.find(forcedMovementType, "^vertical_") ~= nil, "vertically ", "") .. baseMoveType
+                                description = string.format("You may %s the target up to %d square%s %s", verb, adjustedRange, adjustedRange > 1 and "s" or "", constraintText)
+                            end
                             if #adjustments > 0 then
                                 description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
                             end
@@ -1272,6 +1382,31 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         if rangeOriginTokenId ~= nil then
                             abilityClone.rangeOriginTokenId = rangeOriginTokenId
+                        end
+
+                        --Pay for the parent ability once the player confirms this prompt.
+                        --OnFinishCast is a fallback for a cast that never ran OnBeginCast.
+                        if deferCommit then
+                            promptOffered = true
+                            local commitOnce = function()
+                                if not options.pay then
+                                    ability:CommitToPaying(casterToken, options)
+                                end
+                            end
+                            local priorBeginCast = abilityClone:try_get("OnBeginCast")
+                            abilityClone.OnBeginCast = function(beginAbility, castOptions)
+                                if priorBeginCast ~= nil then
+                                    priorBeginCast(beginAbility, castOptions)
+                                end
+                                commitOnce()
+                            end
+                            local priorFinishCast = abilityClone:try_get("OnFinishCast")
+                            abilityClone.OnFinishCast = function(finishedAbility, finishOptions)
+                                if priorFinishCast ~= nil then
+                                    priorFinishCast(finishedAbility, finishOptions)
+                                end
+                                commitOnce()
+                            end
                         end
 
                         print("Invoke:: Execute...")
@@ -1303,6 +1438,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         else
                             invokerToken = target.token
                         end
+
+                        --The caster's own free follow-up (like A Squad Unto Myself's attack) is part
+                        --of the action that invoked it, so its roll can be that action's Critical Hit.
+                        --Not when the action already made its own power roll: one action, one crit.
+                        if not self:try_get("suppressInvokedActionCost", false) and abilityClone:ActionResource() == nil
+                            and invokerToken ~= nil and invokerToken.charid == casterToken.charid
+                            and ability:CanCriticalHit()
+                            and options.symbols.cast ~= nil and options.symbols.cast:try_get("naturalRoll") == nil then
+                            abilityClone.invokerCanCriticalHit = true
+                        end
+
                         local squadParticipants = nil
                         if squadParticipantsByLead ~= nil and invokerToken ~= nil then
                             squadParticipants = squadParticipantsByLead[invokerToken.charid]
@@ -1338,6 +1484,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     end
                 end
 
+                --No prompt went up for this target (skipped, sent to another client, or
+                --suppressed), so there was nothing to back out of: pay as before.
+                if deferCommit and not promptOffered and not options.pay then
+                    ability:CommitToPaying(casterToken, options)
+                end
+
+                --The player backed out of their own prompt and the invoke is the whole ability,
+                --so it was never used: end the cast so its strain effects don't run and it isn't
+                --recorded as used. An ability with other effects keeps running them.
+                if deferCommit and promptOffered and not options.pay and InvokeIsWholeAbility(self, ability) then
+                    options.abort = true
+                    return
+                end
             end
         end
     until promptWhenResolving == false or #targetChoices == 0
@@ -1590,6 +1749,15 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
+        --The Monster AI could not choose and there is no Director to ask (a
+        --directorless game would show the prompt to its host, a player). End
+        --the invoke unused, as a declined prompt does.
+        if targeting == "skip" then
+            print("INVOKE:: AI skipped the prompt for", abilityClone.name)
+            canceled = true
+            break
+        end
+
         --A prompt handler may resolve a synthesized-ability chooser as well as
         --its targets. Consume the override immediately so it cannot leak into a
         --later invoke that shares the parent cast's options table.
@@ -1599,6 +1767,30 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             abilityClone = abilityOverride
             abilityClone.invoker = invokerToken.properties
             installCastCallbacks(abilityClone)
+        end
+
+        --The caster can be despawned while an AI prompt handler yields (Swordplay's
+        --granted free strike killed the struck minion, BR9S67PR). Cast would set
+        --casting and then no-op inside ModifyProperties, hanging the invoke until the
+        --timeout, so end the invoke as cancelled instead.
+        if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+            printf("INVOKEDIAG:: caster of %s is gone before cast -- treating the invoke as cancelled", tostring(abilityClone.name))
+            canceled = true
+            break
+        end
+
+        --An ability that only offers a list of the creature's own abilities (Flashback's
+        --"an ability used this round") has nothing to offer when the list is empty, and the
+        --prompt would show a Confirm that does nothing: end the invoke as cancelled instead.
+        local offered = nil
+        if (targeting == "prompt" or targeting == "prompt_inherit") and casterToken ~= nil and casterToken.properties ~= nil then
+            offered = abilityClone:SynthesizeAbilities(casterToken.properties)
+        end
+        if offered ~= nil and #offered == 0 then
+            print("INVOKE:: nothing to offer for", abilityClone.name, "-- treating the invoke as cancelled")
+            casterToken.properties:FloatLabel("No abilities to use", "#ff0000")
+            canceled = true
+            break
         end
 
         if targeting == "prompt" or targeting == "prompt_inherit" then
@@ -1657,6 +1849,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
             if abilityClone:RequiresPromptWhenCast(options) then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
+                --Nothing qualifies (e.g. no melee free strike for an Opportunity Attack):
+                --casting the empty chooser would just cancel with no feedback (5NBZASN4).
+                if synth ~= nil and #synth == 0 then
+                    print("INVOKE:: nothing to offer for", abilityClone.name, "-- treating the invoke as cancelled")
+                    casterToken.properties:FloatLabel("No abilities to use", "#ff0000")
+                    canceled = true
+                    break
+                end
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
                     local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
@@ -2347,6 +2547,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             change = function(element)
                 ---@cast element Dropdown
                 self.movementConstraintAnchor = element.idChosen
+                parentPanel:FireEventTree("refreshInvoke")
             end,
         },
     }
@@ -2402,6 +2603,24 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                 end
             end,
         },
+    }
+
+    --Only a nearest-creature or nearest-enemy anchor is chosen by distance, so only those offer the pick.
+    local function pickAnyOff()
+        local anchorType = self:try_get("movementConstraintAnchor", "caster")
+        return movementConstraintOff() or (anchorType ~= "nearest_creature" and anchorType ~= "nearest_enemy")
+    end
+
+    result[#result+1] = gui.Check{
+        classes = {cond(pickAnyOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", pickAnyOff())
+        end,
+        text = "Offer Every Anchor in Range (Table Picks Nearest)",
+        value = self:try_get("movementConstraintPickAnyInRange", false),
+        change = function(element)
+            self.movementConstraintPickAnyInRange = element.value
+        end,
     }
 
     result[#result+1] = gui.Check{
@@ -2469,7 +2688,19 @@ function AbilityInvocation:Invoke()
 	local invokerToken = dmhub.GetTokenById(self.invokerid)
 	local casterToken = dmhub.GetTokenById(self.casterid)
 
+	--The Monster AI may be held on this invoke (see the runOnController path in
+	--Cast). Release it however the invoke ends: cast, cancelled, or never started.
+	local function CompleteAIReaction()
+		local activityId = self:try_get("aiActivityId")
+		local reactionId = self:try_get("aiReactionId")
+		if type(activityId) == "string" and type(reactionId) == "string"
+				and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+			casterToken.properties:CompletePendingAIActivityReaction(activityId, reactionId)
+		end
+	end
+
 	if invokerToken == nil or casterToken == nil then
+		CompleteAIReaction()
 		return false
 	end
 
@@ -2503,6 +2734,7 @@ function AbilityInvocation:Invoke()
 	end
 
 	if abilityTemplate == nil then
+		CompleteAIReaction()
 		return false
 	end
 
@@ -2608,7 +2840,15 @@ function AbilityInvocation:Invoke()
 	local options = {
         targetingFormula = self.targetingFormula,
     }
-	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
+	--ExecuteInvoke returns once the cast finishes or the player cancels it; a
+	--cancel never reaches the OnFinishCast above. An error must release the AI
+	--too: it waits on an end-turn save with no timer (EMHPEMCY). pcall yields.
+	local ok, err = pcall(ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke,
+		invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
+	CompleteAIReaction()
+	if not ok then
+		error(err, 0)
+	end
 	return true
 end
 

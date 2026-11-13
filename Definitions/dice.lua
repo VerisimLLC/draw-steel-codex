@@ -15,6 +15,21 @@ function dice:Effect(table) end
 --- @param table table The dice set properties including id, model, color, etc.
 function dice:Set(table) end
 
+--- Creates a 3D die resting on the tabletop (see TableDieLua): faces is the die type (3, 4, 6, 8, 10, 12, 20), model the dice set id (as in GetAvailableDice; nil = the default set). It appears at (x, y) screen pixels from the top-left showing face. Nil if there is no such die.
+--- @param args {faces: number, model: nil|string, x: number, y: number, face: nil|number, yaw: nil|number, scale: nil|number}
+--- @return nil|TableDieLua
+function dice.CreateTableDie(args) end
+
+--- Creates a 3D miniature standing on the tabletop, from an STL file on this computer (path) or from a mesh another client uploaded (blob, from TableFigureLua.Upload) (see TableFigureLua). The file is simplified on a worker thread and cached, so a big file shows after a moment the first time and at once afterwards. It stands at (x, y) screen pixels from the top-left. Nil if it cannot be made.
+--- @param args {path: nil|string, blob: nil|string, x: number, y: number, height: nil|number, tilt: nil|number, yaw: nil|number}
+--- @return nil|TableFigureLua
+function dice.CreateTableFigure(args) end
+
+--- Creates a 3D tracker token for the tabletop (see TableTrackerLua): shape 'diamond' (steel and red enamel), 'coin' (gold), 'stone' (steel and pewter), or the trinkets 'flipcoin' (thin and two-sided: see Flip), 'gem' (a faceted octagon) and 'arrow' (the pointer: see yaw); size its diameter in screen pixels, text the number on its face. bezel ('steel', 'gold', 'bronze', 'silver', 'ruby') and face ('redEnamel', 'blueEnamel', 'blackEnamel', 'goldSatin', 'silverSatin', 'pewter', 'sand', 'ruby') change the metals; left out, the shape's own are used. Show it with a panel whose bgimage is the token's image.
+--- @param args {shape: string, bezel: nil|string, face: nil|string, size: nil|number, text: nil|string, tilt: nil|number}
+--- @return nil|TableTrackerLua
+function dice.CreateTableTracker(args) end
+
 --- Returns a list of dice sets available to the current user, including owned dice from the shop.
 --- @return table
 function dice.GetAvailableDice() end

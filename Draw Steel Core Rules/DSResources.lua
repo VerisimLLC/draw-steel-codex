@@ -100,6 +100,182 @@ function CharacterResource.SpendMalice(cost, message)
     return true
 end
 
+--- Action Log card posted whenever an ability spends Malice: a monster ability with a
+--- Malice cost, a Malice feature, or a Malice-paid enhancement. Shows the Malice
+--- diamond with the amount spent; hovering the card shows the full ability card, so
+--- players can see what the Director's Malice bought.
+--- @class MaliceSpentChatMessage: GameType
+--- @field new fun(o?: table): MaliceSpentChatMessage
+--- @field tokenid string Charid of the creature that used the ability.
+--- @field cost number Malice actually deducted.
+--- @field ability ActivatedAbility
+MaliceSpentChatMessage = RegisterGameType("MaliceSpentChatMessage")
+
+MaliceSpentChatMessage.tokenid = ""
+MaliceSpentChatMessage.cost = 0
+
+--- @param token CharacterToken the creature that used the ability
+--- @param ability ActivatedAbility
+--- @param cost number
+function MaliceSpentChatMessage.Post(token, ability, cost)
+    if token == nil or (not token.valid) or cost <= 0 then
+        return
+    end
+
+    --Same shallow clone the cast card stores: the invoker chain is live game
+    --state that must not be serialized into the chat message.
+    local abilityClone = table.shallow_copy(ability)
+    setmetatable(abilityClone, getmetatable(ability))
+    abilityClone.invoker = nil
+
+    chat.SendCustom(MaliceSpentChatMessage.new{
+        tokenid = token.charid,
+        cost = cost,
+        ability = abilityClone,
+    })
+end
+
+--The action bar's red Malice cost diamond (a rotated square with a red inner
+--diamond), with the number counter-rotated so it stays upright. The outer panel
+--reserves room for the rotated square's bounding box.
+local function MaliceCostDiamond(cost)
+    return gui.Panel{
+        width = 30,
+        height = 30,
+        valign = "center",
+        rmargin = 4,
+        interactable = false,
+        gui.Panel{
+            width = 21,
+            height = 21,
+            halign = "center",
+            valign = "center",
+            rotate = 135,
+            interactable = false,
+            bgimage = true,
+            bgcolor = "white",
+            gradient = Styles.Ability.maliceDiamondGradient,
+            border = { x1 = 0, y1 = 2, x2 = 2, y2 = 0 },
+            borderColor = "grey",
+            gui.Panel{
+                width = "65%",
+                height = "65%",
+                halign = "center",
+                valign = "center",
+                interactable = false,
+                bgimage = true,
+                bgcolor = "#DE1E47",
+                borderWidth = 2,
+                borderColor = "#FF5076",
+                gui.Label{
+                    text = string.format("%d", cost),
+                    rotate = -135,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    fontSize = 12,
+                    bold = true,
+                    color = "white",
+                    interactable = false,
+                },
+            },
+        },
+    }
+end
+
+function MaliceSpentChatMessage.Render(selfInput, message)
+    local token = dmhub.GetCharacterById(selfInput.tokenid)
+    local ability = selfInput:try_get("ability")
+    if token == nil or (not token.valid) or ability == nil then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+    ---@cast ability ActivatedAbility
+
+    local cost = tonumber(selfInput.cost) or 0
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {
+            gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                MaliceCostDiamond(cost),
+                gui.Panel{
+                    flow = "vertical",
+                    width = "100%-34",
+                    height = "auto",
+                    valign = "center",
+                    gui.Label{
+                        classes = {"action-log-detail", "sizeXs", "fg"},
+                        text = ability.name,
+                    },
+                    gui.Label{
+                        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+                        text = string.format("Spent %d Malice", cost),
+                    },
+                },
+            },
+        },
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+
+        --The whole card shows the ability tooltip (everyone, players included).
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hover = function(element)
+                local tok = dmhub.GetCharacterById(selfInput.tokenid)
+                if tok == nil or (not tok.valid) then
+                    return
+                end
+                local args = {token = tok, width = 540}
+                local dock = element:FindParentWithClass("dock")
+                if dock ~= nil then
+                    element.tooltipParent = dock
+                    args.halign = dock.data.TooltipAlignment()
+                end
+                element.tooltip = CreateAbilityTooltip(ability, args)
+            end,
+            card,
+        },
+    }
+end
+
+--Every ability's resource payment funnels through ConsumeResources, so Malice is
+--measured around it: what actually left the pool (squads, cost modifiers and the
+--Monster-vs-Monster negative balance included) is what the card reports.
+local g_baseConsumeResources = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    local maliceBefore = CharacterResource.GetMalice()
+    g_baseConsumeResources(self, casterToken, options)
+
+    if mod.unloaded then
+        return
+    end
+
+    local spent = maliceBefore - CharacterResource.GetMalice()
+    if spent > 0 then
+        --a broken log card must never break the cast that paid for it.
+        local ok, err = pcall(MaliceSpentChatMessage.Post, casterToken, self, spent)
+        if not ok then
+            print("MaliceSpentChatMessage:: post failed:", err)
+        end
+    end
+end
+
 function CharacterResource.GetVillainActions()
     return CharacterResource.GetGlobalResource(CharacterResource.villainActionId)
 end
@@ -339,6 +515,194 @@ function CharacterResource.HeroTokenSaveSucceedRule(args)
             args.Succeed(state)
         end,
     }
+end
+
+--- One way to spend Hero Tokens outside a roll (the roll-time spends are the
+--- re-roll rules above).
+--- @class HeroTokenSpendOption
+--- @field id "surges"|"stamina"
+--- @field text string menu caption, cost included
+--- @field cost number Hero Tokens it takes from the pool
+--- @field available boolean whether it can be bought right now
+--- @field reason string|nil why not, when it can't
+--- @field Spend fun(): boolean pays and applies it; false if it could not
+
+--Report a pool change to analytics, the same event the character panel sends.
+--- @param token CharacterToken
+--- @param change number
+--- @param source string
+local function TrackHeroTokenSpend(token, change, source)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    local className = "unknown"
+    pcall(function()
+        if token.properties:IsHero() then
+            local hero = token.properties --[[@as character]]
+            local classInfo = hero:GetClass()
+            if classInfo ~= nil then
+                className = classInfo.name
+            end
+        end
+    end)
+    analytics.Event{
+        type = "hero_token_change",
+        userid = dmhub.userid,
+        gameid = dmhub.gameid,
+        version = dmhub.version,
+        change = change,
+        source = source,
+        class = className,
+        dailyLimit = 30,
+    }
+end
+
+--The spends a hero can make from the party's Hero Token pool at will:
+--  * 1 Hero Token: gain 2 surges (combat only; surges do not exist outside it).
+--  * 2 Hero Tokens: regain Stamina equal to the Recovery value, without
+--    spending a Recovery. The rules allow it "on your turn or when you take
+--    damage"; only the on-your-turn half can be offered from a button.
+--Under "Strictly Enforce Action Economy and Resource Costs" (strict:resources,
+--which Encounter of the Week forces) only the spends the hero can make right
+--now are listed: affordable, in combat, on the hero's own turn. Otherwise every
+--spend is listed, the unusable ones with available = false and a reason, and
+--the turn is not checked (the table polices it, as with the rest of the sheet).
+--- @param token CharacterToken|nil the hero spending
+--- @return HeroTokenSpendOption[]
+function CharacterResource.HeroTokenSpendOptions(token)
+    local result = {}
+    if token == nil or not token.valid or token.properties == nil then
+        return result
+    end
+
+    local c = token.properties
+    local hero = c:IsHero()
+    if not hero then
+        pcall(function() hero = c:IsCompanion() end)
+    end
+    if not hero then
+        return result
+    end
+
+    local strict = StrictActionEconomyEnforced()
+    local pool = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+    local q = dmhub.initiativeQueue
+    local inCombat = q ~= nil and not q.hidden
+
+    --- @param option HeroTokenSpendOption
+    local function Add(option)
+        if option.available or not strict then
+            result[#result+1] = option
+        end
+    end
+
+    --The first reason the hero can't buy something costing `cost` right now.
+    --- @param cost number
+    --- @return string|nil
+    local function CommonReason(cost)
+        if pool < cost then
+            return "not enough Hero Tokens"
+        end
+        if c:IsDead() then
+            return "dead"
+        end
+        return nil
+    end
+
+    local surgeReason = CommonReason(1)
+    if surgeReason == nil and not inCombat then
+        surgeReason = "only in combat"
+    end
+    if surgeReason == nil and strict and not c:IsOurTurn() then
+        surgeReason = "only on your turn"
+    end
+    Add{
+        id = "surges",
+        text = "Gain 2 Surges (1 Hero Token)",
+        cost = 1,
+        available = surgeReason == nil,
+        reason = surgeReason,
+        Spend = function()
+            --not SpendHeroTokenForRoll: Lucky's refund covers saves and
+            --re-rolls only. Re-read the pool, it may have moved since.
+            local now = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+            if now < 1 then
+                return false
+            end
+            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, now - 1, "Gained 2 surges")
+            token:ModifyProperties{
+                description = "Spend Hero Token for Surges",
+                execute = function()
+                    --a negative consume is a gain, and follows the hero's
+                    --surge sharing (a retainer's mentor, a summoner).
+                    token.properties:ConsumeSurges(-2, "Hero Token")
+                end,
+            }
+            TrackHeroTokenSpend(token, -1, "surges")
+            return true
+        end,
+    }
+
+    local amount = c:RecoveryAmount()
+    local staminaReason = CommonReason(2)
+    if staminaReason == nil and c:CurrentHitpoints() >= c:MaxHitpoints() then
+        staminaReason = "already at full Stamina"
+    end
+    if staminaReason == nil and strict and not c:IsOurTurn() then
+        staminaReason = "only on your turn"
+    end
+    Add{
+        id = "stamina",
+        text = string.format("Regain %d Stamina (2 Hero Tokens)", amount),
+        cost = 2,
+        available = staminaReason == nil,
+        reason = staminaReason,
+        Spend = function()
+            local now = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+            if now < 2 then
+                return false
+            end
+            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, now - 2, "Regained Stamina")
+            token:ModifyProperties{
+                description = "Spend Hero Tokens for Stamina",
+                execute = function()
+                    token.properties:Heal(token.properties:RecoveryAmount(), "Hero Tokens")
+                end,
+            }
+            TrackHeroTokenSpend(token, -2, "stamina")
+            return true
+        end,
+    }
+
+    return result
+end
+
+--Context-menu entries for HeroTokenSpendOptions. Unusable spends (listed only
+--outside strict mode) are greyed out with their reason in the caption, since a
+--disabled menu row shows no tooltip.
+--- @param token CharacterToken|nil
+--- @param onSpend? fun() called after a spend goes through (e.g. close the menu)
+--- @return ContextMenuEntry[]
+function CharacterResource.HeroTokenSpendMenuEntries(token, onSpend)
+    local entries = {}
+    for _, option in ipairs(CharacterResource.HeroTokenSpendOptions(token)) do
+        local text = option.text
+        if not option.available and option.reason ~= nil then
+            text = string.format("%s: %s", text, option.reason)
+        end
+        entries[#entries+1] = {
+            text = text,
+            icon = "drawsteel/hero-token.png",
+            disabled = not option.available,
+            click = function()
+                option.Spend()
+                if onSpend ~= nil then
+                    onSpend()
+                end
+            end,
+        }
+    end
+    return entries
 end
 
 function creature:GetEpicResources()

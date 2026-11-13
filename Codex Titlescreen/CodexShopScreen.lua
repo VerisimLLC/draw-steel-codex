@@ -255,6 +255,12 @@ local shopStyles = {
 		selectors = {"collapsedWhenInventory", "inventory"},
 		collapsed = 1,
 	},
+	--CodexShop.CreateItemPreview sets itemPreview tree-wide: page controls
+	--that navigate the store or act on a real inventory don't belong there.
+	{
+		selectors = {"collapsedWhenPreview", "itemPreview"},
+		collapsed = 1,
+	},
 	{
 		selectors = {"collapsedWhenRedeeming", "redeemingCoupon"},
 		collapsed = 1,
@@ -2196,6 +2202,22 @@ ShopDicePreview = {
 	artHeight = g_tileBaseHeight * 2,
 }
 
+--Sizes a loaded hero image to the largest box with the art's own aspect that
+--fits inside boxW x boxH (unscaled; the panel's uiscale applies on top).
+--Leaves the panel filling the box when the size isn't known (e.g. a video
+--that reports no texture size).
+local function FitHeroToImage(element, boxW, boxH)
+	local imgW = element.bgimageWidth
+	local imgH = element.bgimageHeight
+	if imgW == nil or imgH == nil or imgW <= 0 or imgH <= 0 then
+		return
+	end
+
+	local scale = math.min(boxW/imgW, boxH/imgH)
+	element.selfStyle.width = math.floor(imgW*scale)
+	element.selfStyle.height = math.floor(imgH*scale)
+end
+
 local MakeShopImageDisplay = function(options)
 	options = options or {}
 	local uiscale = options.uiscale or 1
@@ -2210,11 +2232,12 @@ local MakeShopImageDisplay = function(options)
 	--      have.
 	--  "hero" -- the details page's main image. Uses item.heroImage, and on
 	--      the details page is handed the full banner box (baseWidth/Height)
-	--      instead of the tile's nearly-square one, so an adventure's wide
-	--      shot fills it the way the dice banner's art does.
-	--Footer thumbnails are fed their image directly (see refreshItem) and are
-	--the one surface that fits rather than fills: the strip mixes both shapes
-	--at a fixed thumbnail size.
+	--      instead of the tile's nearly-square one. The art keeps its own
+	--      shape inside that box (see FitHeroToImage): a 1232x706 banner fills
+	--      it, anything else is centred with empty space beside or below it.
+	--Footer thumbnails are fed their image directly (see refreshItem) and
+	--also fit rather than fill: the strip mixes both shapes at a fixed
+	--thumbnail size.
 	local imageRole = options.imageRole or "tile"
 	options.imageRole = nil
 
@@ -2314,6 +2337,16 @@ local MakeShopImageDisplay = function(options)
 				iconArgs.maxHeight = baseH
 				iconArgs.minWidth = baseW
 				iconArgs.minHeight = math.floor(baseW*9/16)
+			elseif imageRole == "hero" then
+				--The hero holds the whole box until its texture arrives (so the
+				--page doesn't jump), then shrinks to the art's own shape. The
+				--min* route above can't do this: the engine clamps an auto size
+				--to min/max afterwards, which would stretch it back out.
+				iconArgs.halign = "center"
+				iconArgs.valign = "center"
+				iconArgs.imageLoaded = function(element)
+					FitHeroToImage(element, baseW, baseH)
+				end
 			end
 
 			--Track/fade only when there is a real image; a nil bgimage never
@@ -2918,6 +2951,11 @@ local function SlotLabel(slot)
 		return groupName .. " Monsters"
 	end
 
+	--the Hero sheet's Dice window names class slots the same way.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		return diceSlots.ClassLabel(SlotKey(slot))
+	end
 	local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
 	local className = "Unknown Class"
 	if classInfo ~= nil then
@@ -2948,6 +2986,13 @@ end
 --set, so activating here replaces any other set previously activated for the
 --same slot.
 local function SetSlotActivation(key, assetid)
+	--DiceSlots.Set also drops the per-die choices a Hero sheet saved for the
+	--slot: they belong to the activation they were made with.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		diceSlots.Set(key, assetid)
+		return
+	end
 	local result = {}
 	for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
 		result[k] = v
@@ -3931,6 +3976,177 @@ local ShowItemDetailsInternal = function(args)
 		}
 	end
 
+	--Admin testing aid: Grant puts the viewed item in this account's inventory
+	--for free; Remove takes every directly held copy back out. Both write the
+	--account's inventory record (shop:AdminGrantItem / AdminRemoveItem) and the
+	--page re-renders when the inventory refresh lands. Admin accounts only.
+	--- @type Panel|nil
+	local m_adminInventoryControls = nil
+	if not args.gift and dmhub.isAdminAccount then
+		local adminStatusLabel = gui.Label{
+			text = "",
+			fontSize = 12,
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			textWrap = true,
+			vmargin = 2,
+		}
+
+		--How the viewed item is held: owned at all (bundles included), and the
+		--instances held directly (the only ones Remove can delete).
+		--- @param item ShopItemLua
+		--- @return boolean owned
+		--- @return integer directCount
+		--- @return nil|string bundleName
+		local function AdminOwnership(item)
+			local owned = shop:ItemInInventory(item.id)
+			local directCount = 0
+			local bundleid = nil
+			local inventory = shop.inventoryItems
+			for _, instance in pairs(inventory) do
+				if instance.itemid == item.id then
+					if instance.bundleid == nil or instance.bundleid == "" then
+						directCount = directCount + 1
+					else
+						bundleid = instance.bundleid
+					end
+				end
+			end
+
+			local bundleName = nil
+			if bundleid ~= nil then
+				local bundleItem = assets.shopItems[bundleid]
+				bundleName = bundleItem ~= nil and bundleItem.name or bundleid
+			end
+
+			return owned, directCount, bundleName
+		end
+
+		local adminGrantButton = gui.Label{
+			classes = {"itemButton"},
+			text = "Grant Item",
+			width = g_backButtonWidth,
+			press = function(element)
+				local panel = m_adminInventoryControls
+				if panel == nil or panel.data.item == nil or panel.data.busy then
+					return
+				end
+				local item = panel.data.item
+				panel.data.busy = true
+				adminStatusLabel.text = "Granting..."
+				shop:AdminGrantItem(item.id, function(ok, err)
+					if not panel.valid then
+						return
+					end
+					panel.data.busy = false
+					panel:FireEvent("refreshAdminInventory")
+					if not ok then
+						adminStatusLabel.text = string.format("<color=#ff8888>%s</color>", tostring(err))
+					end
+				end)
+			end,
+		}
+
+		local adminRemoveButton = gui.Label{
+			classes = {"itemButton"},
+			text = "Remove Item",
+			width = g_backButtonWidth,
+			press = function(element)
+				local panel = m_adminInventoryControls
+				if panel == nil or panel.data.item == nil or panel.data.busy then
+					return
+				end
+				local item = panel.data.item
+				local count = shop:AdminRemoveItem(item.id, function()
+					if panel.valid then
+						panel.data.busy = false
+						panel:FireEvent("refreshAdminInventory")
+					end
+				end)
+				if count > 0 then
+					panel.data.busy = true
+					adminStatusLabel.text = "Removing..."
+				end
+			end,
+		}
+
+		m_adminInventoryControls = gui.Panel{
+			classes = {"collapsedWhenPreview"},
+			floating = true,
+			halign = "right",
+			valign = "top",
+			x = g_backButtonWidth + g_backButtonGap,
+			width = g_backButtonWidth,
+			height = "auto",
+			flow = "vertical",
+			data = { item = nil, busy = false, owned = nil },
+
+			create = function(element)
+				shop.events:Listen(element)
+			end,
+
+			showProductDetails = function(element, item)
+				element.data.item = item
+				element.data.owned = nil
+				element:FireEvent("refreshAdminInventory")
+			end,
+
+			hideProductDetails = function(element)
+				element.data.item = nil
+			end,
+
+			refreshInventory = function(element)
+				local item = element.data.item
+				if item == nil then
+					return
+				end
+				--Ownership gates other controls on the page (Add as Gift, the dice
+				--equip panel, the Hero module switch), so a change re-shows the
+				--whole page in place. Other /Patrons updates only relabel.
+				if element.data.owned ~= nil and element.data.owned ~= shop:ItemInInventory(item.id) then
+					adminStatusLabel.text = ""
+					element:FireEventOnParents("showItemDetails", item)
+				else
+					element:FireEvent("refreshAdminInventory")
+				end
+			end,
+
+			refreshAdminInventory = function(element)
+				local item = element.data.item
+				if item == nil then
+					return
+				end
+				local owned, directCount, bundleName = AdminOwnership(item)
+				element.data.owned = owned
+				adminGrantButton:SetClass("collapsed", owned)
+				adminRemoveButton:SetClass("collapsed", directCount == 0)
+				if not element.data.busy then
+					if owned and directCount == 0 then
+						adminStatusLabel.text = string.format("Owned through %s. Remove that bundle instead.", bundleName or "a bundle or membership")
+					elseif directCount > 1 then
+						adminStatusLabel.text = string.format("%d copies held.", directCount)
+					else
+						adminStatusLabel.text = ""
+					end
+				end
+			end,
+
+			gui.Label{
+				text = "Admin",
+				fontSize = 12,
+				color = "#ffffff99",
+				uppercase = true,
+				width = "100%",
+				height = "auto",
+				textAlignment = "center",
+			},
+			adminGrantButton,
+			adminRemoveButton,
+			adminStatusLabel,
+		}
+	end
+
 	return gui.Panel{
 		classes = {"shopDetailsMainPanel"},
 
@@ -3964,7 +4180,7 @@ local ShowItemDetailsInternal = function(args)
 		--Not in the gift view. (and/or rather than cond, which would build it
 		--there too.)
 		(not args.gift) and gui.Label{
-			classes = {"itemButton"},
+			classes = {"itemButton", "collapsedWhenPreview"},
 			floating = true,
 			halign = "left",
 			valign = "top",
@@ -3992,6 +4208,8 @@ local ShowItemDetailsInternal = function(args)
 				interactable = false,
 			},
 		} or nil,
+
+		m_adminInventoryControls,
 
 		--Dice showcase: the configured banner, centered, with Add to Cart /
 		--Equip below it. Shown for Dice items; collapsed for everything else
@@ -4371,6 +4589,26 @@ local ShowItemDetailsInternal = function(args)
 								displaySlots[#displaySlots+1] = { slot = slot, custom = true }
 							end
 						end
+						--Slots this set was activated for from a Hero sheet's Dice
+						--window, which adds no use: listed so they can be seen and
+						--turned off here.
+						local diceSlots = rawget(_G, "DiceSlots")
+						if diceSlots ~= nil then
+							local activeKeys = {}
+							for key,assetid in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+								if assetid == item.assetid and not seenKeys[key] then
+									activeKeys[#activeKeys+1] = key
+								end
+							end
+							table.sort(activeKeys)
+							for _,key in ipairs(activeKeys) do
+								local slot = diceSlots.RecordFromKey(key)
+								if slot ~= nil and SlotIsComplete(slot) then
+									seenKeys[key] = true
+									displaySlots[#displaySlots+1] = { slot = slot, custom = false, fromSheet = true }
+								end
+							end
+						end
 
 						local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
 
@@ -4396,6 +4634,8 @@ local ShowItemDetailsInternal = function(args)
 								local description = SlotDescription(slot, label)
 								if entry.custom then
 									description = description .. "\n\nA custom use you added (manage in Add Uses...)."
+								elseif entry.fromSheet then
+									description = description .. "\n\nSet from a Hero sheet."
 								end
 								slotButtons[#slotButtons+1] = MakeEquipButton{
 									text = label,
@@ -4615,6 +4855,54 @@ function ShowShopItemDetails(args)
 	params.gift = nil
 
 	return gui.Panel(params)
+end
+
+--A preview of how a shop item looks in a player's inventory: its grid card
+--beside its details page, both built by the real shop code so the preview
+--can't drift from the store. The premium-module Store Appearance editor
+--(SettingsScreen) uses it so creators can see their art without owning their
+--own module. Fire "previewItem" with a ShopItemLua, or a table that reads
+--like one, to draw or redraw it.
+--- @return Panel
+function CodexShop.CreateItemPreview()
+	local m_tile = MakeShopItem()
+	local m_details = ShowItemDetailsInternal{}
+
+	return gui.Panel{
+		styles = shopStyles,
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+
+		previewItem = function(element, item)
+			m_tile:FireEventTree("refreshItem", item)
+			m_details:FireEventTree("refreshItem", item)
+			m_details:FireEventTree("showProductDetails", item)
+			--An empty cart, so the card's cart-only controls (Remove) hide.
+			element:FireEventTree("refreshCart", {})
+			--"inventory" is the class the store sets tree-wide while showing
+			--the inventory: it collapses the price and cart controls a player
+			--who owns the item never sees. "itemPreview" also drops Go Back
+			--and the admin Grant/Remove column (collapsedWhenPreview).
+			element:SetClassTree("inventory", true)
+			element:SetClassTree("itemPreview", true)
+		end,
+
+		--Pressing the card or the hero asks the store to open the item's page.
+		--There is no store here and the page is already showing, so swallow it.
+		showItemDetails = function(element, item, source)
+		end,
+
+		gui.Panel{
+			width = "auto",
+			height = "auto",
+			valign = "top",
+			rmargin = 32,
+			m_tile,
+		},
+
+		m_details,
+	}
 end
 
 --One free Hero module (a module of classes, ancestries and other hero options,

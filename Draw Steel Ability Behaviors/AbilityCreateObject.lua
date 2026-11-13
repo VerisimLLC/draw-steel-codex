@@ -7,6 +7,13 @@ ActivatedAbilityCreateObjectBehavior = RegisterGameType("ActivatedAbilityCreateO
 ActivatedAbilityCreateObjectBehavior.summary = 'Create Object'
 ActivatedAbilityCreateObjectBehavior.randomize = false
 ActivatedAbilityCreateObjectBehavior.targetFloor = 0
+--"squares": one object on every square of the target area (walls, brambles).
+--"area": a single object centred on the whole area, for one object as big as the
+--area (the Topaz Dragon's 2-cube spike).
+ActivatedAbilityCreateObjectBehavior.placement = "squares"
+--Before placing, move each creature standing in the area to the nearest unoccupied
+--squares outside it, so the new object does not overlap anyone.
+ActivatedAbilityCreateObjectBehavior.displaceOccupants = false
 
 ActivatedAbility.RegisterType
 {
@@ -34,6 +41,19 @@ local function StampRecordKey(obj, key)
     local targetable = obj:GetComponent("Targetable")
     if targetable ~= nil and targetable.properties ~= nil then
         targetable.properties.mapmodkey = key
+    end
+end
+
+--Remember which creature made the object. Formulas on the object, such as its
+--collision behavior, can then use that creature's stats.
+local function StampObjectCreator(obj, casterToken)
+    if obj == nil or casterToken == nil or (not casterToken.valid) then
+        return
+    end
+
+    local targetable = obj:GetComponent("Targetable")
+    if targetable ~= nil and targetable.properties ~= nil then
+        targetable.properties.objectcreator = casterToken.charid
     end
 end
 
@@ -160,6 +180,86 @@ function ActivatedAbilityCreateObjectBehavior.DestroyRecordedObjects(key)
     end
 end
 
+local function LocKey(loc)
+    return string.format("%d,%d", loc.x, loc.y)
+end
+
+--True if tok could stand at loc: on the map, every square of its footprint free of
+--other creatures and of the given blocked squares.
+local function LocIsFreeForToken(tok, loc, blocked)
+    local locs = tok:LocsOccupyingWhenAt(loc)
+    if locs == nil or #locs == 0 then
+        return false
+    end
+    for _, occLoc in ipairs(locs) do
+        if (not occLoc.isOnMap) or blocked[LocKey(occLoc)] then
+            return false
+        end
+        for _, other in ipairs(dmhub.GetTokensAtLoc(occLoc) or {}) do
+            if other.charid ~= tok.charid then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Move every creature standing in the area to the nearest unoccupied spot outside
+--it, before an object fills the area. Squares the engine would not path onto (walls,
+--the map edge) are skipped. A creature with nowhere to go within 8 squares stays put.
+local function DisplaceOccupants(locations)
+    local blocked = {}
+    local floorid = nil
+    for _, loc in ipairs(locations) do
+        blocked[LocKey(loc)] = true
+        floorid = floorid or loc.floor
+    end
+
+    local occupants = {}
+    local seen = {}
+    for _, loc in ipairs(locations) do
+        for _, tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if tok.valid and (not tok.isObject) and (not seen[tok.charid]) then
+                seen[tok.charid] = true
+                occupants[#occupants+1] = tok
+            end
+        end
+    end
+
+    for _, tok in ipairs(occupants) do
+        local walkable = nil
+        pcall(function()
+            local tiles = tok:CalculateMovementPerimeter(90, { moveFlags = { "IgnoreOtherCreatures" } })
+            if tiles ~= nil then
+                walkable = {}
+                for _, l in ipairs(tiles) do
+                    walkable[LocKey(l)] = true
+                end
+            end
+        end)
+
+        local best, bestDist = nil, nil
+        for _, loc in ipairs(tok.loc:LocsInRadius(8) or {}) do
+            local dist = loc:DistanceInTiles(tok.loc)
+            if (bestDist == nil or dist < bestDist)
+                and (walkable == nil or walkable[LocKey(loc)])
+                and LocIsFreeForToken(tok, loc, blocked) then
+                best, bestDist = loc, dist
+            end
+        end
+
+        if best ~= nil then
+            tok.properties._tmp_suppressTeleportEvent = true
+            tok:Teleport(best.withGroundAltitude)
+            tok.properties._tmp_suppressTeleportEvent = nil
+            --later occupants must not land on the square just filled.
+            for _, occLoc in ipairs(tok:LocsOccupyingWhenAt(best) or {}) do
+                blocked[LocKey(occLoc)] = true
+            end
+        end
+    end
+end
+
 function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets, options)
     local targetArea = options.targetArea
     local locations = nil
@@ -183,8 +283,27 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
 
     print("CAST:: LOCATIONS:", #locations)
 
+    if self.displaceOccupants then
+        DisplaceOccupants(locations)
+    end
+
     --make sure we do the top locations first so their zorder is behind.
     table.sort(locations, function(a, b) return a.y > b.y end)
+
+    --One object for the whole area: spawn once, positioned at the area's centre
+    --(the midpoint of its corner squares; equals the square itself for a 1-square area).
+    local areaCenter = nil
+    if self.placement == "area" then
+        local minx, maxx, miny, maxy = nil, nil, nil, nil
+        for _,loc in ipairs(locations) do
+            minx = math.min(minx or loc.x, loc.x)
+            maxx = math.max(maxx or loc.x, loc.x)
+            miny = math.min(miny or loc.y, loc.y)
+            maxy = math.max(maxy or loc.y, loc.y)
+        end
+        areaCenter = {x = (minx + maxx)/2, y = (miny + maxy)/2}
+        locations = {locations[1]}
+    end
 
     --Group every object this cast places into one revertible map modification record,
     --keyed by castid (the same key BeginMapModificationRecording derives), so the
@@ -213,11 +332,13 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
             end
             local obj = targetFloor:SpawnObjectLocal(self.objectid, spawnOptions)
             if obj ~= nil then
-                obj.x = loc.x + xdelta
-                obj.y = loc.y + ydelta
+                local spawnAt = areaCenter or loc
+                obj.x = spawnAt.x + xdelta
+                obj.y = spawnAt.y + ydelta
                 StampRecordKey(obj, recordKey)
                 StampAuraIdentity(obj)
                 StampAuraCaster(obj, casterToken)
+                StampObjectCreator(obj, casterToken)
                 RecordObjectInModification(obj)
                 for _,child in ipairs(spawnOptions.outChildren) do
                     if self.randomize then
@@ -382,6 +503,7 @@ function ActivatedAbilityCreateLaneObjectBehavior:Cast(ability, casterToken, tar
     obj.x = nearLoc.x
     obj.y = nearLoc.y
     obj.rotation = rotation
+    StampObjectCreator(obj, casterToken)
 
     local slideDist = Aura.laneSlideDistance
     local comp = obj:GetComponent("Aura")
@@ -532,6 +654,26 @@ function ActivatedAbilityCreateObjectBehavior:EditorItems(parentPanel)
             value = self.randomize,
             change = function(element)
                 self.randomize = element.value
+                Refresh()
+            end,
+        }
+
+        children[#children+1] = gui.Check{
+            text = "One Object for the Whole Area",
+            hover = gui.Tooltip("Place a single object centred on the target area instead of one on every square."),
+            value = self.placement == "area",
+            change = function(element)
+                self.placement = cond(element.value, "area", "squares")
+                Refresh()
+            end,
+        }
+
+        children[#children+1] = gui.Check{
+            text = "Move Creatures Out of the Area",
+            hover = gui.Tooltip("Before placing, move each creature in the area to the nearest unoccupied squares outside it."),
+            value = self.displaceOccupants,
+            change = function(element)
+                self.displaceOccupants = element.value
                 Refresh()
             end,
         }

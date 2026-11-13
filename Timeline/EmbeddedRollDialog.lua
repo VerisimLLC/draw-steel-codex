@@ -31,6 +31,228 @@ local g_activeRoll = nil
 ---@type EmbeddedRollActiveArgs
 local g_activeRollArgs = nil
 
+--- landed dice faces ----------------------------------------------------------
+--Once the dice land, the roll dialog shows each die's result where the dice
+--cage was, and the read-only card other players see (AbilitySidebar's
+--CreateReadOnlyRollInfo) shows the same row from the broadcast dialog state.
+--Both go through RollDiceFaces so they look identical.
+
+--- One landed die, as plain data so it can ride in the shared ability document.
+---@class RollDiceFace
+---@field faces integer the die size (10 for a d10).
+---@field result integer the face it landed on.
+---@field dropped boolean true for a die that does not count (e.g. keep-highest).
+---@field explodes boolean true for a die that exploded.
+---@field diceset string|nil the custom dice set it was rendered with; nil for the default set.
+
+--- The roller's dice colours (LuaInterface GetDiceStyling), as hex strings.
+---@class RollDiceFaceStyle
+---@field bgcolor string|nil
+---@field trimcolor string|nil
+---@field color string|nil
+
+RollDiceFaces = {}
+
+--Die sizes we have ui-icons/d<N>.png art for; anything else borrows the d10.
+local g_diceFaceArt = { [4] = true, [6] = true, [8] = true, [10] = true, [12] = true, [20] = true }
+
+--opacity is set on every rule because it does not cascade to children, and
+--the dialog's dice cage (which hosts this row) styles all its descendants to
+--opacity 0.
+local g_diceFaceStyles = {
+    {
+        selectors = {"rollDiceFace"},
+        width = 54,
+        height = 54,
+        hmargin = 5,
+        valign = "center",
+        opacity = 1,
+    },
+    {
+        selectors = {"rollDiceFaceLabel"},
+        width = "100%",
+        height = "100%",
+        textAlignment = "center",
+        textWrap = false,
+        fontSize = 26,
+        minFontSize = 12,
+        bold = true,
+        opacity = 1,
+    },
+    --a custom set's die is its real 3D render, dimmed so the result reads
+    --clearly on top of it.
+    {
+        selectors = {"rollDiceFace", "rendered"},
+        bgcolor = "#a0a0a0",
+        saturation = 0.4,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "rendered"},
+        fontSize = 30,
+        color = "#ffffff",
+        textOutlineWidth = 0.3,
+        textOutlineColor = "#000000",
+    },
+    --entrance: dice are built "born" and shed it one after another, so they
+    --pop in left to right instead of all appearing at once.
+    {
+        selectors = {"rollDiceFace", "born"},
+        opacity = 0,
+        scale = 0.3,
+        transitionTime = 0.25,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "parent:born"},
+        opacity = 0,
+        transitionTime = 0.25,
+    },
+    --a die that does not count (keep-highest and the like) is faded back.
+    {
+        selectors = {"rollDiceFace", "dropped"},
+        opacity = 0.3,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "parent:dropped"},
+        opacity = 0.3,
+    },
+}
+
+--- The landed dice of a roll, in roll order.
+---@param rollInfo nil|ChatMessageDiceRollInfoLua
+---@return RollDiceFace[]
+function RollDiceFaces.Collect(rollInfo)
+    local result = {}
+    if rollInfo == nil then
+        return result
+    end
+    local rolls = nil
+    pcall(function() rolls = rollInfo.rolls end)
+    for _, roll in ipairs(rolls or {}) do
+        if roll.numFaces ~= nil and roll.numFaces > 0 and roll.result ~= nil then
+            result[#result+1] = {
+                faces = math.tointeger(roll.numFaces) or 10,
+                result = math.tointeger(roll.result) or 0,
+                dropped = roll.dropped == true,
+                explodes = roll.explodes == true,
+                diceset = roll.diceset,
+            }
+        end
+    end
+    return result
+end
+
+--- The roller's dice colours for a roll, or nil when the roll has none.
+---@param rollInfo nil|ChatMessageDiceRollInfoLua
+---@return RollDiceFaceStyle|nil
+function RollDiceFaces.Style(rollInfo)
+    if rollInfo == nil then
+        return nil
+    end
+    local style = nil
+    pcall(function()
+        local s = rollInfo.diceStyle
+        if s ~= nil then
+            style = { bgcolor = s.bgcolor, trimcolor = s.trimcolor, color = s.color }
+        end
+    end)
+    return style
+end
+
+--- A centred row of dice, one per landed die, each drawn in the roller's
+--- dice colours with its result on it. Returns nil when there are no dice.
+---@param dice RollDiceFace[]
+---@param style nil|RollDiceFaceStyle
+---@param args nil|table extra panel fields for the row (width, height, ...).
+---@return Panel|nil
+function RollDiceFaces.Panel(dice, style, args)
+    if dice == nil or #dice == 0 then
+        return nil
+    end
+    style = style or {}
+
+    local children = {}
+    for i, die in ipairs(dice) do
+        local faces = die.faces
+        if faces == 3 then
+            faces = 6
+        end
+        if not g_diceFaceArt[faces] then
+            faces = 10
+        end
+
+        local text = tostring(die.result)
+        if die.explodes then
+            text = text .. "!"
+        end
+
+        --A custom set skins only d3/d6/d10 (the engine omits diceset otherwise),
+        --and #DiceIcon renders the d3 on the d6 mesh, as the roll does.
+        local geo = nil
+        if die.diceset ~= nil then
+            if die.faces == 10 then
+                geo = "d10"
+            elseif die.faces == 6 or die.faces == 3 then
+                geo = "d6"
+            end
+        end
+
+        local faceArgs = {
+            classes = {"rollDiceFace", "born", cond(die.dropped, "dropped"), cond(geo ~= nil, "rendered")},
+            create = function(element)
+                element:ScheduleEvent("arrive", 0.05 + (i - 1) * 0.09)
+            end,
+            arrive = function(element)
+                element:SetClass("born", false)
+            end,
+        }
+        local labelArgs = {
+            --a size class too: some cascades paint no text without one.
+            classes = {"rollDiceFaceLabel", "sizeXl", cond(geo ~= nil, "rendered")},
+            text = text,
+        }
+
+        if geo ~= nil then
+            --the real die, rendered once and cached by the engine (DiceIconManager).
+            faceArgs.bgimage = string.format("#DiceIcon:%s:%s", die.diceset, geo)
+        else
+            faceArgs.bgimage = string.format("ui-icons/d%d-filled.png", faces)
+            faceArgs.bgcolor = style.bgcolor or "#3a3a3a"
+            labelArgs.bgimage = string.format("ui-icons/d%d.png", faces)
+            labelArgs.bgcolor = style.trimcolor or "#d9b25f"
+            labelArgs.color = style.color or "#ffffff"
+        end
+
+        faceArgs[1] = gui.Label(labelArgs)
+        children[#children+1] = gui.Panel(faceArgs)
+    end
+
+    --The row sizes to its dice and centres inside a full-width wrapper.
+    local panelArgs = {
+        styles = g_diceFaceStyles,
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        interactable = false,
+        children = {
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                flow = "horizontal",
+                interactable = false,
+                children = children,
+            },
+        },
+    }
+    for k, v in pairs(args or {}) do
+        panelArgs[k] = v
+    end
+
+    return gui.Panel(panelArgs)
+end
+
 --- roll button pings ----------------------------------------------------------
 --A roll shown with the ShowDialog option `pingButtons` (the Encounter of the
 --Week montage) puts ghost copies of its Accept Result / Re-roll buttons on
@@ -568,6 +790,319 @@ local function ModifierPanel(args)
 end
 
 
+--Dice slots: the activated-slot rules the roll dialog and the Hero sheet's Dice
+--window share (see the diceslotsequipped and diceslotextras settings). The
+--shop's equip panel (CodexShopScreen.lua) keeps its own SlotKey / SlotLabel,
+--which must mirror these keys.
+DiceSlots = rawget(_G, "DiceSlots") or {}
+
+--Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
+--shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
+--dice (see the diceslotsequipped setting and the Dice Studio Slots section).
+--Resolves which activated slot set (if any) should skin the roll this dialog is
+--showing. Builds candidate slot keys in most-specific-first order and returns the
+--first one the player has an activation for:
+--  1. "damage:<type>"                -- a power roll whose tiers deal that damage
+--                                       type (e.g. "4 fire damage"); a plain
+--                                       "4 damage" clause matches a "damage:untyped"
+--                                       activation, which is tried after any typed
+--                                       match.
+--  2. "class:<classid>:<subclassid>" -- the rolling hero's class + chosen subclass.
+--  3. "class:<classid>"              -- the rolling hero's class.
+--  4. "monster:<groupid>"            -- the rolling monster's type (MonsterGroup),
+--                                       then the groups it inherits from,
+--                                       breadth-first, so a direct match beats an
+--                                       inherited one.
+--- @param creatureArg nil|creature
+--- @param rollProps any
+--- @return nil|string set the activated set
+--- @return nil|string key the slot key it came from
+function DiceSlots.Resolve(creatureArg, rollProps)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    if type(slotsEquipped) ~= "table" or next(slotsEquipped) == nil then
+        return nil
+    end
+
+    local candidates = {}
+
+    --Damage types featured in the power roll tiers.
+    if rollProps ~= nil and rollProps.typeName == "RollPropertiesPowerTable" then
+        local ok, damageTypes = pcall(function() return rollProps:GetDamageTypes() end)
+        if ok and damageTypes ~= nil then
+            local hasUntyped = false
+            for _,damageType in ipairs(damageTypes) do
+                if damageType == "untyped" then
+                    hasUntyped = true
+                else
+                    candidates[#candidates+1] = "damage:" .. damageType
+                end
+            end
+
+            --Untyped comes last within the damage group. GetDamageTypes reports a
+            --tier's clauses in text order, and in a tier like "8 damage; 4 corruption
+            --damage" the untyped clause comes first, so keeping that order would let
+            --it outrank the corruption activation.
+            if hasUntyped then
+                candidates[#candidates+1] = "damage:untyped"
+            end
+        end
+    end
+
+    if creatureArg ~= nil then
+        --Hero class/subclass. GetClassesAndSubClasses interleaves each class with
+        --its chosen subclasses; collect subclass keys ahead of class keys so the
+        --subclass activation wins.
+        local classKeys = {}
+        local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
+        if ok and classEntries ~= nil then
+            for _,entry in ipairs(classEntries) do
+                local info = entry.class
+                local id = info ~= nil and info:try_get("id") or nil
+                if id ~= nil then
+                    if info:try_get("isSubclass", false) then
+                        local primary = info:try_get("primaryClassId", "")
+                        if primary ~= "" then
+                            candidates[#candidates+1] = string.format("class:%s:%s", primary, id)
+                        end
+                    else
+                        classKeys[#classKeys+1] = "class:" .. id
+                    end
+                end
+            end
+        end
+        for _,key in ipairs(classKeys) do
+            candidates[#candidates+1] = key
+        end
+
+        --Monster type: the monster's own group, then inherited groups
+        --breadth-first. The seen guard also protects against inheritance cycles.
+        local okGroup, group = pcall(function() return creatureArg:MonsterGroup() end)
+        if okGroup and group ~= nil then
+            local groupsTable = dmhub.GetTable("MonsterGroup") or {}
+            local seen = {}
+            local queue = { group }
+            while #queue > 0 do
+                local g = table.remove(queue, 1)
+                local gid = g:try_get("id")
+                if gid ~= nil and not seen[gid] then
+                    seen[gid] = true
+                    candidates[#candidates+1] = "monster:" .. gid
+                    for _,inheritid in ipairs(g:try_get("inherits") or {}) do
+                        if not seen[inheritid] and groupsTable[inheritid] ~= nil then
+                            queue[#queue+1] = groupsTable[inheritid]
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for _,key in ipairs(candidates) do
+        local assetid = slotsEquipped[key]
+        if assetid ~= nil and assetid ~= "" then
+            return assetid, key
+        end
+    end
+
+    return nil
+end
+
+--- The extras saved for a slot, or nil when there are none or they were chosen
+--- with a different main set (the slot was re-activated since).
+--- @param key string a slot key
+--- @param main string the slot's activated set
+--- @return nil|{main: string, model2: nil|string, modelD6: nil|string}
+function DiceSlots.Extras(key, main)
+    local all = dmhub.GetSettingValue("diceslotextras")
+    if type(all) ~= "table" then
+        return nil
+    end
+    local extras = all[key]
+    if type(extras) ~= "table" or extras.main ~= main then
+        return nil
+    end
+    return extras
+end
+
+--The dice loadout a roll should be skinned with, or nil to leave the rolling
+--player's own equipped dice alone. Two sources, most specific first:
+--  1. an activated dice slot matching this roll (DiceSlots.Resolve). That is a
+--     choice about THIS roll -- "when I deal fire damage, use my fire dice" -- so it
+--     beats the standing per-token preference below. Its set skins every die unless
+--     the slot has extras (a second power die, d3/d6 dice) the player owns.
+--  2. the rolled token's own customized dice (creature:ResolveDiceLoadout), which
+--     can differ per die and has already dropped any set this player does not own.
+--- @param creatureArg nil|creature
+--- @param rollProps any
+--- @return nil|{model: string, model2: string, modelD6: string}
+function DiceSlots.RollLoadout(creatureArg, rollProps)
+    local slotSet, key = DiceSlots.Resolve(creatureArg, rollProps)
+    if slotSet ~= nil and slotSet ~= "" then
+        local loadout = { model = slotSet, model2 = "", modelD6 = "" }
+        local extras = nil
+        if key ~= nil then
+            extras = DiceSlots.Extras(key, slotSet)
+        end
+        if extras ~= nil then
+            --an extra set the player no longer owns falls back to the main set.
+            local owned = {}
+            pcall(function() owned = creature.OwnedDiceSets() end)
+            if extras.model2 ~= nil and owned[extras.model2] then
+                loadout.model2 = extras.model2
+            end
+            if extras.modelD6 ~= nil and owned[extras.modelD6] then
+                loadout.modelD6 = extras.modelD6
+            end
+        end
+        return loadout
+    end
+
+    if creatureArg == nil then
+        return nil
+    end
+
+    --pcall: creature:ResolveDiceLoadout is codex Lua, but the roll dialog can be
+    --shown for objects that are not full creatures.
+    local ok, loadout = pcall(function() return creatureArg:ResolveDiceLoadout() end)
+    if ok then
+        return loadout
+    end
+
+    return nil
+end
+
+--- The class slot a Hero's dice live in for the local player: the subclass key
+--- when that slot is activated, else the class key. nil for a creature with no
+--- class (a monster, or a Hero before the Class step).
+--- @param creatureArg creature
+--- @return nil|string key
+function DiceSlots.ClassKey(creatureArg)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    if type(slotsEquipped) ~= "table" then
+        slotsEquipped = {}
+    end
+    local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
+    if not ok or classEntries == nil then
+        return nil
+    end
+    local classKey = nil
+    for _,entry in ipairs(classEntries) do
+        local info = entry.class
+        local id = info ~= nil and info:try_get("id") or nil
+        if id ~= nil then
+            if info:try_get("isSubclass", false) then
+                local primary = info:try_get("primaryClassId", "")
+                local subKey = string.format("class:%s:%s", primary, id)
+                if primary ~= "" and (slotsEquipped[subKey] or "") ~= "" then
+                    return subKey
+                end
+            elseif classKey == nil then
+                classKey = "class:" .. id
+            end
+        end
+    end
+    return classKey
+end
+
+--- A slot's dice as the three-part loadout a roll would use ("" = same as
+--- model), or nil when the slot is not activated.
+--- @param key string
+--- @return nil|{model: string, model2: string, modelD6: string}
+function DiceSlots.Loadout(key)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    local main = nil
+    if type(slotsEquipped) == "table" then
+        main = slotsEquipped[key]
+    end
+    if main == nil or main == "" then
+        return nil
+    end
+    local extras = DiceSlots.Extras(key, main)
+    return {
+        model = main,
+        model2 = extras ~= nil and extras.model2 or "",
+        modelD6 = extras ~= nil and extras.modelD6 or "",
+    }
+end
+
+--- Activate a set for a slot, with its extras, or clear the slot (model nil).
+--- Copies, changes and sets both settings, as the shop does.
+--- @param key string
+--- @param model nil|string the set for every die not given below
+--- @param model2 nil|string the second power die's set
+--- @param modelD6 nil|string the d3 and d6 dice's set
+function DiceSlots.Set(key, model, model2, modelD6)
+    if model == "" then
+        model = nil
+    end
+    if model2 == "" then
+        model2 = nil
+    end
+    if modelD6 == "" then
+        modelD6 = nil
+    end
+    local slots = {}
+    for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+        slots[k] = v
+    end
+    slots[key] = model
+    dmhub.SetSettingValue("diceslotsequipped", slots)
+
+    local extras = {}
+    for k,v in pairs(dmhub.GetSettingValue("diceslotextras") or {}) do
+        extras[k] = v
+    end
+    if model ~= nil and (model2 ~= nil or modelD6 ~= nil) then
+        extras[key] = { main = model, model2 = model2, modelD6 = modelD6 }
+    else
+        extras[key] = nil
+    end
+    dmhub.SetSettingValue("diceslotextras", extras)
+end
+
+--- A slot key back as the slot record the shop and the Dice Studio use:
+--- {slotType = "damage"|"class"|"monster", damageType, classid, subclassid, groupid}.
+--- @param key string
+--- @return nil|table
+function DiceSlots.RecordFromKey(key)
+    local slotType, rest = string.match(key or "", "^(%a+):(.*)$")
+    if slotType == "damage" then
+        return { slotType = "damage", damageType = rest }
+    end
+    if slotType == "monster" then
+        return { slotType = "monster", groupid = rest }
+    end
+    if slotType == "class" then
+        local classid, subclassid = string.match(rest, "^([^:]+):(.+)$")
+        if classid ~= nil then
+            return { slotType = "class", classid = classid, subclassid = subclassid }
+        end
+        return { slotType = "class", classid = rest }
+    end
+    return nil
+end
+
+--- A class slot's name as the shop shows it: "Summoner", or
+--- "Summoner: Circle of Graves" for a subclass slot.
+--- @param key string
+--- @return string
+function DiceSlots.ClassLabel(key)
+    local record = DiceSlots.RecordFromKey(key) or {}
+    local classInfo = (dmhub.GetTable("classes") or {})[record.classid or ""]
+    local className = "Unknown Class"
+    if classInfo ~= nil then
+        className = classInfo:try_get("name", className)
+    end
+    if record.subclassid ~= nil then
+        local sub = (dmhub.GetTable("subclasses") or {})[record.subclassid]
+        if sub ~= nil then
+            return string.format("%s: %s", className, sub:try_get("name", "Subclass"))
+        end
+    end
+    return className
+end
+
+
 function GameHud.CreateEmbeddedRollDialog()
     --"Strictly Enforce Rolls" (strict:rolls), sampled once here: a fresh dialog
     --is built for every roll (CharacterPanel.EmbedDialogInAbility /
@@ -588,11 +1123,12 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @class EmbeddedRollModifierEntry
     --- @field modifier CharacterModifier
     --- @field context nil|table the modifier's GoblinScript context.
-    --- @field hint nil|{result: boolean|string, justification: string[]} some hints carry a string result (e.g. "true", a cover amount).
+    --- @field hint nil|{result: boolean|string, justification: string[], optIn: nil|boolean} some hints carry a string result (e.g. "true", a cover amount). optIn: an unticked paid or limited-use option the roller may choose (see the power modifier's hintPowerRoll).
     --- @field override nil|boolean the user's explicit on/off choice.
     --- @field failsRequirement nil|boolean
     --- @field modFromTarget nil|boolean
     --- @field isAfterRoll nil|boolean
+    --- @field rollerDecides nil|boolean the rules cannot tell whether it applies (Skilled on a test that names no skill), so the roller chooses even under Strictly Enforce Rolls. See CharacterModifier.MarkSkilledRollerDecides.
 
     --- One target row of a multi-target roll.
     --- @class EmbeddedRollMultiTarget
@@ -708,6 +1244,32 @@ function GameHud.CreateEmbeddedRollDialog()
     --any ongoing roll as a result of this dialog.
     local m_rollInfo = nil
 
+    --The roll as it now stands for one multitarget row: the dice as rolled (the
+    --total corrected for re-rolls, as the pending handler does) plus the row's
+    --post-roll edges/banes/tiers from triggers. Resolution reads tiers the same
+    --way (CalculateMultitargetsFromRollProperties). nil before the dice land.
+    local function EffectiveRollForTarget(target)
+        if m_rollInfo == nil then
+            return nil
+        end
+        local natRoll = m_rollInfo.naturalRoll or 0
+        local total = m_rollInfo.total or 0
+        if natRoll > 0 and m_rollNonDiceModifier ~= nil then
+            total = natRoll + m_rollNonDiceModifier
+        end
+        return RollUtils.EffectiveRollForTarget({
+            total = total,
+            naturalRoll = natRoll,
+            boons = m_rollInfo.boons or 0,
+            banes = m_rollInfo.banes or 0,
+            tiers = m_rollInfo.tiers,
+            autosuccess = m_rollInfo.autosuccess,
+            autofailure = m_rollInfo.autofailure,
+            nottierone = m_rollInfo.nottierone,
+            nottierthree = m_rollInfo.nottierthree,
+        }, target)
+    end
+
     local rollType = ''
     local rollSubtype = ''
     local rollProperties = nil
@@ -739,6 +1301,7 @@ function GameHud.CreateEmbeddedRollDialog()
         m_richStatus = dmhub.PushUserRichStatus(richStatus)
 
         m_shown = m_shown + 1
+        RollDialog.NoteShown()
     end
 
     local OnHide = function()
@@ -751,6 +1314,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if m_shown > 0 then
             chat.events:Pop()
             m_shown = m_shown - 1
+            RollDialog.NoteHidden()
         end
     end
 
@@ -787,140 +1351,7 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
-    --Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
-    --shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
-    --dice (see the diceslotsequipped setting and the Dice Studio Slots section).
-    --Resolves which activated slot set (if any) should skin the roll this dialog is
-    --showing. Builds candidate slot keys in most-specific-first order and returns the
-    --first one the player has an activation for:
-    --  1. "damage:<type>"                -- a power roll whose tiers deal that damage
-    --                                       type (e.g. "4 fire damage"); a plain
-    --                                       "4 damage" clause matches a "damage:untyped"
-    --                                       activation, which is tried after any typed
-    --                                       match.
-    --  2. "class:<classid>:<subclassid>" -- the rolling hero's class + chosen subclass.
-    --  3. "class:<classid>"              -- the rolling hero's class.
-    --  4. "monster:<groupid>"            -- the rolling monster's type (MonsterGroup),
-    --                                       then the groups it inherits from,
-    --                                       breadth-first, so a direct match beats an
-    --                                       inherited one.
-    local ComputeSlotDiceForRoll = function(creatureArg, rollProps)
-        local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
-        if type(slotsEquipped) ~= "table" or next(slotsEquipped) == nil then
-            return nil
-        end
-
-        local candidates = {}
-
-        --Damage types featured in the power roll tiers.
-        if rollProps ~= nil and rollProps.typeName == "RollPropertiesPowerTable" then
-            local ok, damageTypes = pcall(function() return rollProps:GetDamageTypes() end)
-            if ok and damageTypes ~= nil then
-                local hasUntyped = false
-                for _,damageType in ipairs(damageTypes) do
-                    if damageType == "untyped" then
-                        hasUntyped = true
-                    else
-                        candidates[#candidates+1] = "damage:" .. damageType
-                    end
-                end
-
-                --Untyped comes last within the damage group. GetDamageTypes reports a
-                --tier's clauses in text order, and in a tier like "8 damage; 4 corruption
-                --damage" the untyped clause comes first, so keeping that order would let
-                --it outrank the corruption activation.
-                if hasUntyped then
-                    candidates[#candidates+1] = "damage:untyped"
-                end
-            end
-        end
-
-        if creatureArg ~= nil then
-            --Hero class/subclass. GetClassesAndSubClasses interleaves each class with
-            --its chosen subclasses; collect subclass keys ahead of class keys so the
-            --subclass activation wins.
-            local classKeys = {}
-            local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
-            if ok and classEntries ~= nil then
-                for _,entry in ipairs(classEntries) do
-                    local info = entry.class
-                    local id = info ~= nil and info:try_get("id") or nil
-                    if id ~= nil then
-                        if info:try_get("isSubclass", false) then
-                            local primary = info:try_get("primaryClassId", "")
-                            if primary ~= "" then
-                                candidates[#candidates+1] = string.format("class:%s:%s", primary, id)
-                            end
-                        else
-                            classKeys[#classKeys+1] = "class:" .. id
-                        end
-                    end
-                end
-            end
-            for _,key in ipairs(classKeys) do
-                candidates[#candidates+1] = key
-            end
-
-            --Monster type: the monster's own group, then inherited groups
-            --breadth-first. The seen guard also protects against inheritance cycles.
-            local okGroup, group = pcall(function() return creatureArg:MonsterGroup() end)
-            if okGroup and group ~= nil then
-                local groupsTable = dmhub.GetTable("MonsterGroup") or {}
-                local seen = {}
-                local queue = { group }
-                while #queue > 0 do
-                    local g = table.remove(queue, 1)
-                    local gid = g:try_get("id")
-                    if gid ~= nil and not seen[gid] then
-                        seen[gid] = true
-                        candidates[#candidates+1] = "monster:" .. gid
-                        for _,inheritid in ipairs(g:try_get("inherits") or {}) do
-                            if not seen[inheritid] and groupsTable[inheritid] ~= nil then
-                                queue[#queue+1] = groupsTable[inheritid]
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        for _,key in ipairs(candidates) do
-            local assetid = slotsEquipped[key]
-            if assetid ~= nil and assetid ~= "" then
-                return assetid
-            end
-        end
-
-        return nil
-    end
-
-    --The dice loadout this dialog's roll should be skinned with, or nil to leave the
-    --rolling player's own equipped dice alone. Two sources, most specific first:
-    --  1. an activated dice slot matching this roll (ComputeSlotDiceForRoll). That is a
-    --     choice about THIS roll -- "when I deal fire damage, use my fire dice" -- so it
-    --     beats the standing per-token preference below. It skins every die with the
-    --     one activated set (model2/modelD6 empty = "same as model").
-    --  2. the rolled token's own customized dice (creature:ResolveDiceLoadout), which
-    --     can differ per die and has already dropped any set this player does not own.
-    local ComputeRollDiceOverride = function(creatureArg, rollProps)
-        local slotSet = ComputeSlotDiceForRoll(creatureArg, rollProps)
-        if slotSet ~= nil and slotSet ~= "" then
-            return { model = slotSet, model2 = "", modelD6 = "" }
-        end
-
-        if creatureArg == nil then
-            return nil
-        end
-
-        --pcall: creature:ResolveDiceLoadout is codex Lua, but the roll dialog can be
-        --shown for objects that are not full creatures.
-        local ok, loadout = pcall(function() return creatureArg:ResolveDiceLoadout() end)
-        if ok then
-            return loadout
-        end
-
-        return nil
-    end
+    local ComputeRollDiceOverride = DiceSlots.RollLoadout
 
 
     local styles = {
@@ -1131,6 +1562,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local rollDisabledLabel
     local rollDiceButton
+    local rollAllPromptsCheck
+
+    --The roller asked for "Roll all prompts" (see rollAllPromptsCheck): tell
+    --the request listener so its remaining prompts for this request follow suit.
+    local NotifyRollAllPrompts = function()
+        if rollAllPrompts ~= nil and rollAllPromptsCheck ~= nil
+           and rollAllPromptsCheck.value and not rollAllPromptsCheck:HasClass("collapsed") then
+            rollAllPrompts()
+        end
+    end
     local proceedAfterRollButton
     local rollAgainButton
     local m_triggerProgressDice
@@ -1421,29 +1862,10 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
-        -- Calculate tier for this target using their boons/banes.
-        local natRoll = m_rollInfo.naturalRoll or 0
-        local correctedTotal = 0
-        if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-            correctedTotal = natRoll + m_rollNonDiceModifier
-        else
-            correctedTotal = m_rollInfo.total or 0
-        end
-
-        local tierRollInfo = {
-            total = correctedTotal,
-            naturalRoll = natRoll,
-            boons = (m_rollInfo.boons or 0) + (target.boons or 0),
-            banes = (m_rollInfo.banes or 0) + (target.banes or 0),
-            tiers = m_rollInfo.tiers,
-            autosuccess = m_rollInfo.autosuccess,
-            autofailure = m_rollInfo.autofailure,
-            nottierone = m_rollInfo.nottierone,
-            nottierthree = m_rollInfo.nottierthree,
-        }
+        -- Calculate tier for this target using their post-roll edges/banes.
         local tier = (rollProperties and rollProperties:try_get("overrideTier"))
                      or (targetRollProps and targetRollProps:try_get("overrideTier"))
-                     or RollUtils.DiceResultToTier(tierRollInfo)
+                     or RollUtils.DiceResultToTier(EffectiveRollForTarget(target))
 
         -- Get the power table text from this target's rollProperties.
         local tierText = targetRollProps and targetRollProps.tiers and targetRollProps.tiers[tier]
@@ -1523,7 +1945,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
-    CalculateRollText = function(calculationOptions)
+    --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
+    CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
 
         local rollDisallowed = nil
@@ -1654,6 +2077,14 @@ function GameHud.CreateEmbeddedRollDialog()
         if rollProperties ~= nil then
             -- Check for roll requirements and update modifiers that fail
             resultPanel:FireEventTree("prepareBeforeRollProperties", rollInfo, enabledModifiers, rollProperties)
+
+            --The check may have turned on or off a modifier whose own edge/bane the text
+            --above already counted (e.g. Convocation of Quartz's "bane unless it already
+            --has one"). Build the text again; that check ignores its own bane, so it is stable.
+            if not requirementPass and CharacterModifier.RollRequirementChangedRollText(enabledModifiers, GetEnabledModifiers()) then
+                return CalculateRollText(calculationOptions, true)
+            end
+
             resultPanel:FireEventTree('prepare', m_options)
 
             enabledModifiers = GetEnabledModifiers()
@@ -1848,55 +2279,39 @@ function GameHud.CreateEmbeddedRollDialog()
         if isPowerRoll and rollProperties ~= nil and rollProperties.try_get ~= nil then
             tiers = rollProperties:try_get("tiers")
         end
+        --A secret Critical (RollPropertiesPowerTable.IsCriticalSecret) is shared
+        --only once the dice have landed on it.
+        local critSecret = RollPropertiesPowerTable.IsCriticalSecret(rollProperties)
+        local critLanded = false
+        if tiers ~= nil and tiers[4] ~= nil and rollState == "finished" and m_rollInfo ~= nil then
+            critLanded = (m_rollInfo.naturalRoll or 0) >= 19
+        end
         if tiers ~= nil then
             tierTexts = {}
             for i = 1, #tiers do
-                tierTexts[i] = tiers[i]
+                if i < 4 or critLanded or not critSecret then
+                    tierTexts[i] = tiers[i]
+                end
             end
         end
 
         -- Compute the highlighted tier directly so remote clients receive
         -- a simple integer rather than needing to replicate DiceResultToTier.
+        -- It is the current target's tier including post-roll edges/banes from
+        -- triggers (N6TSGZYU), matching the roller's Total label.
         local highlightedTier = nil
         if m_rollInfo ~= nil and (rollState == "finished" or rollState == "rolling") then
-            -- On re-rolls m_rollInfo.total is stale; recompute from the fresh
-            -- naturalRoll plus the stored non-dice modifier (same correction as
-            -- the pending handler and UpdateCurrentTargetArrowLabel).
-            local natRoll = m_rollInfo.naturalRoll or 0
-            local total
-            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-                total = natRoll + m_rollNonDiceModifier
-            else
-                total = m_rollInfo.total or 0
+            local currentIdx = GetCurrentMultiTarget()
+            local currentTarget = nil
+            if currentIdx ~= nil and m_multitargets ~= nil then
+                currentTarget = m_multitargets[currentIdx]
             end
-            local boons = m_rollInfo.boons or 0
-            local banes = m_rollInfo.banes or 0
-
-            if m_rollInfo.autosuccess then
-                highlightedTier = 3
-            elseif m_rollInfo.autofailure then
-                highlightedTier = 1
-            else
-                highlightedTier = 1
-                if total >= 17 then
-                    highlightedTier = 3
-                elseif total >= 12 then
-                    highlightedTier = 2
-                end
-                if boons >= 2 and banes == 0 then
-                    highlightedTier = highlightedTier + 1
-                elseif banes >= 2 and boons == 0 then
-                    highlightedTier = highlightedTier - 1
-                end
-                highlightedTier = highlightedTier + (m_rollInfo.tiers or 0)
-                if highlightedTier > 3 then highlightedTier = 3 end
-                if highlightedTier < 1 then highlightedTier = 1 end
-                if highlightedTier == 3 and m_rollInfo.nottierthree then
-                    highlightedTier = 2
-                end
-                if highlightedTier == 1 and m_rollInfo.nottierone then
-                    highlightedTier = 2
-                end
+            local effectiveRoll = EffectiveRollForTarget(currentTarget) --[[@as table]]
+            highlightedTier = RollUtils.DiceResultToTier(effectiveRoll)
+            --the roller's power table promotes a natural 19-20 to the 4th
+            --"Critical" row of a table that has one; follow it.
+            if critLanded then
+                highlightedTier = 4
             end
 
             -- Override tier from roll properties if the caster picked a
@@ -1920,6 +2335,15 @@ function GameHud.CreateEmbeddedRollDialog()
             highlightedTier = highlightedTier,
             rollId = resultPanel.data.rollid,
         }
+
+        --each landed die, so remote viewers see the same faces the roller does.
+        --The total is the roller's total label as shown (modifiers and any
+        --post-roll edge/bane included), so both sides show the same number.
+        if rollState == "finished" and m_rollInfo ~= nil then
+            dialogState.dice = RollDiceFaces.Collect(m_rollInfo)
+            dialogState.diceStyle = RollDiceFaces.Style(m_rollInfo)
+            dialogState.total = tonumber(m_rollTotalLabel ~= nil and m_rollTotalLabel.valid and m_rollTotalLabel.text or nil)
+        end
 
         if extraFields ~= nil then
             for k, v in pairs(extraFields) do
@@ -2956,11 +3380,9 @@ function GameHud.CreateEmbeddedRollDialog()
         -- +/-2 (a single net edge/bane) but the dice are already settled, so the
         -- label is never refreshed by diceface. Recompute here when the multitarget
         -- recalculation fires (the boon-bar press triggers RecalculateMultiTargets).
-        -- This mirrors CalculateMultitargetsFromRollProperties: take the dice total
-        -- as rolled (which already includes the roll-time boon bonus) and re-apply
-        -- the current target's post-roll boon/bane delta. A double edge/bane shifts
-        -- the tier rather than the total, so GetRollModFromEdgesAndBanes returns 0
-        -- for it and the displayed total correctly stays put.
+        -- This is the current target's effective roll, the same math as
+        -- CalculateMultitargetsFromRollProperties. A double edge/bane shifts the
+        -- tier rather than the total, so the displayed total correctly stays put.
         recalculatedMultiTargets = function(element)
             if not element:HasClass("finishedRolling") then
                 return
@@ -2969,31 +3391,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 return
             end
 
-            local natRoll = m_rollInfo.naturalRoll or 0
-            local correctedTotal
-            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-                correctedTotal = natRoll + m_rollNonDiceModifier
-            else
-                correctedTotal = m_rollInfo.total or 0
-            end
-
-            local rollBoons = m_rollInfo.boons or 0
-            local rollBanes = m_rollInfo.banes or 0
-
-            local targetBoons = 0
-            local targetBanes = 0
             local idx = GetCurrentMultiTarget()
-            if idx ~= nil and m_multitargets ~= nil and m_multitargets[idx] ~= nil then
-                targetBoons = m_multitargets[idx].boons or 0
-                targetBanes = m_multitargets[idx].banes or 0
+            local target = nil
+            if idx ~= nil and m_multitargets ~= nil then
+                target = m_multitargets[idx]
             end
 
-            local baseBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollBoons, rollBanes)
-            local effBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(
-                math.min(rollBoons + targetBoons, 2),
-                math.min(rollBanes + targetBanes, 2))
-
-            element.text = tostring(correctedTotal + (effBonus - baseBonus))
+            local effectiveRoll = EffectiveRollForTarget(target) --[[@as table]]
+            element.text = tostring(effectiveRoll.total)
         end,
     }
 
@@ -3721,6 +4126,244 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    --Width for a badge dropdown: as wide as its longest option label (so the box does not
+    --resize when the pick changes), roughly 7px per character at font size 11 plus padding and arrow room.
+    local function DropdownWidthForOptions(options)
+        local longest = 0
+        for _,o in ipairs(options) do
+            longest = math.max(longest, #tostring(o.text))
+        end
+        return math.min(240, math.max(72, longest * 7 + 38))
+    end
+
+    --Builds the inline dropdown(s) shown inside a modifier badge: a damage-type
+    --mapping picker and/or an addTextChoices picker. Returns nil when the modifier
+    --has none (or is not checked). Shared by the pre-roll and after-roll badges.
+    local function BuildModifierChoiceContent(mod, ischecked)
+        --If this modifier maps a damage type to multiple possible
+        --destination types, embed a small dropdown in the badge so
+        --the user can choose which type this use converts to.
+        local mappingContent = nil
+        local damageTypeMappings = mod.modifier:try_get("damageTypeMappings")
+        if ischecked and damageTypeMappings ~= nil then
+            local dropdowns = {}
+            local multiSources = 0
+            for _,value in pairs(damageTypeMappings) do
+                if #CharacterModifier.DamageMappingDestinations(value) > 1 then
+                    multiSources = multiSources + 1
+                end
+            end
+            for source,value in sorted_pairs(damageTypeMappings) do
+                local dests = CharacterModifier.DamageMappingDestinations(value)
+                if #dests > 1 then
+                    local destOptions = {}
+                    for _,d in ipairs(dests) do
+                        destOptions[#destOptions+1] = { id = d, text = d }
+                    end
+
+                    --Only label the source type when more than one
+                    --source has a choice; the common case is a single
+                    --dropdown, which reads fine on its own.
+                    if multiSources > 1 then
+                        dropdowns[#dropdowns+1] = gui.Label{
+                            classes = {"sizeXxs", "fgMuted"},
+                            text = source .. ":",
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            rmargin = 2,
+                        }
+                    end
+
+                    dropdowns[#dropdowns+1] = gui.Dropdown{
+                        width = DropdownWidthForOptions(destOptions),
+                        height = 14,
+                        fontSize = 11,
+                        valign = "center",
+                        idChosen = mod.modifier:ResolveDamageMappingDestination(source, value),
+                        options = destOptions,
+                        change = function(element)
+                            ---@cast element Dropdown
+                            local chosen = element.idChosen
+                            local guid = mod.modifier:try_get("guid")
+                            local function SetChoice(m)
+                                local choices = m:get_or_add("_tmp_damageTypeChoices", {})
+                                choices[source] = chosen
+                            end
+
+                            SetChoice(mod.modifier)
+
+                            --Multi-target rolls keep a separate copy of the
+                            --modifier for each target; propagate the choice to
+                            --all copies so one selection covers the whole use.
+                            --damageTypeChoicePerTarget keeps each target's pick separate.
+                            local perTarget = mod.modifier:try_get("damageTypeChoicePerTarget", false)
+                            if m_multitargets ~= nil and guid ~= nil and not perTarget then
+                                for _,target in ipairs(m_multitargets) do
+                                    for _,entry in ipairs(target.modifiers or {}) do
+                                        if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
+                                            SetChoice(entry.modifier)
+                                        end
+                                    end
+                                end
+                            end
+
+                            resultPanel:FireEventTree('prepare', m_options)
+                            CalculateRollText()
+                            RecalculateMultiTargets()
+                        end,
+                    }
+                end
+            end
+
+            if #dropdowns > 0 then
+                mappingContent = gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    --Span the badge's full height so valign="center" on the
+                    --dropdown centers it against the label text.
+                    height = "100%",
+                    valign = "center",
+                    rmargin = 2,
+                    --Clicks on the dropdown must not bubble up to the
+                    --badge, which would toggle the modifier.
+                    swallowPress = true,
+                    children = dropdowns,
+                }
+            end
+        end
+
+        --A modifier with addTextChoices gets a dropdown (like damage
+        --type mappings) to pick which choice's text is added to the table.
+        local addTextChoices = mod.modifier:try_get("addTextChoices")
+        if ischecked and mappingContent == nil and addTextChoices ~= nil and #addTextChoices > 1 then
+            --addTextChoiceLabels (optional, same order) gives short dropdown labels;
+            --the full choice text still goes into the power table.
+            local choiceLabels = mod.modifier:try_get("addTextChoiceLabels", {})
+            local choiceOptions = {}
+            for i,c in ipairs(addTextChoices) do
+                choiceOptions[#choiceOptions+1] = { id = c, text = choiceLabels[i] or c }
+            end
+
+            mappingContent = gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                rmargin = 2,
+                --Clicks on the dropdown must not toggle the modifier.
+                swallowPress = true,
+                gui.Dropdown{
+                    width = DropdownWidthForOptions(choiceOptions),
+                    height = 14,
+                    fontSize = 11,
+                    valign = "center",
+                    idChosen = CharacterModifier.ResolveAddTextChoice(mod.modifier),
+                    options = choiceOptions,
+                    change = function(element)
+                        ---@cast element Dropdown
+                        local chosen = element.idChosen --[[@as string]]
+                        local guid = mod.modifier:try_get("guid")
+                        mod.modifier:SetAddTextChoice(chosen)
+
+                        --Multi-target rolls keep a copy of the modifier per
+                        --target; keep every copy on the same pick.
+                        if m_multitargets ~= nil and guid ~= nil then
+                            for _,target in ipairs(m_multitargets) do
+                                for _,entry in ipairs(target.modifiers or {}) do
+                                    if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
+                                        entry.modifier:SetAddTextChoice(chosen)
+                                    end
+                                end
+                            end
+                        end
+
+                        resultPanel:FireEventTree('prepare', m_options)
+                        CalculateRollText()
+                        RecalculateMultiTargets()
+                    end,
+                },
+            }
+        end
+        return mappingContent
+    end
+
+    --A modifier badge's hover text. Built when the tooltip opens rather than on
+    --every badge rebuild (prepare runs several times per roll), which also keeps
+    --it current: the checked state and spoiler reveal are read at hover time.
+    local function ModifierTooltipText(mod, ischecked)
+        local rawName = mod.modifier.name or ""
+        local tooltip = mod.modifier:GetSummaryText()
+        if creature ~= nil then
+            --nil only for a nil input, and GetSummaryText returns a string.
+            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
+        end
+        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
+        for i, justification in ipairs(mod.hint.justification) do
+            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                justification)
+        end
+        if PowerRollSpoilers.HasSpoiler(rawName) then
+            local spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
+            if dmhub.isDM or spoilerRevealed then
+                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+            else
+                --Show players only the redacted name: passing the full
+                --summary through would let its embedded color tags
+                --defeat the redaction bar.
+                tooltip = PowerRollSpoilers.Format(rawName, false)
+            end
+        end
+        return tooltip
+    end
+
+    --Badge rebuild skipping. prepare fires several times per roll (ShowDialog,
+    --CalculateRollText, once per target in RecalculateMultiTargets), usually with
+    --nothing changed. Each pass records a flat key of everything the badges are
+    --built from -- including each mod entry's identity, so the handlers the
+    --badges captured always belong to the entries being shown -- and when the
+    --key matches the last build and those panels are still alive, the rebuild
+    --is skipped.
+    local function SameBadgeKey(a, b)
+        if a == nil or b == nil or #a ~= #b then
+            return false
+        end
+        for i = 1, #a do
+            if a[i] ~= b[i] then
+                return false
+            end
+        end
+        return true
+    end
+
+    local function BadgePanelsValid(panels)
+        if panels == nil then
+            return false
+        end
+        for _, panel in ipairs(panels) do
+            if not panel.valid then
+                return false
+            end
+        end
+        return true
+    end
+
+    --Content dropdowns (damage type mapping, text choices) show choices the key
+    --does not track, so a badge that has one always rebuilds.
+    local function HasChoiceContent(mod, ischecked)
+        if not ischecked then
+            return false
+        end
+        local addTextChoices = mod.modifier:try_get("addTextChoices")
+        return mod.modifier:try_get("damageTypeMappings") ~= nil
+            or (addTextChoices ~= nil and #addTextChoices > 1)
+    end
+
+    local m_badgeKey = nil
+    local m_badgePanels = nil
+    local m_afterBadgeKey = nil
+    local m_afterBadgePanels = nil
+
     local modifiersPanel = gui.Panel {
         classes = { "hideWhenMinimized", "modifiers-panel" },
         width = "100%", --take up no space so the multi-target panel can be centered.
@@ -3761,9 +4404,11 @@ function GameHud.CreateEmbeddedRollDialog()
             end,
 
             prepare = function(element, options)
-                modifierChecks = {}
-                modifierDropdowns = {}
                 if creature == nil or options.modifiers == nil then
+                    modifierChecks = {}
+                    modifierDropdowns = {}
+                    m_badgeKey = nil
+                    m_badgePanels = nil
                     element.children = {}
                     element:SetClass('collapsed-anim', true)
                     return
@@ -3771,9 +4416,11 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 element:SetClass('collapsed-anim', false)
 
-                local addedCritical = false
-
-                local children = {}
+                --First pass: decide what each badge shows and record it in the
+                --key; the panels themselves are made by the builders, which only
+                --run when the key differs from the last build.
+                local key = {}
+                local builders = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
                     if mod.isAfterRoll then
@@ -3784,7 +4431,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if mod.failsRequirement then
                             goto continue
                         end
-                        
+
                         mod.context = mod.context or {}
                         local ischecked = false
                         local force = mod.modifier:try_get("force", false)
@@ -3799,56 +4446,26 @@ function GameHud.CreateEmbeddedRollDialog()
                         --Strictly Enforce Rolls: the panel lists what applied to
                         --this roll, so the modifiers the rules did NOT apply are
                         --not offered at all. (The ones that did are still built,
-                        --read-only, below.)
-                        if m_strictRolls and not ischecked then
+                        --read-only, below.) A rollerDecides chip is the
+                        --exception: only the roller can say whether it applies.
+                        --So is an opt-in option the roller can afford (hint.optIn, e.g.
+                        --To the Uttermost End's extra Ferocity, Barbed Tail's once per
+                        --round): paying or spending the use is their choice.
+                        local rollerChoice = mod.rollerDecides == true
+                        if not rollerChoice and mod.hint ~= nil and mod.hint.optIn == true and creature ~= nil then
+                            local maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
+                            rollerChoice = maxCharges == nil or maxCharges >= 1
+                        end
+                        local strictChip = m_strictRolls and not rollerChoice
+                        if strictChip and not ischecked then
                             goto continue
                         end
-
-                        local check --gui.Check that will come out of this.
 
                         local rawName = mod.modifier.name or ""
                         local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
                         local spoilerRevealed = false
-                        local spoilerEye = nil
                         if spoiler then
-                            local spoilerKey = PowerRollSpoilers.Key(rawName)
-                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
-                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
-                            if dmhub.isDM then
-                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
-                                local tokenid = nil
-                                if ownerCreature ~= nil then
-                                    tokenid = dmhub.LookupTokenId(ownerCreature)
-                                end
-                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
-                                    key = spoilerKey,
-                                    name = rawName,
-                                    description = mod.modifier:try_get("description", ""),
-                                    tokenid = tokenid,
-                                    defaultRevealed = defaultRevealed,
-                                }
-                            end
-                        end
-
-                        local tooltip = mod.modifier:GetSummaryText()
-                        if creature ~= nil then
-                            --nil only for a nil input, and GetSummaryText returns a string.
-                            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-                        end
-                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-                        for i, justification in ipairs(mod.hint.justification) do
-                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                                justification)
-                        end
-                        if spoiler then
-                            if dmhub.isDM or spoilerRevealed then
-                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
-                            else
-                                --Show players only the redacted name: passing the full
-                                --summary through would let its embedded color tags
-                                --defeat the redaction bar.
-                                tooltip = PowerRollSpoilers.Format(rawName, false)
-                            end
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
                         end
 
                         local text = rawName
@@ -3883,252 +4500,243 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
                         end
 
-                        local classes = nil
-
-                        if force then
-                            classes = { "collapsed-anim" }
+                        local multicost = mod.modifier:try_get("resourceCostType", "none") == "multicost" and ischecked
+                        if multicost then
+                            mod.context.charges = mod.context.charges or 1
                         end
 
-                        --If this modifier maps a damage type to multiple possible
-                        --destination types, embed a small dropdown in the badge so
-                        --the user can choose which type this use converts to.
-                        local mappingContent = nil
-                        local damageTypeMappings = mod.modifier:try_get("damageTypeMappings")
-                        if ischecked and damageTypeMappings ~= nil then
-                            local dropdowns = {}
-                            local multiSources = 0
-                            for _,value in pairs(damageTypeMappings) do
-                                if #CharacterModifier.DamageMappingDestinations(value) > 1 then
-                                    multiSources = multiSources + 1
+                        key[#key + 1] = mod
+                        key[#key + 1] = ischecked
+                        key[#key + 1] = force
+                        key[#key + 1] = strictChip
+                        key[#key + 1] = spoilerRevealed
+                        key[#key + 1] = text
+                        key[#key + 1] = multicost and mod.context.charges or false
+                        if HasChoiceContent(mod, ischecked) then
+                            key[#key + 1] = {} --never equal: always rebuild
+                        end
+
+                        builders[#builders + 1] = function(children)
+                            local spoilerEye = nil
+                            if spoiler and dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
                                 end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = PowerRollSpoilers.Key(rawName),
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName),
+                                }
                             end
-                            for source,value in sorted_pairs(damageTypeMappings) do
-                                local dests = CharacterModifier.DamageMappingDestinations(value)
-                                if #dests > 1 then
-                                    local destOptions = {}
-                                    for _,d in ipairs(dests) do
-                                        destOptions[#destOptions+1] = { id = d, text = d }
+
+                            local classes = nil
+
+                            if force then
+                                classes = { "collapsed-anim" }
+                            end
+
+                            local mappingContent = BuildModifierChoiceContent(mod, ischecked)
+
+                            local check = ModifierPanel{
+                                classes = classes,
+                                text = text,
+                                value = ischecked,
+                                readOnly = strictChip,
+                                hmargin = 2,
+                                mod = mod,
+                                eye = spoilerEye,
+                                content = mappingContent,
+                                data = {
+                                    mod = mod,
+                                    modifierIndex = modifierIndex,
+                                },
+                                change = function(element)
+                                    mod.override = element.value
+
+                                    -- A named after-roll group is a single choice,
+                                    -- not a set of independent checkboxes. Enabling
+                                    -- one member clears every peer before the roll
+                                    -- is recalculated.
+                                    local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                    if element.value and group ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                                peer.override = false
+                                            end
+                                        end
                                     end
 
-                                    --Only label the source type when more than one
-                                    --source has a choice; the common case is a single
-                                    --dropdown, which reads fine on its own.
-                                    if multiSources > 1 then
-                                        dropdowns[#dropdowns+1] = gui.Label{
-                                            classes = {"sizeXxs", "fgMuted"},
-                                            text = source .. ":",
-                                            width = "auto",
-                                            height = "auto",
-                                            valign = "center",
-                                            rmargin = 2,
-                                        }
+                                    --options that tick with this one follow it on and off.
+                                    local name = mod.modifier:try_get("name", "")
+                                    if name ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("ticksWith", "") == name then
+                                                peer.override = element.value
+                                            end
+                                        end
                                     end
 
-                                    dropdowns[#dropdowns+1] = gui.Dropdown{
-                                        width = 92,
-                                        height = 14,
-                                        fontSize = 11,
+                                    resultPanel:FireEventTree('prepare', m_options)
+                                    CalculateRollText()
+                                    RecalculateMultiTargets()
+                                end,
+                                linger = function(element)
+                                    gui.Tooltip {
+                                        text = ModifierTooltipText(mod, element.value == true),
+                                        maxWidth = 600,
+                                    } (element)
+                                end,
+                            }
+
+                            children[#children + 1] = check
+                            modifierChecks[#modifierChecks + 1] = check
+
+                            if multicost then
+                                local panel = gui.Panel {
+                                    flow = "horizontal",
+                                    width = 160,
+                                    height = 18,
+                                    gui.Label {
+                                        text = "Charges:",
+                                        fontSize = 16,
+                                        width = 70,
+                                        height = "auto",
                                         valign = "center",
-                                        idChosen = mod.modifier:ResolveDamageMappingDestination(source, value),
-                                        options = destOptions,
+                                    },
+                                    gui.Input {
+                                        text = tostring(mod.context.charges),
+                                        characterLimit = 2,
+                                        width = 24,
+                                        height = 14,
+                                        fontSize = 14,
+                                        selectAllOnFocus = true,
                                         change = function(element)
-                                            ---@cast element Dropdown
-                                            local chosen = element.idChosen
-                                            local guid = mod.modifier:try_get("guid")
-                                            local function SetChoice(m)
-                                                local choices = m:get_or_add("_tmp_damageTypeChoices", {})
-                                                choices[source] = chosen
+                                            local num = tonumber(element.text)
+                                            if num == nil then
+                                                element.text = tostring(mod.context.charges)
+                                                return
                                             end
 
-                                            SetChoice(mod.modifier)
-
-                                            --Multi-target rolls keep a separate copy of the
-                                            --modifier for each target; propagate the choice to
-                                            --all copies so one selection covers the whole use.
-                                            --damageTypeChoicePerTarget keeps each target's pick separate.
-                                            local perTarget = mod.modifier:try_get("damageTypeChoicePerTarget", false)
-                                            if m_multitargets ~= nil and guid ~= nil and not perTarget then
-                                                for _,target in ipairs(m_multitargets) do
-                                                    for _,entry in ipairs(target.modifiers or {}) do
-                                                        if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
-                                                            SetChoice(entry.modifier)
-                                                        end
-                                                    end
-                                                end
+                                            --At least 1, and no more than the roller can pay for.
+                                            num = math.max(1, math.floor(num))
+                                            local maxCharges = nil
+                                            if creature ~= nil then
+                                                maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
                                             end
+                                            if maxCharges ~= nil and maxCharges >= 1 then
+                                                num = math.min(num, maxCharges)
+                                            end
+                                            element.text = tostring(num)
+
+                                            mod.context.charges = num
 
                                             resultPanel:FireEventTree('prepare', m_options)
                                             CalculateRollText()
                                             RecalculateMultiTargets()
                                         end,
                                     }
-                                end
-                            end
-
-                            if #dropdowns > 0 then
-                                mappingContent = gui.Panel{
-                                    flow = "horizontal",
-                                    width = "auto",
-                                    --Span the badge's full height so valign="center" on the
-                                    --dropdown centers it against the label text.
-                                    height = "100%",
-                                    valign = "center",
-                                    rmargin = 2,
-                                    --Clicks on the dropdown must not bubble up to the
-                                    --badge, which would toggle the modifier.
-                                    swallowPress = true,
-                                    children = dropdowns,
                                 }
+
+                                children[#children + 1] = panel
                             end
-                        end
-
-                        check = ModifierPanel{
-                            classes = classes,
-                            text = text,
-                            value = ischecked,
-                            readOnly = m_strictRolls,
-                            hmargin = 2,
-                            mod = mod,
-                            eye = spoilerEye,
-                            content = mappingContent,
-                            data = {
-                                mod = mod,
-                                modifierIndex = modifierIndex,
-                            },
-                            change = function(element)
-                                mod.override = element.value
-
-                                -- A named after-roll group is a single choice,
-                                -- not a set of independent checkboxes. Enabling
-                                -- one member clears every peer before the roll
-                                -- is recalculated.
-                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
-                                if element.value and group ~= "" then
-                                    for _, peer in ipairs(m_options.modifiers or {}) do
-                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
-                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
-                                            peer.override = false
-                                        end
-                                    end
-                                end
-
-                                resultPanel:FireEventTree('prepare', m_options)
-                                CalculateRollText()
-                                RecalculateMultiTargets()
-                            end,
-                            linger = gui.Tooltip {
-                                text = tooltip,
-                                maxWidth = 600,
-                            },
-                        }
-
-                        children[#children + 1] = check
-                        modifierChecks[#modifierChecks + 1] = check
-
-                        if mod.modifier:try_get("resourceCostType", "none") == "multicost" and ischecked then
-                            mod.context.charges = mod.context.charges or 1
-                            local panel = gui.Panel {
-                                flow = "horizontal",
-                                width = 160,
-                                height = 18,
-                                gui.Label {
-                                    text = "Charges:",
-                                    fontSize = 16,
-                                    width = 70,
-                                    height = "auto",
-                                    valign = "center",
-                                },
-                                gui.Input {
-                                    text = tostring(mod.context.charges),
-                                    characterLimit = 2,
-                                    width = 24,
-                                    height = 14,
-                                    fontSize = 14,
-                                    selectAllOnFocus = true,
-                                    change = function(element)
-                                        local num = tonumber(element.text)
-                                        if num == nil then
-                                            element.text = tostring(mod.context.charges)
-                                            return
-                                        end
-
-                                        mod.context.charges = num
-
-                                        resultPanel:FireEventTree('prepare', m_options)
-                                        CalculateRollText()
-                                        RecalculateMultiTargets()
-                                    end,
-                                }
-                            }
-
-                            children[#children + 1] = panel
                         end
                     elseif mod.check then
                         --this is a checkbox that is passed in that we will pass the results of straight out.
+                        key[#key + 1] = mod
+                        key[#key + 1] = mod.value
+                        key[#key + 1] = mod.text
 
-                        local check = gui.Check {
-                            text = mod.text,
-                            value = mod.value,
-                            data = {
-                                mod = mod,
-                            },
-                            events = {
-                                change = function(element)
-                                    element.data.mod.change(element.value)
-                                end,
-                                linger = function(element)
-                                    if mod.tooltip ~= nil then
-                                        gui.Tooltip {
-                                            text = element.data.mod.tooltip,
-                                            maxWidth = 600,
-                                        } (element)
-                                    end
-                                end,
-                            },
-                        }
+                        builders[#builders + 1] = function(children)
+                            local check = gui.Check {
+                                text = mod.text,
+                                value = mod.value,
+                                data = {
+                                    mod = mod,
+                                },
+                                events = {
+                                    change = function(element)
+                                        element.data.mod.change(element.value)
+                                    end,
+                                    linger = function(element)
+                                        if mod.tooltip ~= nil then
+                                            gui.Tooltip {
+                                                text = element.data.mod.tooltip,
+                                                maxWidth = 600,
+                                            } (element)
+                                        end
+                                    end,
+                                },
+                            }
 
-                        children[#children + 1] = check
+                            children[#children + 1] = check
+                        end
                     elseif mod.modifierOptions then
-                        local dropdown = gui.Dropdown {
-                            width = 300,
-                            height = 26,
-                            valign = "center",
-                            fontSize = 18,
-                            idChosen = mod.hint.result,
-                            options = mod.modifierOptions,
-                            data = {
-                                mod = mod,
-                            },
-                            change = function(element)
-                                CalculateRollText()
-                            end,
-                        }
+                        key[#key + 1] = mod
+                        key[#key + 1] = mod.hint.result
+                        key[#key + 1] = mod.modifierOptions
+                        key[#key + 1] = mod.text
+                        key[#key + 1] = mod.tooltip
 
-                        local panel = gui.Panel {
-                            flow = "horizontal",
-                            height = 36,
-                            width = "80%",
-                            gui.Label {
-                                text = mod.text .. ":",
-                                classes = "explanation",
-                                halign = "left",
+                        builders[#builders + 1] = function(children)
+                            local dropdown = gui.Dropdown {
+                                width = 300,
+                                height = 26,
                                 valign = "center",
-                                width = 120,
-                            },
-                            linger = gui.Tooltip {
-                                text = mod.tooltip,
-                                maxWidth = 600,
-                            },
-                            dropdown,
-                        }
+                                fontSize = 18,
+                                idChosen = mod.hint.result,
+                                options = mod.modifierOptions,
+                                data = {
+                                    mod = mod,
+                                },
+                                change = function(element)
+                                    CalculateRollText()
+                                end,
+                            }
 
-                        modifierDropdowns[#modifierDropdowns + 1] = dropdown
-                        children[#children + 1] = panel
+                            local panel = gui.Panel {
+                                flow = "horizontal",
+                                height = 36,
+                                width = "80%",
+                                gui.Label {
+                                    text = mod.text .. ":",
+                                    classes = "explanation",
+                                    halign = "left",
+                                    valign = "center",
+                                    width = 120,
+                                },
+                                linger = gui.Tooltip {
+                                    text = mod.tooltip,
+                                    maxWidth = 600,
+                                },
+                                dropdown,
+                            }
+
+                            modifierDropdowns[#modifierDropdowns + 1] = dropdown
+                            children[#children + 1] = panel
+                        end
                     end
-                    
+
                     ::continue::
                 end
 
+                if SameBadgeKey(key, m_badgeKey) and BadgePanelsValid(m_badgePanels) then
+                    return
+                end
+
+                modifierChecks = {}
+                modifierDropdowns = {}
+                local children = {}
+                for _, build in ipairs(builders) do
+                    build(children)
+                end
+                m_badgeKey = key
+                m_badgePanels = children
                 element.children = children
             end,
         },
@@ -4153,12 +4761,17 @@ function GameHud.CreateEmbeddedRollDialog()
 
             prepare = function(element, options)
                 if creature == nil or options.modifiers == nil then
+                    m_afterBadgeKey = nil
+                    m_afterBadgePanels = nil
                     element.children = {}
                     element:SetClass('collapsed-anim', true)
                     return
                 end
 
-                local children = {}
+                --Same two passes as the pre-roll badges: key first, panels only
+                --when the key changed (see SameBadgeKey).
+                local key = {}
+                local builders = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
                     if not mod.isAfterRoll then
@@ -4183,46 +4796,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         local rawName = mod.modifier.name or ""
                         local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
                         local spoilerRevealed = false
-                        local spoilerEye = nil
                         if spoiler then
-                            local spoilerKey = PowerRollSpoilers.Key(rawName)
-                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
-                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
-                            if dmhub.isDM then
-                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
-                                local tokenid = nil
-                                if ownerCreature ~= nil then
-                                    tokenid = dmhub.LookupTokenId(ownerCreature)
-                                end
-                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
-                                    key = spoilerKey,
-                                    name = rawName,
-                                    description = mod.modifier:try_get("description", ""),
-                                    tokenid = tokenid,
-                                    defaultRevealed = defaultRevealed,
-                                }
-                            end
-                        end
-
-                        local tooltip = mod.modifier:GetSummaryText()
-                        if creature ~= nil then
-                            --nil only for a nil input, and GetSummaryText returns a string.
-                            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-                        end
-                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-                        for i, justification in ipairs(mod.hint.justification) do
-                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                                justification)
-                        end
-                        if spoiler then
-                            if dmhub.isDM or spoilerRevealed then
-                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
-                            else
-                                --Show players only the redacted name: passing the full
-                                --summary through would let its embedded color tags
-                                --defeat the redaction bar.
-                                tooltip = PowerRollSpoilers.Format(rawName, false)
-                            end
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
                         end
 
                         local text = rawName
@@ -4256,47 +4831,100 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
                         end
 
-                        local classes = nil
-
-                        if force then
-                            classes = { "collapsed-anim" }
+                        key[#key + 1] = mod
+                        key[#key + 1] = ischecked
+                        key[#key + 1] = force
+                        key[#key + 1] = spoilerRevealed
+                        key[#key + 1] = text
+                        if HasChoiceContent(mod, ischecked) then
+                            key[#key + 1] = {} --never equal: always rebuild
                         end
 
-                        local check = ModifierPanel{
-                            classes = classes,
-                            text = text,
-                            value = ischecked,
-                            hmargin = 2,
-                            mod = mod,
-                            eye = spoilerEye,
-                            data = {
+                        builders[#builders + 1] = function(children)
+                            local spoilerEye = nil
+                            if spoiler and dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
+                                end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = PowerRollSpoilers.Key(rawName),
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName),
+                                }
+                            end
+
+                            local classes = nil
+
+                            if force then
+                                classes = { "collapsed-anim" }
+                            end
+
+                            local check = ModifierPanel{
+                                classes = classes,
+                                text = text,
+                                value = ischecked,
+                                hmargin = 2,
                                 mod = mod,
-                                modifierIndex = modifierIndex,
-                            },
-                            change = function(element)
-                                mod.override = element.value
+                                eye = spoilerEye,
+                                content = BuildModifierChoiceContent(mod, ischecked),
+                                data = {
+                                    mod = mod,
+                                    modifierIndex = modifierIndex,
+                                },
+                                change = function(element)
+                                    mod.override = element.value
 
-                                resultPanel:FireEventTree('prepare', m_options)
-                                CalculateRollText()
-                                RecalculateMultiTargets()
-                            end,
-                            linger = gui.Tooltip {
-                                text = tooltip,
-                                maxWidth = 600,
-                            },
-                        }
+                                    -- A named after-roll group is a single choice: enabling
+                                    -- one member clears every peer.
+                                    local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                    if element.value and group ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                                peer.override = false
+                                            end
+                                        end
+                                    end
 
-                        children[#children + 1] = check
+                                    resultPanel:FireEventTree('prepare', m_options)
+                                    CalculateRollText()
+                                    RecalculateMultiTargets()
+                                end,
+                                linger = function(element)
+                                    gui.Tooltip {
+                                        text = ModifierTooltipText(mod, element.value == true),
+                                        maxWidth = 600,
+                                    } (element)
+                                end,
+                            }
+
+                            children[#children + 1] = check
+                        end
                     end
 
                     ::continue::
                 end
 
-                if #children > 0 then
+                if #builders > 0 then
                     element:SetClass('collapsed-anim', false)
                 else
                     element:SetClass('collapsed-anim', true)
                 end
+
+                if SameBadgeKey(key, m_afterBadgeKey) and BadgePanelsValid(m_afterBadgePanels) then
+                    return
+                end
+
+                local children = {}
+                for _, build in ipairs(builders) do
+                    build(children)
+                end
+                m_afterBadgeKey = key
+                m_afterBadgePanels = children
                 element.children = children
             end,
         },
@@ -4306,6 +4934,38 @@ function GameHud.CreateEmbeddedRollDialog()
     --CancelRollDialog clear only THIS dialog's preview dice/armed roll.
     local m_diceCagePanel = nil
 
+    --The landed dice shown in the cage once a roll settles (RollDiceFaces).
+    --The cage's children list is replaced wholesale each time: a panel's
+    --children only lay out reliably when the parent's list is reassigned.
+    local m_diceFacesKey = nil
+    local DiceFacesPlaceholder = function()
+        return gui.Panel{ floating = true, width = 1, height = 1, interactable = false }
+    end
+    local ClearDiceFaces = function()
+        m_diceFacesKey = nil
+        if m_diceCagePanel ~= nil and m_diceCagePanel.valid then
+            m_diceCagePanel.children = { DiceFacesPlaceholder() }
+        end
+    end
+    local ShowDiceFaces = function(rollInfo)
+        if m_diceCagePanel == nil or not m_diceCagePanel.valid then
+            return
+        end
+        local dice = RollDiceFaces.Collect(rollInfo)
+        --pending and complete both report the same landed dice; only a
+        --changed set rebuilds, so the pop-in plays once per throw.
+        local key = json(dice)
+        if key == m_diceFacesKey then
+            return
+        end
+        m_diceFacesKey = key
+        local row = RollDiceFaces.Panel(dice, RollDiceFaces.Style(rollInfo), {
+            floating = true,
+            height = "100%",
+        })
+        m_diceCagePanel.children = { row or DiceFacesPlaceholder() }
+    end
+
     local CancelRollDialog = function()
         --Tell intercepting mods (physical dice etc.) the roll was cancelled
         --so they can abandon any pending external roll request.
@@ -4314,6 +4974,7 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         RemoveTargetHints()
         if cancelRoll ~= nil then
+            NotifyRollAllPrompts()
             cancelRoll()
         end
         resultPanel:SetClass('hidden', true)
@@ -4341,6 +5002,8 @@ function GameHud.CreateEmbeddedRollDialog()
         SetRollDiceOverride(nil)
         OnHide()
         RelinquishPanel()
+        --The scoped clear above misses dice stranded on another cage (MYWPRZ28).
+        RollDialog.ClearStrandedPreviewDice()
     end
 
     if g_settingTriggerDelay:Get() > 0.1 then
@@ -4441,6 +5104,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 begin = function(rollInfo)
                     m_rollInfo = rollInfo
                     m_rerolling = true
+                    ClearDiceFaces()
                     resultPanel:FireEventTree("beginRoll", rollInfo, guid)
 
                     -- Tell remote viewers the dice are rolling again so
@@ -4727,6 +5391,19 @@ function GameHud.CreateEmbeddedRollDialog()
         valign = "top",
     }
 
+    --One player asked to roll the same request for several creatures (a
+    --resistance roll hitting four heroes): ticked, rolling or cancelling this
+    --one does the same to the rest. Shown only when options.numPrompts > 1.
+    rollAllPromptsCheck = gui.Check {
+        classes = { "collapsedWhenRolling", "hideWhenAI", "hideWhenMinimized", "collapsed" },
+        text = "Roll all prompts",
+        value = true,
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        bmargin = 4,
+    }
+
     --pingButtons: another player clicked a ghost copy of one of these
     --buttons, so the real one pulses in their colour.
     local pingWatcher = gui.Panel {
@@ -4775,8 +5452,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --It rides the same "shownWhenPending" gate as the native Re-roll button,
     --and additionally hides itself whenever the party has no Intel to spend --
     --so in campaigns that do not use Intel (pool always 0) it never appears.
-    --The whole feature is experimental and lives behind the per-user
-    --"dev:trackintel" flag (declared in CampaignTrackerPanel.lua).
+    --It shows only where IntelTracker.Enabled() (CampaignTrackerPanel.lua): the
+    --campaign has switched the tracker on, or the "dev:trackintel" flag is set.
     --On press it spends 1 Intel, then drives the existing reroll path.
     local intelRerollButton = gui.PrettyButton {
         text = "Re-roll for 1 Intel",
@@ -4801,10 +5478,10 @@ function GameHud.CreateEmbeddedRollDialog()
         refreshIntel = function(element)
             local it = rawget(_G, "IntelTracker")
             local pool = (it ~= nil) and it.Pool() or 0
-            --hide entirely when the dev:trackintel flag is off or there is no
-            --Intel to spend (also the "not this campaign" case). The
+            --hide entirely when the tracker is off in this campaign or there is
+            --no Intel to spend (also the "not this campaign" case). The
             --shownWhenPending style handles the rest.
-            local enabled = dmhub.GetSettingValue("dev:trackintel") and true or false
+            local enabled = (it ~= nil and it.Enabled ~= nil and it.Enabled()) and true or false
             element:SetClass("collapsed", (not enabled) or pool < 1)
         end,
         press = function(element)
@@ -4894,6 +5571,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
                     thinkTime = 0.01,
 
+                    --holds the landed dice once a roll settles (ShowDiceFaces).
+                    children = { DiceFacesPlaceholder() },
+
                     create = function(element)
                         --diceCageCtor is gui.DicePreview.
                         ---@cast element DicePreview
@@ -4969,6 +5649,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_rollResults,
             triggersWithTabContainer,
             rollDisabledLabel,
+            rollAllPromptsCheck,
             buttonPanel,
             intelRerollButton,
         }
@@ -6045,6 +6726,7 @@ function GameHud.CreateEmbeddedRollDialog()
         resultPanel:SetClassTree("rolling", false)
         resultPanel:SetClassTree("finishedRolling", false)
         resultPanel:SetClassTree("rollPending", false)
+        ClearDiceFaces()
 
         mainPanel:SetClass("collapsed", true)
         tableModePanel:SetClass("collapsed", false)
@@ -6148,6 +6830,12 @@ function GameHud.CreateEmbeddedRollDialog()
                             resultPanel.data.coroutineOwner = coroutine.GetCurrentId()
                         end
                     end
+                end
+
+                --Set before the delay below, so the card's close (X) is not
+                --shown while a roll that cannot be cancelled waits to appear.
+                if options.noCancel == true then
+                    resultPanel.data.cancelWithdrawn = true
                 end
 
                 if options.delay ~= nil then
@@ -6291,6 +6979,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 resultPanel:SetClassTree("rolling", false)
                 resultPanel:SetClassTree("finishedRolling", false)
                 resultPanel:SetClassTree("rollPending", false)
+                ClearDiceFaces()
 
                 if options.PopulateTable ~= nil then
                     m_tableContainer:SetClass("collapsed", false)
@@ -6345,9 +7034,10 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 m_options = options
 
-                --this dialog is reused: a fresh roll can always be backed out
-                --of until its dice are thrown (see submit).
-                resultPanel.data.cancelWithdrawn = false
+                --this dialog is reused: a fresh roll can be backed out of
+                --until its dice are thrown (see submit), unless it was shown
+                --with noCancel.
+                resultPanel.data.cancelWithdrawn = options.noCancel == true
 
                 targetHints = options.targetHints
 
@@ -6374,6 +7064,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 rollInput:SetClass("manualEdit", false)
 
                 rollAllPrompts = options.rollAllPrompts
+                if options.numPrompts ~= nil and options.numPrompts > 1 and rollAllPrompts ~= nil then
+                    rollAllPromptsCheck.value = true
+                    rollAllPromptsCheck.data.SetText(string.format("Roll all %d prompts", options.numPrompts))
+                    rollAllPromptsCheck:SetClass("collapsed", false)
+                else
+                    rollAllPromptsCheck.value = false
+                    rollAllPromptsCheck:SetClass("collapsed", true)
+                end
                 rollActive = options.rollActive
                 beginRoll = options.beginRoll
                 completeRoll = options.completeRoll
@@ -6495,6 +7193,16 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                 end
 
+                --Destroyed without OnHide: release this dialog's place in the shown
+                --count, or the stranded-dice clear would never run again this session.
+                if m_shown > 0 then
+                    while m_shown > 0 do
+                        m_shown = m_shown - 1
+                        RollDialog.NoteHidden()
+                    end
+                    RollDialog.ClearStrandedPreviewDice()
+                end
+
                 --Backstop: if this dialog dies mid-roll, the cast that normally
                 --removes the targeting arrows can get stuck waiting forever, so
                 --remove them here too. Destroying twice is safe.
@@ -6525,8 +7233,11 @@ function GameHud.CreateEmbeddedRollDialog()
                 --The dice are being thrown (Roll Dice and a hurl from the cage
                 --both land here). A roll that must stand once thrown loses its
                 --close (X) and ESC now (RollDialogCancelOffered), so a landed
-                --result can only be accepted.
-                if m_options ~= nil and m_options.noCancelOnceThrown then
+                --result can only be accepted. A Monster AI roll always stands
+                --once thrown: cancelling it aborted the cast unpaid and the AI
+                --cast again with fresh dice, a free reroll (6JTC7RYJ).
+                local aiDriven = (creature ~= nil and creature:IsAIControlled()) or (m_options ~= nil and m_options.aiRoll == true)
+                if (m_options ~= nil and m_options.noCancelOnceThrown) or aiDriven then
                     resultPanel.data.cancelWithdrawn = true
                 end
 
@@ -6538,11 +7249,25 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 local showingDialog = showDialogDuringRoll
 
+                --A ticked "Roll Twice, Keep Best" option (Expert Artisan): a roll that
+                --closes once thrown is thrown again after it lands, and the higher
+                --total is handed on. A roll that stays open for Accept rolls once.
+                local rollTwiceName = nil
+                if not showingDialog then
+                    for _, entry in ipairs(GetEnabledModifiers()) do
+                        if entry.modifier ~= nil and entry.modifier:try_get("modtype", "none") == "rolltwice" then
+                            rollTwiceName = entry.modifier:try_get("name", "")
+                            break
+                        end
+                    end
+                end
+
                 local completeFunction
 
                 if showingDialog then
                     resultPanel:SetClassTree("rolling", true)
                     resultPanel:SetClassTree("finishedRolling", false)
+                    ClearDiceFaces()
                     g_holdingRollOpen = true
                     BroadcastDialogState()
 
@@ -6656,6 +7381,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                     end
 
                                     m_resolveState.current = t
+                                    UpdateAITriggerHint(nil)
                                     UpdateTriggerReactionPanel(m_resolveState)
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
@@ -6672,43 +7398,36 @@ function GameHud.CreateEmbeddedRollDialog()
                                     local t = dmhub.Time()
                                     if m_timerState == nil then
                                         print("AI:: SET TIMER STATE")
-                                        --Encounter of the Week: no countdown. Start already
-                                        --paused (full dice, "Click to dismiss") so the timer
-                                        --never auto-proceeds; a click proceeds. pcall-guarded:
-                                        --the EotW codemod may not be loaded in this game.
+                                        --Shown as a Tip banner notice with a "Dismiss Triggers" button (see
+                                        --UpdateAITriggerHint). Encounter of the Week: no countdown, the roll
+                                        --waits until the heroes act or someone dismisses. Elsewhere the roll
+                                        --proceeds after 5s. pcall-guarded: the EotW codemod may not be loaded.
                                         local eotw = false
                                         pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
                                         m_timerState = {
                                             start = t,
-                                            current = t,
                                             expire = t + 5,
                                             paused = eotw or nil,
-                                            text = cond(eotw, "Triggers available. Click to dismiss.", "Triggers available. Click to pause."),
                                             callback = function()
-                                                if m_timerState ~= nil then
-                                                    if m_timerState.paused then
-                                                        UpdateTriggerReactionPanel(nil)
-                                                        if proceedAfterRollButton.valid then
-                                                            proceedAfterRollButton:FireEventTree("press")
-                                                        end
-                                                        return
-                                                    else
-                                                        m_timerState.text = "Triggers available. Click to dismiss."
-                                                        m_timerState.paused = true
-                                                        UpdateTriggerReactionPanel(m_timerState)
-                                                    end
+                                                UpdateAITriggerHint(nil)
+                                                if proceedAfterRollButton.valid then
+                                                    proceedAfterRollButton:FireEventTree("press")
                                                 end
                                             end,
                                         }
                                     end
 
-                                    m_timerState.current = t
-                                    UpdateTriggerReactionPanel(m_timerState)
+                                    local hintText = "Triggers available."
+                                    if not m_timerState.paused then
+                                        hintText = string.format("Triggers available. Proceeding in %ds.", math.max(1, math.ceil(m_timerState.expire - t)))
+                                    end
+                                    UpdateAITriggerHint{ text = hintText, callback = m_timerState.callback }
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
                                     end)
                                 else
                                     UpdateTriggerReactionPanel(nil)
+                                    UpdateAITriggerHint(nil)
                                     proceedAfterRollButton:FireEventTree("press")
                                 end
                             end
@@ -6729,6 +7448,8 @@ function GameHud.CreateEmbeddedRollDialog()
                 local dmonly = rollVisibility == "dm"
                 local dicetower = rollVisibility == "dicetower"
                 local instant = false
+
+                NotifyRollAllPrompts()
 
                 --we must save off anything from the surrounding scope since this dialog might be reused after this.
                 local activeRollFn = rollActive
@@ -7059,6 +7780,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 -- This guards against `complete` (or an AI auto-proceed) applying
                 -- the result a second time.
                 local m_crowsResolved = false
+                local ThrowSecondRoll
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
@@ -7070,8 +7792,27 @@ function GameHud.CreateEmbeddedRollDialog()
                     dicetower = dicetower,
                     instant = instant,
                     roll = rollInput.text,
+                    --nil normally. A caller that must reuse earlier dice (the second
+                    --strike of Double Strike) passes the faces; the dice land on them.
+                    forcedDice = m_options.forcedDice,
                     creature = creature,
                     properties = rollProperties,
+                    --nil normally. An interrupted roll (an Encounter of the Week
+                    --fake test) fades its dice this many seconds into the throw
+                    --and never lands: `complete` never fires, `interrupted` does.
+                    interruptAfter = m_options.interruptAfter,
+                    interrupted = cond(m_options.interruptAfter ~= nil, function(rollInfo)
+                        print("ROLL:: INTERRUPTED")
+                        m_rerolling = false
+                        resultPanel:SetClass('hidden', true)
+                        RelinquishPanel()
+                        if g_activeRoll == activeRoll then
+                            g_activeRoll = nil
+                        end
+                        if m_options ~= nil and m_options.interrupted ~= nil then
+                            m_options.interrupted(rollInfo)
+                        end
+                    end, nil),
                     begin = function(rollInfo)
                         print("ROLL:: BEGIN", rollInfo, rollIsSilent, instant)
                         m_rollInfo = rollInfo
@@ -7086,6 +7827,12 @@ function GameHud.CreateEmbeddedRollDialog()
                         BroadcastDialogState()
                     end,
                     pending = function(rollInfo)
+                        --nil when the roll's chat message is gone (a game-server
+                        --restart can drop it); `complete` cancels the roll.
+                        if rollInfo == nil then
+                            print("ROLL:: PENDING WITH NO ROLL INFO (chat message lost)")
+                            return
+                        end
                         m_rollInfo = rollInfo
                         m_rerolling = false
 
@@ -7127,6 +7874,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if showingDialog then
                             resultPanel:SetClassTree("rolling", false)
                             resultPanel:SetClassTree("finishedRolling", true)
+                            ShowDiceFaces(rollInfo)
                             UpdateArrowLabelsWithTierResults()
                             BroadcastDialogState()
                             resultPanel:SetClassTree("rollPending", true)
@@ -7258,6 +8006,20 @@ function GameHud.CreateEmbeddedRollDialog()
                         if m_crowsResolved then
                             return
                         end
+                        --nil when the roll's chat message is gone: a game-server
+                        --restart can lose the last few seconds of writes, and the
+                        --reconnect snapshot no longer has it (6689VA6U). There is no
+                        --result to apply, so cancel the roll as the Cancel button would;
+                        --that releases the waiting cast instead of leaving it hung.
+                        if rollInfo == nil then
+                            print("ROLL:: COMPLETE WITH NO ROLL INFO (chat message lost); cancelling")
+                            m_rerolling = false
+                            CancelRollDialog()
+                            if g_activeRoll == activeRoll then
+                                g_activeRoll = nil
+                            end
+                            return
+                        end
                         m_rollInfo = rollInfo
                         m_rerolling = false
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)
@@ -7265,6 +8027,9 @@ function GameHud.CreateEmbeddedRollDialog()
                         resultPanel:SetClassTree("rolling", false)
                         resultPanel:SetClassTree("rollPending", false)
                         resultPanel:SetClassTree("finishedRolling", true)
+                        if showingDialog then
+                            ShowDiceFaces(rollInfo)
+                        end
                         BroadcastDialogState()
 
                             print("AI:: IS COMPLETE, SHOWING DIALOG:", showingDialog)
@@ -7288,7 +8053,11 @@ function GameHud.CreateEmbeddedRollDialog()
                             return
                         end
 
-                        completeFunction(rollInfo)
+                        if rollTwiceName ~= nil then
+                            ThrowSecondRoll(rollInfo)
+                        else
+                            completeFunction(rollInfo)
+                        end
 
 
                         if g_activeRoll == activeRoll then
@@ -7297,6 +8066,60 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                     end
                 }
+
+                if rollTwiceName ~= nil then
+                    local description = rollArgs.description or ""
+                    rollArgs.description = string.format("%s (%s 1 of 2)", description, rollTwiceName)
+
+                    --The second throw gets its own chat message and callbacks, so
+                    --nothing on the dialog follows it; the better roll completes.
+                    ThrowSecondRoll = function(firstInfo)
+                        local secondArgs = {}
+                        for k, v in pairs(rollArgs) do
+                            secondArgs[k] = v
+                        end
+                        secondArgs.guid = dmhub.GenerateGuid()
+                        secondArgs.description = string.format("%s (%s 2 of 2)", description, rollTwiceName)
+                        secondArgs.delay = nil
+                        secondArgs.begin = nil
+                        secondArgs.pending = nil
+                        secondArgs.complete = function(secondInfo)
+                            local kept = firstInfo
+                            if secondInfo ~= nil and (secondInfo.total or 0) > (firstInfo.total or 0) then
+                                kept = secondInfo
+                            end
+                            completeFunction(kept)
+                        end
+
+                        --hooks such as physical dice see this throw like the first.
+                        if RollDialog.OnBeforeRoll then
+                            local secondHook = RollDialog.OnBeforeRoll({
+                                rollArgs = secondArgs,
+                                roll = secondArgs.roll,
+                                description = secondArgs.description,
+                                creature = secondArgs.creature,
+                                tokenid = secondArgs.tokenid,
+                                properties = secondArgs.properties,
+                                dmonly = secondArgs.dmonly,
+                                dicetower = secondArgs.dicetower,
+                                instant = secondArgs.instant,
+                                silent = secondArgs.silent,
+                                delay = secondArgs.delay,
+                                guid = secondArgs.guid,
+                                modifiers = modifiersUsed,
+                                multitargets = multitargetsUsed,
+                                boons = m_boons,
+                                setActiveRoll = function(roll)
+                                end,
+                            })
+                            if secondHook == "intercept" then
+                                return
+                            end
+                        end
+
+                        dmhub.Roll(secondArgs)
+                    end
+                end
 
                 g_activeRollArgs = rollArgs
                 g_activeRollArgs.originalRoll = rollArgs.roll
@@ -7344,6 +8167,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
 
                 chat.PreviewChat('')
+                RollDialog.ClearStrandedPreviewDice()
             end,
         },
     }

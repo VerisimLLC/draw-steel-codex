@@ -13,14 +13,41 @@ end
 
 local CreateDicePanel
 
+-- Content height of the panel: the dice strip, the power roll tray, a hairline, and the
+-- last-roll line. The panel is pinned to it (min == max) so the window never shows empty
+-- space under the dice.
+local STRIP_HEIGHT = 96
+-- The power roll tray: a notch pointing up at the Power Roll tile, the tray box, a gap.
+local TRAY_NOTCH = 6
+local TRAY_HEIGHT = 32
+local TRAY_AREA_HEIGHT = TRAY_NOTCH + TRAY_HEIGHT + 8
+local READOUT_HEIGHT = 30
+local PANEL_HEIGHT = STRIP_HEIGHT + TRAY_AREA_HEIGHT + 1 + READOUT_HEIGHT
+
+-- The edge/bane choices in the power roll tray, worst to best. value is the net edges
+-- (negative = banes); the engine applies them from the roll text ("2d10 1 edge").
+local POWER_EDGE_OPTIONS = {
+	{ value = -2, kind = "bane", name = "Double bane", icon = "phosphor/caret-double-down-bold.png", tooltip = "Double bane: the result drops one tier" },
+	{ value = -1, kind = "bane", name = "Bane", icon = "phosphor/caret-down-bold.png", tooltip = "Bane: -2 to the power roll" },
+	{ value = 0, kind = "none", name = nil, icon = "phosphor/dot-bold.png", tooltip = "No edge or bane" },
+	{ value = 1, kind = "edge", name = "Edge", icon = "phosphor/caret-up-bold.png", tooltip = "Edge: +2 to the power roll" },
+	{ value = 2, kind = "edge", name = "Double edge", icon = "phosphor/caret-double-up-bold.png", tooltip = "Double edge: the result rises one tier" },
+}
+local POWER_BONUS_MIN = -5
+local POWER_BONUS_MAX = 5
+
+-- Edges in the tray use the hero blue of the initiative bar (MCDMInitiativeBar.lua). It is a
+-- fixed game color, not a theme token, so it stays the same in every color scheme.
+local HERO_BLUE = "#1194FF"
+
 DockablePanel.Register{
 	name = "Dice",
 	icon = "ui-icons/dsdice/djordice-d10.png",
 	notitle = true,
 	vscroll = false,
     dmonly = false,
-	minHeight = 160,
-	maxHeight = 160,
+	minHeight = PANEL_HEIGHT,
+	maxHeight = PANEL_HEIGHT,
 	content = function()
 		track("panel_open", {
 			panel = "Dice",
@@ -30,43 +57,233 @@ DockablePanel.Register{
 	end,
 }
 
-local styles = {
+-- The panel's own rules. @tokens resolve through ThemeEngine.MergeTokens (see the panel root),
+-- so the captions, seams and tier pips follow the user's color scheme.
+local function BuildDicePanelStyles()
+	return {
 
-	{
-		classes = "dice",
-		bgcolor = "white",
-		width = 40,
-		height = 40,
-		valign = "center",
-		halign = "center",
-		uiscale = 0.95,
-		saturation = 0.7,
-		brightness = 0.4,
-	},
+		{
+			classes = "dice",
+			bgcolor = "white",
+			width = 40,
+			height = 40,
+			valign = "center",
+			halign = "center",
+			uiscale = 0.95,
+			saturation = 0.7,
+			brightness = 0.4,
+		},
 
-	{
-		classes = {"dice", "gmonly"},
-		saturation = 0.3,
-		brightness = 0.2,
-	},
-	
-	{
-	
-		classes = {"dice", "hover"},
-		scale = 1.2,
-		brightness = 1.2,
-	},
+		{
+			classes = {"dice", "gmonly"},
+			saturation = 0.3,
+			brightness = 0.2,
+		},
 
-	{
-		classes = {"diceLines", "gmonly"},
-		saturation = 0.5,
-		brightness = 0.5,
-	},
-}
+		{
+			classes = {"dice", "hover"},
+			scale = 1.2,
+			brightness = 1.2,
+		},
+
+		{
+			classes = {"diceLines", "gmonly"},
+			saturation = 0.5,
+			brightness = 0.5,
+		},
+
+		-- Hairlines between the Power Roll tile and the small dice, and above the readout.
+		{
+			classes = {"diceSeam"},
+			bgcolor = "@border",
+			opacity = 0.6,
+		},
+
+		-- Tier pips in the readout: three dots, the first <tier> of them lit.
+		{
+			classes = {"diceTierPip"},
+			bgcolor = "@border",
+			cornerRadius = 3,
+		},
+		{
+			classes = {"diceTierPip", "lit"},
+			bgcolor = "@fgStrong",
+		},
+
+		-- Power roll tray: a recessed box under the dice whose notch points at the Power Roll.
+		{
+			classes = {"diceTray"},
+			bgcolor = "@bgAlt",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 6,
+		},
+		{
+			classes = {"diceTrayNotch"},
+			bgcolor = "@bgAlt",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+		},
+		-- Covers the notch's lower half and the tray's top edge under it, so the notch reads
+		-- as part of the tray rather than a diamond sitting on a line.
+		{
+			classes = {"diceTrayNotchPatch"},
+			bgcolor = "@bgAlt",
+		},
+
+		-- Segmented controls in the tray: the bonus stepper and the edge/bane picker.
+		{
+			classes = {"diceSeg"},
+			bgcolor = "@bg",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 4,
+		},
+		{
+			classes = {"diceSegSeam"},
+			bgcolor = "@borderSolid",
+		},
+		{
+			classes = {"diceSegBtn"},
+			bgcolor = "clear",
+		},
+		{
+			classes = {"diceSegBtn", "hover"},
+			bgcolor = "@border",
+		},
+		{
+			classes = {"diceSegBtn", "selected"},
+			bgcolor = "@border",
+			priority = 5,
+		},
+		{
+			classes = {"diceSegBtn", "edge", "selected"},
+			bgcolor = HERO_BLUE,
+			priority = 6,
+		},
+		{
+			classes = {"diceSegBtn", "bane", "selected"},
+			bgcolor = "@danger",
+			priority = 6,
+		},
+		{
+			classes = {"diceSegIcon"},
+			bgcolor = "@fgMuted",
+		},
+		{
+			selectors = {"diceSegIcon", "parent:hover"},
+			bgcolor = "@fgStrong",
+		},
+		{
+			selectors = {"diceSegIcon", "parent:selected"},
+			bgcolor = "@fgStrong",
+			priority = 5,
+		},
+		-- White on hero blue, like the initiative bar's text on it.
+		{
+			selectors = {"diceSegIcon", "parent:selected", "parent:edge"},
+			bgcolor = "#FFFFFF",
+			priority = 6,
+		},
+		{
+			selectors = {"diceSegIcon", "parent:selected", "parent:bane"},
+			bgcolor = "@bg",
+			priority = 6,
+		},
+
+		-- The bonus number: muted at 0, hero blue when it helps, red when it hurts.
+		{
+			classes = {"diceBonusValue", "zero"},
+			color = "@fgMuted",
+		},
+		{
+			classes = {"diceBonusValue", "pos"},
+			color = HERO_BLUE,
+		},
+		{
+			classes = {"diceBonusValue", "neg"},
+			color = "@danger",
+		},
+
+		-- Summary chip at the tray's right end ("+3 . Edge"); clicking it clears the tray.
+		{
+			classes = {"diceChip"},
+			bgcolor = "@bg",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 10,
+		},
+		{
+			classes = {"diceChip", "edge"},
+			borderColor = HERO_BLUE,
+		},
+		{
+			classes = {"diceChip", "bane"},
+			borderColor = "@danger",
+		},
+		{
+			selectors = {"diceChipText", "parent:edge"},
+			color = HERO_BLUE,
+		},
+		{
+			selectors = {"diceChipText", "parent:bane"},
+			color = "@danger",
+		},
+		{
+			classes = {"diceChipClear"},
+			bgcolor = "@fgMuted",
+		},
+		{
+			selectors = {"diceChipClear", "parent:hover"},
+			bgcolor = "@fgStrong",
+		},
+	}
+end
 
 CreateDicePanel = function()
 
 	local amendableRoll = nil
+
+	-- The panel root; forward-declared so the tray can tell the dice its settings changed.
+	local resultPanel
+
+	-- Power roll tray state, kept until the user changes or clears it. powerEdge is the net
+	-- edges: 1/2 = edge/double edge, -1/-2 = bane/double bane.
+	local powerBonus = 0
+	local powerEdge = 0
+
+	local function PowerModsActive()
+		return powerBonus ~= 0 or powerEdge ~= 0
+	end
+
+	-- The Power Roll as roll text, e.g. "2d10+3 1 edge". The engine adds +2/-2 for a single
+	-- edge/bane, and RollUtils.DiceResultToTier shifts the tier for a double.
+	local function PowerRollText()
+		local text = "2d10"
+		if powerBonus > 0 then
+			text = string.format("%s+%d", text, powerBonus)
+		elseif powerBonus < 0 then
+			text = string.format("%s-%d", text, -powerBonus)
+		end
+		if powerEdge ~= 0 then
+			local count = math.abs(powerEdge)
+			local word = cond(powerEdge > 0, "edge", "bane")
+			if count > 1 then
+				word = word .. "s"
+			end
+			text = string.format("%s %d %s", text, count, word)
+		end
+		return text
+	end
+
+	-- The last-roll line under the strip. Forward-declared so every die tile can report its
+	-- finished roll to it (kind is "power", "d3", "d6", "d10" or "custom" for a mixed roll).
+	local readoutPanel
+	local function recordRoll(kind, rollInfo)
+		if readoutPanel ~= nil and readoutPanel.valid and rollInfo ~= nil then
+			readoutPanel:FireEvent("showRoll", kind, rollInfo)
+		end
+	end
 
 	local diceStyle = dmhub.GetDiceStyling(dmhub.GetSettingValue("diceequipped"), dmhub.GetSettingValue("playercolor"))
 
@@ -79,81 +296,71 @@ CreateDicePanel = function()
 	-- params applies to whichever tile we build; params2D is merged over it for the flat-icon
 	-- (Default set) path only. The two need different sizes: a 3D cage rests its die well inside
 	-- the tile (see dicePreviewRestScale below), whereas the flat PNG fills the tile edge to edge,
-	-- so the scales the cages want blow the icon up past its bounds -- the Power Roll icon at the
-	-- cage's 2.65 spills over the divider. params2D restores the sizes the flat icons had before
-	-- the 3D dice landed.
+	-- so the scale a cage wants blows the flat icon up past its cell.
 	local CreateDice = function(faces, params, params2D)
 
-		local imageFaces = faces
 		local selectedDie = nil
 		local selectedDieFilled = nil
 		local selectedNum = nil
 		local selectedFaces = nil
-		local selectedString = nil
+		-- What recordRoll calls a roll from this tile ("power" for the 2d10 pair).
+		local selectedKind = nil
 		-- Which 3D die geometry this tile renders when use3D (d3 uses the d6 model; the d20
 		-- "Power Roll" renders as the two-d10 pair). nil = fall back to the whitelabel default.
 		local selectedGeo = nil
-		local selectedFontSize = nil
-		local selectedYAdjust = nil
 
-		if imageFaces == 3 then
+		if faces == 3 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 3
-			selectedString = "3"
-			selectedFontSize = 18
-			selectedYAdjust = 2
+			selectedKind = "d3"
 			selectedGeo = "d6"
-		elseif imageFaces == 6 then
+		elseif faces == 6 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 6
-			selectedString = "6"
-			selectedFontSize = 18
-			selectedYAdjust = 2
+			selectedKind = "d6"
 			selectedGeo = "d6"
-		elseif imageFaces == 10 then
+		elseif faces == 10 then
 			selectedDie = "ui-icons/dsdice/djordice-d10.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d10-filled.png"
 			selectedNum = 1
 			selectedFaces = 10
-			selectedString = "10"
-			selectedFontSize = 14
-			selectedYAdjust = 0
+			selectedKind = "d10"
 			selectedGeo = "d10"
-		elseif imageFaces == 20 then
+		elseif faces == 20 then
 			selectedDie = "ui-icons/dsdice/djordice-2d10.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-2d10-filled.png"
 			selectedNum = 2
 			selectedFaces = 10
-			selectedString = "Power Roll"
-			selectedFontSize = 10
-			selectedYAdjust = 0
+			selectedKind = "power"
 			selectedGeo = "power"
 		end
 
+		-- Fills in the dice for a fresh roll from this tile. The Power Roll carries the
+		-- tray's bonus and edge/bane as roll text; untouched, every tile rolls plain dice.
+		local function WithDice(args)
+			if selectedKind == "power" and PowerModsActive() then
+				args.roll = PowerRollText()
+			else
+				args.numDice = selectedNum
+				args.numFaces = selectedFaces
+				args.numKeep = 0
+			end
+			return args
+		end
+
 		-- 3D mode: replace the static #DiceIcon tile with a LIVE cage, like the shop's "try dice"
-		-- (see MakeTryDiceCage in CodexShopScreen.lua). A real, numberless die rests on the tile,
-		-- spins on hover, and rolls seamlessly on click/drag as a real (chat, networked) roll -- the
-		-- same resting die tumbles into the result, its text label vanishes and its numbers fade in.
+		-- (see MakeTryDiceCage in CodexShopScreen.lua). A real die, numbers showing, rests on the tile,
+		-- spins on hover, and rolls seamlessly on click/drag as a real (chat, networked) roll. The
+		-- tile's name is the caption under it (built by the panel), so nothing is drawn over the die.
 		-- The non-3D (Default set) path below is unchanged.
 		if use3D then
-			-- shadowLabel/faceLabel are the "Power Roll"/"3"/"6"/"10" text drawn on top of the
-			-- resting die; forward-declared so the roll handlers can hide/show them.
-			local shadowLabel
-			local faceLabel
-
-			local function setLabelsHidden(hidden)
-				if shadowLabel ~= nil and shadowLabel.valid then shadowLabel:SetClass("hidden", hidden) end
-				if faceLabel ~= nil and faceLabel.valid then faceLabel:SetClass("hidden", hidden) end
-			end
-
-			-- Invisible-but-hittable cage filling the tile. The die anchors to its world centre; the
-			-- labels are SIBLINGS drawn on top, so hiding a label never touches the cage and the
-			-- cage's opacity-0 invisibility never touches the labels. All engine calls are
-			-- pcall-guarded so a Lua-only reload against an older binary degrades gracefully.
+			-- Invisible-but-hittable cage filling the tile. The die anchors to its world centre.
+			-- All engine calls are pcall-guarded so a Lua-only reload against an older binary
+			-- degrades gracefully.
 			-- gui.DicePreview is a dedicated dice-preview cage panel type. Fall back to a plain
 			-- gui.Panel on an older binary (Lua-only reload) that predates it; the dice field/
 			-- method calls below are already pcall-guarded so they no-op on the fallback.
@@ -163,10 +370,7 @@ CreateDicePanel = function()
 			-- The cage stays FULL-TILE but is inert to the mouse: its rect is the
 			-- resting-dice image area (DiceEmbeddedImage shows the cage's screen
 			-- region of the dice RT, so shrinking it would clip the resting dice)
-			-- and the dice anchor. The HIT box is the separate hitPanel sibling
-			-- below -- the Power Roll tile's 2.65x-scaled full-tile rect reached
-			-- over the titlebar of the panel window hosting this content and
-			-- stole its clicks.
+			-- and the dice anchor. The HIT box is the separate hitPanel sibling below.
 			local cage = diceCageCtor{
 				width = "100%",
 				height = "100%",
@@ -177,9 +381,9 @@ CreateDicePanel = function()
 				bgimage = true,
 				bgcolor = "white",
 				styles = { gui.Style{ opacity = 0 } },
-				-- rolling: true from the moment a click/drag launches a roll until the next
-				-- seedDie, so the dehover handler knows not to restore the labels mid-roll.
-				data = { reseedPending = false, rolling = false },
+				-- thrown: the resting die was clicked or dragged and its roll is under way, so
+				-- it must not be re-seeded until that roll finishes (or the throw cancels).
+				data = { reseedPending = false, thrown = false },
 
 				create = function(element)
 					--the cage (see the cast after its constructor).
@@ -221,9 +425,11 @@ CreateDicePanel = function()
 						-- it the pcall aborts before touching RestScale, leaving the
 						-- tile on the standard tuning above instead of half-applied.
 						pcall(function()
-							element.dicePreviewRestSpacing = 0.7
+							element.dicePreviewRestSpacing = 0.58
 							element.dicePreviewRestScale = 0.7
 						end)
+						-- Hovered, the pair grows to full size; 0.78 makes them overlap at that size.
+						pcall(function() element.dicePreviewSpacing = 0.88 end)
 					end
 					element:FireEvent("seedDie")
 				end,
@@ -232,7 +438,7 @@ CreateDicePanel = function()
 					pcall(function() element:SetAsDicePreviewPanel(false) end)
 				end,
 
-				-- Seed a resting, numberless die in the equipped set, armed so a click/drag throws it
+				-- Seed a resting die (face numbers showing) in the equipped set, armed so a click/drag throws it
 				-- as a real roll. Unlike the shop we OMIT ["local"]/silent (the shop titlescreen has
 				-- no chat/network) and amendable (each tile rolls standalone). Re-seed after the roll
 				-- finishes or a too-weak drag cancels, so a fresh die is always resting here.
@@ -241,20 +447,28 @@ CreateDicePanel = function()
 						return
 					end
 					element.data.reseedPending = false
-					element.data.rolling = false
+					element.data.thrown = false
 					pcall(function() element:CancelDicePreviewRoll() end)
-					setLabelsHidden(false)
-					dmhub.Roll{
-						preview = true, previewPanel = element, hideNumbers = true,
-						numDice = selectedNum, numFaces = selectedFaces, numKeep = 0,
+					dmhub.Roll(WithDice{
+						preview = true, previewPanel = element, hideNumbers = false,
 						description = "Custom Roll",
-						complete = function()
+						complete = function(rollInfo)
+							recordRoll(selectedKind, rollInfo)
 							if element.valid then element:FireEvent("requestReseed") end
 						end,
 						cancel = function()
 							if element.valid then element:FireEvent("requestReseed") end
 						end,
-					}
+					})
+				end,
+
+				-- The tray changed. The resting Power Roll die captured its roll text when it
+				-- was seeded, so re-seed it now; a die already thrown re-seeds when it lands.
+				powerModsChanged = function(element)
+					if selectedKind ~= "power" or element.data.thrown then
+						return
+					end
+					element:FireEvent("seedDie")
 				end,
 
 				requestReseed = function(element)
@@ -273,28 +487,12 @@ CreateDicePanel = function()
 			-- scoped to the cage's dice. The engine preview calls are made ON the
 			-- cage (they are mouse/scope-based, so which panel received the input
 			-- does not matter). Hovering fades the die's real numbers in
-			-- (engine-side, keyed off the same mouseover state), so the text label
-			-- hides while the mouse is on the tile and returns on dehover --
-			-- unless a roll is in flight, in which case the label stays hidden
-			-- until the reseed shows it again.
-			--
-			-- The Power Roll tile's hit box is bottom-anchored with the top pulled
-			-- in: at uiscale 2.65 (x1.2 more on hover) a full-tile hit box reaches
-			-- past the top of the dice row, over the hosting window's titlebar.
-			-- The DICE may visually overhang the titlebar (hover growth); the hit
-			-- box must not. 75% keeps the hovered rect below the titlebar while
-			-- leaving the bottom edge of the old hit area unchanged.
-			local hitHeight = "100%"
-			local hitValign = "center"
-			if selectedGeo == "power" then
-				hitHeight = "75%"
-				hitValign = "bottom"
-			end
+			-- (engine-side, keyed off the same mouseover state).
 			local hitPanel = gui.Panel{
 				width = "100%",
-				height = hitHeight,
+				height = "100%",
 				halign = "center",
-				valign = hitValign,
+				valign = "center",
 				floating = true,
 				bgimage = true,
 				bgcolor = "clear",
@@ -302,62 +500,23 @@ CreateDicePanel = function()
 				dragMove = false,
 
 				hover = function(element)
-					setLabelsHidden(true)
 					pcall(function() cage:DicePreviewMouseEnter() end)
 				end,
 				dehover = function(element)
-					if not cage.data.rolling then
-						setLabelsHidden(false)
-					end
 					pcall(function() cage:DicePreviewMouseLeave() end)
 				end,
 				dragging = function(element)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewDragThink() end)
 				end,
 				drag = function(element)
-					cage.data.rolling = true
-					setLabelsHidden(true)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewDragEnd() end)
 				end,
 				click = function(element)
-					cage.data.rolling = true
-					setLabelsHidden(true)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewClick() end)
 				end,
-			}
-
-			-- Drop-shadow + foreground roll-type label, floating (overlaid) and non-interactable so
-			-- clicks fall through to the cage below. As LATER SIBLINGS of the cage they draw above
-			-- the virtual die's embedded image; while the die is hovered or rolling it becomes a
-			-- real 3D die compositing over the whole UI (and the labels hide during rolls).
-			shadowLabel = gui.Label{
-				floating = true,
-				interactable = false,
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "black",
-				halign = "center",
-				valign = "center",
-				textAlignment = "center",
-				text = selectedString,
-				y = selectedYAdjust + 1,
-				x = 1,
-			}
-			faceLabel = gui.Label{
-				floating = true,
-				interactable = false,
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "white",
-				halign = "center",
-				valign = "center",
-				textAlignment = "center",
-				text = selectedString,
-				y = selectedYAdjust,
 			}
 
 			-- The visible tile is just a transparent container (the resting die is the cage's
@@ -369,8 +528,6 @@ CreateDicePanel = function()
 				brightness = 1,
 				cage,
 				hitPanel,
-				shadowLabel,
-				faceLabel,
 			}
 
 			if params ~= nil then
@@ -396,6 +553,13 @@ CreateDicePanel = function()
 			dieBgColor = "white"
 		end
 
+		-- Amended rolls mix dice from several tiles, so the readout labels them "custom".
+		local function onComplete(kind)
+			return function(rollInfo)
+				recordRoll(kind, rollInfo)
+			end
+		end
+
 		local args = {
 
 			classes = "dice",
@@ -405,13 +569,11 @@ CreateDicePanel = function()
             dragMove = false,
             draggable = true,
             beginDrag = function(self)
-                dmhub.Roll{
+                dmhub.Roll(WithDice{
                     drag = true,
-                    numDice = selectedNum,
-                    numFaces = selectedFaces,
-					numKeep = 0,
                     description = "Custom Roll",
-                }
+					complete = onComplete(selectedKind),
+                })
             end,
 
 			click = function(panel)
@@ -422,6 +584,7 @@ CreateDicePanel = function()
 						numKeep = 0,
 						description = "Custom Roll",
 						amendable = true,
+						complete = onComplete("custom"),
 					}
 
 					return
@@ -429,50 +592,16 @@ CreateDicePanel = function()
 
 
 				printf("Roll: rolling with numDice = 1; numFaces = %d", math.tointeger(faces))
-                amendableRoll = dmhub.Roll{
-                    numDice = selectedNum,
-                    numFaces = selectedFaces,
-					numKeep = 0,
+                amendableRoll = dmhub.Roll(WithDice{
                     description = "Custom Roll",
 					amendable = true,
-                }
+					complete = onComplete(selectedKind),
+                })
             end,
-
-			--hover = gui.Tooltip(string.format("D%d", faces)),
-
-			-- Drop Shadow for the Die Face Number
-			gui.Label{
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "black",
-				halign = "center",
-				valign = "center",			
-				textAlignment = "center",				
-				text = selectedString,
-				y = selectedYAdjust + 1,
-				x = 1
-			},			
-
-			-- Text for the Die Face Number
-			gui.Label{
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "white",
-				halign = "center",
-				valign = "center",			
-				textAlignment = "center",				
-				text = selectedString,
-				y = selectedYAdjust
-			}
-
 		}
 
 		-- The flat colored die outline only makes sense for the 2D icon; in 3D mode the model
-		-- replaces it. Insert it as the first (bottom) child so the labels still sit on top.
+		-- replaces it.
 		if not use3D then
 			table.insert(args, 1, gui.Panel{
 				classes = {"diceLines"},
@@ -503,14 +632,411 @@ CreateDicePanel = function()
 		local result = gui.Panel(args)
 		return result
 	end
-	
-	
-    local resultPanel
+
+	-- One tile of the strip: the die centred in a fixed-height well, its name underneath.
+	-- Fixed wells keep every caption on one baseline whatever size each die is drawn at.
+	local function DiceCell(width, die, captionText, bold)
+		return gui.Panel{
+			width = width,
+			height = "100%",
+			flow = "vertical",
+			gui.Panel{
+				width = "100%",
+				height = STRIP_HEIGHT - 28,
+				flow = "none",
+				valign = "top",
+				die,
+			},
+			gui.Label{
+				classes = cond(bold, {"label", "sizeXs", "bold"}, {"label", "sizeXs", "fgMuted"}),
+				width = "auto",
+				height = "auto",
+				halign = "center",
+				valign = "top",
+				text = captionText,
+			},
+		}
+	end
+
+	local function VerticalSeam()
+		return gui.Panel{
+			classes = {"diceSeam"},
+			bgimage = true,
+			width = 1,
+			height = "60%",
+			valign = "center",
+		}
+	end
+
+	----------------------------------------------------------------
+	-- Power roll tray: bonus stepper, edge/bane picker, summary chip
+	----------------------------------------------------------------
+
+	local RefreshTray
+
+	local function SegSeam()
+		return gui.Panel{
+			classes = {"diceSegSeam"},
+			bgimage = true,
+			width = 1,
+			height = "100%",
+		}
+	end
+
+	-- One square button of a segmented control: an icon, a tooltip, a click.
+	local function SegButton(icon, tooltip, onClick, kind)
+		return gui.Panel{
+			classes = {"diceSegBtn", kind},
+			bgimage = true,
+			width = 24,
+			height = "100%",
+			hover = gui.Tooltip(tooltip),
+			click = onClick,
+			gui.Panel{
+				classes = {"diceSegIcon"},
+				bgimage = icon,
+				interactable = false,
+				width = 12,
+				height = 12,
+				halign = "center",
+				valign = "center",
+			},
+		}
+	end
+
+	local function SetPowerBonus(value)
+		powerBonus = math.max(POWER_BONUS_MIN, math.min(POWER_BONUS_MAX, value))
+		RefreshTray()
+	end
+
+	local bonusValueLabel = gui.Label{
+		classes = {"label", "sizeS", "diceBonusValue", "zero"},
+		interactable = false,
+		width = 28,
+		height = "100%",
+		textAlignment = "center",
+		valign = "center",
+		text = "0",
+	}
+
+	local bonusGroup = gui.Panel{
+		classes = {"diceSeg"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 24,
+		halign = "left",
+		valign = "center",
+		rmargin = 6,
+		SegButton("phosphor/minus-bold.png", "Lower the power roll bonus", function() SetPowerBonus(powerBonus - 1) end, "none"),
+		SegSeam(),
+		bonusValueLabel,
+		SegSeam(),
+		SegButton("phosphor/plus-bold.png", "Raise the power roll bonus (up to +5)", function() SetPowerBonus(powerBonus + 1) end, "none"),
+	}
+
+	local edgeButtons = {}
+	local edgeChildren = {}
+	for i, option in ipairs(POWER_EDGE_OPTIONS) do
+		if i > 1 then
+			edgeChildren[#edgeChildren+1] = SegSeam()
+		end
+		local button = SegButton(option.icon, option.tooltip, function()
+			powerEdge = option.value
+			RefreshTray()
+		end, option.kind)
+		edgeButtons[#edgeButtons+1] = { button = button, value = option.value }
+		edgeChildren[#edgeChildren+1] = button
+	end
+
+	local edgeGroup = gui.Panel{
+		classes = {"diceSeg"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 24,
+		halign = "left",
+		valign = "center",
+		children = edgeChildren,
+	}
+
+	local chipLabel = gui.Label{
+		classes = {"label", "sizeXs", "diceChipText"},
+		interactable = false,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		lmargin = 8,
+		text = "",
+	}
+
+	-- Shown only while something is set; one click puts the Power Roll back to plain 2d10.
+	local chipPanel = gui.Panel{
+		classes = {"diceChip", "collapsed"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 20,
+		halign = "right",
+		valign = "center",
+		hover = gui.Tooltip("Clear the bonus and edge or bane"),
+		click = function(element)
+			powerBonus = 0
+			powerEdge = 0
+			RefreshTray()
+		end,
+		chipLabel,
+		gui.Panel{
+			classes = {"diceChipClear"},
+			bgimage = "phosphor/x-bold.png",
+			interactable = false,
+			width = 9,
+			height = 9,
+			valign = "center",
+			lmargin = 5,
+			rmargin = 7,
+		},
+	}
+
+	RefreshTray = function()
+		local bonusText = tostring(powerBonus)
+		if powerBonus > 0 then
+			bonusText = "+" .. bonusText
+		end
+		bonusValueLabel.text = bonusText
+		bonusValueLabel:SetClass("zero", powerBonus == 0)
+		bonusValueLabel:SetClass("pos", powerBonus > 0)
+		bonusValueLabel:SetClass("neg", powerBonus < 0)
+
+		local edgeName = nil
+		for _, entry in ipairs(edgeButtons) do
+			entry.button:SetClass("selected", entry.value == powerEdge)
+		end
+		for _, option in ipairs(POWER_EDGE_OPTIONS) do
+			if option.value == powerEdge then
+				edgeName = option.name
+			end
+		end
+
+		local parts = {}
+		if powerBonus ~= 0 then
+			parts[#parts+1] = bonusText
+		end
+		if edgeName ~= nil then
+			parts[#parts+1] = edgeName
+		end
+		-- "\u{B7}" is a middle dot; written as an escape because Lua source must stay ASCII.
+		chipLabel.text = table.concat(parts, " \u{B7} ")
+		chipPanel:SetClass("collapsed", #parts == 0)
+		chipPanel:SetClass("edge", powerEdge > 0)
+		chipPanel:SetClass("bane", powerEdge < 0)
+
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel:FireEventTree("powerModsChanged")
+		end
+	end
+
+	-- The tray area spans the panel so the notch holder's "34%-1" matches the Power Roll
+	-- tile above it. Children overlap (flow none): tray box, notch, then the patch on top.
+	local trayArea = gui.Panel{
+		width = "100%",
+		height = TRAY_AREA_HEIGHT,
+		flow = "none",
+
+		gui.Panel{
+			classes = {"diceTray"},
+			bgimage = true,
+			flow = "horizontal",
+			width = "100%-24",
+			height = TRAY_HEIGHT,
+			halign = "center",
+			valign = "top",
+			tmargin = TRAY_NOTCH,
+			hpad = 6,
+			borderBox = true,
+			bonusGroup,
+			edgeGroup,
+			chipPanel,
+		},
+
+		gui.Panel{
+			interactable = false,
+			width = "34%-1",
+			height = TRAY_NOTCH * 2,
+			halign = "left",
+			valign = "top",
+			gui.Panel{
+				classes = {"diceTrayNotch"},
+				bgimage = true,
+				interactable = false,
+				width = 10,
+				height = 10,
+				rotate = 45,
+				halign = "center",
+				valign = "center",
+			},
+		},
+
+		gui.Panel{
+			interactable = false,
+			width = "34%-1",
+			height = TRAY_NOTCH + 8,
+			halign = "left",
+			valign = "top",
+			gui.Panel{
+				classes = {"diceTrayNotchPatch"},
+				bgimage = true,
+				interactable = false,
+				width = 16,
+				height = 8,
+				halign = "center",
+				valign = "bottom",
+			},
+		},
+	}
+
+	RefreshTray()
+
+	-- Tier pips for a Power Roll result; "lit" is toggled by showRoll.
+	local tierPips = {}
+	for i = 1, 3 do
+		tierPips[i] = gui.Panel{
+			classes = {"diceTierPip"},
+			bgimage = true,
+			width = 6,
+			height = 6,
+			valign = "center",
+			rmargin = 3,
+		}
+	end
+
+	local hintLabel = gui.Label{
+		classes = {"label", "sizeXs", "fgMuted"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		text = "Click a die to roll it. Drag to throw it.",
+	}
+	local lastLabel = gui.Label{
+		classes = {"label", "sizeXxs", "fgMuted", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		rmargin = 8,
+		text = "LAST",
+	}
+	local totalLabel = gui.Label{
+		classes = {"label", "sizeL", "bold", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		rmargin = 8,
+		text = "",
+	}
+	local tierPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		halign = "left",
+		valign = "center",
+		tierPips[1],
+		tierPips[2],
+		tierPips[3],
+		gui.Label{
+			classes = {"label", "sizeXs"},
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			lmargin = 3,
+			text = "",
+			showTier = function(element, tier)
+				element.text = string.format("Tier %d", tier)
+			end,
+		},
+	}
+	local detailLabel = gui.Label{
+		classes = {"label", "sizeXs", "fgMuted", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		text = "",
+	}
+
+	readoutPanel = gui.Panel{
+		width = "100%",
+		height = READOUT_HEIGHT,
+		flow = "horizontal",
+		hpad = 12,
+		borderBox = true,
+		hintLabel,
+		lastLabel,
+		totalLabel,
+		tierPanel,
+		detailLabel,
+
+		-- Swap the hint for the result of the roll that just finished.
+		showRoll = function(element, kind, rollInfo)
+			local faces = {}
+			local diceSum = 0
+			pcall(function()
+				for _, r in ipairs(rollInfo.rolls or {}) do
+					if not r.dropped then
+						faces[#faces+1] = tostring(r.result)
+						diceSum = diceSum + (tonumber(r.result) or 0)
+					end
+				end
+			end)
+
+			local total = rollInfo.total
+			if total == nil then
+				return
+			end
+
+			hintLabel:SetClass("collapsed", true)
+			lastLabel:SetClass("collapsed", false)
+			totalLabel:SetClass("collapsed", false)
+			detailLabel:SetClass("collapsed", false)
+			totalLabel.text = tostring(math.tointeger(total) or total)
+
+			-- Only a Power Roll has a tier; RollUtils is the codex's shared tier rule.
+			local tier = nil
+			if kind == "power" then
+				pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+			end
+			tierPanel:SetClass("collapsed", tier == nil)
+			if tier ~= nil then
+				for i = 1, 3 do
+					tierPips[i]:SetClass("lit", i <= tier)
+				end
+				tierPanel:FireEventTree("showTier", tier)
+			end
+
+			if kind == "power" or kind == "custom" then
+				-- A tray bonus or single edge/bane makes the total differ from the dice;
+				-- show the difference so the total adds up ("7 + 4 + 5").
+				local detail = table.concat(faces, " + ")
+				local extra = (tonumber(total) or diceSum) - diceSum
+				if kind == "power" and extra ~= 0 and #faces > 0 then
+					detail = string.format("%s %s %d", detail, cond(extra > 0, "+", "-"), math.tointeger(math.abs(extra)) or math.abs(extra))
+				end
+				detailLabel.text = detail
+			else
+				detailLabel.text = kind
+			end
+		end,
+	}
+
 	resultPanel = gui.Panel{
-	
+
 		width = "100%",
 		height = "100%",
-		styles = styles,
+		flow = "vertical",
+		styles = ThemeEngine.MergeTokens(BuildDicePanelStyles()),
 
 		bgimage = "panels/square.png",
 		bgcolor = "clear",
@@ -524,37 +1050,65 @@ CreateDicePanel = function()
 		end,
 
 		rightClick = function(element)
-			--its only entry is the Director-only toggle, which a directorless game does not offer.
-			if not RollPrivacyAllowed() then
+			local entries = {}
+
+			--a directorless game does not offer the Director-only toggle.
+			if RollPrivacyAllowed() then
+				entries[#entries+1] = {
+					text = "Rolls Visible Only to Director",
+					check = dmhub.GetSettingValue("privaterolls") == "dm",
+					click = function()
+						dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
+						element.popup = nil
+					end,
+				}
+			end
+
+			-- The dice sets this account owns, the same list as the Settings "Dice Set"
+			-- dropdown. Picking one equips it; the strip's diceequipped monitor redraws the dice.
+			local sets = {}
+			pcall(function() sets = dice.GetAvailableDice() end)
+			table.sort(sets, function(a,b) return tostring(a.text) < tostring(b.text) end)
+
+			local current = dmhub.GetSettingValue("diceequipped")
+			local setEntries = {}
+			for _,set in ipairs(sets) do
+				local setid = set.value
+				setEntries[#setEntries+1] = {
+					text = set.text,
+					check = setid == current,
+					click = function()
+						dmhub.SetSettingValue("diceequipped", setid)
+						element.popup = nil
+					end,
+				}
+			end
+
+			if #setEntries > 0 then
+				entries[#entries+1] = {
+					text = "Dice Set",
+					submenu = setEntries,
+				}
+			end
+
+			if #entries == 0 then
 				return
 			end
-			element.popup = gui.ContextMenu{
-				entries = {
-					{
-						text = "Rolls Visible Only to Director",
-						check = dmhub.GetSettingValue("privaterolls") == "dm",
-						click = function()
-							dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
-							element.popup = nil
-						end,
-					},
-				}
 
+			element.popup = gui.ContextMenu{
+				entries = entries,
 			}
 		end,
-		
-		
-		gui.Panel{
-		
-			width = "105%",
-			height = "100%",
-			valign = "top",
-			halign = "center",
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			flow = "vertical",
-			y = -1,
 
+		-- The dice strip: four equal-height tiles, Power Roll first and wider. Rebuilt when the
+		-- equipped dice set or player color changes; the readout below survives the rebuild.
+		gui.Panel{
+
+			width = "100%",
+			height = STRIP_HEIGHT,
+			flow = "horizontal",
+			vpad = 6,
+			borderBox = true,
 
 			multimonitor = {"diceequipped", "playercolor"},
 
@@ -568,47 +1122,42 @@ CreateDicePanel = function()
 
 				create = function(element)
 					element.children = {
-                        gui.Panel{
-                            width = "100%",
-                            -- Pinned rather than auto so the divider and the row under it stay
-                            -- where the 3D cage puts them: the flat Power Roll icon is drawn at
-                            -- the smaller 2D scale below, and an auto height would drag
-                            -- everything beneath it up by the difference.
-                            height = 40*2.65,
-                            flow = "none",
-                            y = -16,
-                            -- Only the scale differs in 2D: the shared y and the "dice" class's
-                            -- valign = "center" then land the (shorter) flat icon centred on the
-                            -- same line the 3D pair rests on.
-						    CreateDice(20, {uiscale = 2.65, y = 2, width = 60}, {uiscale = 1.65}),
-                        },
-                        gui.Divider{ y = -26, brightness = 0.1},
-                        gui.Panel{
-                            width = "70%",
-                            height = "auto",
-                            halign = "center",
-                            flow = "horizontal",
-                            y = -27,
-                            CreateDice(3, {uiscale = 1.3}, {uiscale = 1.1}),
-                            CreateDice(6, {uiscale = 1.3}, {uiscale = 1.2}),
-                            --CreateDice(8),
-                            --CreateDice(20, {uiscale = 1.65, y = 2}),
-                            CreateDice(10, {uiscale = 1.5, y = 2}),
-                            --CreateDice(12),
-                            --CreateDice(100, {rotate = 180}),
-                        },
+						-- Wide tile: the resting pair is drawn only inside the tile's rect, so it must
+						-- span both dice and the gap between them or their outer edges get cut off.
+						DiceCell("34%-1", CreateDice(20, {uiscale = 1.35, width = 84}, {uiscale = 1.0, width = 60}), "POWER ROLL", true),
+						VerticalSeam(),
+						DiceCell("22%", CreateDice(3, {uiscale = 1.1}, {uiscale = 0.95}), "d3"),
+						DiceCell("22%", CreateDice(6, {uiscale = 1.1}, {uiscale = 0.95}), "d6"),
+						DiceCell("22%", CreateDice(10, {uiscale = 1.2}), "d10"),
 					}
-			        resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
+					resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 
-						-- The screen-bounds/spacing/rest-scale tuning is set PER-CAGE in each
-						-- tile's cage create handler (dicePreviewScreenBounds / Spacing /
-						-- RestScale in CreateDice above), not via the dice.SetPreview* globals:
-						-- the dock coexists with the shop and the in-game roll dialog, and the
-						-- globals leaked this panel's tuning into their cages.
-					end,
-				}
-			},
+					-- The screen-bounds/spacing/rest-scale tuning is set PER-CAGE in each
+					-- tile's cage create handler (dicePreviewScreenBounds / Spacing /
+					-- RestScale in CreateDice above), not via the dice.SetPreview* globals:
+					-- the dock coexists with the shop and the in-game roll dialog, and the
+					-- globals leaked this panel's tuning into their cages.
+				end,
+			}
+		},
+
+		trayArea,
+
+		gui.Panel{
+			classes = {"diceSeam"},
+			bgimage = true,
+			width = "100%",
+			height = 1,
+		},
+
+		readoutPanel,
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeTokens(BuildDicePanelStyles()) --[[@as StyleArgs[] ]]
+		end
+	end)
 
 	resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 
@@ -623,7 +1172,7 @@ do
 
 --[[
 ================================================================
-Physical Dice (GoDice + Pixels) — Codex integration
+Physical Dice (GoDice + Pixels) - Codex integration
 ================================================================
 
 Intercepts Codex roll dialogs and routes the dice through a local
@@ -631,7 +1180,7 @@ HTTP service (the Python "Codex Dice Bridge"). The physical
 dice (GoDice, Pixels) pass their face values to the engine via
 rollArgs.forcedDice, 
 and the engine resolves the original roll expression as if it had 
-rolled those values itself — populating rollInfo.rolls, naturalRoll, 
+rolled those values itself, populating rollInfo.rolls, naturalRoll, 
 nat1/nat20, total, tier, and firing the crit audio cue when appropriate.
 
 PAIRED WITH: dice-bridge/ in the DMHub repo (Python). The HTTP
@@ -639,13 +1188,16 @@ contract is documented in its README. Both must update together
 when the contract changes.
 
 USER SURFACE:
-  - Settings panel ("General" section) provides the toggle, the
-    bridge URL, and the bridge program path. These are the canonical
-    configuration.
-  - Ticking "Use Physical Dice" auto-starts the bridge process via
-    dmhub.StartDiceBridge (engine-side DiceBridgeProcess); unticking
+  - Settings panel ("General" section) provides the Physical Dice
+    mode (Off / Bluetooth Dice / Manual Input), the bridge URL, and
+    the bridge program path. These are the canonical configuration.
+  - Bluetooth mode auto-starts the bridge process via
+    dmhub.StartDiceBridge (engine-side DiceBridgeProcess); leaving it
     stops it. If the bridge dies mid-roll the mod falls back to a
     virtual roll rather than hanging the dialog.
+  - Manual Input mode needs no bridge: the player rolls real dice and
+    types each face into a box (runInputRoll). The typed faces travel
+    the same forcedDice path as Bluetooth faces.
   - /godice chat commands stay for diagnostics and runtime probing.
 
 SCOPE:
@@ -665,10 +1217,23 @@ SCOPE:
 -- These create the persistent settings AND the entries in the
 -- Codex preferences UI. 
 
-local SETTING_ENABLED  = "externaldice:enabled"
+local SETTING_MODE     = "externaldice:mode"
+local SETTING_ENABLED  = "externaldice:enabled"  -- legacy checkbox, migrated to SETTING_MODE
 local SETTING_BRIDGE   = "externaldice:bridgeurl"
 local SETTING_BRIDGEPATH = "externaldice:bridgepath"
 local DEFAULT_BRIDGE   = "http://127.0.0.1:17211"
+
+-- "off", "bluetooth" or "input". Any other saved value counts as off.
+local function getPhysicalDiceMode()
+    local mode = dmhub.GetSettingValue(SETTING_MODE)
+    if mode ~= "bluetooth" and mode ~= "input" then return "off" end
+    return mode
+end
+
+-- True only when the bridge should be running.
+local function isBluetoothMode()
+    return getPhysicalDiceMode() == "bluetooth"
+end
 
 -- Start/stop the bridge process alongside the checkbox. The engine
 -- resolves the executable itself (the bridgepath preference below, or
@@ -697,17 +1262,31 @@ local function syncBridgeProcess(enabled)
     end
 end
 
-local g_externalDiceEnabled = setting{
-    id = SETTING_ENABLED,
-    description = "Use Physical Dice",
-    help = "Route dice rolls through a localhost bridge to physical Bluetooth dice (GoDice, Pixels). The bridge program starts automatically when checked.",
+local g_externalDiceMode = setting{
+    id = SETTING_MODE,
+    description = "Physical Dice",
+    help = "Roll real dice instead of virtual ones. Bluetooth reads GoDice or Pixels dice through the dice bridge, which starts automatically. Manual Input asks you to type each die's result; your bonuses are still added for you.",
     storage = "preference",
     section = "General",
-    default = false,
-    editor = "check",
+    default = "off",
+    editor = "dropdown",
+    enum = {
+        { value = "off", text = "Off" },
+        { value = "bluetooth", text = "Bluetooth Dice" },
+        { value = "input", text = "Manual Input" },
+    },
     onchange = function()
-        syncBridgeProcess(dmhub.GetSettingValue(SETTING_ENABLED) == true)
+        syncBridgeProcess(isBluetoothMode())
     end,
+}
+
+-- The old on/off checkbox. No editor, so it is hidden; it stays registered
+-- only so the Init migration can read what a user saved before the mode
+-- dropdown existed.
+local g_externalDiceEnabled = setting{
+    id = SETTING_ENABLED,
+    storage = "preference",
+    default = false,
 }
 
 -- Where the bridge executable lives. Read by the ENGINE (DiceBridgeProcess),
@@ -722,6 +1301,8 @@ local g_externalDiceBridgePath = setting{
     storage = "preference",
     section = "General",
     default = "",
+    visible = isBluetoothMode,
+    monitorVisible = {SETTING_MODE},
 }
 
 local g_externalDiceBridgeUrl = setting{
@@ -735,6 +1316,8 @@ local g_externalDiceBridgeUrl = setting{
     storage = "preference",
     section = "General",
     default = DEFAULT_BRIDGE,
+    visible = isBluetoothMode,
+    monitorVisible = {SETTING_MODE},
 }
 
 ----------------------------------------------------------------
@@ -744,7 +1327,7 @@ local g_externalDiceBridgeUrl = setting{
 -- Use rawget on _G so Codex's strict-globals metatable doesn't error
 -- on the read when CodexGoDiceBridge isn't initialized yet (which it
 -- won't be on the first of Codex's two load passes). Same trick is
--- used below for RollDialog / Commands / chat / json — any global we
+-- used below for RollDialog / Commands / chat / json: any global we
 -- test with `if X` first needs the rawget guard.
 CodexGoDiceBridge = rawget(_G, "CodexGoDiceBridge") or {
     -- Long-poll wait per round-trip. Bridge clamps to [0, 60].
@@ -768,10 +1351,12 @@ function CGB.getBaseUrl()
     return url
 end
 
--- The "Use Physical Dice" toggle is the master switch. Interception
--- only happens when this is true.
+CGB.getMode = getPhysicalDiceMode
+CGB.isBluetooth = isBluetoothMode
+
+-- True in either physical mode: rolls get intercepted.
 function CGB.isEnabled()
-    return dmhub.GetSettingValue(SETTING_ENABLED) == true
+    return getPhysicalDiceMode() ~= "off"
 end
 
 ----------------------------------------------------------------
@@ -857,63 +1442,274 @@ local function destroyWaitingNotice()
     end
 end
 
-local function showWaitingNotice(onUseVirtual)
+-- The few rules the stock theme classes don't cover. Colors are @ tokens so
+-- the notices follow the user's color scheme.
+local function BuildDiceNoticeStyles()
+    return {
+        {
+            selectors = {"diceNoticeSeam"},
+            width = "90%",
+            height = 1,
+            halign = "center",
+            bgimage = true,
+            bgcolor = "@border",
+            opacity = 0.35,
+        },
+        {
+            selectors = {"input", "diceEntryInvalid"},
+            color = "@danger",
+            borderColor = "@danger",
+            priority = 5,
+        },
+    }
+end
+
+-- Recolor an open notice when the user switches theme, scheme or font size.
+-- Subscribed on first use, not at load: ThemeEngine may not exist yet while
+-- this file loads.
+local m_themeSubscribed = false
+local function subscribeNoticeTheme()
+    if m_themeSubscribed then return end
+    m_themeSubscribed = true
+    ThemeEngine.OnThemeChanged(mod, function()
+        if m_waitingNotice ~= nil and m_waitingNotice.valid then
+            m_waitingNotice.styles = ThemeEngine.MergeStyles(BuildDiceNoticeStyles())
+        end
+    end)
+end
+
+-- Mounts a centered, draggable notice box on the hud, replacing any
+-- current one. Sizes are in sp so the box grows with the Font Size setting.
+-- Returns false when there is no hud to show it on.
+local function mountNotice(width, children)
     destroyWaitingNotice()
 
     local hudLib = rawget(_G, "GameHud")
     local hud = hudLib and hudLib.instance
-    if hud == nil then return end
+    if hud == nil then return false end
     -- dialog.sheet is the screen-space hud root; MainDialogPanel is NOT
     -- screen-anchored (a panel parented there renders off the bottom edge).
     local parent = hud.dialog and hud.dialog.sheet
     if parent == nil and hud.MainDialogPanel ~= nil then
         parent = hud:MainDialogPanel()
     end
-    if parent == nil then return end
+    if parent == nil then return false end
 
+    subscribeNoticeTheme()
     m_waitingNotice = gui.Panel{
+        styles = ThemeEngine.MergeStyles(BuildDiceNoticeStyles()),
+        classes = {"framedPanel"},
         floating = true,
         halign = "center",
         valign = "center",
-        width = 320,
+        width = width,
         height = "auto",
         flow = "vertical",
-        bgimage = "panels/square.png",
-        bgcolor = "#000000dd",
-        borderWidth = 1,
-        borderColor = "#999999",
-        cornerRadius = 8,
-        pad = 10,
+        pad = 20,
         borderBox = true,
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
+        children = children,
+    }
 
+    parent:AddChild(m_waitingNotice)
+    return true
+end
+
+local function createUseVirtualButton(onUseVirtual)
+    return gui.Button{
+        classes = {"sizeM"},
+        text = "Use Virtual Dice",
+        halign = "center",
+        click = function(element)
+            onUseVirtual()
+        end,
+    }
+end
+
+local function showWaitingNotice(onUseVirtual)
+    mountNotice("340sp", {
         gui.Label{
+            classes = {"sizeM"},
             text = "Waiting for physical dice...",
-            fontSize = 16,
             width = "100%",
             height = "auto",
             halign = "center",
             textAlignment = "center",
-            color = "white",
+            bmargin = 12,
         },
+        createUseVirtualButton(onUseVirtual),
+    })
+end
 
-        gui.Button{
-            text = "Use Virtual Dice",
-            fontSize = 14,
-            width = 150,
-            height = 26,
+-- Manual Input box: one input per die, each 1..faces. Confirm stays
+-- disabled until every die is valid; Enter jumps to the next empty input,
+-- or confirms when all are filled.
+-- Returns false when there is no hud to show it on.
+local function showInputNotice(diceList, onSubmit, onUseVirtual)
+    local m_inputs = {}
+    local m_rollButton
+    local m_totalLabel
+
+    local function readFace(index)
+        local sides = tonumber(string.match(diceList[index], "d(%d+)"))
+        local value = tonumber(m_inputs[index].text)
+        if value == nil or value ~= math.floor(value) or value < 1 or value > sides then
+            return nil, sides
+        end
+        return value, sides
+    end
+
+    local function refreshState()
+        local total = 0
+        local allValid = true
+        for i = 1, #m_inputs do
+            local value = readFace(i)
+            local hasText = m_inputs[i].text ~= ""
+            -- Red only for a wrong entry, not for a box not filled in yet.
+            m_inputs[i]:SetClass("diceEntryInvalid", hasText and value == nil)
+            if value == nil then
+                allValid = false
+            else
+                total = total + value
+            end
+        end
+        m_rollButton.interactable = allValid
+        m_rollButton:SetClass("disabled", not allValid)
+        m_totalLabel.text = allValid and string.format("Natural roll: %d", total) or ""
+        return allValid
+    end
+
+    local function trySubmit()
+        if not refreshState() then return end
+        local forcedDice = {}
+        for i = 1, #m_inputs do
+            local value, sides = readFace(i)
+            forcedDice[#forcedDice+1] = { numFaces = sides, result = value }
+        end
+        onSubmit(forcedDice)
+    end
+
+    local dieColumns = {}
+    for i, dieType in ipairs(diceList) do
+        local sides = string.match(dieType, "d(%d+)")
+        m_inputs[i] = gui.Input{
+            classes = {"bordered", "sizeXl"},
+            width = "40sp",
+            height = "40sp",
             halign = "center",
-            vmargin = 8,
-            click = function(element)
-                onUseVirtual()
+            textAlignment = "center",
+            numeric = true,
+            characterLimit = #sides,
+            selectAllOnFocus = true,
+            placeholderText = "-",
+            text = "",
+            edit = function(element)
+                refreshState()
             end,
-        },
+            submit = function(element)
+                if refreshState() then
+                    trySubmit()
+                    return
+                end
+                for j = 1, #m_inputs do
+                    if readFace(j) == nil then
+                        gui.SetFocus(m_inputs[j])
+                        return
+                    end
+                end
+            end,
+        }
+        dieColumns[i] = gui.Panel{
+            flow = "vertical",
+            width = "72sp",
+            height = "auto",
+            hmargin = 8,
+            gui.Label{
+                classes = {"sizeXs", "fgMuted"},
+                text = dieType,
+                width = "100%",
+                height = "auto",
+                textAlignment = "center",
+                bmargin = 4,
+            },
+            m_inputs[i],
+        }
+    end
+
+    m_totalLabel = gui.Label{
+        classes = {"sizeS", "fgMuted"},
+        text = "",
+        width = "100%",
+        height = "22sp",
+        textAlignment = "center",
+        vmargin = 10,
     }
 
-    parent:AddChild(m_waitingNotice)
+    m_rollButton = gui.Button{
+        classes = {"sizeL", "disabled"},
+        text = "Confirm",
+        halign = "center",
+        interactable = false,
+        click = function(element)
+            trySubmit()
+        end,
+    }
+
+    local shown = mountNotice(string.format("%dsp", math.max(400, #diceList * 88 + 56)), {
+        gui.Label{
+            classes = {"sizeL", "bold"},
+            text = "Enter Dice Results",
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+        },
+        gui.Label{
+            classes = {"sizeS", "fgMuted"},
+            text = "Enter just the dice. Your bonuses are added for you.",
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            tmargin = 6,
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            tmargin = 18,
+            children = dieColumns,
+        },
+        m_totalLabel,
+        m_rollButton,
+        -- The divider keeps Use Virtual Dice from reading as a Confirm twin.
+        gui.Panel{
+            classes = {"diceNoticeSeam"},
+            tmargin = 20,
+            bmargin = 12,
+        },
+        createUseVirtualButton(onUseVirtual),
+    })
+
+    if shown then
+        -- Focus a frame later: a just-added input does not take focus yet.
+        dmhub.Schedule(0.01, function()
+            if mod.unloaded then return end
+            if m_inputs[1] ~= nil and m_inputs[1].valid then
+                gui.SetFocus(m_inputs[1])
+            end
+        end)
+    end
+    return shown
 end
 
 ----------------------------------------------------------------
--- Roll-string parsing — dice list extraction only
+-- Roll-string parsing: dice list extraction only
 ----------------------------------------------------------------
 -- We only need the ordered dice list to send to the bridge. The
 -- engine handles all modifiers, boons/banes, tier, and natural-roll
@@ -982,6 +1778,24 @@ local function logRollArgs(args)
     end
 end
 
+-- A roll must complete exactly once, or its dialog hangs. finish(fn) runs fn
+-- only on the first call and closes the notice; isFinished() lets late async
+-- replies see that the roll is already done.
+local function makeFinisher()
+    local finished = false
+    local function finish(fn)
+        if finished then return end
+        finished = true
+        CGB.activeCancel = nil
+        destroyWaitingNotice()
+        fn()
+    end
+    local function isFinished()
+        return finished
+    end
+    return finish, isFinished
+end
+
 -- Shared bridge-roll driver used by fresh rolls and rerolls. Owns the
 -- waiting notice, the single-completion guard, the dialog-cancel
 -- bookkeeping, and the poll loop. Exactly one of the callbacks fires:
@@ -992,14 +1806,7 @@ end
 -- OnRollCancelled) -- the dialog is gone, so no roll should happen;
 -- the pending bridge request is aborted so the dice stop flashing.
 local function runBridgeRoll(diceList, opts)
-    local m_finished = false
-    local function finish(fn)
-        if m_finished then return end
-        m_finished = true
-        CGB.activeCancel = nil
-        destroyWaitingNotice()
-        fn()
-    end
+    local finish, isFinished = makeFinisher()
 
     local function fallbackToVirtual(reason)
         finish(function()
@@ -1042,7 +1849,7 @@ local function runBridgeRoll(diceList, opts)
 
         local function continuePoll()
             CGB.pollRoll(requestId, function(pOk, pBody)
-                if m_finished then
+                if isFinished() then
                     return
                 end
 
@@ -1092,6 +1899,67 @@ local function runBridgeRoll(diceList, opts)
     end)
 end
 
+-- Manual Input counterpart of runBridgeRoll, with the same callback
+-- contract: the typed faces go to opts.onForced, so the virtual dice still
+-- tumble and land on them. No timeout: the player takes as long as they need.
+local function runInputRoll(diceList, opts)
+    -- A new box replaces any open one, and the old box's roll could then never
+    -- finish. Roll that one virtually first so its dialog does not hang.
+    if CGB.rollPendingInputVirtually ~= nil then
+        CGB.rollPendingInputVirtually()
+    end
+
+    local finishRoll = makeFinisher()
+    local function finish(fn)
+        finishRoll(function()
+            CGB.rollPendingInputVirtually = nil
+            fn()
+        end)
+    end
+
+    CGB.rollPendingInputVirtually = function()
+        finish(function()
+            log("another roll opened a dice entry box; rolling this one virtually")
+            opts.onVirtual()
+        end)
+    end
+
+    -- Dialog cancelled: close the entry box and roll nothing.
+    CGB.activeCancel = function()
+        finish(function() log("roll dialog cancelled; closing dice entry") end)
+    end
+
+    local shown = showInputNotice(diceList,
+        function(forcedDice)
+            log("manual input forcedDice=%d", #forcedDice)
+            finish(function() opts.onForced(forcedDice) end)
+        end,
+        function()
+            finish(function()
+                log("user chose virtual dice instead of manual input")
+                opts.onVirtual()
+            end)
+        end)
+
+    -- No hud to type into would hang the dialog, so roll virtually.
+    if not shown then
+        finish(function()
+            log("no hud for the dice entry box; rolling virtually")
+            opts.onVirtual()
+        end)
+    end
+end
+
+-- Both modes share one callback contract, so the hooks never need to know
+-- which one is on.
+local function runPhysicalRoll(diceList, opts)
+    if CGB.getMode() == "input" then
+        runInputRoll(diceList, opts)
+    else
+        runBridgeRoll(diceList, opts)
+    end
+end
+
 local function handleOnBeforeRoll(args)
     if not CGB.isEnabled() then return nil end
     logRollArgs(args)
@@ -1119,7 +1987,7 @@ local function handleOnBeforeRoll(args)
         end
     end
 
-    runBridgeRoll(diceList, {
+    runPhysicalRoll(diceList, {
         onForced = function(forcedDice)
             -- No instant/silent overrides: the virtual dice tumble and land
             -- showing the physical values (engine ForceResultFace), and the
@@ -1153,7 +2021,7 @@ local function handleOnReroll(args)
 
     log("intercepting reroll '%s' (%d dice)", tostring(rollStr), #diceList)
 
-    runBridgeRoll(diceList, {
+    runPhysicalRoll(diceList, {
         onForced = function(forcedDice)
             -- forcedDice only -- the dialog's own instant/silent settings
             -- apply, so its begin/completion flow runs exactly as a normal
@@ -1231,12 +2099,12 @@ local function cmdStatus()
     CGB.bridgeStatus(function(ok, body)
         if ok and body then
             chat.Send(string.format(
-                "Dice bridge: ok=%s version=%s dice=%d pending=%d (mod enabled=%s url=%s)",
+                "Dice bridge: ok=%s version=%s dice=%d pending=%d (mode=%s url=%s)",
                 tostring(body.ok),
                 tostring(body.version),
                 body.dice_count or 0,
                 body.pending_rolls or 0,
-                tostring(CGB.isEnabled()),
+                CGB.getMode(),
                 CGB.getBaseUrl()))
             local hooks = CGB.codexDeclaredHooks or {}
             for name, present in pairs(hooks) do
@@ -1254,11 +2122,11 @@ if commandsLib and commandsLib.RegisterMacro then
         name = "godice",
         summary = "control the dice bridge integration",
         doc = "Usage: /godice [status|on|off|debug on|debug off|probe|register]\n"
-            .. "  status     — show bridge health and registered hooks\n"
-            .. "  on / off   — enable/disable roll interception (writes the preference)\n"
-            .. "  debug on/off — toggle dump of rollArgs on each intercept\n"
-            .. "  probe      — check live state of RollDialog.OnBeforeRoll\n"
-            .. "  register   — re-register hooks",
+            .. "  status     - show bridge health and registered hooks\n"
+            .. "  on / off   - set Physical Dice to Bluetooth / Off (writes the preference)\n"
+            .. "  debug on/off - toggle dump of rollArgs on each intercept\n"
+            .. "  probe      - check live state of RollDialog.OnBeforeRoll\n"
+            .. "  register   - re-register hooks",
         completions = function(args, argIndex)
             if argIndex == 1 then
                 return {
@@ -1288,10 +2156,10 @@ if commandsLib and commandsLib.RegisterMacro then
             if sub == "status" then
                 cmdStatus()
             elseif sub == "on" then
-                dmhub.SetSettingValue(SETTING_ENABLED, true)
+                dmhub.SetSettingValue(SETTING_MODE, "bluetooth")
                 chat.Send("Dice bridge: ENABLED (preference saved)")
             elseif sub == "off" then
-                dmhub.SetSettingValue(SETTING_ENABLED, false)
+                dmhub.SetSettingValue(SETTING_MODE, "off")
                 chat.Send("Dice bridge: DISABLED (preference saved)")
             elseif sub == "debug" then
                 CGB.debugDump = (parts[2] == "on")
@@ -1357,7 +2225,7 @@ local function heartbeatLoop()
     if CGB._heartbeatGen ~= g_heartbeatGen then
         return  -- superseded by a newer load of this file
     end
-    if CGB.isEnabled() then
+    if CGB.isBluetooth() then
         CGB.sendHeartbeat()
         -- Self-heal: if the bridge died (crash, idle timeout) while the
         -- feature is on, bring it back rather than waiting for the user
@@ -1548,13 +2416,23 @@ end
 local function CreatePhysicalDicePanel()
     local m_statusLabel
     local m_diceList
+    local m_scanResults
+    local m_scanButton
 
     local resultPanel
 
     local function refresh()
-        if not CGB.isEnabled() then
-            m_statusLabel.text = "Physical dice are disabled."
+        -- Scanning and the paired-dice list are Bluetooth-only.
+        m_scanButton:SetClass("hidden", not CGB.isBluetooth())
+        local mode = CGB.getMode()
+        if mode ~= "bluetooth" then
+            if mode == "input" then
+                m_statusLabel.text = "Manual Input: when you roll, you'll be asked to type each die's result."
+            else
+                m_statusLabel.text = "Physical dice are disabled."
+            end
             m_diceList.children = {}
+            m_scanResults.children = {}
             return
         end
 
@@ -1613,13 +2491,12 @@ local function CreatePhysicalDicePanel()
     -- button. GoDice pair as d10 by default (the Draw Steel workhorse;
     -- adjust with the row's size dropdown afterwards). Pixels advertise
     -- their die type, so they pair as exactly what they are.
-    local m_scanResults = gui.Panel{
+    m_scanResults = gui.Panel{
         flow = "vertical",
         width = "100%",
         height = "auto",
     }
 
-    local m_scanButton
     m_scanButton = gui.Button{
         text = "Scan for Dice",
         fontSize = 14,
@@ -1629,7 +2506,7 @@ local function CreatePhysicalDicePanel()
         vmargin = 6,
         hover = gui.Tooltip("Searches for nearby GoDice and Pixels dice for ~8 seconds. Wake your dice first (give them a shake)."),
         click = function(element)
-            if not CGB.isEnabled() then return end
+            if not CGB.isBluetooth() then return end
             m_scanButton.text = "Scanning..."
             m_scanButton.interactable = false
             net.Post{
@@ -1732,7 +2609,7 @@ local function CreatePhysicalDicePanel()
     -- the panel still works if the helper is renamed upstream).
     local createEditor = rawget(_G, "CreateSettingsEditor")
     if createEditor ~= nil then
-        children[#children+1] = createEditor(SETTING_ENABLED)
+        children[#children+1] = createEditor(SETTING_MODE)
     end
     children[#children+1] = m_statusLabel
     children[#children+1] = m_diceList
@@ -1782,13 +2659,21 @@ registerDockablePanel()
 ----------------------------------------------------------------
 -- Init
 ----------------------------------------------------------------
-log("loaded; bridge=%s wait=%ds enabled=%s",
-    CGB.getBaseUrl(), CGB.waitSeconds, tostring(CGB.isEnabled()))
+-- One-time move from the old checkbox: anyone who had it ticked was using
+-- Bluetooth dice. Runs here, not at the setting, because the mode's
+-- onchange needs CGB to exist.
+if dmhub.GetSettingValue(SETTING_ENABLED) == true then
+    dmhub.SetSettingValue(SETTING_ENABLED, false)
+    dmhub.SetSettingValue(SETTING_MODE, "bluetooth")
+end
+
+log("loaded; bridge=%s wait=%ds mode=%s",
+    CGB.getBaseUrl(), CGB.waitSeconds, CGB.getMode())
 registerHooks()
 
--- If the user left the checkbox on last session, bring the bridge up now.
+-- If Bluetooth mode was left on last session, bring the bridge up now.
 -- EnsureRunning is idempotent, so the twice-per-startup file reload is fine.
-if CGB.isEnabled() then
+if CGB.isBluetooth() then
     syncBridgeProcess(true)
 end
 

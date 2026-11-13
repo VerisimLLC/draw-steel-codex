@@ -871,6 +871,14 @@ end
 --      active = function() end,         --true while the interface is on
 --      suppressRails = true,            --replace the icon-rail columns;
 --                                       --docks slide away transiently too
+--      suppressWindows = true,          --hide every window on the table (maps,
+--                                       --scenes, journals, panel windows),
+--                                       --the maximized window's strip and
+--                                       --minimized window buttons; nothing
+--                                       --about any window changes, so they
+--                                       --come back as they were. Call
+--                                       --GameHud.SyncInterfaceSuppression
+--                                       --when active() changes
 --      railPanel = function(side) end,  --widget for "left"/"right" (used
 --                                       --only when suppressRails)
 --      railBottomPanel = function(side) end,
@@ -906,6 +914,10 @@ end
 --                                       --your own confirmation, which calls
 --                                       --proceed() to really go; false or
 --                                       --nil lets the exit happen as normal
+--      forcedMap = function() end,      --a mapid to hold maximized on the
+--                                       --table (no restore, minimize or
+--                                       --close), like a Director-forced
+--                                       --map; nil for none (Tabletop.lua)
 --  }
 --
 --Everything but id/active is optional. The FIRST registered provider whose
@@ -976,6 +988,27 @@ end
 
 GameHud.CustomInterfaceSuppressesRails = function()
 	return CustomInterfaceField("suppressRails") == true
+end
+
+GameHud.CustomInterfaceSuppressesWindows = function()
+	return CustomInterfaceField("suppressWindows") == true
+end
+
+--Apply the active interface's suppressWindows now. The documents layer
+--carries the class and its own style rule collapses every window under it
+--(InfoDocument.lua), so a window opened while suppressed is hidden too and
+--each one keeps its own state underneath; the strip and the minimized
+--buttons live in Tabletop's layers.
+GameHud.SyncInterfaceSuppression = function()
+	local suppress = GameHud.CustomInterfaceSuppressesWindows()
+	--false, not nil, until the hud is built.
+	local hud = GameHud.instance
+	if hud and hud.documentsPanel ~= nil and hud.documentsPanel.valid then
+		hud.documentsPanel:SetClass("interfaceSuppressing", suppress)
+	end
+	pcall(function()
+		Tabletop.SyncInterfaceSuppression(suppress)
+	end)
 end
 
 --The custom widget to mount where the icon rail would be, or nil.
@@ -1104,6 +1137,15 @@ GameHud.CustomInterfacePlayersPopout = function()
 	local ok, panel = pcall(provider.playersPopout)
 	if ok and panel ~= nil then
 		return panel
+	end
+	return nil
+end
+
+--The map the active interface holds maximized on the table, or nil.
+GameHud.CustomInterfaceForcedMap = function()
+	local mapid = CustomInterfaceField("forcedMap")
+	if type(mapid) == "string" and mapid ~= "" then
+		return mapid
 	end
 	return nil
 end

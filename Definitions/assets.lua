@@ -110,11 +110,12 @@ function assets:UploadImageAtlasAsset(options) end
 
 --- Uploads a PDF document from a file path. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
---- @return string The GUID of the uploaded document.
+--- @return string|nil The GUID of the uploaded document, or nil when the file could not be read (error is called).
 function assets.UploadPDFDocumentAsset(options) end
 
---- Creates and uploads a new document folder from the given table arguments.
+--- Creates and uploads a new document folder from the given table arguments (description, parentFolder, ord, hidden, ownerid, and optionally id to choose the folder's id up front). Returns the new folder's id.
 --- @param tableArgs table The folder properties.
+--- @return string The id of the new folder.
 function assets:UploadNewDocumentFolder(tableArgs) end
 
 --- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3, and any other file Unity cannot decode (e.g. Opus) to Ogg Vorbis. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
@@ -127,7 +128,7 @@ function assets:UploadAudioAsset(options) end
 --- @return nil|string The GUID of the uploaded clipboard asset, or nil on failure.
 function assets:UploadClipboardAsset(options) end
 
---- Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
+--- Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users. An imageType of 'AvatarPopout' on an image with no real transparency is stored as 'Avatar' instead; read assets.imagesTable[guid].imageType in the upload callback for the type actually used.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded image, or nil on failure.
 function assets:UploadImageAsset(options) end
@@ -188,11 +189,17 @@ function assets:DuplicateTilesheet(tileid) end
 --- @return nil|string
 function assets:DuplicateWall(wallid) end
 
---- Imports one or more Universal VTT map files, uploading their images and creating map objects.
+--- Imports one or more Universal VTT map files (.uvtt / .dd2vtt, or Foundry-style JSON with width/height/grid), uploading their pictures and creating map objects, one per file. Reading the files and preparing their pictures runs on worker threads, so the app keeps running even for a huge file; callback, error and progress are all called later, on the main thread.
 --- @param pathsList string[] List of file paths to UVTT files.
---- @param callback function Called on success with info table containing objids, width, height, and uvttData.
+--- @param callback function Called on success with info table containing objids, width and height (the first file's map size in tiles), and uvttData (each file's fields, without its embedded picture).
 --- @param error function Called on error with an error message string.
-function assets:ImportUniversalVTT(pathsList, callback, error) end
+--- @param progress nil|fun(stage: string, fraction: number) Called as the import goes: stage 'reading' while the files are read and their pictures prepared, then 'uploading' with fraction going from 0 to 1.
+function assets:ImportUniversalVTT(pathsList, callback, error, progress) end
+
+--- Reads a Universal VTT file's map size from the start of the file, without reading the picture inside it, so it is instant even for a huge file (for previews while the file is dragged). Returns {width, height, pixelsPerGrid}: the map's size in tiles and its picture's pixels per tile, or nil if the file is missing or its size is not near the start (Dungeondraft and most exporters write it first).
+--- @param path string A local file path.
+--- @return nil|{width: number, height: number, pixelsPerGrid: number}
+function assets:ReadUniversalVTTHeader(path) end
 
 --- Creates a new bestiary entry locally and returns its GUID.
 --- @return string
@@ -221,6 +228,10 @@ function assets:LoadImageOrVideoFileLocally(path) end
 --- @param path string A local file path.
 --- @return nil|{width: number, height: number, bytes: number}
 function assets:ReadImageFileInfo(path) end
+
+--- Looks for a grid drawn on a local image file (PNG, JPEG, WebP, BMP, TGA or GIF) with the FFT grid detector (GRID_DETECTION_REFERENCE.md): square, rectangular or hex, its cell size, where it sits, its rotation and how sure it is. Reading, decoding and detecting all run on a worker thread, so the app never stalls; a typical map takes well under a second, a huge one a few seconds (maps over 4096 px are detected on a downscaled copy, results still in full-size pixels). Each file is detected once: asking again for the same unchanged file (from another dialog, say) shares the first run's result. done(result) is called on the main thread with result = {found, type, tileType, cellWidth, cellHeight, periodX, periodY, originX, originY, angle, confidence, imageWidth, imageHeight, decodeMs, detectMs, message}: type is 'square', 'rectangular', 'hexpointy', 'hexflat' or 'none'; tileType the matching map import tile type ('squares', 'pointtop' or 'flattop'); cellWidth x cellHeight the cell (a hex's bounding box) and periodX/periodY the grid's repeat along x and y, all in pixels; originX/originY a line crossing (square) or a hexagon centre (hex), in pixels from the image's top-left with y down; angle the grid's rotation in degrees, clockwise (0 if aligned); confidence 0..1; message why nothing was found. error(message) is called instead if the file cannot be read as an image.
+--- @param options {path: string, done: fun(result: {found: boolean, type: string, tileType: string, cellWidth: number, cellHeight: number, periodX: number, periodY: number, originX: number, originY: number, angle: number, confidence: number, imageWidth: number, imageHeight: number, decodeMs: number, detectMs: number, message: string}), error: nil|fun(message: string)}
+function assets:DetectImageGrid(options) end
 
 --- Loads an image file (png, jpeg or webp) into the local cache without uploading, downscaling it if needed so its longer edge is at most maxDimension pixels. Pass 'CLIPBOARD' to load from the system clipboard. Returns nil if the file could not be read as an image. Used for small branding images such as creator organization logos (call Upload on the result to commit it) and for previews of dropped files. Decodes on the main thread, so a large file takes a moment.
 --- @param path string The file path or 'CLIPBOARD'.

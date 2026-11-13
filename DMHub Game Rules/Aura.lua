@@ -197,6 +197,8 @@ end
 --- @field casterPartyId? string Party id of the caster token when cast ("" if none).
 --- @field spellcastingFeature? SpellcastingFeature Spellcasting feature of the ability that cast it, copied onto triggered abilities.
 --- @field persistenceId? string Guid of the caster's persistent ability this aura's lifetime follows; read with try_get.
+--- @field keywords? table<string, boolean> Keywords of the ability that cast this aura (e.g. {Fire = true, Magic = true}), passed with its move damage; read with try_get.
+--- @field anchorTokenId? string Token id of the creature an ability placed this aura around (a creature target with no chosen area), so a creature's own effects can find "the area around me" later (forcedmovementloc auraName); read with try_get.
 AuraInstance = RegisterGameType("AuraInstance")
 
 Aura.Flags = {
@@ -211,6 +213,37 @@ Aura.Flags = {
 --- @return boolean
 function Aura:HasFlag(id)
     return self:try_get("flags", {})[id]
+end
+
+--- How far up and down this aura reaches, as picked in the editor's Height dropdown.
+--- "default": as far up and down as it reaches sideways.
+--- "unlimited": any height.
+--- "limited": auraHeight squares above the ground, so 0 means ground only.
+--- @return string
+function Aura:GetHeightMode()
+    if self:try_get("unlimitedHeight", false) == true then
+        return "unlimited"
+    end
+    if self:try_get("auraHeight") ~= nil then
+        return "limited"
+    end
+    return "default"
+end
+
+--- Sets the fields behind GetHeightMode. Limited keeps an existing height, else 0 (ground only).
+--- Limited is measured from the ground under each square, so it follows pits and ledges.
+--- @param mode string
+function Aura:SetHeightMode(mode)
+    local height = self:try_get("auraHeight", 0)
+    self.unlimitedHeight = nil
+    self.auraHeight = nil
+    self.auraGroundRelative = nil
+    if mode == "unlimited" then
+        self.unlimitedHeight = true
+    elseif mode == "limited" then
+        self.auraHeight = height
+        self.auraGroundRelative = true
+    end
 end
 
 --- Returns true if the creature passes this aura's GoblinScript creatureFilter.
@@ -394,11 +427,20 @@ function Aura:GetSimpleEntryEffectTrigger(options)
     }
 end
 
+--- Whether rules-engine rule text (an entry effect or power roll tier) deals
+--- damage. A rule that only applies a condition, like Deep Water's "wet (EoE)",
+--- does not make terrain damaging.
+--- @param rule string|nil
+--- @return boolean
+function Aura.RuleDealsDamage(rule)
+    return type(rule) == "string" and string.find(string.lower(rule), "damage", 1, true) ~= nil
+end
+
 --- Whether this aura is "damaging terrain" for movement advisories: it hurts
 --- creatures that enter it or move through it. True when the aura has an entry
---- power roll (Lava), a flat entry effect (Burning Oil), per-tile move damage, or
---- the explicit `damaging` flag (for hand-authored auras whose damage comes from
---- custom triggers).
+--- power roll (Lava) or flat entry effect (Burning Oil) that deals damage,
+--- per-tile move damage, or the explicit `damaging` flag (for hand-authored auras
+--- whose damage comes from custom triggers).
 --- @return boolean
 function Aura:IsDamaging()
     if self:try_get("damaging", false) == true then
@@ -409,7 +451,7 @@ function Aura:IsDamaging()
         return true
     end
 
-    if trim(self:try_get("entryEffectRule", "") or "") ~= "" then
+    if Aura.RuleDealsDamage(self:try_get("entryEffectRule")) then
         return true
     end
 
@@ -423,7 +465,7 @@ function Aura:IsDamaging()
     end
 
     for i = 1, 3 do
-        if trim(tiers[i] or "") ~= "" then
+        if Aura.RuleDealsDamage(tiers[i]) then
             return true
         end
     end
@@ -702,6 +744,27 @@ function Aura:GenerateEditor(options)
         end
     end
 
+    --Keywords are defined in a Draw Steel module that loads after this file, so look the type up by
+    --name; games without Draw Steel have none and the keyword row stays hidden.
+    local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+    local chosenKeywordId = self:try_get("environmentalKeywordId")
+    local keywordChoices = { { id = "none", text = "None" } }
+    if environmentalKeywordType ~= nil then
+        environmentalKeywordType.FillDropdownOptions(keywordChoices)
+
+        --The list leaves out deleted keywords and other maps' zone types. Keep the saved one
+        --selectable anyway, so the editor shows what the aura is really set to.
+        local listedIds = map(keywordChoices, function(choice) return choice.id end)
+        if chosenKeywordId ~= nil and not table.contains(listedIds, chosenKeywordId) then
+            local keyword = (dmhub.GetTable(environmentalKeywordType.tableName) or {})[chosenKeywordId]
+            local keywordName = "(Deleted Keyword)"
+            if keyword ~= nil and not keyword:try_get("hidden", false) then
+                keywordName = keyword.name
+            end
+            keywordChoices[#keywordChoices + 1] = { id = chosenKeywordId, text = keywordName }
+        end
+    end
+
     local abilitiesPanel = gui.Panel {
         width = "100%",
         height = "auto",
@@ -955,6 +1018,30 @@ function Aura:GenerateEditor(options)
                 },
             },
 
+            --Gives the aura an Environmental Keyword's effects (terrain, damage, modifiers) each time it is cast.
+            gui.Panel {
+                classes = { "formPanel", cond(environmentalKeywordType == nil, "collapsed") },
+                gui.Label {
+                    classes = "formLabel",
+                    text = "Environmental Keyword:",
+                },
+                gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
+                    classes = "formDropdown",
+                    options = keywordChoices,
+                    hasSearch = true,
+                    idChosen = chosenKeywordId or "none",
+                    change = function(element)
+                        ---@cast element Dropdown
+                        local keywordid = element.idChosen
+                        if keywordid == "none" then
+                            keywordid = nil
+                        end
+                        self.environmentalKeywordId = keywordid --[[@as string|nil]]
+                    end,
+                },
+            },
+
             gui.Panel {
                 classes = { "formPanel" },
                 gui.Label {
@@ -1020,23 +1107,27 @@ function Aura:GenerateEditor(options)
 
                 },
                 gui.Input {
-                    text = self:try_get("damage", 0),
+                    text = tostring(self:try_get("damage", 0)),
                     classes = { 'input', 'form-input' },
-                    width = 40,
+                    width = 120,
                     height = 22,
                     halign = "left",
                     hmargin = 10,
-                    characterLimit = 4,
+                    characterLimit = 64,
                     events = {
                         refreshAura = function(element)
                             element:SetClass("hidden", self:try_get("movedamage", "none") == "none")
                         end,
                         change = function(element)
-                            local num = tonumber(element.text)
-                            if num == nil then
-                                element.text = self:try_get("damage", 0)
-                            else
+                            --A number, or a formula about the caster such as "Reason".
+                            local text = trim(element.text)
+                            local num = tonumber(text)
+                            if num ~= nil then
                                 self.damage = num
+                            elseif text ~= "" then
+                                self.damage = text
+                            else
+                                element.text = tostring(self:try_get("damage", 0))
                             end
                             resultPanel:FireEventTree("refreshAura")
                         end,
@@ -1058,6 +1149,24 @@ function Aura:GenerateEditor(options)
                 change = function(element)
                     ---@cast element Dropdown
                     self.movementDamageFilter = element.idChosen
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+                create = function(element)
+                    element:FireEvent("refreshAura")
+                end,
+                refreshAura = function(element)
+                    element:SetClass("collapsed", self:try_get("movedamage", "none") == "none")
+                end,
+            },
+
+            --Also deal the move damage once to a creature that starts its turn inside.
+            gui.Check{
+                styles = ThemeEngine.GetStyles(),
+                halign = "left",
+                text = "Also Damage on Start of Turn",
+                value = self:try_get("movedamageStartTurn", false),
+                change = function(element)
+                    self.movedamageStartTurn = element.value
                     resultPanel:FireEventTree("refreshAura")
                 end,
                 create = function(element)
@@ -1142,16 +1251,52 @@ function Aura:GenerateEditor(options)
                 end,
             },
 
-            gui.Check {
-                styles = ThemeEngine.GetStyles(),
-                halign = "left",
-                text = "Unlimited Height",
-                tooltip = "By default an aura reaches as far above and below its source as it does laterally. Check this to have it instead reach any distance up and down.",
-                value = self:try_get("unlimitedHeight", false),
-                change = function(element)
-                    self.unlimitedHeight = element.value
-                    resultPanel:FireEventTree("refreshAura")
-                end,
+            --Sub-auras always use their parent's height, so they get no control.
+            gui.Panel {
+                classes = { "formPanel", cond(options.childAura, 'collapsed') },
+                gui.Label {
+                    classes = "formLabel",
+                    text = "Height:",
+                },
+                gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
+                    classes = "formDropdown",
+                    hover = gui.Tooltip("Default: reaches as far up and down as it reaches sideways (a map-wide burst reaches everything). Unlimited: any height. Limited: only creatures up to the number of squares you enter above the ground, so 0 is ground only."),
+                    options = {
+                        { id = "default", text = "Default" },
+                        { id = "unlimited", text = "Unlimited" },
+                        { id = "limited", text = "Limited" },
+                    },
+                    idChosen = self:GetHeightMode(),
+                    change = function(element)
+                        ---@cast element Dropdown
+                        self:SetHeightMode(element.idChosen --[[@as string]])
+                        resultPanel:FireEventTree("refreshAura")
+                    end,
+                },
+                gui.Input {
+                    classes = { 'input', 'form-input' },
+                    width = 60,
+                    height = 22,
+                    halign = "left",
+                    hmargin = 10,
+                    characterLimit = 4,
+                    text = tostring(self:try_get("auraHeight", 0)),
+                    events = {
+                        hover = gui.Tooltip("Squares above the ground the aura reaches. 0 means ground only."),
+                        refreshAura = function(element)
+                            element:SetClass("hidden", self:GetHeightMode() ~= "limited")
+                            element.text = tostring(self:try_get("auraHeight", 0))
+                        end,
+                        change = function(element)
+                            local num = tonumber(trim(element.text))
+                            if num ~= nil then
+                                self.auraHeight = math.max(0, math.floor(num))
+                            end
+                            resultPanel:FireEventTree("refreshAura")
+                        end,
+                    },
+                },
             },
 
             CharacterFeature.EditorPanel(self, {
@@ -1744,6 +1889,31 @@ function AuraInstance:IsHiddenFromAuraLists()
     return self:try_get("hideFromAuraLists", false) == true
 end
 
+--- True when the aura's only effect is granting activated abilities to creatures in it
+--- (e.g. the Angulotl Pollywog's Quick Snack): no triggers, entry power roll, entry
+--- effect or damage, and every modifier is an "activated" grant. Terrain flags (water,
+--- difficult terrain, cover...) are not checked here -- the engine reads its own copy.
+--- The movement and targeting cross-section diagrams use it to leave such auras out.
+--- @return boolean
+function AuraInstance:GrantsOnlyAbilities()
+    local aura = self.aura
+    if #aura:try_get("triggers", {}) > 0 or aura:IsDamaging() or aura:try_get("powerRollEnabled", false)
+        or trim(aura:try_get("entryEffectRule", "") or "") ~= "" then
+        return false
+    end
+
+    local modifiers = aura:try_get("modifiers", {})
+    if #modifiers == 0 then
+        return false
+    end
+    for _, modifier in ipairs(modifiers) do
+        if modifier.behavior ~= "activated" then
+            return false
+        end
+    end
+    return true
+end
+
 --The footstep sound family (AudioSurfaceTypes index) tiles in this aura use,
 --or nil for no override.
 function AuraInstance:GetSurfaceType()
@@ -1841,9 +2011,9 @@ end
 --follows a flying caster with no re-registration. nil means no caster-relative
 --band (the aura uses the absolute auraHeight band, or is unlimited). The aura
 --payload's unlimitedHeight flag is the author's opt-out back to the legacy
---infinite column.
+--infinite column, and an authored auraHeight (Limited) replaces this band.
 function AuraInstance:GetVerticalRadius()
-    if self.aura:try_get("unlimitedHeight", false) == true then
+    if self.aura:try_get("unlimitedHeight", false) == true or self.aura:try_get("auraHeight") ~= nil then
         return nil
     end
     return self:try_get("verticalRadius")
@@ -1855,8 +2025,18 @@ function AuraInstance:GetDamageInfo()
         return nil
     end
 
+    --The damage may be a number or a GoblinScript formula, worked out against the
+    --caster (e.g. "Reason" for Wall of Fire). The engine reads it as a whole number.
+    local damage = self.aura:try_get("damage", 0)
+    if type(damage) == "string" then
+        local casterid = self:try_get("casterid")
+        local casterToken = casterid ~= nil and dmhub.GetTokenById(casterid) or nil
+        local caster = casterToken ~= nil and casterToken.properties or nil
+        damage = ExecuteGoblinScript(damage, GenerateSymbols(caster, self:try_get("symbols")), 0, string.format("%s move damage", self.aura.name))
+    end
+
     local result = {
-        damage = self.aura:try_get("damage", 0),
+        damage = math.floor(tonumber(damage) or 0),
         type = movedamage,
     }
 
@@ -2213,7 +2393,7 @@ function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, option
                     shape = "RadiusFromCreature",
                     radius = 0,
                 }
-                self:CastOnArea(ability,casterToken, targets, options, shape)
+                self:CastOnArea(ability,casterToken, targets, options, shape, target.token)
             end
         end
     end
@@ -2224,7 +2404,8 @@ end
 --- @param targets table
 --- @param options table
 --- @param targetArea LuaShape
-function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea)
+--- @param anchorToken? CharacterToken The creature the area was placed around, recorded as anchorTokenId.
+function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea, anchorToken)
     --copy the 'shallow' parts from the symbols to include with the aura.
     local symbols = {}
     for k, v in pairs(options.symbols) do
@@ -2272,7 +2453,11 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --find and remove this instance (see RemovePreviousAuras). Only read
             --when the behavior opts in via replacePrevious.
             sourceAbilityId = ability:try_get("guid"),
+            --The ability's keywords (Fire, Magic, ...), so the aura's move damage
+            --carries them like the ability's own damage does (see creature:AuraDamage).
+            keywords = abilityKeywords and DeepCopy(abilityKeywords) or nil,
             casterid = casterToken.charid,
+            anchorTokenId = anchorToken ~= nil and anchorToken.charid or nil,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
             --caster token/record is gone. Empty string means no party, which the engine
@@ -2312,11 +2497,15 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
         --engine's GetHeight/GetAltitude reads pick it up in both the object and the
         --no-object registration paths. unlimitedHeight on the aura payload is the
         --author's opt-out back to the legacy infinite column, and an explicitly
-        --authored auraHeight is respected as-is.
+        --authored auraHeight is respected as-is, for cubes too: the spawned object
+        --then gets no height of its own, so the aura's own setting is used.
         local auraHeight = 0
+        local authoredHeight = auraDef:try_get("unlimitedHeight", false) == true or auraDef:try_get("auraHeight") ~= nil
         if targetArea ~= nil and targetArea.shape == "Cube" then
-            auraHeight = targetArea.radius
-        elseif auraDef:try_get("unlimitedHeight", false) ~= true and auraDef:try_get("auraHeight") == nil then
+            if not authoredHeight then
+                auraHeight = targetArea.radius
+            end
+        elseif not authoredHeight then
             local lateral = math.floor(tonumber(targetArea ~= nil and targetArea.radius or nil) or -1)
             if lateral >= 0 then
                 auraDef.auraHeight = lateral * 2
@@ -2384,6 +2573,40 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                                 objid = obj.objid,
                             }
                         end
+                    end
+                end
+
+                --An ability with joinsPersistence (e.g. Wall of Fire's extra squares) has no
+                --persistence of its own. Its aura joins the caster's persistent entry with
+                --the same name, so it ends when that entry ends.
+                if (persistence == nil or not persistence.enabled) and ability:try_get("joinsPersistence") == true then
+                    --Newest first, the same entry the normal persistence path above uses.
+                    local entries = casterToken.properties:try_get("persistentAbilities", {})
+                    local joined = nil
+                    for i = #entries, 1, -1 do
+                        if entries[i]:try_get("abilityName") == ability.name then
+                            joined = entries[i]
+                            break
+                        end
+                    end
+
+                    if joined == nil then
+                        --The entry already ended (e.g. persistence dropped while the recast
+                        --was open). Nothing would ever remove this aura, so don't place it.
+                        printf("AURA:: %s joinsPersistence found no persistent entry; extension not placed.", tostring(ability.name))
+                        if obj ~= nil then
+                            obj:Destroy()
+                        end
+                        return
+                    end
+
+                    auraInstance.persistenceId = joined.guid
+                    if obj ~= nil then
+                        local objects = joined:get_or_add("objects", {})
+                        objects[#objects + 1] = {
+                            floorid = obj.floorid,
+                            objid = obj.objid,
+                        }
                     end
                 end
 
@@ -3522,6 +3745,47 @@ local LANE_THINK_INTERVAL = 0.25
 --Last initiative turn id seen by the watcher, for start-of-turn slides.
 local g_laneLastTurnId = nil
 
+--The map's directional-lane aura objects, as {obj, comp} entries. Finding them
+--means reading every object on every floor (floor.objects builds a fresh table
+--each call), so the list is kept until map objects can have changed
+--(nonCharacterUpdateSeq moves) or the map changes, with a full rescan at least
+--every LANE_RESCAN_SECONDS in case a floor finished loading in between.
+local LANE_RESCAN_SECONDS = 5
+local g_laneObjects = {}
+local g_laneObjectsMapId = nil
+local g_laneObjectsSeq = nil
+local g_laneObjectsTime = -1
+
+local function LaneObjects(map)
+    local seq = dmhub.nonCharacterUpdateSeq
+    local now = dmhub.Time()
+    if map.id == g_laneObjectsMapId and seq == g_laneObjectsSeq and now - g_laneObjectsTime < LANE_RESCAN_SECONDS then
+        return g_laneObjects
+    end
+
+    local result = {}
+    for _,floor in ipairs(map.floors or {}) do
+        --floor.objects can be transiently nil for floors that are not
+        --currently loaded, and the objects getter itself raises on a
+        --floor that is tearing down, so gate on floor.valid first.
+        for _,obj in pairs((floor.valid and floor.objects) or {}) do
+            local comp = obj:GetComponent("Aura")
+            if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
+                local inst = comp.properties.aura
+                if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
+                    result[#result+1] = { obj = obj, comp = comp }
+                end
+            end
+        end
+    end
+
+    g_laneObjects = result
+    g_laneObjectsMapId = map.id
+    g_laneObjectsSeq = seq
+    g_laneObjectsTime = now
+    return result
+end
+
 local function LaneThink()
     if mod.unloaded then
         return
@@ -3558,19 +3822,8 @@ local function LaneThink()
             g_laneLastTurnId = nil
         end
 
-        for _,floor in ipairs(map.floors or {}) do
-            --floor.objects can be transiently nil for floors that are not
-            --currently loaded, and the objects getter itself raises on a
-            --floor that is tearing down, so gate on floor.valid first.
-            for _,obj in pairs((floor.valid and floor.objects) or {}) do
-                local comp = obj:GetComponent("Aura")
-                if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
-                    local inst = comp.properties.aura
-                    if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
-                        ProcessLaneObject(obj, comp, turnStartInitiativeId)
-                    end
-                end
-            end
+        for _,entry in ipairs(LaneObjects(map)) do
+            ProcessLaneObject(entry.obj, entry.comp, turnStartInitiativeId)
         end
     end)
 

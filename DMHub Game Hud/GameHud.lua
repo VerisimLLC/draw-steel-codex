@@ -40,8 +40,22 @@ function GameHud.ToggleInventory(self, token)
 	self.inventoryDialog.data.toggleOpen(token)
 end
 
+--Counts whole-hud refresh passes; inRefreshPass is true during one. Panel refresh handlers
+--only read game state, so lookups they repeat across many panels can cache per pass
+--(InitiativeQueue.GetTokensForInitiativeId does).
+GameHud.refreshPass = 0
+GameHud.inRefreshPass = false
+
 function GameHud.Refresh(self)
-	self.dialog.sheet:FireEventTree('refresh')
+	GameHud.refreshPass = GameHud.refreshPass + 1
+	GameHud.inRefreshPass = true
+	local ok, err = pcall(function()
+		self.dialog.sheet:FireEventTree('refresh')
+	end)
+	GameHud.inRefreshPass = false
+	if not ok then
+		error(err, 0)
+	end
 
 	--panels popped out into native OS windows are unparented from the hud
 	--tree, so the broadcast above never reaches them; extend it to each
@@ -805,6 +819,7 @@ end
 
 function GameHud.FinishTokenMoving(self)
 	self.dialog.sheet.tooltip = nil
+	GameHud.dragMovingToken = nil
 end
 
 --function called by DMHub to indicate that a Loot object is being edited.
@@ -815,6 +830,32 @@ function GameHud.EditLoot(self, object)
 		return
 	end
 	self.inventoryDialog.data.open(lootobj, { isobject = true, isshop = lootobj.shop, showBasic = true })
+end
+
+--- Delete a loot container that has just been emptied (destroy on empty).
+--- The emptying is a queued change, sent on the next frame, but a delete is
+--- sent at once; deleting in the same frame let that late change re-create
+--- the object's loot part, leaving the item on the map. So this waits two
+--- frames, and skips an object already gone (a second click, another player).
+--- @param lootobj LuaObjectComponentLoot
+function GameHud.DestroyEmptiedLoot(lootobj)
+	local floorid, objid = lootobj.floorid, lootobj.objid
+	local target = dmhub.FrameCount() + 2
+	local function Check()
+		if mod.unloaded then
+			return
+		end
+		if dmhub.FrameCount() < target then
+			dmhub.Schedule(0.01, Check)
+			return
+		end
+		local floor = game.GetFloor(floorid)
+		if floor == nil or floor.objects[objid] == nil then
+			return
+		end
+		lootobj:DestroyObject()
+	end
+	dmhub.Schedule(0.01, Check)
 end
 
 --function called by DMHub to indicate that a Loot object is being looted by a player.
@@ -828,7 +869,7 @@ function GameHud.LootContainer(self, token, object)
 	if lootobj.instantLoot then
 		GameHud.LootAll(lootobj, token)
 		if lootobj.destroyOnEmpty then
-			lootobj:DestroyObject()
+			GameHud.DestroyEmptiedLoot(lootobj)
 		end
 		return
 	end
@@ -1395,6 +1436,9 @@ GameHud.InvalidateGameHud = function()
 dmhub.CreateGameHud = function(dialog, tokenInfo)
 
     if dmhub.isLobbyGame then
+        --back at the lobby: the next game hud is a fresh entry, not a rebuild
+        --of this game's hud, even when it re-enters the same game (see below).
+        rawset(_G, "g_hudGameId", nil)
         return CreateLobbyHud(dialog, tokenInfo)
     end
 
@@ -1495,6 +1539,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	local m_presentDialogParentElement = nil
 	local m_presentDialogUpdateTime = nil
 
+	--A map dialog this client presented, until its echo brings the server
+	--timestamp: then it is noted shown, so the tabletop late-dialog path
+	--never replays this client's own presentation (the "Draw Steel" banner).
+	local m_ownMapPresentation = nil
+
     local m_recordedPopup = nil
 
 	local parentPanel = gui.Panel({
@@ -1530,6 +1579,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				m_presentedDialogArgs = {dialog = dialog, args = args}
 
                 local args = DeepCopy(m_presentedDialogArgs)
+                m_ownMapPresentation = nil
+                if type(args.args) == "table" and args.args.mapid ~= nil then
+                    m_ownMapPresentation = DeepCopy(args)
+                end
 
                 local dialogInfo = g_presentableDialogs[dialog]
                 if dialogInfo ~= nil and not dialogInfo.keeplocal then
@@ -1574,6 +1627,13 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				end
 
 				if data.dialog ~= nil then
+                    --the timestamp is a placeholder string until the server echo.
+                    if m_ownMapPresentation ~= nil and type(data.timestamp) == "number"
+                            and dmhub.DeepEqual(m_ownMapPresentation, data.dialog) then
+                        Tabletop.NoteMapDialogShown(data)
+                        m_ownMapPresentation = nil
+                    end
+
                     --past its ttl a dialog is dropped -- unless it is one for a map
                     --this client never showed because no window showed the map
                     --(the tabletop view): it waits for that map's window instead.
@@ -1609,6 +1669,12 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                     if dialogInfo ~= nil then
                         m_presentedDialog = dialogInfo.create(m_presentedDialogArgs.args)
                         if m_presentedDialog ~= nil then
+                            --on the documents layer it shares the layer with the map
+                            --windows; the class keeps it above a maximized map, which
+                            --can be built after it (PanelDocument.ABOVE_MAP_WINDOWS).
+                            if mapHost == nil then
+                                m_presentedDialog:SetClass("presentedDialog", true)
+                            end
                             (mapHost or GameHud.instance.documentsPanel):AddChild(m_presentedDialog)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then
@@ -1754,8 +1820,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 		},
 
 		children = {
-			--bottom of the stack: a maximized tabletop map window sits here,
-			--under everything else, as a full-screen map does (Tabletop.lua).
+			--bottom of the stack: the table (Tabletop.lua).
 			Tabletop.CreateLayer(),
 
             gamehud:CreateAdventureDocumentsManager(),
@@ -1768,11 +1833,9 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 		    Tabletop.MapHudSlot(gamehud:CreateEncounterPrepBar()),
 
 			gamehud:RequireRollListenerPanel(),
-			FullscreenDisplay.Create{belowui = true},
 			--gamehud:CreateSidePanel(),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
-			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
 
 			--ORDER IS Z-ORDER: panels have no z-index, so a later sibling draws
@@ -1796,9 +1859,15 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			Tabletop.CreateButtonLayer(),
 			--the Director's Screen's tab and drop hint, over the windows.
 			DirectorScreen.CreateTabLayer(),
+			--3D dice resting on the table: the Director's dice button and the
+			--dice sync (TableDice.lua; the dice themselves draw in the engine).
+			(rawget(_G, "TableDice") ~= nil and TableDice.CreateLayer()) or gui.Panel{width = 1, height = 1, interactable = false},
 			--mode banners (e.g. the encounter builder's staging banner) sit over
 			--every window, so click-to-front on a map window cannot bury them.
 			gamehud:CreateBannerLayer(),
+			--the FROZEN label too: map windows live in the documents layer, so
+			--anywhere before it the live map window draws over the label.
+			gamehud:CreateFrozenLabel(),
 
 			--The action bar sits ABOVE the documents layer for the same reason.
 			--Everything the bar floats out of its strip -- the drawer menus, the
@@ -1824,18 +1893,21 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--entirely when no token is selected.
 			gamehud:CreateActionBar(dialog, tokenInfo),
 			gamehud:CreateReactionBar(dialog, tokenInfo),
+			mainDialogPanel,
+            --The roll surfaces (the ability sidebar, where rolls embed, the roll
+            --host and the group roll board) sit above the main dialog layer, so a
+            --roll started from a dialog there, such as a maximized Hero sheet,
+            --shows on top of it. All are side panels, not full screen.
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
-			mainDialogPanel,
+            gamehud:CreateGroupRollBoardLayer(),
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),
 			gamehud:CreateRollResultPanel(),
 			gamehud.rollDialog,
 
-			FullscreenDisplay.Create{belowui = false},
-			--a maximized tabletop scene on show over the UI (Tabletop.lua).
-			Tabletop.CreateTopLayer(),
+			FullscreenDisplay.Create{aboveui = true},
 			--a maximized map or scene window's strip under the app title bar:
 			--chrome, so it is over everything the windows can be under.
 			Tabletop.CreateChromeLayer(),
@@ -1852,13 +1924,40 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 			gamehud:CreateTipBanner(),
 
+			gamehud:CreateInputHintStrip(),
+
 			gamehud:ConnectionStatusPanel(),
 		}
 	})
 
 	gamehud.parentPanel = parentPanel
 
+	--the scene display not shown over all the UI lies among the windows, as a
+	--maximized map does (FullscreenDisplay.Create).
+	gamehud.documentsPanel:AddChild(FullscreenDisplay.Create{aboveui = false})
+
 	dialog.sheet = parentPanel
+
+	--A hud rebuilt for the same game (a reload of another mod's scripts) took
+	--the icon rails and map-button bar with it; DocumentSystem only builds them
+	--on game entry or its own reload, so ask for both again here.
+	local rebuilt = rawget(_G, "g_hudGameId") == dmhub.gameid
+	rawset(_G, "g_hudGameId", dmhub.gameid)
+	if rebuilt then
+		dmhub.Schedule(0.1, function()
+			if mod.unloaded or GameHud.instance ~= gamehud then
+				return
+			end
+			local ensureRails = rawget(_G, "EnsureIconRail")
+			if ensureRails ~= nil then
+				ensureRails()
+			end
+			local mapButtons = rawget(_G, "MapButtons")
+			if mapButtons ~= nil and mapButtons.Refresh ~= nil then
+				mapButtons.Refresh()
+			end
+		end)
+	end
 
 	--if a modding merge has occurred, display info about it here.
 	if dmhub.modMergeInfo ~= nil then
@@ -2016,6 +2115,12 @@ end
 
 --Stub overridden by Timeline\AbilitySidebar.lua.
 function GameHud:InitStandaloneRollHost(panel)
+end
+
+--The board everyone sees while a group of creatures rolls against one ability
+--(e.g. resistance rolls). Stub overridden by Draw Steel UI\DSRequestRollsDialog.lua.
+function GameHud:CreateGroupRollBoardLayer()
+    return gui.Panel{width = 1, height = 1, interactable = false}
 end
 
 --return the presented dialog doc, if it exists and matches the given dialogid.
@@ -2556,6 +2661,8 @@ Tip.Register{
 		if q ~= nil and not q.hidden then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		--(a creature selected off the board, a tabletop card's, has no token here.)
+		if not sel[1].onBoard then return false end
 		return true
 	end,
 	whenShown = function(state)
@@ -2607,6 +2714,7 @@ Tip.Register{
 		if dmhub.frozen then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		local lightId = tok.properties:GetEquippedLightSource()
 		if lightId == nil then return false end
@@ -2681,6 +2789,7 @@ Tip.Register{
 	eligible = function()
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		if tok.properties == nil then return false end
 		if tok.properties:GetCompanionType() == nil then return false end
@@ -2733,30 +2842,14 @@ function GameHud:CreateTipBanner()
 	}
 
 	--Floating so it pins to the right edge regardless of sibling layout.
-	local dismissButton = gui.Label{
+	local dismissButton = gui.Button{
 		id = "tipBannerDismiss",
-		classes = {"tipBannerContent", "sizeS"},
+		classes = {"tipBannerContent", "sizeM"},
 		text = "Dismiss",
-		color = "white",
-		fontSize = 14,
-		bold = true,
-		width = "auto",
-		height = "auto",
 		floating = true,
 		halign = "right",
 		valign = "center",
 		hmargin = 24,
-		styles = {
-			{
-				selectors = {"hover"},
-				color = "#ffe39a",
-				brightness = 1.1,
-			},
-			{
-				selectors = {"press"},
-				brightness = 0.7,
-			},
-		},
 		press = function(element)
 			GameHud.instance:HideTip()
 		end,
@@ -2764,34 +2857,16 @@ function GameHud:CreateTipBanner()
 
 	--A notice's extra button (e.g. "Select Shadow"), pinned to the left edge
 	--opposite Dismiss. Collapsed unless the notice's controls ask for it.
-	local actionButton = gui.Label{
+	local actionButton = gui.Button{
 		id = "tipBannerAction",
-		classes = {"tipBannerContent", "sizeS", "collapsed"},
+		classes = {"tipBannerContent", "sizeM", "collapsed"},
 		text = "",
-		color = "white",
-		fontSize = 14,
-		bold = true,
-		width = "auto",
-		height = "auto",
-		maxWidth = 150,
-		textWrap = true,
 		floating = true,
 		halign = "left",
 		valign = "center",
 		hmargin = 24,
 		--action: the {text, press} currently shown, set by _ApplyTipControls.
 		data = {},
-		styles = {
-			{
-				selectors = {"hover"},
-				color = "#ffe39a",
-				brightness = 1.1,
-			},
-			{
-				selectors = {"press"},
-				brightness = 0.7,
-			},
-		},
 		press = function(element)
 			local action = element.data.action
 			if action ~= nil then
@@ -2874,6 +2949,161 @@ function GameHud:CreateTipBanner()
 	self.tipBannerAction = actionButton
 
 	return banner
+end
+
+--Input hints: a small pill at the bottom of the screen, above the action bar,
+--reminding the player of a control that does something RIGHT NOW (e.g. "Use
+--<wheel> to fly up or down" while a flier is moving). Unlike tips it is never
+--learned: it shows every time its source says so and leaves when it stops.
+--A source registers with InputHint.Register{id, priority, text, visible}:
+--  text: the hint, where each {name} is replaced by the icon
+--        InputHint.icons[name] (e.g. "Use {wheel} to fly up or down").
+--  visible: fun(): boolean, polled ~10 times a second, so keep it cheap.
+--The highest-priority visible source wins. Stored on the InputHint global so
+--reloading this file keeps sources registered from other modules.
+InputHint = rawget(_G, "InputHint") or {}
+InputHint.sources = InputHint.sources or {}
+InputHint.icons = InputHint.icons or {}
+InputHint.icons.wheel = "phosphor/mouse-scroll-bold.png"
+InputHint.icons.middleclick = "phosphor/mouse-middle-click-bold.png"
+
+---@param spec {id: string, priority: nil|number, text: string, visible: fun(): boolean}
+function InputHint.Register(spec)
+	InputHint.sources[spec.id] = spec
+end
+
+function InputHint.Unregister(id)
+	InputHint.sources[id] = nil
+end
+
+--- The highest-priority source whose visible() is true, or nil.
+function InputHint.Current()
+	local best = nil
+	for _, spec in pairs(InputHint.sources) do
+		if best == nil or (spec.priority or 0) > (best.priority or 0) then
+			local ok, vis = pcall(spec.visible)
+			if ok and vis then
+				best = spec
+			end
+		end
+	end
+	return best
+end
+
+--- Turn a hint's text into label and icon panels, in order.
+--- @param text string
+--- @return Panel[]
+local function InputHintChildren(text)
+	local children = {}
+	local function AddLabel(s)
+		s = trim(s)
+		if s ~= "" then
+			children[#children + 1] = gui.Label{
+				classes = {"inputHintText", "inputHintPart"},
+				text = s,
+			}
+		end
+	end
+	local pos = 1
+	while true do
+		local a, b, name = string.find(text, "{(%w+)}", pos)
+		if a == nil then
+			break
+		end
+		AddLabel(string.sub(text, pos, a - 1))
+		local icon = InputHint.icons[name]
+		if icon ~= nil then
+			children[#children + 1] = gui.Panel{
+				classes = {"inputHintIcon", "inputHintPart"},
+				bgimage = icon,
+			}
+		end
+		pos = b + 1
+	end
+	AddLabel(string.sub(text, pos))
+	return children
+end
+
+--- The input hint pill (see InputHint). Polls its sources while the HUD is up.
+--- @return Panel
+function GameHud:CreateInputHintStrip()
+	local shownText = nil
+	local strip
+	strip = gui.Panel{
+		id = "inputHintStrip",
+		classes = {"inputHintStrip"},
+		floating = true,
+		interactable = false,
+		halign = "center",
+		valign = "bottom",
+		vmargin = 170,
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		hpad = 16,
+		vpad = 6,
+		borderBox = true,
+		bgimage = true,
+		bgcolor = "#000000e0",
+		cornerRadius = 14,
+
+		thinkTime = 0.1,
+		think = function(element)
+			local spec = InputHint.Current()
+			local text = spec ~= nil and spec.text or nil
+			if text == shownText then
+				return
+			end
+			shownText = text
+			if text ~= nil then
+				element.children = InputHintChildren(text)
+			end
+			element:SetClass("visible", text ~= nil)
+		end,
+
+		styles = {
+			{
+				selectors = {"inputHintStrip"},
+				opacity = 0,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintStrip", "visible"},
+				opacity = 1,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintText"},
+				width = "auto",
+				height = "auto",
+				fontSize = 16,
+				color = "white",
+				valign = "center",
+				hmargin = 3,
+			},
+			{
+				selectors = {"inputHintIcon"},
+				width = 28,
+				height = 28,
+				bgcolor = "white",
+				valign = "center",
+				hmargin = 2,
+			},
+			--A panel's opacity does not reach its children, so the text and
+			--icons fade with the pill through their own parent:visible rules.
+			{
+				selectors = {"inputHintPart"},
+				opacity = 0,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintPart", "parent:visible"},
+				opacity = 1,
+				transitionTime = 0.15,
+			},
+		},
+	}
+	return strip
 end
 
 --Set the banner buttons from a notice's controls (see Tip.RegisterNotice).
@@ -3000,7 +3230,7 @@ function GameHud:_TipFindNotice()
 end
 
 --Notice half of the driver tick. Returns true when a notice owns the
---banner this tick (shown, dismissed, or blocked by a dialog), in which case
+--banner this tick (shown or dismissed), in which case
 --the tip half must not run.
 function GameHud:_TipDriverNoticeTick()
 	local notice, noticeText, noticeControls = self:_TipFindNotice()
@@ -3019,10 +3249,13 @@ function GameHud:_TipDriverNoticeTick()
 		self._tipLastScan = nil
 	end
 
+	--Unlike tips, an open dialog does not hold a notice back: it is live game
+	--status ("Waiting for Shadow's ..."), and an open character window (a
+	--journalViewer, often covered by the maximized map) once hid it.
 	local dismissed = self:try_get("_noticeDismissed")
 	local isDismissed = dismissed ~= nil and dismissed.id == notice.id
 		and dismissed.text == noticeText
-	if isDismissed or self:_TipIsBlockedByDialog() then
+	if isDismissed then
 		if activeNotice ~= nil then
 			self:_HideNoticeBanner()
 		end

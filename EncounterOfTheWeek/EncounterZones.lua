@@ -20,6 +20,10 @@
 --    tick then adds the keyword to its own mapoverlay:shownzones preference
 --    (ClientTick), so the players see the zones striped on the map without
 --    touching the overlay menu themselves.
+--  * Partial reveals -- Tactical Preparation's first traps notch marks only a
+--    couple of the placed objects (BankPartialReveal). The zone tiles under
+--    the drawn objects are split off into their own player-visible records;
+--    the rest of each zone stays hidden.
 --
 --Document state (top level of the eotwscript document, next to initiative):
 --  data.zoneSetup = { at, entries = { { label, kind, object, objectId, zone,
@@ -28,10 +32,15 @@
 --                     original = { [zoneid] = { floorid, record } } }
 --                   -- every zone record the setup rewrote or removed, as it
 --                      was, so a test reset can put the map back.
---  data.revealZones = { [zone] = { entryName, at } }   -- banked by the clause
---  data.zonesRevealed = { [zone] = { keywordid, at, entryName,
---                         original = { [zoneid] = { floorid, record } } } }
+--  data.revealZones = { [zone] = { entryName, at, partial = nil | n } }
+--                   -- banked by the clause; partial = n marks only n of the
+--                      objects placed in those zones (pooled across every
+--                      zone banked partially), not the whole zones.
+--  data.zonesRevealed = { [zone] = { keywordid, at, entryName, partial,
+--                         original = { [zoneid] = { floorid, record } },
+--                         created = { { zoneid, floorid }, ... } } }
 --                   -- applied; clients switch their overlay on from this.
+--                      created = the records a partial reveal split off.
 --  data.revealObjects = { [name] = { name, entryName, at } }  -- banked by
 --                       "reveal the <Object> object"
 --  data.objectsRevealed = { [name] = { name, entryName, at,
@@ -72,10 +81,36 @@ function EncounterZones.FindKeyword(name)
 end
 
 --Every markup zone record of the keyword on the current map:
+--Is the tile inside the encounter's play region (EncounterOfTheWeekGame.InPlayRegion)?
+--Always true when the encounter has no region.
+function EncounterZones.InPlayRegion(x, y)
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or eotw.InPlayRegion == nil then
+        return true
+    end
+    local ok, inside = pcall(eotw.InPlayRegion, math.floor(x), math.floor(y))
+    return not ok or inside == true
+end
+
+--Does a zone record have at least one tile inside the play region?
+function EncounterZones.TouchesPlayRegion(record)
+    for _, l in ipairs(record.locs or {}) do
+        if EncounterZones.InPlayRegion(l.x, l.y) then
+            return true
+        end
+    end
+    return false
+end
+
 --{ { floor, floorid, floorIndex, zoneid, record }, ... }. Matches by keyword
 --id, with the record's keywordName as a fallback (the same heal-by-name rule
 --MapMarkup and the Start-zone lookup use). Surfaces and holes carry a
 --category and are never zones.
+--
+--An encounter bounded to a region (a series' part plays in its own corner of
+--a shared map) sees only the zones with a tile inside it, and draws only
+--those tiles (EncounterZones.InPlayRegion), so one map can carry every
+--part's Trap and entry zones.
 function EncounterZones.ZoneRecords(name)
     local map = game.currentMap
     if map == nil then
@@ -95,7 +130,8 @@ function EncounterZones.ZoneRecords(name)
             for zoneid, record in pairs(zones) do
                 if type(record) == "table" and record.category == nil then
                     local kn = lower(record.keywordName)
-                    if (keywordid ~= nil and record.keyword == keywordid) or kn == name or kn == name .. "s" then
+                    if ((keywordid ~= nil and record.keyword == keywordid) or kn == name or kn == name .. "s")
+                        and EncounterZones.TouchesPlayRegion(record) then
                         result[#result + 1] = { floor = floor, floorid = floorid, floorIndex = floorIndex, zoneid = zoneid, record = record }
                     end
                 end
@@ -198,7 +234,9 @@ local function PlaceObjects(instruction, original)
     local tiles = {}
     for zi, z in ipairs(zones) do
         for li, l in ipairs(z.record.locs or {}) do
-            tiles[#tiles + 1] = { zone = zi, index = li, x = math.floor(l.x), y = math.floor(l.y) }
+            if EncounterZones.InPlayRegion(l.x, l.y) then
+                tiles[#tiles + 1] = { zone = zi, index = li, x = math.floor(l.x), y = math.floor(l.y) }
+            end
         end
     end
     if #tiles == 0 then
@@ -278,10 +316,22 @@ function EncounterZones.RunEncounterSetup(beat)
                     --nothing to place: GatherCombatSides reads these when
                     --combat starts.
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "bystanders", text = instruction.text }
+                elseif instruction.kind == "aibehavior" then
+                    --nothing to set up: the Monster AI asks the script as it
+                    --plans (the "eotw" behavior source in EncounterOfTheWeek.lua).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "aibehavior", text = instruction.text }
                 elseif instruction.kind == "victory" then
                     --nothing to set up: the host's outcome check reads it
                     --(EncounterReinforcements.ClearMapVictory).
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "victory", text = instruction.text }
+                elseif instruction.kind == "parallax" then
+                    --nothing to set up: the host keeps the setting applied
+                    --(EnforceStrictRules in EncounterOfTheWeek.lua).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "parallax", text = instruction.text }
+                elseif instruction.kind == "herolevel" then
+                    --nothing to set up: the monster spawn reads it
+                    --(EncounterOfTheWeekGame.LevelDelta).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "herolevel", text = instruction.text }
                 else
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "unknown", text = instruction.text, error = "unrecognized instruction" }
                     printf("EotW zones: setup '%s' is not understood: %s", tostring(instruction.label), tostring(instruction.text))
@@ -308,6 +358,96 @@ function EncounterZones.BankReveal(doc, zone, entryName)
     doc.data.revealZones[zone] = { entryName = entryName, at = dmhub.serverTime }
 end
 
+--Bank a reveal of only `count` of the objects the setup places in `zones`
+--(a list of zone names), drawn at random when the reveal is applied. Called
+--inside an open change on the doc. A full reveal already banked for a zone
+--is left alone: it shows more.
+function EncounterZones.BankPartialReveal(doc, zones, count, entryName)
+    doc.data.revealZones = doc.data.revealZones or {}
+    for _, zone in ipairs(zones) do
+        local existing = doc.data.revealZones[zone]
+        if existing == nil or existing.partial ~= nil then
+            doc.data.revealZones[zone] = { entryName = entryName, at = dmhub.serverTime, partial = count }
+        end
+    end
+end
+
+local function SameTile(loc, x, y)
+    return math.floor(loc.x) == math.floor(x) and math.floor(loc.y) == math.floor(y)
+end
+
+--Host, under the elevation: mark `count` random objects of the ones the
+--setup placed in the partially banked zones. Each drawn object's tile is
+--split out of its zone record into a new record of its own that the players
+--can see. Returns { [zone] = revealed info } for the document.
+local function ApplyPartialReveals(doc, partial)
+    local count = 0
+    for _, info in pairs(partial) do
+        count = math.max(count, tonumber(info.partial) or 0)
+    end
+    local candidates = {}
+    local setup = doc.data.zoneSetup
+    for _, entry in ipairs((type(setup) == "table" and setup.entries) or {}) do
+        if entry.kind == "placeobjects" and entry.zone ~= nil and partial[entry.zone] ~= nil then
+            for _, placed in ipairs(entry.placed or {}) do
+                candidates[#candidates + 1] = { zone = entry.zone, floorid = placed.floorid, x = placed.x, y = placed.y }
+            end
+        end
+    end
+    local chosen = {}
+    for i = 1, math.min(count, #candidates) do
+        local pick = math.random(i, #candidates)
+        candidates[i], candidates[pick] = candidates[pick], candidates[i]
+        chosen[#chosen + 1] = candidates[i]
+    end
+
+    local revealed = {}
+    for zone, info in pairs(partial) do
+        revealed[zone] = { keywordid = EncounterZones.FindKeyword(zone), at = dmhub.serverTime, entryName = info.entryName,
+            partial = info.partial, original = {}, created = {} }
+    end
+    for _, tile in ipairs(chosen) do
+        local out = revealed[tile.zone]
+        local found = false
+        for _, z in ipairs(EncounterZones.ZoneRecords(tile.zone)) do
+            if z.floorid == tile.floorid and z.record.playerVisible ~= true then
+                local picked, rest = {}, {}
+                for _, l in ipairs(z.record.locs or {}) do
+                    if SameTile(l, tile.x, tile.y) then
+                        picked[#picked + 1] = { x = l.x, y = l.y }
+                    else
+                        rest[#rest + 1] = { x = l.x, y = l.y }
+                    end
+                end
+                if #picked > 0 then
+                    found = true
+                    out.original[z.zoneid] = out.original[z.zoneid] or { floorid = z.floorid, record = CopyRecord(z.record) }
+                    local shown = CopyRecord(z.record)
+                    shown.playerVisible = true
+                    if #rest == 0 then
+                        --the record is just this tile: show it as it is.
+                        z.floor:SetMarkupZone(z.zoneid, shown)
+                    else
+                        local hidden = CopyRecord(z.record)
+                        hidden.locs = rest
+                        z.floor:SetMarkupZone(z.zoneid, hidden)
+                        shown.locs = picked
+                        local newid = dmhub.GenerateGuid()
+                        z.floor:SetMarkupZone(newid, shown)
+                        out.created[#out.created + 1] = { zoneid = newid, floorid = z.floorid }
+                    end
+                    break
+                end
+            end
+        end
+        if not found then
+            printf("EotW zones: no hidden %s zone under the object at (%s, %s); not marked", tostring(tile.zone), tostring(tile.x), tostring(tile.y))
+        end
+    end
+    printf("EotW zones: marked %d of %d placed object(s) in partially revealed zones", #chosen, #candidates)
+    return revealed
+end
+
 --Host: make every banked zone type visible to the players. Idempotent --
 --an applied reveal moves from revealZones to zonesRevealed.
 function EncounterZones.ApplyPendingReveals()
@@ -319,7 +459,21 @@ function EncounterZones.ApplyPendingReveals()
     local revealed = {}
     ElevateToHostPermissions()
     local ok, err = pcall(function()
+        local partial = {}
         for zone, info in pairs(pending) do
+            if info.partial ~= nil then
+                partial[zone] = info
+            end
+        end
+        if next(partial) ~= nil then
+            for zone, info in pairs(ApplyPartialReveals(doc, partial)) do
+                revealed[zone] = info
+            end
+        end
+        for zone, info in pairs(pending) do
+            if info.partial ~= nil then
+                goto continue
+            end
             local keywordid = EncounterZones.FindKeyword(zone)
             local original = {}
             local count = 0
@@ -334,6 +488,7 @@ function EncounterZones.ApplyPendingReveals()
             end
             revealed[zone] = { keywordid = keywordid, at = dmhub.serverTime, entryName = info.entryName, original = original }
             printf("EotW zones: revealed %d %s zone(s) to the players", count, tostring(zone))
+            ::continue::
         end
     end)
     DropHostPermissions()
@@ -450,9 +605,51 @@ local function ShowZoneType(keywordid)
     return true
 end
 
+--The keyword ids the map overlay files a zone type's zones under, for a
+--revealed zone name. The overlay's filter (mapoverlay:shownzones) is keyed
+--by the id it resolved for each record, and that is not always a keyword in
+--this game's table: a module that paints zones with a zone type it does not
+--ship (4MJ3HMCC: the official module's "Trap") leaves the records on a dead
+--id, which the overlay keeps using, with the record's stored name. So ask the
+--overlay (MapMarkup.GetZoneTypesOnMap) which ids carry the name, plus the
+--table's own keyword of that name. A player only gets the types it can see,
+--so this is empty until the host's playerVisible writes arrive.
+local function RevealedZoneTypeIds(zone, info)
+    local ids = {}
+    local seen = {}
+    local function Add(id)
+        if type(id) == "string" and id ~= "" and not seen[id] then
+            seen[id] = true
+            ids[#ids + 1] = id
+        end
+    end
+    Add(info.keywordid)
+    Add(EncounterZones.FindKeyword(zone))
+    local markup = rawget(_G, "MapMarkup")
+    if markup ~= nil and markup.GetZoneTypesOnMap ~= nil then
+        local ok, types = pcall(markup.GetZoneTypesOnMap)
+        if ok and type(types) == "table" then
+            local name = lower(zone)
+            for _, t in ipairs(types) do
+                local n = lower(t.name)
+                if n == name or n .. "s" == name or n == name .. "s" then
+                    Add(t.keywordid)
+                end
+            end
+        end
+    end
+    return ids
+end
+
 --each reveal stamp is applied to this client's preference once, so a user
---who turns the type back off afterwards is not fought.
+--who turns the type back off afterwards is not fought. Keyed by zone name;
+--a stamp only counts as applied once some id was found for it, since the
+--zone records can arrive a tick after the document.
 local m_appliedReveals = {}
+--{ [zone] = { stamp, misses } }: ticks a reveal has found no id, so a reveal
+--that can never be shown says so once instead of failing silently.
+local m_revealMisses = {}
+local REVEAL_MISSES_BEFORE_WARNING = 5
 
 function EncounterZones.ClientTick()
     local revealed = nil
@@ -461,12 +658,31 @@ function EncounterZones.ClientTick()
         return
     end
     for zone, info in pairs(revealed) do
-        local keywordid = info.keywordid or EncounterZones.FindKeyword(zone)
         local stamp = tostring(info.at)
-        if keywordid ~= nil and m_appliedReveals[keywordid] ~= stamp then
-            m_appliedReveals[keywordid] = stamp
-            if ShowZoneType(keywordid) then
-                printf("EotW zones: showing %s zones on the map overlay", tostring(zone))
+        if m_appliedReveals[zone] ~= stamp then
+            local ids = RevealedZoneTypeIds(zone, info)
+            if #ids > 0 then
+                m_appliedReveals[zone] = stamp
+                m_revealMisses[zone] = nil
+                local changed = false
+                for _, id in ipairs(ids) do
+                    if ShowZoneType(id) then
+                        changed = true
+                    end
+                end
+                if changed then
+                    printf("EotW zones: showing %s zones on the map overlay (%s)", tostring(zone), table.concat(ids, ", "))
+                end
+            else
+                local misses = m_revealMisses[zone]
+                if misses == nil or misses.stamp ~= stamp then
+                    misses = { stamp = stamp, misses = 0 }
+                    m_revealMisses[zone] = misses
+                end
+                misses.misses = misses.misses + 1
+                if misses.misses == REVEAL_MISSES_BEFORE_WARNING then
+                    printf("EotW zones: cannot show the revealed %s zones: no zone type of that name on the map overlay", tostring(zone))
+                end
             end
         end
     end
@@ -511,6 +727,13 @@ function EncounterZones.ResetMap(doc)
                     end
                 end
             end
+            --the records a partial reveal split off are not in any original.
+            for _, created in ipairs(info.created or {}) do
+                local floor = FloorById(created.floorid)
+                if floor ~= nil then
+                    floor:RemoveMarkupZone(created.zoneid)
+                end
+            end
         end
     end
     local objectsRevealed = doc.data.objectsRevealed
@@ -526,6 +749,7 @@ function EncounterZones.ResetMap(doc)
         end
     end
     m_appliedReveals = {}
+    m_revealMisses = {}
 end
 
 function EncounterZones.ClearDocState(doc)

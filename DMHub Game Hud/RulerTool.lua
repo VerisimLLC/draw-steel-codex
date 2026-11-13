@@ -121,6 +121,41 @@ local function CreateRulerPanel()
 		}
 	end
 
+	--What one grid cell measures on this map, e.g. "Scale: 1 hex = 6 miles" on a
+	--World Map (Map Settings > Grid) or "Scale: 1 tile = 5 feet" on a battlemap.
+	local function ScaleText()
+		local cell = cond(MeasurementSystem.IsHexMap(), "hex", "tile")
+		local world = MeasurementSystem.WorldMapScale()
+		if world ~= nil then
+			return string.format("Scale: 1 %s = %s", cell, MeasurementSystem.WorldDistanceString(1, world))
+		end
+		if MeasurementSystem.CurrentSystem().value == "Tiles" then
+			return ""
+		end
+		return string.format("Scale: 1 %s = %s", cell, MeasurementSystem.NativeToDisplayStringWithUnits(dmhub.unitsPerSquare))
+	end
+
+	local function CreateScaleLabel()
+		local function Sync(element)
+			local text = ScaleText()
+			element.text = text
+			element:SetClass("collapsed", text == "")
+		end
+		return gui.Label{
+			classes = {"formStacked", "sizeXs"},
+			width = "98%",
+			height = "auto",
+			tmargin = 2,
+			text = ScaleText(),
+			multimonitor = {"map:maptype", "map:worldunit", "map:worldunitname", "map:worldtilesize", "maplayout:tiletype", "maplayout:stagger", "measurementsystem"},
+			create = Sync,
+			monitor = Sync,
+			--polled as well: switching maps changes every map setting at once.
+			thinkTime = 1,
+			think = Sync,
+		}
+	end
+
 	--A conditional setting row that keeps its height when hidden.
 	--
 	--CreateSettingsEditor collapses a row whose `visible` predicate is false
@@ -343,9 +378,10 @@ local function CreateRulerPanel()
 
 		gui.MCDMDivider{},
 
-		--2. Snap (+ Distances, which only applies while snapping).
+		--2. Snap (+ Distances, which only applies while snapping), and the map's scale.
 		Setting("measure:snap"),
 		ReservedRow(Setting("measure:distances")),
+		CreateScaleLabel(),
 
 		gui.MCDMDivider{},
 
@@ -389,10 +425,37 @@ DockablePanel.Register{
 }
 
 
+--The measuring tool's distance readout (MeasureTool.cs calls this every frame
+--while measuring). It sits up-right of the cursor's tile by default. Near the
+--top or right edge of the usable map area there is no room there, and the
+--engine's clamp would shove it back over the cursor -- where the map tooltip's
+--cursor dodge fades it to near-invisible, so the distance seemed to vanish.
+--Flip to the side that has room instead.
 function GameHud:ShowTooltipNearTile(text, loc)
+	local halign, valign = 'right', 'top'
+
+	local bounds = dmhub.cameraUsableBounds
+	local screenDims = dmhub.screenDimensions
+	if bounds ~= nil and dmhub.cameraZoom ~= nil and screenDims ~= nil and screenDims.y > 0 then
+		local mouse = dmhub.GetMouseWorldPoint()
+		local worldPerPixel = (dmhub.cameraZoom*2) / screenDims.y
+		--rough OVER-estimate of the two-line readout's size, plus the tile the
+		--tooltip is anchored outside of. Over-estimating only flips a little early.
+		local needW = 160*worldPerPixel + 1
+		local needH = 80*worldPerPixel + 1
+		if bounds.x2 - mouse.x < needW then
+			halign = 'left'
+		end
+		if bounds.y2 - mouse.y < needH then
+			valign = 'bottom'
+		end
+	end
+
 	self.dialog.sheet:FireEvent("tiletooltip", {
 		loc = loc,
 		text = text,
+		halign = halign,
+		valign = valign,
 	})
 
 end

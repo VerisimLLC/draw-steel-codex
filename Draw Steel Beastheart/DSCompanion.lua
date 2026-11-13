@@ -59,6 +59,11 @@ local COMPANION_APPEARANCE_FIELDS = {
     "popoutScale",
     "tokenScale",
     "hideShadow",
+    --the look's card framing and Pop out choice (engines that have them;
+    --older ones read nil, and a nil is never written back).
+    "cardZoom",
+    "cardOffset",
+    "popoutMode",
 }
 
 --- The look fields as they currently stand on a live companion token.

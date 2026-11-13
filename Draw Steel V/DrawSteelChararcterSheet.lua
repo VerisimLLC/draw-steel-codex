@@ -583,6 +583,10 @@ local function CreateAbilityPanel()
                         delete = function(element)
                             CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
                         end,
+                        deleteConfirm = {
+                            title = "Delete Ability",
+                            message = string.format("Delete %s? This can't be undone.", ability.name),
+                        },
                     })
                 end,
             },
@@ -715,6 +719,27 @@ local function CreateTriggeredAbilityPanel()
     return resultPanel
 end
 
+-- Called after an ability is added to a hero from the sheet. A Companion-keyword
+-- ability is used by the companion, not the hero, so say so and point to where it is listed.
+local function WarnIfCompanionAbility(creature, ability)
+    if not ability:has_key("keywords") or not ability:HasKeyword("Companion") then
+        return
+    end
+
+    -- Only warn when it really is hidden
+    local guid = ability:try_get("guid")
+    for _, a in ipairs(creature:GetActivatedAbilities {}) do
+        if a:try_get("guid") == guid then
+            return
+        end
+    end
+
+    gui.ModalMessage {
+        title = "Companion Ability",
+        message = string.format("%s has the Companion keyword. It does not appear with your own abilities - you can find it, edit it or delete it under Companion Abilities.", ability.name),
+    }
+end
+
 local function CreateAbilityListPanel()
     local resultPanel
 
@@ -795,11 +820,31 @@ local function CreateAbilityListPanel()
         },
     }
 
+    -- Companion-keyword abilities are hidden from the normal lists (they belong
+    -- to the beastheart's companion), so they get their own section here.
+    -- Without it, ones stored on the hero could never be edited or deleted.
+    local m_companionAbilityPanels = {}
+    local m_companionLabel = gui.Label {
+        classes = { "submenuHeading", "collapsed" },
+        data = { ord = "companion" },
+        width = "100%",
+        text = "Companion Abilities",
+        press = function(element)
+            element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
+            resultPanel:FireEvent("refreshToken")
+        end,
+        gui.CollapseArrow {
+            halign = "right",
+            valign = "center",
+        },
+    }
+
     m_mainActionsLabel:SetClassTree("collapseSet", true)
     m_maneuversLabel:SetClassTree("collapseSet", true)
     m_triggersLabel:SetClassTree("collapseSet", true)
     m_otherActionsLabel:SetClassTree("collapseSet", true)
     m_villainActionsLabel:SetClassTree("collapseSet", true)
+    m_companionLabel:SetClassTree("collapseSet", true)
 
     local function IsVillainAction(ability)
         local v = ability:try_get("villainAction")
@@ -933,6 +978,7 @@ local function CreateAbilityListPanel()
         m_triggersLabel,
         m_otherActionsLabel,
         m_villainActionsLabel,
+        m_companionLabel,
         m_villainSlotsPanel,
         styles = buildActionMenuStyles(),
         --The malice/heroic cost diamond on each ability row deliberately sticks
@@ -995,6 +1041,28 @@ local function CreateAbilityListPanel()
                 showAbilities[g_villainActionId] = true
             end
 
+            -- Companion abilities: the Companion-keyword ones the default
+            -- query dropped. Some characters already list them normally (the
+            -- usecompanionabilities attribute), so skip any already shown.
+            local shownGuids = {}
+            for _, ability in ipairs(abilities) do
+                shownGuids[ability:try_get("guid", "")] = true
+            end
+            local companionAbilities = {}
+            for _, ability in ipairs(c:GetActivatedAbilities { excludeKeywords = {} }) do
+                if ability:has_key("keywords") and ability:HasKeyword("Companion")
+                    and not shownGuids[ability:try_get("guid", "")] then
+                    companionAbilities[#companionAbilities + 1] = ability
+                end
+            end
+            m_companionLabel:SetClass("collapsed", #companionAbilities == 0)
+            if m_companionLabel:HasClass("collapseSet") then
+                companionAbilities = {}
+            end
+            table.sort(companionAbilities, function(a, b)
+                return a.name < b.name
+            end)
+
             local filteredAbilities = {}
             for _, ability in ipairs(abilities) do
                 local actionResource = GetActionId(ability)
@@ -1055,8 +1123,18 @@ local function CreateAbilityListPanel()
                 children[#children + 1] = m_triggeredAbilityPanels[i]
             end
 
+            while #m_companionAbilityPanels < #companionAbilities do
+                m_companionAbilityPanels[#m_companionAbilityPanels + 1] = CreateAbilityPanel()
+            end
+
+            for i = 1, #companionAbilities do
+                m_companionAbilityPanels[i]:FireEventTree("ability", companionAbilities[i], c)
+                m_companionAbilityPanels[i].data.ord = "companion"
+                children[#children + 1] = m_companionAbilityPanels[i]
+            end
+
             --now insert the headings at the right locations.
-            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel, m_villainActionsLabel }
+            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel, m_villainActionsLabel, m_companionLabel }
             local j = 1
             while #headings > 0 and j <= #children do
                 for n, heading in ipairs(headings) do
@@ -1097,6 +1175,11 @@ local function CreateAbilityListPanel()
             for i = #triggeredAbilities + 1, #m_triggeredAbilityPanels do
                 m_triggeredAbilityPanels[i]:SetClass("collapsed", true)
                 children[#children + 1] = m_triggeredAbilityPanels[i]
+            end
+
+            for i = #companionAbilities + 1, #m_companionAbilityPanels do
+                m_companionAbilityPanels[i]:SetClass("collapsed", true)
+                children[#children + 1] = m_companionAbilityPanels[i]
             end
 
             element.children = children
@@ -5232,6 +5315,7 @@ local function DSCharSheet()
                                     CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(
                                         newAbility)
                                     CharacterSheet.instance:FireEvent("refreshAll")
+                                    WarnIfCompanionAbility(CharacterSheet.instance.data.info.token.properties, newAbility)
                                 end,
                                 cancel = function(element)
                                 end,
@@ -5272,6 +5356,7 @@ local function DSCharSheet()
                             CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(
                                 clipboardItem)
                             CharacterSheet.instance:FireEvent("refreshAll")
+                            WarnIfCompanionAbility(CharacterSheet.instance.data.info.token.properties, clipboardItem)
                         end,
 
                         refreshToken = function(element, info)
@@ -6522,7 +6607,7 @@ local function DSCharSheet()
 
                                     change = function(element)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        creature:SetCurrentHitpoints(element.text)
+                                        creature:SetStaminaDirect(element.text)
                                         element.data.previous_value = nil --don't flash green/red on an edit.
                                         CharacterSheet.instance:FireEvent('refreshAll')
                                     end,
@@ -7255,7 +7340,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                         width = "80%",
                         height = 20,
                         flow = "horizontal",
-                        text = lang.name,
+                        text = lang:DisplayName(),
+                        hover = Language.TooltipHover(lang),
                         textAlignment = "left",
                         halign = "center",
 
@@ -7297,7 +7383,7 @@ local function CharacterSheetEditLanguagesPopup(element)
                 if innateLanguages[k] == nil then
                     options[#options + 1] = {
                         id = k,
-                        text = string.format("%s (%s)", v.name, v.speakers),
+                        text = v:DisplayNameWithDetail(),
                     }
                 end
             end
@@ -7308,13 +7394,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                 text = "Add Language...",
             })
 
-            if creature:try_get("customInnateLanguage") == nil then
-                options[#options + 1] = {
-                    id = "custom",
-                    text = "Custom Language...",
-                }
-            end
-
+            --No "Custom Language..." entry: nothing in Draw Steel names or reads
+            --customInnateLanguage (only the 5e sheet does), so it saved nothing.
             element.options = options
 
             element.idChosen = "none"
@@ -7323,11 +7404,7 @@ local function CharacterSheetEditLanguagesPopup(element)
         change = function(element)
             ---@cast element Dropdown
             if element.idChosen ~= "none" then
-                if element.idChosen == "custom" then
-                    creature.customInnateLanguage = ""
-                else
-                    creature:get_or_add("innateLanguages", {})[element.idChosen] = true
-                end
+                creature:get_or_add("innateLanguages", {})[element.idChosen] = true
                 resultPanel:FireEventTree("refreshPanel")
                 CharacterSheet.instance:FireEvent('refreshAll')
             end
@@ -7423,12 +7500,7 @@ function CharSheet.LanguagesPanel()
                     for langid, _ in pairs(creature:LanguagesKnown()) do
                         local lang = languagesTable[langid]
                         if lang ~= nil then
-                            local text = lang.name
-                            if trim(lang.speakers) ~= "" then
-                                text = text .. " (" .. lang.speakers .. ")"
-                            end
-
-                            languages[#languages + 1] = text
+                            languages[#languages + 1] = lang:DisplayNameWithDetail()
                         end
                     end
 
@@ -7598,12 +7670,7 @@ function CharSheet.KitPanel()
                         classes = { "valueLabel" },
                         refreshKit = function(element, info, kit)
                             print("KIT::", json(kit))
-                            local weapons = kit.weapons
-                            local weaponItems = {}
-                            for w, _ in pairs(weapons) do
-                                weaponItems[#weaponItems + 1] = w
-                            end
-                            table.sort(weaponItems)
+                            local weaponItems = kit:Weapons()
 
                             if #weaponItems == 0 then
                                 element.text = "None"
@@ -8919,7 +8986,23 @@ local function FeaturesIndexPanel()
                 c.characterFeatures = items
                 element.popup = nil
                 CharacterSheet.instance:FireEvent("refreshAll")
-                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
+                local editor = feature:PopupEditor{
+                    commit = CommitCustomFeature,
+                    --The row was added so the editor had something to edit;
+                    --cancelling the new feature takes it back out.
+                    cancel = function(cancelled)
+                        local creature = CharacterSheet.instance.data.info.token.properties
+                        local list = creature:try_get("characterFeatures", {})
+                        local guid = cancelled:try_get("guid")
+                        for i = #list, 1, -1 do
+                            if list[i] == cancelled or (guid ~= nil and list[i]:try_get("guid") == guid) then
+                                table.remove(list, i)
+                            end
+                        end
+                        creature.characterFeatures = list
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                }
                 editor.data.notifyElement = resultPanel
                 CharacterSheet.instance:AddChild(editor)
             end,

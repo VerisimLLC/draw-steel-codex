@@ -49,9 +49,9 @@
 MapFloorLua = {}
 
 --- AdjustParallaxPositionOnGround
---- @param x? any
---- @param y? any
---- @return any
+--- @param x number
+--- @param y number
+--- @return Vector2
 function MapFloorLua:AdjustParallaxPositionOnGround(x, y) end
 
 --- HasObject
@@ -137,6 +137,16 @@ function MapFloorLua:SpawnObjectLocal(objectid, options) end
 --- @param loc? any
 --- @return number
 function MapFloorLua:GetAltitudeAtLoc(loc) end
+
+--- The map water level at a tile of this floor: nil when it is dry (or this floor has no water level), else {state = 'deep'|'shallow', depth = tiles of water above the ground, platform or solid top}. Deep water (depth 1 or more) is swimming water: creatures float at its surface and may dive to the bed. Shallow water is difficult terrain (keyword 'Shallow Water') for creatures without a swim speed. Painted Water terrain and water zones are not reported here -- use dmhub.GetTileRulesAtLoc for 'is this water at all'.
+--- @param loc Loc
+--- @return nil|{state: 'deep'|'shallow', depth: number}
+function MapFloorLua:GetWaterAtLoc(loc) end
+
+--- The ground under the water at a tile of this floor, ignoring the map water level: the altitude a diver can swim down to. Equals the ordinary ground altitude where there is no deep water.
+--- @param loc Loc
+--- @return number
+function MapFloorLua:GetBedAltitudeAtLoc(loc) end
 
 --- SampleHeightmapAt
 --- @param xv? any

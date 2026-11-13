@@ -2226,7 +2226,7 @@ end
 
 
 --May THIS user have this panel at all? devonly panels need dev mode, dmonly
---panels need the Director.
+--panels need the Director, hostonly panels the Director or a player host.
 --
 --This has to be asked everywhere a panel is instantiated, not just where the
 --Panels menu is built. It previously guarded only the menu, so a player who
@@ -2241,6 +2241,10 @@ end
 --same flag, so if it were unresolved the wrong dock config would load
 --wholesale. Player and Director layouts are separate settings, so a panel
 --dropped from a player's layout can never cost a Director theirs.
+local function CustomInterfaceSuppresses(name)
+	return GameHud.CustomInterfaceSuppressesPanel(name) == true
+end
+
 local PanelPermittedForUser = function(p)
 	if p == nil then
 		--unknown identifier (a mod that is not loaded): leave it to the
@@ -2257,13 +2261,21 @@ local PanelPermittedForUser = function(p)
 	if p.dmonly and not GameHud.DirectorUIVisible() then
 		return false
 	end
+	--hostonly: the Director's UI, or the host of a game with no Director, who
+	--holds the Director's tools there (dmhub.playerHostMode).
+	if p.hostonly and not (GameHud.DirectorUIVisible() or dmhub.playerHostMode) then
+		return false
+	end
 	--a mod-enforced custom interface can suppress panels by name
 	--(GameHud.RegisterCustomInterface); this gate covers every discovery
 	--surface that respects registrations -- menus, toolbar, rail, search.
-	local suppressed = false
-	pcall(function() suppressed = p.name ~= nil and GameHud.CustomInterfaceSuppressesPanel(p.name) == true end)
-	if suppressed then
-		return false
+	--(pcall of a named function, not a closure: the icon rails run this per panel
+	--several times a second.)
+	if p.name ~= nil then
+		local ok, suppressed = pcall(CustomInterfaceSuppresses, p.name)
+		if ok and suppressed then
+			return false
+		end
 	end
 	return true
 end

@@ -165,7 +165,6 @@ function ExecuteGoblinScript(formula, symbols, defaultValue, contextMessage)
     if fn == nil then
         local out = {}
         fn = dmhub.CompileGoblinScriptDeterministic(formula, out)
-        print("GoblinScript:: Compiled formula", formula, "becomes", out)
         if out.error then
             print("GoblinScript: Error in formula", formula, "error:", out.error)
         end

@@ -133,16 +133,19 @@ end
 --- Parses the item's project goal to determine quantity, which can be as complex as
 --- `45 (yields 1d3 darts, or three darts if crafted by a shadow)`.
 --- @param project DTProject The project whose completion generated the item
+--- @return boolean granted True when an item was given
 function DTBusinessRules.GiveItemToCharacter(project)
-    if not project then return end
+    if not project then return false end
 
     local itemId = project:GetItemID()
     local tokenId = project:GetOwnerID()
-    if itemId == nil or #itemId == 0 or tokenId == nil or #tokenId == 0 then return end
+    if itemId == nil or #itemId == 0 or tokenId == nil or #tokenId == 0 then return false end
 
     local item = dmhub.GetTableVisible(equipment.tableName)[itemId]
     if item then
-        local token = dmhub.GetTokenById(tokenId)
+        -- GetCharacterById finds the owner on any map; GetTokenById only finds
+        -- tokens on the loaded map, so an off-map owner silently got nothing.
+        local token = dmhub.GetCharacterById(tokenId)
         if token and token.properties then
             local qty = 1
 
@@ -171,15 +174,28 @@ function DTBusinessRules.GiveItemToCharacter(project)
                 end
             end
 
-            token:ModifyProperties {
-                description = "Grant Item from Crafting",
-                undoable = false,
-                execute = function()
-                    token.properties:GiveItem(itemId, qty)
-                end
-            }
+            -- Callers are inside a write of the creature holding the project.
+            -- When that is this token's creature, give the item in the same
+            -- write, so the item and the project's record of it save together.
+            -- The components the craft used go in the same write as the item.
+            local downtimeInfo = token.properties:GetDowntimeInfo()
+            if downtimeInfo ~= nil and rawequal(downtimeInfo:GetProject(project:GetID()), project) then
+                token.properties:GiveItem(itemId, qty)
+                DTBusinessRules.TakeCraftingComponents(token.properties, itemId)
+            else
+                token:ModifyProperties {
+                    description = "Grant Item from Crafting",
+                    undoable = false,
+                    execute = function()
+                        token.properties:GiveItem(itemId, qty)
+                        DTBusinessRules.TakeCraftingComponents(token.properties, itemId)
+                    end
+                }
+            end
+            return true
         end
     end
+    return false
 end
 
 --- Iterates through all hero tokens in the game, calling a callback for each
@@ -285,6 +301,84 @@ function DTBusinessRules.ExtractLanguagesToIds(text)
     return langIds
 end
 
+--- Can a project craft this item? The book's four crafting fields must all be
+--- filled (the source dialog, the Hero sheet's New project and the
+--- Inventory's craft link share this rule).
+--- @param item table a tbl_Gear row
+--- @return boolean
+function DTBusinessRules.IsCraftable(item)
+    local function Filled(field)
+        local value = item:try_get(field)
+        return type(value) == "string" and #value > 0
+    end
+    local chars = item:try_get("projectRollCharacteristic")
+    return Filled("projectGoal") and Filled("projectSource") and Filled("itemPrerequisite")
+        and type(chars) == "table" and next(chars) ~= nil
+end
+
+--- An item's crafting setup: its recipe's id and its components, or nil when
+--- the item does not name both.
+--- @param itemid nil|string a tbl_Gear item
+--- @return nil|string recipe
+--- @return nil|{itemid: string, quantity: number}[] components
+local function CraftingSetup(itemid)
+    local item = itemid ~= nil and (dmhub.GetTable(equipment.tableName) or {})[itemid] or nil
+    if item == nil then
+        return nil, nil
+    end
+    local recipe = item:try_get("craftRecipe")
+    local components = item:try_get("craftComponents")
+    if type(recipe) ~= "string" or recipe == "" or type(components) ~= "table" or #components == 0 then
+        return nil, nil
+    end
+    return recipe, components
+end
+
+--- Does a creature hold everything crafting an item takes: the item's recipe
+--- and each of its components, at its quantity, in its own inventory
+--- (equipped counts)? False when the item names no recipe or no components.
+--- @param creature creature the Hero starting the project
+--- @param itemid nil|string the tbl_Gear item the project crafts
+--- @return boolean
+function DTBusinessRules.HasCraftingMaterials(creature, itemid)
+    local recipe, components = CraftingSetup(itemid)
+    if creature == nil or recipe == nil or components == nil then
+        return false
+    end
+    if creature:GetItemQuantityIncludingEquipment(recipe) < 1 then
+        return false
+    end
+    for _, entry in ipairs(components) do
+        if creature:GetItemQuantityIncludingEquipment(entry.itemid) < (entry.quantity or 1) then
+            return false
+        end
+    end
+    return true
+end
+
+--- Takes an item's crafting components out of a creature's carried inventory,
+--- all of them or none: nothing goes unless every component is there at its
+--- quantity. The recipe is not involved. Nothing happens for an item that does
+--- not name both a recipe and components. Call inside a write of the creature.
+--- @param creature creature the character receiving the crafted item
+--- @param itemid string the tbl_Gear item crafted
+--- @return boolean taken
+function DTBusinessRules.TakeCraftingComponents(creature, itemid)
+    local _, components = CraftingSetup(itemid)
+    if creature == nil or components == nil then
+        return false
+    end
+    for _, entry in ipairs(components) do
+        if creature:GetItemQuantity(entry.itemid) < (entry.quantity or 1) then
+            return false
+        end
+    end
+    for _, entry in ipairs(components) do
+        creature:GiveItem(entry.itemid, -(entry.quantity or 1))
+    end
+    return true
+end
+
 --- Applies a selected source (crafting item or downtime activity) onto a project,
 --- populating the project's fields. The caller is responsible for wrapping this in
 --- token:ModifyProperties and for refreshing the UI afterward.
@@ -297,6 +391,8 @@ function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
         return nil
     end
 
+    -- Picking an item this project already gave does not give it again
+    -- (see DTProject:HasGivenItem).
     if sourceType == "crafting" then
         local item = dmhub.GetTable(equipment.tableName)[selectedId]
         if item then

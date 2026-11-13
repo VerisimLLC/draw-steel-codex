@@ -37,7 +37,24 @@ up `.luarc.json`. Problems show as you type and in the Problems panel. Check the
 extension's LuaLS version matches `LUALS_VERSION` in the workflow; a different version can
 report different problems.
 
-**From the command line**, any OS, with a [LuaLS release](https://github.com/LuaLS/lua-language-server/releases)
+**Just the files you changed**, in about a minute, from the codex folder (Python 3):
+
+```bash
+python tools/typing/check.py                  # the .lua files git says you changed
+python tools/typing/check.py "Draw Steel V/FollowersTab.lua"   # or name them
+python tools/typing/check.py --staged         # what your next commit holds
+```
+
+It finds LuaLS on its own (on `PATH`, `$LUALS`, or inside the VS Code Lua extension;
+`--server <path>` otherwise), loads the rest of the codex so nothing shows as undefined,
+and prints each problem as `path:line:col: code: message`. Exit 1 means there are
+problems. It cannot see an edit that breaks a file you did *not* change; the full run
+below (`python tools/typing/check.py --all` runs it for you) or CI does.
+
+**With Claude Code**, `/typecheck` runs all of this -- the generators below, the check,
+and fixes -- and reports what it changed. It takes file paths, `staged` or `all`.
+
+**The whole codex from the command line**, any OS, with a [LuaLS release](https://github.com/LuaLS/lua-language-server/releases)
 (the one CI uses is named in the workflow), run from the codex folder:
 
 ```bash
@@ -48,9 +65,9 @@ It exits 1 and lists every problem when there is any. `--num_threads` is how man
 processes share the work; each holds the whole codex in memory (1.7-2.5 GB), so use fewer
 on a smaller machine. A full run takes about four minutes on four workers.
 
-**DMHub developers** with the parent repository also have `tools/lua-typing/check.ps1`
-(`-Changed` for just your edited files in under a minute), a git hook that runs it on
-commit, and the full reference, `LUA_TYPING_REFERENCE.md`.
+Nothing runs it on commit for you; a pull request shows CI's answer before merge.
+**DMHub developers** with the parent repository also have `tools/lua-typing/check.ps1`,
+a git hook that runs it on commit, and the full reference, `LUA_TYPING_REFERENCE.md`.
 
 ## Writing code that checks clean
 
@@ -76,6 +93,34 @@ The patterns behind most findings, and their fixes:
   naming the reason.
 - **Write the return list without brackets:** `fun(): boolean?, table?`.
   `fun(): (nil|boolean), (nil|table)` parses as ONE return value.
+
+## Adding a game type or a data table
+
+Two scripts keep the type annotations for game types and data tables in step with the
+code. Run both after adding or renaming a `RegisterGameType` or a `tableName`; they are
+quick, only add what is missing, and `--check` reports without writing:
+
+```bash
+python tools/typing/annotate_gametypes.py
+python tools/typing/gen_table_overloads.py
+```
+
+- **`annotate_gametypes.py`** gives each `X = RegisterGameType("X"[, "Base"])` its
+  `--- @class X: GameType` (or `: Base`) line, and a `--- @field new fun(o?: table): X`
+  line under it, so `X.new{...}` returns an `X`. Without the `new` line it returns `any`
+  and nothing built from it is checked. It does not touch a bare
+  `RegisterGameType("X")` with no assignment: write `X = RegisterGameType("X")` first.
+- **`gen_table_overloads.py`** reads every `X.tableName = "name"` and writes typed
+  overloads, so `dmhub.GetTable("name")`, `dmhub.GetTable(X.tableName)` and
+  `GetTableCached(...)` return rows typed `X`. It edits the generated blocks in
+  `Definitions/core-definitions.lua` and `DMHub Utils/TableCache.lua` (never edit those
+  blocks by hand), turns the class's `--- @field tableName string` into the literal, and
+  adds `--- @field id string` where missing. Without it, rows of a new table are untyped,
+  and a renamed table can fail the check in files that read it.
+
+When the table name is held in a variable the overloads cannot match, so cast the row
+where it comes out: `local class = classTable[classid] --[[@as Class]]` (inline `@as`, not
+`---@type`).
 
 ## Globals
 

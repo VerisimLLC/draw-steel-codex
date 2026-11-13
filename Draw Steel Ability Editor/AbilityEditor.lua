@@ -2255,6 +2255,28 @@ _buildModesBlock = function(ability, fireChange)
                 bmargin = 8,
             }
 
+            -- Target first, then mode (Heal): turning this on adds a Target Filter
+            -- and Unavailable Text to every mode below. Not offered for Ability
+            -- Variations, which swap in a whole other ability when a mode is picked.
+            local plainModes = ability:try_get("multipleModes") == true
+            local modeAfterTargeting = plainModes and ability:try_get("chooseModeAfterTargeting", false) == true
+            modeChildren[#modeChildren + 1] = gui.Panel{
+                classes = {"nae-field-row-inline", cond(plainModes, nil, "collapsed")},
+                children = {
+                    gui.Check{
+                        classes = {"nae-toggle-check"},
+                        text = "Choose Mode After Targeting",
+                        value = modeAfterTargeting,
+                        hover = gui.Tooltip("Mode buttons appear after the caster chooses their target. When a mode's Target Filter fails for a target, the Unavailable Text is shown instead of its button, explaining why."),
+                        change = function(el)
+                            ability.chooseModeAfterTargeting = el.value
+                            fireChange()
+                            modesListPanel:FireEventTree("refreshModes")
+                        end,
+                    },
+                },
+            }
+
             -- Existing mode entries
             for i, modeEntry in ipairs(ability.modeList) do
                 local idx = i
@@ -2383,6 +2405,36 @@ _buildModesBlock = function(ability, fireChange)
                         },
                     },
                 }
+
+                if modeAfterTargeting then
+                    -- Stored as targetCondition. Checked against the chosen target once one
+                    -- is picked (unlike Mode Condition, which only sees the caster).
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Target Filter",
+                        gui.GoblinScriptInput{
+                            classes = {"nae-field-input"},
+                            width = 280,
+                            value = entry.targetCondition or "",
+                            change = function(el)
+                                entry.targetCondition = el.value
+                                fireChange()
+                            end,
+                            documentation = ActivatedAbility.ModeTargetFilterDocs(ability:try_get("domains")),
+                        }
+                    )
+
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Unavailable Text",
+                        gui.Input{
+                            classes = {"nae-field-input"},
+                            characterLimit = 200,
+                            placeholderText = "Shown when the target fails the filter",
+                            text = entry.targetUnavailableText or "",
+                            change = function(el)
+                                entry.targetUnavailableText = el.text
+                                fireChange()
+                            end,
+                        }
+                    )
+                end
 
                 -- "Has Ability" checkbox + Edit button (variations only)
                 modeChildren[#modeChildren + 1] = gui.Panel{
@@ -3521,6 +3573,26 @@ local function _buildTargetingSection(ability, fireChange)
     }
 
     --------------------------------------------------------------------------
+    -- 7b. Finish Targets Later This Turn (target + multi): Double Strike.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(isMultiTarget(), nil, "collapsed-anim")},
+        text = "Finish Targets Later This Turn",
+        value = ability.finishTargetsLater,
+        change = function(element)
+            ability.finishTargetsLater = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", not isMultiTarget())
+        end,
+        linger = function(element)
+            return gui.Tooltip("If checked, using this on your turn against fewer targets than it allows saves the rest: until the turn ends, the remaining targets can be hit for free with the same dice (each target's own edges and banes still apply).")(element)
+        end,
+    }
+
+    --------------------------------------------------------------------------
     -- 8. Proximity Targeting (target + multi)
     --------------------------------------------------------------------------
     children[#children + 1] = gui.Check{
@@ -3657,6 +3729,25 @@ local function _buildTargetingSection(ability, fireChange)
         end,
         refreshAbility = function(element)
             element:SetClass("collapsed-anim", ability.targetType == "self")
+        end,
+    }
+
+    --------------------------------------------------------------------------
+    -- 10b. Always Targets Self: shown for abilities that pick creatures one
+    -- at a time. The caster is a target in addition to the number of targets.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(ability.targetType == "target", nil, "collapsed-anim")},
+        text = "Always Target Self",
+        value = ability.forceCasterTarget,
+        hover = gui.Tooltip("The caster is always a target, in addition to the number of targets. \"Self and three allies\" is 3 targets."),
+        change = function(element)
+            ability.forceCasterTarget = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", ability.targetType ~= "target")
         end,
     }
 

@@ -15,11 +15,12 @@ local mod = dmhub.GetModLoading()
 --- Tabletop.SwitcherSceneWindows make them for map and scene windows).
 --- @class SwitcherWindow
 --- @field key string unique among the windows
---- @field kind "map"|"scene"|"journal"
+--- @field kind "map"|"scene"|"journal"|string a source's own kind (WindowSwitcher.RegisterSource)
 --- @field name string
 --- @field panel Panel|nil the window's root panel; nil while it is unbuilt
 --- @field image string|nil its picture
 --- @field placeholder boolean|nil the picture is only a plain stand-in
+--- @field thumb nil|fun(width: number, height: number): Panel builds the card's picture itself (a hero card), in place of image
 --- @field icon string|nil the glyph shown when there is no picture
 --- @field detail string|nil a short note under the name
 --- @field minimized boolean
@@ -31,6 +32,19 @@ local mod = dmhub.GetModLoading()
 
 --- @class WindowSwitcherModule
 WindowSwitcher = {}
+
+--Windows another file owns (the Hero sheet...): id -> fun(): SwitcherWindow[].
+--- @type table<string, fun(): SwitcherWindow[]>
+local g_sources = {}
+
+--- Add (or with nil, remove) a source of switcher windows: fn returns
+--- SwitcherWindow entries (give each a detail, an icon and a picture, since
+--- the kind is the source's own). The same id replaces an earlier source.
+--- @param id string
+--- @param fn nil|fun(): SwitcherWindow[]
+function WindowSwitcher.RegisterSource(id, fn)
+    g_sources[id] = fn
+end
 
 --Card and layout sizes, in hud units (the hud is 1080 high).
 local CARD_WIDTH = 232
@@ -272,6 +286,14 @@ local function CollectWindows()
     add(Tabletop.SwitcherMapWindows())
     add(Tabletop.SwitcherSceneWindows())
     add(JournalWindows())
+    for id, source in pairs(g_sources) do
+        local ok, entries = pcall(source)
+        if ok and type(entries) == "table" then
+            add(entries)
+        elseif not ok then
+            dmhub.Error(string.format("Window switcher source %s failed: %s", tostring(id), tostring(entries)))
+        end
+    end
     table.sort(list, function(a, b)
         if a.minimized ~= b.minimized then
             return not a.minimized
@@ -314,7 +336,14 @@ end
 local function BuildThumb(entry)
     local plain = entry.image == nil or entry.placeholder == true
     local children = {}
-    if plain then
+    if entry.thumb ~= nil then
+        local ok, thumb = pcall(entry.thumb, CARD_WIDTH - 16, THUMB_HEIGHT)
+        if ok and thumb ~= nil then
+            children[#children+1] = thumb
+            plain = true
+        end
+    end
+    if plain and #children == 0 then
         children[#children+1] = gui.Panel{
             classes = {"switcherBigIcon"},
             interactable = false,
@@ -404,7 +433,7 @@ local function BuildCard(entry, i)
                     height = 16,
                     valign = "center",
                     rmargin = 7,
-                    bgimage = KIND_ICONS[entry.kind],
+                    bgimage = KIND_ICONS[entry.kind] or entry.icon,
                 },
                 gui.Label{
                     classes = {"switcherName"},

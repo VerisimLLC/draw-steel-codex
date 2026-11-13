@@ -57,6 +57,7 @@ function RSPDialog.CreateDirectorView()
     end
 
     root = RSPShell.Create{
+        width = RSPConstants.directorWindowWidth,
         steps = {
             RSPDirectorSetupPanel.Step(Offer, Abandon),
             RSPDirectorPartPanel.Step(Start),
@@ -81,12 +82,20 @@ function RSPDialog.CreatePlayerView()
         end
     end
 
+    -- A running Respite is played on the full-screen stage, so the window
+    -- covers only the time before it starts and gives way when it does.
     root = RSPShell.Create{
         steps = {
             RSPPlayerRespitePanel.IdleStep(Close),
             RSPPlayerRespitePanel.Step(),
-            RSPPlayerActPanel.Step(),
         },
+        handOff = function(phase)
+            if phase ~= RSPConstants.phaseActive then
+                return false
+            end
+            RSPPlayerActPanel.ShowStage()
+            return true
+        end,
     }
 
     return root
@@ -109,6 +118,11 @@ function RSPDialog.Create()
         return RSPDialog.CreateDirectorView()
     end
 
+    if RSPPlayerActPanel.StageApplies() then
+        RSPPlayerActPanel.ReturnToStage()
+        return nil
+    end
+
     return RSPDialog.CreatePlayerView()
 end
 
@@ -123,6 +137,13 @@ end
 --- @return nil
 function RSPDialog.RaiseForPlayer()
     if dmhub.isDM or RSPSession.Active() == nil then
+        return nil
+    end
+
+    -- A running Respite goes up on the stage. Asked again whenever the
+    -- presentation moves, so a player who stepped away stays stepped away.
+    if RSPPlayerActPanel.StageApplies() then
+        RSPPlayerActPanel.ShowStage()
         return nil
     end
 
@@ -163,6 +184,11 @@ Commands.RegisterMacro{
     summary = "open the Respite window",
     doc = "Usage: /respite\nOpens the Respite window.",
     command = function()
+        if RSPPlayerActPanel.StageApplies() then
+            RSPPlayerActPanel.ReturnToStage()
+            return
+        end
+
         -- LaunchPanelByName toggles, so asking an open window to open shuts it.
         if not RSPShell.IsOpen() then
             LaunchablePanel.LaunchPanelByName(RSPConstants.panelName)

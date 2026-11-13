@@ -102,6 +102,10 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
                 end
             end
 
+			--Remember the strike's own action type before the augment's cost replaces it below.
+			--A main-action strike made this way (e.g. Gunshot as a free strike) can still crit.
+			synth.baseActionResourceId = synth:ActionResource()
+
 			--we copy some casting time and resource usage aspects of the synthesizer into the synthesized
 			--ability. Note that we must take care to make sure that it's still a valid instance of
 			--the target type.
@@ -180,6 +184,15 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
             end
 
 			synth.usesSpellSlots = ability.usesSpellSlots
+
+			--The routed ability uses up the augmenter's consumables, as the base synthesizer does.
+			if ability:has_key("consumables") then
+				local consumables = synth:try_get("consumables") or {}
+				for k,v in pairs(ability.consumables) do
+					consumables[k] = v
+				end
+				synth.consumables = consumables
+			end
 
             if self:try_get("filterAbilityTargets", "") ~= "" then
                 local filter = self:try_get("filterAbilityTargets", "")

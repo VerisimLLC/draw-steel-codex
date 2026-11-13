@@ -22,6 +22,59 @@ FileDrops.MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm"}
 --- which converts .flac and .m4a).
 FileDrops.AUDIO_EXTENSIONS = {".ogg", ".mp3", ".wav", ".flac", ".m4a"}
 
+--- Documents: PDFs, Markdown and plain text, and .zip archives of those and
+--- pictures. DocumentImport.lua puts them in the journal; the table and the
+--- journal panel take them from anyone.
+FileDrops.DOCUMENT_EXTENSIONS = {".pdf", ".md", ".markdown", ".txt", ".zip"}
+
+--- What the journal panel takes: pictures, videos and documents.
+FileDrops.JOURNAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm", ".pdf", ".md", ".markdown", ".txt", ".zip"}
+
+--- Universal VTT map files (Dungeondraft and others): a picture with walls,
+--- doors and lights. The table hands them to the map import wizard.
+--- (The wizard also reads Foundry .json scenes; .json is left out here so a
+--- stray JSON file dropped on the table is not taken for a map.)
+FileDrops.MAP_EXTENSIONS = {".uvtt", ".dd2vtt"}
+
+--- True for a Universal VTT map file (by extension; see MAP_EXTENSIONS).
+--- @param path string
+--- @return boolean
+function FileDrops.IsMapFile(path)
+    local ext = FileDrops.Extension(path)
+    for _, mapExt in ipairs(FileDrops.MAP_EXTENSIONS) do
+        if ext == mapExt then
+            return true
+        end
+    end
+    return false
+end
+
+--- A Universal VTT file's map size in tiles, read from the start of the file
+--- (instant, even for a huge file), or nil if it is not there. For shaping
+--- the outline while the file is dragged and the window it will open in.
+--- @param path string
+--- @return nil|{width: number, height: number}
+function FileDrops.MapFileSize(path)
+    local header = assets:ReadUniversalVTTHeader(path)
+    if header == nil then
+        return nil
+    end
+    return {width = header.width, height = header.height}
+end
+
+--- True for a document file (by extension; see DOCUMENT_EXTENSIONS).
+--- @param path string
+--- @return boolean
+function FileDrops.IsDocument(path)
+    local ext = FileDrops.Extension(path)
+    for _, documentExt in ipairs(FileDrops.DOCUMENT_EXTENSIONS) do
+        if ext == documentExt then
+            return true
+        end
+    end
+    return false
+end
+
 --- True for an audio file (by extension).
 --- @param path string
 --- @return boolean

@@ -91,6 +91,38 @@ Styles.ActionMenu = {
         hmargin = 16,
         flow = "vertical",
     },
+    --An ordinary drawer menu: its chips sit in abilitySubMenuColumn panels
+    --that carry their own background, so the menu itself draws none and
+    --grows sideways as columns are added.
+    gui.Style {
+        selectors = { "abilitySubMenu", "chipColumns" },
+        width = "auto",
+        bgcolor = "clear",
+    },
+    gui.Style {
+        selectors = { "abilitySubMenuColumns" },
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+    },
+    --One column of chips, stacked up from the bottom.
+    gui.Style {
+        selectors = { "abilitySubMenuColumn" },
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        valign = "bottom",
+        bgimage = true,
+        bgcolor = "clear",
+    },
+    gui.Style {
+        selectors = { "abilitySubMenuColumn", "framed" },
+        bgcolor = g_blurColor,
+    },
+    gui.Style {
+        selectors = { "abilitySubMenuColumn", "extraColumn" },
+        lmargin = 4,
+    },
     gui.Style {
         selectors = { "submenuHeading" },
         width = 205,

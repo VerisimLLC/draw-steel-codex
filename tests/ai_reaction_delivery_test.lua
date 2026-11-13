@@ -225,6 +225,8 @@ function MonsterAI:CountPendingMinionDeathConfirmations() return 0 end
 --document and is shown by the tip banner; neither is under test here.
 MonsterAI.SetWaiting=function() end
 MonsterAI.ClearWaiting=function() end
+--The wait runs inside the AI's yielding error boundary, which is not loaded here.
+MonsterAI.RunYieldingFunction=function(_, fn) return pcall(fn) end
 dmhub.allTokens={host.token}
 local aiSource="draw-steel-codex/Monster AI/MonsterAI.lua"
 --The AI profiler's file locals are no-ops here.

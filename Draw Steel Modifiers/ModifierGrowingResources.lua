@@ -147,13 +147,25 @@ CharacterModifier.TypeInfo.growingresources = {
     end,
 }
 
-function creature:GetGrowingResourcesTable()
+--- All growing resources tables on this creature, in modifier order. A class
+--- can carry more than one (e.g. the Vampire's Insatiable Thirst Benefits and
+--- Drawbacks); the character panel shows each as its own section.
+--- @return CharacterModifier[]
+function creature:GetGrowingResourcesTables()
+    local result = {}
     local modifiers = self:GetActiveModifiers()
     for _,modifier in ipairs(modifiers) do
         if modifier.mod.behavior == 'growingresources' then
-            return modifier.mod
+            result[#result+1] = modifier.mod
         end
     end
 
-    return nil
+    return result
+end
+
+--- The first growing resources table on this creature, or nil.
+--- @deprecated Use GetGrowingResourcesTables; a class can have more than one table.
+--- @return CharacterModifier|nil
+function creature:GetGrowingResourcesTable()
+    return self:GetGrowingResourcesTables()[1]
 end

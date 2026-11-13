@@ -150,6 +150,14 @@ function GameHud:CreateDocumentsPanel()
                 halign = 'center',
                 bgcolor = 'clear',
             },
+            --a custom interface hiding the table's windows (suppressWindows,
+            --GameHud.SyncInterfaceSuppression): everything on this layer but
+            --presented dialogs and the rails it put up.
+            {
+                selectors = { 'panel', 'parent:interfaceSuppressing', '~presentedDialog', '~iconRail' },
+                priority = 10,
+                collapsed = 1,
+            },
             {
                 selectors = { 'document-dialog' },
                 priority = 5,
@@ -976,17 +984,23 @@ function GameHud:DisplayDocument(info)
     else
         -- Sections-based bubbles use the existing dialog
         local documentDialog = self:try_get('documentDialog')
-        if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
-            if documentDialog ~= nil then
+        if documentDialog == nil or not documentDialog.valid or loadid ~= self:try_get("documentDialogLoadID") then
+            if documentDialog ~= nil and documentDialog.valid then
                 documentDialog:DestroySelf()
             end
 
             documentDialog = self:CreateDocumentDialog()
             self.documentDialogLoadID = loadid
             self.documentDialog = documentDialog
-            self.documentsPanel.children = { documentDialog }
+            --added among the other windows and the rails: assigning the layer's
+            --children instead removed every one of them.
+            self.documentsPanel:AddChild(documentDialog)
         else
             documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
+            --it shares the layer now, so shown again it comes to the front.
+            if not documentDialog:HasClass('hidden') then
+                documentDialog:SetAsLastSibling()
+            end
         end
 
         if not documentDialog:HasClass('hidden') then

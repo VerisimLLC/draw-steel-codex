@@ -233,6 +233,49 @@ function Encounter.GetTargetableObjectsWithKeyword(keyword)
     return result
 end
 
+--- The map water level (WATER_LEVEL_REFERENCE.md), for encounter and map scripts:
+--- ground lower than the level by 1 square or more is deep water (creatures float
+--- on it and can dive), by less is shallow water (difficult terrain without a swim
+--- speed). The engine moves creatures with the water and draws it. Sets the current
+--- map's level (a multiple of 0.5; nil removes the water). options.floor picks the
+--- floor. Runs with host rights, so a directorless game's player host can use it.
+--- Returns true, or false and a reason.
+--- @param level number|nil
+--- @param options nil|{floor: nil|string}
+--- @return boolean, string|nil
+function Encounter.SetWaterLevel(level, options)
+    local map = game.currentMap
+    if map == nil then
+        return false, "no current map"
+    end
+
+    local elevate = rawget(_G, "ElevateToHostPermissions")
+    local drop = rawget(_G, "DropHostPermissions")
+    if elevate ~= nil then
+        elevate()
+    end
+    local ok, err = pcall(function()
+        map:SetWaterLevel(level, options)
+    end)
+    if drop ~= nil then
+        drop()
+    end
+    if not ok then
+        return false, tostring(err)
+    end
+    return true
+end
+
+--- The current map's water level in squares, or nil when it has none.
+--- @return number|nil
+function Encounter.GetWaterLevel()
+    local map = game.currentMap
+    if map == nil then
+        return nil
+    end
+    return map:GetWaterLevel()
+end
+
 --Returns the display name to show for a boss-bar token. Object tokens carry their renamed
 --per-instance name on the level object (token.name is just the underlying asset/blueprint
 --name, e.g. "skull3"), so prefer that; everything else uses the standard token name.
@@ -1385,9 +1428,23 @@ end
 --Which monster this token counts as when checking for victory, or nil if it
 --doesn't count. Every minion in a squad returns the same answer, so the squad
 --counts once. Summoned minions don't count.
+--True for a creature summoned by a hero or a companion, e.g. a Familiar perk's
+--stat block. It fights for the heroes, so it is never a monster left to defeat;
+--counting one meant an "all defeated" victory never came.
+--- @param token CharacterToken
+--- @return boolean
+function Encounter.IsHeroSideSummon(token)
+    local summonerid = token.summonerid
+    if summonerid == nil or summonerid == "" then
+        return false
+    end
+    local summoner = dmhub.GetTokenById(summonerid)
+    return summoner ~= nil and summoner.valid and summoner.properties ~= nil and not summoner.properties:IsMonster()
+end
+
 function Encounter.VictoryUnitKey(token)
     local props = token.properties
-    if props == nil or not props:IsMonster() then
+    if props == nil or not props:IsMonster() or Encounter.IsHeroSideSummon(token) then
         return nil
     end
     if not props.minion then
@@ -1397,6 +1454,117 @@ function Encounter.VictoryUnitKey(token)
         return nil
     end
     return "squad:" .. tostring(props:MinionSquad())
+end
+
+--The name players may see for one unit in an objective's "still standing" list:
+--a minion squad by its squad name, a creature the players can't see or whose
+--name the Director keeps private by a stand-in, so the list never leaks either.
+--- @param token CharacterToken
+--- @return string
+function Encounter.VictoryUnitPublicName(token)
+    local props = token.properties
+    local hidden = token.invisibleToPlayers
+    if not hidden and props ~= nil then
+        pcall(function() hidden = props:IsHidden() and creature.HiddenCreaturesInvisible() end)
+    end
+    if hidden then
+        return "an unseen creature"
+    end
+    if token.namePrivate then
+        return cond(props ~= nil and props.minion, "a squad of minions", "an unnamed creature")
+    end
+    if props ~= nil and props.minion then
+        local squad = props:MinionSquad()
+        if squad ~= nil and squad ~= "" then
+            return squad
+        end
+    end
+    local name = token.name
+    if name == nil or name == "" then
+        name = token.description
+    end
+    if name == nil or name == "" then
+        return "a creature"
+    end
+    return name
+end
+
+--Turns a list of creature tokens and/or plain strings into the lines of an
+--objective's "still standing" list. Defeated tokens are dropped, each minion
+--squad becomes one line with how many of it stand, and token lines are sorted
+--by name; strings (e.g. "2 more coming from the tombs") follow in their order.
+--Used by the built-in objective tooltip and to network an encounter script's
+--victory.remaining, so the names are always the player-safe ones.
+--- @param units (CharacterToken|string)[]
+--- @return string[]
+function Encounter.DescribeVictoryUnits(units)
+    local lines = {}
+    local squads = {}
+    local seen = {}
+    local extra = {}
+    for _, unit in ipairs(units or {}) do
+        if type(unit) == "string" then
+            if unit ~= "" then
+                extra[#extra + 1] = unit
+            end
+        elseif type(unit) == "table" or type(unit) == "userdata" then
+            local token = unit --[[@as CharacterToken]]
+            local props = token.properties
+            if props ~= nil and token.valid and not seen[token.charid] then
+                seen[token.charid] = true
+                if props.minion then
+                    --a minion's Stamina is the squad's, so ask whether it is dead.
+                    if not props:IsDead() then
+                        local key = "squad:" .. tostring(props:MinionSquad())
+                        local squad = squads[key]
+                        if squad == nil then
+                            squad = { name = Encounter.VictoryUnitPublicName(token), count = 0 }
+                            squads[key] = squad
+                            lines[#lines + 1] = squad
+                        end
+                        squad.count = squad.count + 1
+                    end
+                elseif props:CurrentHitpoints() > 0 then
+                    lines[#lines + 1] = { name = Encounter.VictoryUnitPublicName(token) }
+                end
+            end
+        end
+    end
+
+    table.sort(lines, function(a, b) return a.name < b.name end)
+    local result = {}
+    for _, line in ipairs(lines) do
+        if line.count ~= nil then
+            result[#result + 1] = string.format("%s (%d standing)", line.name, line.count)
+        else
+            result[#result + 1] = line.name
+        end
+    end
+    for _, text in ipairs(extra) do
+        result[#result + 1] = text
+    end
+    return result
+end
+
+--The tooltip block for a "still standing" list: a heading, then one "- " line
+--per unit, capped so a horde can't make the tooltip run off the screen.
+--- @param heading string
+--- @param names string[]|nil
+--- @return string|nil nil when the list is empty
+function Encounter.FormatVictoryUnitList(heading, names)
+    if names == nil or #names == 0 then
+        return nil
+    end
+    local maxLines = 12
+    local lines = { heading }
+    for i, name in ipairs(names) do
+        if i > maxLines then
+            lines[#lines + 1] = string.format("- ...and %d more", #names - maxLines)
+            break
+        end
+        lines[#lines + 1] = "- " .. name
+    end
+    return table.concat(lines, "\n")
 end
 
 function Encounter.Describe(self)
@@ -1985,6 +2153,9 @@ end
 --   {
 --     groupid,      -- the initiative id
 --     statKey,      -- key into monsterStats (sanitized groupid)
+--     statKeys,     -- every monsterStats key this group's stats live under:
+--                   -- statKey plus the onset keys of groups merged into it.
+--                   -- Pass this to GetStatsForMonsterGroup(ByRound).
 --     name,         -- display name for the group
 --     tokens,       -- member tokens still resolvable on the map, heroes excluded
 --     memberCount,  -- #tokens plus onset members whose tokens are gone
@@ -1999,12 +2170,19 @@ end
 -- despawned or deleted) still count as dead members, so the victory screen shows
 -- the full roster rather than just the survivors. Groups with no resolvable
 -- members and no onset members are skipped. Returns a freshly-built list.
+--
+-- Groups follow their members, not the onset snapshot's ids: the Director can
+-- regroup monsters mid-fight (merge two groups into one initiative entry), after
+-- which their stats are recorded under the new id. Each onset member is placed
+-- on the card of the initiative id it has NOW, and the onset group's old stat key
+-- moves with its members, so the card shows stats from before and after the
+-- regroup (9ARZXATK).
 function LiveEncounter:GetMonsterGroups()
     local q = dmhub.initiativeQueue
     local result = {}
     local seenGroups = {}
 
-    local function AddGroup(groupid, name, memberids, memberinfo)
+    local function AddGroup(groupid, name, memberids, memberinfo, statKeys)
         if seenGroups[groupid] then
             return
         end
@@ -2160,6 +2338,7 @@ function LiveEncounter:GetMonsterGroups()
         result[#result+1] = {
             groupid = groupid,
             statKey = SanitizeStatKey(groupid),
+            statKeys = statKeys or { SanitizeStatKey(groupid) },
             name = displayName,
             tokens = tokens,
             memberCount = memberCount,
@@ -2172,15 +2351,99 @@ function LiveEncounter:GetMonsterGroups()
         }
     end
 
-    for _, g in ipairs(self:GetOnsetMonsterGroups()) do
-        AddGroup(g.groupid, g.name, g.memberids, g.memberinfo)
+    local onsetGroups = self:GetOnsetMonsterGroups()
+
+    --Each onset member's initiative id now. GetCharacterById finds dead
+    --monsters that left the map; a member that resolves nowhere stays in its
+    --onset group.
+    local currentId = {}
+    local liveIds = {}
+    for _, g in ipairs(onsetGroups) do
+        for _, mid in ipairs(g.memberids or {}) do
+            local tok = dmhub.GetTokenById(mid)
+            if tok == nil or not tok.valid then
+                tok = dmhub.GetCharacterById(mid)
+            end
+            local id = nil
+            if tok ~= nil and tok.valid and tok.properties ~= nil then
+                id = InitiativeQueue.GetInitiativeId(tok)
+            end
+            currentId[mid] = id or g.groupid
+            liveIds[currentId[mid]] = true
+        end
+    end
+
+    --Cards in onset order. A group that still holds members keeps its own
+    --slot; a group merged away shows up where its members' new group first does.
+    local cards = {}
+    local cardsById = {}
+    local function CardFor(groupid)
+        local card = cardsById[groupid]
+        if card == nil then
+            card = {
+                groupid = groupid,
+                memberids = {},
+                memberinfo = {},
+                statKeys = { SanitizeStatKey(groupid) },
+                seenKeys = { [SanitizeStatKey(groupid)] = true },
+            }
+            cardsById[groupid] = card
+            cards[#cards+1] = card
+        end
+        return card
+    end
+
+    local onsetById = {}
+    for _, g in ipairs(onsetGroups) do
+        onsetById[g.groupid] = g
+        --also keep the slot when tokens that were never snapshotted now hold
+        --this id, so its stat key is not handed to another card as well.
+        if liveIds[g.groupid] or #(g.memberids or {}) == 0 or #(InitiativeQueue.GetTokensForInitiativeId(g.groupid) or {}) > 0 then
+            CardFor(g.groupid)
+        end
+        --how many of this group's members went to each card, for the stat key below.
+        local counts = {}
+        local best = nil
+        for _, mid in ipairs(g.memberids or {}) do
+            local card = CardFor(currentId[mid])
+            card.memberids[#card.memberids+1] = mid
+            if g.memberinfo ~= nil and g.memberinfo[mid] ~= nil then
+                card.memberinfo[mid] = g.memberinfo[mid]
+            end
+            counts[card] = (counts[card] or 0) + 1
+            if best == nil or counts[card] > counts[best] then
+                best = card
+            end
+        end
+
+        --The stats this group recorded before it was regrouped. If the group
+        --still exists they stay on its own card; otherwise they go to the card
+        --that took most of its members (a split group's old stats count once).
+        local key = g.statKey or SanitizeStatKey(g.groupid)
+        local owner = cardsById[g.groupid] or best
+        if owner ~= nil and not owner.seenKeys[key] then
+            owner.seenKeys[key] = true
+            owner.statKeys[#owner.statKeys+1] = key
+        end
+    end
+
+    for _, card in ipairs(cards) do
+        local g = onsetById[card.groupid]
+        AddGroup(card.groupid, g ~= nil and g.name or nil, card.memberids, card.memberinfo, card.statKeys)
     end
 
     if q ~= nil then
+        --sorted: q.entries is a hash whose order differs between clients, and
+        --victory role ties are broken by group order.
+        local extraids = {}
         for initiativeid, _ in pairs(q.entries) do
             if not seenGroups[initiativeid] and q:IsEntryPlayer(initiativeid) == false then
-                AddGroup(initiativeid, nil, nil)
+                extraids[#extraids+1] = initiativeid
             end
+        end
+        table.sort(extraids)
+        for _, initiativeid in ipairs(extraids) do
+            AddGroup(initiativeid, nil, nil)
         end
     end
 
@@ -2196,7 +2459,7 @@ end
 -- anywhere in the game; their stats and role history key off charid as normal.
 -- Heroes appear as long as combat is live even when the onset snapshot was
 -- never captured (the snapshot only adds the removed ones back). Returns a
--- list of tokens.
+-- list of tokens sorted by charid, the same on every client.
 function LiveEncounter:GetBattleHeroTokens()
     local q = dmhub.initiativeQueue
     local result = {}
@@ -2228,6 +2491,9 @@ function LiveEncounter:GetBattleHeroTokens()
             end
         end
     end
+    --q.entries is a hash whose iteration order differs between clients; sort so
+    --every client sees the same order (victory role ties are broken by it).
+    table.sort(result, function(a, b) return a.charid < b.charid end)
     return result
 end
 
@@ -2307,24 +2573,60 @@ function LiveEncounter:GetMonsterStats()
     return self:try_get("monsterStats") or {}
 end
 
+-- A group's stats can live under several keys after a mid-combat regroup (see
+-- GetMonsterGroups' statKeys); accept either one key or that list.
+---@param statKeys string|string[]
+---@return string[]
+local function MonsterStatKeyList(statKeys)
+    if type(statKeys) == "table" then
+        return statKeys
+    end
+    return { statKeys }
+end
+
 -- The whole-combat statistics for a single monster group (a map of statid ->
 -- total summed across rounds, nested sub-tables deep-merged), or an empty table.
--- statKey is the group's sanitized id from GetMonsterGroups. Freshly built --
--- safe for callers to keep.
-function LiveEncounter:GetStatsForMonsterGroup(statKey)
+-- Pass the group's statKeys from GetMonsterGroups (a single statKey also works).
+-- Freshly built -- safe for callers to keep.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroup(statKeys)
+    local all = self:GetMonsterStats()
     local result = {}
-    for _, roundStats in pairs(self:GetMonsterStats()[statKey] or {}) do
-        if type(roundStats) == "table" then
-            SumStatsTables(result, roundStats)
+    for _, key in ipairs(MonsterStatKeyList(statKeys)) do
+        for _, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                SumStatsTables(result, roundStats)
+            end
         end
     end
     return result
 end
 
 -- The per-round statistics recorded for a single monster group: a map of
--- "round<N>" -> { statid = total }, or an empty table. Read-only view.
-function LiveEncounter:GetStatsForMonsterGroupByRound(statKey)
-    return self:GetMonsterStats()[statKey] or {}
+-- "round<N>" -> { statid = total }, or an empty table. Takes statKeys like
+-- GetStatsForMonsterGroup. One key returns a read-only view; several return a
+-- freshly built per-round sum.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroupByRound(statKeys)
+    local all = self:GetMonsterStats()
+    local keys = MonsterStatKeyList(statKeys)
+    if #keys == 1 then
+        return all[keys[1]] or {}
+    end
+    local result = {}
+    for _, key in ipairs(keys) do
+        for roundKey, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                local dest = result[roundKey]
+                if dest == nil then
+                    dest = {}
+                    result[roundKey] = dest
+                end
+                SumStatsTables(dest, roundStats)
+            end
+        end
+    end
+    return result
 end
 
 -- Resolve the hero a stat should be attributed to. `tokenid` is the token that
@@ -3060,7 +3362,7 @@ function LiveEncounter:BuildBattleRecord(outcome, roles)
     local monsters = {}
     local monsterCount = 0
     for _, group in ipairs(groups) do
-        local totals = self:GetStatsForMonsterGroup(group.statKey) or {}
+        local totals = self:GetStatsForMonsterGroup(group.statKeys) or {}
         monsterCount = monsterCount + group.memberCount
 
         local monsterType = nil
@@ -3723,15 +4025,24 @@ end
 --bounds in a shared document so they come back once the encounter is over
 --(see RestoreEndedRegionBounds). Done when prep begins and again, harmlessly,
 --when combat starts.
+--options (all optional):
+--  hold: keep the region until Encounter.RestoreRegionBounds is called,
+--        rather than restoring it once combat ends. For a caller that owns
+--        the map's whole session (Encounter of the Week bounds a game to its
+--        encounter's region from arrival on).
+--  anyMap: apply it even when the encounter names a different map (the
+--        caller knows the encounter belongs to this one).
 --- @param encounter Encounter
-function Encounter.ApplyRegion(encounter)
+--- @param options nil|{hold: boolean|nil, anyMap: boolean|nil}
+function Encounter.ApplyRegion(encounter, options)
+    options = options or {}
     local mapid = game.currentMapId
     local region = encounter:GetRegion()
     local map = game.currentMap
     if region == nil or map == nil then
         return
     end
-    if encounter.mapid ~= "" and encounter.mapid ~= mapid then
+    if not options.anyMap and encounter.mapid ~= "" and encounter.mapid ~= mapid then
         --the region was drawn on another map.
         return
     end
@@ -3746,6 +4057,9 @@ function Encounter.ApplyRegion(encounter)
         doc.data[mapid] = saved
     end
     saved.appliedAt = dmhub.serverTime
+    if options.hold then
+        saved.held = true
+    end
     doc:CompleteChange("Encounter region", { undoable = false })
 
     WriteMapBounds(map, region, "Encounter region")
@@ -3770,6 +4084,9 @@ local function RestoreEndedRegionBounds()
             local inCombat = queue ~= nil and not queue.hidden
             if inCombat then
                 m_combatSeen[mapid] = true
+            elseif saved.held then
+                --held by its caller (ApplyRegion's hold) until it calls
+                --Encounter.RestoreRegionBounds.
             elseif Encounter.GetPrep(mapid) ~= nil then
                 --still preparing the encounter: the region stays until it
                 --starts (or the prep is cancelled, which clears the record).
@@ -4391,6 +4708,9 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                         if (group.invisibleToPlayers or {})[slot] then
                             token.invisibleToPlayers = true
                         end
+                        if (group.startsHidden or {})[slot] then
+                            token.properties:BecomeHidden(token)
+                        end
 
                         local balancing = group.balancing
                         if balancing ~= nil then
@@ -4641,7 +4961,7 @@ function LiveEncounter:CountLiveNonMinions(org)
             if token ~= nil and not seen[token.charid] then
                 seen[token.charid] = true
                 local props = token.properties
-                if props ~= nil and props:IsMonster() and not props.minion and
+                if props ~= nil and props:IsMonster() and not props.minion and not Encounter.IsHeroSideSummon(token) and
                     (org == nil or OrganizationKeyword(props) == org) and props:CurrentHitpoints() > 0 then
                     count = count + 1
                 end
@@ -4649,6 +4969,35 @@ function LiveEncounter:CountLiveNonMinions(org)
         end
     end
     return count
+end
+
+-- The monsters still standing that count toward a built-in monster-count victory,
+-- as the player-safe lines of the objective tooltip (see DescribeVictoryUnits).
+-- Counts the same units as CountLiveCombatants (org nil: a minion squad is one
+-- unit) or CountLiveNonMinions (org "*" for every non-minion, or an organization
+-- keyword such as "leader"). Reads tokens only, so it is safe on player clients.
+--- @param org nil|string
+--- @return string[]
+function LiveEncounter:GetStandingVictoryUnitNames(org)
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return {}
+    end
+    local tokens = {}
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        for _, token in ipairs(InitiativeQueue.GetTokensForInitiativeId(initiativeid) or {}) do
+            if token ~= nil and not seen[token.charid] then
+                seen[token.charid] = true
+                local props = token.properties
+                if props ~= nil and Encounter.VictoryUnitKey(token) ~= nil and
+                    (org == nil or (not props.minion and (org == "*" or OrganizationKeyword(props) == org))) then
+                    tokens[#tokens + 1] = token
+                end
+            end
+        end
+    end
+    return Encounter.DescribeVictoryUnits(tokens)
 end
 
 -- Returns the creature's token to display in the boss bar, or nil if no boss bar
@@ -4894,7 +5243,13 @@ function LiveEncounter:GetObjectiveTooltip()
         if scriptInstance ~= nil then
             scriptName = scriptInstance:try_get("name", scriptName)
         end
-        return string.format("%s\n\nVictory condition set by the encounter script \"%s\".", scriptText, scriptName)
+        local result = scriptText
+        --the host-resolved victory.remaining list, when the script supplies one.
+        local remaining = Encounter.FormatVictoryUnitList("Still to defeat:", self:ScriptVictoryRemaining())
+        if remaining ~= nil then
+            result = result .. "\n\n" .. remaining
+        end
+        return string.format("%s\n\nVictory condition set by the encounter script \"%s\".", result, scriptName)
     end
 
     local condition = self:try_get("victoryCondition", "all_defeated")
@@ -4919,6 +5274,11 @@ function LiveEncounter:GetObjectiveTooltip()
         end
         if self:try_get("onsetNonMinionCount", 0) <= 0 then
             tooltipLines[#tooltipLines + 1] = "This encounter has no non-minions, so every monster must be defeated."
+        end
+        local standing = Encounter.FormatVictoryUnitList("Still standing:", self:GetStandingVictoryUnitNames(cond(self:try_get("onsetNonMinionCount", 0) > 0, "*", nil)))
+        if standing ~= nil then
+            tooltipLines[#tooltipLines + 1] = ""
+            tooltipLines[#tooltipLines + 1] = standing
         end
         return table.concat(tooltipLines, "\n")
     elseif condition == "half_defeated" then
@@ -4968,6 +5328,13 @@ function LiveEncounter:GetObjectiveTooltip()
 
     local defeated, needed = self:GetDefeatProgress()
     lines[#lines + 1] = string.format("Defeated %d of the %d needed to win.", defeated, needed)
+
+    --name what is left, so "3/4" says which monsters still count.
+    local standing = Encounter.FormatVictoryUnitList("Still standing:", self:GetStandingVictoryUnitNames(nil))
+    if standing ~= nil then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = standing
+    end
 
     return table.concat(lines, "\n")
 end
@@ -5035,7 +5402,55 @@ end
 --map's own journal folder -- where the encounter lives -- is not in their
 --accessible roots; setup code that must find the encounter to run it passes
 --this. Director-facing UI does not.
+
+--Does the document store any RichEncounter annotation at all? Parsing a
+--document (GetReferencedAnnotations) is expensive -- it runs every `???`
+--query line -- and only RichEncounter annotations can contribute, so a
+--document without one is skipped unparsed. Most journals hold ~100 such docs.
+local function HasEncounterAnnotation(markdownDoc)
+    local annotations = markdownDoc:try_get("annotations")
+    if annotations == nil then
+        return false
+    end
+    for _, annotation in pairs(annotations) do
+        if type(annotation) == "table" and annotation.typeName == "RichEncounter" then
+            return true
+        end
+    end
+    return false
+end
+
+--DIAG (HarvestBurst): GetEncountersOnCurrentMap walks the whole journal, so a
+--caller running it every frame or two made the map stutter during the Draw
+--Steel banner (2026-10-18 playtest, caller never identified). Logs who calls it
+--when it runs more than HARVEST_BURST_CALLS times in HARVEST_BURST_WINDOW
+--seconds, at most once per HARVEST_BURST_LOG_GAP seconds.
+local HARVEST_BURST_CALLS = 4
+local HARVEST_BURST_WINDOW = 2
+local HARVEST_BURST_LOG_GAP = 10
+local g_harvestCallTimes = {}
+local g_harvestLastBurstLog = -1000
+
+local function NoteHarvestCall(elapsedMs, parsedDocs)
+    local now = dmhub.Time()
+    local recent = {}
+    for _, t in ipairs(g_harvestCallTimes) do
+        if now - t < HARVEST_BURST_WINDOW then
+            recent[#recent + 1] = t
+        end
+    end
+    recent[#recent + 1] = now
+    g_harvestCallTimes = recent
+    if #recent > HARVEST_BURST_CALLS and now - g_harvestLastBurstLog > HARVEST_BURST_LOG_GAP then
+        g_harvestLastBurstLog = now
+        printf("PERF:: Encounter.GetEncountersOnCurrentMap called %d times in %ds (last %.1f ms, %d docs parsed); caller:\n%s",
+            #recent, HARVEST_BURST_WINDOW, elapsedMs, parsedDocs, debug.traceback("", 3))
+    end
+end
+
 function Encounter.GetEncountersOnCurrentMap(hostAccess)
+    local startTime = os.clock()
+    local parsedDocs = 0
     local result = {}
     local seenDocs = {}
 
@@ -5050,6 +5465,11 @@ function Encounter.GetEncountersOnCurrentMap(hostAccess)
             end
             seenDocs[docid] = true
         end
+
+        if not HasEncounterAnnotation(markdownDoc) then
+            return
+        end
+        parsedDocs = parsedDocs + 1
 
         for _, ref in ipairs(markdownDoc:GetReferencedAnnotations()) do
             local annotation = ref.annotation
@@ -5109,6 +5529,7 @@ function Encounter.GetEncountersOnCurrentMap(hostAccess)
         end
     end
 
+    NoteHarvestCall((os.clock() - startTime)*1000, parsedDocs)
     return result
 end
 
@@ -5139,6 +5560,7 @@ end
 --       onRound = function(ctx) end,  -- once per round (including round 1)
 --       think   = function(ctx) end,  -- every ~0.7s while combat is live
 --       onEnd   = function(ctx) end,  -- once, when combat ends
+--       onReset = function(ctx) end,  -- an authoring test reset: undo what the script changed on the map
 --   }
 --
 -- victory replaces the encounter's built-in victory-condition dropdown; defeat
@@ -5153,6 +5575,14 @@ end
 -- every heartbeat with the real ctx. The live result rides in the networked
 -- script state, so progress text like "Survive 1/3 Rounds" updates on every
 -- client without player clients ever executing script code.
+--
+-- victory.remaining (optional) is function(ctx) returning a list of creature
+-- tokens and/or strings: what still counts toward a count-style objective
+-- ("Defeat 3/4 of the choir"). The host runs it each heartbeat; defeated tokens
+-- drop out, each minion squad shows once by its squad name, hidden or
+-- private-named creatures get a stand-in name, and the resulting strings ride
+-- in the networked script state (victoryRemaining). The objective tooltip lists
+-- them under "Still to defeat:". Strings pass through, e.g. "2 more from the tombs".
 --
 -- Parameter types: "number" (min/max/default), "string", "boolean",
 -- "choice" (options = {{id=..., text=...}, ...}), and "wave" (one of the
@@ -5224,7 +5654,15 @@ EncounterScript.starterTemplate = [==[
 --
 -- ctx methods (call with ':'):
 --   ctx:Announce(text)      send a chat message
+--   ctx:Banner(text, subtitle, bannerType)  show everyone a full-screen dramatic
+--                               banner; bannerType "malice" for the lighter one
+--   ctx:SetWaterLevel(level)    set the map water level (multiples of 0.5; nil
+--                               removes it); creatures float up/settle with it
+--   ctx:GetWaterLevel()     the map water level, or nil
 --   ctx:DeployWave(waveid)  deploy one of the encounter's reinforcement waves
+--   ctx:SetVictories(n)     change how many Victories winning is worth (the
+--                               builder's "Victories awarded"); set it before
+--                               the victory condition is met
 --   ctx:EnsureButton{...}   add a custom button to the Encounter Actions strip
 --   ctx:DismissButton(id)   remove a custom button
 --   ctx:Log(text)           print to the console
@@ -5248,6 +5686,9 @@ return {
     --     text = function(ctx) return string.format("Survive %d Rounds", ctx.params.rounds) end,
     --     check = function(ctx) return ctx.round > ctx.params.rounds end,
     -- },
+    -- For a "defeat N of these" objective, add remaining = function(ctx) that
+    -- returns the creature tokens (and/or strings) that still count; the
+    -- objective tooltip names them (defeated ones and squad duplicates drop out).
 
     -- Uncomment to add a defeat condition (script-only; there are no built-in
     -- ones). When check passes the director can Declare Defeat, which
@@ -5256,6 +5697,19 @@ return {
     --     text = function(ctx) return "The Caravan is Destroyed" end,
     --     check = function(ctx) return ctx.state.caravanDestroyed == true end,
     -- },
+
+    -- Uncomment to show a rule or countdown to everyone under the objective
+    -- on the initiative bar. Runs on the host each heartbeat while combat is
+    -- live; return nil to show nothing, one entry, or a list of entries.
+    -- timer (optional) draws a segmented clock: remaining of total segments lit,
+    -- spent ones darkening clockwise from twelve; color is an optional "#rrggbb".
+    -- status = function(ctx)
+    --     return {
+    --         title = "Collapsing Ceiling",
+    --         tooltip = "The ceiling falls in 2 rounds.",
+    --         timer = { remaining = 2, total = 3 },
+    --     }
+    -- end,
 
     onPrepare = function(ctx)
     end,
@@ -5417,7 +5871,11 @@ local function NormalizeDefinition(def)
         if text ~= nil and type(text) ~= "string" and type(text) ~= "function" then
             return nil, "victory.text must be a string or a function"
         end
-        norm.victory = { check = def.victory.check, text = text }
+        local remaining = def.victory.remaining
+        if remaining ~= nil and type(remaining) ~= "function" then
+            return nil, "victory.remaining must be a function"
+        end
+        norm.victory = { check = def.victory.check, text = text, remaining = remaining }
     end
 
     if def.defeat ~= nil then
@@ -5431,7 +5889,12 @@ local function NormalizeDefinition(def)
         norm.defeat = { check = def.defeat.check, text = text }
     end
 
-    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd" }) do
+    if def.status ~= nil and type(def.status) ~= "function" then
+        return nil, "status must be a function"
+    end
+    norm.status = def.status
+
+    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
             return nil, handler .. " must be a function"
@@ -5507,8 +5970,11 @@ function EncounterScript.DescribeDefinition(def)
     if def.defeat ~= nil then
         parts[#parts + 1] = "custom defeat condition"
     end
+    if def.status ~= nil then
+        parts[#parts + 1] = "initiative bar status"
+    end
     local handlers = {}
-    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd" }) do
+    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         if def[handler] ~= nil then
             handlers[#handlers + 1] = handler
         end
@@ -5844,6 +6310,22 @@ function LiveEncounter:ScriptVictoryText()
     return text, instance
 end
 
+--- The objective's "still to defeat" lines the host resolved from the victory
+--- script's victory.remaining, or nil when it supplies none. Networked plain
+--- strings, so any client can read them without running script code.
+--- @return string[]|nil
+function LiveEncounter:ScriptVictoryRemaining()
+    local _, instance = Encounter.ScriptVictoryText(self)
+    if instance == nil then
+        return nil
+    end
+    local st = self:GetScriptState(instance:try_get("guid", ""))
+    if st == nil or type(st.victoryRemaining) ~= "table" then
+        return nil
+    end
+    return st.victoryRemaining
+end
+
 function LiveEncounter:ScriptDefeatText()
     local text, instance = Encounter.ScriptDefeatText(self)
     if instance ~= nil then
@@ -5853,6 +6335,25 @@ function LiveEncounter:ScriptDefeatText()
         end
     end
     return text, instance
+end
+
+--- Every status entry the attached scripts' status functions last returned,
+--- in script order, for the initiative bar. These are the strings and numbers
+--- the host resolved and networked, so any client can read them.
+--- @return {title: string, tooltip: string|nil, timer: {remaining: number, total: number, color: string|nil}|nil}[]
+function LiveEncounter:GetScriptStatus()
+    local result = {}
+    for _, instance in ipairs(self:try_get("scripts", {})) do
+        local st = self:GetScriptState(instance:try_get("guid", ""))
+        if st ~= nil and type(st.status) == "table" then
+            for _, entry in ipairs(st.status) do
+                if type(entry) == "table" and type(entry.title) == "string" then
+                    result[#result + 1] = entry
+                end
+            end
+        end
+    end
+    return result
 end
 
 -- ---------------------------------------------------------------------------
@@ -5910,7 +6411,10 @@ local function MakeReadContext(liveEncounter, instance, def)
         return false
     end
     ctx.Announce = NotAllowed
+    ctx.SetWaterLevel = NotAllowed
+    ctx.GetWaterLevel = function(_) return Encounter.GetWaterLevel() end
     ctx.DeployWave = NotAllowed
+    ctx.SetVictories = NotAllowed
     ctx.EnsureButton = NotAllowed
     ctx.DismissButton = NotAllowed
     ctx.IsLive = function() return false end
@@ -6026,8 +6530,31 @@ local function MakeHostContext(instance)
         pcall(function() chat.Send(tostring(text)) end)
     end
 
+    --the full-screen DramaticBanner; it is a shared document, so everyone sees it.
+    --bannerType is a DramaticBanner.types id ("heroic" swords, the default, or "malice").
+    ctx.Banner = function(_, text, subtitle, bannerType)
+        local banner = rawget(_G, "DramaticBanner")
+        if banner ~= nil then
+            pcall(function() banner.Show{ text = tostring(text), subtitle = subtitle, bannerType = bannerType } end)
+        end
+    end
+
     ctx.Log = function(_, text)
         print(string.format("EncounterScript '%s': %s", instance:try_get("name", "script"), tostring(text)))
+    end
+
+    --The map water level: creatures float up with rising water and settle with
+    --falling water on their own (the engine moves them). nil removes the water.
+    ctx.SetWaterLevel = function(_, level, options)
+        local ok, err = Encounter.SetWaterLevel(level, options)
+        if not ok then
+            print(string.format("EncounterScript '%s': SetWaterLevel: %s", instance:try_get("name", "script"), tostring(err)))
+        end
+        return ok
+    end
+
+    ctx.GetWaterLevel = function(_)
+        return Encounter.GetWaterLevel()
     end
 
     --Deploy one of the encounter's authored reinforcement waves right now.
@@ -6049,6 +6576,29 @@ local function MakeHostContext(instance)
             return false
         end
         liveEncounter:DeployWave(waveid, q)
+        dmhub:UploadInitiativeQueue()
+        return true
+    end
+
+    --The award reads live.victories after the victory screen shows, so a script must set it before winning.
+    ctx.SetVictories = function(_, amount)
+        local victories = tonumber(amount)
+        if victories == nil then
+            return false
+        end
+        victories = math.max(0, math.floor(victories))
+        local queue = dmhub.initiativeQueue
+        if queue == nil or queue.hidden then
+            return false
+        end
+        local liveEncounter = queue:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then
+            return false
+        end
+        if liveEncounter:try_get("victories", 1) == victories then
+            return true
+        end
+        liveEncounter.victories = victories
         dmhub:UploadInitiativeQueue()
         return true
     end
@@ -6141,6 +6691,112 @@ function EncounterScript.PrepareEncounter(encounter, runHandlers)
     return result
 end
 
+--- Runs every onReset handler of an encounter's scripts: an authoring test
+--- reset (EncounterMontage.ResetTest) asks each script to put back what it
+--- changed on the map, since the next combat's onStart may be a while off.
+--- Called outside combat, so ctx.queue is nil and ctx.state is a fresh table.
+--- @param encounter Encounter
+function EncounterScript.ResetEncounter(encounter)
+    for _, instance in ipairs(encounter:try_get("scripts", {})) do
+        local def = instance:GetDefinition()
+        if def ~= nil and def.onReset ~= nil then
+            local name = def.name or instance:try_get("name", "Encounter Script")
+            local ctx = {
+                params = instance:ResolveParams(def),
+                state = {},
+                round = 0,
+                queue = nil,
+                encounter = encounter,
+                isHost = true,
+            }
+            ctx.Log = function(_, text)
+                print(string.format("EncounterScript '%s': %s", name, tostring(text)))
+            end
+            --putting the water back is what onReset is for (Rising Waters drains).
+            ctx.SetWaterLevel = function(_, level, options)
+                local setOk, setErr = Encounter.SetWaterLevel(level, options)
+                if not setOk then
+                    print(string.format("EncounterScript '%s': SetWaterLevel: %s", name, tostring(setErr)))
+                end
+                return setOk
+            end
+            ctx.GetWaterLevel = function(_)
+                return Encounter.GetWaterLevel()
+            end
+            local ok, err = pcall(def.onReset, ctx)
+            if not ok then
+                PrintScriptError(instance, tostring(err))
+            end
+        end
+    end
+end
+
+--Run a script's status function against the live host ctx and copy out only
+--the fields the initiative bar draws, so the networked state stays small and
+--plain. Returns a list of { title, tooltip, timer = { remaining, total, color } }
+--(possibly empty), or nil when the function errored.
+local function ResolveLiveStatus(instance, def, ctx)
+    if def.status == nil then
+        return {}
+    end
+    local ok, result = pcall(def.status, ctx)
+    if not ok then
+        PrintScriptError(instance, "status error: " .. tostring(result))
+        return nil
+    end
+    if type(result) ~= "table" then
+        return {}
+    end
+    --a single entry is the common case; accept it without a wrapping list.
+    if result.title ~= nil or result.tooltip ~= nil or result.timer ~= nil then
+        result = { result }
+    end
+    local list = {}
+    for _, entry in ipairs(result) do
+        if type(entry) == "table" and type(entry.title) == "string" and entry.title ~= "" then
+            local item = { title = entry.title }
+            if type(entry.tooltip) == "string" and entry.tooltip ~= "" then
+                item.tooltip = entry.tooltip
+            end
+            local timer = entry.timer
+            if type(timer) == "table" and type(timer.total) == "number" and timer.total >= 1 then
+                local total = math.min(24, math.floor(timer.total))
+                local remaining = math.max(0, math.min(total, math.floor(tonumber(timer.remaining) or 0)))
+                item.timer = { remaining = remaining, total = total }
+                if type(timer.color) == "string" and timer.color:match("^#%x%x%x%x%x%x$") then
+                    item.timer.color = timer.color
+                end
+            end
+            list[#list + 1] = item
+        end
+    end
+    return list
+end
+
+--Run a victory script's remaining function against the live host ctx and turn
+--what it returns (tokens and/or strings) into player-safe display lines.
+--Returns the list, false when the script declares no remaining function, or nil
+--when it errored (the caller then keeps the last good list).
+local function ResolveLiveRemaining(instance, def, ctx)
+    if def.victory == nil or def.victory.remaining == nil then
+        return false
+    end
+    local ok, result = pcall(def.victory.remaining, ctx)
+    if not ok then
+        PrintScriptError(instance, "victory.remaining error: " .. tostring(result))
+        return nil
+    end
+    if type(result) ~= "table" then
+        return {}
+    end
+    local describeOk, lines = pcall(Encounter.DescribeVictoryUnits, result)
+    if not describeOk then
+        PrintScriptError(instance, "victory.remaining must return a list of tokens or strings: " .. tostring(lines))
+        return nil
+    end
+    return lines
+end
+
 --Run one script instance for one heartbeat. Returns true when its persisted
 --state changed (the caller batches the upload). isLive is false once combat
 --has ended (queue hidden) - that is when onEnd fires.
@@ -6218,6 +6874,15 @@ local function RunInstanceTick(liveEncounter, instance, q, isLive)
     if isLive then
         st.victoryText = ResolveLiveConditionText(def.victory, ctx) or st.victoryText
         st.defeatText = ResolveLiveConditionText(def.defeat, ctx) or st.defeatText
+        --an erroring status keeps showing the last good one.
+        st.status = ResolveLiveStatus(instance, def, ctx) or st.status
+        --the objective tooltip's "still to defeat" names (victory.remaining).
+        local remaining = ResolveLiveRemaining(instance, def, ctx)
+        if remaining == false then
+            st.victoryRemaining = nil
+        elseif remaining ~= nil then
+            st.victoryRemaining = remaining
+        end
     end
 
     local afterOk, after = pcall(dmhub.ToJson, st)
@@ -6912,6 +7577,97 @@ return {
                 end
             end
         end
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:rising-waters",
+    name = "Rising Waters",
+    description = "Every few turns the map's water level rises, flooding lower ground: creatures float up with it, deep water is swum, and the new shoreline becomes shallow water.",
+    code = [==[
+return {
+    name = "Rising Waters",
+    description = "Every few turns the map's water level rises. Combat starts with the water at the Starting Level; each rise lifts it by Rise Amount squares. Ground 1 square or more under the water is deep water (swimming), less is shallow water (difficult terrain for creatures without a swim speed). Creatures float up with the water. Set how the water looks in Map Settings > Water.",
+
+    params = {
+        { id = "startLevel", name = "Starting Level", type = "number", default = 0, min = -20, max = 20 },
+        { id = "riseAmount", name = "Rise Amount (squares)", type = "number", default = 1, min = 0.5, max = 5 },
+        { id = "turnsPerRise", name = "Turns Between Rises", type = "number", default = 3, min = 1, max = 20 },
+        { id = "rises", name = "Number of Rises", type = "number", default = 2, min = 1, max = 10 },
+        { id = "announce", name = "Announce in Chat", type = "boolean", default = true },
+        { id = "banner", name = "Show a Banner", type = "boolean", default = true },
+    },
+
+    --start at the starting level, so a replayed encounter does not start already flooded.
+    onStart = function(ctx)
+        ctx.state.rises = 0
+        ctx:SetWaterLevel(ctx.params.startLevel)
+    end,
+
+    --a test reset drains the water back to its starting level.
+    onReset = function(ctx)
+        ctx:SetWaterLevel(ctx.params.startLevel)
+    end,
+
+    --counts turns (not rounds) by watching the current turn's id change; the
+    --water rises as the turn after every turnsPerRise-th completed turn begins.
+    think = function(ctx)
+        local st = ctx.state
+        st.rises = st.rises or 0
+        if st.rises >= ctx.params.rises or ctx.queue == nil then
+            return
+        end
+        if ctx.queue:CurrentInitiativeId() == nil then
+            return
+        end
+        local turnid = ctx.queue:GetTurnId()
+        if turnid == nil or turnid == st.lastTurnId then
+            return
+        end
+        st.lastTurnId = turnid
+        st.turnsStarted = (st.turnsStarted or 0) + 1
+
+        local completed = st.turnsStarted - 1
+        local rises = math.min(ctx.params.rises, math.floor(completed / ctx.params.turnsPerRise))
+        if rises <= st.rises then
+            return
+        end
+        st.rises = rises
+
+        ctx:SetWaterLevel(ctx.params.startLevel + rises * ctx.params.riseAmount)
+
+        local amount = ctx.params.riseAmount
+        local squares = (amount == 1) and "1 square" or string.format("%g squares", amount)
+        if ctx.params.announce then
+            ctx:Announce(string.format("The water rises by %s! (%d of %d)", squares, rises, ctx.params.rises))
+        end
+        if ctx.params.banner then
+            ctx:Banner("Rising Waters", string.format("The waters have risen by %s!", squares), "malice")
+        end
+    end,
+
+    --the initiative bar's countdown: one pie segment per turn left before the
+    --next rise, using the same turn count as think.
+    status = function(ctx)
+        local st = ctx.state
+        local per = ctx.params.turnsPerRise
+        local risesLeft = ctx.params.rises - (st.rises or 0)
+        if risesLeft <= 0 then
+            return { title = "Rising Waters", tooltip = "The water has risen as high as it will go." }
+        end
+        local completed = math.max(0, (st.turnsStarted or 0) - 1)
+        local remaining = math.max(1, math.min(per, ((st.rises or 0) + 1) * per - completed))
+        local tooltip = string.format("The water will rise in %d turns", remaining)
+        if remaining == 1 then
+            tooltip = "The water will rise at the start of the next turn"
+        end
+        return {
+            title = "Rising Waters",
+            tooltip = tooltip,
+            timer = { remaining = remaining, total = per, color = "#62b6ff" },
+        }
     end,
 }
 ]==],

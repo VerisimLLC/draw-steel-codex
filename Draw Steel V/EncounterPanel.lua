@@ -483,8 +483,8 @@ end
 
 --Regroup the flat banked slots into one queue of saved positions PER MONSTER
 --TYPE, so an edit to the roster cannot hand one monster's tile to another.
---Each entry carries the appearance and player-visibility banked with it, since
---those are slot-keyed too and must travel with the position.
+--Each entry carries the appearance, player-visibility and Hidden state banked
+--with it, since those are slot-keyed too and must travel with the position.
 --
 --Positions banked before spawnmonsters existed carry no monsterid stamp; they
 --go into a shared legacy queue any monster may draw from in slot order, which
@@ -498,6 +498,7 @@ local function BankedPositionQueues(group)
             loc = locs[slot],
             appearance = (group.appearances or {})[slot],
             invisible = (group.invisibleToPlayers or {})[slot],
+            hidden = (group.startsHidden or {})[slot],
         }
         local monsterid = (group.spawnmonsters or {})[slot]
         if monsterid == nil or monsterid == false then
@@ -529,7 +530,7 @@ local function TakeBankedPosition(queues, legacy, monsterid)
 end
 
 --Bank one group's staged tokens into the group: positions (spawnlocs),
---player-visibility, and (when the encounter opts in) appearances, all in
+--player-visibility, the Hidden condition, and (when the encounter opts in) appearances, all in
 --spawn-slot order. Also stamps the map the positions belong to -- spawnlocs
 --are map-blind coordinates, so consumers must not use them on another map.
 --Returns the banked tokens; the CALLER decides whether to delete them.
@@ -541,11 +542,14 @@ local function BankGroupPositions(group, saveAppearances)
     group.spawnlocs = {}
     group.appearances = {}
     group.invisibleToPlayers = {}
+    group.startsHidden = {}
     group.spawnmonsters = {}
     group.stagemapid = game.currentMapId
     for slot, token in ipairs(tokens) do
         group.spawnlocs[slot] = token.loc
         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
+        --a monster staged with the Hidden condition starts every run hidden.
+        group.startsHidden[slot] = token.properties:IsHidden()
         --which monster type held this tile, so a later restage can hand it back
         --to the same one even if the roster changed in between. false (never
         --nil) for tokens spawned before the stamp existed: the list has to stay
@@ -623,6 +627,7 @@ local function ClearGroupStaging(group)
     group.spawnlocs = nil
     group.appearances = nil
     group.invisibleToPlayers = nil
+    group.startsHidden = nil
     group.spawnmonsters = nil
     group.mounts = nil
     group.stagemapid = nil
@@ -723,6 +728,9 @@ local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroe
                 end
                 if entry ~= nil and entry.invisible then
                     token.invisibleToPlayers = true
+                end
+                if entry ~= nil and entry.hidden then
+                    token.properties:BecomeHidden(token)
                 end
                 token:UploadToken()
                 tokens[#tokens + 1] = token
@@ -977,6 +985,37 @@ local function BuilderStyles()
             bold = true,
         },
     })
+end
+
+--The builder window's styles. Popped out into its own OS window the builder
+--is its own style-cascade root, so it must carry Styles.Default itself (the
+--hud root no longer supplies it), and its frame goes square: rounded corners
+--would show the window's black clear color.
+local function EditorWindowStyles(poppedOut)
+    if not poppedOut then
+        return BuilderStyles()
+    end
+    return {
+        Styles.Default,
+        BuilderStyles(),
+        ThemeEngine.MergeTokens({
+            {
+                selectors = { "dialog", "parent:poppedOut" },
+                priority = 6,
+                cornerRadius = 0,
+                borderWidth = 0,
+            },
+        }),
+    }
+end
+
+--The builder steps aside (hides) while the Director works on the map. One
+--popped out into its own OS window is already off the map, so it stays put.
+local function HideBuilderForMapWork(editorPanel)
+    if editorPanel.data.poppedOut then
+        return
+    end
+    editorPanel:SetClass("hidden", true)
 end
 
 -- ===========================================================================
@@ -3131,7 +3170,7 @@ local function CreateGroupCard(args)
             if GroupHasUsableStaging(encounter, group) then
                 local tokens = StageGroupAtSavedLocations(encounter, groupIndex, group, party.numHeroes, placementid)
                 if #tokens > 0 then
-                    editorPanel:SetClass("hidden", true)
+                    HideBuilderForMapWork(editorPanel)
 
                     local firstCharid = tokens[1].charid
                     dmhub.Schedule(0.2, function()
@@ -3156,7 +3195,7 @@ local function CreateGroupCard(args)
             placeEncounter.groups = { groupCopy }
             placeEncounter.waves = {}
 
-            editorPanel:SetClass("hidden", true)
+            HideBuilderForMapWork(editorPanel)
 
             local stageMessage = string.format("Click on the map to stage %s", GroupName(encounter, group, groupIndex))
             if GroupStagedOnOtherMap(group) and not GroupStagedOffEncounterMap(encounter, group) then
@@ -3301,6 +3340,7 @@ local function CreateGroupCard(args)
                         copy.spawnlocs = nil
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
+                        copy.startsHidden = nil
                         copy.spawnmonsters = nil
                         copy.mounts = nil
                         encounter.groups[#encounter.groups + 1] = copy
@@ -4240,6 +4280,23 @@ local function CreateMapPickerPopup(encounter, choose)
 
     Populate("")
 
+    --the map open right now, first and in bold: usually the one the Director
+    --is building the encounter for.
+    local currentMap = game.currentMap
+    local currentOption = nil
+    if currentMap ~= nil and currentMap.valid then
+        local currentId = game.currentMapId
+        currentOption = gui.Label {
+            classes = { "encounterMapOption", cond(currentId == encounter.mapid, "selected") },
+            bold = true,
+            bmargin = 8,
+            text = string.format("Current Map: %s", currentMap.description),
+            press = function(element)
+                choose(currentId)
+            end,
+        }
+    end
+
     return gui.Panel {
         classes = { "bordered", "bg" },
         width = 300,
@@ -4248,6 +4305,8 @@ local function CreateMapPickerPopup(encounter, choose)
         hpad = 10,
         vpad = 10,
         borderBox = true,
+
+        currentOption,
 
         gui.Button {
             classes = { "sizeS" },
@@ -4364,6 +4423,19 @@ local function CreateEncounterMapCard(encounter, refresh)
         else
             ReconcileStagingWithMap(encounter)
         end
+
+        --the open map with no thumbnail, or one out of date: capture now, as
+        --arriving on it would (a capture only works on the map on screen).
+        --The card redraws by itself when the thumbnail lands in /mapManifests.
+        local map = (mapid ~= "" and mapid == game.currentMapId) and game.GetMap(mapid) or nil
+        if map ~= nil and ((map.thumbnailImage or "") == "" or map.thumbnailStale) then
+            MapThumbnail.Refresh(map, {
+                error = function(message)
+                    print("Encounter map thumbnail capture failed:", message)
+                end,
+            })
+        end
+
         Refresh()
         refresh()
     end
@@ -4387,6 +4459,11 @@ local function CreateEncounterMapCard(encounter, refresh)
         --maps renamed, deleted or added elsewhere.
         monitorGame = "/mapManifests",
         refreshGame = function(element)
+            Refresh()
+        end,
+
+        --the builder set the map itself (monsters dropped from the map).
+        refreshBuilder = function(element)
             Refresh()
         end,
 
@@ -4955,6 +5032,9 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 if entry ~= nil and entry.invisible then
                     token.invisibleToPlayers = true
                 end
+                if entry ~= nil and entry.hidden then
+                    token.properties:BecomeHidden(token)
+                end
 
                 local balancing = group.balancing
                 if balancing ~= nil then
@@ -5117,6 +5197,9 @@ function Encounter.SpawnPrepMonsters(group, monsterid, count, numHeroes, existin
             end
             if entry ~= nil and entry.invisible then
                 token.invisibleToPlayers = true
+            end
+            if entry ~= nil and entry.hidden then
+                token.properties:BecomeHidden(token)
             end
             local info = (group.balancing or {})[numHeroes]
             if info ~= nil and type(info.stamina) == "number" then
@@ -5936,6 +6019,28 @@ local function DroppableMonsters(charids)
     return monsters, others
 end
 
+--Split DroppableMonsters' list into one list per shared initiative (an
+--initiative grouping or a minion squad), in drag order; the monsters with an
+--initiative of their own share one list. Each list becomes an encounter group.
+local function SplitByInitiative(monsters)
+    local lists = {}
+    local listsByKey = {}
+    for _, entry in ipairs(monsters) do
+        local key = InitiativeQueue.GetInitiativeId(entry.token) or ""
+        if key == entry.token.id then
+            key = ""
+        end
+        local list = listsByKey[key]
+        if list == nil then
+            list = {}
+            listsByKey[key] = list
+            lists[#lists + 1] = list
+        end
+        list[#list + 1] = entry
+    end
+    return lists
+end
+
 --"Goblin Warrior x2, Goblin Sniper": the monsters by type, in drag order.
 local function DescribeMonsters(monsters)
     local order = {}
@@ -6162,25 +6267,13 @@ function Encounter.CreateFromTokens(charids)
         encounter.name = name
     end
 
-    local groupsByKey = {}
-    local slots = {}
-    for _, entry in ipairs(monsters) do
-        local token = entry.token
-        local initiativeid = InitiativeQueue.GetInitiativeId(token)
-        local key = initiativeid or ""
-        if key == token.id then
-            key = ""
+    for _, list in ipairs(SplitByInitiative(monsters)) do
+        local group = { monsters = {}, placementid = dmhub.GenerateGuid() }
+        encounter.groups[#encounter.groups + 1] = group
+        for slot, entry in ipairs(list) do
+            group.monsters[entry.monsterid] = (group.monsters[entry.monsterid] or 0) + 1
+            StampStagedToken(entry.token, group, slot, entry.monsterid)
         end
-        local group = groupsByKey[key]
-        if group == nil then
-            group = { monsters = {}, placementid = dmhub.GenerateGuid() }
-            groupsByKey[key] = group
-            encounter.groups[#encounter.groups + 1] = group
-            slots[group] = 0
-        end
-        group.monsters[entry.monsterid] = (group.monsters[entry.monsterid] or 0) + 1
-        slots[group] = slots[group] + 1
-        StampStagedToken(token, group, slots[group], entry.monsterid)
     end
 
     for _, group in ipairs(encounter.groups) do
@@ -6195,6 +6288,337 @@ function Encounter.CreateFromTokens(charids)
     copy.id = id
     Encounter.CreateEditorDialog(copy, { mode = "Save" })
     return encounter
+end
+
+--Monsters on the plan's map that it does not account for, as charids in map
+--order: Bestiary monsters that are not heroes' allies or summons, not staged
+--or placed by this plan (or spawned by an earlier play of it), and not tagged
+--to another saved plan. Empty unless the plan's map is the one open, since
+--only its tokens are loaded.
+local function MonstersOnMapNotInEncounter(encounter)
+    local mapid = encounter.mapid
+    if mapid == nil or mapid == "" or mapid ~= game.currentMapId then
+        return {}
+    end
+
+    local myId = encounter:try_get("id")
+    local ownPids = {}
+    for _, group in ipairs(encounter.groups) do
+        if group.placementid ~= nil then
+            ownPids[group.placementid] = true
+        end
+    end
+
+    local otherIds = {}
+    local otherPids = {}
+    for id, other in unhidden_pairs(dmhub.GetTable("encounters") or {}) do
+        if id ~= myId then
+            otherIds[id] = true
+            for _, group in ipairs(other:try_get("groups", {})) do
+                if group.placementid ~= nil then
+                    otherPids[group.placementid] = true
+                end
+            end
+        end
+    end
+
+    local charids = {}
+    for _, tok in ipairs(dmhub.allTokens) do
+        local props = tok.properties
+        local monsterish = false
+        pcall(function() monsterish = props ~= nil and props:IsMonster() == true end)
+        if monsterish and not IsPlayerSideToken(tok) and (tok.summonerid == nil or tok.summonerid == "")
+            and tok.bestiaryId ~= nil and assets.monsters[tok.bestiaryId] ~= nil then
+            local pid = props:try_get("encounterPlacementId")
+            local source = props:try_get("encounterSourceId")
+            local claimed = (pid ~= nil and (ownPids[pid] or otherPids[pid]))
+                or (source ~= nil and (source == myId or otherIds[source]))
+            if not claimed then
+                charids[#charids + 1] = tok.charid
+            end
+        end
+    end
+    return charids
+end
+
+--What kind of shared initiative a SplitByInitiative list is on, for its row.
+local function InitiativeListKind(list)
+    local token = list[1].token
+    local key = InitiativeQueue.GetInitiativeId(token)
+    if key == nil or key == token.id then
+        return cond(#list > 1, "Each on its own initiative", "Own initiative")
+    end
+    if token.properties.initiativeGrouping then
+        return "Shared initiative"
+    end
+    return "Minion squad"
+end
+
+local MAP_MONSTERS_MAX_IMAGES = 6
+
+--The builder's "On the Map" card: monsters standing on the plan's map that are
+--not in it (MonstersOnMapNotInEncounter), one row per shared initiative as on
+--the map, each with a button that adds it as a group. Adding goes through
+--adoptTokens -- the same path as dragging the tokens onto the builder -- so the
+--monsters stay where they are as the plan's staged tokens. Polls the map once
+--a second; hidden while there is nothing to add.
+local function CreateMapMonstersSection(args)
+    local encounter = args.encounter
+    local adoptTokens = args.adoptTokens
+
+    local m_signature = nil
+    local m_charids = {}
+
+    local countBadge = gui.Label {
+        classes = { "encounterBadge" },
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        text = "",
+    }
+
+    local rowsPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    local body = gui.Panel {
+        classes = { "featureCardBody" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        vpad = 4,
+        borderBox = true,
+        rowsPanel,
+    }
+
+    local card = gui.Panel {
+        classes = { "featureCard", "hidden" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bmargin = 8,
+
+        gui.Panel {
+            classes = { "featureCardHeader", "expanded" },
+            width = "100%",
+            height = 32,
+            flow = "horizontal",
+
+            --the header folds the rows away, for a map crowded with monsters
+            --that belong to no plan.
+            press = function(element)
+                local expanded = not element:HasClass("expanded")
+                element:SetClass("expanded", expanded)
+                body:SetClass("hidden", not expanded)
+            end,
+
+            gui.Label {
+                classes = { "sizeS", "bold" },
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 10,
+                text = "On the Map",
+            },
+
+            gui.Label {
+                classes = { "fgMuted", "sizeXs" },
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 8,
+                text = "not in this encounter",
+            },
+
+            gui.Panel {
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                halign = "right",
+                rmargin = 8,
+
+                countBadge,
+
+                gui.Button {
+                    classes = { "sizeS" },
+                    valign = "center",
+                    lmargin = 8,
+                    text = "Add All",
+                    swallowPress = true,
+                    hover = gui.Tooltip("Add every monster listed here, one group per initiative group."),
+                    press = function(element)
+                        adoptTokens(m_charids, nil)
+                    end,
+                },
+            },
+        },
+
+        body,
+    }
+
+    local function CreateRow(list)
+        local charids = {}
+        local images = {}
+        for i, entry in ipairs(list) do
+            charids[#charids + 1] = entry.token.charid
+            if i <= MAP_MONSTERS_MAX_IMAGES then
+                images[#images + 1] = gui.CreateTokenImage(entry.token, {
+                    interactable = false,
+                    width = 32,
+                    height = 32,
+                    valign = "center",
+                    rmargin = 4,
+                })
+            elseif i == MAP_MONSTERS_MAX_IMAGES + 1 then
+                images[#images + 1] = gui.Label {
+                    classes = { "fgMuted", "sizeXs" },
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 4,
+                    text = string.format("+%d", #list - MAP_MONSTERS_MAX_IMAGES),
+                }
+            end
+        end
+
+        --a fixed-height row with single-line, auto-width text: percent-wide
+        --labels in an auto-height column measured as wrapping at zero width
+        --and blew each row up to hundreds of pixels tall.
+        return gui.Panel {
+            width = "100%",
+            height = 40,
+            flow = "horizontal",
+            hpad = 10,
+            borderBox = true,
+
+            gui.Panel {
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                children = images,
+            },
+
+            gui.Panel {
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+                lmargin = 6,
+
+                gui.Label {
+                    classes = { "sizeS" },
+                    width = "auto",
+                    maxWidth = 340,
+                    height = "auto",
+                    textWrap = false,
+                    textOverflow = "ellipsis",
+                    text = DescribeMonsters(list),
+                },
+
+                gui.Label {
+                    classes = { "fgMuted", "sizeXxs" },
+                    width = "auto",
+                    height = "auto",
+                    textWrap = false,
+                    text = InitiativeListKind(list),
+                },
+            },
+
+            gui.Button {
+                classes = { "sizeS" },
+                valign = "center",
+                halign = "right",
+                lmargin = 8,
+                text = "Add Group",
+                hover = gui.Tooltip("Add these monsters to the encounter as an initiative group. They stay where they are, staged with the plan."),
+                press = function(element)
+                    adoptTokens(charids, nil)
+                end,
+            },
+        }
+    end
+
+    --rebuild the rows when the map's unclaimed monsters, or how they share
+    --initiative, have changed since last time (or always, when force is set).
+    local function Update(force)
+        local charids = MonstersOnMapNotInEncounter(encounter)
+        local monsters = DroppableMonsters(charids)
+        local parts = {}
+        for _, entry in ipairs(monsters) do
+            parts[#parts + 1] = entry.token.charid .. "=" .. tostring(InitiativeQueue.GetInitiativeId(entry.token))
+        end
+        local signature = table.concat(parts, ",")
+        if signature == m_signature and not force then
+            return
+        end
+        m_signature = signature
+        m_charids = charids
+
+        card:SetClass("hidden", #monsters == 0)
+        if #monsters == 0 then
+            rowsPanel.children = {}
+            return
+        end
+
+        countBadge.text = string.format("%d monster%s", #monsters, cond(#monsters == 1, "", "s"))
+
+        --shared initiatives first, the monsters on their own last.
+        local shared = {}
+        local solo = {}
+        for _, list in ipairs(SplitByInitiative(monsters)) do
+            local token = list[1].token
+            local key = InitiativeQueue.GetInitiativeId(token)
+            if key == nil or key == token.id then
+                solo[#solo + 1] = list
+            else
+                shared[#shared + 1] = list
+            end
+        end
+        local rows = {}
+        for _, list in ipairs(shared) do
+            rows[#rows + 1] = CreateRow(list)
+        end
+        for _, list in ipairs(solo) do
+            rows[#rows + 1] = CreateRow(list)
+        end
+        rowsPanel.children = rows
+    end
+
+    --the wrapper is never hidden, so it keeps thinking while the card is.
+    --Sized like the wave sections below it, leaving the scrollbar its room.
+    return gui.Panel {
+        width = "100%-14",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+
+        thinkTime = 1,
+        think = function(element)
+            if mod.unloaded then
+                return
+            end
+            Update(false)
+        end,
+
+        create = function(element)
+            Update(true)
+        end,
+
+        --monsters were just added, or the plan's map changed.
+        rebuildGroups = function(element)
+            Update(true)
+        end,
+        refreshBuilder = function(element)
+            Update(false)
+        end,
+
+        card,
+    }
 end
 
 -- ===========================================================================
@@ -6427,9 +6851,12 @@ function Encounter.Editor(self, options)
     --tokenDropTarget, so the engine fires dropTokens): staging in reverse. Each
     --monster joins targetGroup and is tagged exactly as staging tags the tokens
     --it spawns, so it banks, collects and places with the plan from then on.
-    --A drop beside the cards (targetGroup nil) fills the active group while it
-    --is still empty, else starts a new group. A monster already in another of
-    --this plan's groups moves over; one already in targetGroup is left alone.
+    --A plan with no map yet takes the map the monsters are on.
+    --A drop beside the cards (targetGroup nil) splits the monsters into one
+    --group per shared initiative, as a drop on the Encounters list does: the
+    --first fills the active group while it is still empty, the rest are new
+    --groups. A monster already in another of this plan's groups moves over;
+    --one already in targetGroup is left alone.
     local function AdoptDroppedTokens(charids, targetGroup)
         local tokens, skipped = DroppableMonsters(charids)
 
@@ -6443,80 +6870,104 @@ function Encounter.Editor(self, options)
             return
         end
 
-        local group = targetGroup
-        if group == nil then
-            group = state.activeGroup
-            if group == nil or next(group.monsters) ~= nil then
-                --AddGroup deep-copies the groups array, so take the new group
-                --from the copy.
-                self:AddGroup()
-                group = self.groups[#self.groups]
-            end
+        --no map chosen yet (not even a library map still to add): the
+        --monsters' map, the one on screen, becomes it.
+        if self.mapid == "" and self:GetMapRef() == nil and game.currentMap ~= nil then
+            self.mapid = game.currentMapId
         end
 
-        local groupIndex = nil
-        for i, g in ipairs(self.groups) do
-            if g == group then
-                groupIndex = i
+        --each group the drop fills, by its index in self.groups, and the
+        --monsters it takes. Indices, because AddGroup deep-copies the groups
+        --array: every group is made before any group table is held.
+        --- @type {index: integer, tokens: table[]}[]
+        local batches = {}
+        if targetGroup ~= nil then
+            for i, g in ipairs(self.groups) do
+                if g == targetGroup then
+                    batches[1] = { index = i, tokens = tokens }
+                end
+            end
+        else
+            local activeIndex = nil
+            for i, g in ipairs(self.groups) do
+                if g == state.activeGroup and next(g.monsters) == nil then
+                    activeIndex = i
+                end
+            end
+            for i, list in ipairs(SplitByInitiative(tokens)) do
+                local index = activeIndex
+                if i > 1 or index == nil then
+                    self:AddGroup()
+                    index = #self.groups
+                end
+                batches[#batches + 1] = { index = index, tokens = list }
             end
         end
-        if groupIndex == nil then
+        if #batches == 0 then
             return
         end
 
-        if group.placementid == nil then
-            group.placementid = dmhub.GenerateGuid()
-        end
-
-        --A group whose positions are saved but not on the map would bank only
-        --the newcomers on the next save, losing everyone else's tile. Bring its
-        --saved arrangement back first so the whole group is staged together.
-        local live = PlacedTokensForGroup(group)
-        if #live == 0 and GroupHasUsableStaging(self, group) then
-            for _, token in ipairs(StageGroupAtSavedLocations(self, groupIndex, group, party.numHeroes, group.placementid)) do
-                live[#live + 1] = token
-            end
-        end
-
-        local nextSlot = 1
-        for _, token in ipairs(live) do
-            nextSlot = math.max(nextSlot, token.properties:try_get("encounterSpawnSlot", 0) + 1)
-        end
-
         local emptiedGroups = {}
-        for _, entry in ipairs(tokens) do
-            local token = entry.token
-            local monsterid = entry.monsterid
-            local placementid = token.properties:try_get("encounterPlacementId")
+        for _, batch in ipairs(batches) do
+            local groupIndex = batch.index
+            local group = self.groups[groupIndex]
 
-            local oldGroup = nil
-            if placementid ~= nil then
-                for _, g in ipairs(self.groups) do
-                    if g.placementid == placementid then
-                        oldGroup = g
-                    end
+            if group.placementid == nil then
+                group.placementid = dmhub.GenerateGuid()
+            end
+
+            --A group whose positions are saved but not on the map would bank only
+            --the newcomers on the next save, losing everyone else's tile. Bring its
+            --saved arrangement back first so the whole group is staged together.
+            local live = PlacedTokensForGroup(group)
+            if #live == 0 and GroupHasUsableStaging(self, group) then
+                for _, token in ipairs(StageGroupAtSavedLocations(self, groupIndex, group, party.numHeroes, group.placementid)) do
+                    live[#live + 1] = token
                 end
             end
 
-            if oldGroup ~= group or token.properties:try_get("encounterStaged") == false then
-                --already counted in this plan's roster: move the count over
-                --rather than adding a second copy.
-                if oldGroup == nil then
-                    group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
-                elseif oldGroup ~= group then
-                    local oldMonster = token.properties:try_get("encounterSpawnMonster") or monsterid
-                    local count = (oldGroup.monsters[oldMonster] or 0) - 1
-                    oldGroup.monsters[oldMonster] = cond(count > 0, count, nil)
-                    if next(oldGroup.monsters) == nil then
-                        emptiedGroups[#emptiedGroups + 1] = oldGroup
+            local nextSlot = 1
+            for _, token in ipairs(live) do
+                nextSlot = math.max(nextSlot, token.properties:try_get("encounterSpawnSlot", 0) + 1)
+            end
+
+            for _, entry in ipairs(batch.tokens) do
+                local token = entry.token
+                local monsterid = entry.monsterid
+                local placementid = token.properties:try_get("encounterPlacementId")
+
+                local oldGroup = nil
+                if placementid ~= nil then
+                    for _, g in ipairs(self.groups) do
+                        if g.placementid == placementid then
+                            oldGroup = g
+                        end
                     end
-                    group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
                 end
 
-                StampStagedToken(token, group, nextSlot, monsterid)
-                nextSlot = nextSlot + 1
+                if oldGroup ~= group or token.properties:try_get("encounterStaged") == false then
+                    --already counted in this plan's roster: move the count over
+                    --rather than adding a second copy.
+                    if oldGroup == nil then
+                        group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
+                    elseif oldGroup ~= group then
+                        local oldMonster = token.properties:try_get("encounterSpawnMonster") or monsterid
+                        local count = (oldGroup.monsters[oldMonster] or 0) - 1
+                        oldGroup.monsters[oldMonster] = cond(count > 0, count, nil)
+                        if next(oldGroup.monsters) == nil then
+                            emptiedGroups[#emptiedGroups + 1] = oldGroup
+                        end
+                        group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
+                    end
+
+                    StampStagedToken(token, group, nextSlot, monsterid)
+                    nextSlot = nextSlot + 1
+                end
             end
         end
+
+        --held before the removals below shift the indices.
+        local firstGroup = self.groups[batches[1].index]
 
         --a group the drop took its last monster from goes, as removing the
         --last monster by hand does (RemoveMonsterFromGroup in the card).
@@ -6529,7 +6980,7 @@ function Encounter.Editor(self, options)
             end
         end
 
-        state.activeGroup = group
+        state.activeGroup = firstGroup
         rebuild()
     end
 
@@ -6551,7 +7002,16 @@ function Encounter.Editor(self, options)
             end
         end
 
+        --beside the cards, monsters on different initiatives split up.
+        local numGroups = 1
+        if targetGroup == nil then
+            numGroups = #SplitByInitiative((DroppableMonsters(charids)))
+        end
+
         ShowTokenDropPreview(charids, function(list)
+            if numGroups > 1 then
+                return string.format("Split %s into %d groups by initiative", list, numGroups)
+            end
             if groupName == nil then
                 return string.format("Start a new group with %s", list)
             end
@@ -6634,6 +7094,7 @@ function Encounter.Editor(self, options)
                 width = string.format("100%%-%d", MAP_CARD_WIDTH + 12),
                 height = "auto",
                 minHeight = MAP_CARD_HEIGHT,
+                maxHeight = 180,
                 valign = "top",
                 borderBox = true,
                 fontSize = 13,
@@ -6685,6 +7146,11 @@ function Encounter.Editor(self, options)
                 lmargin = 12,
                 flow = "vertical",
                 vscroll = true,
+
+                CreateMapMonstersSection {
+                    encounter = self,
+                    adoptTokens = AdoptDroppedTokens,
+                },
 
                 CreateWaveSections {
                     encounter = self,
@@ -6765,7 +7231,7 @@ function Encounter.Editor(self, options)
 
                         SavePlan()
                         local editorPanel = button:FindParentWithClass("editorPanel")
-                        editorPanel:SetClass("hidden", true)
+                        HideBuilderForMapWork(editorPanel)
                         PlaceEncounterForReal(self, party, {
                             persist = PersistPlan,
                             onComplete = function()
@@ -6868,7 +7334,7 @@ function Encounter.Editor(self, options)
 
                         SavePlan()
                         local editorPanel = button:FindParentWithClass("editorPanel")
-                        editorPanel:SetClass("hidden", true)
+                        HideBuilderForMapWork(editorPanel)
                         Encounter.StartEncounterOnItsMap(self, party, {
                             start = true,
                             persist = PersistPlan,
@@ -6954,10 +7420,44 @@ function Encounter.CreateEditorDialog(encounter, options)
         y = math.max(0, math.min(loc.y, screen.y - height))
     end
 
+    --resize handles on every edge and corner; must stay the last child so
+    --they sit above the content (sibling order is z-order). Collapsed once
+    --popped out: the OS window's own frame resizes it then.
+    local resizePanel = gui.WindowResizePanel(g_editorLocation, width, height, {
+        minWidth = EDITOR_MIN_WIDTH,
+        minHeight = EDITOR_MIN_HEIGHT,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+    })
+
+    --Pop the builder out into its own OS window (the mechanism the Compendium
+    --and character sheet use), freeing the map for staging while the builder
+    --stays open. One way: closing that window closes the builder.
+    local popoutButton = gui.Button {
+        classes = { "sizeXs" },
+        icon = "drawsteel/Icons_Nav_MaxWindow.png",
+        borderWidth = 0,
+        floating = true,
+        halign = "right",
+        valign = "top",
+        tmargin = 6,
+        hmargin = 28,
+        linger = function(element)
+            gui.Tooltip("Pop out into its own window")(element)
+        end,
+        click = function(element)
+            editorPanel:FireEvent("popoutBuilder")
+        end,
+    }
+
     editorPanel = gui.Panel {
 
         classes = { "editorPanel" },
-        styles = BuilderStyles(),
+        styles = EditorWindowStyles(false),
+
+        data = {
+            poppedOut = false,
+        },
 
         --gui.WindowResizePanel's contract: anchored top-left with numeric x/y
         --and a numeric selfStyle width/height it can rewrite while dragging.
@@ -6980,6 +7480,9 @@ function Encounter.CreateEditorDialog(encounter, options)
         swallowPress = true,
         draggable = true,
         drag = function(element)
+            if element.data.poppedOut then
+                return
+            end
             element.x = element.xdrag
             element.y = element.ydrag
             element:SetAsLastSibling()
@@ -6992,6 +7495,62 @@ function Encounter.CreateEditorDialog(encounter, options)
                 screenx = dmhub.screenDimensionsBelowTitlebar.x,
                 screeny = dmhub.screenDimensionsBelowTitlebar.y,
             }
+        end,
+
+        popoutBuilder = function(element)
+            if element.data.poppedOut then
+                return
+            end
+            element.data.poppedOut = true
+            --owner-routed modals fired from inside the builder (the close
+            --button's staged-tokens question) land in this window's own
+            --modal layer rather than the main window.
+            element.data.nativeWindowRoot = true
+            element.draggable = false
+            element:SetClass("poppedOut", true)
+            element.styles = EditorWindowStyles(true)
+            popoutButton:SetClass("collapsed", true)
+            resizePanel:SetClass("collapsed", true)
+
+            --park off-screen for the layout passes before the move: it
+            --measures the panel's rect to size the OS window, but the
+            --builder must not flash at the corner of the app meanwhile.
+            element.x = -30000
+            element:FireEventTree("popout")
+            element:ScheduleEvent("popoutToNativeWindow", 0.15)
+        end,
+
+        popoutToNativeWindow = function(element)
+            if mod.unloaded or (not element.valid) or (not element.data.poppedOut) then
+                return
+            end
+            element:MoveToNativeWindow {
+                resizeable = true,
+                title = "Encounter Builder",
+            }
+        end,
+
+        --fired by the native-window canvas when the popped-out window is
+        --created and whenever the user resizes it. The content is all
+        --percentages, so adopting the window's size reflows it.
+        resize = function(element, w, h)
+            if not element.data.poppedOut then
+                return
+            end
+            element.x = 0
+            element.y = 0
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+        end,
+
+        --the user closed the OS window; the engine destroys this panel right
+        --after, so there is no chance to ask about staged tokens. Do what
+        --"Leave Them on the Map" does: bank their positions and save, so the
+        --staging is never orphaned from the plan that owns it.
+        nativeWindowClosed = function(element)
+            if #editorContent.data.stagedGroupNames() > 0 then
+                editorContent.data.collectAndSave(false)
+            end
         end,
 
         gui.Panel {
@@ -7066,22 +7625,17 @@ function Encounter.CreateEditorDialog(encounter, options)
                 end,
             },
 
+            popoutButton,
+
         },
 
-        --resize handles on every edge and corner; must stay the last child so
-        --they sit above the content (sibling order is z-order).
-        gui.WindowResizePanel(g_editorLocation, width, height, {
-            minWidth = EDITOR_MIN_WIDTH,
-            minHeight = EDITOR_MIN_HEIGHT,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-        }),
+        resizePanel,
 
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
         if editorPanel ~= nil and editorPanel.valid then
-            editorPanel.styles = BuilderStyles()
+            editorPanel.styles = EditorWindowStyles(editorPanel.data.poppedOut)
         end
     end)
 
@@ -7433,16 +7987,16 @@ CreateEncounterPanel = function()
                                     --proportions rather than letting it stretch to
                                     --fill. The panel is a tall slice of the card, so
                                     --an uncropped portrait came out visibly squashed.
-                                    --GetPortraitRectForAspect wants width as a
-                                    --fraction of height, and lives on the token view
-                                    --of the asset (MonsterAsset.info), not on the
-                                    --asset itself. Measured from the rendered size so
+                                    --CardPortraitRect takes width as a fraction of
+                                    --height, and the token view of the asset
+                                    --(MonsterAsset.info), not the asset itself.
+                                    --Measured from the rendered size so
                                     --the crop stays right at any dock width.
                                     local token = mainmonster.info
                                     local w = panel.renderedWidth
                                     local h = panel.renderedHeight
                                     if token ~= nil and w ~= nil and h ~= nil and w > 0 and h > 0 then
-                                        panel.selfStyle.imageRect = token:GetPortraitRectForAspect(w/h, portrait)
+                                        panel.selfStyle.imageRect = CardPortraitRect(token, w/h, portrait)
                                     end
                                 end
 

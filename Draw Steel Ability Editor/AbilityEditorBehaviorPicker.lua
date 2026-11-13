@@ -316,7 +316,7 @@ local BEHAVIOR_METADATA = {
         tags = {"script", "lua", "code", "custom", "execute"},
         group = "scripting",
     },
-    rouitineControl = {
+    routineControl = {
         description = "Control a summon's routine actions.",
         tags = {"routine", "summon", "minion", "control"},
         group = "scripting",

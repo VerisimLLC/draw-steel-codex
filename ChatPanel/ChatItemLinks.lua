@@ -44,7 +44,10 @@ ChatItemLinks.ITEM_DROP_TARGET_CLASS = "itemLinkDropTarget"
 --- tag for a document (a dragged encounter), or a journal card being moved
 --- within its own document (RichItemLink.lua: tag is the tag's text, occurrence
 --- which copy of it, item the card's link for anywhere else).
---- @alias ItemLinkDrop ChatItemLink|{kind: "richtag", richTag: RichTag, name: string}|ItemLinkMove
+--- A sound (an audio clip's asset id) dragged into a scene (SceneElements.lua);
+--- only scenes take it, never chat (see targetClass).
+--- @alias SceneAudioLink {kind: "audio", id: string}
+--- @alias ItemLinkDrop ChatItemLink|{kind: "richtag", richTag: RichTag, name: string}|ItemLinkMove|SceneAudioLink
 --- @alias ItemLinkMove {kind: "move", tag: string, occurrence: integer, docid: string, item: ChatItemLink}
 
 ----------------------------------------------------------------------
@@ -222,6 +225,7 @@ end
 --- @field source nil|Panel The dragged panel. A panel it came out of is not a target, unless homeItems is given.
 --- @field dropItems nil|fun(): ItemLinkDrop[] What panels other than the chat get instead of the links.
 --- @field homeItems nil|fun(): ItemLinkDrop[] What the panel source came out of gets (a card moved within its document).
+--- @field targetClass nil|string Only drop targets carrying this class take the drop; the chat never does.
 
 --- @param items function returns the links (or ItemLinkDrops); nil entries are skipped.
 --- @return ItemLinkDrop[]
@@ -245,6 +249,11 @@ end
 function ChatItemLinks.Dragging(items, options)
     options = options or {}
     local target = dmhub.tokenDropTargetUnderMouse
+    --a window lying under the open Director's Screen is out of sight there:
+    --the screen takes no mouse, so the lookup sees through it.
+    if target ~= nil and rawget(_G, "DirectorScreen") ~= nil and DirectorScreen.Hides(target) then
+        target = nil
+    end
     local role = nil
     local home = false
     if target ~= nil then
@@ -257,6 +266,9 @@ function ChatItemLinks.Dragging(items, options)
             if not home or options.homeItems ~= nil then
                 role = "target"
             end
+        end
+        if options.targetClass ~= nil and not target:HasClass(options.targetClass) then
+            role = nil
         end
     end
     if target == nil or role == nil then

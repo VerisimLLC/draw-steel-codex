@@ -10,6 +10,7 @@
 --- @field isAttackableObject boolean If this token is an attackable object, as opposed to e.g. a corpse.
 --- @field objectInvisibleToPlayers boolean If this token is an object whose sprite is invisible to players (e.g. a hidden trap). The object still exists and works for everyone, but players cannot see it. Always false for creatures; use invisibleToPlayers for those.
 --- @field objectComponent any
+--- @field onBoard boolean (Read-only) True if this character has a live token on the board right now (the live map), so board-only members -- loc and pos, movement, distance, line of sight, sheet -- work. False for a character with no token there, such as a tabletop card's creature selected off the board (dmhub.selectedTokens). Unlike hasTokenOnThisMap, this asks whether the token actually exists, not what the character's data says.
 --- @field hasTokenOnThisMap boolean If this token is deployed on the current map.
 --- @field hasTokenOnAnyMap boolean If this token is deployed on a map somewhere.
 --- @field summonerid nil|string (Read-only) the tokenid of the token that summoned this token, if there is one.
@@ -49,6 +50,7 @@
 --- @field playerControlledAndPrimary boolean (Read-only) True if this is the primary character of a player.
 --- @field activeControllerId nil|string (Read-only) the userid of the user who is best suited to responding to prompts on this token right now. Will return nil if the current user is the best suited to responding to prompts on this character.
 --- @field canSee boolean (Read-only) True if the current user can see this token (it's in their vision). False for a token that is not spawned on the current map, e.g. one from dmhub.GetCharacterById that lives on another map.
+--- @field hiddenFromLocalViewer boolean (Read-only) True if this client must not show this token at all because it is hidden from players: the creature's RefreshToken set _tmp_hiddenFromPlayers, and the current user is neither the Director nor in control of it in their own right (a player host counts as a player). While true the token fades out and then canSee reads false, so its sprite, HUD, auras and target reticules are not shown. The token object still exists on every client, so game logic and the Monster AI keep working. Use it to suppress other evidence of the creature (footprints, sounds).
 --- @field sheet Panel The panel that is attached to this token to display their UI.
 --- @field topsheet Panel The panel that is attached to this token to display their UI.
 --- @field bottomsheet Panel The panel that is attached to this token to display their UI.
@@ -93,6 +95,10 @@
 --- @field hasSpineAnimation boolean True if this token currently has an active spine animation (i.e. its portraitid resolved to a spine registry entry and the spine renderer was instantiated).
 --- @field popoutPortrait boolean
 --- @field popoutScale number
+--- @field popoutMode number Whether this look's portrait pops out of the frame: 0 follows the image's library type (an AvatarPopout image pops out), 1 always pops out, 2 never does. popoutPortrait reports the result.
+--- @field hasCardFraming boolean (Read-only) True when this look has its own card framing (cardZoom above 0). Without one, GetCardRectForAspect falls back to the token framing.
+--- @field cardZoom number This look's card framing zoom, with the same meaning as portraitZoom. 0 means the look has no card framing; set it to 0 to clear one.
+--- @field cardOffset Vector2 This look's card framing offset, with the same meaning as portraitOffset. Only used while cardZoom is above 0.
 --- @field portraitBackground nil|string
 --- @field appearance CharacterAppearance (Read-only) Information about the character's appearance.
 --- @field wieldedObjectsOverride nil|{mainhand: nil|string, offhand: nil|string, belt: nil|string}
@@ -281,7 +287,7 @@ function CharacterToken:TryFall() end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number, objectSpeed: nil|number, objectEase: nil|'linear'|'in'|'out'|'inout'}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number, objectSpeed: nil|number, objectEase: nil|'linear'|'in'|'out'|'inout', flightAltitude: nil|number}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
 --- playerMovement: the move was initiated directly by the user (e.g. the arrow keys). It is subject to the same gates as a mouse drag: the user must control the token, the game must not be frozen (unless the user is the Director), and under Strictly Enforce Movement Rules it must be this token's turn in combat. Returns nil when blocked.
@@ -350,6 +356,12 @@ function CharacterToken:InvalidateObjects() end
 --- @return Vector4
 function CharacterToken:GetPortraitRectForAspect(aspect, portrait) end
 
+--- Like GetPortraitRectForAspect, but uses this look's card framing (cardZoom, cardOffset). A look with no card framing gets exactly what GetPortraitRectForAspect returns.
+--- @param aspect number
+--- @param portrait nil|string The image id of the portrait to fit. Defaults to the token's own portrait.
+--- @return Vector4
+function CharacterToken:GetCardRectForAspect(aspect, portrait) end
+
 --- Returns walk of swim depending on the type of movement the creature will have to move on the ground. preferWater is used if the token straddles water and land and chooses the preferred type for the token.
 --- @param preferWater boolean
 --- @return 'walk'|'swim'
@@ -366,6 +378,18 @@ function CharacterToken:ShowSheet(tabid) end
 --- @return number
 function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg) end
 
+--- Line of effect from this creature to the space its own body would fill at loc: the teleport destination check. Uses the same altitude-aware targeting as GetLineOfSight between two tokens -- terrain profile (pits, ridges, raised blocks), height-limited walls and other floors -- with this creature's footprint and height placed at loc. Returns 1 = clear, 0.5 = half cover, 0.25 = three-quarters cover, 0 = no line of effect. GetLineOfSight(loc) is a flat single ray that ignores altitude.
+--- @param loc Loc Where this creature's body would stand, with its absolute altitude (a space in the air is allowed).
+--- @param pierceSurfacesArg? number How many thin walls the line may pass through.
+--- @return number
+function CharacterToken:GetLineOfSightToSpace(loc, pierceSurfacesArg) end
+
+--- GetLineOfSightToSpace with where the line is blocked. cover is the same 1 / 0.5 / 0.25 / 0 value; obstructionDist is how far (0-1) along the line from this creature to the space the obstacle that hides it lies, 1 when nothing does. A movement arrow can pass it as MarkMovementArrow's errorFrom.
+--- @param loc Loc Where this creature's body would stand, with its absolute altitude (a space in the air is allowed).
+--- @param pierceSurfacesArg? number How many thin walls the line may pass through.
+--- @return {cover: number, obstructionDist: number}
+function CharacterToken:GetLineOfSightToSpaceInfo(loc, pierceSurfacesArg) end
+
 --- The distance in native units to a loc, path, or another token.
 --- @param otherTokenOrLoc CharacterToken|LuaPath|Loc
 --- @return number
@@ -381,7 +405,7 @@ function CharacterToken:IsAdjacentToWall() end
 --- @return any
 function CharacterToken:DistanceInFeet(otherTokenOrLoc) end
 
---- GetNearbyTokens
+--- The tokens within the radius of this token, measured in 3D: a creature far enough above or below is not nearby even when it stands over the same squares. A radius of 0 means sharing this token's space.
 --- @param radius number Radius in native units (default=one tile)
 --- @return CharacterToken[]
 function CharacterToken:GetNearbyTokens(radius) end
@@ -438,10 +462,10 @@ function CharacterToken:CalculateMovementPerimeter(movementAllowance, args) end
 --- @return Loc[]
 function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 
---- Draw a movement arrow. @see ClearMovementArrow to clear the movement arrow.
+--- Draw a movement arrow. options.errorFrom (0-1) draws the arrow in the error color from that fraction of its length on (e.g. where a teleport loses line of effect). options.separate draws a new arrow of its own instead of replacing the one shared movement arrow, so several can show at once; Destroy() the result's marker to remove it (ClearMovementArrow does not). options.flightAltitude (a token that is flying, or can fly and is walking -- that one previews the take-off -- on a pathfound move): the absolute altitude to climb or descend to over the move, spread across the squares crossed and clamped to the ground and ceiling at the destination; the path costs one extra square per square of climb beyond one per square moved, and path.destination carries the altitude it ends at. @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table
---- @return nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}
+--- @return nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}
 function CharacterToken:MarkMovementArrow(targetLoc, options) end
 
 --- Plan a same-floor straight charge with at most one jump. Prefer guaranteed routes; optional tier capabilities permit a roll-dependent route with fixed takeoff/landing and per-tier outcomes. Does not move the token.
@@ -466,6 +490,11 @@ function CharacterToken:FindChargeRoutes(enemy, radius, range, distance, cache) 
 --- @param jumpHeight number
 --- @return nil|table
 function CharacterToken:PlanChargeJumpOutcome(sourceLoc, targetLoc, distance, jumpHeight) end
+
+--- Show a translucent ghost of this token standing at loc, like the one a drag shows, until Destroy() is called on the result. Only a picture on this client: the token does not move. The Monster AI's plan preview uses it to show where a monster will move to.
+--- @param loc Loc
+--- @return nil|LuaMultiObjectReference
+function CharacterToken:CreateGhost(loc) end
 
 --- ClearMovementArrow
 function CharacterToken:ClearMovementArrow() end

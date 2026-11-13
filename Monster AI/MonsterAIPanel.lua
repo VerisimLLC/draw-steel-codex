@@ -58,31 +58,95 @@ local function FindPendingPlayerSave(queue)
     return nil
 end
 
-local g_playerTurnClaimAbilities = {
-    ["hesitation is weakness"] = true,
-}
+--Seconds a relayed trigger event may hold the monsters while the hero's client
+--evaluates it. Normally gone in a fraction of a second; an offline recipient
+--must not hold the table longer than this.
+local g_relayedTriggerWaitSeconds = 10
 
---A player can claim the next turn through one of these prompts even when it is
---currently the monsters' side. Leave initiative unclaimed until they answer it.
-local function FindPendingPlayerTurnClaimTrigger(queue)
-    local entriesUnmoved = queue:EntriesUnmoved()
+--Whether this hero prompt makes the monsters wait before taking a turn. Any
+--prompt the player has not answered counts (Showdown at the start of a round,
+--Hesitation Is Weakness, a custom class's trigger), except harm forced on the
+--hero, roll modifiers (they belong to a roll in progress) and the hidden
+--members of a merged prompt. Dismissing the prompt releases the wait.
+---@param trigger ActiveTrigger
+---@return boolean
+local function PromptHoldsMonsterTurn(trigger)
+    return not trigger.dismissed
+        and not trigger:try_get("hostile", false)
+        and trigger:try_get("powerRollModifier", false) == false
+        and trigger:try_get("mergedInto", false) == false
+end
+
+--A trigger event the host relayed to the hero's player (Begin Round for
+--Showdown) that their client has not evaluated yet. Their prompt does not
+--exist until it has, so without this the monsters could take the turn first.
+local function HasRelayedTriggerInFlight(token)
+    for key,event in pairs(token.properties:try_get("triggeredEvents", {})) do
+        if key ~= "version" and type(event) == "table" and type(event.userid) == "string"
+            and TimestampAgeInSeconds(event.timestamp) < g_relayedTriggerWaitSeconds then
+            return true
+        end
+    end
+    return false
+end
+
+--An accepted prompt's cast holds the monsters too: its card is gone, but a
+--turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
+--rule lives in creature:TurnClaimResolving, shared with the end-of-turn handoff.
+---@param token CharacterToken
+---@return string|nil
+local function AcceptedTriggerResolving(token)
+    return token.properties:TurnClaimResolving()
+end
+
+--A hero's trigger the monsters wait for before choosing their next turn: a
+--hero may use it to claim the turn or to act before the monsters do. Returns
+--the token and its prompt; the token, nil and the ability's name while an
+--accepted trigger is resolving; or the token and nil while a relayed event is
+--still being evaluated on its player's client. Data-driven, so custom classes work.
+---@return CharacterToken|nil, ActiveTrigger|nil, string|nil
+local function FindPendingPlayerTrigger(queue)
+    local relayToken = nil
     for _,token in ipairs(dmhub.allTokens) do
         if MonsterAI.TokenIsLiveCombatant(token) and token.playerControlled then
             local initiativeid = InitiativeQueue.GetInitiativeId(token)
-            if initiativeid ~= nil and queue:IsEntryPlayer(initiativeid)
-                and entriesUnmoved[initiativeid] ~= nil then
+            if initiativeid ~= nil and queue:IsEntryPlayer(initiativeid) then
                 for _,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
-                    local abilityName = trigger.abilityName
-                    if not trigger.dismissed and type(abilityName) == "string"
-                        and g_playerTurnClaimAbilities[string.lower(abilityName)] then
-                        return trigger, token
+                    if PromptHoldsMonsterTurn(trigger) then
+                        return token, trigger
                     end
+                end
+                local resolving = AcceptedTriggerResolving(token)
+                if resolving ~= nil then
+                    return token, nil, resolving
+                end
+                if relayToken == nil and HasRelayedTriggerInFlight(token) then
+                    relayToken = token
                 end
             end
         end
     end
 
-    return nil
+    return relayToken, nil
+end
+
+--The banner text for a FindPendingPlayerTrigger result.
+---@param token CharacterToken
+---@param trigger ActiveTrigger|nil
+---@param resolving string|nil
+local function PendingPlayerTriggerText(token, trigger, resolving)
+    if resolving ~= nil then
+        return string.format("Waiting for %s's %s to finish", token.name or "a hero", resolving)
+    end
+    if trigger == nil then
+        return string.format("Waiting for %s's triggers", token.name or "a hero")
+    end
+    local name = trigger.abilityName
+    if type(name) ~= "string" or name == "" then
+        local ok, text = pcall(function() return trigger:GetText() end)
+        name = (ok and type(text) == "string" and text ~= "") and text or "trigger"
+    end
+    return string.format("Waiting for %s's %s", token.name or "a hero", name)
 end
 
 MonsterAI:RegisterTrigger{
@@ -140,12 +204,19 @@ local function MonsterAIThread(process)
     MonsterAI.active = true
     g_status = nil
     local failedTriggers = {}
-    --Set while the watcher holds initiative open for a hero's turn-claim
-    --trigger; lets the loop clear the notice once without a document read
-    --per iteration.
+    --Set while the watcher holds initiative open for a hero's pending trigger
+    --(FindPendingPlayerTrigger); lets the loop clear the notice once without a
+    --document read per iteration.
     local turnClaimWaiting = false
     local saveWaiting = false
+    --The players' entry the AI last refused to play, so the refusal logs once.
+    local refusedPlayerTurn = nil
+    --The monster turn this process last began. The turn is not played until its
+    --start-of-turn triggers have finished. nil for turns begun by anyone else.
+    ---@type {initiativeid: string, activityId: string, pending: {count: integer}}|nil
+    local turnStart = nil
     MonsterAI.ClearWaiting()
+    pcall(MonsterAI.ClearPlanPreview)
     creature.SetAIActivityInProgress(nil)
     creature.ClearAIControl()
     while true do
@@ -159,6 +230,7 @@ local function MonsterAIThread(process)
                     or "background process stop requested",
             })
             pcall(MonsterAI.ClearWaiting)
+            pcall(MonsterAI.ClearPlanPreview)
             pcall(creature.SetAIActivityInProgress, nil)
             --a turn abandoned mid-action never reaches its EndTokenControl.
             pcall(creature.ClearAIControl)
@@ -186,15 +258,15 @@ local function MonsterAIThread(process)
             MonsterAI.ClearWaiting()
         end
 
-        --Drop the turn-claim notice the moment the claim stops being pending:
-        --the hero used the trigger (their turn is now live, so the selection
+        --Drop the notice the moment the hero's trigger stops being pending:
+        --the hero used it (a turn claim makes their turn live, so the selection
         --block below is skipped), dismissed it, or the queue moved on. Checked
         --here, ahead of every early exit, so the banner never outlives the
         --wait; only paid while a wait is on.
         if turnClaimWaiting then
             local stillPending = queue ~= nil and (not queue.hidden)
                 and (not queue:IsPlayersTurn()) and queue:CurrentInitiativeId() == nil
-                and FindPendingPlayerTurnClaimTrigger(queue) ~= nil
+                and FindPendingPlayerTrigger(queue) ~= nil
             if not stillPending then
                 turnClaimWaiting = false
                 MonsterAI.ClearWaiting()
@@ -270,14 +342,19 @@ local function MonsterAIThread(process)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
             if initiativeid == nil then
-                local claimTrigger, claimToken = FindPendingPlayerTurnClaimTrigger(queue)
-                if claimTrigger ~= nil then
-                    --a trigger is always returned with its token.
-                    ---@cast claimToken -nil
-                    --Tell the table why the monsters are not moving.
-                    MonsterAI.SetWaiting("turnclaim", string.format("Waiting for %s's %s",
-                        claimToken.name, claimTrigger.abilityName),
-                        {charid = claimToken.charid, triggerid = claimTrigger.id})
+                local claimToken, claimTrigger, claimResolving = FindPendingPlayerTrigger(queue)
+                if claimToken ~= nil then
+                    --Tell the table why the monsters are not moving. The banner's
+                    --Dismiss (offered when there is a prompt) releases the wait.
+                    local text = PendingPlayerTriggerText(claimToken, claimTrigger, claimResolving)
+                    if not turnClaimWaiting then
+                        lifecycleAI:LogDecision("INITIATIVE WAITING", {
+                            actor = MonsterAI.TokenLogName(claimToken),
+                            reason = text,
+                        })
+                    end
+                    MonsterAI.SetWaiting("turnclaim", text,
+                        {charid = claimToken.charid, triggerid = claimTrigger ~= nil and claimTrigger.id or nil})
                     turnClaimWaiting = true
                     return
                 end
@@ -385,7 +462,7 @@ local function MonsterAIThread(process)
                 if initiativeid ~= nil and dmhub.initiativeQueue == queue
                     and queue:ChoosingTurn() and not queue:IsPlayersTurn()
                     and FindPendingPlayerSave(queue) == nil
-                    and FindPendingPlayerTurnClaimTrigger(queue) == nil
+                    and FindPendingPlayerTrigger(queue) == nil
                     and queue:EntriesUnmoved()[initiativeid] ~= nil then
                     lifecycleAI:SetLogContext(nil, {
                         turn = initiativeid,
@@ -399,14 +476,65 @@ local function MonsterAIThread(process)
                     dmhub:UploadInitiativeQueue()
 
                     local tokens = GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)
+                    local pending = {count = 0}
+                    turnStart = {initiativeid = initiativeid, activityId = "turn-start:" .. dmhub.GenerateGuid(), pending = pending}
                     for i,tok in ipairs(tokens) do
                         if tok.properties ~= nil then
-                            tok.properties:BeginTurn()
+                            --done makes the count drop once per creature: BeginTurn
+                            --can error after its coroutine already reported back.
+                            local done = false
+                            local function finished()
+                                if not done then
+                                    done = true
+                                    pending.count = pending.count - 1
+                                end
+                            end
+                            pending.count = pending.count + 1
+                            --An error here would skip the group's other creatures
+                            --and leave the turn-start wait spinning to its cap.
+                            local ok, err = pcall(tok.properties.BeginTurn, tok.properties, {
+                                aiActivityId = turnStart.activityId,
+                                onComplete = finished,
+                            })
+                            if not ok then
+                                finished()
+                                pcall(function()
+                                    lifecycleAI:LogDecision("BEGIN TURN ERROR", {
+                                        turn = initiativeid,
+                                        actor = tok.name,
+                                        reason = tostring(err),
+                                        result = "turn start skipped for this creature",
+                                    })
+                                end)
+                            end
                         end
                     end
                 end
+            elseif queue:IsEntryPlayer(initiativeid) == true then
+                --The side says monsters but the current entry is the players'.
+                --Crossed initiative writes can leave this (a turn claim landing
+                --as the previous hero's turn passed, AH6SYXTP); playing it would
+                --end the hero's turn with nothing done. Leave it to its player.
+                if refusedPlayerTurn ~= initiativeid then
+                    refusedPlayerTurn = initiativeid
+                    lifecycleAI:SetLogContext(nil, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    lifecycleAI:LogDecision("TURN REFUSED", {
+                        reason = "the current initiative entry belongs to the players",
+                        result = "not playing it",
+                    })
+                end
             else
                 local ai = MonsterAI.new{}
+                if turnStart ~= nil and turnStart.initiativeid == initiativeid then
+                    ai:SetLogContext(nil, {turn = initiativeid, round = queue.round})
+                    if not ai:WaitForTurnStart(turnStart) then
+                        return
+                    end
+                end
+                turnStart = nil
                 g_status = "Playing Turn"
                 ai:PlayTurnSafely(initiativeid)
                 g_status = nil
@@ -513,7 +641,8 @@ end
 --- not driving at this moment, such as a dying Abyssal Hyena's Death Snap on a
 --- hero's turn: mandatory triggers fire with no AI control installed. Same rule
 --- as RollsForCreature. A prompt with no registered handler still goes to the
---- Director. nil when the AI does not play this creature.
+--- Director, or is skipped when nobody plays the Director. nil when the AI
+--- does not play this creature.
 --- @param token CharacterToken
 --- @return nil|fun(invokerToken: CharacterToken, casterToken: CharacterToken, abilityClone: ActivatedAbility, symbols: table, options: table): string
 function MonsterAI.PromptCallbackForCreature(token)
@@ -743,7 +872,7 @@ MonsterAIPanel = function()
                                 setanalysis = function(element, entry)
                                     local text = entry.monsterType
                                     if entry.language ~= nil then
-                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language.name)
+                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language:DisplayNameWithDetail())
                                     else
                                         text = string.format("<b><u>%s</u></b>\nNo language", text)
                                     end

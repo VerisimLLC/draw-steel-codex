@@ -41,7 +41,9 @@ Key fields on every ability:
 | `concentration` | boolean | Requires concentration to maintain |
 | `behaviors` | list | Ordered list of `ActivatedAbilityBehavior` objects |
 | `categorization` | string | Category: `"none"`, `"action"`, `"maneuver"`, etc. |
-| `multipleModes` | boolean | Ability has selectable modes |
+| `multipleModes` | boolean or string | `true` for selectable modes, `"variations"` for modes that each swap in a whole other ability |
+| `modeList` | list | One entry per mode: `text`, `rules`, `condition` (GoblinScript on the caster; failing hides the mode), and for target-then-mode `targetCondition` (the editor's "Target Filter") / `targetUnavailableText` |
+| `chooseModeAfterTargeting` | boolean | Target first, then mode (e.g. Heal). The mode buttons appear once a target is chosen and pressing one casts; a mode whose `targetCondition` fails for that target shows its `targetUnavailableText` instead. Single target, `multipleModes: true` only |
 | `isSpell` | boolean | Treated as a spell |
 
 !!! info "GoblinScript integration"

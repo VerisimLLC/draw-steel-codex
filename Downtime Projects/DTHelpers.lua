@@ -114,7 +114,6 @@ function DTHelpers.ListToDropdownOptions(sourceList)
         local sortedList = {}
         for _, constant in ipairs(sourceList) do
             sortedList[#sortedList + 1] = constant
-            print("TYPE::", constant.typeName, constant.sortOrder)
         end
         table.sort(sortedList, function(a, b) return a.sortOrder < b.sortOrder end)
 

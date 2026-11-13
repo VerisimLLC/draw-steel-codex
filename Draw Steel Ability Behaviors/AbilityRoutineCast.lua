@@ -9,7 +9,7 @@ ActivatedAbilityRoutineControlBehavior.triggerOnly = true
 
 ActivatedAbility.RegisterType
 {
-	id = 'rouitineControl',
+	id = 'routineControl',
 	text = 'Routine Control',
 	createBehavior = function()
 		return ActivatedAbilityRoutineControlBehavior.new{

@@ -68,7 +68,7 @@ CharacterModifier.TypeInfo.proficiency = {
 				local dataTable = dmhub.GetTable("languages") or {}
 				for k,_ in pairs(modifier.skills) do
 					if dataTable[k] then
-						langs[#langs+1] = dataTable[k].name
+						langs[#langs+1] = dataTable[k]:DisplayName()
 					end
 				end
 			end

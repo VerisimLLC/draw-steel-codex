@@ -343,16 +343,27 @@ CharacterModifier.TypeInfo.granttreasure = {
     --Row controls on the character sheet: pick a matching treasure, then
     --"Claim Treasure" adds it to the inventory and locks the choice in.
     --The sheet owns the upload lifecycle, so creature fields are written directly.
+    --options.style (optional) lets a themed sheet restyle these controls:
+    --style.label and style.dropdown are merged over the labels' and
+    --dropdown's args, and style.button(text, click) builds the Claim button.
     createSheetPanel = function(modifier, creature, options)
+        local style = options.style or {}
+        local function Styled(args, extra)
+            for key, value in pairs(extra or {}) do
+                args[key] = value
+            end
+            return args
+        end
+
         if IsClaimed(creature, modifier) then
-            return gui.Label{
+            return gui.Label(Styled({
                 width = "100%",
                 height = "auto",
                 fontSize = 12,
                 italics = true,
                 textWrap = true,
                 text = string.format("Claimed: %s", ClaimedItemName(creature, modifier)),
-            }
+            }, style.label))
         end
 
         local itemOptions = {}
@@ -360,14 +371,14 @@ CharacterModifier.TypeInfo.granttreasure = {
             itemOptions[#itemOptions+1] = { id = entry.id, text = entry.item.name }
         end
         if #itemOptions == 0 then
-            return gui.Label{
+            return gui.Label(Styled({
                 width = "100%",
                 height = "auto",
                 fontSize = 12,
                 italics = true,
                 textWrap = true,
                 text = string.format("No treasures in the compendium match %s.", FilterDescription(modifier)),
-            }
+            }, style.label))
         end
 
         local state = GetGrantState(creature, modifier, false)
@@ -377,18 +388,25 @@ CharacterModifier.TypeInfo.granttreasure = {
             chosenItemid = nil
         end
 
+        local function Claim()
+            if ClaimTreasure(creature, modifier) and options.refresh ~= nil then
+                options.refresh()
+            end
+        end
         local claimButton
-        claimButton = gui.Button{
-            classes = {"sizeS"},
-            text = "Claim Treasure",
-            halign = "left",
-            vmargin = 2,
-            click = function(element)
-                if ClaimTreasure(creature, modifier) and options.refresh ~= nil then
-                    options.refresh()
-                end
-            end,
-        }
+        if style.button ~= nil then
+            claimButton = style.button("Claim Treasure", Claim)
+        else
+            claimButton = gui.Button{
+                classes = {"sizeS"},
+                text = "Claim Treasure",
+                halign = "left",
+                vmargin = 2,
+                click = function(element)
+                    Claim()
+                end,
+            }
+        end
         claimButton:SetClass("collapsed", chosenItemid == nil or IsManifestMode(modifier))
 
         return gui.Panel{
@@ -397,15 +415,15 @@ CharacterModifier.TypeInfo.granttreasure = {
             flow = "vertical",
             halign = "left",
 
-            gui.Label{
+            gui.Label(Styled({
                 width = "100%",
                 height = "auto",
                 fontSize = 12,
                 textWrap = true,
                 text = ChoicePrompt(modifier) .. ":",
-            },
+            }, style.label)),
 
-            gui.Dropdown{
+            gui.Dropdown(Styled({
                 height = 26,
                 width = 240,
                 halign = "left",
@@ -428,7 +446,7 @@ CharacterModifier.TypeInfo.granttreasure = {
                     end
                     claimButton:SetClass("collapsed", current.itemid == nil or IsManifestMode(modifier))
                 end,
-            },
+            }, style.dropdown)),
 
             claimButton,
         }
@@ -447,6 +465,7 @@ CharacterModifier.TypeInfo.granttreasure = {
 --- @class CharacterTreasureGrantChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterTreasureGrantChoice
 --- @field modifier CharacterModifier The granttreasure modifier this choice was built from.
+--- @field prompt string What to choose, without the claim step, e.g. "Choose a 1st-echelon trinket".
 --- @field options {guid: string, name: string, unique: boolean, render: fun(): Panel}[] One entry per matching item.
 --- @field choices {id: string, text: string, unique: boolean, render: fun(): Panel}[] The same items in choice-list form.
 CharacterTreasureGrantChoice = RegisterGameType("CharacterTreasureGrantChoice", "CharacterChoice")
@@ -456,6 +475,30 @@ CharacterTreasureGrantChoice.numChoices = 1
 CharacterTreasureGrantChoice.costsPoints = false
 CharacterTreasureGrantChoice.hasRoll = false
 
+--Extra tests a treasure must pass to be offered, by id. A game mode uses
+--this to narrow the list (Encounter of the Week offers Gold automation only).
+---@type table<string, fun(hero: character, item: equipment): boolean>
+local g_optionFilters = {}
+
+--- Register (or with nil, remove) a test every offered treasure must pass.
+--- @param id string
+--- @param fn nil|fun(hero: character, item: equipment): boolean
+function CharacterTreasureGrantChoice.RegisterOptionFilter(id, fn)
+    g_optionFilters[id] = fn
+end
+
+--- @param hero character
+--- @param item equipment
+--- @return boolean
+local function PassesOptionFilters(hero, item)
+    for _,fn in pairs(g_optionFilters) do
+        if not fn(hero, item) then
+            return false
+        end
+    end
+    return true
+end
+
 --- @param hero character
 --- @param feature CharacterFeature the feature carrying the modifier; names the choice
 --- @param modifier CharacterModifier the granttreasure modifier
@@ -464,7 +507,14 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
     local options = {}
     local choices = {}
 
+    local offered = {}
     for _,entry in ipairs(MatchingItems(modifier)) do
+        if PassesOptionFilters(hero, entry.item) then
+            offered[#offered+1] = entry
+        end
+    end
+
+    for _,entry in ipairs(offered) do
         local item = entry.item
         local renderFn = function()
             --Render through the item's document so its annotations resolve
@@ -520,6 +570,7 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
         description = cond(IsManifestMode(modifier),
             ChoicePrompt(modifier) .. ".",
             ChoicePrompt(modifier) .. ", then claim it to add it to your inventory."),
+        prompt = ChoicePrompt(modifier),
         modifier = modifier,
         options = options,
         choices = choices,
@@ -709,7 +760,15 @@ local function FreeSlotForItem(creature, item)
             slotids[#slotids+1] = slotid
         end
     end
-    table.sort(slotids)
+    --by the slot's number: trinket2 before trinket10.
+    table.sort(slotids, function(left, right)
+        local leftNumber = tonumber(string.match(left, "%d+$")) or 0
+        local rightNumber = tonumber(string.match(right, "%d+$")) or 0
+        if leftNumber ~= rightNumber then
+            return leftNumber < rightNumber
+        end
+        return left < right
+    end)
     local equip = creature:Equipment()
     for _,slotid in ipairs(slotids) do
         if equip[slotid] == nil then

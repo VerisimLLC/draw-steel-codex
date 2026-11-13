@@ -1,8 +1,29 @@
 local mod = dmhub.GetModLoading()
 
+--The usual target score: 1 per target, 0.1 per edge, plus the slight lean
+--toward targets with more Stamina left (MonsterAI.TargetStaminaBias), so
+--monsters spread their damage instead of always striking whoever comes first.
+local function StandardStrikeTargetScore(target, edges)
+    if target.isObject or target.properties == nil then
+        return 0.1
+    end
+    return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
+end
+
+--Finds the strike targets from loc, best first by StandardStrikeTargetScore.
+--ExecuteAbility keeps the first ones up to the ability's target count, so the
+--strike goes at the targets the plan scored rather than list order.
+local function FindRankedTargetsOfStrike(ai, token, ability, loc)
+    local targets = ai:FindValidTargetsOfStrike(token, ability, loc)
+    table.sort(targets, function(a, b)
+        return StandardStrikeTargetScore(a.token, a.edges) > StandardStrikeTargetScore(b.token, b.edges)
+    end)
+    return targets
+end
+
 local function GenerateStandardStrikeScoreFunction(score)
     return function(self, ai, token, ability)
-        local loc = ai:FindBestMoveToUseStrike(token, ability)
+        local loc = ai:FindBestMoveToUseStrike(token, ability, StandardStrikeTargetScore)
         if loc ~= nil then
             return {score = score, loc = loc}
         end
@@ -14,7 +35,7 @@ local function GenerateStandardStrikeExecuteFunction()
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
     end
 end
@@ -137,6 +158,142 @@ MonsterAI:RegisterMove{
     end,
 }
 
+--Escape Grab ------------------------------------------------------------------
+--The Grabbed condition gives the grabbed creature the Escape Grab maneuver. It
+--has two modes: Careful (1), where a tier 2 result fails safely, and Reckless
+--(2), where a tier 2 result escapes but lets the grabber make a melee free
+--strike first.
+local g_grabbedConditionId = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+local g_escapeGrabCareful = 1
+local g_escapeGrabReckless = 2
+
+--Score when the monster can survive the grabber's free strike. Above a
+--standard signature strike (1.0) on purpose: escaping first gives back the
+--monster's movement and removes the grabbed bane, and its main action is still
+--left for the next cycle. Plus escapeGrabCharacteristicWeight per point of the
+--monster's better of Might and Agility, the roll's characteristic.
+MonsterAI.escapeGrabScore = 1.1
+MonsterAI.escapeGrabCharacteristicWeight = 0.1
+--Score when it can't survive that hit: a Careful attempt (which never provokes
+--the free strike), below free strikes (0.2), so it only happens with a
+--maneuver left over after fighting.
+MonsterAI.escapeGrabLastResortScore = 0.05
+
+--The token that has this creature grabbed, or nil. Read from the condition's
+--caster rather than _tmp_grabbedby, which the engine can wipe mid-turn.
+local function EscapeGrabGrabber(token)
+    local inflicted = token.properties:try_get("inflictedConditions")
+    local grabbed = inflicted ~= nil and inflicted[g_grabbedConditionId] or nil
+    if grabbed == nil then
+        return nil, false
+    end
+    local casterInfo = grabbed.casterInfo
+    local tokenid = casterInfo ~= nil and casterInfo.tokenid or nil
+    local grabber = tokenid ~= nil and dmhub.GetTokenById(tokenid) or nil
+    if grabber == nil or not grabber.valid or grabber.properties == nil then
+        return nil, true
+    end
+    return grabber, true
+end
+
+local g_characteristicLetters = {M = "mgt", A = "agl", R = "rea", I = "inu", P = "prs"}
+
+--Damage of a hero-style free strike tier such as "7 + M or A damage": the
+--number plus the best characteristic named. nil when the text has no damage.
+local function TierTextDamage(creatureProps, text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local damagePart = string.match(text, "^(.-)damage")
+    if damagePart == nil then
+        return nil
+    end
+    local base = tonumber(string.match(damagePart, "%d+"))
+    if base == nil then
+        return nil
+    end
+    local best = nil
+    for letter in string.gmatch(damagePart, "%f[%a](%u)%f[%A]") do
+        local attrid = g_characteristicLetters[letter]
+        if attrid ~= nil then
+            local value = creatureProps:GetAttribute(attrid):Modifier()
+            if best == nil or value > best then
+                best = value
+            end
+        end
+    end
+    return base + (best or 0)
+end
+
+--The grabber's melee free strike damage on a tier 3 result, or nil when it
+--can't be worked out. A monster's free strike is one flat number; a hero's is
+--the tier 3 row of their melee Basic Attack.
+local function GrabberFreeStrikeTier3Damage(grabber)
+    local props = grabber.properties
+    local flat = 0
+    pcall(function() flat = props:OpportunityAttack() end)
+    if type(flat) == "number" and flat > 0 then
+        return flat
+    end
+
+    local best = nil
+    for _,ability in ipairs(props:GetActivatedAbilities() or {}) do
+        if ability.categorization == "Basic Attack" then
+            local melee = ability
+            if ability.meleeAndRanged then
+                melee = ability.meleeVariation
+            elseif not (ability.name == "Melee Free Strike" or ability:HasKeyword("Melee")) then
+                melee = nil
+            end
+            for _,behavior in ipairs(melee ~= nil and melee:try_get("behaviors", {}) or {}) do
+                if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                    local damage = TierTextDamage(props, behavior:try_get("tiers", {})[3])
+                    if damage ~= nil and (best == nil or damage > best) then
+                        best = damage
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Escape Grab",
+    category = "Maneuvers",
+    abilities = {"Escape Grab"},
+    description = "Escape Grab: the generic escape maneuver, used only while grabbed. If the monster can survive the grabber's tier 3 free strike, it escapes before acting, accepting the free strike on a tier 2 result (Reckless), and prefers this over most other maneuvers, more so with high Might or Agility. A monster that can't survive that hit fights on, and only tries a Careful escape with a maneuver left over.",
+    score = function(self, ai, token, ability)
+        local grabber, grabbed = EscapeGrabGrabber(token)
+        if not grabbed then
+            return nil, "not grabbed"
+        end
+
+        local props = token.properties
+        local stamina = props:CurrentHitpoints() + props:TemporaryHitpoints()
+        --An unknown grabber or free strike counts as survivable.
+        local hit = grabber ~= nil and GrabberFreeStrikeTier3Damage(grabber) or nil
+        if hit ~= nil and stamina <= hit then
+            return {score = MonsterAI.escapeGrabLastResortScore, loc = token.loc,
+                mode = g_escapeGrabCareful, freeStrikeDamage = hit}
+        end
+
+        local characteristic = math.max(props:GetAttribute("mgt"):Modifier(), props:GetAttribute("agl"):Modifier())
+        return {
+            score = MonsterAI.escapeGrabScore + characteristic*MonsterAI.escapeGrabCharacteristicWeight,
+            loc = token.loc,
+            mode = g_escapeGrabReckless,
+            freeStrikeDamage = hit,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        local mode = scoringInfo.mode or g_escapeGrabCareful
+        ai:ExecuteAbility(token, ability:SwitchModes(mode), {{token = token}}, {
+            symbols = {mode = mode},
+        })
+    end,
+}
+
 MonsterAI:RegisterMove{
     id = "Aid Attack",
     category = "Maneuvers",
@@ -203,7 +360,7 @@ MonsterAI:RegisterMove{
         ai:Speech(token, {"Bury the Point!", "I'll bury this spear in you!"})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
     end
 }
@@ -356,7 +513,7 @@ MonsterAI:RegisterMove{
     score = GenerateStandardStrikeScoreFunction(1),
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai.Sleep(0.5)
         if #targets >= 2 then
             ai:Speech(token, {"Two arrows notched!", "Both of you at once!"})
@@ -379,6 +536,37 @@ MonsterAI:RegisterMove{
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
+--A leap then a claw looks like a charge: Razor Claws with a 3-square charge
+--engages the AI's leap probe (chargeDistanceOverride), and each target's
+--.charge is the square the ghoul jumps to.
+local function LeapAndClawPlanningStrike(razorClawsAbility)
+    local fakeAbility = DeepCopy(razorClawsAbility)
+    fakeAbility:AddKeyword("Charge")
+    fakeAbility.chargeDistanceOverride = 3
+    return fakeAbility
+end
+
+--Only leap on targets small enough for the leap to knock prone.
+local function LeapAndClawTargetScore(targetToken, edges)
+    if targetToken.tileSize > 1 then
+        return -1
+    end
+    return 2
+end
+
+--Valid targets from loc, best first by the score the plan was chosen with.
+local function LeapAndClawRankedTargets(ai, token, fakeAbility, loc)
+    local targets = ai:FindValidTargetsOfStrike(token, fakeAbility, loc)
+    table.sort(targets, function(a, b)
+        local sa, sb = LeapAndClawTargetScore(a.token, a.edges), LeapAndClawTargetScore(b.token, b.edges)
+        if sa ~= sb then
+            return sa > sb
+        end
+        return a.edges > b.edges
+    end)
+    return targets
+end
+
 MonsterAI:RegisterMove{
     id = "Leap and Claw",
     category = "Maneuvers",
@@ -386,35 +574,47 @@ MonsterAI:RegisterMove{
     abilities = {"Leap", "Razor Claws"},
     description = "Ghouls will use their Leap ability to target size 1 creatures. Then they will move adjacent to them and use Razor Claws.",
     score = function(self, ai, token, leapAbility, razorClawsAbility)
-        --synthesize an ability that looks like a charge to engage charge logic in calculations since a leap is very similar.
-        local fakeAbility = DeepCopy(razorClawsAbility)
-        fakeAbility:AddKeyword("Charge")
-        fakeAbility.chargeDistanceOverride = 3
-        local loc, score = ai:FindBestMoveToUseStrike(token, leapAbility, function(targetToken)
-            --we only want to leap on targets small enough to knock prone.
-            if targetToken.tileSize > 1 then
-                return -1
-            end
-
-            return 2
-        end)
-        if loc ~= nil and score ~= nil then
-            return {score = score, loc = loc}
+        --Plan with the same synthetic strike execute uses (Razor Claws with a
+        --3-square charge standing in for the leap), and carry the chosen target
+        --to execute. Planning with Leap itself and re-picking targets[1] in
+        --execute made the ghoul score one hero and leap on another (2026-10-18).
+        local fakeAbility = LeapAndClawPlanningStrike(razorClawsAbility)
+        local loc, score = ai:FindBestMoveToUseStrike(token, fakeAbility, LeapAndClawTargetScore)
+        if loc == nil or score == nil or score <= 0 then
+            return nil
         end
+        local target = nil
+        for _,info in ipairs(LeapAndClawRankedTargets(ai, token, fakeAbility, loc)) do
+            if info.charge ~= nil and LeapAndClawTargetScore(info.token, info.edges) > 0 then
+                target = info.token
+                break
+            end
+        end
+        if target == nil then
+            return nil, "no leap lands next to a target from the best square"
+        end
+        return {score = score, loc = loc, target = target}
     end,
     execute = function(self, ai, token, scoringInfo, leapAbility, razorClawsAbility)
-        local fakeAbility = DeepCopy(razorClawsAbility)
-        fakeAbility:AddKeyword("Charge")
-        fakeAbility.chargeDistanceOverride = 3
+        local fakeAbility = LeapAndClawPlanningStrike(razorClawsAbility)
 
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
-        local targets = ai:FindValidTargetsOfStrike(token, fakeAbility, scoringInfo.loc)
         ai.Sleep(0.5)
-        if targets == nil or #targets == 0 or targets[1].charge == nil then
+        if not MonsterAI.TokenIsLiveCombatant(scoringInfo.target) then
             return
         end
 
-        table.resize_array(targets, 1)
+        --Re-probe the jump now the ghoul has moved, but only toward the planned target.
+        local targets = {}
+        for _,info in ipairs(ai:FindValidTargetsOfStrike(token, fakeAbility, scoringInfo.loc)) do
+            if info.token.charid == scoringInfo.target.charid and info.charge ~= nil then
+                targets[1] = info
+                break
+            end
+        end
+        if #targets == 0 then
+            return
+        end
 
         local leapTargets = {
             {
@@ -686,5 +886,26 @@ MonsterAI:RegisterMove{
         --the invoked standard Teleport prompts for a destination; there is no
         --AI handler for it, so the DM picks the wall to affix to.
         ai:ExecuteAbility(token, ability)
+    end,
+}
+
+--Stand Up (every creature's maneuver, from the Maneuvers global rule mod):
+--a prone monster stands before anything else, so its strikes lose the bane
+--and melee against it loses the edge. Its own filter skips a creature that
+--is not prone or cannot stand (the Can't Stand rider).
+MonsterAI:RegisterMove{
+    id = "Stand Up",
+    category = "Maneuvers",
+    abilities = {"Stand Up"},
+    description = "Stand up when prone, before striking.",
+    maxScore = 1.5,
+    score = function(self, ai, token, ability)
+        if not ability:TargetPassesFilter(token, token, {}) then
+            return nil, "not prone, or cannot stand"
+        end
+        return {score = 1.5}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:ExecuteAbility(token, ability, {{token = token}}, {sleep = 0.6})
     end,
 }

@@ -17,16 +17,7 @@ function DTSelectItemDialog._createPanel(callbacks)
     local craftableItems = {}
     local allItems = dmhub.GetTableVisible(equipment.tableName)
     for key, item in pairs(allItems) do
-        -- Filter items to only craftable items with required properties
-        local projectGoal = item:try_get("projectGoal")
-        local projectSource = item:try_get("projectSource")
-        local itemPrerequisite = item:try_get("itemPrerequisite")
-        local projectRollChar = item:try_get("projectRollCharacteristic")
-
-        if projectGoal and type(projectGoal) == "string" and #projectGoal > 0 and
-           projectSource and type(projectSource) == "string" and #projectSource > 0 and
-           itemPrerequisite and type(itemPrerequisite) == "string" and #itemPrerequisite > 0 and
-           projectRollChar and type(projectRollChar) == "table" and next(projectRollChar) ~= nil then
+        if DTBusinessRules.IsCraftable(item) then
             craftableItems[#craftableItems + 1] = { id = key, text = item.name }
         end
     end
@@ -164,10 +155,19 @@ function DTSelectItemDialog._createPanel(callbacks)
         },
     }
 
+    --Custom keeps the project to fill in by hand; closing any other way cancels
+    --it. A caller with nothing to fill in by hand asks for a plain Cancel there.
+    local offerCustom = callbacks.offerCustom ~= false
     dlg:AddFooterButton{
         slot = "left",
-        text = "Custom",
+        text = offerCustom and "Custom" or "Cancel",
         click = function(shell)
+            if offerCustom then
+                confirmed = true
+                if callbacks.custom ~= nil then
+                    callbacks.custom()
+                end
+            end
             shell:Close()
         end,
     }
@@ -192,7 +192,8 @@ function DTSelectItemDialog._createPanel(callbacks)
 end
 
 --- Creates a select item dialog for AddChild usage
---- @param callbacks table Table with confirm and cancel callback functions
+--- @param callbacks table confirm, cancel and custom callbacks; offerCustom = false puts
+--- Cancel where Custom would be
 --- @return table panel The GUI panel ready for AddChild
 function DTSelectItemDialog.CreateAsChild(callbacks)
     if not callbacks then callbacks = {} end

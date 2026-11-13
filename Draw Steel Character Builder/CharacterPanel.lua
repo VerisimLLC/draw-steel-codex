@@ -538,8 +538,7 @@ function CBCharPanel._explorationPanel(tabId)
                     for k,_ in pairs(langs) do
                         local lang = langTable[k]
                         if lang then
-                            local speakers = (lang.speakers and #lang.speakers > 0) and string.format(" (%s)", lang.speakers) or ""
-                            knownLangs[#knownLangs+1] = lang.name .. speakers
+                            knownLangs[#knownLangs+1] = lang:DisplayNameWithDetail()
                         end
                     end
                     local langString = "--"
@@ -813,7 +812,9 @@ function CBCharPanel._headerPanel()
     }
 
     local avatar = gui.IconEditor {
-        library = cond(dmhub.GetSettingValue("popoutavatars"), "popoutavatars", "Avatar"),
+        --Always open on plain Avatars: players kept uploading ordinary
+        --portraits into Popout Avatars by accident. It stays pickable.
+        library = "Avatar",
         restrictImageType = "Avatar",
         allowPaste = true,
         borderColor = Styles.textColor,

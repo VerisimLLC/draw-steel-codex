@@ -10,179 +10,6 @@ local MAX_MAP_TILES_PER_AXIS = 2000
 
 local g_modalDialog = nil
 
--- Settings for the UVTT/Foundry import asset picker. Defaults match the
--- constants that were previously hardcoded in CreateMapDialog.lua so existing
--- import paths (and any caller of FinishMapImport that bypasses the picker)
--- continue to behave the same way.
-setting{
-    id = "mapimport:wall_asset_id",
-    description = "UVTT Import: Wall Material",
-    editor = "text",
-    default = "-MGADhKw0vw30yXNF2-e",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:object_wall_asset_id",
-    description = "UVTT Import: Object Occluder Wall Material",
-    editor = "text",
-    default = "eae7f3fe-d278-455c-853a-ac43f948c743",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:terrain_wall_asset_id",
-    description = "UVTT Import: Terrain Wall Material",
-    editor = "text",
-    default = "",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:invisible_wall_asset_id",
-    description = "UVTT Import: Invisible Wall Material",
-    editor = "text",
-    default = "",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:transparent_window_wall_asset_id",
-    description = "UVTT Import: Transparent Window Wall Material",
-    editor = "text",
-    default = "",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:unrecognized_wall_asset_id",
-    description = "UVTT Import: Unrecognized Wall Material",
-    editor = "text",
-    default = "-MGADhKw0vw30yXNF2-e",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:door_object_id",
-    description = "UVTT Import: Door Object",
-    editor = "text",
-    default = "-MfWx0b2IlyApLQwasYg",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:window_object_id",
-    description = "UVTT Import: Window Object",
-    editor = "text",
-    default = "-MDd3Knydcq2WsjStef2",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:secret_door_object_id",
-    description = "UVTT Import: Secret Door Object",
-    editor = "text",
-    default = "-MfWx0b2IlyApLQwasYg",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:light_object_id",
-    description = "UVTT Import: Light Object",
-    editor = "text",
-    default = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:structural_wall_mode",
-    description = "UVTT Import: Structural wall behavior",
-    editor = "text",
-    default = "wall",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:object_wall_mode",
-    description = "UVTT Import: Object occluder behavior",
-    editor = "text",
-    default = "wall",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:terrain_wall_mode",
-    description = "UVTT Import: Foundry terrain wall behavior",
-    editor = "text",
-    default = "wall",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:invisible_wall_mode",
-    description = "UVTT Import: Foundry invisible wall behavior",
-    editor = "text",
-    default = "",
-    storage = "preference",
-}
--- Legacy setting retained so existing saved movement-wall choices can be read.
-setting{
-    id = "mapimport:movement_wall_mode",
-    description = "UVTT Import: Legacy Foundry invisible wall behavior",
-    editor = "text",
-    default = "wall",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:unrecognized_wall_mode",
-    description = "UVTT Import: Unrecognized wall behavior",
-    editor = "text",
-    default = "none",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:door_mode",
-    description = "UVTT Import: Door behavior",
-    editor = "text",
-    default = "asset",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:window_mode",
-    description = "UVTT Import: Window behavior",
-    editor = "text",
-    default = "asset",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:secret_door_mode",
-    description = "UVTT Import: Secret door behavior",
-    editor = "text",
-    default = "asset",
-    storage = "preference",
-}
-setting{
-    id = "mapimport:light_mode",
-    description = "UVTT Import: Light behavior",
-    editor = "text",
-    default = "asset",
-    storage = "preference",
-}
--- Some door/window assets are modelled with their long axis along X (the
--- door is "horizontal" by default) while others have it along Y. The
--- standard placement formula rotates by +90 to fit the wall orientation,
--- which is correct for one convention and produces 90-degree-rotated
--- (perpendicular) doors for the other. If your chosen asset places
--- doors perpendicular to walls, flip this setting to 0.
-setting{
-    id = "mapimport:portal_rotation_offset",
-    description = "UVTT Import: Portal rotation offset (90 or 0 if doors appear perpendicular)",
-    editor = "text",
-    default = 90,
-    storage = "preference",
-}
-setting{
-    id = "mapimport:portal_object_scale_multiplier",
-    description = "UVTT Import: Door/window art scale multiplier",
-    editor = "text",
-    default = 1,
-    storage = "preference",
-}
-setting{
-    id = "mapimport:flip_foundry_terrain_walls",
-    description = "UVTT Import: Flip Foundry terrain wall direction",
-    editor = "check",
-    default = false,
-    storage = "preference",
-}
-
 local function ProgressPanel()
 
 	return gui.Panel{
@@ -220,50 +47,326 @@ local function ErrorPanel(msg)
     }
 end
 
-local function ComponentTypeMatches(value, componentType)
-    if value == nil then
-        return false
-    end
+----------------------------------------------------------------------
+--MapGridDetection: finding the grid drawn on a map image, shared by the
+--table's Add Image dialog (TableDropDialog.lua) and the import wizard below,
+--so both suggest the same grid. The engine (assets:DetectImageGrid) does the
+--work on a worker thread and runs each file once, so the wizard opening after
+--the drop dialog gets the drop dialog's answer at once.
 
-    local text = tostring(value)
-    return text == componentType or text == ("ObjectComponent" .. componentType)
+--- @class ImageGridDetection
+--- @field found boolean
+--- @field type string 'square', 'rectangular', 'hexpointy', 'hexflat' or 'none'
+--- @field tileType string the import tile type: 'squares', 'pointtop' or 'flattop'
+--- @field cellWidth number a cell (or a hex's bounding box) in pixels
+--- @field cellHeight number
+--- @field periodX number the grid's repeat along x and y, in pixels
+--- @field periodY number
+--- @field originX number a line crossing or hex centre, pixels from the top-left, y down
+--- @field originY number
+--- @field angle number the grid's rotation in degrees (0 if aligned)
+--- @field confidence number 0..1
+--- @field imageWidth number
+--- @field imageHeight number
+--- @field decodeMs number
+--- @field detectMs number
+--- @field message string
+
+--- What a map image's grid should be imported as: the 140 px "perfect fit", or the
+--- grid the detector found.
+--- @class MapGridChoice
+--- @field source string 'fit' or 'detected'
+--- @field tileType string 'squares', 'flattop' or 'pointtop'
+--- @field hex boolean
+--- @field tilesW number tiles (or hexes) across the image, rounded
+--- @field tilesH number
+--- @field cellW number pixels
+--- @field cellH number
+--- @field confirmed boolean a fit whose drawn grid the detector found too
+--- @field overrodeFit boolean a detected grid that won over a 140 px fit
+--- @field detection nil|ImageGridDetection
+
+--- @class MapGridDetection
+MapGridDetection = {}
+
+--Map art is most often made at this many pixels per square: an image a whole
+--number of them across and down is a "perfect fit".
+MapGridDetection.FIT_PIXELS = 140
+
+--The detector must be at least this confident to override a perfect fit.
+--Measured on gridalign's test maps, the drawn 70 px grids of 140-fit maps
+--score 0.99-1.00 and every false positive 0.36 or less.
+MapGridDetection.OVERRIDE_CONFIDENCE = 0.90
+
+--Same limits as the map import's per-axis tile cap and the hex tile shape
+--the import accepts (SheetMapImport.HexTileShapeValid).
+local MAX_DETECTED_TILES = MAX_MAP_TILES_PER_AXIS
+local MIN_HEX_SHAPE = 0.5
+local MAX_HEX_SHAPE = 2
+
+local IMAGE_EXTENSIONS = {png = true, jpg = true, jpeg = true, webp = true, bmp = true, tga = true, gif = true}
+
+--path -> ImageGridDetection, or false if it couldn't be read; and the
+--callbacks waiting for a path still being detected.
+local g_gridResults = {}
+local g_gridWaiting = {}
+
+--- True for a file the detector can read (not a video or a VTT file).
+--- @param path string
+--- @return boolean
+function MapGridDetection.CanDetect(path)
+    local ext = string.match(string.lower(path or ""), "%.(%w+)$")
+    return ext ~= nil and IMAGE_EXTENSIONS[ext] == true
 end
 
-local function ComponentField(component, field)
-    local ok, value = pcall(function()
-        return component[field]
-    end)
-    if ok then
-        return value
-    end
-
-    return nil
+--- The detection of a file, if it has finished: the result, false if the
+--- file couldn't be read, or nil if not asked for or still running.
+--- @param path string
+--- @return nil|false|ImageGridDetection
+function MapGridDetection.Result(path)
+    return g_gridResults[path]
 end
 
-local function ComponentMatches(component, key, componentType)
-    if ComponentTypeMatches(key, componentType) then
-        return true
+--- Starts detecting the grid on a local image file (once per file), and calls
+--- callback(result) when it is done: at once if it already is. result is
+--- false if the file couldn't be read.
+--- @param path string
+--- @param callback nil|fun(result: false|ImageGridDetection)
+function MapGridDetection.Request(path, callback)
+    if not MapGridDetection.CanDetect(path) then
+        return
     end
-
-    return ComponentTypeMatches(ComponentField(component, "name"), componentType)
-        or ComponentTypeMatches(ComponentField(component, "type"), componentType)
-        or ComponentTypeMatches(ComponentField(component, "componentType"), componentType)
-        or ComponentTypeMatches(ComponentField(component, "@class"), componentType)
-end
-
-local function ObjectNodeHasComponent(id, componentType)
-    local node = id and assets:GetObjectNode(id)
-    if node == nil or node.components == nil then
-        return false
+    local done = g_gridResults[path]
+    if done ~= nil then
+        if callback ~= nil then
+            callback(done)
+        end
+        return
     end
-
-    for key, component in pairs(node.components) do
-        if ComponentMatches(component, key, componentType) then
-            return true
+    local waiting = g_gridWaiting[path]
+    if waiting ~= nil then
+        waiting[#waiting+1] = callback
+        return
+    end
+    waiting = {callback}
+    g_gridWaiting[path] = waiting
+    local function Finish(result)
+        if mod.unloaded then
+            return
+        end
+        g_gridResults[path] = result
+        g_gridWaiting[path] = nil
+        for _, fn in ipairs(waiting) do
+            fn(result)
         end
     end
+    assets:DetectImageGrid{
+        path = path,
+        done = function(result)
+            Finish(result)
+        end,
+        error = function(message)
+            printf("GRIDDETECT:: %s: %s", path, tostring(message))
+            Finish(false)
+        end,
+    }
+end
 
-    return false
+--The size in squares an image of w x h pixels fits exactly at FIT_PIXELS,
+--with at least minSquares on its short side, or nil.
+local function PerfectFit(w, h, minSquares)
+    if w == nil or h == nil or w <= 0 or h <= 0 then
+        return nil, nil
+    end
+    local pps = MapGridDetection.FIT_PIXELS
+    local tw = w / pps
+    local th = h / pps
+    if math.abs(tw - math.floor(tw + 0.5)) > 0.01 or math.abs(th - math.floor(th + 0.5)) > 0.01 then
+        return nil, nil
+    end
+    tw = math.floor(tw + 0.5)
+    th = math.floor(th + 0.5)
+    if math.min(tw, th) < (minSquares or 1) or math.max(tw, th) > MAX_MAP_TILES_PER_AXIS then
+        return nil, nil
+    end
+    return tw, th
+end
+
+--A detected grid the import can use: found, not rotated (a map's grid is
+--always aligned with its image), and a tile count and hex shape the import accepts.
+--- @param d nil|false|ImageGridDetection
+--- @return boolean
+local function Usable(d)
+    if not d or not d.found or d.type == "none" or d.angle ~= 0 then
+        return false
+    end
+    if d.periodX <= 0 or d.periodY <= 0 then
+        return false
+    end
+    local hex = d.tileType ~= "squares"
+    local across, down
+    if not hex then
+        across, down = d.imageWidth / d.cellWidth, d.imageHeight / d.cellHeight
+    elseif d.tileType == "flattop" then
+        across, down = d.imageWidth / d.periodX, d.imageHeight / (2 * d.periodY)
+        local shape = d.periodX / (2 * d.periodY)
+        if shape < MIN_HEX_SHAPE or shape > MAX_HEX_SHAPE then
+            return false
+        end
+    else
+        across, down = d.imageWidth / (2 * d.periodX), d.imageHeight / d.periodY
+        local shape = d.periodY / (2 * d.periodX)
+        if shape < MIN_HEX_SHAPE or shape > MAX_HEX_SHAPE then
+            return false
+        end
+    end
+    return across >= 1 and down >= 1 and across <= MAX_DETECTED_TILES and down <= MAX_DETECTED_TILES
+end
+
+--A detected square grid that is the perfect fit's own grid: 140 px cells
+--whose lines sit on the image's edges.
+--- @param d ImageGridDetection
+local function SameAsFit(d)
+    local pps = MapGridDetection.FIT_PIXELS
+    if d.tileType ~= "squares" then
+        return false
+    end
+    if math.abs(d.cellWidth / pps - 1) > 0.01 or math.abs(d.cellHeight / pps - 1) > 0.01 then
+        return false
+    end
+    local function NearLine(v)
+        local r = v % pps
+        return math.min(r, pps - r) <= 3
+    end
+    return NearLine(d.originX) and NearLine(d.originY)
+end
+
+--- How to grid a w x h map image, given its detection (nil while it runs, or
+--- false if it failed): a perfect fit wins unless the detector found another
+--- grid with at least OVERRIDE_CONFIDENCE; otherwise any usable detected grid.
+--- nil when neither applies. minSquares: the fewest squares a fit may have on
+--- its short side (default 1).
+--- @param w number
+--- @param h number
+--- @param detection nil|false|ImageGridDetection
+--- @param minSquares nil|number
+--- @return nil|MapGridChoice
+function MapGridDetection.Choose(w, h, detection, minSquares)
+    local fitW, fitH = PerfectFit(w, h, minSquares)
+    local d = nil
+    if Usable(detection) then
+        d = detection --[[@as ImageGridDetection]]
+    end
+
+    if fitW ~= nil and (d == nil or SameAsFit(d) or d.confidence < MapGridDetection.OVERRIDE_CONFIDENCE) then
+        local pps = MapGridDetection.FIT_PIXELS
+        return {
+            source = "fit",
+            tileType = "squares",
+            hex = false,
+            tilesW = fitW,
+            tilesH = fitH,
+            cellW = pps,
+            cellH = pps,
+            confirmed = d ~= nil and SameAsFit(d),
+            overrodeFit = false,
+            detection = d,
+        }
+    end
+
+    if d == nil then
+        return nil
+    end
+    -- The detector reads the file itself, but an image too big to load is shown
+    -- shrunk (8192 px at most): put its grid in the shown image's pixels.
+    if d.imageWidth ~= nil and d.imageWidth > 0 and d.imageHeight ~= nil and d.imageHeight > 0
+        and (math.abs(d.imageWidth - w) > 0.5 or math.abs(d.imageHeight - h) > 0.5) then
+        local sx, sy = w / d.imageWidth, h / d.imageHeight
+        local scaled = {}
+        for k, v in pairs(d) do
+            scaled[k] = v
+        end
+        scaled.cellWidth, scaled.cellHeight = d.cellWidth * sx, d.cellHeight * sy
+        scaled.periodX, scaled.periodY = d.periodX * sx, d.periodY * sy
+        scaled.originX, scaled.originY = d.originX * sx, d.originY * sy
+        scaled.imageWidth, scaled.imageHeight = w, h
+        d = scaled --[[@as ImageGridDetection]]
+    end
+    local hex = d.tileType ~= "squares"
+    local across, down
+    if not hex then
+        across, down = w / d.cellWidth, h / d.cellHeight
+    elseif d.tileType == "flattop" then
+        across, down = w / d.periodX, h / (2 * d.periodY)
+    else
+        across, down = w / (2 * d.periodX), h / d.periodY
+    end
+    return {
+        source = "detected",
+        tileType = d.tileType,
+        hex = hex,
+        tilesW = math.max(1, math.floor(across + 0.5)),
+        tilesH = math.max(1, math.floor(down + 0.5)),
+        cellW = d.cellWidth,
+        cellH = d.cellHeight,
+        confirmed = false,
+        overrodeFit = fitW ~= nil,
+        detection = d,
+    }
+end
+
+--Pixels as shown to the user: whole when they are (nearly) whole.
+local function Px(v)
+    if math.abs(v - math.floor(v + 0.5)) < 0.05 then
+        return string.format("%d", math.floor(v + 0.5))
+    end
+    return string.format("%.1f", v)
+end
+
+--- Words for a choice, for the dialogs: title ('A Perfect Fit!', 'Grid
+--- Detected', 'Hex Grid Detected'), a sentence about it, and a short line
+--- for a caption ('20 x 15 squares at 140 px each').
+--- @param choice MapGridChoice
+--- @param w number the image's size in pixels
+--- @param h number
+--- @return {title: string, text: string, short: string}
+function MapGridDetection.Describe(choice, w, h)
+    if choice.source == "fit" then
+        local text = string.format("This image is %dx%d pixels, which perfectly fits a %dx%d tile grid at %d pixels per square -- the standard used by most professional map creators.",
+            w, h, choice.tilesW, choice.tilesH, MapGridDetection.FIT_PIXELS)
+        if choice.confirmed then
+            text = text .. " The grid drawn on the map lines up with it too."
+        end
+        return {
+            title = "A Perfect Fit!",
+            text = text,
+            short = string.format("%d x %d squares at %d px each", choice.tilesW, choice.tilesH, MapGridDetection.FIT_PIXELS),
+        }
+    end
+
+    local d = choice.detection --[[@as ImageGridDetection]]
+    local sure = string.format("%d%% sure", math.floor(d.confidence * 100 + 0.5))
+    if choice.hex then
+        local kind = cond(choice.tileType == "flattop", "flat-top", "pointy-top")
+        return {
+            title = "Hex Grid Detected",
+            text = string.format("This map has a %s hex grid drawn on it: hexes %s x %s pixels, about %d x %d of them (%s).",
+                kind, Px(choice.cellW), Px(choice.cellH), choice.tilesW, choice.tilesH, sure),
+            short = string.format("Hex grid: %s x %s px %s hexes", Px(choice.cellW), Px(choice.cellH), kind),
+        }
+    end
+
+    local shape = cond(math.abs(choice.cellW - choice.cellH) <= 0.02 * math.max(choice.cellW, choice.cellH), "squares", "cells")
+    local text = string.format("This map has a grid drawn on it: %s x %s pixel %s, about %d x %d of them (%s).",
+        Px(choice.cellW), Px(choice.cellH), shape, choice.tilesW, choice.tilesH, sure)
+    if choice.overrodeFit then
+        text = text .. string.format(" Its size also fits %d px squares exactly, but the grid drawn on it is %s px.", MapGridDetection.FIT_PIXELS, Px(choice.cellW))
+    end
+    return {
+        title = "Grid Detected",
+        text = text,
+        short = string.format("About %d x %d %s at %s px each", choice.tilesW, choice.tilesH, shape, Px(choice.cellW)),
+    }
 end
 
 mod.shared.ImportMapDialog = function(paths, options)
@@ -274,9 +377,56 @@ mod.shared.ImportMapDialog = function(paths, options)
 
     local tileType = options.tileType or "squares"
 
-    -- 140 PPS auto-detection state.
+    -- Map Type for the new map, as in Map Settings > Map Type: a Battlemap, or a
+    -- World Map whose tiles are miles across. Until the user picks, a hex grid
+    -- means World Map. A World Map starts at the game's default scale (6 miles a
+    -- tile unless the Director set another). A floor shares its map's type, so
+    -- floor imports don't offer it.
+    local chosenMapType = nil
+    local worldAmount = tonumber(dmhub.GetSettingValue("worldmap:defaulttilesize")) or 6
+    local worldUnit = dmhub.GetSettingValue("worldmap:defaultunit") or "miles"
+    local worldUnitName = dmhub.GetSettingValue("worldmap:defaultunitname") or ""
+
+    local function MapType()
+        if chosenMapType ~= nil then
+            return chosenMapType
+        end
+        return cond(tileType == "squares", "battlemap", "world")
+    end
+
+    --- @type Panel|nil
+    local mapTypePanel = nil
+
+    -- Call when tileType or the choice changes: the default type follows the grid.
+    local function RefreshMapType()
+        if mapTypePanel ~= nil then
+            mapTypePanel:FireEventTree("refreshMapType")
+        end
+    end
+
+    -- Puts a World Map choice into the settings FinishMapImport applies to the new map.
+    local function AddMapTypeSettings(info)
+        if options.floorImport or MapType() ~= "world" then
+            return
+        end
+        local settings = info.mapSettings or {}
+        settings["map:maptype"] = "world"
+        settings["map:worldtilesize"] = worldAmount
+        settings["map:worldunit"] = worldUnit
+        settings["map:worldunitname"] = worldUnitName
+        info.mapSettings = settings
+    end
+
+    -- Automatic grid: the 140 PPS perfect fit, or the grid MapGridDetection finds.
+    -- perfectFitActive: the auto panel is showing (until "Set Grid by Hand...").
     local perfectFitChecked = false
     local perfectFitActive = false
+    local autoChoice = nil
+    local userChoseManual = false
+    local detectPath = paths ~= nil and paths[1] or nil
+    if options.floorImport or detectPath == nil or not MapGridDetection.CanDetect(detectPath) then
+        detectPath = nil
+    end
 
     -- Forward-declare so the confirmButton closure (defined below) can capture them as upvalues.
     -- Set later inside the floorImport branch when the user clicks "Match Existing Map".
@@ -316,6 +466,7 @@ mod.shared.ImportMapDialog = function(paths, options)
                             info.matchCalibration = capturedMatchCalibration
                             printf("FLOOR_ALIGN_DIAG:: Attached matchCalibration to info: %s", json(capturedMatchCalibration))
                         end
+                        AddMapTypeSettings(info)
                         options.finish(info)
                     end
                     return
@@ -528,55 +679,285 @@ mod.shared.ImportMapDialog = function(paths, options)
         end
     end
 
+    -- The Map Type control; its state is set up next to tileType.
+    if not options.floorImport then
+        local unitOptions = {}
+        for _,unit in ipairs(MeasurementSystem.worldUnits) do
+            unitOptions[#unitOptions+1] = { id = unit.id, text = unit.text }
+        end
+
+        local function ValidAmount(text)
+            local n = tonumber(text)
+            if n == nil or n ~= math.floor(n) or n < 1 or n > 99999 then
+                return nil
+            end
+            return math.tointeger(n)
+        end
+
+        mapTypePanel = gui.Panel{
+            flow = "vertical",
+            width = 400,
+            height = "auto",
+            halign = "left",
+            vmargin = 8,
+
+            gui.Label{
+                width = 400,
+                height = "auto",
+                fontSize = 16,
+                text = "Map Type:",
+            },
+
+            gui.EnumeratedSliderControl{
+                options = {
+                    {id = "battlemap", text = "Battlemap"},
+                    {id = "world", text = "World Map"},
+                },
+                width = 400,
+                value = MapType(),
+                hover = gui.Tooltip("Battlemap: a tactical map, each tile a few feet across. World Map: a region or world map, each tile miles across. The measuring tool reports distances in the map's units. You can change this later in Map Settings."),
+                change = function(element)
+                    if element.value == MapType() then
+                        return
+                    end
+                    chosenMapType = element.value
+                    RefreshMapType()
+                end,
+                refreshMapType = function(element)
+                    if element.value ~= MapType() then
+                        element.value = MapType()
+                    end
+                end,
+            },
+
+            -- The world scale: "Each hex is: [6] [Miles]".
+            gui.Panel{
+                classes = {cond(MapType() ~= "world", "collapsed")},
+                flow = "horizontal",
+                width = 400,
+                height = 30,
+                tmargin = 6,
+                refreshMapType = function(element)
+                    element:SetClass("collapsed", MapType() ~= "world")
+                end,
+
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 16,
+                    valign = "center",
+                    rmargin = 8,
+                    text = cond(tileType == "squares", "Each tile is:", "Each hex is:"),
+                    refreshMapType = function(element)
+                        element.text = cond(tileType == "squares", "Each tile is:", "Each hex is:")
+                    end,
+                },
+
+                gui.Input{
+                    fontSize = 16,
+                    width = 60,
+                    height = 24,
+                    valign = "center",
+                    characterLimit = 5,
+                    text = MeasurementSystem.ToString(worldAmount),
+                    hover = gui.Tooltip("How many units one tile spans, as a whole number."),
+                    edit = function(element)
+                        local n = ValidAmount(element.text)
+                        if n ~= nil then
+                            worldAmount = n
+                        end
+                    end,
+                    change = function(element)
+                        local n = ValidAmount(element.text)
+                        if n == nil then
+                            element.textNoNotify = MeasurementSystem.ToString(worldAmount)
+                            return
+                        end
+                        worldAmount = n
+                    end,
+                },
+
+                gui.Dropdown{
+                    width = 150,
+                    height = 24,
+                    fontSize = 16,
+                    valign = "center",
+                    lmargin = 8,
+                    options = unitOptions,
+                    idChosen = worldUnit,
+                    change = function(element)
+                        ---@cast element Dropdown
+                        worldUnit = element.idChosen
+                        RefreshMapType()
+                    end,
+                },
+            },
+
+            -- The unit's name, only for a custom unit.
+            gui.Panel{
+                classes = {cond(MapType() ~= "world" or worldUnit ~= "custom", "collapsed")},
+                flow = "horizontal",
+                width = 400,
+                height = 30,
+                tmargin = 4,
+                refreshMapType = function(element)
+                    element:SetClass("collapsed", MapType() ~= "world" or worldUnit ~= "custom")
+                end,
+
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 16,
+                    valign = "center",
+                    rmargin = 8,
+                    text = "Unit Name:",
+                },
+
+                gui.Input{
+                    fontSize = 16,
+                    width = 200,
+                    height = 24,
+                    valign = "center",
+                    characterLimit = 24,
+                    placeholderText = "e.g. days",
+                    text = worldUnitName,
+                    edit = function(element)
+                        worldUnitName = string.match(element.text, "^%s*(.-)%s*$")
+                    end,
+                    change = function(element)
+                        worldUnitName = string.match(element.text, "^%s*(.-)%s*$")
+                    end,
+                },
+            },
+        }
+    end
+
+    -- Squares or hexes, for sizing by hand. Changing it starts the sizing over.
+    -- A floor must match its map, so floor imports don't offer it.
+    local tileTypeChoice = gui.EnumeratedSliderControl{
+        options = {
+            {id = "squares", text = "Squares"},
+            {id = "flattop", text = "Flat Top"},
+            {id = "pointtop", text = "Pointy Top"},
+        },
+        width = 400,
+        valign = "top",
+        value = tileType,
+        change = function(element)
+            if element.value == tileType then
+                return
+            end
+            tileType = element.value
+            importPanel.tileType = element.value
+            gridlessChoice.value = true
+            RefreshMapType()
+        end,
+        vmargin = 8,
+    }
+    --(not via classes: they would replace the control's own.)
+    if options.floorImport then
+        tileTypeChoice:SetClass("hidden", true)
+    end
+
+    -- While the grid detector runs, and if it finds nothing.
+    local detectStatusLabel = gui.Label{
+        classes = {"hidden"},
+        width = 400,
+        height = "auto",
+        fontSize = 15,
+        wrap = true,
+        color = "@fgMuted",
+        vmargin = 6,
+        text = "",
+    }
+
     local instructionsPanel = gui.Panel{
         width = 400,
         height = "auto",
         flow = "vertical",
         halign = "left",
         valign = "top",
+        detectStatusLabel,
+        tileTypeChoice,
         instructionsText,
         gridlessChoice,
         matchMapPanel,
     }
 
-    -- "A Perfect Fit!" panel for 140 PPS auto-detection.
+    -- Unchecked, the automatic grid is hidden so the user can compare it with the bare map.
+    local drawGridCheck = gui.Check{
+        text = "Draw Grid",
+        value = true,
+        halign = "left",
+        vmargin = 4,
+        change = function(element)
+            importPanel.showGrid = element.value
+        end,
+    }
+
+    -- The automatic grid is drawn thick and yellow so it is easy to judge against
+    -- the map; sizing by hand goes back to the thin default lines.
+    local function SetAutoGridStyle(on)
+        if on then
+            importPanel.gridColor = "#ffd21f"
+            importPanel.gridThickness = 3
+            importPanel.showGrid = drawGridCheck.value
+        else
+            importPanel.gridColor = nil
+            importPanel.gridThickness = 1
+            importPanel.showGrid = true
+        end
+    end
+
+    -- Held directly rather than found with Get(): Get falls back to searching the
+    -- whole UI tree from the root, so a broken panel anywhere else could throw
+    -- here and leave the dialog with no way forward (8CMXRYPW).
+    local perfectFitTitle = gui.Label{
+        id = "perfectFitTitle",
+        width = 400,
+        height = "auto",
+        fontSize = 28,
+        bold = true,
+        color = "@success",
+        text = "A Perfect Fit!",
+        vmargin = 4,
+    }
+
+    local perfectFitDescription = gui.Label{
+        id = "perfectFitDescription",
+        width = 380,
+        height = "auto",
+        fontSize = 16,
+        wrap = true,
+        text = "",
+        vmargin = 8,
+    }
+
+    local perfectFitDimensions = gui.Label{
+        id = "perfectFitDimensions",
+        width = 380,
+        height = "auto",
+        fontSize = 20,
+        text = "",
+        vmargin = 4,
+    }
+
+    -- The automatic grid panel: "A Perfect Fit!" (140 PPS) or a detected grid,
+    -- with Accept and Set Grid by Hand.
     local perfectFitPanel
     perfectFitPanel = gui.Panel{
-        classes = {"hidden"},
+        classes = {"collapsed"},
         flow = "vertical",
         width = 400,
         height = "auto",
         halign = "left",
         valign = "top",
 
-        gui.Label{
-            width = 400,
-            height = "auto",
-            fontSize = 28,
-            bold = true,
-            color = "@success",
-            text = "A Perfect Fit!",
-            vmargin = 4,
-        },
+        drawGridCheck,
 
-        gui.Label{
-            id = "perfectFitDescription",
-            width = 380,
-            height = "auto",
-            fontSize = 16,
-            wrap = true,
-            text = "",
-            vmargin = 8,
-        },
-
-        gui.Label{
-            id = "perfectFitDimensions",
-            width = 380,
-            height = "auto",
-            fontSize = 20,
-            text = "",
-            vmargin = 4,
-        },
+        perfectFitTitle,
+        perfectFitDescription,
+        perfectFitDimensions,
 
         gui.Panel{
             width = 1,
@@ -603,6 +984,7 @@ mod.shared.ImportMapDialog = function(paths, options)
                             info.paths = paths
                             info.imageWidth = imgW
                             info.imageHeight = imgH
+                            AddMapTypeSettings(info)
                             options.finish(info)
                         end
                         return
@@ -614,18 +996,80 @@ mod.shared.ImportMapDialog = function(paths, options)
 
         gui.Button{
             classes = {"sizeL"},
-            text = "Customize Grid...",
+            text = "Set Grid by Hand...",
             halign = "left",
             vmargin = 8,
             click = function(element)
                 perfectFitActive = false
-                perfectFitPanel:SetClass("hidden", true)
-                instructionsPanel:SetClass("hidden", false)
-                importPanel:ClearMarkers()
+                userChoseManual = true
+                perfectFitPanel:SetClass("collapsed", true)
+                instructionsPanel:SetClass("collapsed", false)
+                detectStatusLabel:SetClass("hidden", true)
+                --ResetCalibration, not ClearMarkers: a detected grid marks every
+                --sizing step done, and sizing by hand must start from the first.
+                importPanel:ResetCalibration()
+                SetAutoGridStyle(false)
+                tileTypeChoice.value = tileType
                 gridlessChoice.value = true
             end,
         },
     }
+
+    -- Shows a choice (MapGridDetection.Choose) on the import panel and in the auto
+    -- panel. Returns false if the panel couldn't take it (image not loaded yet).
+    local function ShowAutoChoice(element, choice)
+        local imgW = element.imageWidth
+        local imgH = element.imageHeight
+        if choice.source == "fit" then
+            --a fit's grid starts at the image's corner: gridless markers sized to it.
+            if choice.tileType ~= tileType then
+                tileType = choice.tileType
+                element.tileType = tileType
+            end
+            element:ResetCalibration()
+            element:CreateGridless()
+            element:SetMapDimensions(choice.tilesW, choice.tilesH)
+        else
+            local d = choice.detection --[[@as ImageGridDetection]]
+            if not element:ApplyDetectedGrid{
+                tileType = d.tileType,
+                periodX = d.periodX,
+                periodY = d.periodY,
+                originX = d.originX,
+                originY = d.originY,
+            } then
+                return false
+            end
+            tileType = d.tileType
+        end
+        autoChoice = choice
+        tileTypeChoice.value = tileType
+        RefreshMapType()
+
+        local words = MapGridDetection.Describe(choice, imgW, imgH)
+        perfectFitTitle.text = words.title
+        perfectFitDescription.text = words.text
+        perfectFitDimensions.text = string.format("%d x %d %s",
+            choice.tilesW, choice.tilesH, cond(choice.hex, "hexes", "tiles"))
+        perfectFitPanel:SetClass("collapsed", false)
+        instructionsPanel:SetClass("collapsed", true)
+
+        --Last: once set, the think handler hides Previous/Continue/Confirm, so an
+        --error above must leave the normal controls usable rather than none at all.
+        perfectFitActive = true
+        SetAutoGridStyle(true)
+        return true
+    end
+
+    -- True when two choices would import the same grid and say the same thing
+    -- (a fit the detector later confirms is re-shown, to say so).
+    local function SameChoice(a, b)
+        if a == nil or b == nil then
+            return a == b
+        end
+        return a.source == b.source and a.tileType == b.tileType and a.confirmed == b.confirmed
+            and math.abs(a.cellW - b.cellW) < 0.01 and math.abs(a.cellH - b.cellH) < 0.01
+    end
 
     local statusWidth = gui.Input{
         fontSize = 16,
@@ -937,6 +1381,10 @@ mod.shared.ImportMapDialog = function(paths, options)
         vmargin = 4,
     }
 
+    --Set by the row's create handler; read by the think handler (see perfectFitTitle).
+    --- @type Panel|nil
+    local tileScalingRow = nil
+
     local statusPanel = gui.Panel{
         classes = {"hidden"},
         flow = "vertical",
@@ -957,7 +1405,11 @@ mod.shared.ImportMapDialog = function(paths, options)
         },
 
         gui.Panel{
+            id = "tileScalingRow",
             classes = {cond(tileType == "squares", nil, "hidden")},
+            create = function(element)
+                tileScalingRow = element
+            end,
             flow = "horizontal",
             width = "auto",
             height = "auto",
@@ -1116,6 +1568,32 @@ mod.shared.ImportMapDialog = function(paths, options)
 
     }
 
+    -- Shown over the map preview while the engine shrinks an over-size image or
+    -- converts a video on a background thread, which takes a while on big files.
+    -- Left-aligned in a fixed width so the animated dots don't shift the text.
+    local processingLabel = gui.Label{
+        width = 280,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        fontSize = 26,
+        textAlignment = "left",
+        textWrap = false,
+        text = "",
+    }
+    -- Covers the preview, which is blank white until there is an image.
+    local processingOverlay = gui.Panel{
+        classes = {"hidden"},
+        width = 800,
+        height = 800,
+        halign = "right",
+        valign = "top",
+        y = 26,
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        processingLabel,
+    }
+
     importPanel = gui.MapImport{
         paths = paths,
         width = 800,
@@ -1133,42 +1611,47 @@ mod.shared.ImportMapDialog = function(paths, options)
         thinkTime = 0.05,
 
         think = function(element)
-            -- One-shot 140 PPS detection.
+            local processing = element.processingMessage
+            processingOverlay:SetClass("hidden", processing == nil)
+            -- The sizing steps mean nothing until there is a map to size.
+            instructionsPanel:SetClass("hidden", processing ~= nil)
+            if processing ~= nil then
+                -- 0 to 3 dots, one step every 0.4 s, so it reads as still working.
+                local dots = math.floor(dmhub.Time() / 0.4) % 4
+                processingLabel.text = processing .. string.rep(".", dots)
+            end
+
+            -- One-shot automatic grid, once the image has loaded: the 140 PPS
+            -- perfect fit at once if the image is one, then whatever the grid
+            -- detector finds (MapGridDetection.Choose decides between them).
             if not perfectFitChecked and not options.floorImport and tileType == "squares" then
                 local imgW = element.imageWidth
                 local imgH = element.imageHeight
                 if imgW ~= nil and imgW > 0 and imgH ~= nil and imgH > 0 then
                     perfectFitChecked = true
-                    local pps = 140
-                    local tilesW = imgW / pps
-                    local tilesH = imgH / pps
-                    local rW = math.abs(tilesW - math.floor(tilesW + 0.5))
-                    local rH = math.abs(tilesH - math.floor(tilesH + 0.5))
-                    if rW < 0.01 and rH < 0.01 then
-                        tilesW = math.floor(tilesW + 0.5)
-                        tilesH = math.floor(tilesH + 0.5)
-                        if tilesW >= 1 and tilesH >= 1
-                           and tilesW <= MAX_MAP_TILES_PER_AXIS
-                           and tilesH <= MAX_MAP_TILES_PER_AXIS then
-                            perfectFitActive = true
+                    local known = detectPath ~= nil and MapGridDetection.Result(detectPath) or nil
+                    local choice = MapGridDetection.Choose(imgW, imgH, known)
+                    if choice ~= nil then
+                        ShowAutoChoice(element, choice)
+                    end
 
-                            -- Configure the grid preview at detected dimensions.
-                            element:CreateGridless()
-                            element:SetMapDimensions(tilesW, tilesH)
-
-                            -- Populate the panel text.
-                            perfectFitPanel:Get("perfectFitDescription").text = string.format(
-                                "This image is %dx%d pixels, which perfectly fits a %dx%d tile grid at 140 pixels per square -- the standard used by most professional map creators.",
-                                imgW, imgH, tilesW, tilesH
-                            )
-                            perfectFitPanel:Get("perfectFitDimensions").text = string.format(
-                                "%d x %d tiles", tilesW, tilesH
-                            )
-
-                            -- Show perfect fit panel, hide normal instructions.
-                            perfectFitPanel:SetClass("hidden", false)
-                            instructionsPanel:SetClass("hidden", true)
-                        end
+                    if detectPath ~= nil and known == nil then
+                        detectStatusLabel.text = "Looking for a grid on this map..."
+                        detectStatusLabel:SetClass("hidden", false)
+                        MapGridDetection.Request(detectPath, function(result)
+                            if not element.valid or userChoseManual then
+                                return
+                            end
+                            local found = MapGridDetection.Choose(imgW, imgH, result)
+                            if found ~= nil and not SameChoice(found, autoChoice) then
+                                ShowAutoChoice(element, found)
+                            end
+                            if autoChoice == nil then
+                                detectStatusLabel.text = "No grid was found on this map. Mark one of its squares below, or choose Gridless."
+                            else
+                                detectStatusLabel:SetClass("hidden", true)
+                            end
+                        end)
                     end
                 end
             end
@@ -1206,6 +1689,10 @@ mod.shared.ImportMapDialog = function(paths, options)
                 statusPanel:SetClass("hidden", true)
             else
                 statusPanel:SetClass("hidden", false)
+                --tile scaling is for squares only; the tile type can change by hand now.
+                if tileScalingRow ~= nil then
+                    tileScalingRow:SetClass("hidden", tileType ~= "squares")
+                end
 
                 -- Show the mode toggle only in gridless mode.
                 local isGridless = gridlessChoice.value == false
@@ -1265,9 +1752,20 @@ mod.shared.ImportMapDialog = function(paths, options)
         zoomSlider,
         layersPagingPanel,
         importPanel,
+        processingOverlay,
         buttonsPanel,
-        instructionsPanel,
-        perfectFitPanel,
+        -- The left column: the sizing instructions or the automatic grid
+        -- (one at a time), then the Map Type choice under either.
+        gui.Panel{
+            flow = "vertical",
+            width = 400,
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            instructionsPanel,
+            perfectFitPanel,
+            mapTypePanel,
+        },
         statusPanel,
     }
 
@@ -1290,2017 +1788,6 @@ mod.shared.ImportMapDialog = function(paths, options)
     return resultPanel
 end
 
-local function CountImportFeatures(uvttData)
-    local counts = {
-        structural = 0,
-        object = 0,
-        terrain = 0,
-        invisible = 0,
-        unrecognized = 0,
-        doors = 0,
-        windows = 0,
-        secretDoors = 0,
-        lights = 0,
-    }
-    if uvttData == nil then return counts end
-
-    local function countSegments(lineSet)
-        local n = 0
-        if type(lineSet) ~= "table" then
-            return 0
-        end
-        for _, segment in ipairs(lineSet) do
-            if type(segment) == "table" and #segment >= 2 then
-                n = n + 1
-            end
-        end
-        return n
-    end
-
-    local function addOne(d)
-        if type(d) ~= "table" then return end
-        counts.structural = counts.structural + countSegments(d.line_of_sight)
-        counts.object = counts.object + countSegments(d.objects_line_of_sight)
-        if type(d.portals) == "table" then
-            for _, portal in ipairs(d.portals) do
-                if type(portal) == "table" then
-                    if portal.closed == true then
-                        if portal.secret == true then
-                            counts.secretDoors = counts.secretDoors + 1
-                        else
-                            counts.doors = counts.doors + 1
-                        end
-                    else
-                        counts.windows = counts.windows + 1
-                    end
-                end
-            end
-        end
-        if type(d.lights) == "table" then
-            counts.lights = counts.lights + #d.lights
-        end
-        if d.foundry_terrain_walls ~= nil then
-            counts.terrain = counts.terrain + #d.foundry_terrain_walls
-        end
-        if d.foundry_invisible_walls ~= nil then
-            counts.invisible = counts.invisible + #d.foundry_invisible_walls
-        end
-        if d.foundry_movement_walls ~= nil then
-            counts.invisible = counts.invisible + #d.foundry_movement_walls
-        end
-        if d.foundry_unrecognized_walls ~= nil then
-            counts.unrecognized = counts.unrecognized + #d.foundry_unrecognized_walls
-        end
-
-        if type(d.line_of_sight) ~= "table" and type(d.walls) == "table" then
-            for _, wall in ipairs(d.walls) do
-                if type(wall) == "table" then
-                    local points = wall.c
-                    if type(points) == "table" and #points == 4 then
-                        local door = tonumber(wall.door) or 0
-                        local move = tonumber(wall.move) or 20
-                        local sight = tonumber(wall.sight) or 20
-                        local light = tonumber(wall.light) or 20
-                        local dir = tonumber(wall.dir) or 0
-                        local threshold = type(wall.threshold) == "table" and wall.threshold or nil
-                        local windowLike = threshold ~= nil
-                            and threshold.light ~= nil and threshold.sight ~= nil
-                            and light ~= move and sight ~= move
-
-                        if (door == 0 or door == 2) and windowLike then
-                            counts.windows = counts.windows + 1
-                        elseif door == 1 then
-                            counts.doors = counts.doors + 1
-                        elseif door == 2 then
-                            counts.secretDoors = counts.secretDoors + 1
-                        elseif door == 0 and dir ~= 0 then
-                            counts.unrecognized = counts.unrecognized + 1
-                        elseif door ~= 0 and door ~= 1 and door ~= 2 then
-                            counts.unrecognized = counts.unrecognized + 1
-                        elseif door == 0 and sight == 20 and move == 20 then
-                            counts.structural = counts.structural + 1
-                        elseif door == 0 and sight == 10 and move == 20 then
-                            counts.terrain = counts.terrain + 1
-                        elseif door == 0 and sight == 0 and move == 20 then
-                            counts.invisible = counts.invisible + 1
-                        elseif door == 0 then
-                            counts.unrecognized = counts.unrecognized + 1
-                        end
-                    end
-                end
-            end
-        end
-    end
-    addOne(uvttData)
-    if type(uvttData) == "table" then
-        for _,d in ipairs(uvttData) do
-            addOne(d)
-        end
-    end
-    return counts
-end
-
-local PICKER_LIMIT = 20
-local PICKER_UI = {
-    dialogWidth = 760,
-    dialogHeight = 720,
-    tooltipWidth = 304,
-    tooltipContentWidth = 280,
-    tooltipWallWidth = 240,
-    tooltipWallHeight = 60,
-    tooltipObjectSize = 220,
-    tileLabelLength = 28,
-    summaryLength = 44,
-    summaryWidth = 330,
-    headerLabelWidth = 190,
-    headerHeight = 42,
-    searchWidth = 320,
-    inputWidth = 80,
-    inputHeight = 24,
-    thumbnail = {
-        square = {tileW = 96, tileH = 120, imageW = 80, imageH = 80},
-        wide = {tileW = 160, tileH = 80, imageW = 144, imageH = 44},
-    },
-    preview = {
-        square = {outerW = 38, outerH = 38, innerW = 30, innerH = 30},
-        wide = {outerW = 86, outerH = 34, innerW = 74, innerH = 22},
-    },
-}
-
-local function ShortLabel(s, maxLen)
-    s = tostring(s or "")
-    s = string.gsub(s, "[\r\n]+", " ")
-    if #s <= maxLen then return s end
-    return string.sub(s, 1, maxLen - 3) .. "..."
-end
-
--- Keep search focused on the asset title/header rather than long item lore.
-local SEARCH_HEAD_LEN = 60
-
-local function ObjectBehaviorText(node)
-    if node == nil or node.components == nil then return nil end
-    local parts = {}
-    local seen = {}
-    for _,component in pairs(node.components) do
-        local text = component.behaviorDescription
-        if text ~= nil and text ~= "" and not seen[text] then
-            parts[#parts+1] = text
-            seen[text] = true
-        end
-    end
-    if #parts == 0 then return nil end
-    return table.concat(parts, "\n")
-end
-
-local function ObjectItemFromNode(id, node, suffix)
-    local baseLabel = (node and (node.description or node.name)) or id
-    return {
-        id = id,
-        label = (suffix and (baseLabel .. " " .. suffix)) or baseLabel,
-        kind = "object",
-        image = node and node.image,
-        thumbnailId = node and node.thumbnailId,
-        description = node and node.description,
-        behavior = ObjectBehaviorText(node),
-        artist = node and node.artist,
-        hue = node and node.hue,
-        saturation = node and node.saturation,
-        brightness = node and node.brightness,
-    }
-end
-
-local function SearchObjectItems(query, currentId)
-    local q = string.lower(query or "")
-    local items = {}
-    local seen = {}
-    local totalMatched = 0
-
-    local function addCurrent()
-        if currentId == nil or currentId == "" or seen[currentId] then return end
-        local node = assets:GetObjectNode(currentId)
-        items[#items+1] = ObjectItemFromNode(currentId, node, "(current)")
-        seen[currentId] = true
-    end
-
-    addCurrent()
-
-    local function record(id, v)
-        if id == nil or seen[id] then return end
-        totalMatched = totalMatched + 1
-        if #items < PICKER_LIMIT then
-            items[#items+1] = ObjectItemFromNode(id, v)
-        end
-        seen[id] = true
-    end
-
-    if q ~= "" then
-        local kwObjs = assets:GetObjectsWithKeyword(q)
-        if kwObjs ~= nil then
-            for _,v in ipairs(kwObjs) do
-                record(v.id, v)
-            end
-        end
-
-        if assets.allObjects ~= nil then
-            for id,v in pairs(assets.allObjects) do
-                if v ~= nil and not v.isfolder and not seen[id] then
-                    local head = string.lower(string.sub(
-                        tostring(v.description or id), 1, SEARCH_HEAD_LEN))
-                    if string.find(head, q, 1, true) ~= nil then
-                        record(id, v)
-                    end
-                end
-            end
-        end
-    elseif assets.allObjects ~= nil then
-        for id,v in pairs(assets.allObjects) do
-            if v ~= nil and not v.isfolder then
-                record(id, v)
-            end
-        end
-    end
-
-    return items, totalMatched
-end
-
--- TODO: Replace this raw-field summary with an engine-provided WallAsset
--- behavior description when one is exposed.
-local function WallBehaviorText(wall)
-    if wall == nil then return nil end
-    local parts = {}
-    local fields = {
-        "invisible",
-        "visionOneWay",
-        "visionWidth",
-        "movementOneWay",
-        "occludesVision",
-        "occludesLight",
-        "blocksMovement",
-        "blocksForcedMovement",
-        "blocksFlying",
-        "cover",
-        "soundOcclusion",
-        "wallHeight",
-        "climbable",
-        "solidity",
-        "breakStamina",
-        "rubbleKeyword",
-        "rubbleTerrainId",
-        "replacementWallId",
-    }
-
-    for _, field in ipairs(fields) do
-        local value = wall[field]
-        if value ~= nil then
-            parts[#parts+1] = string.format("<b>%s</b>: %s", field, tostring(value))
-        end
-    end
-
-    if #parts == 0 then return nil end
-    return table.concat(parts, "\n")
-end
-
-local function WallItemFromAsset(id, wall, suffix)
-    local baseLabel = (wall and wall.description) or id
-    return {
-        id = id,
-        label = (suffix and (baseLabel .. " " .. suffix)) or baseLabel,
-        kind = "wall",
-        tint = wall and wall.tint,
-        hueshift = wall and wall.hueshift,
-        saturation = wall and wall.saturation,
-        brightness = wall and wall.brightness,
-        description = wall and wall.description,
-        behavior = WallBehaviorText(wall),
-        artist = wall and wall.artist,
-    }
-end
-
-local function SearchWallItems(query, currentId)
-    local q = string.lower(query or "")
-    local items = {}
-    local seen = {}
-    local totalMatched = 0
-
-    local function addCurrent()
-        if currentId == nil or currentId == "" or seen[currentId] then return end
-        local wall = assets.walls and assets.walls[currentId]
-        items[#items+1] = WallItemFromAsset(currentId, wall, "(current)")
-        seen[currentId] = true
-    end
-
-    addCurrent()
-
-    if assets.walls ~= nil then
-        for id,wall in pairs(assets.walls) do
-            if not seen[id] then
-                local label = string.lower(tostring(wall.description or id))
-                if q == "" or string.find(label, q, 1, true) ~= nil then
-                    totalMatched = totalMatched + 1
-                    if #items < PICKER_LIMIT then
-                        items[#items+1] = WallItemFromAsset(id, wall)
-                    end
-                    seen[id] = true
-                end
-            end
-        end
-    end
-
-    return items, totalMatched
-end
-
-local function ValidateMapAssetChoices(choices)
-    local counts = choices.counts or {}
-    local wallModeAllowed = {wall = true, none = true}
-    local assetModeAllowed = {asset = true, none = true}
-    local windowModeAllowed = {asset = true, movement_wall = true, none = true}
-    local function validMode(value, defaultValue, allowed)
-        local mode = tostring(value or "")
-        if allowed[mode] == true then
-            return mode
-        end
-        return defaultValue
-    end
-    local function legacyMode(value, legacyValue, defaultValue, allowed)
-        if value ~= nil and value ~= "" then
-            return validMode(value, defaultValue, allowed)
-        end
-        return validMode(legacyValue, defaultValue, allowed)
-    end
-    local structuralWallMode = validMode(choices.structuralWallMode, "wall", wallModeAllowed)
-    local objectWallMode = validMode(choices.objectWallMode, "wall", wallModeAllowed)
-    local terrainWallMode = validMode(choices.terrainWallMode, "wall", wallModeAllowed)
-    local invisibleWallMode = legacyMode(choices.invisibleWallMode, choices.movementWallMode, "wall", wallModeAllowed)
-    local unrecognizedWallMode = validMode(choices.unrecognizedWallMode, cond(choices.includeUnrecognizedWalls == true, "wall", "none"), wallModeAllowed)
-    local doorMode = validMode(choices.doorMode, "asset", assetModeAllowed)
-    local windowMode = validMode(choices.windowMode, "asset", windowModeAllowed)
-    local secretDoorMode = validMode(choices.secretDoorMode, "asset", assetModeAllowed)
-    local lightMode = validMode(choices.lightMode, "asset", assetModeAllowed)
-    local invisibleCount = counts.invisible or counts.movement or 0
-    local terrainWallAssetId = choices.terrainWallAssetId or choices.objectWallAssetId
-    local invisibleWallAssetId = choices.invisibleWallAssetId or choices.objectWallAssetId
-    local transparentWindowWallAssetId = choices.transparentWindowWallAssetId or choices.objectWallAssetId
-    if terrainWallAssetId == "" then terrainWallAssetId = choices.objectWallAssetId end
-    if invisibleWallAssetId == "" then invisibleWallAssetId = choices.objectWallAssetId end
-    if transparentWindowWallAssetId == "" then transparentWindowWallAssetId = choices.objectWallAssetId end
-
-    local needsWallAsset =
-        ((counts.structural or 0) > 0 and structuralWallMode == "wall")
-        or ((counts.doors or 0) > 0 and doorMode == "asset")
-        or ((counts.windows or 0) > 0 and windowMode == "asset")
-        or ((counts.secretDoors or 0) > 0 and secretDoorMode == "asset")
-    local needsObjectWallAsset =
-        ((counts.object or 0) > 0 and objectWallMode == "wall")
-    local needsTerrainWallAsset = ((counts.terrain or 0) > 0 and terrainWallMode == "wall")
-    local needsInvisibleWallAsset = (invisibleCount > 0 and invisibleWallMode == "wall")
-    local needsTransparentWindowWallAsset = ((counts.windows or 0) > 0 and windowMode == "movement_wall")
-
-    if needsWallAsset and (assets.walls == nil or assets.walls[choices.wallAssetId] == nil) then
-        return "The selected wall material is missing. Pick another wall material before continuing.", "wall"
-    end
-    if needsObjectWallAsset and (assets.walls == nil or assets.walls[choices.objectWallAssetId] == nil) then
-        return "The selected object occluder material is missing. Pick another object occluder material before continuing.", "objectWall"
-    end
-    if needsTerrainWallAsset and (assets.walls == nil or assets.walls[terrainWallAssetId] == nil) then
-        return "The selected terrain wall material is missing. Pick another terrain wall material before continuing.", "terrain"
-    end
-    if needsInvisibleWallAsset and (assets.walls == nil or assets.walls[invisibleWallAssetId] == nil) then
-        return "The selected invisible wall material is missing. Pick another invisible wall material before continuing.", "invisible"
-    end
-    if needsTransparentWindowWallAsset and (assets.walls == nil or assets.walls[transparentWindowWallAssetId] == nil) then
-        return "The selected transparent window wall material is missing. Pick another transparent window wall material before continuing.", "window"
-    end
-    if (counts.unrecognized or 0) > 0 and unrecognizedWallMode == "wall" and (assets.walls == nil or assets.walls[choices.unrecognizedWallAssetId] == nil) then
-        return "The selected unrecognized wall material is missing. Pick another unrecognized wall material before continuing.", "unrecognizedWall"
-    end
-    if (counts.doors or 0) > 0 and doorMode == "asset" and (choices.doorObjectId == nil or assets:GetObjectNode(choices.doorObjectId) == nil) then
-        return "The selected door object is missing. Pick another door before continuing.", "door"
-    end
-    if (counts.windows or 0) > 0 and windowMode == "asset" and (choices.windowObjectId == nil or assets:GetObjectNode(choices.windowObjectId) == nil) then
-        return "The selected window object is missing. Pick another window before continuing.", "window"
-    end
-    if (counts.secretDoors or 0) > 0 and secretDoorMode == "asset" and (choices.secretDoorObjectId == nil or assets:GetObjectNode(choices.secretDoorObjectId) == nil) then
-        return "The selected secret door object is missing. Pick another secret door before continuing.", "secretDoor"
-    end
-    if (counts.lights or 0) > 0 and lightMode == "asset" and (choices.lightObjectId == nil or assets:GetObjectNode(choices.lightObjectId) == nil) then
-        return "The selected light object is missing. Pick another light before continuing.", "light"
-    end
-    if (counts.lights or 0) > 0 and lightMode == "asset" and not ObjectNodeHasComponent(choices.lightObjectId, "Light") then
-        return "The selected light object does not have a Light component. Pick a light-emitting object before continuing.", "light"
-    end
-
-    return nil
-end
-
-local function BuildAssetTooltip(item)
-    local children = {
-        gui.Label{
-            text = "<b>" .. (item.label or "(no name)") .. "</b>",
-            fontSize = 18,
-            color = "white",
-            width = PICKER_UI.tooltipContentWidth,
-            height = "auto",
-            wrap = true,
-        },
-        gui.Panel{width = PICKER_UI.tooltipContentWidth, height = 6, interactable = false},
-    }
-
-    if item.kind == "wall" then
-        children[#children+1] = gui.Panel{
-            bgimageStreamed = item.id,
-            bgcolor = item.tint,
-            hueshift = item.hueshift,
-            saturation = item.saturation and (1 + item.saturation) or nil,
-            brightness = item.brightness and (1 + item.brightness) or nil,
-            width = PICKER_UI.tooltipWallWidth,
-            height = PICKER_UI.tooltipWallHeight,
-            halign = "center",
-            interactable = false,
-        }
-    elseif item.thumbnailId or item.image then
-        children[#children+1] = gui.Panel{
-            bgimage = item.thumbnailId or item.image,
-            bgcolor = "white",
-            hueshift = item.hue,
-            saturation = item.saturation,
-            brightness = item.brightness,
-            width = PICKER_UI.tooltipObjectSize,
-            height = PICKER_UI.tooltipObjectSize,
-            halign = "center",
-            interactable = false,
-        }
-    end
-
-    local detail = item.behavior
-    if (detail == nil or detail == "") and
-            item.description and item.description ~= "" and
-            item.description ~= item.label then
-        detail = item.description
-    end
-    if detail ~= nil and detail ~= "" then
-        children[#children+1] = gui.Panel{width = PICKER_UI.tooltipContentWidth, height = 6, interactable = false}
-        children[#children+1] = gui.Label{
-            text = detail,
-            fontSize = 12,
-            color = "white",
-            width = PICKER_UI.tooltipContentWidth,
-            height = "auto",
-            wrap = true,
-        }
-    end
-
-    if item.artist and item.artist ~= "" then
-        children[#children+1] = gui.Panel{width = PICKER_UI.tooltipContentWidth, height = 4, interactable = false}
-        children[#children+1] = gui.Label{
-            classes = {"fgMuted"},
-            text = "<i>Artist: " .. tostring(item.artist) .. "</i>",
-            fontSize = 10,
-            width = PICKER_UI.tooltipContentWidth,
-            height = "auto",
-        }
-    end
-
-    return gui.TooltipFrame(
-        gui.Panel{
-            interactable = false,
-            width = PICKER_UI.tooltipWidth,
-            height = "auto",
-            pad = 12,
-            borderBox = true,
-            flow = "vertical",
-            styles = ThemeEngine.GetStyles(),
-            children = children,
-        },
-        {valign = "center", halign = "left"}
-    )
-end
-
-local function BuildThumbnailTile(item, onClick, tileShape)
-    tileShape = tileShape or "wide"
-
-    local sizes = PICKER_UI.thumbnail[tileShape] or PICKER_UI.thumbnail.wide
-
-    local imageChild
-    if item.kind == "wall" then
-        imageChild = gui.Panel{
-            bgimageStreamed = item.id,
-            bgcolor = item.tint,
-            hueshift = item.hueshift,
-            saturation = item.saturation and (1 + item.saturation) or nil,
-            brightness = item.brightness and (1 + item.brightness) or nil,
-            width = "100%",
-            height = "100%",
-            halign = "center",
-            valign = "center",
-            interactable = false,
-            events = {
-                imageLoaded = function(element)
-                    if tileShape == "square"
-                            and element.bgimageWidth and element.bgimageHeight
-                            and element.bgimageWidth > element.bgimageHeight * 1.5 then
-                        element.selfStyle.imageRect = {
-                            x1 = 0,
-                            x2 = element.bgimageHeight / element.bgimageWidth,
-                            y1 = 0,
-                            y2 = 1,
-                        }
-                    end
-                end,
-            },
-        }
-    else
-        imageChild = gui.Panel{
-            bgimage = item.thumbnailId or item.image,
-            bgcolor = "white",
-            hueshift = item.hue,
-            saturation = item.saturation,
-            brightness = item.brightness,
-            width = "100%",
-            height = "100%",
-            halign = "center",
-            valign = "center",
-            interactable = false,
-            events = {
-                imageLoaded = function(element)
-                    if element.bgsprite ~= nil and element.bgsprite.dimensions ~= nil then
-                        local dx = element.bgsprite.dimensions.x
-                        local dy = element.bgsprite.dimensions.y
-                        local maxDim = math.max(dx, dy)
-                        if maxDim > 0 then
-                            element.selfStyle.width = tostring(dx / maxDim * 100) .. "%"
-                            element.selfStyle.height = tostring(dy / maxDim * 100) .. "%"
-                        end
-                    end
-                end,
-            },
-        }
-    end
-
-    local fullLabel = tostring(item.label or "")
-    local shortLabel = ShortLabel(fullLabel, PICKER_UI.tileLabelLength)
-
-    local thumb
-    thumb = gui.Panel{
-        classes = {"assetThumbnail"},
-        bgimage = "panels/square.png",
-        width = sizes.tileW,
-        height = sizes.tileH,
-        hmargin = 4,
-        vmargin = 4,
-        flow = "vertical",
-        clip = true,
-        data = {assetId = item.id},
-        events = {
-            hover = function(element)
-                if element.tooltip == nil then
-                    element.tooltip = BuildAssetTooltip(item)
-                end
-            end,
-        },
-        press = function(element)
-            onClick(element.data.assetId)
-        end,
-
-        gui.Panel{
-            width = sizes.imageW,
-            height = sizes.imageH,
-            halign = "center",
-            valign = "top",
-            interactable = false,
-            imageChild,
-        },
-
-        gui.Label{
-            text = shortLabel,
-            width = "100%",
-            height = "auto",
-            maxHeight = 28,
-            fontSize = 10,
-            halign = "center",
-            valign = "top",
-            textAlignment = "center",
-            wrap = true,
-            interactable = false,
-        },
-    }
-    return thumb
-end
-
-local function CurrentAssetItem(kind, id)
-    if kind == "wall" then
-        local wall = assets.walls and assets.walls[id]
-        if wall ~= nil then
-            return WallItemFromAsset(id, wall)
-        end
-    else
-        local node = id and assets:GetObjectNode(id)
-        if node ~= nil then
-            return ObjectItemFromNode(id, node)
-        end
-    end
-
-    return nil
-end
-
-local function BuildAssetPreviewTile(item, tileShape)
-    tileShape = tileShape or "wide"
-
-    local sizes = PICKER_UI.preview[tileShape] or PICKER_UI.preview.wide
-
-    if item == nil then
-        return gui.Panel{
-            classes = {"bgAlt"},
-            bgimage = "panels/square.png",
-            width = sizes.outerW,
-            height = sizes.outerH,
-            hmargin = 6,
-            valign = "center",
-            flow = "none",
-            interactable = false,
-            gui.Label{
-                classes = {"fgMuted"},
-                text = "?",
-                width = "100%",
-                height = "100%",
-                textAlignment = "center",
-                valign = "center",
-                fontSize = 16,
-                interactable = false,
-            },
-        }
-    end
-
-    local imageChild
-    if item.kind == "wall" then
-        imageChild = gui.Panel{
-            bgimageStreamed = item.id,
-            bgcolor = item.tint,
-            hueshift = item.hueshift,
-            saturation = item.saturation and (1 + item.saturation) or nil,
-            brightness = item.brightness and (1 + item.brightness) or nil,
-            width = "100%",
-            height = "100%",
-            halign = "center",
-            valign = "center",
-            interactable = false,
-        }
-    elseif item.thumbnailId or item.image then
-        imageChild = gui.Panel{
-            bgimage = item.thumbnailId or item.image,
-            bgcolor = "white",
-            hueshift = item.hue,
-            saturation = item.saturation,
-            brightness = item.brightness,
-            width = "100%",
-            height = "100%",
-            halign = "center",
-            valign = "center",
-            interactable = false,
-            events = {
-                imageLoaded = function(element)
-                    if element.bgsprite ~= nil and element.bgsprite.dimensions ~= nil then
-                        local dx = element.bgsprite.dimensions.x
-                        local dy = element.bgsprite.dimensions.y
-                        local maxDim = math.max(dx, dy)
-                        if maxDim > 0 then
-                            element.selfStyle.width = tostring(dx / maxDim * 100) .. "%"
-                            element.selfStyle.height = tostring(dy / maxDim * 100) .. "%"
-                        end
-                    end
-                end,
-            },
-        }
-    else
-        imageChild = gui.Label{
-            classes = {"fgMuted"},
-            text = "?",
-            width = "100%",
-            height = "100%",
-            textAlignment = "center",
-            valign = "center",
-            fontSize = 16,
-            interactable = false,
-        }
-    end
-
-    return gui.Panel{
-        classes = {"bgAlt"},
-        bgimage = "panels/square.png",
-        width = sizes.outerW,
-        height = sizes.outerH,
-        hmargin = 6,
-        valign = "center",
-        flow = "none",
-        clip = true,
-        interactable = false,
-        events = {
-            hover = function(element)
-                if element.tooltip == nil then
-                    element.tooltip = BuildAssetTooltip(item)
-                end
-            end,
-        },
-        gui.Panel{
-            width = sizes.innerW,
-            height = sizes.innerH,
-            halign = "center",
-            valign = "center",
-            interactable = false,
-            imageChild,
-        },
-    }
-end
-
-local function BuildSearchableThumbnailPicker(opts)
-    local kind = opts.kind or "object"
-    local query = opts.initialQuery or ""
-    local currentSelection = opts.currentId
-    local thumbnails = {}
-    local resultPanel
-    local infoLabel
-    local rebuild
-
-    local function fetch()
-        if kind == "wall" then
-            return SearchWallItems(query, currentSelection)
-        else
-            return SearchObjectItems(query, currentSelection)
-        end
-    end
-
-    local function setSelection(newId, fireChange)
-        currentSelection = newId
-        local found = false
-        for _,t in ipairs(thumbnails) do
-            local match = t.data and t.data.assetId == newId
-            t:SetClass("selected", match)
-            if match then found = true end
-        end
-        if not found and rebuild ~= nil then
-            rebuild()
-        end
-        if fireChange and opts.onChange ~= nil then
-            opts.onChange(newId)
-        end
-    end
-
-    rebuild = function()
-        local items, totalMatched = fetch()
-        local newChildren = {}
-        thumbnails = {}
-        for _,item in ipairs(items) do
-            local thumb = BuildThumbnailTile(item, function(id)
-                setSelection(id, true)
-            end, opts.tileShape)
-            if item.id == currentSelection then
-                thumb:SetClass("selected", true)
-            end
-            newChildren[#newChildren+1] = thumb
-            thumbnails[#thumbnails+1] = thumb
-        end
-        resultPanel.children = newChildren
-
-        if infoLabel ~= nil then
-            if totalMatched == 0 then
-                infoLabel.text = "(no matches -- showing default only)"
-            elseif totalMatched > #items then
-                infoLabel.text = string.format(
-                    "showing %d of %d -- type to narrow", #items, totalMatched)
-            else
-                infoLabel.text = string.format("%d match%s",
-                    totalMatched, totalMatched == 1 and "" or "es")
-            end
-        end
-    end
-
-    local pickerStyles = ThemeEngine.MergeTokens({
-        {
-            selectors = {"assetThumbnail"},
-            borderWidth = 2,
-            borderColor = "@border",
-            bgcolor = "@bg",
-            cornerRadius = 4,
-            pad = 4,
-            borderBox = true,
-        },
-        {
-            selectors = {"assetThumbnail", "hover"},
-            borderColor = "@accent",
-        },
-        {
-            selectors = {"assetThumbnail", "selected"},
-            borderWidth = 3,
-            borderColor = "@fg",
-        },
-    })
-
-    resultPanel = gui.Panel{
-        flow = "horizontal",
-        wrap = true,
-        width = "100%",
-        height = "auto",
-        styles = pickerStyles,
-    }
-
-    infoLabel = gui.Label{
-        classes = {"fgMuted"},
-        text = "",
-        width = "auto",
-        height = "auto",
-        fontSize = 11,
-        hmargin = 8,
-        valign = "center",
-    }
-
-    --the canonical search field; look comes from DefaultStyles'
-    --searchInput rules, borderBox keeps its hpad 24 inside the width.
-    local searchInput = gui.SearchInput{
-        text = query,
-        borderBox = true,
-        width = PICKER_UI.searchWidth,
-        height = PICKER_UI.inputHeight,
-        placeholderText = "Search...",
-        change = function(element)
-            query = element.text or ""
-            rebuild()
-        end,
-    }
-
-    rebuild()
-
-    local panel = gui.Panel{
-        flow = "vertical",
-        width = "100%",
-        height = "auto",
-
-        gui.Panel{
-            flow = "horizontal",
-            width = "100%",
-            height = "auto",
-            vmargin = 4,
-            valign = "center",
-            searchInput,
-            infoLabel,
-        },
-
-        resultPanel,
-    }
-
-    return panel, setSelection
-end
-
-mod.shared.ShowMapAssetPickerDialog = function(uvttData, callback)
-    local wallId        = dmhub.GetSettingValue("mapimport:wall_asset_id")
-    local objectWallId  = dmhub.GetSettingValue("mapimport:object_wall_asset_id")
-    local terrainWallId = dmhub.GetSettingValue("mapimport:terrain_wall_asset_id")
-    local invisibleWallId = dmhub.GetSettingValue("mapimport:invisible_wall_asset_id")
-    local transparentWindowWallId = dmhub.GetSettingValue("mapimport:transparent_window_wall_asset_id")
-    local unrecognizedWallId = dmhub.GetSettingValue("mapimport:unrecognized_wall_asset_id")
-    local doorId        = dmhub.GetSettingValue("mapimport:door_object_id")
-    local windowId      = dmhub.GetSettingValue("mapimport:window_object_id")
-    local secretDoorId  = dmhub.GetSettingValue("mapimport:secret_door_object_id")
-    local lightId       = dmhub.GetSettingValue("mapimport:light_object_id")
-    local flipFoundryTerrain = dmhub.GetSettingValue("mapimport:flip_foundry_terrain_walls") == true
-    local offsetX       = 0
-    local offsetY       = 0
-
-    local DEFAULT_WALL        = "-MGADhKw0vw30yXNF2-e"
-    local DEFAULT_OBJECT_WALL = "eae7f3fe-d278-455c-853a-ac43f948c743"
-    local DEFAULT_TERRAIN_WALL = "eae7f3fe-d278-455c-853a-ac43f948c743"
-    local DEFAULT_INVISIBLE_WALL = "eae7f3fe-d278-455c-853a-ac43f948c743"
-    local DEFAULT_TRANSPARENT_WINDOW_WALL = "eae7f3fe-d278-455c-853a-ac43f948c743"
-    local DEFAULT_UNRECOGNIZED_WALL = "-MGADhKw0vw30yXNF2-e"
-    local DEFAULT_DOOR        = "-MfWx0b2IlyApLQwasYg"
-    local DEFAULT_WINDOW      = "-MDd3Knydcq2WsjStef2"
-    local DEFAULT_SECRET_DOOR = "-MfWx0b2IlyApLQwasYg"
-    local DEFAULT_LIGHT       = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
-    if unrecognizedWallId == nil or unrecognizedWallId == "" then
-        unrecognizedWallId = wallId or DEFAULT_UNRECOGNIZED_WALL
-    end
-    if terrainWallId == nil or terrainWallId == "" then
-        terrainWallId = objectWallId or DEFAULT_TERRAIN_WALL
-    end
-    if invisibleWallId == nil or invisibleWallId == "" then
-        invisibleWallId = objectWallId or DEFAULT_INVISIBLE_WALL
-    end
-    if transparentWindowWallId == nil or transparentWindowWallId == "" then
-        transparentWindowWallId = objectWallId or DEFAULT_TRANSPARENT_WINDOW_WALL
-    end
-
-    local counts = CountImportFeatures(uvttData)
-    local floorCount = 1
-    if type(uvttData) == "table" and uvttData[1] ~= nil then
-        floorCount = #uvttData
-    end
-
-    local function ValidMode(value, defaultValue, allowed)
-        local mode = tostring(value or defaultValue)
-        if allowed[mode] == true then
-            return mode
-        end
-        return defaultValue
-    end
-
-    local function LegacyMode(value, legacyValue, defaultValue, allowed)
-        if value == nil or value == "" then
-            value = legacyValue
-        end
-        return ValidMode(value, defaultValue, allowed)
-    end
-
-    local wallModeAllowed = {wall = true, none = true}
-    local assetModeAllowed = {asset = true, none = true}
-    local windowModeAllowed = {asset = true, movement_wall = true, none = true}
-    local structuralWallMode = ValidMode(dmhub.GetSettingValue("mapimport:structural_wall_mode"), "wall", wallModeAllowed)
-    local objectWallMode = ValidMode(dmhub.GetSettingValue("mapimport:object_wall_mode"), "wall", wallModeAllowed)
-    local terrainWallMode = ValidMode(dmhub.GetSettingValue("mapimport:terrain_wall_mode"), "wall", wallModeAllowed)
-    local invisibleWallMode = LegacyMode(dmhub.GetSettingValue("mapimport:invisible_wall_mode"), dmhub.GetSettingValue("mapimport:movement_wall_mode"), "wall", wallModeAllowed)
-    local unrecognizedWallMode = ValidMode(dmhub.GetSettingValue("mapimport:unrecognized_wall_mode"), "none", wallModeAllowed)
-    local doorMode = ValidMode(dmhub.GetSettingValue("mapimport:door_mode"), "asset", assetModeAllowed)
-    local windowMode = ValidMode(dmhub.GetSettingValue("mapimport:window_mode"), "asset", windowModeAllowed)
-    local secretDoorMode = ValidMode(dmhub.GetSettingValue("mapimport:secret_door_mode"), "asset", assetModeAllowed)
-    local lightMode = ValidMode(dmhub.GetSettingValue("mapimport:light_mode"), "asset", assetModeAllowed)
-
-    local refreshAllSummaries = nil
-    local modeRefreshers = {}
-    local bodyRefreshers = {}
-    local allPickerPanels = {}
-    local attachedPickerPanels = {}
-    local function MakePicker(options)
-        local picker, setter = BuildSearchableThumbnailPicker(options)
-        if picker ~= nil then
-            allPickerPanels[#allPickerPanels+1] = picker
-        end
-        return picker, setter
-    end
-    local function MarkPickerAttached(picker)
-        if picker ~= nil then
-            attachedPickerPanels[picker] = true
-        end
-    end
-
-    local wallPicker,       setWall       = MakePicker{
-        kind = "wall", tileShape = "wide", initialQuery = "", currentId = wallId,
-        onChange = function(v)
-            wallId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local objectWallPicker, setObjectWall = MakePicker{
-        kind = "wall", tileShape = "wide", initialQuery = "one-direction", currentId = objectWallId,
-        onChange = function(v)
-            objectWallId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local terrainWallPicker, setTerrainWall = MakePicker{
-        kind = "wall", tileShape = "wide", initialQuery = "one-direction", currentId = terrainWallId,
-        onChange = function(v)
-            terrainWallId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local invisibleWallPicker, setInvisibleWall = MakePicker{
-        kind = "wall", tileShape = "wide", initialQuery = "see-thru", currentId = invisibleWallId,
-        onChange = function(v)
-            invisibleWallId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local transparentWindowWallPicker, setTransparentWindowWall = MakePicker{
-        kind = "wall", tileShape = "wide", initialQuery = "see-thru", currentId = transparentWindowWallId,
-        onChange = function(v)
-            transparentWindowWallId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local unrecognizedWallPicker = nil
-    local setUnrecognizedWall = nil
-    if counts.unrecognized > 0 then
-        unrecognizedWallPicker, setUnrecognizedWall = MakePicker{
-            kind = "wall", tileShape = "wide", initialQuery = "", currentId = unrecognizedWallId,
-            onChange = function(v)
-                unrecognizedWallId = v
-                if refreshAllSummaries ~= nil then refreshAllSummaries() end
-            end,
-        }
-    end
-
-    local doorPicker,       setDoor       = MakePicker{
-        kind = "object", tileShape = "square", initialQuery = "door", currentId = doorId,
-        onChange = function(v)
-            doorId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local windowPicker,     setWindow     = MakePicker{
-        kind = "object", tileShape = "square", initialQuery = "window", currentId = windowId,
-        onChange = function(v)
-            windowId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local secretDoorPicker, setSecretDoor = MakePicker{
-        kind = "object", tileShape = "square", initialQuery = "secret", currentId = secretDoorId,
-        onChange = function(v)
-            secretDoorId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-    local lightPicker,      setLight      = MakePicker{
-        kind = "object", tileShape = "square", initialQuery = "light", currentId = lightId,
-        onChange = function(v)
-            lightId = v
-            if refreshAllSummaries ~= nil then refreshAllSummaries() end
-        end,
-    }
-
-    local sectionRefreshers = {}
-    local sectionsById = {}
-    local openSection = nil
-    local importSummaryLabel = nil
-    local ACTION_LABELS = {
-        wall = "Line",
-        none = "None",
-        asset = "Asset",
-        movement_wall = "Transparent Wall",
-    }
-
-    local function FormatNumber(value)
-        local text = string.format("%.2f", tonumber(value) or 0)
-        text = string.gsub(text, "0+$", "")
-        text = string.gsub(text, "%.$", "")
-        return cond(text == "-0", "0", text)
-    end
-
-    local function AdvancedSummaryText()
-        local parts = {
-            string.format("offset %s, %s", FormatNumber(offsetX), FormatNumber(offsetY)),
-        }
-        if flipFoundryTerrain then
-            parts[#parts+1] = "terrain flipped"
-        end
-        return table.concat(parts, " | ")
-    end
-
-    local function CountLabel(count, singular, plural)
-        return string.format("%d %s", count, count == 1 and singular or (plural or (singular .. "s")))
-    end
-
-    local function ImportSummaryText()
-        local creating = {}
-        local skipped = {}
-
-        local function addLine(count, singular, plural, mode, createText)
-            if count <= 0 then return end
-            if mode == "none" then
-                skipped[#skipped+1] = CountLabel(count, singular, plural)
-            else
-                creating[#creating+1] = string.format("%d %s", count, createText)
-            end
-        end
-
-        addLine(counts.structural, "structural wall", "structural walls", structuralWallMode, "structural wall lines")
-        addLine(counts.object, "object occluder", "object occluders", objectWallMode, "object occluder lines")
-        addLine(counts.terrain, "terrain wall", "terrain walls", terrainWallMode, "terrain wall lines")
-        addLine(counts.invisible, "invisible wall", "invisible walls", invisibleWallMode, "invisible wall lines")
-        addLine(counts.unrecognized, "unrecognized wall", "unrecognized walls", unrecognizedWallMode, "unrecognized wall lines")
-
-        if counts.doors > 0 then
-            if doorMode == "asset" then
-                creating[#creating+1] = string.format("%d door asset%s", counts.doors, counts.doors == 1 and "" or "s")
-            else
-                skipped[#skipped+1] = CountLabel(counts.doors, "door", "doors")
-            end
-        end
-        if counts.windows > 0 then
-            if windowMode == "asset" then
-                creating[#creating+1] = string.format("%d window asset%s", counts.windows, counts.windows == 1 and "" or "s")
-            elseif windowMode == "movement_wall" then
-                creating[#creating+1] = string.format("%d transparent window wall%s", counts.windows, counts.windows == 1 and "" or "s")
-            else
-                skipped[#skipped+1] = CountLabel(counts.windows, "window", "windows")
-            end
-        end
-        if counts.secretDoors > 0 then
-            if secretDoorMode == "asset" then
-                creating[#creating+1] = string.format("%d secret door asset%s", counts.secretDoors, counts.secretDoors == 1 and "" or "s")
-            else
-                skipped[#skipped+1] = CountLabel(counts.secretDoors, "secret door", "secret doors")
-            end
-        end
-        if counts.lights > 0 then
-            if lightMode == "asset" then
-                creating[#creating+1] = string.format("%d light asset%s", counts.lights, counts.lights == 1 and "" or "s")
-            else
-                skipped[#skipped+1] = CountLabel(counts.lights, "light", "lights")
-            end
-        end
-
-        local text = "Creating: " .. cond(#creating > 0, table.concat(creating, "; "), "map image only") .. "."
-        if #skipped > 0 then
-            text = text .. " Skipping: " .. table.concat(skipped, "; ") .. "."
-        end
-        return text
-    end
-
-    local function SetSectionExpanded(section, expanded)
-        if section == nil then return end
-        if expanded and openSection ~= nil and openSection ~= section then
-            openSection.arrow:SetClass("expanded", false)
-            openSection.bodyPanel:SetClass("collapsed", true)
-        end
-
-        section.arrow:SetClass("expanded", expanded)
-        section.bodyPanel:SetClass("collapsed", not expanded)
-        if expanded then
-            openSection = section
-        elseif openSection == section then
-            openSection = nil
-        end
-    end
-
-    local function BuildDisclosureRow(args)
-        local bodyPanel = args.bodyPanel
-        local summaryLabel = gui.Label{
-            classes = {"fg"},
-            text = "",
-            width = PICKER_UI.summaryWidth,
-            height = "auto",
-            maxHeight = 22,
-            fontSize = 12,
-            valign = "center",
-            textAlignment = "left",
-            interactable = false,
-        }
-        local previewSlot = gui.Panel{
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            interactable = false,
-        }
-        local arrow = gui.ExpandoArrow{
-            interactable = false,
-            hmargin = 6,
-            valign = "center",
-        }
-        local section = {
-            id = args.id,
-            arrow = arrow,
-            bodyPanel = bodyPanel,
-        }
-
-        local function refreshSummary()
-            if args.summaryText ~= nil then
-                summaryLabel.text = args.summaryText()
-                summaryLabel:SetClass("fg", true)
-                summaryLabel:SetClass("fgMuted", false)
-                previewSlot.children = {}
-                return
-            end
-
-            if args.summaryState ~= nil then
-                local text, assetKind, assetId, tileShape = args.summaryState()
-                summaryLabel.text = text or ""
-                summaryLabel:SetClass("fg", true)
-                summaryLabel:SetClass("fgMuted", false)
-                if assetKind ~= nil and assetId ~= nil then
-                    local item = CurrentAssetItem(assetKind, assetId)
-                    previewSlot.children = {BuildAssetPreviewTile(item, tileShape)}
-                else
-                    previewSlot.children = {}
-                end
-                return
-            end
-
-            local item = CurrentAssetItem(args.assetKind, args.getId())
-            if item ~= nil then
-                summaryLabel.text = ShortLabel(item.label, PICKER_UI.summaryLength)
-                summaryLabel:SetClass("fg", true)
-                summaryLabel:SetClass("fgMuted", false)
-            else
-                summaryLabel.text = "(missing)"
-                summaryLabel:SetClass("fg", false)
-                summaryLabel:SetClass("fgMuted", true)
-            end
-            previewSlot.children = {BuildAssetPreviewTile(item, args.tileShape)}
-        end
-
-        section.refreshSummary = refreshSummary
-        sectionRefreshers[#sectionRefreshers+1] = refreshSummary
-        sectionsById[args.id] = section
-
-        local row = gui.Panel{
-            width = "100%",
-            height = "auto",
-            vmargin = 3,
-            flow = "vertical",
-
-            gui.Panel{
-                classes = {"row", "headerRow"},
-                width = "100%",
-                height = PICKER_UI.headerHeight,
-                flow = "horizontal",
-                valign = "center",
-                click = function()
-                    SetSectionExpanded(section, not arrow:HasClass("expanded"))
-                end,
-
-                arrow,
-                gui.Label{
-                    text = "<b>" .. args.labelText .. "</b>",
-                    width = PICKER_UI.headerLabelWidth,
-                    height = "auto",
-                    fontSize = 14,
-                    valign = "center",
-                    textAlignment = "left",
-                    interactable = false,
-                },
-                summaryLabel,
-                previewSlot,
-            },
-
-            bodyPanel,
-        }
-
-        refreshSummary()
-        return row
-    end
-
-    local modeStyles = ThemeEngine.MergeTokens({
-        {
-            selectors = {"modeButton"},
-            borderWidth = 1,
-            borderColor = "@border",
-            bgcolor = "@bg",
-            cornerRadius = 4,
-            fontSize = 12,
-            height = 26,
-        },
-        {
-            selectors = {"modeButton", "hover"},
-            borderColor = "@accent",
-        },
-        {
-            selectors = {"modeButton", "selected"},
-            borderWidth = 2,
-            borderColor = "@fg",
-            bgcolor = "@accent",
-        },
-    })
-
-    local function BuildModeControl(args)
-        local buttons = {}
-
-        local function refreshButtons()
-            local mode = args.getMode()
-            for _,button in ipairs(buttons) do
-                button:SetClass("selected", button.data.value == mode)
-            end
-        end
-
-        for _, option in ipairs(args.options) do
-            local button = gui.Button{
-                classes = {"modeButton"},
-                text = option.label,
-                width = option.width or 128,
-                height = 26,
-                data = {value = option.value},
-                click = function(element)
-                    args.setMode(element.data.value)
-                    refreshButtons()
-                    if refreshAllSummaries ~= nil then refreshAllSummaries() end
-                end,
-            }
-            buttons[#buttons+1] = button
-        end
-
-        modeRefreshers[#modeRefreshers+1] = refreshButtons
-
-        local panel = gui.Panel{
-            flow = "horizontal",
-            width = "auto",
-            height = "auto",
-            vmargin = 4,
-            styles = modeStyles,
-            children = buttons,
-        }
-        refreshButtons()
-        return panel
-    end
-
-    local function BehaviorRow(args)
-        if args.count <= 0 and args.alwaysShow ~= true then
-            return nil
-        end
-
-        local modeControl = BuildModeControl{
-            options = args.options,
-            getMode = args.getMode,
-            setMode = args.setMode,
-        }
-
-        local pickerContainers = {}
-        local bodyChildren = {modeControl}
-
-        local function addPicker(picker, visible)
-            if picker == nil then
-                return
-            end
-
-            local container = gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                picker,
-            }
-            MarkPickerAttached(picker)
-            pickerContainers[#pickerContainers+1] = {
-                panel = container,
-                visible = visible,
-            }
-            bodyChildren[#bodyChildren+1] = container
-        end
-
-        if args.pickers ~= nil then
-            for _, pickerSpec in ipairs(args.pickers) do
-                addPicker(pickerSpec.picker, pickerSpec.visible)
-            end
-        else
-            addPicker(args.picker, args.pickerVisible)
-        end
-
-        local function refreshBody()
-            local mode = args.getMode()
-            for _, picker in ipairs(pickerContainers) do
-                local visible = false
-                if picker.visible ~= nil then
-                    visible = picker.visible(mode)
-                else
-                    visible = mode == "asset" or mode == "wall"
-                end
-                picker.panel:SetClass("collapsed", not visible)
-            end
-        end
-        bodyRefreshers[#bodyRefreshers+1] = refreshBody
-
-        local hint = nil
-        if args.hintText ~= nil then
-            hint = gui.Label{
-                classes = {"fgMuted"},
-                text = "<i>" .. args.hintText .. "</i>",
-                width = "100%",
-                height = "auto",
-                fontSize = 11,
-                vmargin = 2,
-                wrap = true,
-            }
-        end
-
-        if hint ~= nil then
-            table.insert(bodyChildren, 2, hint)
-        end
-
-        local bodyPanel = gui.Panel{
-            classes = {"collapsed"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            lmargin = 28,
-            rmargin = 8,
-            bmargin = 8,
-            children = bodyChildren,
-        }
-
-        return BuildDisclosureRow{
-            id = args.id,
-            labelText = args.labelText,
-            bodyPanel = bodyPanel,
-            summaryState = function()
-                refreshBody()
-                local mode = args.getMode()
-                local action = ACTION_LABELS[mode] or mode
-                local text = CountLabel(args.count, args.singular, args.plural) .. " | " .. action
-                if args.assetForMode ~= nil then
-                    local asset = args.assetForMode(mode)
-                    if asset ~= nil then
-                        return text, asset.kind, asset.id, asset.tileShape
-                    end
-                end
-                return text
-            end,
-        }
-    end
-
-    local function MaterialRow(args)
-        if args.show ~= true then
-            return nil
-        end
-        MarkPickerAttached(args.picker)
-
-        local hint = nil
-        if args.hintText ~= nil then
-            hint = gui.Label{
-                classes = {"fgMuted"},
-                text = "<i>" .. args.hintText .. "</i>",
-                width = "100%",
-                height = "auto",
-                fontSize = 11,
-                vmargin = 2,
-                wrap = true,
-            }
-        end
-
-        local bodyPanel = gui.Panel{
-            classes = {"collapsed"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            lmargin = 28,
-            rmargin = 8,
-            bmargin = 8,
-            hint,
-            args.picker,
-        }
-
-        return BuildDisclosureRow{
-            id = args.id,
-            labelText = args.labelText,
-            bodyPanel = bodyPanel,
-            summaryState = function()
-                return args.summaryText, args.assetKind, args.getId(), args.tileShape
-            end,
-        }
-    end
-
-    local function PickerRow(args)
-        MarkPickerAttached(args.picker)
-
-        local hint = nil
-        if args.hintText ~= nil then
-            hint = gui.Label{
-                classes = {"fgMuted"},
-                text = "<i>" .. args.hintText .. "</i>",
-                width = "100%",
-                height = "auto",
-                fontSize = 11,
-                vmargin = 2,
-                wrap = true,
-            }
-        end
-
-        local bodyPanel = gui.Panel{
-            classes = {"collapsed"},
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            lmargin = 28,
-            rmargin = 8,
-            bmargin = 8,
-            hint,
-            args.picker,
-        }
-
-        return BuildDisclosureRow{
-            id = args.id,
-            labelText = args.labelText,
-            bodyPanel = bodyPanel,
-            assetKind = args.assetKind,
-            tileShape = args.tileShape,
-            getId = args.getId,
-        }
-    end
-
-    local floorCountRow = nil
-    if floorCount > 1 then
-        floorCountRow = gui.Label{
-            classes = {"success"},
-            text = string.format("%d floors will be imported with these behavior choices.", floorCount),
-            width = "100%",
-            height = "auto",
-            vmargin = 4,
-            fontSize = 13,
-            wrap = true,
-        }
-    end
-
-    local summaryRow = gui.Label{
-        classes = {"success"},
-        text = ImportSummaryText(),
-        width = "100%",
-        height = "auto",
-        vmargin = 4,
-        fontSize = 13,
-        wrap = true,
-        create = function(element)
-            importSummaryLabel = element
-        end,
-    }
-
-    local flipTerrainCheck = nil
-    local flipTerrainRow = nil
-    if counts.terrain > 0 or counts.invisible > 0 then
-        flipTerrainCheck = gui.Check{
-            text = "Flip Foundry terrain/invisible wall direction",
-            value = flipFoundryTerrain,
-            change = function(element)
-                flipFoundryTerrain = element.value
-                if refreshAllSummaries ~= nil then refreshAllSummaries() end
-            end,
-        }
-        flipTerrainRow = gui.Panel{
-            width = "100%",
-            height = "auto",
-            vmargin = 4,
-            flow = "vertical",
-            flipTerrainCheck,
-            gui.Label{
-                classes = {"fgMuted"},
-                text = "Use when one-direction Foundry terrain or invisible walls face the wrong side. Closed loops are normalized automatically.",
-                width = "100%",
-                height = "auto",
-                fontSize = 11,
-                wrap = true,
-            },
-        }
-    end
-
-    local offsetXInput = nil
-    local offsetYInput = nil
-
-    local advancedPanel = gui.Panel{
-        classes = {"collapsed"},
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        lmargin = 28,
-        rmargin = 8,
-        bmargin = 8,
-
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            vmargin = 4,
-            gui.Label{
-                classes = {"form"},
-                text = "<b>Alignment offset (tiles)</b>",
-                width = "auto",
-                height = "auto",
-                fontSize = 14,
-            },
-            gui.Label{
-                classes = {"fgMuted"},
-                text = "<i>Shifts imported walls, doors, windows, and lights. Use only when they land off the image.</i>",
-                width = "100%",
-                height = "auto",
-                fontSize = 11,
-                wrap = true,
-                vmargin = 2,
-            },
-            gui.Panel{
-                width = "auto",
-                height = "auto",
-                flow = "horizontal",
-                valign = "center",
-                vmargin = 4,
-                gui.Label{ text = "X:", width = "auto", height = "auto", valign = "center", hmargin = 4 },
-                gui.Input{
-                    classes = {"form"},
-                    text = "0",
-                    width = PICKER_UI.inputWidth,
-                    height = PICKER_UI.inputHeight,
-                    create = function(element)
-                        offsetXInput = element
-                    end,
-                    change = function(element)
-                        offsetX = tonumber(element.text) or 0
-                        if refreshAllSummaries ~= nil then refreshAllSummaries() end
-                    end,
-                },
-                gui.Label{ text = "Y:", width = "auto", height = "auto", valign = "center", hmargin = 4 },
-                gui.Input{
-                    classes = {"form"},
-                    text = "0",
-                    width = PICKER_UI.inputWidth,
-                    height = PICKER_UI.inputHeight,
-                    create = function(element)
-                        offsetYInput = element
-                    end,
-                    change = function(element)
-                        offsetY = tonumber(element.text) or 0
-                        if refreshAllSummaries ~= nil then refreshAllSummaries() end
-                    end,
-                },
-            },
-        },
-
-        flipTerrainRow,
-    }
-
-    local wallMaterialRelevant = counts.structural > 0 or counts.doors > 0 or counts.windows > 0 or counts.secretDoors > 0
-    local objectMaterialRelevant = counts.object > 0
-    local wallRow = nil
-    if counts.structural > 0 then
-        wallRow = BehaviorRow{
-            id = "wall",
-            labelText = "Structural walls",
-            count = counts.structural,
-            singular = "structural wall",
-            plural = "structural walls",
-            options = {{value = "wall", label = "Line"}, {value = "none", label = "None"}},
-            getMode = function() return structuralWallMode end,
-            setMode = function(v) structuralWallMode = v end,
-            picker = wallPicker,
-            hintText = "Room boundaries and normal line-of-sight walls.",
-            assetForMode = function(mode)
-                if mode == "wall" then return {kind = "wall", id = wallId, tileShape = "wide"} end
-                return nil
-            end,
-        }
-    elseif wallMaterialRelevant then
-        wallRow = MaterialRow{
-            id = "wall",
-            labelText = "Wall material",
-            show = true,
-            picker = wallPicker,
-            hintText = "Used by UVTT portal wall lines when the source format supplies them.",
-            summaryText = "Portal line material",
-            assetKind = "wall",
-            tileShape = "wide",
-            getId = function() return wallId end,
-        }
-    end
-
-    local objectWallRow = nil
-    if counts.object > 0 then
-        objectWallRow = BehaviorRow{
-            id = "objectWall",
-            labelText = "Object occluders",
-            count = counts.object,
-            singular = "object occluder",
-            plural = "object occluders",
-            options = {{value = "wall", label = "Line"}, {value = "none", label = "None"}},
-            getMode = function() return objectWallMode end,
-            setMode = function(v) objectWallMode = v end,
-            picker = objectWallPicker,
-            hintText = "Closed UVTT object occluders.",
-            assetForMode = function(mode)
-                if mode == "wall" then return {kind = "wall", id = objectWallId, tileShape = "wide"} end
-                return nil
-            end,
-        }
-    elseif objectMaterialRelevant then
-        objectWallRow = MaterialRow{
-            id = "objectWall",
-            labelText = "Object occluder material",
-            show = true,
-            picker = objectWallPicker,
-            hintText = "Used for closed UVTT object occluders.",
-            summaryText = "Object occluder material",
-            assetKind = "wall",
-            tileShape = "wide",
-            getId = function() return objectWallId end,
-        }
-    end
-
-    local terrainRow = BehaviorRow{
-        id = "terrain",
-        labelText = "Terrain walls",
-        count = counts.terrain,
-        singular = "terrain wall",
-        plural = "terrain walls",
-        options = {{value = "wall", label = "Line"}, {value = "none", label = "None"}},
-        getMode = function() return terrainWallMode end,
-        setMode = function(v) terrainWallMode = v end,
-        picker = terrainWallPicker,
-        hintText = "Foundry partial-sight, movement-blocking walls.",
-        assetForMode = function(mode)
-            if mode == "wall" then return {kind = "wall", id = terrainWallId, tileShape = "wide"} end
-            return nil
-        end,
-    }
-    local invisibleRow = BehaviorRow{
-        id = "invisible",
-        labelText = "Invisible walls",
-        count = counts.invisible,
-        singular = "invisible wall",
-        plural = "invisible walls",
-        options = {{value = "wall", label = "Line"}, {value = "none", label = "None"}},
-        getMode = function() return invisibleWallMode end,
-        setMode = function(v) invisibleWallMode = v end,
-        picker = invisibleWallPicker,
-        hintText = "Foundry walls that block movement but not vision.",
-        assetForMode = function(mode)
-            if mode == "wall" then return {kind = "wall", id = invisibleWallId, tileShape = "wide"} end
-            return nil
-        end,
-    }
-    local unrecognizedWallRow = nil
-    if unrecognizedWallPicker ~= nil then
-        unrecognizedWallRow = BehaviorRow{
-            id = "unrecognizedWall",
-            labelText = "Unrecognized walls",
-            count = counts.unrecognized,
-            singular = "unrecognized wall",
-            plural = "unrecognized walls",
-            options = {{value = "wall", label = "Line"}, {value = "none", label = "None"}},
-            getMode = function() return unrecognizedWallMode end,
-            setMode = function(v) unrecognizedWallMode = v end,
-            picker = unrecognizedWallPicker,
-            hintText = "Foundry wall modes that cannot be mapped directly. Leave as None unless you want them as plain wall lines.",
-            assetForMode = function(mode)
-                if mode == "wall" then return {kind = "wall", id = unrecognizedWallId, tileShape = "wide"} end
-                return nil
-            end,
-        }
-    end
-    local doorRow = BehaviorRow{
-        id = "door",
-        labelText = "Doors",
-        count = counts.doors,
-        singular = "door",
-        plural = "doors",
-        options = {{value = "asset", label = "Asset"}, {value = "none", label = "None"}},
-        getMode = function() return doorMode end,
-        setMode = function(v) doorMode = v end,
-        picker = doorPicker,
-        assetForMode = function(mode)
-            if mode == "asset" then return {kind = "object", id = doorId, tileShape = "square"} end
-            return nil
-        end,
-    }
-    local windowRow = BehaviorRow{
-        id = "window",
-        labelText = "Windows",
-        count = counts.windows,
-        singular = "window",
-        plural = "windows",
-        options = {
-            {value = "asset", label = "Asset"},
-            {value = "movement_wall", label = "Transparent Wall", width = 164},
-            {value = "none", label = "None"},
-        },
-        getMode = function() return windowMode end,
-        setMode = function(v) windowMode = v end,
-        pickers = {
-            {picker = windowPicker, visible = function(mode) return mode == "asset" end},
-            {picker = transparentWindowWallPicker, visible = function(mode) return mode == "movement_wall" end},
-        },
-        hintText = "Transparent Wall creates a movement-blocking, vision-transparent segment.",
-        assetForMode = function(mode)
-            if mode == "asset" then return {kind = "object", id = windowId, tileShape = "square"} end
-            if mode == "movement_wall" then return {kind = "wall", id = transparentWindowWallId, tileShape = "wide"} end
-            return nil
-        end,
-    }
-    local secretDoorRow = BehaviorRow{
-        id = "secretDoor",
-        labelText = "Secret doors",
-        count = counts.secretDoors,
-        alwaysShow = true,
-        singular = "secret door",
-        plural = "secret doors",
-        options = {{value = "asset", label = "Asset"}, {value = "none", label = "None"}},
-        getMode = function() return secretDoorMode end,
-        setMode = function(v) secretDoorMode = v end,
-        picker = secretDoorPicker,
-        assetForMode = function(mode)
-            if mode == "asset" then return {kind = "object", id = secretDoorId, tileShape = "square"} end
-            return nil
-        end,
-    }
-    local lightRow = BehaviorRow{
-        id = "light",
-        labelText = "Lights",
-        count = counts.lights,
-        singular = "light",
-        plural = "lights",
-        options = {{value = "asset", label = "Asset"}, {value = "none", label = "None"}},
-        getMode = function() return lightMode end,
-        setMode = function(v) lightMode = v end,
-        picker = lightPicker,
-        assetForMode = function(mode)
-            if mode == "asset" then return {kind = "object", id = lightId, tileShape = "square"} end
-            return nil
-        end,
-    }
-
-    local advancedRow = BuildDisclosureRow{
-        id = "advanced",
-        labelText = "Advanced Options",
-        bodyPanel = advancedPanel,
-        summaryText = AdvancedSummaryText,
-    }
-
-    refreshAllSummaries = function()
-        if importSummaryLabel ~= nil then
-            importSummaryLabel.text = ImportSummaryText()
-        end
-        for _, refresh in ipairs(modeRefreshers) do
-            refresh()
-        end
-        for _, refresh in ipairs(bodyRefreshers) do
-            refresh()
-        end
-        for _, refresh in ipairs(sectionRefreshers) do
-            refresh()
-        end
-    end
-    refreshAllSummaries()
-
-    local pickerParkingChildren = {}
-    for _, picker in ipairs(allPickerPanels) do
-        if attachedPickerPanels[picker] ~= true then
-            pickerParkingChildren[#pickerParkingChildren+1] = picker
-        end
-    end
-    local pickerParkingPanel = nil
-    if #pickerParkingChildren > 0 then
-        pickerParkingPanel = gui.Panel{
-            classes = {"collapsed"},
-            width = 0,
-            height = 0,
-            children = pickerParkingChildren,
-        }
-    end
-
-    local dialogPanel
-    dialogPanel = gui.Panel{
-        id = "MapAssetPickerDialog",
-        classes = {"framedPanel"},
-        width = PICKER_UI.dialogWidth,
-        height = PICKER_UI.dialogHeight,
-        pad = 12,
-        borderBox = true,
-        flow = "vertical",
-        vscroll = true,
-        styles = ThemeEngine.GetStyles(),
-
-        gui.Label{
-            classes = {"dialogTitle"},
-            text = "UVTT Import: Behavior & Assets",
-        },
-
-        gui.Label{
-            text = "Choose what UVTT import should create. Your choices are remembered.",
-            width = "100%",
-            height = "auto",
-            fontSize = 12,
-            wrap = true,
-            vmargin = 4,
-        },
-
-        floorCountRow,
-        summaryRow,
-
-        wallRow,
-        objectWallRow,
-        terrainRow,
-        invisibleRow,
-        unrecognizedWallRow,
-        doorRow,
-        windowRow,
-        secretDoorRow,
-        lightRow,
-        advancedRow,
-        pickerParkingPanel,
-
-        gui.Panel{
-            width = "100%",
-            height = 48,
-            valign = "bottom",
-            halign = "center",
-            flow = "horizontal",
-            vmargin = 8,
-
-            gui.Button{
-                classes = {"sizeL"},
-                text = "Reset to defaults",
-                halign = "left",
-                hmargin = 4,
-                click = function()
-                    setWall(DEFAULT_WALL, true)
-                    setObjectWall(DEFAULT_OBJECT_WALL, true)
-                    setTerrainWall(DEFAULT_TERRAIN_WALL, true)
-                    setInvisibleWall(DEFAULT_INVISIBLE_WALL, true)
-                    setTransparentWindowWall(DEFAULT_TRANSPARENT_WINDOW_WALL, true)
-                    if setUnrecognizedWall ~= nil then
-                        setUnrecognizedWall(DEFAULT_UNRECOGNIZED_WALL, true)
-                    end
-                    setDoor(DEFAULT_DOOR, true)
-                    setWindow(DEFAULT_WINDOW, true)
-                    setSecretDoor(DEFAULT_SECRET_DOOR, true)
-                    setLight(DEFAULT_LIGHT, true)
-                    structuralWallMode = "wall"
-                    objectWallMode = "wall"
-                    terrainWallMode = "wall"
-                    invisibleWallMode = "wall"
-                    unrecognizedWallMode = "none"
-                    doorMode = "asset"
-                    windowMode = "asset"
-                    secretDoorMode = "asset"
-                    lightMode = "asset"
-                    flipFoundryTerrain = false
-                    offsetX = 0
-                    offsetY = 0
-                    if flipTerrainCheck ~= nil then
-                        flipTerrainCheck.value = false
-                    end
-                    if offsetXInput ~= nil then
-                        offsetXInput.text = "0"
-                    end
-                    if offsetYInput ~= nil then
-                        offsetYInput.text = "0"
-                    end
-                    refreshAllSummaries()
-                end,
-            },
-            gui.Button{
-                classes = {"sizeL"},
-                text = "Continue",
-                halign = "right",
-                hmargin = 4,
-                click = function()
-                    local choices = {
-                        counts                    = counts,
-                        wallAssetId              = wallId,
-                        objectWallAssetId        = objectWallId,
-                        terrainWallAssetId       = terrainWallId,
-                        invisibleWallAssetId     = invisibleWallId,
-                        transparentWindowWallAssetId = transparentWindowWallId,
-                        unrecognizedWallAssetId  = unrecognizedWallId,
-                        doorObjectId             = doorId,
-                        windowObjectId           = windowId,
-                        secretDoorObjectId       = secretDoorId,
-                        lightObjectId            = lightId,
-                        structuralWallMode       = structuralWallMode,
-                        objectWallMode           = objectWallMode,
-                        terrainWallMode          = terrainWallMode,
-                        invisibleWallMode        = invisibleWallMode,
-                        unrecognizedWallMode     = unrecognizedWallMode,
-                        includeUnrecognizedWalls = unrecognizedWallMode == "wall",
-                        doorMode                 = doorMode,
-                        windowMode               = windowMode,
-                        secretDoorMode           = secretDoorMode,
-                        lightMode                = lightMode,
-                        flipFoundryTerrainWalls  = flipFoundryTerrain,
-                        alignmentOffsetX         = offsetX,
-                        alignmentOffsetY         = offsetY,
-                    }
-                    local errorMessage, errorSection = ValidateMapAssetChoices(choices)
-                    if errorMessage ~= nil then
-                        SetSectionExpanded(sectionsById[errorSection], true)
-                        refreshAllSummaries()
-                        gui.ModalMessage{
-                            title = "UVTT Import",
-                            message = errorMessage,
-                        }
-                        return
-                    end
-
-                    dmhub.SetSettingValue("mapimport:wall_asset_id", wallId)
-                    dmhub.SetSettingValue("mapimport:object_wall_asset_id", objectWallId)
-                    dmhub.SetSettingValue("mapimport:terrain_wall_asset_id", terrainWallId)
-                    dmhub.SetSettingValue("mapimport:invisible_wall_asset_id", invisibleWallId)
-                    dmhub.SetSettingValue("mapimport:transparent_window_wall_asset_id", transparentWindowWallId)
-                    dmhub.SetSettingValue("mapimport:unrecognized_wall_asset_id", unrecognizedWallId)
-                    dmhub.SetSettingValue("mapimport:door_object_id", doorId)
-                    dmhub.SetSettingValue("mapimport:window_object_id", windowId)
-                    dmhub.SetSettingValue("mapimport:secret_door_object_id", secretDoorId)
-                    dmhub.SetSettingValue("mapimport:light_object_id", lightId)
-                    dmhub.SetSettingValue("mapimport:structural_wall_mode", structuralWallMode)
-                    dmhub.SetSettingValue("mapimport:object_wall_mode", objectWallMode)
-                    dmhub.SetSettingValue("mapimport:terrain_wall_mode", terrainWallMode)
-                    dmhub.SetSettingValue("mapimport:invisible_wall_mode", invisibleWallMode)
-                    dmhub.SetSettingValue("mapimport:unrecognized_wall_mode", unrecognizedWallMode)
-                    dmhub.SetSettingValue("mapimport:door_mode", doorMode)
-                    dmhub.SetSettingValue("mapimport:window_mode", windowMode)
-                    dmhub.SetSettingValue("mapimport:secret_door_mode", secretDoorMode)
-                    dmhub.SetSettingValue("mapimport:light_mode", lightMode)
-                    dmhub.SetSettingValue("mapimport:flip_foundry_terrain_walls", flipFoundryTerrain)
-                    gui.CloseModal()
-                    callback(choices)
-                end,
-            },
-            gui.Button{
-                classes = {"sizeL"},
-                text = "Cancel",
-                halign = "right",
-                hmargin = 4,
-                escapeActivates = true,
-                escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-                click = function()
-                    gui.CloseModal()
-                    callback(nil)
-                end,
-            },
-        },
-    }
-
-    gui.ShowModal(dialogPanel)
-end
-
 local UVTT_EXTENSIONS = {".dd2vtt", ".uvtt", ".json"}
 
 local function PathHasExtension(path, extensions)
@@ -3316,6 +1803,82 @@ end
 
 local function IsUVTTPath(path)
     return PathHasExtension(path, UVTT_EXTENSIONS)
+end
+
+--Why these files can't be imported together as Universal VTT floors, or nil.
+--- @param paths string[]
+--- @return nil|string
+local function UVTTPathsError(paths)
+    if #paths > 12 then
+        return "Cannot import more than 12 layers."
+    end
+    for _, path in ipairs(paths) do
+        if not IsUVTTPath(path) then
+            return "Cannot import layers of mixed file types."
+        end
+    end
+    return nil
+end
+
+--Universal VTT files become one map, a floor each. The engine reads and uploads
+--them off the main thread, so the app keeps running meanwhile; options.finish(info)
+--gets the result. options.progress(stage, fraction), when given, follows it
+--("reading", then "uploading" 0 to 1); otherwise a row in the network status
+--list does. options.failed(message), when given, reports a failure instead of
+--the error dialog.
+--- @param paths string[]
+--- @param options {finish: nil|fun(info: table), progress: nil|fun(stage: string, fraction: number), failed: nil|fun(message: string)}
+local function ImportUVTTFiles(paths, options)
+    local operation = nil
+    if options.progress == nil then
+        operation = dmhub.CreateNetworkOperation()
+        operation.description = "Importing Map"
+        operation.status = "Reading files..."
+        operation.progress = 0.0
+        operation:Update()
+    end
+    local function EndOperation()
+        if operation ~= nil then
+            operation.progress = 1
+            operation:Update()
+            operation = nil
+        end
+    end
+
+    --walls, doors and lights come from the stock assets
+    --(ImportMapToFloorCo); lighting is tuned afterwards in
+    --Map Settings > UVTT Import Settings, which opens by itself.
+    assets:ImportUniversalVTT(paths, function(info)
+        EndOperation()
+        if options.finish ~= nil then
+            options.finish(info)
+        end
+    end,
+    function(message)
+        EndOperation()
+        if options.failed ~= nil then
+            options.failed(message)
+            return
+        end
+        gui.ModalMessage{
+            title = "Error Importing",
+            message = message,
+        }
+    end,
+    function(stage, fraction)
+        if options.progress ~= nil then
+            options.progress(stage, fraction)
+        end
+        if operation ~= nil then
+            if stage == "uploading" then
+                operation.status = string.format("Uploading %d%%", math.floor(fraction * 100))
+                operation.progress = math.min(0.99, fraction)
+            else
+                operation.status = "Reading files..."
+            end
+            operation:Update()
+        end
+    end)
 end
 
 local function ImportMapWizard(options)
@@ -3343,33 +1906,18 @@ local function ImportMapWizard(options)
                 end
 
                 if allowUVTT and IsUVTTPath(paths[1]) then
-                    for _,path in ipairs(paths) do
-                        if not IsUVTTPath(path) then
-                            gui.ModalMessage{
-                                title = "Error Importing",
-                                message = "Cannot import layers of mixed file types.",
-                            }
-                            return
-                        end
-                    end
-                    assets:ImportUniversalVTT(paths, function(info)
-                        mod.shared.ShowMapAssetPickerDialog(info.uvttData, function(choices)
-                            if choices == nil then
-                                return
-                            end
-                            info.assetChoices = choices
-                            if options.finish ~= nil then
-                                options.finish(info)
-                                gui.CloseModal()
-                            end
-                        end)
-                    end,
-                    function(error)
+                    local pathsError = UVTTPathsError(paths)
+                    if pathsError ~= nil then
                         gui.ModalMessage{
                             title = "Error Importing",
-                            message = error,
+                            message = pathsError,
                         }
-                    end)
+                        return
+                    end
+                    --the import runs in the background with its own progress,
+                    --so the wizard has nothing left to do.
+                    gui.CloseModal()
+                    ImportUVTTFiles(paths, options)
                 else
 
                     for _,path in ipairs(paths) do
@@ -3508,5 +2056,24 @@ local function ImportMapWizard(options)
 end
 
 mod.shared.ImportMap = function(options)
+    --Universal VTT files carry their own grid, walls and lights, so they need
+    --no wizard: they import in the background straight away.
+    local paths = options.paths
+    if paths ~= nil and #paths > 0 and not options.imagesOnly and IsUVTTPath(paths[1]) then
+        local pathsError = UVTTPathsError(paths)
+        if pathsError ~= nil then
+            if options.failed ~= nil then
+                options.failed(pathsError)
+            else
+                gui.ModalMessage{
+                    title = "Error Importing",
+                    message = pathsError,
+                }
+            end
+            return
+        end
+        ImportUVTTFiles(paths, options)
+        return
+    end
 	ImportMapWizard(options)
 end

@@ -72,6 +72,11 @@ function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, target
 		}
 		captureBehavior.Cast = function(behaviorSelf, captureAbility, captureCasterToken, captureTargets, captureOptions)
 			capturedTargets = captureTargets or {}
+			--Keep the re-picked area (e.g. Strained Gravitic Well's larger cube) so a later
+			--"Center of Aura / Area" origin uses it rather than the original area.
+			if captureOptions ~= nil and captureOptions.targetArea ~= nil then
+				options.addedTargetArea = captureOptions.targetArea
+			end
 		end
 
 		-- Fresh clone each iteration so the action bar gets a clean ability.

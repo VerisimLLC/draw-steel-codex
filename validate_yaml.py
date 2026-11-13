@@ -218,7 +218,19 @@ def check_goblinscript_booleans(text: str, result: ValidationResult):
 def check_invalid_duration(text: str, result: ValidationResult):
     if "ActivatedAbilityApplyOngoingEffectBehavior" not in text:
         return
-    if re.search(r'duration:\s*"?nextturn"?', text):
+    # Check the apply-effect behaviors themselves: a file can legitimately hold
+    # both an apply-effect behavior and an aura with duration "nextturn".
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        data = None
+    if data is not None:
+        invalid = any(node.get("__typeName") == "ActivatedAbilityApplyOngoingEffectBehavior"
+                      and node.get("duration") == "nextturn"
+                      for _, node in walk_nodes(data))
+    else:
+        invalid = re.search(r'duration:\s*"?nextturn"?', text) is not None
+    if invalid:
         result.err(
             'duration: "nextturn" is invalid for ApplyOngoingEffectBehavior -- '
             'use "end_of_next_turn" instead (nextturn is aura-only)'

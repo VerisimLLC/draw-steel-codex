@@ -1725,13 +1725,9 @@ CreateChatPanel = function()
                 end
                 local options = {}
                 for key,language in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
-                    local text = language.name
-                    if language.speakers ~= "" then
-                        text = string.format("%s (%s)", text, language.speakers)
-                    end
                     options[#options+1] = {
                         id = key,
-                        text = text,
+                        text = language:DisplayNameWithDetail(),
                         hidden = function()
                             if m_languagesKnownUpdate ~= dmhub.ngameupdate then
                                 m_languagesKnownUpdate = dmhub.ngameupdate

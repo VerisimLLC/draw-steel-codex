@@ -42,6 +42,7 @@ end
 MonsterAI = {
     try_get = try_get,
     squadMoveStagger = 0.2,
+    squadOpportunityAttackPenalty = 100,
     TokenIsLiveCombatant = function(t) return t ~= nil and t.valid end,
     TokenLogName = function(t) return t.name end,
     LocLogName = function(loc) return loc and loc.str or "nil" end,
@@ -50,6 +51,10 @@ MonsterAI = {
     LogDecision = noop, LogMove = noop, RefreshCombatants = noop,
     Sleep = function(seconds) if seconds > 0 then coroutine.yield(seconds) end end,
 }
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
+--No hero takes the turn mid-move in these tests.
+MonsterAI.TurnTakenBeforeMove = function() return false end
 assert(load(section("MonsterAI.squadCallLines = {", "MonsterAI.abilities = {}")))()
 assert(load(section("function MonsterAI.TargetDistance", "-- Use the real token volume")))()
 assert(load(section("function MonsterAI:RunConcurrently", "--The control is kept in Creature.lua")))()

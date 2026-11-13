@@ -209,6 +209,10 @@ handling; see "Checking Lua Yourself" in the root [`CLAUDE.md`](../CLAUDE.md).
 contributor-facing statement of the standard (it is all that someone with only this
 repository has); CI (`.github/workflows/lua-typecheck.yml`) runs LuaLS on every push to
 `main` and every pull request. `luac -p` only catches syntax.
+**With only this repository** (no `../tools/` beside it), use `python tools/typing/check.py`
+-- changed files by default, `--all` for the whole codex -- or the `/typecheck` skill, which
+also runs the generators below and fixes what it finds; the rest of this section is about
+the DMHub developer setup.
 The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root), and its
 ceiling is **zero** (since 2026-10-14): one problem anywhere exits 1, naming the file. Run
 it before you call Lua work finished: `-Changed` while editing (~45 s; only the
@@ -240,10 +244,11 @@ keep new code clean -- `@cast` in event handlers, typed locals for `panel.data`,
 `core.Vector2` on property writes.
 
 Game types and data-table rows are typed at the root: `X.new{...}` returns an `X` (every
-`@class` carries `--- @field new fun(o?: table): X`; `annotate_gametypes.py` adds it to a
-new registration), and `dmhub.GetTable(X.tableName)` / `GetTableCached` return rows typed
-`X`. After adding or renaming an `X.tableName = "..."`, run
-`python ../tools/lua-typing/gen_table_overloads.py` (from the codex root). When the table
+`@class` carries `--- @field new fun(o?: table): X`; `python tools/typing/annotate_gametypes.py`
+adds it to a new registration), and `dmhub.GetTable(X.tableName)` / `GetTableCached` return
+rows typed `X`. After adding or renaming an `X.tableName = "..."`, run
+`python tools/typing/gen_table_overloads.py` (from the codex root; in a DMHub checkout it
+also updates the engine's `core-definitions.txt`). When the table
 name is a variable, cast the row where it comes out:
 `local class = classTable[classid] --[[@as Class]]` (inline `@as`, not `---@type`).
 

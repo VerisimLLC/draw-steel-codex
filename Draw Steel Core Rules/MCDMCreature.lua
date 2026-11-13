@@ -32,6 +32,11 @@ creature.minion = false
 
 creature.minionDead = false
 
+--The damage type of the blow that killed this creature ("" until it dies).
+--Persisted, unlike _tmp_lastdamagetype, so Encounter of the Week can tell a
+--Revenant burned to death after its token was despawned.
+creature.killingDamageType = ""
+
 creature.initiativeGrouping = false
 
 creature.skipTurnInitiativeId = ""
@@ -6892,6 +6897,7 @@ function creature.TakeDamage(self, amount, note, info)
         end
 
         if self:IsDead() then
+            self.killingDamageType = string.lower(tostring(eventArg.damagetype or "untyped"))
             self:RemoveAurasOnDeath()
 
             if self:IsDead() then
@@ -7115,6 +7121,8 @@ function creature.SetStaminaDirect(self, amount, note)
     end
 
     if (not isDeadAtStart) and isDeadNow then
+        --set directly, not by a blow: never fire.
+        self.killingDamageType = "untyped"
         self:RemoveAurasOnDeath()
         if self:IsDead() then
             self:ResetDeathSavingThrowStatus()

@@ -949,10 +949,11 @@ function Series.FindPartMap(seriesMapName, part)
     return FindMapByName(seriesMapName)
 end
 
---The part after the one this game plays, when its series has one:
---{ number, title, key } (title nil when only its part map is known), else
---nil. Its script is on this map (SeriesParts), or it has its own part map.
-function Series.NextPart()
+--The part after the one this game plays, unfiltered: the part's entry
+--(with its comingSoonMark), its number and this game's encounter key, or
+--nil when the series has no next part. See Series.NextPart; a field, not a
+--local, because this file is at Lua's 200-local limit.
+function Series.FindNextPart()
     local key = nil
     pcall(function() key = mod:GetDocumentSnapshot(STATE_DOC_ID).data.encounterMap end)
     if type(key) ~= "string" or key == "" then
@@ -983,6 +984,19 @@ function Series.NextPart()
             end
         end)
     end
+    return found, number, key
+end
+
+--The part after the one this game plays, when its series has one:
+--{ number, title, key } (title nil when only its part map is known), else
+--nil. Its script is on this map (SeriesParts), or it has its own part map.
+function Series.NextPart()
+    local found, number, key = Series.FindNextPart()
+    if found == nil then
+        return nil
+    end
+    ---@cast number integer
+    ---@cast key string
     --a "Coming soon" part cannot be played yet, so it is not offered. One
     --marked "at the Town Gate" still plays in the Proving Pits.
     if EncounterScript.ComingSoonLocks(found.comingSoonMark, EncounterOfTheWeekGame.IsPracticeGame()) then
@@ -990,6 +1004,21 @@ function Series.NextPart()
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
     return { number = number, title = found.title, restFree = found.restFree == true, key = string.format("%s#%d", seriesKey, number) }
+end
+
+--At the Town Gate, the next part when it is marked "Coming soon at the Town
+--Gate": not offered here until its release, but already playable in the
+--Proving Pits, so the victory screen points the player there. Else nil.
+--Returns { number, title } for Series.PartLabel.
+function Series.NextPartPitsOnly()
+    if EncounterOfTheWeekGame.IsPracticeGame() then
+        return nil
+    end
+    local found, number = Series.FindNextPart()
+    if found == nil or found.comingSoonMark == nil or found.comingSoonMark.board ~= "gate" then
+        return nil
+    end
+    return { number = number, title = found.title }
 end
 
 --"Part 2: Lush Garden" (or "Part 2") for Series.NextPart's answer.
@@ -2147,6 +2176,43 @@ pcall(function()
     end)
 end)
 
+--The framed notice under the victory screen for a series' next part: a
+--title and a line of explanation, without a button.
+function Series.NoticePanel(title, body)
+    return gui.Panel{
+        width = 640,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        pad = 16,
+        borderBox = true,
+        bgimage = "panels/square.png",
+        bgcolor = "#120f0bdd",
+        border = 1,
+        borderColor = "#d9b56a",
+        cornerRadius = 8,
+        gui.Label{
+            text = title,
+            fontSize = 26,
+            bold = true,
+            color = "#ffd66b",
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+        },
+        gui.Label{
+            text = body,
+            fontSize = 16,
+            color = "#efe4cc",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+            textAlignment = "center",
+            textWrap = true,
+        },
+    }
+end
+
 --A won series part invites the party straight on to the next one. When it
 --plays on this map the party stays in this game, and the HOST chooses for
 --everyone (Series.ChooseContinue): the other players see who decides and no
@@ -2160,6 +2226,14 @@ pcall(function()
         end
         local nextPart = Series.NextPart()
         if nextPart == nil then
+            --the next part is not out at the Town Gate yet: say where it
+            --can be played meanwhile, instead of saying nothing.
+            local pitsPart = Series.NextPartPitsOnly()
+            if pitsPart ~= nil then
+                return Series.NoticePanel(
+                    UIText.T("encounter.series_next.gate_soon_title", { part = Series.PartLabel(pitsPart) }),
+                    UIText.T("encounter.series_next.gate_soon_body", { part = Series.PartLabel(pitsPart) }))
+            end
             return nil
         end
         local here = Series.ContinuesHere(nextPart)
@@ -2245,6 +2319,28 @@ local function HeroWounds(tok)
     return wounds
 end
 
+--What only this game saw about a hero's death, for the City to decide whether
+--they can be awakened (Hakaan, Revenant, Vampire, or the Back From the Grave
+--title rise 12 hours later; fire ends a Revenant; a doomed Hakaan never returns).
+--A field, not a local: this file is at Lua's 200-local limit.
+function EncounterOfTheWeekGame.DeathFacts(tok)
+    --the Back From the Grave title and the Hakaan's Doomed effect (compendium ids).
+    local BACK_FROM_THE_GRAVE_TITLE = "a19d104d-985d-4160-9ab2-b5885e0711bb"
+    local DOOMED_EFFECT = "e8cdab8b-7417-4ed8-957c-3ddf027dc425"
+    local facts = { diedAt = math.floor(dmhub.serverTimeMilliseconds) }
+    pcall(function()
+        local props = tok.properties
+        facts.killedByFire = props:try_get("killingDamageType", "") == "fire"
+        facts.undyingTitle = props:GetTitles()[BACK_FROM_THE_GRAVE_TITLE] == true
+        for _, effect in ipairs(props:ActiveOngoingEffects()) do
+            if effect.ongoingEffectid == DOOMED_EFFECT then
+                facts.doomed = true
+            end
+        end
+    end)
+    return facts
+end
+
 --What this decided encounter means for each of a player's town heroes:
 --{ { heroid, outcome }, ... } (heroid = the town roster id), for the town to
 --apply once the player is home (see eotw:pendingOutcomes). `result` is
@@ -2280,10 +2376,11 @@ local function OutcomesFor(userid, encounter, result)
         end)
         if dead then
             printf("EotW: %s fell in %s", tostring(tok ~= nil and tok.name or heroid), tostring(encounter))
-            entries[#entries + 1] = {
-                heroid = heroid,
-                outcome = { encounter = encounter, result = result, died = true },
-            }
+            local outcome = { encounter = encounter, result = result, died = true }
+            for key, value in pairs(EncounterOfTheWeekGame.DeathFacts(tok)) do
+                outcome[key] = value
+            end
+            entries[#entries + 1] = { heroid = heroid, outcome = outcome }
         elseif alive and result == "victory" then
             local outcome = {
                 encounter = encounter,

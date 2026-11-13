@@ -900,8 +900,26 @@ text("graveyard.empty_mine", [[None of your heroes lie here.]])
 text("graveyard.tab_everyone", [[Everyone]])
 text("graveyard.tab_mine", [[Your Fallen]])
 text("graveyard.awaken_button", [[Awaken]])
-text("graveyard.awaken_tooltip", [[This hero's ancestry does not stay dead. Awaken them and bring them back to your roster.]])
-text("graveyard.awaken_no_slots_tooltip", [[You don't have enough hero slots to awaken this hero]])
+--A grave of the player's own: their hero's name with a tag, so it is not
+--told apart by colour alone.
+text("graveyard.yours_name", [[{name} (yours)]])
+--The line under a grave saying how the hero can come back. Undying heroes
+--(Hakaan, Revenant, Vampire) awaken 12 hours after they die. {left} is like
+--"5h 20m", {clock} a time of day like "9:40 PM", {when} like "2 days ago".
+text("graveyard.status_waiting", [[This hero's ancestry does not stay dead. They can awaken in {left} (at {clock}).]])
+text("graveyard.status_ready", [[This hero's ancestry does not stay dead. Awaken them to bring them back to your roster.]])
+text("graveyard.status_no_slot", [[Ready to awaken, but you have no free hero slot. Expand the Guild, or dismiss a hero.]])
+text("graveyard.status_fire", [[Fire destroyed this hero's body. Only a Rite of Return at the Temple of Saint Llewellyn can bring them back.]])
+text("graveyard.status_beyond", [[This hero met their doom. Nothing can bring them back.]])
+text("graveyard.status_temple", [[This hero can be raised by a Rite of Return at the Temple of Saint Llewellyn.]])
+text("graveyard.status_restore_temple", [[Restore the Destroyed Temple, and this hero can be raised there.]])
+text("graveyard.status_risen", [[Returned from this grave {when}.]])
+text("graveyard.time_hours_minutes", [[{hours}h {minutes}m]])
+text("graveyard.time_minutes", [[{minutes}m]])
+--The banner when a hero comes back from the grave (awakened, or raised by a
+--Rite of Return), the next time their player is in town.
+text("roster.returned.banner_title", [[{name} Returns!]])
+text("roster.returned.banner_subtitle", [[Back from the grave, and back in your Guild.]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's

@@ -538,6 +538,19 @@ function EotwRoster.GreatForgeBuilt()
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
+--Has the town restored the Temple of Saint Llewellyn (the community project Restore the
+--Temple)? Until then its place on the map is a ruin.
+function EotwRoster.TempleBuilt()
+    if EotwDowntime.CommunityProjectHidden("restore-temple") then
+        return false
+    end
+    if m_unlocks ~= nil and m_unlocks.temple == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("restore-temple")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
 --The lead ids this account has learned, as a set; empty while not listed.
 function EotwRoster.LearnedLeads()
     local result = {}
@@ -717,6 +730,7 @@ end
 --defined with the coming-home write-back below.
 local ApplyPendingOutcomes
 local PromoteRosterHeroes
+local ApplyReturns
 --heroids whose slow-start promotion is being pushed to the city right now.
 local m_promoting = {}
 
@@ -779,6 +793,8 @@ local function FetchAndImport(hero)
                 if not mod.unloaded then
                     PromoteRosterHeroes()
                     ApplyPendingOutcomes()
+                    --a hero just back from the grave: set their Stamina.
+                    ApplyReturns()
                 end
             end)
         end,
@@ -1090,6 +1106,83 @@ PromoteRosterHeroes = function()
     end
 end
 
+--Heroes the city raised (awakened, or by a Rite of Return) whose return this
+--client has not applied yet, from list-heroes: heroid -> { by = "awaken"|"rite" }.
+local m_returned = {}
+--Returns applied this session, still to be announced with a banner: { heroid... }.
+local m_returnsToAnnounce = {}
+local m_returning = {}
+
+--Apply each pending return once the hero's working copy is in step with the
+--city: an awakened hero comes back with Stamina equal to their Recovery value
+--(Recoveries as they were), a hero raised by rite at full Stamina. The push
+--carries ackReturn so the city stops listing the return.
+ApplyReturns = function()
+    local revs = GetRevs()
+    local _, pending = LoadPendingOutcomes()
+    local outcomeWillPush = {}
+    for _, entry in pairs(pending) do
+        if type(entry) == "table" and type(entry.heroid) == "string" and entry.stage ~= "pushed" then
+            outcomeWillPush[entry.heroid] = true
+        end
+    end
+    for heroid, info in pairs(m_returned) do
+        local tok = dmhub.GetCharacterById(heroid)
+        local hero = EotwRoster.FindHero(heroid)
+        if tok ~= nil and hero ~= nil and revs[heroid] == hero.rev and not m_importing[heroid] and not m_promoting[heroid]
+            and not m_returning[heroid] and not outcomeWillPush[heroid] then
+            m_returning[heroid] = true
+            tok:ModifyProperties{
+                description = "Returned from the grave",
+                undoable = false,
+                execute = function()
+                    local props = tok.properties
+                    if info.by == "rite" then
+                        EotwRoster.SetWounds(props, 0, 0)
+                    else
+                        local maxStamina = props:MaxHitpoints()
+                        local damage = math.max(0, maxStamina - props:RecoveryAmount())
+                        local used = props:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+                        EotwRoster.SetWounds(props, damage, used)
+                    end
+                end,
+            }
+            dmhub.Schedule(0.3, function()
+                if mod.unloaded then
+                    return
+                end
+                EotwRoster.PushHero(heroid, function(ok)
+                    m_returning[heroid] = nil
+                    if ok then
+                        m_returned[heroid] = nil
+                        m_returnsToAnnounce[#m_returnsToAnnounce+1] = heroid
+                    end
+                end, { ackReturn = true })
+            end)
+        end
+    end
+end
+
+--Play a banner for each hero who returned from the grave since the last call
+--(the town screen calls this from its think, with itself as the host).
+function EotwRoster.AnnounceReturns(host)
+    if #m_returnsToAnnounce == 0 or host == nil or not host.valid then
+        return
+    end
+    local list = m_returnsToAnnounce
+    m_returnsToAnnounce = {}
+    for i, heroid in ipairs(list) do
+        dmhub.Schedule((i - 1) * 4.5, function()
+            if mod.unloaded or not host.valid then
+                return
+            end
+            local tok = dmhub.GetCharacterById(heroid)
+            local name = tok ~= nil and tok.name or T("graveyard.hero_fallback")
+            EotwDowntime.ShowBanner(host, T("roster.returned.banner_title", { name = name }), T("roster.returned.banner_subtitle"), nil, heroid)
+        end)
+    end
+end
+
 --Bring the lobby working copies in line with the city's roster.
 local function SyncWorkingCopies()
     if not LobbyReady() then
@@ -1137,6 +1230,7 @@ local function SyncWorkingCopies()
     PromoteRosterHeroes()
     --encounters won since the last visit: Victories onto the heroes.
     ApplyPendingOutcomes()
+    ApplyReturns()
 end
 
 --Queue won encounters for heroes to bring home -- the same queue the game
@@ -1235,6 +1329,12 @@ function EotwRoster.Refresh()
             m_heroes = heroes
             m_unlocks = type(result.unlocks) == "table" and result.unlocks or {}
             m_slots = tonumber(result.slots) or EotwRoster.BASE_SLOTS
+            m_returned = {}
+            for _, entry in ipairs(result.returned or {}) do
+                if type(entry) == "table" and type(entry.heroid) == "string" then
+                    m_returned[entry.heroid] = { by = entry.by }
+                end
+            end
             EotwRoster.SetListedLeads(result.leads, result.carouse)
             Bump()
             SyncWorkingCopies()
@@ -1261,9 +1361,16 @@ local m_pushing = {}
 
 --Push a working copy to the city: creates the hero there the first time,
 --replaces it afterwards (revision-checked). onDone(ok, message) optional.
-function EotwRoster.PushHero(charid, onDone)
+--extraArgs (optional) adds fields to put-hero (ackReturn); a push already in
+--flight drops them, so a caller that needs them retries later.
+---@param extraArgs nil|table
+function EotwRoster.PushHero(charid, onDone, extraArgs)
     local inFlight = m_pushing[charid]
     if inFlight ~= nil then
+        if extraArgs ~= nil and onDone ~= nil then
+            onDone(false, "busy")
+            return
+        end
         inFlight.again = true
         if onDone ~= nil then
             inFlight.waiting[#inFlight.waiting+1] = onDone
@@ -1307,15 +1414,19 @@ function EotwRoster.PushHero(charid, onDone)
         end
     end
 
+    local args = {
+        heroid = charid,
+        baseRev = baseRev,
+        summary = BuildSummary(tok),
+        record = data.record,
+        assets = data.assets,
+    }
+    for key, value in pairs(extraArgs or {}) do
+        args[key] = value
+    end
     m_conn:Request{
         action = "put-hero",
-        args = {
-            heroid = charid,
-            baseRev = baseRev,
-            summary = BuildSummary(tok),
-            record = data.record,
-            assets = data.assets,
-        },
+        args = args,
         success = function(result)
             SetRev(charid, result.rev)
             EotwRoster.lastError = nil
@@ -3199,11 +3310,61 @@ local function OpenFallen(g)
     }
 end
 
---The Awaken button on one of this account's graves (a Hakaan, Revenant or
---Vampire): greyed, with a tooltip saying why, when the roster is full.
---onAwakened() runs once the city has taken the hero out of the Graveyard.
+--"in 11h 40m": the time left until a server timestamp (ms), for countdowns.
+local function TimeUntil(at)
+    local seconds = math.max(0, math.floor(((tonumber(at) or 0) - dmhub.serverTimeMilliseconds) / 1000))
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    if hours > 0 then
+        return T("graveyard.time_hours_minutes", { hours = tostring(hours), minutes = tostring(minutes) })
+    end
+    return T("graveyard.time_minutes", { minutes = tostring(math.max(1, minutes)) })
+end
+
+--A server timestamp (ms) as a local clock time, e.g. "9:40 PM".
+local function ClockTime(at)
+    local clock = os.date("%I:%M %p", math.floor((tonumber(at) or 0) / 1000))
+    return (string.gsub(tostring(clock), "^0", ""))
+end
+
+--The line under one of this account's graves saying how (or whether) the hero
+--can come back, from the grave's state as the City lists it (list-graveyard).
+--Always text, never colour alone or a hover tooltip.
+local function GraveStatusText(g)
+    local state = g.state
+    if state == "risen" then
+        local rose = (g.epitaph or {}).rose or {}
+        return T("graveyard.status_risen", { when = DescribeServerTimestamp(tonumber(rose.at) or g.at) })
+    elseif state == "waiting" then
+        return T("graveyard.status_waiting", { left = TimeUntil(g.readyAt), clock = ClockTime(g.readyAt) })
+    elseif state == "ready" then
+        if EotwRoster.HasFreeSlot() then
+            return T("graveyard.status_ready")
+        end
+        return T("graveyard.status_no_slot")
+    elseif state == "fire" then
+        return T("graveyard.status_fire")
+    elseif state == "beyond" then
+        return T("graveyard.status_beyond")
+    end
+    if EotwRoster.TempleBuilt() then
+        return T("graveyard.status_temple")
+    elseif EotwDowntime.GetProject("restore-temple") ~= nil then
+        return T("graveyard.status_restore_temple")
+    end
+    return nil
+end
+
+--The Awaken button on one of this account's undying graves (a Hakaan,
+--Revenant, Vampire or Back From the Grave hero). Enabled once the City says
+--the grave is ready (12 hours after the death) and the roster has a free slot;
+--the reason it is not is the status line beside it. onAwakened() runs once the
+--hero is back in the roster.
 local function AwakenButton(g, onAwakened)
     local busy = false
+    local function Usable()
+        return g.state == "ready" and EotwRoster.HasFreeSlot()
+    end
     --the town's button theme gives "disabled" no look of its own, so a
     --disabled Awaken is dimmed by hand.
     local function SetDisabled(element, disabled)
@@ -3218,17 +3379,20 @@ local function AwakenButton(g, onAwakened)
         halign = "right",
         valign = "center",
         create = function(element)
-            SetDisabled(element, not EotwRoster.HasFreeSlot())
+            SetDisabled(element, not Usable())
         end,
-        linger = function(element)
-            if not EotwRoster.HasFreeSlot() then
-                gui.Tooltip(T("graveyard.awaken_no_slots_tooltip"))(element)
-            else
-                gui.Tooltip(T("graveyard.awaken_tooltip"))(element)
+        --a waiting grave turns ready while the Graveyard is open.
+        thinkTime = 1,
+        think = function(element)
+            if g.state == "waiting" and dmhub.serverTimeMilliseconds >= (tonumber(g.readyAt) or 0) then
+                g.state = "ready"
+            end
+            if not busy then
+                SetDisabled(element, not Usable())
             end
         end,
         click = function(element)
-            if busy or not EotwRoster.HasFreeSlot() then
+            if busy or not Usable() then
                 return
             end
             busy = true
@@ -3239,7 +3403,7 @@ local function AwakenButton(g, onAwakened)
                 if ok then
                     onAwakened()
                 elseif element.valid then
-                    SetDisabled(element, not EotwRoster.HasFreeSlot())
+                    SetDisabled(element, not Usable())
                 end
             end)
         end,
@@ -3334,20 +3498,24 @@ function EotwRoster.ShowGraveyard(host)
             lines[#lines+1] = fell
             lines[#lines+1] = T("graveyard.played_by", { player = e.owner or "?" })
             local awaken = nil
-            if mine and EotwRoster.CanAwaken(e.ancestry) then
+            if mine and (g.state == "waiting" or g.state == "ready") then
                 awaken = AwakenButton(g, function()
-                    for i, other in ipairs(graves) do
-                        if other == g then
-                            table.remove(graves, i)
-                            break
-                        end
-                    end
+                    --the grave stays, marked as risen.
+                    g.state = "risen"
+                    g.epitaph = g.epitaph or {}
+                    g.epitaph.rose = { at = dmhub.serverTimeMilliseconds }
                     Rebuild()
                 end)
             end
+            --how this hero can come back: on your own graves, and on anyone's
+            --grave the hero has already risen from.
+            local status = nil
+            if mine or g.state == "risen" then
+                status = GraveStatusText(g)
+            end
             rows[#rows+1] = gui.Panel{
                 width = "100%",
-                height = 100,
+                height = cond(status ~= nil, 120, 100),
                 flow = "horizontal",
                 bgimage = "panels/square.png",
                 bgcolor = cond(mine, "#2a2418cc", "#ffffff0a"),
@@ -3384,8 +3552,22 @@ function EotwRoster.ShowGraveyard(host)
                     flow = "vertical",
                     valign = "center",
                     lmargin = 14,
-                    gui.Label{ text = e.name or T("graveyard.hero_fallback"), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto" },
+                    gui.Label{ text = cond(mine, T("graveyard.yours_name", { name = e.name or T("graveyard.hero_fallback") }), e.name or T("graveyard.hero_fallback")), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto" },
                     gui.Label{ text = table.concat(lines, "\n"), fontSize = 14, color = DIM, width = "100%", height = "auto" },
+                    gui.Label{
+                        classes = { cond(status == nil, "collapsed", nil) },
+                        text = status or "",
+                        fontSize = 14,
+                        italics = true,
+                        color = TEXT,
+                        width = "100%",
+                        height = "auto",
+                        --a countdown ticks while the Graveyard is open.
+                        thinkTime = 30,
+                        think = function(element)
+                            element.text = GraveStatusText(g) or ""
+                        end,
+                    },
                 },
                 awaken,
             }

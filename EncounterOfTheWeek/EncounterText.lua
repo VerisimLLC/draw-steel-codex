@@ -112,6 +112,12 @@ text("encounter.series_next.button", [[Continue to {part}]])
 text("encounter.series_next.story_note", [[{part} is open until your heroes take a respite.]])
 text("encounter.series_next.story_note_rest_free", [[{part} is open, and stays open after a respite.]])
 
+--At the Town Gate, after winning a part whose next part is marked "Coming
+--soon at the Town Gate": that part is not out here yet, but the Proving Pits
+--(practice games) already have it. {part} is the next part ("Part 2").
+text("encounter.series_next.gate_soon_title", [[{part} comes to the Town Gate soon]])
+text("encounter.series_next.gate_soon_body", [[It arrives at the Town Gate next week. Until then, you can try it in the Proving Pits.]])
+
 --When the next part plays on the same map, the party goes straight on in the
 --same game instead, and the game's host decides for everyone. The victory
 --screen's panel; the host sees body_here and the button, everyone else

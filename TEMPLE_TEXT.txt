@@ -1,0 +1,435 @@
+TEMPLE OF SAINT LLEWELLYN -- ALL PLAYER-FACING TEXT (placeholder drafts, 2026-11-12)
+
+HOW TO EDIT
+  * Each entry is two lines: the id in [square brackets], then the words.
+  * Change only the words. Leave every [id] exactly as it is.
+  * {name}, {goal}, etc. are filled in by the game. Keep each one, spelled the
+    same; you may move it anywhere in the sentence.
+  * Plain keyboard characters only: straight quotes ' and ", three dots ...,
+    a hyphen or colon for a dash. No curly quotes or em dashes.
+  * A line starting with # is a note for you; it is not shown in the game.
+  * To leave a roll line unwritten, leave its words empty.
+When you are done, send this file back and the changes go into the game's
+text files (EotwTextTemple.lua and EotwTextTown.lua) by id.
+
+
+============================================================================
+THE MAP: the marker and screen heading
+============================================================================
+
+# While the town is still restoring it. The label is the name on the map marker (1-3 words); the title and tagline head the screen when it is opened.
+[eotw.locations.temple_site.label]
+Destroyed Temple
+
+[eotw.locations.temple_site.title]
+The Destroyed Temple
+
+[eotw.locations.temple_site.tagline]
+Saint Llewellyn's temple lies in ruins. Restore it, and the valiant knight may help Blackbottom's fallen rise from death.
+
+# Once it is restored.
+[eotw.locations.temple.label]
+Saint Llewellyn's Temple
+
+[eotw.locations.temple.title]
+The Temple of Saint Llewellyn
+
+[eotw.locations.temple.tagline]
+Noble heroes felled in battle may rise once again.
+
+
+============================================================================
+THE BUILDING SITE AND THE RESTORE THE TEMPLE PROJECT
+============================================================================
+
+# A short call to action, shown large in italics.
+[downtime.temple_site.intro]
+Help restore the Destroyed Temple!
+
+# One or two sentences on what it will be.
+[downtime.temple_site.community]
+Once the Temple is repaired, the town may resurrect its fallen heroes. Every noble hero of Blackbottom should lend a hand.
+
+[downtime.projects.restore_temple.title]
+Rebuild the Temple
+
+# Where it is worked on, as in "Go to the Destroyed Temple to work on it."
+[downtime.projects.restore_temple.place]
+the Destroyed Temple
+
+# Shown under its cost.
+[downtime.projects.restore_temple.benefit]
+The Temple of Saint Llewellyn opens for all who protect the weak. Fallen heroes can be raised there.
+
+# The line under the title, and the same line once it is finished.
+[downtime.projects.restore_temple.blurb]
+This is a Community Project, everyone builds this together!
+
+[downtime.projects.restore_temple.blurb_maxed]
+The Temple of Saint Llewellyn is rebuilt!
+
+# The big banner when the last roll finishes it, and the line under it.
+[downtime.projects.restore_temple.complete_banner]
+The Temple of Saint Llewellyn!
+
+[downtime.projects.restore_temple.complete_subtitle]
+Rebuilt by the heroes of Blackbottom. The fallen may yet come home.
+
+# The two stages' names (1-2 words each).
+[downtime.projects.restore_temple.stage_rebuilding]
+Rebuilding
+
+[downtime.projects.restore_temple.stage_reconsecration]
+Reconsecration
+
+# Replaces the project's blurb during each stage.
+[downtime.projects.restore_temple.stage_rebuilding_blurb]
+The walls of the Temple must be rebuilt! 
+Might or Reason
+
+[downtime.projects.restore_temple.stage_reconsecration_blurb]
+The Temple must be made holy again: rites, records and a priesthood. Presence or Intuition.
+
+
+# The banner shown to the hero whose roll finishes the reconsecration, and the line under it.
+[downtime.projects.restore_temple.stage_subtitle]
+The walls are rebuilt!
+
+[downtime.projects.restore_temple.stage_banner]
+Make the Temple holy again.
+
+
+
+============================================================================
+INSIDE THE TEMPLE
+============================================================================
+
+# At the top of the Temple, large in italics.
+[temple.intro]
+Candles burn before Saint Llewellyn. Here, the valiant can be brought back from death.
+
+# How it works, in a sentence or two.
+[temple.how]
+Begin a Rite of Return for one of your fallen heroes. Any hero may aid in this rite. When the rite completes, the hero will be resurrected.
+
+[temple.loading]
+Reading the Temple's ledger...
+
+[temple.error.not_connected]
+The Temple can't be reached right now. Try again in a moment.
+
+# A hero's name when the game cannot find it.
+[temple.hero_fallback]
+A fallen hero
+
+# Your Fallen: this player's fallen heroes.
+[temple.fallen.heading]
+Your Fallen
+
+[temple.fallen.empty]
+None of your heroes lie in the Graveyard.
+
+[temple.fallen.begin_button]
+Begin the Rite
+
+[temple.fallen.begin_confirm]
+Click again to begin
+
+[temple.fallen.rite_under_way]
+A Rite of Return is under way for this hero (see Rites Under Way).
+
+[temple.fallen.no_slot]
+You need a free hero slot to begin. Expand the Guild, or dismiss a hero.
+
+# A Revenant (or a hero with Back From the Grave) whose killing blow was fire.
+[temple.fallen.fire]
+Fire destroyed this hero's body, so they will not awaken on their own.
+
+# A Hakaan who chose their death (doomed).
+[temple.fallen.beyond]
+This hero met their doom. Nothing can bring them back.
+
+# Undying heroes (Hakaan, Revenant, Vampire) come back at the Graveyard instead. {clock} is a time of day, like "9:40 PM".
+[temple.fallen.awaken_waiting]
+This hero will be ready to awaken at the Graveyard at {clock}.
+
+[temple.fallen.awaken_ready]
+This hero can be awakened now: go to the Graveyard.
+
+# The rite's cost. {goal} is points, {level} the hero's level, {rolls} about how many Downtime rolls it takes.
+[temple.goal]
+Goal {goal} points (level {level}, about {rolls} rolls)
+
+[temple.goal_doubled]
+Raised {count} time(s) before: the goal is doubled each time.
+
+# Rites Under Way: every rite in town.
+[temple.rites.heading]
+Rites Under Way
+
+[temple.rites.empty]
+No rites are under way.
+
+[temple.rites.show_all]
+Show all {count} rites
+
+[temple.rite.name_yours]
+{name} (yours)
+
+[temple.rite.name_of]
+{name}
+
+[temple.rite.progress]
+{points} of {goal} points ({percent}%)
+
+[temple.rite.helpers]
+Raised by the labour of: {names}
+
+[temple.rite.contributor]
+{hero} ({player})
+
+[temple.rite.no_helpers]
+None of your heroes has Downtime rolls to use right now.
+
+# In the hero picker. {downtime} is how many Downtime Activities they have.
+[temple.helper_option]
+{name} ({downtime} Downtime)
+
+[temple.rite.roll_button]
+Spend 1 Downtime roll
+
+# The dice's title.
+[temple.rite_title]
+Rite of Return for {name}
+
+[temple.rite.waiting_mine]
+The rite is complete, but your roster is full. Dismiss a hero, and then raise them.
+
+[temple.rite.waiting_other]
+The rite is complete. The hero will rise once their player has a free hero slot.
+
+[temple.rite.rise_button]
+Raise them
+
+# Banners after a roll.
+[temple.banner.risen_title]
+{name} Returns!
+
+[temple.banner.risen_subtitle]
+The Rite of Return is complete.
+
+[temple.banner.complete_title]
+The Rite for {name} Is Complete
+
+[temple.banner.complete_subtitle]
+They rise once their player has a free hero slot.
+
+[temple.banner.breakthrough_subtitle]
+A free roll on the rite!
+
+
+============================================================================
+THE GRAVEYARD, THE RETURN BANNER, AND "WHILE YOU WERE AWAY"
+============================================================================
+
+[eotw.away.hint_defeat]
+Accept the defeat, and your fallen heroes are laid to rest in the Graveyard; or count the game as abandoned and leave it be.
+
+[eotw.away.hint_victory_fallen]
+Claim the victory for your heroes, and your fallen heroes are laid to rest in the Graveyard, or count the game as abandoned and leave it be.
+
+# A grave of the player's own: their hero's name with a tag, so it is not told apart by colour alone.
+[graveyard.yours_name]
+{name} (yours)
+
+# The line under a grave saying how the hero can come back. Undying heroes (Hakaan, Revenant, Vampire) awaken 12 hours after they die. {left} is like "5h 20m", {clock} a time of day like "9:40 PM", {when} like "2 days ago".
+[graveyard.status_waiting]
+This hero's ancestry does not stay dead. They can awaken in {left} (at {clock}).
+
+[graveyard.status_ready]
+This hero's ancestry does not stay dead. Awaken them to bring them back to your roster.
+
+[graveyard.status_no_slot]
+Ready to awaken, but you have no free hero slot. Expand the Guild, or dismiss a hero.
+
+[graveyard.status_fire]
+Fire destroyed this hero's body. Only a Rite of Return at the Temple of Saint Llewellyn can bring them back.
+
+[graveyard.status_beyond]
+This hero met their doom. Nothing can bring them back.
+
+[graveyard.status_temple]
+This hero can be raised by a Rite of Return at the Temple of Saint Llewellyn.
+
+[graveyard.status_restore_temple]
+Restore the Destroyed Temple, and this hero can be raised there.
+
+[graveyard.status_risen]
+Returned from this grave {when}.
+
+[graveyard.time_hours_minutes]
+{hours}h {minutes}m
+
+[graveyard.time_minutes]
+{minutes}m
+
+# The banner when a hero comes back from the grave (awakened, or raised by a Rite of Return), the next time their player is in town.
+[roster.returned.banner_title]
+{name} Returns!
+
+[roster.returned.banner_subtitle]
+Back from the grave, and back in your Guild.
+
+
+============================================================================
+ROLL LINES: what heroes say after a Restore the Temple roll (not shown in the game yet)
+============================================================================
+
+# Reconsecration, first half (points 0-1499).
+[downtime.lines.temple.reconsecration_early_hopeful_1]
+
+
+[downtime.lines.temple.reconsecration_early_hopeful_2]
+
+
+[downtime.lines.temple.reconsecration_early_hopeful_3]
+
+
+[downtime.lines.temple.reconsecration_early_neutral_1]
+
+
+[downtime.lines.temple.reconsecration_early_neutral_2]
+
+
+[downtime.lines.temple.reconsecration_early_neutral_3]
+
+
+[downtime.lines.temple.reconsecration_early_frustrated_1]
+
+
+[downtime.lines.temple.reconsecration_early_frustrated_2]
+
+
+[downtime.lines.temple.reconsecration_early_frustrated_3]
+
+
+# Reconsecration, second half (points 1500-2999).
+[downtime.lines.temple.reconsecration_late_hopeful_1]
+
+
+[downtime.lines.temple.reconsecration_late_hopeful_2]
+
+
+[downtime.lines.temple.reconsecration_late_hopeful_3]
+
+
+[downtime.lines.temple.reconsecration_late_neutral_1]
+
+
+[downtime.lines.temple.reconsecration_late_neutral_2]
+
+
+[downtime.lines.temple.reconsecration_late_neutral_3]
+
+
+[downtime.lines.temple.reconsecration_late_frustrated_1]
+
+
+[downtime.lines.temple.reconsecration_late_frustrated_2]
+
+
+[downtime.lines.temple.reconsecration_late_frustrated_3]
+
+
+# Rebuilding, first half (points 3000-4499).
+[downtime.lines.temple.rebuilding_early_hopeful_1]
+
+
+[downtime.lines.temple.rebuilding_early_hopeful_2]
+
+
+[downtime.lines.temple.rebuilding_early_hopeful_3]
+
+
+[downtime.lines.temple.rebuilding_early_neutral_1]
+
+
+[downtime.lines.temple.rebuilding_early_neutral_2]
+
+
+[downtime.lines.temple.rebuilding_early_neutral_3]
+
+
+[downtime.lines.temple.rebuilding_early_frustrated_1]
+
+
+[downtime.lines.temple.rebuilding_early_frustrated_2]
+
+
+[downtime.lines.temple.rebuilding_early_frustrated_3]
+
+
+# Rebuilding, second half (points 4500-6000).
+[downtime.lines.temple.rebuilding_late_hopeful_1]
+
+
+[downtime.lines.temple.rebuilding_late_hopeful_2]
+
+
+[downtime.lines.temple.rebuilding_late_hopeful_3]
+
+
+[downtime.lines.temple.rebuilding_late_neutral_1]
+
+
+[downtime.lines.temple.rebuilding_late_neutral_2]
+
+
+[downtime.lines.temple.rebuilding_late_neutral_3]
+
+
+[downtime.lines.temple.rebuilding_late_frustrated_1]
+
+
+[downtime.lines.temple.rebuilding_late_frustrated_2]
+
+
+[downtime.lines.temple.rebuilding_late_frustrated_3]
+
+
+# The roll that finishes it.
+[downtime.lines.temple.done_1]
+
+
+[downtime.lines.temple.done_2]
+
+
+[downtime.lines.temple.done_3]
+
+
+
+============================================================================
+TEXT IN THE SERVER (not in the game's text files; edited in code)
+============================================================================
+
+# The project's name in the town's Discord progress posts, as it reads
+# mid-sentence: "Work on ___ is 50% done". (cloudflare-game-server/src/discord-core.ts)
+[server.discord.restore_temple]
+the Temple of Saint Llewellyn
+
+# Refusals the server can send; they show in the Temple's error line as is.
+# (cloudflare-game-server/src/city-core.ts)
+[server.error.temple_not_restored]
+the Temple of Saint Llewellyn has not been restored
+
+[server.error.rite_not_under_way]
+that rite is not under way
+
+[server.error.rite_complete_waiting]
+that rite is complete and waits for a free hero slot
+
+[server.error.no_rite_waiting]
+no Rite of Return is waiting for that hero
+
+[server.error.rite_not_complete]
+that rite is not complete yet

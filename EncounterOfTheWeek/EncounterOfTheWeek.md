@@ -8598,3 +8598,41 @@ release).
 release DOs, [ ] non-owner module access verified, [ ] disconnected-player
 rule, [ ] content hygiene (default map, orphan assets, pregen parties), [ ]
 remove the dev gate.
+
+
+---
+
+# The Temple of Saint Llewellyn and undying heroes (2026-11-12)
+
+Design: `TEMPLE_BRIEF.md` (locked 2026-11-12, decisions by Jason). Built
+2026-11-12; nothing run, nothing deployed, uncommitted.
+
+- **Undying heroes** (Hakaan, Revenant, Vampire, or a hero with the Back From
+  the Grave title) are buried like anyone, but David's **Awaken** button on
+  the Graveyard's Your Fallen tab now unlocks **12 real hours after the
+  death**, needs a free roster slot, and keeps the grave (marked "Rose ...").
+  Fire as the killing blow ends a Revenant (and a title holder); a doomed
+  Hakaan is beyond return. The game reports `killedByFire`, `doomed`,
+  `undyingTitle` and `diedAt` with each death (`DeathFacts`,
+  EncounterOfTheWeek/EncounterOfTheWeek.lua); `creature.killingDamageType`
+  is persisted at the death transition (MCDMCreature.lua). The City decides
+  (`undyingFacts`, `graveState`, city-core.ts).
+- **An awakened hero returns with Stamina equal to their Recovery value**; a
+  hero raised by rite at full Stamina. The client applies it (`ApplyReturns`,
+  EotwRoster.lua) and pushes with `ackReturn`; a banner plays in town.
+- **Restore the Temple** (`restore-temple`): community project, 6000 points,
+  two stages (Rebuilding: Might/Agility with Architecture, Mechanics,
+  Religion; then Reconsecration: Presence/Intuition with Religion, Lead, History),
+  `defaultHidden`. Map node `temple` near the Graveyard (PLACEHOLDER x 0.80,
+  y 0.78). Site and built scenes both use the Construction still until
+  Czepeku's chapel interior is uploaded (`TEMPLE_ART`). Text:
+  `EotwTextTemple.lua` (all placeholder drafts; roll lines empty, not wired).
+- **Rites of Return** (EotwTemple.lua; City `list-rites`, `start-rite`,
+  `rite-roll`, `rise-hero`): the owner starts one for a fallen,
+  non-undying hero (needs a free slot); any account's living hero spends
+  Downtime on it (2d10 + Presence or Reason, +2 Religion). Goal 30 x level,
+  doubled per earlier rite. At the goal the hero rises, or waits for the
+  owner to press Raise when the roster is full. Dismissing a fallen hero
+  mid-rite sends its points to Restore the Temple. Rites are player
+  projects named `rite-<heroid>`.
+- **Locations on the map:** `temple` -- the Destroyed Temple / Temple of Saint Llewellyn.

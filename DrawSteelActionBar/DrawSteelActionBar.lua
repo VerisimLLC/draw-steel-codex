@@ -208,6 +208,20 @@ local m_positionTargetsChosen = {} --list of Locs for targets. Used on emptyspac
 --- @type nil|ActivatedAbility
 local g_currentAbility
 
+--Cancels the cast being aimed, but only if it is this ability. Lets code that opened a
+--prompt close it again when the question was answered elsewhere (another client).
+--Matched by guid: an invoked ability is aimed as a copy of the one the caller holds.
+--- @param ability ActivatedAbility
+--- @return boolean cancelled
+function DrawSteelActionBar.CancelCastOf(ability)
+    if ability == nil or g_currentAbility == nil or g_currentAbility.guid ~= ability.guid
+            or g_abilityController == nil or (not g_abilityController.valid) then
+        return false
+    end
+    g_abilityController:FireEvent("cancelCasting")
+    return true
+end
+
 --- @type number
 local g_range = 0
 

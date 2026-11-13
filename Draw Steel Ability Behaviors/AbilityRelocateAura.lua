@@ -496,7 +496,26 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     -- what a nil-return cancel leaves in place). Only the INVOKER varies, which is what feeds
     -- the AI auto-answer callback and the invoke symbols. The prompt itself opens on whichever
     -- client is running this code, so callers must already be executing there.
+    -- labels.cancelWhen: polled while the pick is open; true closes it (answered elsewhere).
+    local pickOpen = true
+    local cancelWhen = labels.cancelWhen
+    if cancelWhen ~= nil then
+        dmhub.Coroutine(function()
+            while pickOpen and not mod.unloaded do
+                if cancelWhen() then
+                    local actionBar = rawget(_G, "DrawSteelActionBar")
+                    if actionBar ~= nil and actionBar.CancelCastOf ~= nil then
+                        actionBar.CancelCastOf(pickAbility)
+                    end
+                    return
+                end
+                coroutine.yield(0.1)
+            end
+        end)
+    end
+
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(chooserToken or travelToken, pickAbility, travelToken, "prompt", symbols or {}, {})
+    pickOpen = false
 
     return SnapToCandidate(capturedLoc, candidates)
 end
@@ -1857,10 +1876,90 @@ local function BroadcastCastPrompt(text)
     dmhub.Broadcast("map", command)
 end
 
+--Card ids whose square pick this client opened as the caster.
+local g_bulldozeCasterPicks = {}
+
+--The square the shoved creature's own player picked: an index into the offered squares,
+--written onto the card so it syncs back to the caster's client. 0 = no pick yet.
+--- @class ActiveTrigger
+--- @field bulldozePick number
+--- @field bulldozePrompt string
+ActiveTrigger.bulldozePick = 0
+ActiveTrigger.bulldozePrompt = ""
+
+--/bulldozepick <charid> <cardid> <dx,dy:dx,dy:...> is broadcast by the caster's client when a
+--shoved creature has several equally near squares (offsets from the creature). Every other
+--client that controls the creature opens the same pick, so its player can choose too.
+Commands.RegisterMacro{
+    name = "bulldozepick",
+    summary = tr("pick a bulldoze square"),
+    doc = tr("Usage: /bulldozepick <charid> <cardid> <offsets>\nInternal: sent by a bulldoze cast."),
+    command = function(str)
+        local charid, cardid, offsets = string.match(str or "", "^(%S+)%s+(%S+)%s+(%S+)$")
+        if charid == nil or g_bulldozeCasterPicks[cardid] then
+            return
+        end
+        local tok = dmhub.GetTokenById(charid)
+        if tok == nil or (not tok.valid) or tok.loc == nil or tok.properties == nil or not tok.canControl then
+            return
+        end
+        local card = tok.properties:GetAvailableTriggerRecord(cardid)
+        if card == nil then
+            return
+        end
+
+        local locs = {}
+        for dx, dy in string.gmatch(offsets, "(-?%d+),(-?%d+)") do
+            locs[#locs+1] = tok.loc:dir(tonumber(dx), tonumber(dy))
+        end
+        if #locs < 2 then
+            return
+        end
+
+        local function LiveCard()
+            if (not tok.valid) or tok.properties == nil then
+                return nil
+            end
+            return tok.properties:GetAvailableTriggerRecord(cardid)
+        end
+
+        dmhub.Coroutine(function()
+            local dest = ChooseTransitDestination(tok, locs, {}, tok, {
+                name = card.text,
+                prompt = card.bulldozePrompt ~= "" and card.bulldozePrompt or nil,
+                --The caster picked first (card cleared) or another client did.
+                cancelWhen = function()
+                    local live = LiveCard()
+                    return live == nil or live.bulldozePick ~= 0
+                end,
+            })
+            if dest == nil or mod.unloaded then
+                return
+            end
+            for i, loc in ipairs(locs) do
+                if loc.x == dest.x and loc.y == dest.y then
+                    tok:ModifyProperties{
+                        description = "Bulldoze Pick",
+                        undoable = false,
+                        execute = function()
+                            local live = LiveCard()
+                            if live ~= nil and live.bulldozePick == 0 then
+                                live.bulldozePick = i
+                            end
+                        end,
+                    }
+                    return
+                end
+            end
+        end)
+    end,
+}
+
 --Puts a "!" card on tok and returns its id. The cast watches the card; it runs nothing itself.
 --Not a hostile card, so one orphaned by a reload ages out like any other trigger.
-local function RaiseBulldozeCard(tok, casterToken, title, text)
+local function RaiseBulldozeCard(tok, casterToken, title, text, pickPrompt)
     local trigger = ActiveTrigger.new{
+        bulldozePrompt = pickPrompt,
         id = dmhub.GenerateGuid(),
         text = title,
         rules = text,
@@ -1999,7 +2098,7 @@ function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, op
     for _, tok in ipairs(shoved) do
         pending[#pending+1] = {
             token = tok,
-            id = RaiseBulldozeCard(tok, casterToken, tr(self.shoveTitle), tr(self.shoveText)),
+            id = RaiseBulldozeCard(tok, casterToken, tr(self.shoveTitle), tr(self.shoveText), tr(self.promptText)),
             seen = false,
         }
     end
@@ -2040,7 +2139,8 @@ function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, op
         end
     end
 
-    local function Shove(tok)
+    --cardid: the creature's live card, when its own player may pick the square too.
+    local function Shove(tok, cardid)
         local candidates = NearestSlidableLocs(tok, searchRadius, OutsidePath(tok))
         if #candidates == 0 then
             --Walled in: fall back to any free square beside the path.
@@ -2052,10 +2152,39 @@ function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, op
         end
         local dest = candidates[1]
         if #candidates > 1 then
-            dest = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
+            --The player's pick comes back as an index on the card.
+            local function PlayerPick()
+                if cardid == nil or (not tok.valid) or tok.properties == nil then
+                    return nil
+                end
+                local card = tok.properties:GetAvailableTriggerRecord(cardid)
+                return card ~= nil and candidates[card.bulldozePick] or nil
+            end
+
+            if cardid ~= nil then
+                local offsets = {}
+                for _, loc in ipairs(candidates) do
+                    if loc.floor ~= tok.loc.floor then
+                        offsets = nil
+                        break
+                    end
+                    offsets[#offsets+1] = string.format("%d,%d", loc.x - tok.loc.x, loc.y - tok.loc.y)
+                end
+                if offsets ~= nil then
+                    g_bulldozeCasterPicks[cardid] = true
+                    dmhub.Broadcast("map", string.format("bulldozepick %s %s %s", tok.charid, cardid, table.concat(offsets, ":")))
+                end
+            end
+
+            --Caster and player pick at once; the first answer wins and closes the other.
+            local casterPick = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
                 name = tr(self.shoveTitle),
                 prompt = tr(self.promptText),
-            }) or candidates[1]
+                cancelWhen = function()
+                    return PlayerPick() ~= nil
+                end,
+            })
+            dest = casterPick or PlayerPick() or candidates[1]
         end
         ClaimFootprint(tok, dest, claimed)
         FreeMoveOntoSquare(tok, dest)
@@ -2097,8 +2226,18 @@ function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, op
 
             if resolved then
                 table.remove(pending, i)
-                ClearCard(entry)
-                Shove(tok)
+                UpdateWaitPrompt()
+                --An accepted card stays up through the pick: it carries the player's answer,
+                --and clearing it is what closes the player's pick.
+                local accepted = record ~= nil and (not record.dismissed) and record.triggered ~= false
+                if accepted then
+                    Shove(tok, entry.id)
+                    g_bulldozeCasterPicks[entry.id] = nil
+                    ClearCard(entry)
+                else
+                    ClearCard(entry)
+                    Shove(tok)
+                end
             end
         end
         if #pending > 0 then
@@ -2179,7 +2318,7 @@ function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, op
     if stopStep < numSteps then
         local recoils = false
         for _, behavior in ipairs(ability.behaviors) do
-            if behavior.typeName == "ActivatedAbilityBulldozeBehavior" and behavior.recoil then
+            if behavior.typeName == "ActivatedAbilityBulldozeBehavior" and behavior:try_get("recoil", false) then
                 recoils = true
             end
         end

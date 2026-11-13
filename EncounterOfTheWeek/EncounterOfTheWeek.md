@@ -2750,6 +2750,22 @@ the 200-local ceiling):
   for the part just won (the town's debrief would have); at the Gate it stamps
   `alreadyCompleted` for the new part from `list-heroes` (no party record
   carries it here).
+- **Repeat payouts on continued parts (fixed 2026-11-12, not run live).**
+  Analytics showed heroes paid a part's Victories again on a replay, almost
+  only on continued parts (Aixco part 3: 23 of 1,579 heroes). The stamp was a
+  single `list-heroes` with no retry, and a miss paid in full. Now:
+  `Series.StampCompletedForPart` asks again until the City answers (5 s after
+  a failure, 40 s with no answer, 12 attempts) and `Series.ContinueTick`
+  restarts it after a reload; each client writes
+  `data.completionChecked[userid] = runId` when its answer is in, and the
+  host's `AutoAwardVictories` holds the award up to 15 s
+  (`Series.COMPLETION_CHECK_HOLD`) for a missing one, except when Proceed was
+  pressed. A client on an older build never writes the stamp, so a mixed party
+  waits the full 15 s. Why the original lookup was missed is not known; the
+  retry and give-up lines are logged. Also `RecordCompletedHeroes` (arrival and
+  continued parts) now counts this machine's wins still in
+  `eotw:pendingOutcomes` (`Series.PendingWins`): a party could set out again
+  before the town had recorded the last game, and be paid again.
 - **Resume**: a game that went on (`seriesContinue` set) keeps its stamped key
   over the lobby record's, keeps its recorded `expectedUsers`, and does not
   re-stamp completions from the arrival's hero list. `OutcomesFor` and the

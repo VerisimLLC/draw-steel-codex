@@ -53,6 +53,10 @@ end
 --  data.completedNormal = { [charid] = true }  (Challenge Mode: heroes whose
 --                       owners' town says they have won the normal mode, so
 --                       the challenge is worth one Victory to them, not two.)
+--  data.completionChecked = { [userid] = runId }  (a continued series part:
+--                       that player's client has the City's answer on which
+--                       of its heroes already won the part. The host holds
+--                       the Victory award briefly for a missing one.)
 --  data.abilityBusy   = { [userid] = serverTime }  (that client has an
 --                       ability cast/prompt in flight; refreshed while busy,
 --                       cleared when idle. The host defers the
@@ -1835,12 +1839,45 @@ function EncounterOfTheWeekGame.VictoryAward(charid)
     return encounterVictories + CHALLENGE_VICTORIES
 end
 
+--This player's wins of encounter `key` that have not gone home yet
+--(eotw:pendingOutcomes), by town hero id: { [heroid] = { challenge = bool } }.
+--A party can set out again before the town has recorded the last game.
+function Series.PendingWins(key)
+    local result = {}
+    if type(key) ~= "string" or key == "" then
+        return result
+    end
+    pcall(function()
+        local text = dmhub.GetSettingValue("eotw:pendingOutcomes")
+        if type(text) ~= "string" or text == "" then
+            return
+        end
+        --FromJson answers {success, result}, not the decoded value.
+        local parsed = dmhub.FromJson(text)
+        local mine = type(parsed) == "table" and parsed.success and type(parsed.result) == "table" and parsed.result[dmhub.loginUserid] or nil
+        local runId = Series.RunId()
+        for _, entry in pairs(type(mine) == "table" and mine or {}) do
+            local o = type(entry) == "table" and entry.outcome or nil
+            --this part's own outcome (saved at its victory) is not an earlier win.
+            if type(o) == "table" and o.completed == true and o.encounter == key and entry.gameid ~= runId and type(entry.heroid) == "string" then
+                local won = result[entry.heroid] or { challenge = false }
+                won.challenge = won.challenge or o.challenge == true
+                result[entry.heroid] = won
+            end
+        end
+    end)
+    return result
+end
+
 --After hero placement: stamp which of MY heroes the town says already won
 --this encounter (the city marks them `completed` in the party roster), so
 --the host's Victory award skips them and their victory card says why. In
 --Challenge Mode `completed` is the challenge, and `completedNormal` marks the
 --heroes who won the normal mode (one Victory for them instead of two).
-local function RecordCompletedHeroes(heroes)
+--key: the encounter being played (default: the one stamped on the game).
+--checkedRunId: set by a continued series part, whose host holds the award
+--until every player's answer is in (data.completionChecked).
+local function RecordCompletedHeroes(heroes, key, checkedRunId)
     local placed = GetPlacedHeroes(dmhub.loginUserid)
     local completed = {}
     local completedNormal = {}
@@ -1856,11 +1893,35 @@ local function RecordCompletedHeroes(heroes)
             any = true
         end
     end
-    if not any then
+    --wins still waiting on this machine to go home: the town does not know
+    --them yet, so it could not have marked them.
+    if key == nil then
+        pcall(function() key = mod:GetDocumentSnapshot(STATE_DOC_ID).data.encounterMap end)
+    end
+    local pending = Series.PendingWins(key)
+    local challenge = EncounterOfTheWeekGame.IsChallenge()
+    for placedKey, charid in pairs(placed) do
+        local won = pending[string.match(placedKey, "^lobby:(.+)$") or ""]
+        if won ~= nil then
+            printf("EotW: a win of %s is still waiting to go home; its hero is not paid again", tostring(key))
+            any = true
+            if not challenge or won.challenge then
+                completed[charid] = true
+            end
+            if challenge then
+                completedNormal[charid] = true
+            end
+        end
+    end
+    if not any and checkedRunId == nil then
         return
     end
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     doc:BeginChange()
+    if checkedRunId ~= nil then
+        doc.data.completionChecked = doc.data.completionChecked or {}
+        doc.data.completionChecked[dmhub.loginUserid] = checkedRunId
+    end
     doc.data.alreadyCompleted = doc.data.alreadyCompleted or {}
     for charid in pairs(completed) do
         doc.data.alreadyCompleted[charid] = true
@@ -1895,7 +1956,13 @@ local function AutoAwardVictories(live, now)
     if m_victorySeenAt == nil then
         m_victorySeenAt = dmhub.serverTime
     end
-    if not now and math.abs(dmhub.serverTime - m_victorySeenAt) < VICTORY_AWARD_DELAY then
+    local waited = math.abs(dmhub.serverTime - m_victorySeenAt)
+    if not now and waited < VICTORY_AWARD_DELAY then
+        return
+    end
+    --a continued series part: wait a little for players whose "already won
+    --this part" answer has not come back, or they would be paid again.
+    if not now and waited < Series.COMPLETION_CHECK_HOLD and Series.AwaitingCompletionChecks() then
         return
     end
     local completed = AlreadyCompletedHeroes()
@@ -7946,16 +8013,58 @@ end
 --This player's heroes who have already won the part now being played,
 --from the City (the town sends them with a new party; here there is none):
 --the Victory award skips them, as at an arrival.
-function Series.StampCompletedForPart(key)
+--Asked again until the City answers (Series.stamp tracks the part in hand):
+--a lost answer used to pay the part's Victories a second time.
+Series.STAMP_RETRY_SECONDS = 5
+Series.STAMP_NO_ANSWER_SECONDS = 40
+Series.STAMP_MAX_ATTEMPTS = 12
+--How long the host's award waits for the answers (AutoAwardVictories).
+Series.COMPLETION_CHECK_HOLD = 15
+
+function Series.StampCompletedForPart(key, attempt)
     if next(GetPlacedHeroes(dmhub.loginUserid)) == nil then
         return
     end
+    attempt = attempt or 1
+    local runId = Series.RunId()
+    local stamp = Series.stamp
+    if attempt == 1 or stamp == nil or stamp.runId ~= runId then
+        stamp = { runId = runId, done = false, attempt = attempt }
+        Series.stamp = stamp
+    end
+    stamp.attempt = attempt
+
+    --ask again unless this attempt was answered, the party moved on, or the
+    --attempts ran out.
+    local function Retry(after, why)
+        dmhub.Schedule(after, function()
+            if mod.unloaded or stamp.done or Series.stamp ~= stamp or stamp.attempt ~= attempt or Series.RunId() ~= runId then
+                return
+            end
+            if attempt >= Series.STAMP_MAX_ATTEMPTS then
+                printf("EotW: gave up asking which heroes already won %s (%s)", tostring(key), why)
+                return
+            end
+            printf("EotW: asking again which heroes already won %s (%s; attempt %d)", tostring(key), why, attempt + 1)
+            Series.StampCompletedForPart(key, attempt + 1)
+        end)
+    end
+    --SendLobbyRequest never calls back when the connection cannot be made.
+    Retry(Series.STAMP_NO_ANSWER_SECONDS, "no answer")
+
     local challenge = EncounterOfTheWeekGame.IsChallenge()
     SendLobbyRequest("list-heroes", {}, function(ok, result)
-        if not ok or type(result) ~= "table" then
-            printf("EotW: could not read which heroes already won %s: %s", tostring(key), tostring(result))
+        if stamp.done or Series.stamp ~= stamp or Series.RunId() ~= runId then
             return
         end
+        if not ok or type(result) ~= "table" then
+            printf("EotW: could not read which heroes already won %s: %s", tostring(key), tostring(result))
+            if stamp.attempt == attempt then
+                Retry(Series.STAMP_RETRY_SECONDS, "the request failed")
+            end
+            return
+        end
+        stamp.done = true
         local heroes = {}
         for _, h in pairs(result.heroes or {}) do
             if type(h) == "table" and type(h.heroid) == "string" then
@@ -7973,8 +8082,32 @@ function Series.StampCompletedForPart(key)
                 heroes[#heroes + 1] = entry
             end
         end
-        RecordCompletedHeroes(heroes)
+        RecordCompletedHeroes(heroes, key, runId)
     end)
+end
+
+--Host: in a continued part, is a player with heroes here still waiting on
+--the City's "already won" answer? (Each client stamps data.completionChecked.)
+function Series.AwaitingCompletionChecks()
+    local waiting = nil
+    pcall(function()
+        local data = mod:GetDocumentSnapshot(STATE_DOC_ID).data
+        if type(data.seriesContinue) ~= "table" then
+            return
+        end
+        local runId = Series.RunId()
+        local checked = type(data.completionChecked) == "table" and data.completionChecked or {}
+        for userid, mine in pairs(data.placedHeroes or {}) do
+            if type(mine) == "table" and next(mine) ~= nil and checked[userid] ~= runId then
+                waiting = userid
+            end
+        end
+    end)
+    if waiting ~= nil and Series.awaitLoggedFor ~= Series.RunId() then
+        Series.awaitLoggedFor = Series.RunId()
+        printf("EotW: holding the Victory award for %s's already-won check", tostring(waiting))
+    end
+    return waiting ~= nil
 end
 
 --Every client, when the host has moved the game on to the next part: start
@@ -8063,6 +8196,15 @@ function Series.ContinueTick()
         Series.seenRunId = runId
         Series.OnNewPart(data)
         return
+    end
+
+    --a client that reloaded during a continued part before its "already
+    --won" answer landed asks again (OnNewPart only runs at the move).
+    if type(data.seriesContinue) == "table" and type(data.encounterMap) == "string"
+        and not EncounterOfTheWeekGame.IsPracticeGame() and not m_outcomeSeen
+        and (Series.stamp == nil or Series.stamp.runId ~= runId)
+        and (type(data.completionChecked) ~= "table" or data.completionChecked[dmhub.loginUserid] ~= runId) then
+        Series.StampCompletedForPart(data.encounterMap)
     end
 
     local offered = Series.offered

@@ -142,6 +142,13 @@ local function CollectConditions(c)
     local ongoingTable = dmhub.GetTable("characterOngoingEffects") or {}
     local effects = nil
     pcall(function() effects = c:ActiveOngoingEffects() end)
+    --built-in effects (Squeezed, ...) are rebuilt from token state on every
+    --refresh, so RemoveOngoingEffect cannot end them: they get no effectid,
+    --which keeps the card from offering to end them.
+    local builtin = {}
+    for _, entry in ipairs(rawget(c, "_tmp_builtinOngoingEffects") or {}) do
+        builtin[entry] = true
+    end
     for _, entry in ipairs(effects or {}) do
         local info = ongoingTable[entry.ongoingEffectid]
         if info ~= nil and info.statusEffect then
@@ -156,7 +163,7 @@ local function CollectConditions(c)
                     icon = icon,
                     display = display or {},
                     name = info.name or "Effect",
-                    effectid = entry.ongoingEffectid,
+                    effectid = (not builtin[entry]) and entry.ongoingEffectid or nil,
                 }
             end
         end
@@ -1429,7 +1436,9 @@ local function CreateHeroCard(entry, opts)
             local entries = CollectConditions(tok.properties)
             local parts = {}
             for _, cond in ipairs(entries) do
-                parts[#parts+1] = tostring(cond.icon)
+                --the ids ride in the signature because each chip's right-click
+                --menu captures them: two effects can share an icon.
+                parts[#parts+1] = string.format("%s:%s:%s", tostring(cond.icon), tostring(cond.condid), tostring(cond.effectid))
             end
             local sig = table.concat(parts, "|")
             if sig == element.data.signature then
@@ -1461,6 +1470,9 @@ local function CreateHeroCard(entry, opts)
                     end,
                     --Right-click ends the condition/effect (director or the token's controller only).
                     rightClick = function(iconElement)
+                        if condid == nil and effectid == nil then
+                            return
+                        end
                         local tok = dmhub.GetCharacterById(charid)
                         if tok == nil or not tok.valid or tok.properties == nil then
                             return

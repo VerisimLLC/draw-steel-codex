@@ -378,6 +378,17 @@ action in a child coroutine, forwards delays, and returns errors to the caller.
   the background process. A failed registered trigger is best-effort dismissed
   after token-control cleanup so the roll that offered it can continue.
 
+A creature can leave the map in the middle of its own action: a minion killed
+during Dread March is removed, and its token then has no properties (engine
+calls such as `Distance` on it throw). So `HandlePrompt` skips (`PROMPT
+SKIPPED`, returns `"skip"`) a prompt whose caster has left the map, checked on
+entry and again after the handler returns, because a handler can wait (the free
+strike speaks first). `ExecuteInvoke` already ends an invoke whose invoker has
+gone; the entry check covers that too, as a backstop. The Malice window and villain
+actions read the caster's monster type before casting, so the rest of the group
+still acts. Dread March moves its caster last, so the undead before it still
+march if it dies.
+
 Failed move quarantine is per actor and each failure consumes one of the six
 cycles. This prevents a broken highest-scoring move from being selected in a
 tight loop while still allowing lower-scoring legal moves to run.

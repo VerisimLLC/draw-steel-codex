@@ -3333,7 +3333,43 @@ function MonsterAI:TelegraphAreaAbility(ability, area, symbols)
     end
 end
 
+--True once a token is gone from the map (deleted, or a dead minion removed).
+--Its reference lives on, but it has no properties and engine calls on it
+--(Distance) throw. A dying creature still on the map does not count.
+local function TokenLeftMap(token)
+    return token == nil or not token.valid or token.properties == nil
+end
+
+--Returns "skip" once the caster has left the map (or the invoker, when
+--checkInvoker is set), nil otherwise. Without its caster the invoke has nothing
+--left to cast; "skip" ends it unused, as a declined prompt does. The invoker
+--check is a backstop: ExecuteInvoke already ends an invoke whose invoker is gone.
+local function SkipPromptForMissingToken(ai, abilityClone, invokerToken, casterToken, checkInvoker)
+    local invokerGone = checkInvoker and TokenLeftMap(invokerToken)
+    if not invokerGone and not TokenLeftMap(casterToken) then
+        return nil
+    end
+    ai:LogDecision("PROMPT SKIPPED", {
+        ability = abilityClone.name,
+        actorId = casterToken ~= nil and casterToken.charid or nil,
+        reason = TokenLeftMap(casterToken) and "the caster has left the map"
+            or "the invoker has left the map",
+        result = "skipped",
+    })
+    return "skip"
+end
+
 function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
+    local skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, true)
+    if skipped ~= nil then
+        --This prompt will not run, so drop the targets planned for it; otherwise
+        --the invoker's next prompt in this action would pick them up.
+        local expectedEntry = self:try_get("_tmp_expectedPromptTarget")
+        if expectedEntry ~= nil and invokerToken ~= nil and expectedEntry.casterid == invokerToken.charid then
+            self._tmp_expectedPromptTarget = nil
+        end
+        return skipped
+    end
     local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
     self:LogDecision("PROMPT RECEIVED", {
         actor = self.TokenLogName(casterToken),
@@ -3431,6 +3467,13 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         local handler = entry.handler
         attemptedHandlers[#attemptedHandlers+1] = entry.name
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
+        --A handler can wait (the Free Strike handler speaks first) or act itself, and
+        --a minion killed meanwhile is off the map by the time it returns. Only the
+        --caster matters from here on: the cast goes ahead without its invoker.
+        skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, false)
+        if skipped ~= nil then
+            return skipped
+        end
         if result ~= nil then
             local selectedAbility = result.abilityOverride or abilityClone
             if selectedAbility.targetType == "target" then
@@ -4888,6 +4931,9 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
     local execute = registration.execute or function(_, ai, token, scoringInfo, ability, context)
         ai:ExecuteAbility(token, ability)
     end
+    --Read before the cast: a caster that dies during it (a minion struck
+    --mid Dread March) leaves the map, and its token has no properties after.
+    local casterMonsterType = caster.properties:try_get("monster_type", "")
     local ok, err = self:RunWithTokenControl(caster, function()
         execute(registration, self, caster, bestCandidate.scoringInfo, bestCandidate.ability, bestCandidate.context)
     end)
@@ -4897,12 +4943,12 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
             ability = bestCandidate.ability.name,
             reason = "execution failed: " .. tostring(err),
         })
-        self:LogMove(caster.properties.monster_type, registration.id, "Execution failed: " .. tostring(err))
+        self:LogMove(casterMonsterType, registration.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
-    self:LogMove(caster.properties.monster_type, registration.id, "Executed at the start of the turn")
+    self:LogMove(casterMonsterType, registration.id, "Executed at the start of the turn")
     self:LogDecision("MALICE FINISHED", {
         ability = bestCandidate.ability.name,
         result = "executed",
@@ -4968,6 +5014,9 @@ function MonsterAI:ExecuteVillainActionCandidate(candidate)
     end
 
     self:SetupCombatants(token, candidate.context.initiativeQueue)
+    --Read before the cast: a villain that dies during its own action can leave
+    --the map, and its token then has no properties.
+    local monsterType = token.properties:try_get("monster_type", "")
     local ok, err = self:RunWithTokenControl(token, function()
         action.execute(action, self, token, candidate.scoringInfo, ability, candidate.context)
     end)
@@ -4977,12 +5026,12 @@ function MonsterAI:ExecuteVillainActionCandidate(candidate)
             ability = ability.name,
             reason = "execution failed: " .. tostring(err),
         })
-        self:LogMove(token.properties.monster_type, action.id, "Execution failed: " .. tostring(err))
+        self:LogMove(monsterType, action.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
-    self:LogMove(token.properties.monster_type, action.id, "Executed villain action")
+    self:LogMove(monsterType, action.id, "Executed villain action")
     self:LogDecision("VILLAIN ACTION FINISHED", {
         ability = ability.name,
         result = "executed",

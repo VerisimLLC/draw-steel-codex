@@ -371,9 +371,9 @@ function CharacterDeityChoice:CanRepeat()
     return false
 end
 
---The Builder calls this when the deity pick goes. The domain pick goes with it:
---a Hero's domains are read from every pick made, so a leftover one would keep
---granting the old deity's domain until the player picked a new one.
+--When the player clears the deity, clear its domain pick too. Otherwise the
+--old domain would keep granting its features. (Swapping deities in the Builder
+--skips this and keeps any domain the new deity also offers.)
 ---@param hero character
 ---@param option table the deity being removed
 ---@return boolean stopRemove always false, so the deity pick itself is removed as normal

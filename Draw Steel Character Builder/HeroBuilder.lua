@@ -1869,8 +1869,8 @@ end
 --- (a subclass's features, a kit's signature ability, a complication's
 --- features), tagged with the pick, then outright skills and languages. The
 --- features are read with no picks applied, so a choice's picks never show
---- here (they are the pane's other blocks). A feature for a domain the Hero did
---- not pick is left out.
+--- here (they are the pane's other blocks). A feature whose prerequisites the
+--- Hero does not meet (such as a domain they did not pick) is left out.
 --- @param token CharacterToken
 --- @param stepid string
 --- @return HeroBuilderPaneLine[]

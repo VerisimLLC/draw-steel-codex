@@ -797,10 +797,10 @@ function HeroBuild.Create(options)
         return result
     end
 
-    --Whether a pick is an option locked to a domain the Hero no longer has. Most
-    --subclasses bring their own rows, which simply swap; domain features share
-    --one row per Level, so a changed domain must read the same way: to choose
-    --again, not a problem to fix. The pick stays saved until the row is chosen again.
+    --True when a picked option has a domain prerequisite. Call it only for picks
+    --no longer offered: after a domain change the row should ask for a new pick,
+    --not flag the old one as a problem. The old pick stays saved until the row
+    --is picked again.
     ---@param hero character
     ---@param feature any the row's choice
     ---@param id string the pick
@@ -1168,22 +1168,22 @@ function HeroBuild.Create(options)
     ---@field index integer 1 for the class, more for its subclasses
     ---@field class any the class or subclass granting it
 
-    --Whether the Hero meets all of a feature's prerequisites. Features read with
-    --no picks applied include every domain's, so a list of what a Hero gains must
-    --check this. One that errors counts as met: better to show a feature than lose it.
+    --Whether the Hero meets every prerequisite on a feature, such as a domain
+    --they must have picked. A prerequisite that errors counts as met, so a
+    --broken check never hides a feature; the others are still checked.
     ---@param hero character
     ---@param feature any
     ---@return boolean
     function Build.hero.PrerequisitesMet(hero, feature)
-        local met = true
-        pcall(function()
-            for _,prerequisite in ipairs(feature:try_get("prerequisites") or {}) do
-                if not prerequisite:Met(hero) then
-                    met = false
-                end
+        local prerequisites = {}
+        pcall(function() prerequisites = feature:try_get("prerequisites") or {} end)
+        for _,prerequisite in ipairs(prerequisites) do
+            local ok, met = pcall(function() return prerequisite:Met(hero) end)
+            if ok and not met then
+                return false
             end
-        end)
-        return met
+        end
+        return true
     end
 
     --What a Level's pages bring without a choice (Level up's You gain): the
@@ -1690,10 +1690,11 @@ function HeroBuild.Create(options)
         return wrapper:GetOption(optionId)
     end
 
-    --After a deity changes: drop the domains it no longer offers, so the Hero
-    --stops getting their features. A domain the deity still offers stays picked.
-    --Conduits pick domains as subclasses, gated by a prerequisite on the deity;
-    --any other subclass (a Censor's order has no prerequisite) is left alone.
+    --After a deity changes or is cleared: drop the domains it no longer offers,
+    --so the Hero stops getting their features. A domain the deity still offers
+    --stays picked. Conduits pick domains as subclasses whose prerequisite
+    --mentions the deity (e.g. Deity.Domains has "Life"); any other subclass
+    --(a Censor's order has no prerequisite) is left alone.
     ---@param hero character
     ---@param stepid string
     local function DropDomainsNotOffered(hero, stepid)
@@ -1707,7 +1708,7 @@ function HeroBuild.Create(options)
                 for _,id in ipairs(wrapper:GetSelected()) do
                     local subclass = subclasses[id]
                     local dependsOnDeity = typeName == "CharacterDomainChoice"
-                        or (subclass ~= nil and string.find(subclass:try_get("prerequisite", ""), "Deity", 1, true) ~= nil)
+                        or (subclass ~= nil and string.find(string.lower(subclass:try_get("prerequisite", "")), "deit", 1, true) ~= nil)
                     if not IsBlankId(id) and offered[id] == nil and dependsOnDeity then
                         dropped[#dropped+1] = {rowid = row.id, id = id}
                     end
@@ -1977,6 +1978,11 @@ function HeroBuild.Create(options)
             end
         end
         hero:Invalidate()
+        --Clearing a deity also clears a Conduit's domain subclasses: with no
+        --deity, none of them is offered any more.
+        if feature.typeName == "CharacterDeityChoice" then
+            DropDomainsNotOffered(hero, stepid)
+        end
     end
 
     --Remove a pick held for a choice above the Hero's Level (a KeptPicks

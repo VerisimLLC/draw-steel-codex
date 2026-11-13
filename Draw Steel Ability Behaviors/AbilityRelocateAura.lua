@@ -414,7 +414,7 @@ end
 --- @param chooserToken nil|CharacterToken Who makes the choice; defaults to the traveller. Only
 --- the invoker slot varies -- the cast must stay centred on the traveller, because the candidate
 --- squares cluster around the far portal and the reticle's range is measured from the caster.
---- @param labels nil|{name: string, prompt: string} Optional pick-ability name and prompt text,
+--- @param labels nil|{name: nil|string, prompt: nil|string, cancelWhen: nil|(fun(): boolean)} Optional pick-ability name and prompt text,
 --- so a non-portal caller (e.g. the hurl behavior below) does not talk about emerging from a portal.
 --- @return nil|Loc
 local function ChooseTransitDestination(travelToken, candidates, symbols, chooserToken, labels)
@@ -1884,6 +1884,7 @@ local g_bulldozeCasterPicks = {}
 --- @class ActiveTrigger
 --- @field bulldozePick number
 --- @field bulldozePrompt string
+
 ActiveTrigger.bulldozePick = 0
 ActiveTrigger.bulldozePrompt = ""
 
@@ -1910,7 +1911,7 @@ Commands.RegisterMacro{
 
         local locs = {}
         for dx, dy in string.gmatch(offsets, "(-?%d+),(-?%d+)") do
-            locs[#locs+1] = tok.loc:dir(tonumber(dx), tonumber(dy))
+            locs[#locs+1] = tok.loc:dir(math.floor(tonumber(dx) or 0), math.floor(tonumber(dy) or 0))
         end
         if #locs < 2 then
             return

@@ -1197,21 +1197,44 @@ local function OnConditionImmune(creature, conditionid)
 end
 
 --The condition a potency's rule text was about to apply, if it names one.
-local function ConditionIn(text)
+--- The conditions a rule text names, in the order it names them, as "weakened and slowed";
+--- nil when it names none.
+--- @param text string|nil
+--- @return string|nil
+local function ConditionsIn(text)
     if text == nil then
         return nil
     end
     text = string.lower(text)
+    local found = {}
     for _, info in unhidden_pairs(GetTableCached(CharacterCondition.tableName)) do
         local name = string.lower(info.name)
-        if string.find(text, name, 1, true) ~= nil then
-            return name
+        local at = string.find(text, name, 1, true)
+        if at ~= nil then
+            found[#found + 1] = {name = name, at = at}
         end
     end
-    return nil
+    if #found == 0 then
+        return nil
+    end
+    table.sort(found, function(a, b)
+        return a.at < b.at
+    end)
+    local names = {}
+    for i, item in ipairs(found) do
+        names[i] = item.name
+    end
+    if #names == 1 then
+        return names[1]
+    end
+    return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
 end
 
-local function OnResisted(creature, ruleText)
+--- @param creature creature
+--- @param ruleText string|nil What the potency gates, as written after it.
+--- @param stoppedText string|nil Text after a "#" stop marker: when the gated part is
+--- applied by another behavior, the condition is named here instead.
+local function OnResisted(creature, ruleText, stoppedText)
     local state = History.Enabled() and OpenCast(nil) or nil
     local token = dmhub.LookupToken(creature)
     if state == nil or token == nil then
@@ -1219,7 +1242,7 @@ local function OnResisted(creature, ruleText)
     end
     local target = RowTarget(state, token)
     if target ~= nil then
-        target.resisted = ConditionIn(ruleText) or true
+        target.resisted = ConditionsIn(ruleText) or ConditionsIn(stoppedText) or true
     end
 end
 

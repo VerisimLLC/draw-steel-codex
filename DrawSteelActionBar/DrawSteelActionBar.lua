@@ -10402,9 +10402,11 @@ local function MoveTargetLocRejected(targetingType, loc)
 end
 
 --- MarkMovementArrow options for a straight-line move by g_token with the current ability
---- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They mirror
---- the real move in AbilityRelocateCreature.lua, so the hover arrow and the straight-path
---- highlight below agree with where the creature actually ends up.
+--- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They match the
+--- real move in AbilityRelocateCreature.lua, so the hover arrow and the Direct Path highlight
+--- show where the creature ends up. Two gaps: no flight altitude is sent, and a straight-path
+--- move that is forced, or made through someone else's ability, previews without the
+--- forced-movement distance the real move gets.
 --- Lives on the module table because this file's main chunk is at Lua's 200-local limit.
 --- @param targetingType string
 --- @return table options, boolean hasCharge true when charge-jump options were merged in

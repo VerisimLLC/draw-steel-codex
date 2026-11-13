@@ -3964,9 +3964,9 @@ function ActivatedAbility:GetMovementType(token, symbols)
     for _,behavior in ipairs(self.behaviors) do
         --Skip behaviors for another mode, e.g. the shift of a "move, or pay to shift instead" choice.
         local modesSelected = behavior:try_get("modesSelected")
-        local otherMode = self.multipleModes and mode ~= nil and modesSelected ~= nil and #modesSelected > 0
+        local belongsToOtherMode = self.multipleModes and mode ~= nil and modesSelected ~= nil and #modesSelected > 0
             and not table.contains(modesSelected, mode)
-        if not otherMode then
+        if not belongsToOtherMode then
             local movementType = behavior:BehaviorMovementType(symbols)
             if movementType ~= nil then
                 return movementType

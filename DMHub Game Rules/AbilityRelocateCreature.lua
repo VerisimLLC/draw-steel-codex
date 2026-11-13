@@ -750,9 +750,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--move (Charge, Tide of Death, Wrecking Ball) is sent as a walk. "Willing" means
 			--nothing marks it forced and the creature moving is the one using the ability,
 			--not a creature moved by someone else's invoked ability (report C5XGW6HH).
-			--A willing walk also sends no forced-movement distance: the distance makes "blocks
-			--forced movement" walls stop it, and the action bar's Direct Path preview
-			--(DrawSteelActionBar.StraightMoveArrowOptions) sends none, so both agree.
+			--A willing move also gets no forced-movement distance. That distance lets walls that
+			--only block forced movement stop it, and the Direct Path highlight doesn't use one either.
 			local engineMovementType = movementType
 			local forcedMoveDist = abilityDist
 			if movementType == "move" and (not forcedMove) and (ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures") then

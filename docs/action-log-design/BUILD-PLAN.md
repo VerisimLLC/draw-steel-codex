@@ -407,6 +407,12 @@ Goal: why it happened, one click from the row.
   - **Rail hooks** (generic, `DocumentSystem.lua`): `newContentStyle()` gives a colour or diamond badge, and `railHover(element, placement)` gives a panel its own hover card. History's hooks look up `History.Notify` when called, so a reload reaches them.
   - **Race fixed:** the rail marks History seen before the window is built, so the window uses the mark kept from before (`g_sinceAtOpen`).
   - **Not built:** the M6 screen-reader label; the rail has no accessible names.
+- **3.3b (built 2026-11-13):**
+  - **B3, nothing moves under the reader:** when new rows arrive while the pointer is on History or a card is open, every turn and round stays as open as it was, and no turn on show joins the "Turns 1-4" fold. `panel.mousePoint` is 0..1 inside the panel and out of range outside, not (0,0) as the stub says.
+  - **Anchor hold:** when you are scrolled up, the row at the top of the view stays put through a rebuild. It takes a few frames of retries while layout settles.
+  - **H2 "{n} new below":** a floating button at the foot of the list counts the rows that came in since you were last at the bottom. Clicking it, or scrolling to the bottom, clears it.
+  - **Divider clears once caught up:** "New since you last looked" goes when a newer entry arrives while you sit at the bottom. A plain game refresh doesn't count.
+  - **Reload:** the window builder is looked up through `History.Notify` too. Otherwise, after a hot reload, the rail's seen-mark and the window come from different copies of the file and the divider is lost.
 - **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
 
 ## Stage 4: movement views

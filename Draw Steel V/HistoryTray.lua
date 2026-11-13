@@ -114,6 +114,12 @@ local function Styles()
             color = "@fgStrong",
             borderColor = "@fgMuted",
         },
+        --floats over the rows, so it needs a fill of its own.
+        {
+            selectors = {"label", "historyNewBelow"},
+            bgcolor = "@bgRaised",
+            color = "@fg",
+        },
         {
             selectors = {"label", "historyCellName"},
             fontSize = 12,
@@ -2487,6 +2493,19 @@ local g_sinceAtOpen = nil
 --Whether the marker went in during this build (it goes before the first new turn only).
 local g_markerPlaced = false
 
+--Nothing moves under the reader (B3): when new rows arrive while the pointer is on History or
+--a card is open, every turn and round stays as open as it was, and the turns shown on their
+--own stay out of the "Turns 1-4" fold. g_lastOpen / g_lastFoldTo are the last build's state.
+local g_frozen = false
+--- @type table<string, boolean>
+local g_lastOpen = {}
+--- @type table<string, boolean>
+local g_nowOpen = {}
+--- @type table<string, integer>
+local g_lastFoldTo = {}
+--- @type table<string, integer>
+local g_nowFoldTo = {}
+
 --- Whether a turn holds anything newer than what this user had seen.
 local function TurnIsNew(turn)
     local last = turn.keys[#turn.keys]
@@ -2497,7 +2516,10 @@ local function AddTurnRows(items, turn, isNewest, nested)
     local isNew = not g_searchOpen and TurnIsNew(turn)
     local isOpen = g_open[turn.id]
     if isOpen == nil or g_searchOpen then
-        isOpen = g_searchOpen or isNewest or isNew
+        isOpen = g_searchOpen or isNewest or isNew or (g_frozen and g_lastOpen[turn.id] == true)
+    end
+    if isOpen then
+        g_nowOpen[turn.id] = true
     end
     if isNew and not g_markerPlaced then
         g_markerPlaced = true
@@ -2578,7 +2600,10 @@ local function AddSectionRows(items, section, isNewest, nested)
     end
     local isOpen = g_open[section.id]
     if isOpen == nil or g_searchOpen then
-        isOpen = g_searchOpen or isNewest or firstNew ~= nil
+        isOpen = g_searchOpen or isNewest or firstNew ~= nil or (g_frozen and g_lastOpen[section.id] == true)
+    end
+    if isOpen then
+        g_nowOpen[section.id] = true
     end
     local title = SectionTitle(section)
     if not isOpen then
@@ -2621,8 +2646,14 @@ local function AddSectionRows(items, section, isNewest, nested)
         elseif isNewest and #turns > NEWEST_TURNS then
             foldTo = #turns - NEWEST_TURNS + 1
         end
+        --frozen: no turn that was on show joins the fold.
+        if g_frozen then
+            local last = g_lastFoldTo[groupid]
+            foldTo = (last ~= nil and foldTo ~= nil) and math.min(foldTo, last) or nil
+        end
     end
     if foldTo ~= nil then
+        g_nowFoldTo[groupid] = foldTo
         local firstNumber, lastNumber = nil, nil
         local entries = {}
         first = foldTo
@@ -2717,10 +2748,14 @@ end
 
 --- The rows to show, and how many rows matched while searching (nil when not searching).
 --- @return table[] items, integer|nil matches
-local function BuildItems(mapid)
+--- @param frozen boolean|nil New rows arrived while someone is reading (B3): keep what is open.
+local function BuildItems(mapid, frozen)
     local items = {}
     ClearTypes()
     g_markerPlaced = false
+    g_frozen = frozen == true
+    g_nowOpen = {}
+    g_nowFoldTo = {}
     local sections, nested = BuildSections(mapid)
     local matches = nil
     g_searchOpen = Searching()
@@ -2730,7 +2765,13 @@ local function BuildItems(mapid)
     for i, section in ipairs(sections) do
         AddSectionRows(items, section, i == #sections, nested)
     end
+    --a search opens everything, which is not what to keep once it ends.
+    if not g_searchOpen then
+        g_lastOpen = g_nowOpen
+        g_lastFoldTo = g_nowFoldTo
+    end
     g_searchOpen = false
+    g_frozen = false
     return items, matches
 end
 
@@ -2974,6 +3015,58 @@ local function CreateFace()
     --new rows don't all fit, so the first one is in view (3.3a).
     local openAtMarker = true
     local markerTries = 0
+    --The newest entry key the last build showed: a game refresh is not always a new row.
+    --- @type string|nil
+    local builtNewest = nil
+
+    --Held while scrolled up (B3): the row at the top of the view and how far into it the
+    --view starts, so a rebuild puts it back where it was.
+    --- @type Panel|nil
+    local holdPanel = nil
+    local holdDelta = 0
+    local holdTries = 0
+    --Row keys the reader has had in view at the bottom, and how many rows came in since.
+    --- @type table<string, boolean>
+    local seenKeys = {}
+    local newBelow = 0
+    --- @type Panel|nil
+    local newBelowButton = nil
+    local rowsPanel
+
+    local function UpdateNewBelow()
+        if newBelowButton == nil or not newBelowButton.valid then
+            return
+        end
+        newBelowButton:SetClass("hidden", newBelow == 0)
+        if newBelow > 0 then
+            newBelowButton.text = string.format("%d new below", newBelow)
+        end
+    end
+
+    --Notes the row at the top of the view before a rebuild.
+    local function CaptureAnchor()
+        holdPanel = nil
+        if list == nil or not list.valid or rowsPanel == nil then
+            return
+        end
+        local windowHeight = list.renderedHeight or 0
+        local contentHeight = rowsPanel.renderedHeight or 0
+        local range = contentHeight - windowHeight
+        if range <= 0 then
+            return
+        end
+        local top = (1 - list.vscrollPosition) * range
+        local y = 0
+        for _, row in ipairs(rowsPanel.children) do
+            local h = row.renderedHeight or 0
+            if y + h > top then
+                holdPanel = row
+                holdDelta = top - y
+                return
+            end
+            y = y + h
+        end
+    end
 
     --Latest shows only once the view has left the default: scrolled up, older rows
     --loaded, or a round or turn opened or closed by hand.
@@ -2996,7 +3089,7 @@ local function CreateFace()
     --Built rows by item key: {panel, sig}.
     local rows = {}
 
-    local rowsPanel = gui.Panel{
+    rowsPanel = gui.Panel{
         flow = "vertical",
         width = "100%",
         height = "auto",
@@ -3166,12 +3259,29 @@ local function CreateFace()
         end
     end
 
-    local function Refresh()
+    --- @param fromGame boolean|nil New rows from the shared document, not the user's own click.
+    local function Refresh(fromGame)
         if face == nil or not face.valid then
             return
         end
         local stick = list.vscrollPosition <= 0.02
-        local items, matches = BuildItems(mapid)
+        --someone reading: the pointer on History, or a card open. mousePoint is 0-1 inside
+        --the panel (not (0,0) outside, whatever the stub says), as the title bar search reads it.
+        local point = face.mousePoint
+        local pointerIn = point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
+        local reading = selected ~= nil or pointerIn
+        if not stick then
+            CaptureAnchor()
+        end
+        --caught up: a new row while the reader sits at the bottom ends "New since you last
+        --looked"; with History open, what arrives now is being watched.
+        local keys = History.Keys(mapid)
+        local newest = keys[#keys]
+        if fromGame and stick and not openAtMarker and builtNewest ~= nil and newest ~= nil and newest > builtNewest then
+            g_since = nil
+        end
+        builtNewest = newest
+        local items, matches = BuildItems(mapid, fromGame == true and reading)
         local first = math.max(1, #items - rowsWanted + 1)
         --opening on new turns: build back far enough to include the marker.
         local markerShown = false
@@ -3231,7 +3341,28 @@ local function CreateFace()
         rowsPanel.children = children
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
+        elseif not loadingOlder and not openAtMarker and holdPanel ~= nil then
+            --scrolled up: the row at the top of the view stays where it is.
+            holdTries = 0
+            list:ScheduleEvent("holdAnchor", 0.02)
         end
+
+        --"{n} new below" (H2): rows that came in since the reader was last at the bottom.
+        if stick then
+            seenKeys = {}
+            for _, item in ipairs(items) do
+                seenKeys[item.key] = true
+            end
+            newBelow = 0
+        else
+            newBelow = 0
+            for _, item in ipairs(items) do
+                if item.entry ~= nil and not seenKeys[item.key] then
+                    newBelow = newBelow + 1
+                end
+            end
+        end
+        UpdateNewBelow()
         if openAtMarker then
             openAtMarker = false
             if markerShown then
@@ -3272,6 +3403,37 @@ local function CreateFace()
         toBottom = function(element)
             element.vscrollPosition = 0
             UpdateLatest()
+            newBelow = 0
+            seenKeys = {}
+            for key in pairs(rows) do
+                seenKeys[key] = true
+            end
+            UpdateNewBelow()
+        end,
+
+        --puts the held row back at the top of the view (B3). Layout takes a few frames.
+        holdAnchor = function(element)
+            holdTries = holdTries + 1
+            local windowHeight = element.renderedHeight or 0
+            local contentHeight = rowsPanel.renderedHeight or 0
+            local range = contentHeight - windowHeight
+            if holdPanel ~= nil and holdPanel.valid and range > 0 then
+                local y = nil
+                local offset = 0
+                for _, row in ipairs(rowsPanel.children) do
+                    if row == holdPanel then
+                        y = offset
+                        break
+                    end
+                    offset = offset + (row.renderedHeight or 0)
+                end
+                if y ~= nil then
+                    element.vscrollPosition = 1 - math.max(0, math.min(y + holdDelta, range)) / range
+                end
+            end
+            if holdTries < 4 then
+                element:ScheduleEvent("holdAnchor", 0.03)
+            end
         end,
 
         --puts the new-rows marker at the top when what follows it is taller than the list;
@@ -3305,6 +3467,15 @@ local function CreateFace()
         scroll = function(element)
             AlignCard()
             UpdateLatest()
+            --back at the bottom: everything is seen.
+            if newBelow > 0 and element.vscrollPosition <= 0.02 then
+                newBelow = 0
+                seenKeys = {}
+                for key in pairs(rows) do
+                    seenKeys[key] = true
+                end
+                UpdateNewBelow()
+            end
             if hasOlder and not loadingOlder and element.vscrollPosition >= 0.98 then
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
@@ -3607,6 +3778,27 @@ local function CreateFace()
     chipRow:FireEvent("rebuild")
     UpdateSearchKey()
 
+    --"{n} new below" (H2): floats over the list's foot while rows came in below the view.
+    newBelowButton = gui.Label{
+        classes = {"historyButton", "historyNewBelow", "hidden"},
+        bgimage = "panels/square.png",
+        text = "",
+        floating = true,
+        width = "auto",
+        height = 22,
+        hpad = 10,
+        borderBox = true,
+        borderWidth = 1,
+        cornerRadius = 11,
+        halign = "center",
+        valign = "bottom",
+        y = -10,
+        textAlignment = "center",
+        click = function(element)
+            list:FireEvent("toBottom")
+        end,
+    }
+
     --Jump to latest: back to the default folds, scrolled to the newest row.
     latestButton = gui.Label{
         classes = {"historyButton", "hidden"},
@@ -3641,7 +3833,9 @@ local function CreateFace()
         valign = "top",
 
         monitorGame = History.DocPath(mapid),
-        refreshGame = Refresh,
+        refreshGame = function()
+            Refresh(true)
+        end,
 
         --the tray shows the map you are on; following the last clicked map is chunk 6.1.
         thinkTime = 1,
@@ -3687,6 +3881,7 @@ local function CreateFace()
         },
         chipRow,
         list,
+        newBelowButton,
     }
 
     --SetSearch: g_search was changed from outside (History.OpenFor); show it.
@@ -3999,6 +4194,7 @@ function History.ShowSinceCard(element, placement, unseen)
 end
 
 History.Notify = {
+    CreateFace = CreateFace,
     Unseen = Unseen,
     MarkAllLooked = MarkAllLooked,
     --grey count, or a gold diamond when something happened to your own creatures.
@@ -4022,8 +4218,10 @@ DockablePanel.Register{
     minWidth = TRAY_WIDTH + EDGE_STRIP,
     maxWidth = TRAY_WIDTH + EDGE_STRIP,
     resizableWidth = false,
+    --looked up when called, like the hooks below: after a reload the window and the rail's
+    --"seen" mark must come from the same copy of this file, or the divider is lost.
     content = function()
-        return CreateFace()
+        return History.Notify.CreateFace()
     end,
     --the rail button's badge and hover card (3.3a). The rail keeps these functions, so each
     --looks up History.Notify when called: a reloaded HistoryTray takes effect at once.

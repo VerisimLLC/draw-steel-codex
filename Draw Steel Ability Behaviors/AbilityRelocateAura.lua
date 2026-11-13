@@ -486,6 +486,8 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     pickAbility.numTargets = "1"
     pickAbility.countsAsCast = false
     pickAbility.skippable = true
+    --A square pick resolves fully, so its card must not carry the "Not Automated" badge.
+    pickAbility.implementation = gui.ImplementationStatus.Gold
     pickAbility.promptOverride = labels.prompt or "Choose where you emerge"
     pickAbility.behaviors = { captureBehavior }
     pickAbility._tmp_restrictLocs = candidates
@@ -866,14 +868,15 @@ local function WalkableSquaresAround(tok, radius)
 end
 
 --The nearest free squares to fromLoc (all ties returned so the director can pick).
-local function NearestFreeLocs(tok, fromLoc, searchRadius)
+--accept (optional) is an extra test a square must pass, e.g. "outside a charge path".
+local function NearestFreeLocs(tok, fromLoc, searchRadius, accept)
     local walkable = WalkableSquaresAround(tok, searchRadius)
     local nearest = {}
     local nearestDist = nil
     for _, loc in ipairs(fromLoc:LocsInRadius(searchRadius) or {}) do
         local dist = loc:DistanceInTiles(fromLoc)
         local reachable = walkable == nil or walkable[string.format("%d,%d", loc.x, loc.y)] == true
-        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) then
+        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) and (accept == nil or accept(loc)) then
             if nearestDist == nil or dist < nearestDist then
                 nearest = { loc }
                 nearestDist = dist
@@ -1685,6 +1688,624 @@ function ActivatedAbilityHurlGrabbedBehavior:EditorItems(parentPanel)
         change = function(element)
             self.addAsTarget = element.value
         end,
+    }
+
+    return result
+end
+
+--- @class ActivatedAbilityBulldozeBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityBulldozeBehavior
+--- Clears the caster's straight-line charge (Ashen Hoarder "Bone Dozer"). Put it BEFORE the
+--- behavior that moves the caster. Creatures in the path are carried to the front of the
+--- caster, or shoved aside when their "!" card is accepted. A carried creature with no room
+--- in front gets obstacleRule and the caster stops short, adjacent to it. Free moves, not forced.
+--- @field carryFilter string GoblinScript per creature in the path: true = carried, false = shoved.
+--- @field skipFilter string GoblinScript per creature in the path: true = left alone.
+--- @field obstacleRule string Rule text for a carried creature that hits an obstacle.
+--- @field shoveTitle string Heading of the shoved creature's "!" card.
+--- @field shoveText string Body text of the shoved creature's "!" card.
+--- @field promptText string Prompt when the caster picks between equally near squares.
+--- @field searchRadius number How far to look for a free square beside the path.
+--- @field waitText string Shown to every player while shove cards are unresolved; <<names>> lists who.
+--- @field recoil boolean Second copy, placed AFTER the move: backs the caster off creatures it pinned.
+ActivatedAbilityBulldozeBehavior = RegisterGameType("ActivatedAbilityBulldozeBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'bulldoze',
+    text = tr('Bulldoze Creatures In Path'),
+    createBehavior = function()
+        return ActivatedAbilityBulldozeBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityBulldozeBehavior.summary = tr('Bulldoze Creatures In Path')
+ActivatedAbilityBulldozeBehavior.carryFilter = "MightPotencyResistance < 3"
+ActivatedAbilityBulldozeBehavior.skipFilter = ""
+ActivatedAbilityBulldozeBehavior.obstacleRule = "dazed (save ends)"
+ActivatedAbilityBulldozeBehavior.shoveTitle = tr("Bulldozed")
+ActivatedAbilityBulldozeBehavior.shoveText = tr("You are pushed into the nearest unoccupied space outside the path.")
+ActivatedAbilityBulldozeBehavior.promptText = tr("Choose where the shoved creature goes")
+ActivatedAbilityBulldozeBehavior.searchRadius = 5
+ActivatedAbilityBulldozeBehavior.waitText = tr("Waiting on <<names>>: click the ! on their token to continue.")
+ActivatedAbilityBulldozeBehavior.recoil = false
+
+--Seconds the cast waits on shove cards before shoving the creatures anyway.
+local g_bulldozeCardTimeout = 120
+
+local function BulldozeKey(loc)
+    return string.format("%d,%d", loc.x, loc.y)
+end
+
+--- @param ability ActivatedAbility
+--- @param creatureLookup table
+--- @return string
+function ActivatedAbilityBulldozeBehavior:SummarizeBehavior(ability, creatureLookup)
+    return tr("Carry or shove creatures out of the caster's path")
+end
+
+--True if tok, standing at loc, would cover any square in the set.
+local function FootprintTouches(tok, loc, set)
+    for _, occLoc in ipairs(tok:LocsOccupyingWhenAt(loc) or {}) do
+        if set[BulldozeKey(occLoc)] then
+            return true
+        end
+    end
+    return false
+end
+
+local function ClaimFootprint(tok, loc, set)
+    for _, occLoc in ipairs(tok:LocsOccupyingWhenAt(loc) or {}) do
+        set[BulldozeKey(occLoc)] = true
+    end
+end
+
+--True if tok can be slid in a straight line to loc: the engine stops the path at walls.
+--Uses a separate arrow so the shared movement arrow on screen is left alone.
+local function CanSlideStraightTo(tok, loc)
+    local info = tok:MarkMovementArrow(loc, { straightline = true, ignorecreatures = true, separate = true })
+    if info == nil then
+        return false
+    end
+    if info.marker ~= nil then
+        info.marker:Destroy()
+    end
+    if info.path == nil then
+        return false
+    end
+    local dest = info.path.destination
+    return dest ~= nil and dest.x == loc.x and dest.y == loc.y
+end
+
+--The nearest squares within radius that pass `outside` and that tok can be slid straight to.
+--Works outward a ring at a time so the slide test (a pathfind) runs on as few squares as possible.
+local function NearestSlidableLocs(tok, radius, outside)
+    local walkable = WalkableSquaresAround(tok, radius)
+    local rings = {}
+    for _, loc in ipairs(tok.loc:LocsInRadius(radius) or {}) do
+        local dist = loc:DistanceInTiles(tok.loc)
+        local reachable = walkable == nil or walkable[string.format("%d,%d", loc.x, loc.y)] == true
+        if dist > 0 and reachable and LocIsFreeForToken(tok, loc) and outside(loc) then
+            rings[dist] = rings[dist] or {}
+            table.insert(rings[dist], loc)
+        end
+    end
+    for dist = 1, radius do
+        local result = {}
+        for _, loc in ipairs(rings[dist] or {}) do
+            if CanSlideStraightTo(tok, loc) then
+                result[#result+1] = loc
+            end
+        end
+        if #result > 0 then
+            return result
+        end
+    end
+    return {}
+end
+
+--/castnotice <text> shows a notice in the bottom-centre cast prompt, /castnotice alone hides it.
+--Broadcast so every player can see why a cast is paused. It never replaces or hides a prompt
+--it did not put up (summon placement uses the same panel), and it hides itself after 15
+--seconds unless re-sent, so a crashed caster cannot leave it stuck.
+local g_castNoticeText = nil
+local g_castNoticeSerial = 0
+Commands.RegisterMacro{
+    name = "castnotice",
+    summary = tr("show a cast notice"),
+    doc = tr("Usage: /castnotice <text>\nShows a notice in the cast prompt; no text hides it."),
+    command = function(str)
+        g_castNoticeSerial = g_castNoticeSerial + 1
+        local serial = g_castNoticeSerial
+        local actionBar = rawget(_G, "DrawSteelActionBar")
+        if actionBar == nil or actionBar.CastPromptText == nil then
+            return
+        end
+
+        local function HideOurs()
+            if g_castNoticeText ~= nil and actionBar.CastPromptText() == g_castNoticeText then
+                actionBar.ShowCastPrompt(nil)
+            end
+            g_castNoticeText = nil
+        end
+
+        if str == nil or str == "" then
+            HideOurs()
+            return
+        end
+
+        local showing = actionBar.CastPromptText()
+        if showing ~= nil and showing ~= g_castNoticeText then
+            --Another prompt owns the panel.
+            return
+        end
+        if actionBar.ShowCastPrompt(str) then
+            g_castNoticeText = str
+        end
+        dmhub.Schedule(15, function()
+            if (not mod.unloaded) and serial == g_castNoticeSerial then
+                HideOurs()
+            end
+        end)
+    end,
+}
+
+local function BroadcastCastPrompt(text)
+    local command = "castnotice " .. (text or "")
+    dmhub.Execute(command)
+    dmhub.Broadcast("map", command)
+end
+
+--Puts a "!" card on tok and returns its id. The cast watches the card; it runs nothing itself.
+--Not a hostile card, so one orphaned by a reload ages out like any other trigger.
+local function RaiseBulldozeCard(tok, casterToken, title, text)
+    local trigger = ActiveTrigger.new{
+        id = dmhub.GenerateGuid(),
+        text = title,
+        rules = text,
+        targets = { casterToken.charid },
+        clearOnDismiss = true,
+        noDeduplicate = true,
+        free = true,
+        --Hover arrow runs caster -> tok.
+        arrowFromTarget = true,
+    }
+    tok:ModifyProperties{
+        description = "Bulldoze Prompt",
+        undoable = false,
+        execute = function()
+            tok.properties:DispatchAvailableTrigger(trigger)
+        end,
+    }
+    return trigger.id
+end
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table[]
+--- @param options table
+--- @return nil
+function ActivatedAbilityBulldozeBehavior:Cast(ability, casterToken, targets, options)
+    if self.recoil then
+        self:CastRecoil(casterToken, options)
+        return
+    end
+
+    local symbols = options.symbols or {}
+
+    --With applyto = caster the chosen square is on options.targets, not targets.
+    local castTargets = options.targets or targets or {}
+    local destEntry = castTargets[#castTargets]
+    local endLoc = destEntry ~= nil and destEntry.loc or nil
+    if endLoc == nil then
+        return
+    end
+
+    --The engine's real path: it stops at walls.
+    local startLoc = casterToken.loc
+    local anchors = { startLoc }
+    local movementInfo = casterToken:MarkMovementArrow(endLoc, { straightline = true, ignorecreatures = true })
+    casterToken:ClearMovementArrow()
+    if movementInfo ~= nil and movementInfo.path ~= nil then
+        for _, step in ipairs(movementInfo.path.steps or {}) do
+            local last = anchors[#anchors]
+            if step.x ~= last.x or step.y ~= last.y then
+                anchors[#anchors+1] = step
+            end
+        end
+    end
+    local numSteps = #anchors - 1
+    if numSteps == 0 then
+        return
+    end
+
+    local finalLoc = anchors[#anchors]
+    local dx, dy = finalLoc.x - startLoc.x, finalLoc.y - startLoc.y
+    local span = math.max(math.abs(dx), math.abs(dy))
+    if span == 0 then
+        return
+    end
+    local ux, uy = dx / span, dy / span
+
+    local function Round(n)
+        return math.floor(n + 0.5)
+    end
+
+    --Squares the caster's body covers up to step stopStep.
+    local function SweepUpTo(stopStep)
+        local set, locs = {}, {}
+        for i = 1, stopStep + 1 do
+            for _, loc in ipairs(casterToken:LocsOccupyingWhenAt(anchors[i]) or {}) do
+                local key = BulldozeKey(loc)
+                if not set[key] then
+                    set[key] = true
+                    locs[#locs+1] = loc
+                end
+            end
+        end
+        return set, locs
+    end
+
+    local sweep, sweepLocs = SweepUpTo(numSteps)
+
+    local function Passes(formula, tok)
+        if formula == "" then
+            return false
+        end
+        return GoblinScriptTrue(ExecuteGoblinScript(formula, tok.properties:LookupSymbol(symbols), 0, "Bulldoze filter"))
+    end
+
+    local carryFilter = self.carryFilter
+    local skipFilter = self.skipFilter
+    local seen = {}
+    local carried = {}
+    local shoved = {}
+    for _, loc in ipairs(sweepLocs) do
+        for _, tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if tok.valid and tok.loc ~= nil and tok.properties ~= nil and tok.charid ~= casterToken.charid and not seen[tok.charid] then
+                seen[tok.charid] = true
+                --A grabbed creature already travels with the caster.
+                local grabbedByCaster = tok.properties:try_get("_tmp_grabbedby") == casterToken.charid
+                if (not grabbedByCaster) and (not Passes(skipFilter, tok)) then
+                    if Passes(carryFilter, tok) then
+                        carried[#carried+1] = tok
+                    else
+                        shoved[#shoved+1] = tok
+                    end
+                end
+            end
+        end
+    end
+
+    if #carried == 0 and #shoved == 0 then
+        return
+    end
+
+    ability:CommitToPaying(casterToken, options)
+
+    local searchRadius = self.searchRadius
+
+    --Squares promised to creatures this cast moved (moves land a frame late).
+    local claimed = {}
+    local function OutsidePath(tok)
+        return function(loc)
+            return (not FootprintTouches(tok, loc, sweep)) and (not FootprintTouches(tok, loc, claimed))
+        end
+    end
+
+    --Raise every shove card at once; move each creature when its card is accepted.
+    local pending = {}
+    for _, tok in ipairs(shoved) do
+        pending[#pending+1] = {
+            token = tok,
+            id = RaiseBulldozeCard(tok, casterToken, tr(self.shoveTitle), tr(self.shoveText)),
+            seen = false,
+        }
+    end
+
+    --Tell every player what the cast is waiting on. Re-sent as cards resolve and to keep it alive.
+    local waitText = self.waitText
+    local shownWaitText = nil
+    local shownWaitTime = 0
+    local function UpdateWaitPrompt()
+        if waitText == "" then
+            return
+        end
+        local text = nil
+        if #pending > 0 then
+            local names = {}
+            for _, entry in ipairs(pending) do
+                names[#names+1] = creature.GetTokenDescription(entry.token)
+            end
+            text = string.format("%s: %s", tr(self.shoveTitle), (string.gsub(tr(waitText), "<<names>>", table.concat(names, ", "))))
+        end
+        if text ~= shownWaitText or (text ~= nil and dmhub.Time() > shownWaitTime + 3) then
+            shownWaitText = text
+            shownWaitTime = dmhub.Time()
+            BroadcastCastPrompt(text)
+        end
+    end
+
+    local function ClearCard(entry)
+        local tok = entry.token
+        if tok.valid and tok.properties ~= nil and tok.properties:GetAvailableTriggerRecord(entry.id) ~= nil then
+            tok:ModifyProperties{
+                description = "Clear Bulldoze Prompt",
+                undoable = false,
+                execute = function()
+                    tok.properties:ClearAvailableTrigger({ id = entry.id })
+                end,
+            }
+        end
+    end
+
+    local function Shove(tok)
+        local candidates = NearestSlidableLocs(tok, searchRadius, OutsidePath(tok))
+        if #candidates == 0 then
+            --Walled in: fall back to any free square beside the path.
+            candidates = NearestFreeLocs(tok, tok.loc, searchRadius, OutsidePath(tok))
+        end
+        if #candidates == 0 then
+            print("Bulldoze:: no free square beside the path for", tok.name)
+            return
+        end
+        local dest = candidates[1]
+        if #candidates > 1 then
+            dest = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
+                name = tr(self.shoveTitle),
+                prompt = tr(self.promptText),
+            }) or candidates[1]
+        end
+        ClaimFootprint(tok, dest, claimed)
+        FreeMoveOntoSquare(tok, dest)
+    end
+
+    --The shove is not optional: accepting, dismissing or ignoring the card all end in the
+    --shove. The card only lets the player see it coming and choose the moment.
+    local startTime = dmhub.Time()
+    while #pending > 0 do
+        if mod.unloaded then
+            for _, entry in ipairs(pending) do
+                ClearCard(entry)
+            end
+            BroadcastCastPrompt(nil)
+            return
+        end
+        UpdateWaitPrompt()
+        local timedOut = dmhub.Time() > startTime + g_bulldozeCardTimeout
+        for i = #pending, 1, -1 do
+            local entry = pending[i]
+            local tok = entry.token
+            local record = nil
+            if tok.valid and tok.properties ~= nil then
+                record = tok.properties:GetAvailableTriggerRecord(entry.id)
+            end
+
+            local resolved = timedOut
+            if (not tok.valid) or tok.loc == nil then
+                table.remove(pending, i)
+                resolved = false
+            elseif record == nil then
+                --Gone = dismissed or aged out. Allow a moment for the card to first appear.
+                resolved = resolved or entry.seen or dmhub.Time() > startTime + 2
+            elseif record.dismissed or record.triggered ~= false then
+                resolved = true
+            else
+                entry.seen = true
+            end
+
+            if resolved then
+                table.remove(pending, i)
+                ClearCard(entry)
+                Shove(tok)
+            end
+        end
+        if #pending > 0 then
+            coroutine.yield(0.1)
+        end
+    end
+    UpdateWaitPrompt()
+
+    --Drop anything deleted from the map during the wait.
+    for i = #carried, 1, -1 do
+        if (not carried[i].valid) or carried[i].loc == nil then
+            table.remove(carried, i)
+        end
+    end
+
+    --Rear-most first, so two creatures in one lane keep their order in front of the caster.
+    table.sort(carried, function(a, b)
+        return (a.loc.x * ux + a.loc.y * uy) < (b.loc.x * ux + b.loc.y * uy)
+    end)
+
+    local maxSlide = span + 12
+    --Wall test per creature and square, remembered because PlanCarry runs once per stop step.
+    local slideCache = {}
+    local function CanCarryTo(tok, loc)
+        local key = tok.charid .. ":" .. BulldozeKey(loc)
+        if slideCache[key] == nil then
+            slideCache[key] = CanSlideStraightTo(tok, loc)
+        end
+        return slideCache[key]
+    end
+
+    --Landing squares (by charid) if the caster stops at stopStep, plus creatures with no room.
+    local function PlanCarry(stopStep)
+        local stopSweep = SweepUpTo(stopStep)
+        local taken = {}
+        for key in pairs(claimed) do
+            taken[key] = true
+        end
+        local landing = {}
+        local blocked = {}
+        for _, tok in ipairs(carried) do
+            local origin = tok.loc
+            if FootprintTouches(tok, origin, stopSweep) then
+                local dest = nil
+                for k = 1, maxSlide do
+                    local loc = origin:dir(Round(ux * k), Round(uy * k))
+                    --Slide past the caster's body and creatures carried ahead; the next square decides.
+                    if (not FootprintTouches(tok, loc, stopSweep)) and (not FootprintTouches(tok, loc, taken)) then
+                        if LocIsFreeForToken(tok, loc) and CanCarryTo(tok, loc) then
+                            dest = loc
+                        end
+                        break
+                    end
+                end
+                if dest ~= nil then
+                    landing[tok.charid] = dest
+                    ClaimFootprint(tok, dest, taken)
+                else
+                    blocked[#blocked+1] = tok
+                end
+            end
+        end
+        return landing, blocked
+    end
+
+    --No room in front = pinned on an obstacle: back the caster up until everything fits.
+    local stopStep = numSteps
+    local hitObstacle = {}
+    local landing, blocked = PlanCarry(stopStep)
+    while #blocked > 0 and stopStep > 0 do
+        for _, tok in ipairs(blocked) do
+            hitObstacle[tok.charid] = true
+        end
+        stopStep = stopStep - 1
+        landing, blocked = PlanCarry(stopStep)
+    end
+
+    if stopStep < numSteps then
+        local recoils = false
+        for _, behavior in ipairs(ability.behaviors) do
+            if behavior.typeName == "ActivatedAbilityBulldozeBehavior" and behavior.recoil then
+                recoils = true
+            end
+        end
+        if recoils then
+            --Let the caster crush all the way in; the recoil copy backs it off afterwards.
+            options.bulldozeRecoil = { chargeLoc = anchors[#anchors], restLoc = anchors[stopStep + 1] }
+        else
+            --The move behavior reads this same entry.
+            destEntry.loc = anchors[stopStep + 1]
+        end
+    end
+
+    local obstacleRule = self.obstacleRule
+    for _, tok in ipairs(carried) do
+        local dest = landing[tok.charid]
+        if dest ~= nil then
+            FreeMoveOntoSquare(tok, dest)
+        end
+        --A creature already against the obstacle does not move, but is still crushed into it.
+        if hitObstacle[tok.charid] and obstacleRule ~= "" then
+            print("Bulldoze:: obstacle rule on", tok.name)
+            ActivatedAbilityDrawSteelCommandBehavior.new{ rule = obstacleRule }:ExecuteCommand(ability, casterToken, tok, options, obstacleRule)
+        end
+    end
+
+    WaitForNextGameUpdate()
+end
+
+--- The recoil copy: once the caster has charged into the creatures it pinned, back it up
+--- along its path to the last position where it shares no square with them.
+--- @param casterToken CharacterToken
+--- @param options table
+--- @return nil
+function ActivatedAbilityBulldozeBehavior:CastRecoil(casterToken, options)
+    local recoil = options.bulldozeRecoil
+    if recoil == nil then
+        return
+    end
+    options.bulldozeRecoil = nil
+
+    --Let the charge finish animating (time-capped) and hold the crush for a beat. Backing
+    --up while it is still mid-charge would cut the animation short and look like a teleport.
+    local startTime = dmhub.Time()
+    while dmhub.Time() < startTime + 4 and (casterToken.loc.x ~= recoil.chargeLoc.x or casterToken.loc.y ~= recoil.chargeLoc.y) do
+        coroutine.yield(0.1)
+    end
+    while casterToken.valid and casterToken.isMoving and dmhub.Time() < startTime + 8 do
+        coroutine.yield(0.1)
+    end
+    --A charge that ended anywhere else (interrupted, or a different path) is left where it is.
+    if (not casterToken.valid) or casterToken.loc.x ~= recoil.chargeLoc.x or casterToken.loc.y ~= recoil.chargeLoc.y then
+        return
+    end
+    coroutine.yield(0.4)
+
+    FreeMoveOntoSquare(casterToken, recoil.restLoc)
+    WaitForNextGameUpdate()
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityBulldozeBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+
+    local function FilterField(label, field, help)
+        result[#result+1] = gui.Panel{
+            classes = { "formPanel" },
+            gui.Label{ classes = { "formLabel" }, text = label },
+            gui.GoblinScriptInput{
+                classes = { "formInput" },
+                value = self[field],
+                change = function(element)
+                    self[field] = element.value
+                end,
+                documentation = {
+                    help = help,
+                    output = "boolean",
+                    subject = creature.helpSymbols,
+                    subjectDescription = tr("A creature standing in the caster's path"),
+                },
+            },
+        }
+    end
+
+    local function TextField(label, field)
+        result[#result+1] = gui.Panel{
+            classes = { "formPanel" },
+            gui.Label{ classes = { "formLabel" }, text = label },
+            gui.Input{
+                classes = { "formInput" },
+                text = self[field],
+                change = function(element)
+                    self[field] = element.text
+                end,
+            },
+        }
+    end
+
+    FilterField(tr("Carry Filter:"), "carryFilter", tr("Creatures passing this are carried forward to the end of the movement. The rest are shoved aside."))
+    FilterField(tr("Skip Filter:"), "skipFilter", tr("Creatures passing this are left alone."))
+    TextField(tr("Obstacle Rule:"), "obstacleRule")
+    TextField(tr("Shove Card Title:"), "shoveTitle")
+    TextField(tr("Shove Card Text:"), "shoveText")
+    TextField(tr("Choose Square Prompt:"), "promptText")
+    TextField(tr("Waiting Text:"), "waitText")
+
+    result[#result+1] = gui.Check{
+        text = tr("Recoil step (place after the move)"),
+        value = self.recoil,
+        change = function(element)
+            self.recoil = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = tr("Search Radius:") },
+        gui.Input{
+            classes = { "formInput" },
+            text = tostring(self.searchRadius),
+            change = function(element)
+                self.searchRadius = tonumber(element.text) or 5
+                element.text = tostring(self.searchRadius)
+            end,
+        },
     }
 
     return result

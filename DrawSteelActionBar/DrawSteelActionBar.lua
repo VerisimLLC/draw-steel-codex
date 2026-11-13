@@ -157,6 +157,16 @@ function DrawSteelActionBar.ShowCastPrompt(args)
     return true
 end
 
+--The text the cast prompt is showing, or nil when it is hidden. Lets a caller check that
+--the prompt is free, or still its own, before replacing or hiding it.
+--- @return nil|string
+function DrawSteelActionBar.CastPromptText()
+    if g_castHintPanel == nil or (not g_castHintPanel.valid) or g_castHintPanel:HasClass("collapsed") then
+        return nil
+    end
+    return g_castHintPanel.data.label.text
+end
+
 function DrawSteelActionBar.ClearCastPrompt()
     DrawSteelActionBar.ShowCastPrompt(nil)
 end

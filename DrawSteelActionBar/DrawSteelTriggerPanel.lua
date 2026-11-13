@@ -1329,7 +1329,12 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(targetids or trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
+                                            --A card flagged arrowFromTarget points from its sender at us (Bone Dozer's shove).
+                                            local from, to = g_token, target
+                                            if trigger:try_get("arrowFromTarget", false) and target.charid ~= g_token.charid then
+                                                from, to = target, g_token
+                                            end
+                                            local ray = dmhub.MarkLineOfSight(from, to, from.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end

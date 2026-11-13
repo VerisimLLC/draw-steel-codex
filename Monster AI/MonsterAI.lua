@@ -5444,17 +5444,11 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
         for i=1,#self.enemyTokens do
             local enemy = self.enemyTokens[i]
             if self.TokenIsLiveCombatant(enemy) then
+                --TargetPassesFilter applies the Hidden rule too: a hidden enemy counts only when this
+                --creature can see past Hidden from where it stands now, not where it may move.
                 local filterProf = ProfBegin("TargetPassesFilter")
                 local canTarget = ability:TargetPassesFilter(token, enemy, {})
                 ProfEnd(filterProf)
-                if canTarget and enemy.properties:HasNamedCondition("Hidden") and ability:HasKeyword("Strike") then
-                    local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    --Shadowmeld: from in front of the wall the enemy melded into, it can be struck.
-                    if (ignoreRange <= 0 or MonsterAI.TargetDistance(token, enemy) > ignoreRange)
-                        and not RuleUtils.WallMeldSeesTarget(token, enemy) then
-                        canTarget = false
-                    end
-                end
                 if canTarget then
                     filteredTokens[#filteredTokens+1] = enemy
                 end

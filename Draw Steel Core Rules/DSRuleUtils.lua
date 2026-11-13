@@ -394,6 +394,28 @@ RuleUtils = {
         return cosine >= math.cos(math.rad(math.min(angle, 180)))
     end,
 
+    --- True when `targetToken`'s Hidden condition does not hide it from `viewerToken`: the
+    --- target is within the viewer's "Ignore Hidden Within Range" (the boomdog, demons'
+    --- Soulsight), or it is wall-melded and the viewer stands in front of that wall.
+    --- The range counts height, so a creature 4 squares straight up is out of a range of 3.
+    --- Use it before treating a Hidden creature as hidden from a particular viewer.
+    --- @param viewerToken CharacterToken
+    --- @param targetToken CharacterToken
+    --- @return boolean
+    SeesPastHidden = function(viewerToken, targetToken)
+        if viewerToken == nil or targetToken == nil or viewerToken.properties == nil then return false end
+
+        local ignoreRange = viewerToken.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
+        if ignoreRange > 0 then
+            local heightGap = RuleUtils.VerticalGapInTiles(viewerToken, targetToken) * dmhub.unitsPerSquare
+            if math.max(viewerToken:Distance(targetToken), heightGap) <= ignoreRange * dmhub.unitsPerSquare then
+                return true
+            end
+        end
+
+        return RuleUtils.WallMeldSeesTarget(viewerToken, targetToken)
+    end,
+
     --Prompt shown when a retarget picker (Goaded, Meat Shield) is limited to the
     --original strike's range. Names the striker and its reach so the player can
     --see why some tokens are greyed out. allowOriginal (the modifier's

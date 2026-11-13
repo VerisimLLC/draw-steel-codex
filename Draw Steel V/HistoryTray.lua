@@ -60,8 +60,11 @@ local TAIL_DOWN = 26
 --The icon rail runs down the screen's left edge; a card can't go under it.
 local RAIL_LEFT = 62
 
---The open tray: {face, Refresh, Select, SetSearch}.
+--The open tray: {face, Refresh, Select, SetSearch, ShowEntry}.
 local g_tray = nil
+--A row to show once the window is built: the Sidebar Preview's click opens History on it.
+--- @type string|nil
+local g_showOnOpen = nil
 
 local function Styles()
     return {
@@ -3015,6 +3018,12 @@ local function CreateFace()
     --new rows don't all fit, so the first one is in view (3.3a).
     local openAtMarker = true
     local markerTries = 0
+    --The last build's items, and the row ShowEntry is bringing into view (3.4).
+    --- @type table[]
+    local builtItems = {}
+    --- @type string|nil
+    local showKey = nil
+    local showTries = 0
     --The newest entry key the last build showed: a game refresh is not always a new row.
     --- @type string|nil
     local builtNewest = nil
@@ -3282,6 +3291,7 @@ local function CreateFace()
         end
         builtNewest = newest
         local items, matches = BuildItems(mapid, fromGame == true and reading)
+        builtItems = items
         local first = math.max(1, #items - rowsWanted + 1)
         --opening on new turns: build back far enough to include the marker.
         local markerShown = false
@@ -3434,6 +3444,40 @@ local function CreateFace()
             if holdTries < 4 then
                 element:ScheduleEvent("holdAnchor", 0.03)
             end
+        end,
+
+        --brings ShowEntry's row to the top of the view, then opens its card. Layout takes a
+        --few frames, so it retries; the card opens on the last try, once the row is placed.
+        toEntry = function(element)
+            showTries = showTries + 1
+            local row = showKey ~= nil and rows[showKey] or nil
+            local windowHeight = element.renderedHeight or 0
+            local contentHeight = rowsPanel.renderedHeight or 0
+            local range = contentHeight - windowHeight
+            if row ~= nil and row.panel.valid and range > 0 then
+                local offset = 0
+                for _, child in ipairs(rowsPanel.children) do
+                    if child == row.panel then
+                        break
+                    end
+                    offset = offset + (child.renderedHeight or 0)
+                end
+                element.vscrollPosition = 1 - math.min(offset, range) / range
+            end
+            if showTries < 5 then
+                element:ScheduleEvent("toEntry", 0.05)
+                return
+            end
+            for _, item in ipairs(builtItems) do
+                if item.key == showKey and item.entry ~= nil then
+                    if selected == nil or selected.key ~= item.key then
+                        Select(item)
+                    end
+                    break
+                end
+            end
+            showKey = nil
+            UpdateLatest()
         end,
 
         --puts the new-rows marker at the top when what follows it is taller than the list;
@@ -3891,10 +3935,38 @@ local function CreateFace()
         ApplySearch()
     end
 
-    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch}
+    --Opens on one row (3.4): the Sidebar Preview's click. Stops the opening's own scroll
+    --to the marker, which would otherwise pull the view back.
+    --- @param key string The row's entry key.
+    local function ShowEntry(key)
+        showKey = key
+        showTries = 0
+        markerTries = 99
+        list:ScheduleEvent("toEntry", 0.1)
+    end
+
+    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry}
     list.vscrollPosition = 0
     Refresh()
+    if g_showOnOpen ~= nil then
+        ShowEntry(g_showOnOpen)
+        g_showOnOpen = nil
+    end
     return face
+end
+
+--- Shows one row of the current map's History with its card open, once the window is up.
+--- @param mapid string
+--- @param key string The row's entry key.
+function History.ShowEntry(mapid, key)
+    if mapid ~= game.currentMapId then
+        return
+    end
+    if g_tray ~= nil and g_tray.face.valid then
+        g_tray.ShowEntry(key)
+    else
+        g_showOnOpen = key
+    end
 end
 
 --The tray's styles, for History panels built outside the window (the rail's hover card).
@@ -4137,6 +4209,8 @@ function History.ShowSincePreview(element, placement)
         if mod.unloaded or not element.valid or not element:HasClass("hover") then
             return
         end
+        --the hover card takes over from the Sidebar Preview's bubble (3.4).
+        PanelDocument.FadeRailBubble("history")
         if g_tray ~= nil and g_tray.face.valid then
             return
         end
@@ -4205,6 +4279,149 @@ History.Notify = {
         return {color = BadgeColour("@fgMuted", "#9A9A9A")}
     end,
 }
+
+--Sidebar Preview (3.4, David's D2). While History is closed, each new entry from someone
+--else's turn shows beside the History button in the chat bubble; clicking a row opens
+--History on it. It marks nothing seen: the badge keeps counting until History opens.
+
+--L37 and L38.
+setting{
+    id = "history:sidebarpreview",
+    description = "History Sidebar Preview",
+    help = "Briefly shows actions from other turns beside the History button while History is closed.",
+    editor = "check",
+    default = true,
+    storage = "preference",
+    section = "general",
+}
+
+--How often the preview looks for new entries, in seconds.
+local BUBBLE_TICK = 0.5
+--A bubble row's width: the chat bubble's width less its padding.
+local BUBBLE_ROW_WIDTH = 276
+--The newest entry key looked at, by map. The first look only sets it: what is already
+--there when you join is not news.
+--- @type table<string, string|nil>
+local g_bubbleNewest = {}
+--New keys held for one tick, by map, so an action's triggers land in its row.
+--- @type table<string, string[]>
+local g_bubblePending = {}
+
+--- The bubble rows for a batch of new entries on a map, oldest first. Entries caused by an
+--- action in the batch go into its row; ones caused by an earlier action are left out.
+--- @param mapid string
+--- @param keys string[] Sorted.
+--- @return {contents: Panel[], click: function}[]
+local function BubbleRows(mapid, keys)
+    local batch = {}
+    local byId = {}
+    for _, key in ipairs(keys) do
+        local entry = History.Entry(mapid, key)
+        if entry ~= nil then
+            batch[#batch + 1] = {key = key, entry = entry}
+            byId[entry.id] = entry
+            for _, alias in ipairs(entry.aliases or {}) do
+                byId[alias] = entry
+            end
+        end
+    end
+    local kids = {}
+    for _, item in ipairs(batch) do
+        local entry = item.entry
+        if entry.cause ~= nil then
+            local root = RootAction(entry, byId)
+            if root ~= nil then
+                kids[root.id] = kids[root.id] or {}
+                table.insert(kids[root.id], entry)
+            end
+        end
+    end
+
+    local rows = {}
+    for _, item in ipairs(batch) do
+        local entry = item.entry
+        local owner
+        if entry.round ~= nil and entry.turn ~= nil then
+            owner = entry.owner
+        else
+            owner = entry.actor or entry.who
+        end
+        local wanted = entry.cause == nil and not Mine(owner)
+            and (entry.family ~= "malice" or dmhub.isDM)
+        local args = nil
+        if wanted and entry.kind == "line" then
+            local words = LineWords(entry)
+            if words ~= nil and words ~= "" then
+                args = {rows = {{row = {who = {entry.who}, text = words}, mine = not dmhub.isDM and Mine(entry.who)}}}
+            end
+        elseif wanted and entry.kind == "action" and entry.actor ~= nil and entry.ability ~= nil then
+            local actorMine = Mine(entry.actor)
+            local story = {}
+            for _, row in ipairs(History.Story(entry, kids[entry.id] or {})) do
+                local mine = false
+                if not dmhub.isDM and not actorMine then
+                    for _, who in ipairs(row.who or {}) do
+                        if Mine(who) then
+                            mine = true
+                        end
+                    end
+                end
+                story[#story + 1] = {row = row, mine = mine}
+            end
+            args = {title = History.ShownName(entry.actor) .. History.DOT .. entry.ability.name, rows = story}
+        end
+        if args ~= nil then
+            args.width = BUBBLE_ROW_WIDTH
+            local key = item.key
+            rows[#rows + 1] = {
+                contents = History.CreateBubbleContents(args),
+                click = function()
+                    History.ShowEntry(mapid, key)
+                end,
+            }
+        end
+    end
+    return rows
+end
+
+--Looks for new entries every BUBBLE_TICK. New keys wait one quiet tick, then show together.
+local function BubbleTick()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(BUBBLE_TICK, BubbleTick)
+    if not History.Enabled() then
+        return
+    end
+    local show = dmhub.GetSettingValue("history:sidebarpreview") and not PanelDocument.PanelInFront("history", "History")
+    for _, mapid in ipairs(VisibleMaps()) do
+        local keys = History.Keys(mapid)
+        local newest = keys[#keys]
+        local last = g_bubbleNewest[mapid]
+        g_bubbleNewest[mapid] = newest
+        local pending = g_bubblePending[mapid]
+        if last ~= nil and newest ~= nil and newest > last then
+            pending = pending or {}
+            for i = #keys, 1, -1 do
+                if keys[i] <= last then
+                    break
+                end
+                pending[#pending + 1] = keys[i]
+            end
+            g_bubblePending[mapid] = pending
+        elseif pending ~= nil then
+            g_bubblePending[mapid] = nil
+            table.sort(pending)
+            if show then
+                local rows = BubbleRows(mapid, pending)
+                if #rows > 0 then
+                    PanelDocument.ShowRailBubble{key = "history", panelName = "History", rows = rows}
+                end
+            end
+        end
+    end
+end
+dmhub.Schedule(BUBBLE_TICK, BubbleTick)
 
 --A rail panel like Chat, so it gets the rail windows' frame, pin, pop out and Font Size zoom.
 DockablePanel.Register{

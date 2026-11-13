@@ -2687,6 +2687,66 @@ local function WhyRow(row, width)
     }
 end
 
+--- One row of the Sidebar Preview (3.4): what an action or line did, for the chat bubble
+--- beside the History button. An action has a header (L46) over up to two of its sentences
+--- and "and {n} more" (L47); a line is its sentence alone. Your creatures' sentences carry
+--- the gold edge, as in the hover card.
+--- @param args {title: string|nil, rows: {row: table, mine: boolean}[], width: number}
+--- @return Panel[]
+function History.CreateBubbleContents(args)
+    local shown = math.min(#args.rows, 2)
+    local body = {}
+    if args.title ~= nil then
+        --the chat bubble's name style, so it reads like a message's sender.
+        body[#body + 1] = gui.Label{
+            classes = {"chatBubbleNick"},
+            text = args.title,
+            interactable = false,
+        }
+    end
+    for i = 1, shown do
+        local item = args.rows[i]
+        body[#body + 1] = gui.Panel{
+            flow = "horizontal",
+            width = args.width,
+            height = "auto",
+            tmargin = 2,
+            gui.Panel{
+                classes = {cond(item.mine, "historyActiveFrame", nil)},
+                bgimage = "panels/square.png",
+                bgcolor = cond(item.mine, nil, "#00000000"),
+                width = 3,
+                height = STORY_FACE,
+                valign = "top",
+                tmargin = 3,
+                rmargin = 6,
+            },
+            StoryRow(item.row, args.width - 9),
+        }
+    end
+    if #args.rows > shown then
+        body[#body + 1] = gui.Label{
+            classes = {"historyCardMeta"},
+            text = string.format("and %d more", #args.rows - shown),
+            width = args.width,
+            height = "auto",
+            tmargin = 2,
+            textAlignment = "left",
+        }
+    end
+    --History's own styles for the story rows; the bubble's (chatBubbleNick) still reach in.
+    return {
+        gui.Panel{
+            styles = ThemeEngine.MergeStyles(History.Styles()),
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            interactable = false,
+            children = body,
+        },
+    }
+end
+
 --- The rail button's hover card (3.3a, M1-M5): what happened since you last looked, in the
 --- detail card's frame and rows. Rows about your own creatures carry a gold edge.
 --- @param args {rows: {row: table, mine: boolean}[], more: integer, width: number}

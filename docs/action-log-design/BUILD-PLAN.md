@@ -413,6 +413,13 @@ Goal: why it happened, one click from the row.
   - **H2 "{n} new below":** a floating button at the foot of the list counts the rows that came in since you were last at the bottom. Clicking it, or scrolling to the bottom, clears it.
   - **Divider clears once caught up:** "New since you last looked" goes when a newer entry arrives while you sit at the bottom. A plain game refresh doesn't count.
   - **Reload:** the window builder is looked up through `History.Notify` too. Otherwise, after a hot reload, the rail's seen-mark and the window come from different copies of the file and the divider is lost.
+- **3.4 (built 2026-11-13):**
+  - **One bubble for any panel** (James, option A): the chat speech bubble in `DocumentSystem.lua` now takes a panel key and name. `PanelDocument.ShowRailBubble{key, panelName, rows}` shows rows beside a panel's own rail button, `FadeRailBubble(key)` fades it, and `PanelInFront` and `FindRailButton` generalise the chat versions, which still exist. Bubbles avoid each other as well as windows.
+  - **Held under the pointer:** a bubble waits while the pointer is on it, then lingers 5 s after the pointer leaves. Chat's bubble gets this too.
+  - **What shows:** new entries from someone else's turn (the badge's rule), checked every 0.5 s. A batch waits one quiet tick so an action's triggers land in its row. An action is "Actor . Ability" (L46) over up to 2 sentences and "and {n} more" (L47); a line is its sentence.
+  - **Click:** a row opens History scrolled to that action with its card (`History.ShowEntry`); elsewhere opens History as the button does. Hovering the button fades the bubble for the hover card.
+  - **Setting:** `history:sidebarpreview`, on by default, General (L37, L38 revised).
+  - **Not built:** a trigger landing in a later tick than its action is left out; a lone trigger with no action gets no row; there's no bubble while History is grouped away in a strip (as Chat).
 - **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
 
 ## Stage 4: movement views

@@ -10404,9 +10404,9 @@ end
 --- MarkMovementArrow options for a straight-line move by g_token with the current ability
 --- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They match the
 --- real move in AbilityRelocateCreature.lua, so the hover arrow and the Direct Path highlight
---- show where the creature ends up. Two gaps: no flight altitude is sent, and a straight-path
---- move that is forced, or made through someone else's ability, previews without the
---- forced-movement distance the real move gets.
+--- show where the creature ends up. Known differences from the real move: flight altitude is
+--- not sent, and a forced straight-path move (or one made through another creature's ability)
+--- previews without the walls that only block forced movement.
 --- Lives on the module table because this file's main chunk is at Lua's 200-local limit.
 --- @param targetingType string
 --- @return table options, boolean hasCharge true when charge-jump options were merged in
@@ -10440,48 +10440,61 @@ function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
     return options, chargeOptions ~= nil
 end
 
---- For a "Direct Path" move (emptyspace/anyspace with straightpath targeting, e.g. Charge),
---- returns a predicate that is true only for squares the straight move actually reaches.
---- The plain range circle also lights squares behind walls or blockers, where the move
---- would stop short. The predicate takes the square the mover's corner lands on, so shift
---- a large creature's centre square first (TeleportAnchorLoc). Returns nil for any other
---- targeting, or for very long ranges where testing every square would stall the client.
+--- True for a "Direct Path" move: a straight-path move to a chosen space (e.g. Charge).
+--- @param ability ActivatedAbility
+--- @return boolean
+function DrawSteelActionBar.IsDirectPathMove(ability)
+    local targetingType = ability:try_get("targeting", "direct")
+    return (targetingType == "straightpath" or targetingType == "straightpathignorecreatures")
+        and (ability.targetType == "emptyspace" or ability.targetType == "anyspace")
+end
+
+--- For a "Direct Path" move (see IsDirectPathMove), returns a predicate that is true only
+--- for squares the straight move actually reaches. The plain range circle also lights
+--- squares behind walls or blockers, where the move would stop short. The predicate takes
+--- the square the mover's corner lands on, so shift a large creature's centre square first
+--- (TeleportAnchorLoc). Returns nil for any other move, or for very long ranges where
+--- testing every square would stall the client.
 --- @param range nil|number the ability's range in native units
 --- @return nil|fun(loc: Loc): boolean
 function DrawSteelActionBar.StraightPathReachFilter(range)
     if g_currentAbility == nil or g_token == nil or (not g_token.valid) then
         return nil
     end
-    local targetingType = g_currentAbility:try_get("targeting", "direct")
-    if targetingType ~= "straightpath" and targetingType ~= "straightpathignorecreatures" then
+    if not DrawSteelActionBar.IsDirectPathMove(g_currentAbility) then
         return nil
     end
-    if g_currentAbility.targetType ~= "emptyspace" and g_currentAbility.targetType ~= "anyspace" then
-        return nil
-    end
-    --Each square needs its own preview path, so long ranges skip this check and show the plain circle.
-    if range == nil or range > 12 * dmhub.unitsPerSquare then
+    --Each square in range gets its own path test: 12 squares is about 625 of them.
+    --Longer ranges skip the check and show the plain circle.
+    local maxReachTestSquares = 12
+    if range == nil or range > maxReachTestSquares * dmhub.unitsPerSquare then
         return nil
     end
 
     local token = g_token
-    local options, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
-    --separate: a throwaway arrow, so the shared hover arrow is left alone.
+    local options, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(g_currentAbility:try_get("targeting", "direct"))
+    --Test each square with its own hidden arrow so the arrow under the mouse isn't redrawn.
     options.separate = true
+    --Tier rings can ask about the same square more than once; remember each answer.
+    local reachedBySquare = {}
     return function(loc)
+        local known = reachedBySquare[loc.str]
+        if known ~= nil then
+            return known
+        end
+        local reached = false
         local info = token:MarkMovementArrow(loc, options)
         ---@cast info nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean}
-        if info == nil then
-            return false
+        if info ~= nil then
+            if info.marker ~= nil then
+                info.marker:Destroy()
+            end
+            local dest = info.path ~= nil and info.path.destination or nil
+            reached = dest ~= nil and dest.x == loc.x and dest.y == loc.y
+                and ((not hasCharge) or info.validCharge == true)
         end
-        if info.marker ~= nil then
-            info.marker:Destroy()
-        end
-        if hasCharge and info.validCharge ~= true then
-            return false
-        end
-        local dest = info.path ~= nil and info.path.destination or nil
-        return dest ~= nil and dest.x == loc.x and dest.y == loc.y
+        reachedBySquare[loc.str] = reached
+        return reached
     end
 end
 
@@ -16001,9 +16014,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
                     --Direct Path moves: light only squares the straight move reaches, not
                     --ones behind a wall or creature where it would stop short.
-                    local straightTargeting = g_currentAbility:try_get("targeting", "direct")
-                    if (straightTargeting == "straightpath" or straightTargeting == "straightpathignorecreatures")
-                        and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+                    if DrawSteelActionBar.IsDirectPathMove(g_currentAbility) then
                         local reachFilter = DrawSteelActionBar.StraightPathReachFilter(range)
                         local baseFilter = filterTargetPredicate
                         local mover = g_token

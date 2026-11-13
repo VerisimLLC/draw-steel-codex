@@ -3960,13 +3960,11 @@ end
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
-    local mode = symbols ~= nil and symbols.mode or nil
+    --No mode chosen yet means mode 1, the same as when the ability is cast.
+    local mode = (symbols ~= nil and symbols.mode) or 1
     for _,behavior in ipairs(self.behaviors) do
         --Skip behaviors for another mode, e.g. the shift of a "move, or pay to shift instead" choice.
-        local modesSelected = behavior:try_get("modesSelected")
-        local belongsToOtherMode = self.multipleModes and mode ~= nil and modesSelected ~= nil and #modesSelected > 0
-            and not table.contains(modesSelected, mode)
-        if not belongsToOtherMode then
+        if not behavior:SkippedInMode(self, mode) then
             local movementType = behavior:BehaviorMovementType(symbols)
             if movementType ~= nil then
                 return movementType
@@ -4587,6 +4585,20 @@ function ActivatedAbilityBehavior:RecordHitTarget(token, options, args)
 	options.hit_targets[#options.hit_targets+1] = { token = token, failedSave = args.failedSave }
 end
 
+--- True when the player picked `mode` and this behavior should not run, because in the
+--- ability editor it is ticked only for other modes. A behavior with no modes ticked,
+--- or on an ability without modes, is never skipped.
+--- @param ability ActivatedAbility
+--- @param mode any the chosen mode number (symbols.mode)
+--- @return boolean
+function ActivatedAbilityBehavior:SkippedInMode(ability, mode)
+    local modesSelected = self:try_get("modesSelected")
+    if (not ability.multipleModes) or modesSelected == nil or #modesSelected == 0 then
+        return false
+    end
+    return not table.contains(modesSelected, mode)
+end
+
 --- @param ability ActivatedAbility
 --- @param casterToken nil|CharacterToken
 --- @param options nil|table
@@ -4617,10 +4629,8 @@ function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
         end
     end
 
-    if options ~= nil and ability.multipleModes and self:has_key("modesSelected") and #self.modesSelected > 0 then
-        if not table.contains(self.modesSelected, options.symbols.mode) then
-            return true
-        end
+    if options ~= nil and self:SkippedInMode(ability, options.symbols.mode) then
+        return true
     end
 
 	if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then

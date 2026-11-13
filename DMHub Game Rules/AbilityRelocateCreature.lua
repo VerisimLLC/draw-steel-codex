@@ -68,38 +68,34 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
 
     print("VICINITY:: SEARCH...")
 
-    local locs = {}
-    for i,loc in ipairs(path.steps) do
-        local newLocs = casterToken:LocsOccupyingWhenAt(loc)
-        for i,newLoc in ipairs(newLocs) do
-            locs[newLoc.xyfloorOnly.str] = true
-            if self.vicinity > 0 then
-                for _,adjLoc in ipairs(newLoc:LocsInRadius(self.vicinity)) do
-                    locs[adjLoc.xyfloorOnly.str] = true
-                end
+    --Walk the path in order so the result lists creatures in the order the mover
+    --reached them; the last entry is what Cast.Last Creature Passed reports.
+    local result = {}
+    local seenLocs = {}
+    local seenTokens = {}
+
+    local function CheckLoc(loc)
+        local key = loc.xyfloorOnly.str
+        if seenLocs[key] then
+            return
+        end
+        seenLocs[key] = true
+
+        for _,token in ipairs(game.GetTokensAtLoc(core.Loc(key)) or {}) do
+            if (not seenTokens[token.charid]) and token.charid ~= casterToken.charid and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
+                seenTokens[token.charid] = true
+                result[#result+1] = token
             end
         end
     end
 
-    local result = {}
-
-    local index = 0
-    for key,_ in pairs(locs) do
-        local loc = core.Loc(key)
-        index = index+1
-        local tokens = game.GetTokensAtLoc(loc)
-
-        for i,token in ipairs(tokens or {}) do
-            local alreadyInResult = false
-            for _,tok in ipairs(result) do
-                if tok.id == token.charid then
-                    alreadyInResult = true
-                    break
+    for _,step in ipairs(path.steps) do
+        for _,newLoc in ipairs(casterToken:LocsOccupyingWhenAt(step)) do
+            CheckLoc(newLoc)
+            if self.vicinity > 0 then
+                for _,adjLoc in ipairs(newLoc:LocsInRadius(self.vicinity)) do
+                    CheckLoc(adjLoc)
                 end
-            end
-
-            if (not alreadyInResult) and token.charid ~= casterToken.charid and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
-                result[#result+1] = token
             end
         end
     end
@@ -746,7 +742,26 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--around a corner, which walks its path like any other move.
 			--flightAltitude: the end altitude a flier dialed on the wheel while picking the
 			--destination (the action bar's flight wheel); the engine climbs to it over the move.
-			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil), flightAltitude = options.symbols.flightAltitude })
+			local forcedMove = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil)
+
+			--The engine has no "move" movement type: a straight-line "move" falls back to
+			--Pushed, which reports the path as forced and so provokes no opportunity attacks.
+			--Push/pull/slide abilities rely on that fallback, so only a willing straight-path
+			--move (Charge, Tide of Death, Wrecking Ball) is sent as a walk. "Willing" means
+			--nothing marks it forced and the creature moving is the one using the ability,
+			--not a creature moved by someone else's invoked ability (report C5XGW6HH).
+			local engineMovementType = movementType
+			if movementType == "move" and (not forcedMove) and (ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures") then
+				local invoker = options.symbols.invoker
+				if type(invoker) == "function" then
+					invoker = invoker("self")
+				end
+				if invoker == nil or invoker == casterToken.properties then
+					engineMovementType = "walk"
+				end
+			end
+
+			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = engineMovementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = forcedMove, flightAltitude = options.symbols.flightAltitude })
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total
@@ -1025,6 +1040,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
 
                     options.symbols.cast.targets = options.targets
+
+                    --targets are in path order, so the last one is the creature passed last.
+                    if #targets > 0 then
+                        options.symbols.cast.lastCreaturePassedId = targets[#targets].charid
+                    end
                 end
 
             end

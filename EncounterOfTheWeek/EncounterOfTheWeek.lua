@@ -3181,6 +3181,12 @@ local function UpdateEncounterConclusion()
         return
     end
 
+    --a won fight with script beats after it: they play on the stage first,
+    --and the Conclusion (or the end of a test) waits for them.
+    if m_outcomeSeen and m_localProceeded and EncounterOfTheWeekGame.AfterEncounterPending() then
+        return
+    end
+
     if m_outcomeSeen and m_localProceeded and testing then
         m_exitScheduled = true
         printf("EotW test: encounter concluded; ending the test")
@@ -5981,6 +5987,80 @@ local function SetBeatIndex(index)
     doc:CompleteChange("Encounter of the Week: script beat", { undoable = false })
 end
 
+--- after the fight ----------------------------------------------------------
+--Narratives, montages and negotiations placed after the "# Encounter" beat
+--play once the fight is WON (NQPHXEAE): the victory screen's Proceed tears
+--combat down, the host tick moves the script on to them (stage "aftermath",
+--MapScriptHostThink), and every client holds its Conclusion screen -- and in
+--a test, the end of the test -- until they are done. A defeat skips them.
+--They stop at a second "# Encounter": only one fight is played.
+
+--The index of the first stage beat after the script's first encounter, or
+--nil when the encounter is the last stage beat (or there is none).
+function EncounterOfTheWeekGame.AfterEncounterBeat(script)
+    local beats = (script ~= nil and script.parse ~= nil and script.parse.beats) or {}
+    for i, b in ipairs(beats) do
+        if b.kind == "encounter" then
+            local nextBeat = beats[i + 1]
+            if nextBeat ~= nil and nextBeat.kind ~= "encounter" then
+                return i + 1
+            end
+            return nil
+        end
+    end
+    return nil
+end
+
+--This client: after a won fight, are the beats after it still to play (or
+--playing)? The Conclusion waits while this is true. A host that never moves
+--the script on (it left, or runs older code) is waited out after
+--30 seconds, so nobody is stuck on the map. (A literal, not a local: this
+--file is near Lua's 200-local ceiling.)
+function EncounterOfTheWeekGame.AfterEncounterPending()
+    if m_outcomeKind ~= "victory" then
+        return false
+    end
+    local pending = false
+    local notStarted = false
+    pcall(function()
+        local montage = rawget(_G, "EncounterMontage")
+        if montage == nil then
+            return
+        end
+        local script = montage.FindMapScript()
+        local first = EncounterOfTheWeekGame.AfterEncounterBeat(script)
+        if first == nil then
+            return
+        end
+        local index = GetBeatIndex()
+        local beat = script.parse.beats[index]
+        if index < first then
+            --the host has not moved the script on yet.
+            pending = true
+            notStarted = true
+        elseif beat ~= nil and beat.kind ~= "encounter" then
+            pending = true
+        elseif montage.IsPresented() then
+            --the last one is over; let its stage dissolve first.
+            pending = true
+        end
+    end)
+    if not notStarted then
+        Series.afterEncounterWaitSince = nil
+        Series.afterEncounterGaveUp = nil
+        return pending
+    end
+    Series.afterEncounterWaitSince = Series.afterEncounterWaitSince or dmhub.Time()
+    if dmhub.Time() - Series.afterEncounterWaitSince > 30 then
+        if not Series.afterEncounterGaveUp then
+            Series.afterEncounterGaveUp = true
+            printf("EotW: the beats after the fight never started; concluding without them")
+        end
+        return false
+    end
+    return pending
+end
+
 --Host, every tick before combat: play the map's script. Each "# Montage"
 --beat runs through EncounterMontage until it reports done; the
 --"# Encounter" beat spawns the journal encounter's monsters (idempotent)
@@ -6379,6 +6459,8 @@ end
 --  (nil)      -> waiting for every expected player to arrive, then Draw Steel
 --  "combat"   -> combat is live; watch for victory/defeat and keep the
 --                Monster AI playing the monsters
+--  "aftermath" -> a won fight's script beats after the encounter play
+--                (narratives, montages, negotiations), then "complete"
 --  "complete" -> combat ended; the AI is stopped and the script goes idle
 --                (clients that saw the outcome exit to the titlescreen on
 --                their own -- see UpdateEncounterConclusion)
@@ -6482,10 +6564,44 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     end
 
     if shared.stage == "combat" then
-        --combat just ended: stand the AI down and go idle. What happens
-        --after the encounter (victory flow, next steps) is later work.
+        --combat just ended: stand the AI down. A won fight with beats after
+        --it plays them now ("aftermath"); otherwise the script goes idle.
         EnsureAIStopped()
-        ctx:ModifyShared(function(s) s.stage = "complete" end)
+        local after = nil
+        if m_outcomeKind == "victory" then
+            pcall(function()
+                after = EncounterOfTheWeekGame.AfterEncounterBeat(EncounterMontage.FindMapScript())
+            end)
+        end
+        if after ~= nil then
+            printf("EotW: the fight is won; playing the script's beats after it (from beat %d)", after)
+            SetBeatIndex(after)
+            ctx:ModifyShared(function(s) s.stage = "aftermath" end)
+        else
+            ctx:ModifyShared(function(s) s.stage = "complete" end)
+        end
+        return
+    end
+
+    if shared.stage == "aftermath" then
+        --the beats after a won fight play like the ones before it, without
+        --the arrival gate. They end at the end of the script or at a second
+        --encounter (only one fight is played); the stage dissolves away and
+        --each client's Conclusion follows (AfterEncounterPending).
+        local beat = nil
+        pcall(function()
+            beat = EncounterMontage.FindMapScript().parse.beats[GetBeatIndex()]
+        end)
+        if beat == nil or beat.kind == "encounter" then
+            local dismissed = true
+            pcall(function() dismissed = EncounterMontage.DismissStage() end)
+            if dismissed then
+                printf("EotW: the beats after the fight are done")
+                ctx:ModifyShared(function(s) s.stage = "complete" end)
+            end
+            return
+        end
+        RunScriptBeat(ctx)
         return
     end
 

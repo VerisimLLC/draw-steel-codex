@@ -174,6 +174,32 @@ the authoring game's whole journal (Delian Tomb rooms and more) beside the
 week's 17 script documents. Only documents filed under an encounter map are
 published. Review the directory before committing it wholesale.
 
+## Beats after the fight (BUILT 2026-11-12 for NQPHXEAE; UNCOMMITTED, not run in the app)
+
+The script builder always let an author move a narrative/montage/negotiation
+below the `# Encounter`, but nothing played it: combat ending set the host
+stage to "complete". Now (David chose this over forbidding it):
+- Host (`MapScriptHostThink`): when combat ends and this client saw a
+  **victory**, `AfterEncounterBeat(script)` finds the first stage beat after
+  the first encounter; the beat index moves there and the stage becomes
+  `"aftermath"`, where `RunScriptBeat` plays beats with no arrival gate. The
+  end of the script, or a second `# Encounter`, dissolves the stage and sets
+  `"complete"`. A defeat goes straight to "complete" as before.
+- Every client: `UpdateEncounterConclusion` waits while
+  `AfterEncounterPending()` (victory, after-beats exist, and the index has
+  not moved on yet / is on one / the stage is still up). Then the Conclusion
+  story, or in a test the end of the test. A host that never moves the script
+  on is waited out after 30 s (`Series.afterEncounterWaitSince`).
+- Unchanged and worth knowing: `DecideSeriesResult` (series `# Results`) runs
+  at the victory, before these beats; the town award and outcome records too.
+  Treasure gained in them still goes home (heroes are carried as they are at
+  departure) -- not verified.
+- To test: a test with Narrative -> Encounter -> Narrative (win: aftermath
+  plays, then Conclusion, then the test ends; lose: Defeat at once); a real
+  2-player game where one player is still on the victory screen when the
+  other presses Proceed (does the stage cover the held screen sensibly?);
+  dead heroes in an "each hero chooses" aftermath.
+
 ## Known open problems
 
 - **No bare `Encounter` map** in the authoring game. Only `Encounter: Goblin
@@ -1476,8 +1502,8 @@ holds.
   conditions are copied as they are (not decided; see below).
   `EotwRoster.FindCopyOf(charid)` finds the living copy that blocks a second
   pick. The list comes from the NEW `TitlescreenHeroes.List()` in
-  `CodexTitlescreen.lua`: the first 8 of `LobbyHeroes()` (the HEROES slots),
-  minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
+  `CodexTitlescreen.lua`: all of `LobbyHeroes()` (the HEROES slots, every
+  page; the 8-hero cap was lifted 2026-11-12), minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
   if the builder kept the hero. **Edit**: `TitlescreenHeroes.Edit`, then
   push on close.
 

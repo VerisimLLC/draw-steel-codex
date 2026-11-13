@@ -69,6 +69,21 @@ over this fallback. If ordinary movement cannot advance it further, it casts
 the main action is affordable and a route exists. Minions without a reachable
 signature target use the same fallback; squad target caps still take priority.
 
+A monster that is Hidden at this point (it hid this turn: Hide in Concealment)
+never advances, because walking toward the enemy takes it out of cover and
+gives it away. Instead it runs "Reposition while hidden"
+(`ExecuteHiddenReposition`), once per turn: it moves with its remaining
+movement to a random reachable square where it stays hidden, and the engine's
+route there (checked with `MarkMovementArrow`, which shows the path `Move`
+will take) must keep it hidden on every square. `ai:StaysHiddenAt(token, loc)`
+is the per-square test: concealment there or cover from every relevant enemy
+(the `canhidehere` test), and no enemy adjacent. Squares that provoke an
+opportunity attack are skipped. At most `MonsterAI.hiddenRepositionRouteTries`
+(16) routes are checked. With nowhere to go it stays put, still Hidden. It
+shows no plan preview and says nothing, so with "Hidden Creatures are
+Invisible" on the players see nothing move. Logged as `HIDDEN REPOSITION`.
+Run `../dependencies/lua/bin/lua.exe tests/ai_hidden_reposition_test.lua`.
+
 Run `../dependencies/lua/bin/lua.exe tests/ai_advance_test.lua` and
 `../dependencies/lua/bin/lua.exe tests/ai_minion_critical_test.lua` from the codex
 root to check route selection, action economy, attack priority, and squad retries.
@@ -501,6 +516,7 @@ The handler receives `(ai, token, triggerInfo)` and returns one of:
 
 - `{activate = true}` -- accept using the default mode.
 - `{activate = true, mode = N}` -- accept using the one-based ability mode.
+- `{activate = true, retargetid = charid}` -- for a power roll trigger that changes the strike's target (`changeTarget`), the creature it picks, as the trigger panel's picker would (the Bendrak's Warp Perceptions split).
 - `{dismiss = true}` -- dismiss the trigger.
 - `nil` -- leave the trigger for the Director.
 
@@ -648,6 +664,7 @@ that load sections of `MonsterAI.lua`; add them to any new test that does so.
 | `ai:RunConcurrently(fns, stagger?)` | Runs yielding actions side by side, each starting `stagger` seconds after the last; raises the first error once all finish |
 | `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
+| `ai:StaysHiddenAt(token, loc)` | True when the creature would stay Hidden at `loc`: concealment or cover from every relevant enemy, and no enemy adjacent |
 | `ai:FindClosestEnemy()` | Returns the nearest enemy token |
 | `ai:DistanceFromNearestEnemy(token)` | Returns distance to the closest enemy |
 | `ai:SetTargetsForExpectedPrompt(options)` | Pre-sets targets for the next prompt callback (used for complex combos) |

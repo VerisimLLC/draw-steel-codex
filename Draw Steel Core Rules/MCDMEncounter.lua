@@ -89,6 +89,13 @@ Encounter.mapid = ''
 --which a game only has once the map is added (Encounter.ResolveMapRef).
 Encounter.mapRef = ''
 
+--Where the encounter sits in the Encounters panel: the id of the
+--EncounterFolder it is filed under ("" = the top level), and its place among
+--the encounters beside it (lower first; equal values sort by name). Both are
+--set by dragging cards in the panel.
+Encounter.folderid = ''
+Encounter.ord = 0
+
 Encounter.monsters = {}
 
 Encounter.groups = {}

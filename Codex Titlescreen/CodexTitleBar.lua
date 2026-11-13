@@ -1231,10 +1231,13 @@ local function ClassifyUserStatus(info)
     return "online"
 end
 
---All the character ids this player controls directly (ownerId ==
---userid). Party-shared tokens (ownerId == 'PARTY') are deliberately
---not counted as anyone's.
-local function CharacterIdsOwnedBy(userid)
+--The character ids each player controls directly (ownerId == userid),
+--as userid -> list of ids, in party order. Party-shared tokens
+--(ownerId == 'PARTY') are deliberately not counted as anyone's.
+--One pass over the parties for all users: scanning them once per user
+--cost ~10 ms per refresh in a game with 18 users and 177 party
+--characters, and the refresh runs every 5 s.
+local function CharacterIdsByOwner()
     local result = {}
     local partyType = rawget(_G, "Party")
     if partyType == nil then
@@ -1244,13 +1247,21 @@ local function CharacterIdsOwnedBy(userid)
     for partyid, _ in unhidden_pairs(parties) do
         for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
             local tok = dmhub.GetCharacterById(charid)
-            if tok ~= nil and tok.ownerId == userid then
-                result[#result + 1] = charid
+            local owner = tok ~= nil and tok.ownerId or nil
+            if owner ~= nil then
+                local list = result[owner]
+                if list == nil then
+                    list = {}
+                    result[owner] = list
+                end
+                list[#list + 1] = charid
             end
         end
     end
     return result
 end
+
+local g_noCharacterIds = {}
 
 --One player's entry: their main character's portrait (grouping card
 --behind it when they control more than one), a connectivity dot in the
@@ -1649,10 +1660,14 @@ local function CreateConnectivityPanel()
             --session still says dm), so they get a portrait too.
             local directorless = false
             pcall(function() directorless = dmhub.directorlessGame == true end)
+            local idsByOwner = nil
             for _, userid in ipairs(dmhub.users or {}) do
                 local info = dmhub.GetSessionInfo(userid)
                 if info ~= nil and (directorless or not info.dm) then
-                    local owned = CharacterIdsOwnedBy(userid)
+                    if idsByOwner == nil then
+                        idsByOwner = CharacterIdsByOwner()
+                    end
+                    local owned = idsByOwner[userid] or g_noCharacterIds
                     local mainid = info.primaryCharacter or owned[1]
                     local extraCount = 0
                     for _, cid in ipairs(owned) do

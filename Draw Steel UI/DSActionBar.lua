@@ -6075,15 +6075,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
             halign = "center",
             valign = "bottom",
             customActionBar = function(element)
-                print("ActionBar:: Creating...")
                 if g_customActionBarFunction ~= nil then
                     element.children = {
                         g_customActionBarFunction()
                     }
-                print("ActionBar:: Added panel...")
                 else
                     element.children = {}
-                print("ActionBar:: Deleted panel...")
                 end
 
                 element.parent:SetClass("customActionBar", g_customActionBarFunction ~= nil)

@@ -66,7 +66,6 @@ function CompendiumReference:Resolve()
     if t ~= nil then
         local obj = t[self.targetid]
         local pathParts = string.split(self.targetPath, "/")
-        print("REF:: RESOLVING FOR", obj, "PATH:", self.targetPath, pathParts)
         for _,part in ipairs(pathParts) do
             if part ~= "" then
                 part = tonumber(part) or part
@@ -75,7 +74,6 @@ function CompendiumReference:Resolve()
                 end
 
                 obj = obj[part]
-                print("REF:: PART", part, "RESOLVE TO", obj)
             end
         end
 

@@ -2314,6 +2314,8 @@ local function PlaceWindow(rec)
         panel.y = rec.y
         panel.selfStyle.width = rec.width
         panel.selfStyle.height = rec.height
+        --the right/bottom grips sit where the last size put them.
+        rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
     end
 
     rec.titlebar:SetClass("collapsed", rec.maximized == true)
@@ -4643,6 +4645,9 @@ g_sharing.WindowLayoutItem = function(rec, followed, minWidth, minHeight)
                 panel.y = rec.y
                 panel.selfStyle.width = rec.width
                 panel.selfStyle.height = rec.height
+                if rec.resizePanel ~= nil and rec.resizePanel.valid then
+                    rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
+                end
             end
             return true
         end,
@@ -9952,6 +9957,8 @@ local function DefineSceneWindows()
             panel.y = rec.y
             panel.selfStyle.width = rec.width
             panel.selfStyle.height = rec.height
+            --the right/bottom grips sit where the last size put them.
+            rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
         end
         rec.titlebar:SetClass("collapsed", rec.maximized == true)
         rec.resizePanel:SetClass("collapsed", rec.maximized == true)

@@ -3721,6 +3721,11 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
                 else
                     triggerInfo.triggered = true
                 end
+                --a power roll trigger that changes the strike's target names the
+                --creature here, as the trigger panel's picker would.
+                if not decision.dismiss and type(decision.retargetid) == "string" then
+                    triggerInfo.retargetid = decision.retargetid
+                end
 
                 token.properties:DispatchAvailableTrigger(triggerInfo)
             end,
@@ -7730,6 +7735,150 @@ function MonsterAI:ExecuteLeaveAvoidZone(token)
     return mover.valid and mover.loc.str ~= origin
 end
 
+--Hidden reposition ----------------------------------------------------------
+--A monster that is Hidden (it just used Hide) does not advance toward the
+--enemy with its leftover movement: that walks it out of cover and gives
+--itself away. It moves to a random reachable square where it stays hidden,
+--along a route on which every square keeps it hidden, so the heroes cannot
+--tell where it went. With nowhere to go it stays put.
+
+--How many candidate destinations have their engine route checked before
+--giving up (each check is one path search).
+MonsterAI.hiddenRepositionRouteTries = 16
+
+--- True when the creature has the Hidden condition.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI.ActorIsHidden(token)
+    local hidden = false
+    pcall(function() hidden = token.properties:HasNamedCondition("Hidden") == true end)
+    return hidden
+end
+
+--- Whether `token` would stay Hidden standing at `loc`: it has concealment
+--- there or cover from every relevant enemy (the Hide maneuver's own test, the
+--- canhidehere symbol), and no enemy is adjacent (adjacency reveals it).
+--- @param token CharacterToken
+--- @param loc Loc
+--- @return boolean
+function MonsterAI:StaysHiddenAt(token, loc)
+    local mover = self:GetMovementToken(token)
+    local c = token.properties
+    local result = false
+    --The cover answer is cached on the creature for half a second; keep the
+    --answer for the square it really stands on, not the last one tested.
+    local cachedCover = c:try_get("_tmp_coverFromEnemies")
+    self:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+        for _,enemy in ipairs(self.enemyTokens) do
+            if self.TokenIsLiveCombatant(enemy) and MonsterAI.TargetDistance(mover, enemy) <= 1 then
+                return
+            end
+        end
+        result = c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+    end)
+    c._tmp_coverFromEnemies = cachedCover
+    return result
+end
+
+--- A random reachable square (with the remaining movement) where the actor
+--- stays hidden, reached by an engine route that keeps it hidden on every
+--- square. Returns {loc, cost} or nil.
+--- @param token CharacterToken
+--- @return nil|{loc: Loc, cost: number}
+function MonsterAI:FindHiddenReposition(token)
+    local mover = self:GetMovementToken(token)
+    local paths = self:CalculateRemainingMovementPaths(token)
+    local reachable = {}
+    local candidates = {}
+    for _,info in pairs(paths) do
+        reachable[info.loc.xyfloorOnly.str] = info
+        if info.cost > 0 and (info.provokes or 0) == 0 then
+            candidates[#candidates+1] = info
+        end
+    end
+    if #candidates == 0 then
+        return nil
+    end
+    --Shuffle (Fisher-Yates) so the choice is random among the hidden squares.
+    for i = #candidates,2,-1 do
+        local j = math.random(1, i)
+        candidates[i], candidates[j] = candidates[j], candidates[i]
+    end
+
+    local hiddenCache = {}
+    local function Hidden(loc)
+        local key = loc.xyfloorOnly.str
+        local known = hiddenCache[key]
+        if known == nil then
+            --a path step carries no altitude data; use the path search's own loc.
+            local info = reachable[key]
+            known = self:StaysHiddenAt(token, info ~= nil and info.loc or loc)
+            hiddenCache[key] = known
+        end
+        return known
+    end
+
+    local origin = mover.loc.xyfloorOnly.str
+    local tries = 0
+    local chosen = nil
+    for _,info in ipairs(candidates) do
+        if Hidden(info.loc) then
+            tries = tries + 1
+            local arrowProf = ProfBegin("engine: MarkMovementArrow")
+            local preview = mover:MarkMovementArrow(info.loc, {})
+            ProfEnd(arrowProf)
+            ---@type LuaPath?
+            local path = preview ~= nil and preview.path or nil
+            if path ~= nil and path.destination.xyfloorOnly.str == info.loc.xyfloorOnly.str then
+                local covered = true
+                for _,step in ipairs(path.steps) do
+                    --the square it starts on is where it already hid.
+                    if step.xyfloorOnly.str ~= origin and not Hidden(step) then
+                        covered = false
+                        break
+                    end
+                end
+                if covered then
+                    chosen = {loc = info.loc, cost = info.cost}
+                    break
+                end
+            end
+            if tries >= MonsterAI.hiddenRepositionRouteTries then
+                break
+            end
+        end
+    end
+    mover:ClearMovementArrow()
+    return chosen
+end
+
+--- Spend the remaining movement moving, unseen, to a random hidden square.
+--- False when it did not move (no such square: it stays put and hidden).
+--- No plan preview and no speech: either would tell the players it moved.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI:ExecuteHiddenReposition(token)
+    local mover = self:GetMovementToken(token)
+    local plan = self:FindHiddenReposition(token)
+    if plan == nil then
+        self:LogDecision("HIDDEN REPOSITION", {
+            actor = self.TokenLogName(token),
+            reason = "no reachable square keeps it hidden along the whole route",
+            result = "stays put and hidden",
+        })
+        return false
+    end
+    self:LogDecision("HIDDEN REPOSITION", {
+        actor = self.TokenLogName(token),
+        from = self.LocLogName(mover.loc),
+        to = self.LocLogName(plan.loc),
+        plan = "use remaining movement to a random square, hidden on every square of the route",
+    })
+    local origin = mover.loc.str
+    self:MoveToken(token, plan.loc, {maxCost = 10000, ignoreFalling = false}, true)
+    return mover.valid and mover.loc.str ~= origin
+end
+
 --- True when the creature must stay on its Hold post this turn: it stands on
 --- it, or a path search this frame found it can reach it.
 --- @param token CharacterToken
@@ -8870,15 +9019,45 @@ function MonsterAI:FindAndExecuteMove()
     end
 
     local advanceId = "Advance toward enemy"
+    --A Hidden monster never advances (that walks it out of hiding): it slips
+    --to another hidden square instead, once per turn, or stays put.
+    local hidden = MonsterAI.ActorIsHidden(token)
+    if hidden then
+        self:LogDecision("MOVE NOT SELECTED", {
+            move = advanceId,
+            reason = "it is hidden, so it keeps out of sight instead",
+        })
+        local hiddenId = "Reposition while hidden"
+        local repositioned = self:try_get("_tmp_hiddenRepositioned", {})
+        self._tmp_hiddenRepositioned = repositioned
+        if not failedMoves[hiddenId] and not repositioned[token.charid] then
+            repositioned[token.charid] = true
+            self:SetMoveLogContext(token, {id = hiddenId, category = "Movement"})
+            local moved = false
+            ProfEnd(chooseProf)
+            if self:TurnTakenBeforeMove() then
+                return g_moveResultUnsafe
+            end
+            local executePhase = ProfPhaseBegin("execute: " .. hiddenId)
+            local ok, err = RunYieldingFunction(function()
+                moved = self:ExecuteHiddenReposition(token)
+            end)
+            ProfPhaseEnd(executePhase)
+            if not ok then
+                return self:HandleMoveExecutionFailure(hiddenId, "Hidden Reposition", err)
+            end
+            if moved then return g_moveResultExecuted end
+        end
+    end
     --A monster that already attacked at range this turn stays back.
     local firedAtRange = (self:try_get("_tmp_rangedStrikers") or {})[token.charid] == true
-    if firedAtRange then
+    if firedAtRange and not hidden then
         self:LogDecision("MOVE NOT SELECTED", {
             move = advanceId,
             reason = "made a ranged strike this turn, so it keeps its distance",
         })
     end
-    if not failedMoves[advanceId] and not firedAtRange then
+    if not failedMoves[advanceId] and not firedAtRange and not hidden then
         self:SetMoveLogContext(token, {id = advanceId, category = "Movement"})
         local advanced = false
         ProfEnd(chooseProf)

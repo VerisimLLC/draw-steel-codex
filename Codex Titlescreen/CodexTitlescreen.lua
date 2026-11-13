@@ -930,6 +930,15 @@ local g_streamerModeSetting = setting {
 
 local g_gamePageSetting = g_playerGamePageSetting
 
+--The HEROES column shows this many cards (MakeHeroPanel slots) per page.
+local HEROES_PER_PAGE = 8
+
+local g_heroPageSetting = setting {
+    id = "playerheropage",
+    storage = "preference",
+    default = 1,
+}
+
 -- Maximum number of games a user may participate in at once. Admin
 -- accounts get a higher cap (48); everyone else is limited to 24.
 local function MaxGamesAllowed()
@@ -994,10 +1003,10 @@ local function TooManyGamesDialog(element)
 end
 
 
---The titlescreen HEROES roster in slot order, plus how many of those entries the
---player made. Ranked, not filtered: module NPCs that a lobby picked up before
---InstallModuleCo learned to skip them carry no ctime, so a plain ctime sort ties
---them at 0 and pushes the player's own heroes past the eighth slot. Filtering
+--The titlescreen HEROES roster in slot order (HEROES_PER_PAGE per page). Ranked,
+--not filtered: module NPCs that a lobby picked up before InstallModuleCo learned
+--to skip them carry no ctime, so a plain ctime sort ties them at 0 and pushes the
+--player's own heroes off the first page. Filtering
 --them out instead would hide monster-typed heroes, which are legitimate (see
 --HeroIsUnstarted).
 local function LobbyHeroes()
@@ -1040,15 +1049,11 @@ local function LobbyHeroes()
     end)
 
     local chars = {}
-    local nheroes = 0
     for i, entry in ipairs(entries) do
         chars[i] = entry.char
-        if entry.rank < 2 then
-            nheroes = nheroes + 1
-        end
     end
 
-    return chars, nheroes
+    return chars
 end
 
 --A hero the player abandoned in the builder without building anything: no
@@ -9368,12 +9373,26 @@ function CreateTitlescreen(dialog, options)
                             },
                         }
 
+                        --Hero paging state. The list panel works out the page
+                        --count on each refresh; the pager shows it.
+                        local m_numHeroPages = 1
+                        ---@type Panel|nil
+                        local m_heroList = nil
+                        ---@type Panel|nil
+                        local m_heroPager = nil
+
+                        --The stored page clamped to the pages that exist now: the
+                        --setting persists and heroes can be deleted.
+                        local function CurrentHeroPage()
+                            return clamp(round(g_heroPageSetting:Get()), 1, m_numHeroPages)
+                        end
+
                         return gui.Panel {
                         classes = { "hideOnDirector" },
 
                         -- Scoped ThemeEngine cascade for the Heroes column,
                         -- mirrors the Campaigns column. Catches the HEROES
-                        -- header strip and the 8 hero cards below.
+                        -- header strip and the page of 8 hero cards below.
                         styles = ThemeEngine.MergeStyles(m_heroesExtras),
 
                         bgimage = true,
@@ -9431,22 +9450,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Create a Hero")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = CreateHero,
 
                                     gui.Panel {
@@ -9480,22 +9483,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Import a Hero from Forge Steel")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = ImportForgeSteel,
                                 },
 
@@ -9511,22 +9498,6 @@ function CreateTitlescreen(dialog, options)
 
                                     hover = function(element)
                                         gui.Tooltip("Import a Hero from a Codex JSON file")(element)
-                                    end,
-
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportCodexJson,
@@ -9577,9 +9548,30 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             refreshGame = function(element)
+                                --In a campaign, GetAllCharacters() is the campaign's
+                                --roster, not the lobby's (see startMonitoring), and the
+                                --title screen is hidden; refreshLobby still fans out on
+                                --every game-info revision, which cost ~30 ms per bump
+                                --in a game with 1500 characters. returnFromGameComplete
+                                --refreshes the list on the way back.
+                                if dmhub.inGame and not dmhub.isLobbyGame then
+                                    return
+                                end
                                 local chars = LobbyHeroes()
                                 local games = lobby.games
-                                element:FireEventTree("characters", chars, games)
+                                m_numHeroPages = math.max(1, math.ceil(#chars / HEROES_PER_PAGE))
+
+                                --The slots index into this page's slice of the roster.
+                                local base = (CurrentHeroPage() - 1) * HEROES_PER_PAGE
+                                local pageChars = {}
+                                for i = 1, HEROES_PER_PAGE do
+                                    pageChars[i] = chars[base + i]
+                                end
+                                element:FireEventTree("characters", pageChars, games)
+
+                                if m_heroPager ~= nil and m_heroPager.valid then
+                                    m_heroPager:FireEventTree("refreshHeroPages", CurrentHeroPage(), m_numHeroPages)
+                                end
                             end,
 
                             beginLoading = function(element)
@@ -9613,6 +9605,7 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             create = function(element)
+                                m_heroList = element
                             end,
 
 
@@ -9624,6 +9617,73 @@ function CreateTitlescreen(dialog, options)
                             MakeHeroPanel(6),
                             MakeHeroPanel(7),
                             MakeHeroPanel(8),
+                        },
+
+                        --Hero paging panel: same look as the CAMPAIGNS one, under
+                        --the right edge of the hero cards. Hidden with one page.
+                        gui.Panel {
+                            styles = ThemeEngine.GetStyles(),
+                            classes = {"bgAlt", "hidden"},
+                            floating = true,
+                            minWidth = 100,
+                            width = "auto",
+                            height = 60,
+                            flow = "horizontal",
+                            halign = "right",
+                            valign = "bottom",
+                            y = 68,
+                            opacity = 0.8,
+
+                            create = function(element)
+                                m_heroPager = element
+                            end,
+
+                            refreshHeroPages = function(element, page, numPages)
+                                element:SetClass("hidden", numPages <= 1)
+                            end,
+
+                            gui.Button {
+                                classes = {"pagingArrow", "sizeL"},
+                                valign = "center",
+                                halign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page <= 1)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() - 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
+
+                            gui.Label {
+                                textAlignment = "center",
+                                width = "auto",
+                                minWidth = 60,
+                                height = 50,
+                                fontSize = 20,
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element.text = string.format("Page\n%d/%d", page, numPages)
+                                end,
+                            },
+
+                            gui.Button {
+                                classes = {"pagingArrow", "right", "sizeL"},
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page >= numPages)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() + 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
                         },
                     }
                     end)(),
@@ -9753,8 +9813,6 @@ function CreateTitlescreen(dialog, options)
                         refreshLobby = function(element)
                             local orderedGames = {}
                             local directorMode = DirectorMode()
-
-                            print("REFRESH WITH DIRECTOR =", directorMode)
 
                             local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
                             for _, game in ipairs(viewGames) do
@@ -10412,13 +10470,13 @@ TitlescreenHeroes = {
             return false
         end)
     end,
-    --The heroes in the titlescreen's HEROES slots, in slot order: the first
-    --8 of LobbyHeroes() (one per hard-coded MakeHeroPanel slot), minus
-    --abandoned empty shells. The EotW Guild offers these to copy into town.
+    --The heroes in the titlescreen's HEROES slots, in slot order across every
+    --page of LobbyHeroes(), minus abandoned empty shells. The EotW Guild offers
+    --these to copy into town.
     List = function()
         local result = {}
         local chars = LobbyHeroes()
-        for i = 1, math.min(8, #chars) do
+        for i = 1, #chars do
             if not HeroIsUnstarted(chars[i]) then
                 result[#result+1] = chars[i]
             end

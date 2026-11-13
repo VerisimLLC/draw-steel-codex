@@ -54,6 +54,14 @@ Not beats (can sit anywhere, including in a sub-document):
 | `# Part <n>: <Title>` | marks the document as one part of a series (see Series) |
 | `# Results` | a series part's outcome bars and what its outcome does to the story (see "Carrying the story forward") |
 
+Beats after the `# Encounter` (an "Aftermath" narrative, say) play once the
+fight is **won**: after the victory screen's Proceed, the stage comes back
+with them, and the `# Conclusion` screen (or, in a test, the end of the test)
+follows when the last one is done. A defeat skips them and goes straight to
+`# Defeat`. Only one fight is played: a second `# Encounter` ends the script.
+Their rewards and story effects apply as before the fight, but a series part
+has already decided its `# Results` at the victory, so they do not change it.
+
 Any other `#` heading warns and is ignored. A document with no beats but an
 `[[encounter]]` island plays as a plain fight.
 

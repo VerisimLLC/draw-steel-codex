@@ -5399,6 +5399,24 @@ the map, they win. Decisions taken:
   carries `Arrive:` (schedule), `Enter:` (a zone type), `Shout:` lines and one
   or more `[[encounter]]` islands. Grammar: the /eotw skill's
   `script-reference.md`.
+- **Encounter-builder waves are honoured too** (2026-11-13, bug report
+  Y2RFTY6F: an author built round 2 and round 3 waves with the combat
+  builder's "Add Reinforcements" and they never came -- nothing in EotW
+  deployed them, and the Reinforcements strip is Director UI, hidden in a
+  directorless game and in the player-host authoring test). The host tick
+  (`EncounterReinforcements.HostTick` -> `WaveTick`) now brings in the live
+  encounter's waves: a numbered wave once `round >= wave.round` (catches up a
+  missed tick), "every" at the start of every round from round 2. Each group
+  spawns through `Encounter.SpawnGroupForReal` (party-size gating, saved
+  positions, else a grid beside the wave's or the fight's first saved
+  position), joins the initiative, is level-boosted and recorded for the
+  victory screen, and is tagged `eotwReinforcement = "wave-<id>"` for the test
+  reset. Whether a wave is due is stamped on the LIVE encounter
+  (`MarkWaveDeployed`; `eotwWaveRounds` for "every") before it spawns, since
+  the live encounter is fresh per combat; the document gets a
+  `wave-<id>-r<round>` arrival record. Marking it deployed also stops
+  `CountPendingReinforcements` counting it, so victory conditions see it as
+  arrived. luac + LuaLS clean; NOT yet run in the app.
 - **Alternation = several islands in one section**, taken in turn by arrival
   number (`EncounterScript.ScheduleOrdinal`). Separate sections with offset
   schedules (`every other round from round 2` / `... from round 3`) also work.

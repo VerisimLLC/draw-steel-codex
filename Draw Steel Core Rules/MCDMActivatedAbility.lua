@@ -5228,7 +5228,14 @@ end
 
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
     if self:try_get("promptOverride") ~= nil then
-        return self.promptOverride .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
+        local reboundHint = ""
+        --A rebounding push bounces with whatever distance is left past the obstacle, so tell
+        --the player where to point.
+        if self:try_get("targeting", "direct") == "straightline" and casterToken ~= nil and casterToken.properties ~= nil
+            and casterToken.properties:GetForcedPushOptions().rebound then
+            reboundHint = ". Click a space behind the collision target to rebound."
+        end
+        return self.promptOverride .. reboundHint .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
     end
 
     if synthesizedSpells ~= nil then

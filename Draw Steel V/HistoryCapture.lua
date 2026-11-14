@@ -116,11 +116,16 @@ local function TurnOwner(q)
     return owner
 end
 
---- Adds the encounter, round and turn to an entry. Does nothing out of combat.
+--- Adds the encounter, round and turn to an entry; out of combat, the game mode instead
+--- (Respite), left off for Exploration so older entries read the same.
 --- @param entry HistoryEntry
 function History.AddCombatFacts(entry)
     local q = dmhub.initiativeQueue
     if q == nil or q.hidden then
+        local mode = q ~= nil and q:GameModeId() or "exploration"
+        if mode ~= "exploration" and mode ~= "combat" then
+            entry.mode = mode
+        end
         return
     end
     entry.encounter = q.guid

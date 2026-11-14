@@ -2345,9 +2345,10 @@ function History.SearchMark(text)
     return table.concat(out)
 end
 
---Groups entries, oldest first, into sections (a round, or a stretch out of combat)
---holding turns holding entries. Out of combat has no round, so an encounter between
---two stretches keeps them apart, and each takes its id from its first entry.
+--Groups entries, oldest first, into sections (a round, or a stretch in one game mode out
+--of combat) holding turns holding entries. Out of combat has no round, so an encounter or
+--a change of mode between two stretches keeps them apart, and each takes its id from its
+--first entry.
 --Also returns what is nested under each action, by the action's id.
 local function BuildSections(mapid)
     local keys = History.Keys(mapid)
@@ -2386,15 +2387,17 @@ local function BuildSections(mapid)
             nested[root.id] = nested[root.id] or {}
             table.insert(nested[root.id], entry)
         elseif entry ~= nil and (entry.family ~= "malice" or dmhub.isDM) then
-            local groupid = "out"
-            if entry.encounter ~= nil then
+            local outside = entry.encounter == nil
+            local groupid = "out-" .. (entry.mode or "exploration")
+            if not outside then
                 groupid = string.format("%s-%d", entry.encounter, entry.round)
             end
             if section == nil or section.groupid ~= groupid then
                 section = {
                     groupid = groupid,
-                    id = groupid == "out" and ("out-" .. key) or groupid,
+                    id = outside and ("out-" .. key) or groupid,
                     round = entry.round,
+                    mode = outside and (entry.mode or "exploration") or nil,
                     turns = {},
                     entries = {},
                 }
@@ -2421,9 +2424,11 @@ local function BuildSections(mapid)
     return sections, nested
 end
 
+--Out of combat, the heading is the game mode's name as the Initiative bar shows it (5.1).
 local function SectionTitle(section)
     if section.round == nil then
-        return "Out of combat"
+        local info = InitiativeQueue.GameModesById[section.mode or "exploration"] or InitiativeQueue.GameModesById["exploration"]
+        return info ~= nil and info.text or "Exploration"
     end
     return string.format("Round %d", section.round)
 end

@@ -25,6 +25,7 @@ local mod = dmhub.GetModLoading()
 --- @field kind string What sort of event this is, e.g. "action".
 --- @field map string Id of the map it happened on.
 --- @field encounter? string Guid of the combat it happened in; nil out of combat.
+--- @field mode? string Out of combat: the game mode's id when it was not Exploration, e.g. "respite".
 --- @field round? integer The combat round.
 --- @field turn? integer Running turn number within the combat.
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.

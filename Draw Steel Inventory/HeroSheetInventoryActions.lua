@@ -74,6 +74,17 @@ function Actions.AddToHero(item)
     return ok
 end
 
+--- Add a compendium item where the Inventory list points: the party stash
+--- while the list shows it, else the Hero. The add pane's buttons use it.
+--- @param item table a tbl_Gear row
+--- @return boolean
+function Actions.AddItem(item)
+    if HeroSheetInventory.Source() == "stash" then
+        return Actions.AddToStash(item)
+    end
+    return Actions.AddToHero(item)
+end
+
 --- Add a compendium item to the party stash (dragged onto it).
 --- @param item table a tbl_Gear row
 --- @return boolean
@@ -82,11 +93,18 @@ function Actions.AddToStash(item)
     if party == nil or not Actions.CanAdd() then
         return false
     end
-    party:BeginChanges()
-    party.properties:GiveItem(item.id, item:TradedQuantity())
-    party:CompleteChanges(string.format("Add %s", item.name))
-    audio.FireSoundEvent("UI.Inv_Place")
-    return true
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = string.format("Add %s", item.name),
+        others = {party},
+        othersOnly = true,
+        execute = function()
+            party.properties:GiveItem(item.id, item:TradedQuantity())
+        end,
+    }
+    if ok then
+        audio.FireSoundEvent("UI.Inv_Place")
+    end
+    return ok
 end
 
 --- @class HeroStashEntry
@@ -156,7 +174,7 @@ end
 
 --- Change whoever holds a row's item, as one undo step: the open Hero
 --- (through HeroSheetWrite.Save) or, for a party stash row, the party's
---- stash record (as the old trade window writes it). fn gets its properties.
+--- stash record. fn gets its properties.
 --- @param entry HeroInventoryEntry|HeroStashEntry
 --- @param description string
 --- @param fn fun(props: any)
@@ -167,10 +185,16 @@ local function SaveHolder(entry, description, fn)
         if party == nil or not HeroSheetWrite.CanWrite() then
             return false
         end
-        party:BeginChanges()
-        fn(party.properties)
-        party:CompleteChanges(description)
-        return true
+        --a conditional write: a change from a stale view is refused, so two
+        --players cannot leave the stash with more than it held.
+        return HeroSheetWrite.SaveAtomic{
+            description = description,
+            others = {party},
+            othersOnly = true,
+            execute = function()
+                fn(party.properties)
+            end,
+        }
     end
     return HeroSheetWrite.Save{
         description = description,
@@ -338,10 +362,9 @@ function Actions.Take(itemid)
         return false
     end
     audio.FireSoundEvent("UI.Inv_Grab")
-    --at Narrow the inventory is on the other tab: say where it went.
-    if HeroSheet.Tier() == "narrow" then
-        HeroSheetWindow.Toast(string.format("%s moved to your inventory.", item.name))
-    end
+    --the item can land somewhere not showing (the other tab, or gear the
+    --Treasures card leaves out): say where it went.
+    HeroSheetWindow.Toast(string.format("%s moved to your inventory.", item.name))
     return true
 end
 
@@ -1186,7 +1209,7 @@ end
 --against these instead.
 --- @class HeroInventoryDropTarget
 --- @field panel Panel
---- @field kind string what it takes: "stash", "list", "mapdrop" or "destroy"
+--- @field kind string|fun(): string what it takes: "stash", "list" (Take into the Hero), "mapdrop" or "destroy"; a function for a panel that changes role (the list, while it shows the stash)
 --- @field priority number the higher wins where targets overlap (a zone over the list)
 --- @field shown fun(): boolean whether it is showing (and taking drops) now
 
@@ -1195,9 +1218,20 @@ local g_targets = {}
 --- @type nil|Panel the target under the pointer, edged while the chip is over it
 local g_over = nil
 
+--- What a target takes now.
+--- @param target HeroInventoryDropTarget
+--- @return string
+local function TargetKind(target)
+    local kind = target.kind
+    if type(kind) == "function" then
+        return kind()
+    end
+    return kind --[[@as string]]
+end
+
 --- Make a panel a drop target for dragged items.
 --- @param panel Panel
---- @param kind string
+--- @param kind string|fun(): string
 --- @param priority number
 --- @param shown fun(): boolean
 function Actions.RegisterTarget(panel, kind, priority, shown)
@@ -1231,7 +1265,7 @@ local function TargetAt(point, from)
         if target.panel.valid and target.shown() then
             local rect = Tabletop.PanelRect(target.panel)
             if rect ~= nil and rect.w > 0 and point.x >= rect.x and point.x <= rect.x + rect.w and point.y >= rect.y and point.y <= rect.y + rect.h
-                and Actions.CanDrop(from, target.kind) and (best == nil or target.priority > best.priority) then
+                and Actions.CanDrop(from, TargetKind(target)) and (best == nil or target.priority > best.priority) then
                 best = target
             end
         end
@@ -1371,7 +1405,7 @@ function Actions.EndDrag(row)
     if target == nil then
         return
     end
-    local kind = target.kind
+    local kind = TargetKind(target)
     if drag.from == "stash" then
         Actions.Take(drag.entry.itemid)
         return
@@ -1396,7 +1430,7 @@ end
 
 --- The drag fields a row takes: draggable without moving, the chip in its
 --- place. entry() gives the row's entry now (nil: not draggable).
---- @param from string "inv", "stash" or "add"
+--- @param from string|fun(): string "inv", "stash" or "add"; a function for a row that shows either (the list's rows)
 --- @param entry fun(): nil|HeroInventoryEntry|HeroStashEntry
 --- @return table fields to merge into the row's gui args
 function Actions.DragFields(from, entry)
@@ -1406,8 +1440,13 @@ function Actions.DragFields(from, entry)
         dragThreshold = 6,
         beginDrag = function(element)
             local current = entry()
-            if current ~= nil and HeroSheetWrite.CanWrite() and (from ~= "add" or Actions.CanAdd()) then
-                Actions.BeginDrag(element, from, current)
+            local source = from
+            if type(source) == "function" then
+                source = source()
+            end
+            --- @cast source string
+            if current ~= nil and HeroSheetWrite.CanWrite() and (source ~= "add" or Actions.CanAdd()) then
+                Actions.BeginDrag(element, source, current)
             end
         end,
         dragging = function(element)
@@ -1444,15 +1483,10 @@ function Actions.SlotWaitsFor(props, itemid)
     return false
 end
 
---- @class HeroStashPanelArgs
---- @field embedded nil|boolean Narrow's copy on the Inventory's Party stash tab: the Inventory shows it, and it fills its place
-
---- The stash block. Its height is set by the sheet's column fit (the card
---- column's copy) or fills its place (the embedded copy).
---- @param args nil|HeroStashPanelArgs
+--- The stash block in the card column. Its height is set by the sheet's
+--- column fit.
 --- @return Panel
-function Actions.StashPanel(args)
-    local embedded = args ~= nil and args.embedded == true
+function Actions.StashPanel()
     --- @type HeroStashEntry[]
     local entries = {}
     local signature = nil
@@ -1478,6 +1512,31 @@ function Actions.StashPanel(args)
             Actions.TakeAll()
         end,
     }
+    --View all: the Inventory list shows the stash, searchable, with long
+    --names and counts in full. The pointer on it builds the list's rows early.
+    local viewAll = gui.Label{
+        classes = {"heroSheetPlateButton", "hoverable"},
+        text = "View all",
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 12,
+        width = "auto",
+        height = 24,
+        hpad = 10,
+        borderBox = true,
+        fontSize = 12,
+        bold = true,
+        textWrap = false,
+        halign = "right",
+        valign = "center",
+        rmargin = 6,
+        click = function(element)
+            HeroSheetInventory.SetSource("stash")
+        end,
+        hover = function(element)
+            HeroSheetInventory.WarmStash()
+        end,
+    }
     local header = gui.Panel{
         width = "100%",
         height = STASH_HEADER,
@@ -1493,7 +1552,14 @@ function Actions.StashPanel(args)
             valign = "center",
             textWrap = false,
         },
-        takeAll,
+        gui.Panel{
+            width = "auto",
+            height = "100%",
+            flow = "horizontal",
+            halign = "right",
+            viewAll,
+            takeAll,
+        },
     }
     local empty = gui.Label{
         classes = {"heroSheetCardSub", "collapsed"},
@@ -1594,6 +1660,20 @@ function Actions.StashPanel(args)
             name,
             sub,
         }
+        --the count sits apart from the name, as on the list's rows, so a long
+        --name is cut short without hiding how many there are.
+        local qty = gui.Label{
+            classes = {"heroSheetCardStrong", "collapsed"},
+            text = "",
+            fontSize = 13,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            lmargin = 6,
+            textWrap = false,
+        }
         local take = gui.Label{
             classes = {"heroSheetSmallButton", "hoverable", "heroSheetOn"},
             text = "Take",
@@ -1670,6 +1750,7 @@ function Actions.StashPanel(args)
                 end
             end,
             words,
+            qty,
             take,
             keb,
             field.panel,
@@ -1705,7 +1786,10 @@ function Actions.StashPanel(args)
         row.paint = function(entry, waits, write)
             local same = row.entry ~= nil and row.entry.itemid == entry.itemid
             row.entry = entry
-            name.text = entry.name .. cond(entry.quantity > 1, string.format(" x%d", entry.quantity), "")
+            name.text = entry.name
+            local many = entry.quantity > 1
+            qty.text = cond(many, string.format("x%d", entry.quantity), "")
+            qty:SetClass("collapsed", not many)
             --a slot that remembers the item says it will be worn again.
             sub.text = cond(waits, "Equips again when you take it", HeroSheetInventory.KIND_NAMES[entry.kind] or "Item")
             take:SetClass("collapsed", not write)
@@ -1713,8 +1797,9 @@ function Actions.StashPanel(args)
             if field.editing() and not same then
                 field.close()
             end
-            --the words leave room for Take and the "..." (shown on hover).
-            words.selfStyle.width = cond(write, "100%-90", "100%")
+            --the words leave room for the count, Take and the "..." (shown on hover).
+            local room = cond(write, 90, 0) + cond(many, HeroSheetTheme.TextWidth(qty.text, 13) + 6, 0)
+            words.selfStyle.width = string.format("100%%-%d", math.ceil(room))
             name.selfStyle.maxWidth = "100%"
             sub.selfStyle.maxWidth = "100%"
             panel:SetClass("heroSheetRowPinned", HeroSheetInventory.StashShown() == entry.itemid)
@@ -1789,8 +1874,9 @@ function Actions.StashPanel(args)
         think = function(element)
             Paint(false)
         end,
-        --shown on the Inventory tab for a Hero in a party (at Narrow the
-        --Inventory shows its own copy on the Party stash tab).
+        --shown on the Inventory tab for a Hero in a party, while the list shows
+        --the Hero's items (the Treasures card takes its place while the list
+        --shows the stash). Narrow has no column: the list's tabs do it there.
         heroSheetTab = function(element, tabid)
             element:FireEvent("heroSheetStashShow", tabid)
         end,
@@ -1807,11 +1893,13 @@ function Actions.StashPanel(args)
                 element:FireEvent("heroSheetStashShow", state ~= nil and state.tab or "")
             end
         end,
+        heroSheetInventorySource = function(element)
+            local state = HeroSheet.State()
+            element:FireEvent("heroSheetStashShow", state ~= nil and state.tab or "")
+        end,
         heroSheetStashShow = function(element, tabid)
-            if embedded then
-                return
-            end
             local show = tabid == "Inventory" and HeroSheet.Tier() ~= "narrow" and Actions.Party(HeroSheet.Token()) ~= nil
+                and HeroSheetInventory.Source() ~= "stash"
             element:SetClass("collapsed", not show)
             if show then
                 Paint(true)
@@ -1830,10 +1918,6 @@ function Actions.StashPanel(args)
         list,
         footer,
     }
-    if embedded then
-        block.selfStyle.height = "100%"
-        block.selfStyle.tmargin = 0
-    end
     --one of the Hero's items dropped here goes in the stash.
     Actions.RegisterTarget(block, "stash", 1, function()
         return not block:HasClass("collapsed")

@@ -168,6 +168,11 @@ end
 --- @param directorMode boolean
 --- @return (LuaGameInfo|CampaignPlaceholder)[]
 function CampaignRearrange.ViewEntries(directorMode)
+    --Older engine builds have no account list; without this they would show no campaigns at all.
+    if lobby.accountGameIds == nil then
+        return CampaignRearrange.ViewGames(directorMode)
+    end
+
     local loaded = {}
     for _, game in ipairs(lobby.games or {}) do
         loaded[game.gameid] = game

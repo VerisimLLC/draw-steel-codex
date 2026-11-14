@@ -439,6 +439,7 @@ Goal: why it happened, one click from the row.
   - **L35 (James):** the tooltip has no title, to match the drag tooltip; "Side view" shows only when the move can't be drawn side-on (it crosses floors).
   - **Several movers in one row:** each gets an arrow and a ghost; the side view is the first's.
   - **Not built:** L36 (panels have no accessible names); a button on a standalone moved line; fall damage in the side view (History records squares fallen, not the damage).
+  - **Straight arrow (engine 9207aabeb, feat/saved-movement-path):** `DrawArrowAlongPath` runs `Pathfind.MakePathDirect` on a forced path, so a replayed push draws straight as its targeting arrow did. A fall's landing point stays in, so the arrow bends down at its end (James: keep it).
   - **Definitions:** only the `CreatePath` and `MarkMovementArrow` stubs from the dev build's regen; the rest of the regen was unrelated engine drift.
 
 ## Stage 5: everything else the old log shows

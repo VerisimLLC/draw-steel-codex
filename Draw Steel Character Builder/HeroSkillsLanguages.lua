@@ -123,15 +123,16 @@ local function ParseSource(source)
 end
 
 --- What a grant row comes from: the item and its step, as the choice's
---- source text names them, or else the complication the build engine names
---- (a complication's choices say only "Feat"). The culture's own language
---- choice is the Culture's.
+--- source text names them, or else the complication or title the build engine
+--- names (their choices say only "Feat"). The culture's own language choice is
+--- the Culture's.
 --- @param feature table the choice
---- @param owner nil|string the complication granting it, from the engine's pool
+--- @param owner nil|string the complication or title granting it, from the engine's pool
 --- @param engine nil|HeroBuildEngine the build rules the row was read with; nil for the main game's
+--- @param ownerKind nil|string the step the owner belongs to; nil means a complication
 --- @return nil|string name
 --- @return nil|string step
-local function RowSource(feature, owner, engine)
+local function RowSource(feature, owner, engine, ownerKind)
     local guid, source = nil, nil
     pcall(function()
         guid = feature:try_get("guid")
@@ -142,7 +143,7 @@ local function RowSource(feature, owner, engine)
     end
     local name, step = ParseSource(source)
     if step == nil and owner ~= nil then
-        return owner, SOURCE_KINDS.Complication
+        return owner, ownerKind or SOURCE_KINDS.Complication
     end
     return name, step
 end
@@ -416,7 +417,7 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
     local poolGuids = {}
     for _, pool in ipairs(build.hero.Pools(hero, kind)) do
         local feature = pool.wrapper:GetFeature()
-        local name, step = RowSource(feature, pool.owner, build)
+        local name, step = RowSource(feature, pool.owner, build, cond(pool.source == "titles", SOURCE_KINDS.Title, nil))
         if step == "Class" and feature:try_get("classid") ~= nil and feature:try_get("classid") ~= mainClassId then
             step = "Subclass"
         end
@@ -426,6 +427,10 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
         local stepWord = step ~= nil and KindWord(step) or nil
         if stepWord ~= nil and stepWord ~= item then
             title = string.format("%s: %s", stepWord, item)
+        end
+        --a title's row names its benefit too: a title offers several.
+        if pool.source == "titles" and pool.name ~= nil and pool.name ~= item then
+            title = string.format("%s: %s", item, pool.name)
         end
         local picks = {}
         for _, id in ipairs(pool.selected) do
@@ -724,6 +729,24 @@ function HeroSkillsLanguages.Holder(draft, id)
         end
     end
     return nil
+end
+
+--- What a grant row's slot can hold: what the row allows, less what the Hero
+--- has from anywhere else. The slot's own pick stays on offer.
+--- @param draft HeroSkillsDraft
+--- @param row HeroSkillsRow
+--- @param slot integer
+--- @return HeroSkillsEntry[]
+function HeroSkillsLanguages.SlotOptions(draft, row, slot)
+    local result = {}
+    for _, entry in ipairs(draft.entries) do
+        local free = HeroSkillsLanguages.Holder(draft, entry.id) == nil and draft.known[entry.id] == nil
+            and (row.allowed == nil or row.allowed[entry.id] == true)
+        if free or entry.id == row.picks[slot] then
+            result[#result+1] = entry
+        end
+    end
+    return result
 end
 
 --- @param row HeroSkillsRow
@@ -1615,7 +1638,10 @@ function HeroSkillsLanguages.Panel(args)
                 statusBox.selfStyle.width = width
                 statusLabel.selfStyle.width = width
                 if paneRows then
+                    --the labels too: wider than their column, they spill out of the row.
                     titleColumn.selfStyle.width = rowInner - width - 10
+                    titleLabel.selfStyle.width = rowInner - width - 10
+                    lineLabel.selfStyle.width = rowInner - width - 10
                 else
                     values.selfStyle.width = rowInner - width - 20 - titleWidth
                 end

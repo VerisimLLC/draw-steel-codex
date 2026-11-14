@@ -12471,13 +12471,18 @@ local g_markdownSamples = {
 }
 
 MarkdownReferenceTooltip = function()
+    --The sample image and sound are assets in each white label's own cloud:
+    --the Codex's are a Draw Steel hero and DS_OpenDoor.wav, DMHub's a core
+    --portrait ("Dwarf - Explorer") and "Dungeon Door 1".
+    local mcdm = dmhub.whiteLabel == "mcdm"
     local annotations = {
         image = RichImage.new {
-            image = "98fa8fcd-5a62-4736-924d-0753b2900b2e",
-            uiscale = 0.15,
+            image = cond(mcdm, "98fa8fcd-5a62-4736-924d-0753b2900b2e", "-MDitJx9y5VJr1d9EfiT"),
+            --about 134 px wide either way (896 px and 400 px source widths).
+            uiscale = cond(mcdm, 0.15, 0.33),
         },
         sound = RichAudio.new{
-            sound = "f6bc62cc-7225-48cf-b719-b86280ea198d",
+            sound = cond(mcdm, "f6bc62cc-7225-48cf-b719-b86280ea198d", "47683b26-07d2-4c1b-a347-299c26e43a70"),
         },
     }
 

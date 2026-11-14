@@ -1929,7 +1929,14 @@ function ActivatedAbility:Render(options, params)
                     end
                 end
                 if #noteParts > 0 then
-                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    --An optional activationNote explains WHY the modifier applies, e.g.
+                    --"Ruthless Rage +3 damage: another wyvern is within 10 squares".
+                    local activationNote = modifier:try_get("activationNote", "")
+                    if activationNote ~= "" then
+                        notes[#notes+1] = string.format("%s %s: %s", modifier.name, table.concat(noteParts, ", "), activationNote)
+                    else
+                        notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    end
                 end
             end
         end

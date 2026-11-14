@@ -4323,6 +4323,16 @@ function CharacterModifier:FillConditionImmunities(modContext, creature, result)
 	local fn = typeInfo.fillConditionImmunities
 	if fn ~= nil then
 		self:InstallSymbolsFromContext(modContext)
+		--A conditional immunity (e.g. Tenacious Hunter) only applies while its filter holds.
+		--An erroring formula (such as ConditionCaster on a condition the creature lacks) counts as
+		--"no immunity", so default to 0 rather than using PassesFilter, whose error default is 1.
+		local filter = self:try_get("filterCondition", "")
+		if filter ~= "" then
+			local passes = ExecuteGoblinScript(filter, creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0, string.format("Should apply immunity %s", self.name))
+			if passes == 0 then
+				return
+			end
+		end
 		fn(self, result)
 	end
 end

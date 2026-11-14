@@ -73,28 +73,41 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
     local result = {}
     local seenLocs = {}
     local seenTokens = {}
+    local moverHeight = math.max(1, casterToken.characterHeight or 1)
 
-    local function CheckLoc(loc)
+    --A square is checked once per altitude the mover passes it at: a flier can pass the same
+    --square high up and later low down, and only the low pass is next to a creature on the ground.
+    local function CheckLoc(loc, altitude)
         local key = loc.xyfloorOnly.str
-        if seenLocs[key] then
+        local seenKey = key .. "@" .. altitude
+        if seenLocs[seenKey] then
             return
         end
-        seenLocs[key] = true
+        seenLocs[seenKey] = true
 
         for _,token in ipairs(game.GetTokensAtLoc(core.Loc(key)) or {}) do
-            if (not seenTokens[token.charid]) and token.charid ~= casterToken.charid and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
-                seenTokens[token.charid] = true
-                result[#result+1] = token
+            if (not seenTokens[token.charid]) and token.charid ~= casterToken.charid then
+                --Vertical adjacency: the mover's body (moverHeight squares tall) at this altitude must
+                --come within the vicinity of the other creature's body. Path step altitudes are relative
+                --to the step's floor, so compare against floorAltitude, not the map-wide altitude.
+                local targetHeight = math.max(1, token.characterHeight or 1)
+                local targetAltitude = token.floorAltitude
+                local closeEnough = altitude <= targetAltitude + targetHeight - 1 + self.vicinity
+                    and altitude + moverHeight - 1 >= targetAltitude - self.vicinity
+                if closeEnough and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
+                    seenTokens[token.charid] = true
+                    result[#result+1] = token
+                end
             end
         end
     end
 
     for _,step in ipairs(path.steps) do
         for _,newLoc in ipairs(casterToken:LocsOccupyingWhenAt(step)) do
-            CheckLoc(newLoc)
+            CheckLoc(newLoc, step.altitude)
             if self.vicinity > 0 then
                 for _,adjLoc in ipairs(newLoc:LocsInRadius(self.vicinity)) do
-                    CheckLoc(adjLoc)
+                    CheckLoc(adjLoc, step.altitude)
                 end
             end
         end

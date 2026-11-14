@@ -342,6 +342,13 @@ ActivatedAbilityCast.helpSymbols = {
         },
     },
 
+    anytargetcoverorconcealment = {
+        name = "Any Target Cover Or Concealment",
+        type = "boolean",
+        desc = "True if any target of this ability has concealment, or has cover from at least one enemy (the Concealed and Cover From Any Enemy creature symbols).",
+        examples = {"Cast.AnyTargetCoverOrConcealment"},
+    },
+
     targetsadjacent = {
         name = "Targets Adjacent",
         type = "boolean",
@@ -469,6 +476,19 @@ ActivatedAbilityCast.lookupSymbols = {
 
             return false
         end
+    end,
+
+    --True if any target has concealment or cover (gates Agonizing Stinger's Malice trigger).
+    anytargetcoverorconcealment = function(c)
+        for _, target in ipairs(c:try_get("targets", {})) do
+            if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
+                local props = target.token.properties
+                if props:IsConcealed() or props:CalculateCoverFromEnemies().any then
+                    return true
+                end
+            end
+        end
+        return false
     end,
 
     --Counts this cast's targets standing within `distance` squares of `creature`

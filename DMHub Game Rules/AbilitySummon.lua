@@ -3101,6 +3101,18 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 token.properties.summonEmergeDuration = emergeDuration
             end
 
+            --a monster-side summon (Abyssal Evolution, a monster calling help) is
+            --named like an encounter spawn ("Demon Ruinant 3"); the spawn skips
+            --OnCreateFromBestiary, so it would otherwise have no name. Hero
+            --summons keep their old unnamed behavior.
+            if not casterToken.playerControlled and (token.name or "") == "" then
+                pcall(function()
+                    if token.properties:IsMonster() then
+                        monster.AssignGeneratedName(token.properties --[[@as monster]], token)
+                    end
+                end)
+            end
+
             ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
 
             token:UploadToken("Summon Creature")

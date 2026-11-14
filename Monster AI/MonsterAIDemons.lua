@@ -1747,10 +1747,11 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
-local function TonguePullTargets(token, ability)
+--enemies: the hostile creatures to consider (HostileCreatures when nil).
+local function TonguePullTargets(token, ability, enemies)
     local range = ability:GetRange(token.properties)
     local result = {}
-    for _,enemy in ipairs(HostileCreatures(token)) do
+    for _,enemy in ipairs(enemies or HostileCreatures(token)) do
         local distance = MonsterAI.TargetDistance(token, enemy)
         if distance > 1 and distance <= range and CanSee(token, enemy)
             and ability:TargetPassesFilter(token, enemy, {}) then
@@ -1787,6 +1788,93 @@ MonsterAI:RegisterMove{
         end
         Speak(ai, token, "tongue")
         ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause})
+    end,
+}
+
+--When no hero is within Barbed Tongues' reach of any square the muceron can
+--walk to, it walks to where Tongue Pull catches the most heroes, pulls them
+--in, then lashes one of them. Without this it took a ranged free strike and
+--only pulled afterwards, with its main action already spent.
+local function FindPullThenStrikePlan(ai, token, pull)
+    local enemies = HostileCreatures(token)
+    local range = pull:GetRange(token.properties)
+    local flesh = AllFleshSquares()
+    local best = nil
+    for _,info in pairs(ai.paths or {}) do
+        local loc = info.loc
+        --cheap count first: skip squares that cannot have enough heroes in range.
+        local near = 0
+        for _,enemy in ipairs(enemies) do
+            if enemy:Distance(loc) <= range then
+                near = near + 1
+            end
+        end
+        if near >= tongueMinimumTargets then
+            local targets = nil
+            ai:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+                targets = TonguePullTargets(token, pull, enemies)
+            end)
+            if targets ~= nil and #targets >= tongueMinimumTargets then
+                local value = #targets - (info.cost or 0)*0.001 - cond(flesh[LocKey(loc)], 0.3, 0)
+                if best == nil or value > best.value then
+                    best = {loc = loc, value = value, count = #targets, targets = TokenTargets(targets)}
+                end
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Demon Muceron: Tongue Pull then Barbed Tongues",
+    category = "Main Actions",
+    monsters = {"Demon Muceron"},
+    abilities = {"Tongue Pull", "Barbed Tongues"},
+    description = "With no enemy in Barbed Tongues' reach this turn, walk to where Tongue Pull drags in two or more, pull them, then lash one.",
+    score = function(self, ai, token, pull, strike)
+        --the strike-first line (Barbed Tongues, then Tongue Pull) handles this.
+        if FindBarbedTonguesPlan(ai, token, strike) ~= nil then
+            return nil, "Barbed Tongues already reaches an enemy"
+        end
+        local plan = FindPullThenStrikePlan(ai, token, pull)
+        if plan == nil then
+            return nil, string.format("no reachable square pulls %d enemies", tongueMinimumTargets)
+        end
+        return {
+            score = 1 + (plan.count - tongueMinimumTargets)*0.1,
+            loc = plan.loc,
+            targets = plan.targets,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, pull, strike)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        local pulled = TonguePullTargets(token, pull)
+        if #pulled == 0 then
+            return
+        end
+        Speak(ai, token, "tongue")
+        ai:ExecuteAbility(token, pull, TokenTargets(pulled), {sleep = abilityPause})
+        if not LiveCreature(token) then
+            return
+        end
+        --lash a hero the pull brought in; any target in reach if none is.
+        local wasPulled = {}
+        for _,enemy in ipairs(pulled) do
+            wasPulled[enemy.charid] = true
+        end
+        local candidates = ai:FindValidTargetsOfStrike(token, strike, token.loc)
+        table.sort(candidates, function(a, b)
+            local aPulled = wasPulled[a.token.charid] == true
+            local bPulled = wasPulled[b.token.charid] == true
+            if aPulled ~= bPulled then
+                return aPulled
+            end
+            return DefaultTargetScore(a.token, a.edges) > DefaultTargetScore(b.token, b.edges)
+        end)
+        if #candidates == 0 then
+            return
+        end
+        ai:ExecuteAbility(token, strike, {candidates[1]}, {sleep = abilityPause})
     end,
 }
 

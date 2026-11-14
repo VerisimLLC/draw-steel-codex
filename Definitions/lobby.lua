@@ -6,7 +6,8 @@
 --- @field maxGameTitleLength number The maximum allowed length for a game title.
 --- @field maxGamePasswordLength number The maximum allowed length for a game password.
 --- @field gamesRevision number A revision counter that increments whenever the games list is updated.
---- @field games LuaGameInfo[] Returns a list of LuaGameInfo objects for all non-deleted games the current user belongs to.
+--- @field accountGameIds string[] Every game id in the account's campaigns list, in account order, including games whose summary has not arrived yet (see IsGameSummaryPending). lobby.games holds only the games whose summary is here.
+--- @field games LuaGameInfo[] Returns a list of LuaGameInfo objects for all non-deleted games the current user belongs to whose summary is available: downloaded this session, or cached on this machine from an earlier one while the download is under way.
 --- @field eotwGameid nil|string The id of the player's current Encounter of the Week game, or nil. EotW games live in a dedicated account slot (one per account) rather than the games list, so they never appear in the campaigns lobby.
 --- @field createdGameId nil|string The ID of the most recently created game, or nil if none has been created.
 --- @field createdGameIdAge number The time in seconds since the last game was created or joined.
@@ -17,11 +18,16 @@ lobby = {}
 --- @param callback function The callback to invoke after entering the lobby.
 function lobby:EnterLobbyGame(callback) end
 
+--- True while a game in the account's list has no summary yet: not downloaded this session and not cached on this machine from an earlier one, so it is missing from lobby.games. Reporting its id to SetVisibleGames moves its download ahead of the queue.
+--- @param gameid string The id of the game.
+--- @return boolean
+function lobby:IsGameSummaryPending(gameid) end
+
 --- Clears the account's Encounter of the Week slot if it currently points at the given game id. Use when the slot's game turns out to be deleted or missing; joining/creating a new EotW game overwrites the slot on its own.
 --- @param gameid? string
 function lobby:ClearEotwGame(gameid) end
 
---- Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
+--- Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Summaries of these games still downloading at startup are moved ahead of the other reads, so the page on screen fills first. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
 --- @param gameids string[] Array of game id strings currently visible on screen.
 function lobby:SetVisibleGames(gameids) end
 

@@ -3271,6 +3271,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
         monitor = function(element)
             element:FireEvent("page")
             element.data.lastState = nil
+            --the new layout is lined up on the page, not a resize.
+            element.data.readPos = nil
             if IsContinuous() then
                 element.data.scrollToCurrentPage = true
             else
@@ -3312,6 +3314,21 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
                 element.data.zoomRestore = nil
                 if contentH > viewportH then
                     pdfScrollViewPanel.vscrollPosition = clamp(1 - (restore.fraction * contentH) / (contentH - viewportH), 0, 1)
+                end
+                element.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+            end
+
+            --the window was resized (maximized, restored, or a resize handle
+            --dragged): the content's width -- and with it its height --
+            --changed at the same zoom, and the scroll view kept the pixel
+            --offset, which lands on a different page (half way through the
+            --book from a maximized page 100 restored down, saved as the page
+            --being read). Put the reading position seen before the resize
+            --back at the top of the viewport, before the page is re-derived.
+            local readPos = element.data.readPos
+            if readPos ~= nil and restore == nil and readPos.zoom == m_zoom and math.abs(contentH - readPos.contentH) > 2 then
+                if contentH > viewportH then
+                    pdfScrollViewPanel.vscrollPosition = clamp(1 - (readPos.fraction * contentH) / (contentH - viewportH), 0, 1)
                 end
                 element.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
             end
@@ -3363,6 +3380,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
             end
             local scrollRange = math.max(0, contentH - viewportH)
             local windowTop = scrollRange * (1 - pos)
+
+            --the reading position on this settled layout: what a resize puts
+            --back (above).
+            readPos = element.data.readPos
+            if readPos == nil then
+                readPos = {}
+                element.data.readPos = readPos
+            end
+            readPos.fraction = windowTop / contentH
+            readPos.contentH = contentH
+            readPos.zoom = m_zoom
 
             --estimate scroll speed so full-resolution renders can be
             --deferred while pages are flying past.
@@ -3618,6 +3646,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
         pdfContentPanel.data.zoomRestore = nil
         pdfContentPanel.data.lastZoom = m_zoom
         pdfContentPanel.data.lastState = nil
+        pdfContentPanel.data.readPos = nil
         if IsContinuous() then
             pdfContentPanel.data.scrollToCurrentPage = true
         else
@@ -4613,10 +4642,16 @@ local function CreatePDFPopoutWindowControl(args)
     }
 end
 
---Where the restored (windowed) PDF viewer was last left this session, in
---documents-layer units, with the layer size it was measured against:
---{x, y, w, h, lw, lh}. Shared by every PDF.
-local g_pdfWindowGeometry = nil
+--How each PDF's viewer was last left, remembered across sessions in the
+--pref "pdf-window-<doc id>": {maximized = boolean, x, y, w, h}, the
+--restored window's rect as fractions of the documents layer (so it keeps
+--its place when the app window changes size). A PDF opens in the mode it
+--was last left in, windowed where it was; with no record it opens
+--maximized. Kept apart from "pdf-browse-<doc id>", which the viewer's
+--contents write as a whole table.
+local function PdfWindowPrefKey(docid)
+    return string.format("pdf-window-%s", docid)
+end
 
 --options.host (optional): a panel to parent the viewer on instead of the
 --gamehud modal stack. The titlescreen needs this -- the gamehud modal layer
@@ -4668,7 +4703,8 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
     --Window modes, in a game (the titlescreen host keeps the plain viewer):
     --  maximized: in the gamehud modal stack, covering the game, as the
-    --      viewer always was. It opens this way.
+    --      viewer always was. It opens this way unless this PDF was last
+    --      left restored (PdfWindowPrefKey).
     --  restored: a movable, resizable window on the documents layer, with
     --      the game still playable around it. Its arrow keys turn pages
     --      only while it has the GUI focus (a press inside it gives it).
@@ -4732,14 +4768,32 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         return CanRestore() and Tabletop.CanMinimizeExternal()
     end
 
-    --The restored window's spot and size: where a PDF window was last left
-    --this session, else a large window in the middle of the table.
+    --This PDF's remembered window (see PdfWindowPrefKey).
+    local function WindowPrefs()
+        local prefs = dmhub.GetPref(PdfWindowPrefKey(doc.id))
+        if type(prefs) ~= "table" then
+            return {}
+        end
+        return prefs
+    end
+
+    local function WriteWindowPrefs(prefs)
+        dmhub.SetPref(PdfWindowPrefKey(doc.id), prefs)
+    end
+
+    --The restored window's spot and size: where this PDF's window was last
+    --left, kept on the table, else a large window in the middle of it.
     local function RestoredGeometry()
         local layer = DocumentsLayer() --[[@as Panel]]
         local lw, lh = layer.renderedWidth, layer.renderedHeight
-        local g = g_pdfWindowGeometry
-        if g ~= nil and g.lw == lw and g.lh == lh then
-            return g.x, g.y, g.w, g.h
+        local g = WindowPrefs()
+        local fx, fy, fw, fh = tonumber(g.x), tonumber(g.y), tonumber(g.w), tonumber(g.h)
+        if fx ~= nil and fy ~= nil and fw ~= nil and fh ~= nil and lw > 0 and lh > 0 then
+            local w = math.min(lw, math.max(480, math.floor(fw * lw + 0.5)))
+            local h = math.min(lh, math.max(360, math.floor(fh * lh + 0.5)))
+            local x = clamp(math.floor(fx * lw + 0.5), 0, math.max(0, lw - w))
+            local y = clamp(math.floor(fy * lh + 0.5), 0, math.max(0, lh - h))
+            return x, y, w, h
         end
         local w = math.max(480, math.min(1100, lw - 200))
         local h = math.max(360, math.min(900, lh - 80))
@@ -4753,17 +4807,23 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         end
         local w = dialogPanel.selfStyle.width
         local h = dialogPanel.selfStyle.height
-        if type(w) ~= "number" or type(h) ~= "number" then
+        local lw, lh = layer.renderedWidth, layer.renderedHeight
+        if type(w) ~= "number" or type(h) ~= "number" or lw <= 0 or lh <= 0 then
             return
         end
-        g_pdfWindowGeometry = {
-            x = dialogPanel.x,
-            y = dialogPanel.y,
-            w = w,
-            h = h,
-            lw = layer.renderedWidth,
-            lh = layer.renderedHeight,
-        }
+        local prefs = WindowPrefs()
+        prefs.x = dialogPanel.x / lw
+        prefs.y = dialogPanel.y / lh
+        prefs.w = w / lw
+        prefs.h = h / lh
+        WriteWindowPrefs(prefs)
+    end
+
+    --Remembers whether this PDF was last left maximized or windowed.
+    local function RememberMode(maximized)
+        local prefs = WindowPrefs()
+        prefs.maximized = maximized == true
+        WriteWindowPrefs(prefs)
     end
 
     --The resize handles are built for one size and track it by events, so a
@@ -4800,7 +4860,10 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             local docsLayer = DocumentsLayer() --[[@as Panel]]
             if dialogPanel.parent ~= docsLayer then
                 local wasModal = InModal()
-                dialogPanel:Unparent()
+                --a viewer opening windowed has no parent yet.
+                if dialogPanel.parent ~= nil then
+                    dialogPanel:Unparent()
+                end
                 docsLayer:AddChild(dialogPanel)
                 if wasModal then
                     ReleaseModalLayer()
@@ -4879,6 +4942,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             return
         end
         data.maximized = maximized
+        RememberMode(maximized)
         if maximized and gui.GetFocus() == dialogPanel then
             --maximized, commands go to the modal tree, but to a focused
             --panel only when one has focus: let the modal tree have them.
@@ -5081,7 +5145,8 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             poppedOut = false,
             chromeVisible = false,
             closeViewer = CloseViewer,
-            --see the window modes above; it opens maximized.
+            --see the window modes above; maximized unless the open below
+            --restores it.
             maximized = true,
             minimized = false,
             restoreViewer = function()
@@ -5572,6 +5637,12 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             dialogPanel,
         }
         host:AddChild(hostFrame)
+    elseif WindowPrefs().maximized == false and CanRestore() then
+        --this PDF was last left as a window on the table: it opens as one,
+        --where it was (PdfWindowPrefKey).
+        dialogPanel.data.maximized = false
+        PlaceViewer()
+        FocusViewer()
     else
         gui.ShowModal(dialogPanel)
         GameHud.instance.modalPanel.interactable = false

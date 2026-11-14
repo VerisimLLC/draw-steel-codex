@@ -78,7 +78,7 @@ end
 
 --- The ids of games, ordered by ids first (skipping any no longer present), then the rest in engine order.
 --- @param ids string[]
---- @param games LuaGameInfo[]
+--- @param games (LuaGameInfo|CampaignPlaceholder)[]
 --- @return string[]
 local function MergeOrder(ids, games)
     local present = {}
@@ -150,10 +150,57 @@ function CampaignRearrange.ViewGames(directorMode)
     return result
 end
 
---- The view's games in the saved order; games the order does not name follow in engine order. Never writes.
---- @param games LuaGameInfo[]
+--- Stands in for a campaign whose summary has not downloaded yet.
+--- @class CampaignPlaceholder
+--- @field gameid string
+--- @field pending boolean always true
+
+--- True when an entry from ViewEntries is a not-yet-loaded campaign.
+--- @param entry LuaGameInfo|CampaignPlaceholder|nil
+--- @return boolean
+function CampaignRearrange.IsPlaceholder(entry)
+    return type(entry) == "table" and entry.pending == true
+end
+
+--- Like ViewGames, but campaigns whose summary has not arrived yet are kept in their account-order
+--- slot as placeholders, so pages do not shift as summaries land. Their owner is unknown, so a
+--- placeholder goes in the view whose saved order names it, or in both views when neither does.
 --- @param directorMode boolean
---- @return LuaGameInfo[]
+--- @return (LuaGameInfo|CampaignPlaceholder)[]
+function CampaignRearrange.ViewEntries(directorMode)
+    local loaded = {}
+    for _, game in ipairs(lobby.games or {}) do
+        loaded[game.gameid] = game
+    end
+
+    local otherSaved = {}
+    for _, id in ipairs(ReadSavedIds(not directorMode)) do
+        otherSaved[id] = true
+    end
+    local thisSaved = {}
+    for _, id in ipairs(ReadSavedIds(directorMode)) do
+        thisSaved[id] = true
+    end
+
+    local result = {}
+    for _, id in ipairs(lobby.accountGameIds or {}) do
+        local game = loaded[id]
+        if game ~= nil then
+            if (game.owner == dmhub.loginUserid) == directorMode then
+                result[#result + 1] = game
+            end
+        elseif lobby:IsGameSummaryPending(id) and (thisSaved[id] or not otherSaved[id]) then
+            result[#result + 1] = { gameid = id, pending = true }
+        end
+    end
+    return result
+end
+
+--- The view's games in the saved order; games the order does not name follow in engine order. Never writes.
+--- @generic T: LuaGameInfo|CampaignPlaceholder
+--- @param games T[]
+--- @param directorMode boolean
+--- @return T[]
 function CampaignRearrange.OrderGames(games, directorMode)
     local byId = {}
     for _, game in ipairs(games) do

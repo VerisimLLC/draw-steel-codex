@@ -1082,9 +1082,35 @@ local g_departureTriggers = {
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
 --live token.
+--How tall a token is for range purposes, in squares. Objects count as one square
+--tall, as targeting has always treated them.
+local function RangeHeightInTiles(tok)
+    if tok.isObject then
+        return 1
+    end
+    return math.max(1, tok.tileSize or 1)
+end
+
+--Squares of height between two bodies: 0 when their heights overlap, 1 when one
+--is right on top of the other. The same rule as RuleUtils.VerticalGapInTiles, which
+--ability targeting uses; repeated here so these base rules don't need the DS layer.
+local function VerticalGapInTiles(aAltitude, aHeight, bAltitude, bHeight)
+    return math.max(0, bAltitude - (aAltitude + aHeight - 1), aAltitude - (bAltitude + bHeight - 1))
+end
+
+--token:Distance is flat, so a creature far above or below would count as
+--adjacent (KQQJU7BS). Like ability range, use the larger of the two.
+local function WithVerticalGap(distance, gapInTiles)
+    return math.max(distance, gapInTiles * dmhub.unitsPerSquare)
+end
+
 local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    local subjectHeight = RangeHeightInTiles(subjectToken)
+    local casterHeight = RangeHeightInTiles(casterToken)
+
     if not g_departureTriggers[triggerName] then
-        return subjectToken:Distance(casterToken)
+        local gap = VerticalGapInTiles(subjectToken.altitude, subjectHeight, casterToken.altitude, casterHeight)
+        return WithVerticalGap(subjectToken:Distance(casterToken), gap)
     end
 
     --pcall: PathMoved has no default for 'path', so reading it can raise.
@@ -1099,12 +1125,16 @@ local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, s
     end
 
     if steps == nil or #steps == 0 then
-        return subjectToken:Distance(casterToken)
+        local gap = VerticalGapInTiles(subjectToken.altitude, subjectHeight, casterToken.altitude, casterHeight)
+        return WithVerticalGap(subjectToken:Distance(casterToken), gap)
     end
 
+    --Path step altitudes are measured from their own floor, so compare them with
+    --floorAltitude rather than the map-wide altitude.
     local origin = steps[1]
+    local originGap = VerticalGapInTiles(origin.altitude, subjectHeight, casterToken.floorAltitude, casterHeight)
     if size <= 1 then
-        return casterToken:Distance(origin)
+        return WithVerticalGap(casterToken:Distance(origin), originGap)
     end
 
     --A size-N token covers N x N squares from that step; take the nearest.
@@ -1118,7 +1148,7 @@ local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, s
         end
     end
 
-    return result
+    return WithVerticalGap(result, originGap)
 end
 
 --Safe wrapper: token:Distance can raise or return nil when either token's
@@ -1688,6 +1718,20 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 	end
 
 	local isMandatory = self:IsMandatory(cond(symbols.remote, nil, casterToken))
+
+	--"Prompt Remote, Auto Local" fires mode 1 by itself for the local player. When a
+	--later mode is also open (Spend Recovery offered 3 Recoveries, 63QYDSCF), that
+	--would silently pick 1, so ask instead, as a remote player is already asked.
+	if isMandatory and self.mandatory == "prompt_remote" and self.multipleModes then
+		local modeList = self:try_get("modeList", {})
+		for i = 2, #modeList do
+			local formula = modeList[i].condition or ""
+			if formula == "" or tonumber(ExecuteGoblinScript(formula, creature:LookupSymbol(symbols), 0, "Trigger condition")) ~= 0 then
+				isMandatory = false
+				break
+			end
+		end
+	end
 
 	--The AI reaction marker exists to hold a monster's activity open while a
 	--HERO MAKES A CHOICE: the prompt card that appears on the player's client,

@@ -878,6 +878,59 @@ local function OpeningFightVictories(docid)
     return victories
 end
 
+--How many monsters an island's encounter holds across all its groups, before
+--any party-size gating: 0 means nothing can ever arrive from it.
+---@param encounter table
+---@return integer
+local function EncounterMonsterTotal(encounter)
+    local total = 0
+    local groups = nil
+    pcall(function() groups = encounter.groups end)
+    for _, group in ipairs(groups or {}) do
+        for _, quantity in pairs(group.monsters or {}) do
+            if type(quantity) == "number" and quantity > 0 then
+                total = total + quantity
+            end
+        end
+    end
+    return total
+end
+
+--Every "## Reinforcements:" island that would bring nobody: one whose
+--encounter annotation is missing (or not an encounter), or whose
+--encounter has no monsters. The runtime just logs "0 monsters" each round
+--for these, so the author never hears of it. `script` is { doc, parse } (a
+--LoadScript or FindMapScript result); `resolve` is
+--EncounterReinforcements.IslandEncounter unless a test passes its own.
+--Returns a list of problem strings.
+---@param script table|nil
+---@param resolve? fun(script: table, island: table): table|nil
+---@return string[]
+function EncounterScriptValidator.ReinforcementProblems(script, resolve)
+    local problems = {}
+    if script == nil or script.parse == nil then
+        return problems
+    end
+    resolve = resolve or EncounterReinforcements.IslandEncounter
+    for _, beat in ipairs(script.parse.beats or {}) do
+        for _, r in ipairs(beat.reinforcements or {}) do
+            for index, island in ipairs(r.islands or {}) do
+                local encounter = nil
+                pcall(function() encounter = resolve(script, island) end)
+                local where = tostring(EncounterScript.LineLabel(script.parse, island.line))
+                if encounter == nil then
+                    problems[#problems + 1] = T("author.validator.problems.reinforcement_island_no_encounter",
+                        { where = where, name = tostring(r.name), island = index })
+                elseif EncounterMonsterTotal(encounter) <= 0 then
+                    problems[#problems + 1] = T("author.validator.problems.reinforcement_island_no_monsters",
+                        { where = where, name = tostring(r.name), island = index })
+                end
+            end
+        end
+    end
+    return problems
+end
+
 function EncounterScriptValidator.BuildReport(docid, partyid)
     local children = {}
     local parse = LoadDocument(docid)
@@ -901,6 +954,11 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     local challengeVictories = victories ~= nil and victories + EncounterOfTheWeekGame.CHALLENGE_VICTORIES or nil
     if challengeVictories ~= nil and challengeVictories > CHALLENGE_LIMIT then
         problems[#problems + 1] = T("author.validator.report.victories_high", { challenge = challengeVictories, limit = CHALLENGE_LIMIT })
+    end
+    --the parse LoadDocument made, with its document: all IslandEncounter reads.
+    local reinforcementScript = { docid = docid, doc = (dmhub.GetTable("documents") or {})[docid], parse = parse }
+    for _, p in ipairs(EncounterScriptValidator.ReinforcementProblems(reinforcementScript)) do
+        problems[#problems + 1] = p
     end
 
     children[#children + 1] = gui.Label{

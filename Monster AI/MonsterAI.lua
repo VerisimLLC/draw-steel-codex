@@ -2963,7 +2963,11 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
         if token.valid and token.properties ~= nil then
             local responder = MonsterAI.new{token = token}
             local ok, err = responder:RunYieldingFunction(function()
-                responder:HandleAvailableTrigger(token, trigger)
+                local handled = responder:HandleAvailableTrigger(token, trigger)
+                --directorless: nobody else will answer an unhandled one (MonsterAIPanel.lua).
+                if not handled then
+                    MonsterAI.DismissUnhandledDirectorlessTrigger(responder, token, trigger)
+                end
             end)
             if not ok then
                 --Same recovery as the panel's trigger poll: dismiss it so the
@@ -3871,6 +3875,43 @@ end
 function MonsterAI.IsMinionSignatureAbility(ability)
     return ability.categorization == "Signature Ability"
         and ability:ActionResource() == CharacterResource.actionResourceId
+end
+
+--- How a creature's signature ability reaches: "melee" (Melee keyword only),
+--- "ranged" (Ranged only), "both", or nil with no signature or neither
+--- keyword. Generic choices (which free strike, whether to close in after a
+--- ranged attack) follow it, since the signature is how the monster fights.
+--- @param token CharacterToken
+--- @return "melee"|"ranged"|"both"|nil
+function MonsterAI.SignatureReach(token)
+    local props = token ~= nil and token.properties or nil
+    if props == nil then
+        return nil
+    end
+    local signature = nil
+    for _,ability in ipairs(props:GetActivatedAbilities()) do
+        if ability.categorization == "Signature Ability" then
+            --a main-action signature over a maneuver mis-tagged as one.
+            if MonsterAI.IsMinionSignatureAbility(ability) then
+                signature = ability
+                break
+            end
+            signature = signature or ability
+        end
+    end
+    if signature == nil then
+        return nil
+    end
+    local melee = signature:HasKeyword("Melee")
+    local ranged = signature:HasKeyword("Ranged")
+    if melee and ranged then
+        return "both"
+    elseif melee then
+        return "melee"
+    elseif ranged then
+        return "ranged"
+    end
+    return nil
 end
 
 --The turn can move to another entry while the AI is mid-turn (a turn-grab
@@ -9049,8 +9090,10 @@ function MonsterAI:FindAndExecuteMove()
             if moved then return g_moveResultExecuted end
         end
     end
-    --A monster that already attacked at range this turn stays back.
+    --A monster that already attacked at range this turn stays back, unless it
+    --fights in melee (a melee-only signature): it closes in for next turn.
     local firedAtRange = (self:try_get("_tmp_rangedStrikers") or {})[token.charid] == true
+        and MonsterAI.SignatureReach(token) ~= "melee"
     if firedAtRange and not hidden then
         self:LogDecision("MOVE NOT SELECTED", {
             move = advanceId,

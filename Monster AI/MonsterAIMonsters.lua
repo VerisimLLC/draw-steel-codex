@@ -40,14 +40,36 @@ local function GenerateStandardStrikeExecuteFunction()
     end
 end
 
+--The two generic free strikes score 0.2, so on a tie whichever was scored
+--first won, and a melee monster often plinked from range instead of charging.
+--The one that does not suit the signature's reach (MonsterAI.SignatureReach)
+--scores a little less, so the other wins the tie. Neither changes for a
+--monster whose signature is both melee and ranged, or that has none.
+local g_freeStrikeScore = 0.2
+local g_offReachFreeStrikeScore = 0.19
+
+local function FreeStrikeScoreFunction(reach)
+    local standard = GenerateStandardStrikeScoreFunction(g_freeStrikeScore)
+    return function(self, ai, token, ability)
+        local result = standard(self, ai, token, ability)
+        if result ~= nil then
+            local signatureReach = MonsterAI.SignatureReach(token)
+            if (signatureReach == "melee" or signatureReach == "ranged") and signatureReach ~= reach then
+                result.score = g_offReachFreeStrikeScore
+            end
+        end
+        return result
+    end
+end
+
 MonsterAI:RegisterMove{
     id = "Charge and Free Strike",
     category = "Basic Strikes",
     description = "Move to melee range and use a free strike, charging if possible. This is a generic move that is used if no other good options are available.",
     abilities = {"Melee Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("melee"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -56,9 +78,9 @@ MonsterAI:RegisterMove{
     category = "Basic Strikes",
     description = "Move to ranged attack range and use a free strike. This is a generic move that is used if no other good options are available.",
     abilities = {"Ranged Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("ranged"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 

@@ -158,6 +158,49 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
+--- Declines an optional trigger offered to a creature the AI plays when no
+--- MonsterAI:RegisterTrigger handler covers it and nobody plays the Director
+--- (dmhub.directorlessPlay). Otherwise the prompt would wait on the host, a
+--- player, forever (N5: the Iron Orb's Abyssal Aura). Same rule as
+--- HandlePrompt's PROMPT SKIPPED for invoke prompts. A handler that exists but
+--- returned no decision keeps its say. Returns true when it dismissed.
+--- @param ai MonsterAI
+--- @param token CharacterToken
+--- @param trigger ActiveTrigger
+--- @return boolean
+function MonsterAI.DismissUnhandledDirectorlessTrigger(ai, token, trigger)
+    if dmhub.directorlessPlay ~= true or trigger == nil or trigger.triggered or trigger.dismissed then
+        return false
+    end
+    if ai:FindTriggerHandler(token, trigger) ~= nil then
+        return false
+    end
+
+    local text = nil
+    pcall(function() text = trigger:GetText() end)
+    ai:SetLogContext(token)
+    ai:LogDecision("TRIGGER SKIPPED", {
+        category = "Triggered Action",
+        ability = trigger.abilityName,
+        trigger = text,
+        reason = "no registered AI trigger handler",
+        result = "dismissed: no Director to ask",
+    })
+
+    token:ModifyProperties{
+        description = "AI Trigger: no Director",
+        undoable = false,
+        execute = function()
+            local live = (token.properties:GetAvailableTriggers() or {})[trigger.id]
+            if live ~= nil and not live.triggered and not live.dismissed then
+                live.dismissed = true
+                token.properties:DispatchAvailableTrigger(live)
+            end
+        end,
+    }
+    return true
+end
+
 GameHud.RegisterBetweenTurnHandler{
     id = "Monster AI Villain Actions",
     priority = 50,
@@ -178,6 +221,27 @@ GameHud.RegisterBetweenTurnHandler{
         end
     end,
 }
+
+--- True when the queue has players' entries but none of them has a creature
+--- still in the fight: the heroes are all dead or gone (an Encounter of the
+--- Week defeat), so there is nobody for the monsters to act against. A queue
+--- with no players' entries at all (monster versus monster) never counts.
+--- @param queue InitiativeQueue
+--- @return boolean
+function MonsterAI.PlayersSideGone(queue)
+    local hasPlayerEntry = false
+    for initiativeid,_ in pairs(queue.entries or {}) do
+        if queue:IsEntryPlayer(initiativeid) then
+            hasPlayerEntry = true
+            for _,tok in ipairs(GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)) do
+                if MonsterAI.TokenIsLiveCombatant(tok) then
+                    return false
+                end
+            end
+        end
+    end
+    return hasPlayerEntry
+end
 
 --Runs as a DockablePanel background process (see "Panel background
 --processes" in DockablePanel.lua): registered from the Start AI button,
@@ -211,6 +275,13 @@ local function MonsterAIThread(process)
     local saveWaiting = false
     --The players' entry the AI last refused to play, so the refusal logs once.
     local refusedPlayerTurn = nil
+    --"<initiativeid>|<round>|<queue.turn>" of the last turn this process played
+    --to its end. Finding that same turn still current means ending it did not
+    --advance initiative (NextInitiative can be a silent no-op), so it is not
+    --replayed (2026-11-13 playtest N7 replayed one turn 1000+ times).
+    local lastPlayedTurnKey = nil
+    local stuckTurnLogged = nil
+    local playersGoneLogged = false
     --The monster turn this process last began. The turn is not played until its
     --start-of-turn triggers have finished. nil for turns begun by anyone else.
     ---@type {initiativeid: string, activityId: string, pending: {count: integer}}|nil
@@ -324,6 +395,24 @@ local function MonsterAIThread(process)
                             elseif triggerHandled then
                                 handledTrigger = true
                                 break
+                            elseif not failedTriggers[triggerKey] then
+                                --No handler took it: with no Director to leave it
+                                --to, decline it rather than strand it on the host.
+                                local dismissOk, dismissed = pcall(MonsterAI.DismissUnhandledDirectorlessTrigger, ai, token, trigger)
+                                if not dismissOk then
+                                    failedTriggers[triggerKey] = true
+                                    pcall(function()
+                                        ai:LogDecision("TRIGGER ERROR", {
+                                            category = "Triggered Action",
+                                            ability = trigger.abilityName,
+                                            reason = "directorless dismiss failed: " .. tostring(dismissed),
+                                            result = "trigger quarantined for this AI run",
+                                        })
+                                    end)
+                                elseif dismissed then
+                                    handledTrigger = true
+                                    break
+                                end
                             end
                         end
                     end
@@ -340,6 +429,21 @@ local function MonsterAIThread(process)
 
         if (not handledTrigger) and queue ~= nil and (not queue.hidden)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
+            --No heroes left: playing on only spins monster turns with nobody to
+            --fight (2026-11-13 playtest N7: after an EotW defeat).
+            if MonsterAI.PlayersSideGone(queue) then
+                if not playersGoneLogged then
+                    playersGoneLogged = true
+                    lifecycleAI:SetLogContext(nil, {round = queue.round})
+                    lifecycleAI:LogDecision("TURNS HELD", {
+                        reason = "no hero is left in the fight",
+                        result = "not playing monster turns",
+                    })
+                end
+                return
+            end
+            playersGoneLogged = false
+
             local initiativeid = queue:CurrentInitiativeId()
             if initiativeid == nil then
                 local claimToken, claimTrigger, claimResolving = FindPendingPlayerTrigger(queue)
@@ -361,6 +465,9 @@ local function MonsterAIThread(process)
             end
 
             if initiativeid == nil then
+                --Initiative moved on (or Revert Turn put it back to choosing), so
+                --the next turn chosen is a fresh one even if its key matches.
+                lastPlayedTurnKey = nil
                 local entriesUnmoved = queue:EntriesUnmoved()
                 local choicePhase = MonsterAI.ProfPhaseBegin("initiative choice")
 
@@ -527,6 +634,19 @@ local function MonsterAIThread(process)
                     })
                 end
             else
+                local turnKey = string.format("%s|%s|%s", tostring(initiativeid), tostring(queue.round), tostring(queue:try_get("turn")))
+                if turnKey == lastPlayedTurnKey then
+                    if stuckTurnLogged ~= turnKey then
+                        stuckTurnLogged = turnKey
+                        lifecycleAI:SetLogContext(nil, {turn = initiativeid, round = queue.round})
+                        lifecycleAI:LogDecision("TURN NOT ADVANCED", {
+                            reason = "this turn was already played and ending it did not move initiative on",
+                            result = "not replaying it; end the turn from the initiative bar",
+                        })
+                    end
+                    return
+                end
+
                 local ai = MonsterAI.new{}
                 if turnStart ~= nil and turnStart.initiativeid == initiativeid then
                     ai:SetLogContext(nil, {turn = initiativeid, round = queue.round})
@@ -538,6 +658,13 @@ local function MonsterAIThread(process)
                 g_status = "Playing Turn"
                 ai:PlayTurnSafely(initiativeid)
                 g_status = nil
+                --A paused turn (_tmp_abortTurn) left initiative here on purpose and
+                --may be played again; one that ended asked initiative to move on.
+                if ai:try_get("_tmp_abortTurn") == nil then
+                    lastPlayedTurnKey = turnKey
+                else
+                    lastPlayedTurnKey = nil
+                end
 
                 --center back on a player.
                 local centerOn = nil

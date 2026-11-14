@@ -1240,10 +1240,49 @@ function EncounterMontage.AssassinSent(charid)
     return type(sent) == "table" and sent[charid] == true
 end
 
+--FindMapScript's list of which documents are filed under the map. Finding
+--them walks the whole journal (2-11 ms with a big one), and FindMapScript
+--runs several times a host tick, so the list is reused while
+--dmhub.tablesUpdateId (bumped by every local or cloud write to the documents
+--and folder tables) and the map are unchanged, for at most
+--CANDIDATE_CACHE_SECONDS as a backstop for any change that bumps neither.
+--Only membership is cached: each document is re-read from the table on use,
+--so the script signature still sees a text edit at once.
+local m_candidateCache = nil
+local CANDIDATE_CACHE_SECONDS = 5
+
+---@param mapid string
+---@param force boolean|nil
+local function CachedMapScriptCandidates(mapid, force)
+    local now = dmhub.Time()
+    local seq = dmhub.tablesUpdateId
+    local cache = m_candidateCache
+    if not force and cache ~= nil and cache.mapid == mapid and cache.seq == seq
+        and now - cache.time < CANDIDATE_CACHE_SECONDS then
+        --the same document objects, none hidden since: reuse the list as is.
+        --Any difference (a replaced, removed or hidden document) rescans.
+        local docsTable = dmhub.GetTable("documents") or {}
+        local same = true
+        for _, c in ipairs(cache.list) do
+            local doc = docsTable[c.docid]
+            if doc ~= c.doc or doc.hidden then
+                same = false
+                break
+            end
+        end
+        if same then
+            return cache.list
+        end
+    end
+    local list = MapScriptCandidates(mapid)
+    m_candidateCache = { mapid = mapid, seq = seq, time = now, list = list }
+    return list
+end
+
 function EncounterMontage.FindMapScript(force)
     local mapid = game.currentMapId
     local docsTable = dmhub.GetTable("documents") or {}
-    local candidates = MapScriptCandidates(mapid)
+    local candidates = CachedMapScriptCandidates(mapid, force)
     local part = ActivePart()
 
     if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid

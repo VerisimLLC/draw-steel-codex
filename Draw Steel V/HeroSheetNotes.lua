@@ -528,12 +528,13 @@ function HeroSheetNotes.Create()
         end,
     })
 
-    --scrolls once its content is taller (as the Features list); its height
-    --is set by the lists' frame.
+    --scrolls from creation (as the Features list): the engine wires a scroll
+    --bar only on a panel's first frame. Its height is set by the lists' frame.
     local body = gui.Panel{
         width = "100%",
         height = "100%-6",
         flow = "vertical",
+        vscroll = true,
         tmargin = 6,
         --another Hero's notes start at the top.
         heroSheetHero = function(element)
@@ -545,8 +546,7 @@ function HeroSheetNotes.Create()
     }
     FitScroll = function()
         HeroSheetWindow.AfterLayout(function()
-            if body.valid and not body.vscroll and list.renderedHeight > body.renderedHeight + 0.5 then
-                body.vscroll = true
+            if body.valid and not body.hideObjectsOutOfScroll and list.renderedHeight > body.renderedHeight + 0.5 then
                 body.hideObjectsOutOfScroll = true
             end
         end)

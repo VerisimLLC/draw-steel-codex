@@ -750,7 +750,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--move (Charge, Tide of Death, Wrecking Ball) is sent as a walk. "Willing" means
 			--nothing marks it forced and the creature moving is the one using the ability,
 			--not a creature moved by someone else's invoked ability (report C5XGW6HH).
+			--A willing move also gets no forced-movement distance, so walls that only block
+			--forced movement don't stop it.
 			local engineMovementType = movementType
+			local forcedMoveDist = abilityDist
 			if movementType == "move" and (not forcedMove) and (ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures") then
 				local invoker = options.symbols.invoker
 				if type(invoker) == "function" then
@@ -758,10 +761,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				end
 				if invoker == nil or invoker == casterToken.properties then
 					engineMovementType = "walk"
+					forcedMoveDist = 0
 				end
 			end
 
-			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = engineMovementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = forcedMove, flightAltitude = options.symbols.flightAltitude })
+			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = engineMovementType, forcedMovementDistance = forcedMoveDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = forcedMove, flightAltitude = options.symbols.flightAltitude })
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total

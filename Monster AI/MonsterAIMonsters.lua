@@ -124,7 +124,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Knockback!", "I'll give you a good shove"})
+        ai:Speech(token, ai:VoiceLines(token, "knockback", {"Knockback!", "I'll give you a good shove"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -172,7 +172,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"})
+        ai:Speech(token, ai:VoiceLines(token, "grab", {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -340,7 +340,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Aid Attack!", "Help me get them!"})
+        ai:Speech(token, ai:VoiceLines(token, "aidAttack", {"Aid Attack!", "Help me get them!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)

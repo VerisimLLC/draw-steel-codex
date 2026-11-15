@@ -5967,7 +5967,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
         local charges = {}
         for _,plan in ipairs(plans) do
             if plan.survived and plan.option.charge ~= nil and self.TokenIsLiveCombatant(plan.token) then
-                self:SpeakNow(plan.token, "Charge!")
+                self:SpeakNow(plan.token, self:VoiceLines(plan.token, "charge", "Charge!"))
                 charges[#charges+1] = function()
                     --A Charge's movement is part of the ability, not the creature's
                     --move action, so it does not consume the remaining move budget.
@@ -9287,7 +9287,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
             if not self:MovementTokenIsAtLoc(token, chargeLoc) then
                 self.Sleep(1)
-                self:Speech(token, "Charge!")
+                self:Speech(token, self:VoiceLines(token, "charge", "Charge!"))
                 self.Sleep(0.5)
 
                 --freeMovement: the Charge's movement is part of the ability, not the
@@ -9415,6 +9415,12 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
     if targetArea ~= nil and options.telegraphArea ~= false then
         self:TelegraphAreaAbility(ability, targetArea, symbols)
+    end
+
+    --A voiced monster (undead) may bark as it strikes. Not after a charge, which
+    --already shouted, and not for a squad strike, which has its own battle cry.
+    if not chargeAttempted and symbols.targetPairs == nil then
+        self:VoiceStrikeBark(casterToken, ability)
     end
 
     local rays = {}
@@ -9589,6 +9595,14 @@ function MonsterAI:Speech(token, text, options)
     if type(text) == "table" then
         text = text[math.random(1, #text)]
     end
+    --A creature with no language of its own whose voice names one (undead
+    --speak Caelian) would only say "..." through the Speech ability, so its
+    --line is shown directly, with the same pause the cast would have taken.
+    if MonsterAI.VoiceLanguage(token) ~= nil then
+        self:SpeakNow(token, text)
+        self.Sleep((options ~= nil and options.sleep) or 1.0)
+        return
+    end
     local ability = MCDMImporter.GetStandardAbility("Speech")
     --nil when the standardAbilities table has no "Speech" row; the speech is cosmetic, so skip it.
     if ability == nil then
@@ -9635,7 +9649,7 @@ function MonsterAI:SpeakNow(token, text, options)
         language = MonsterAI.FindLanguageId(options.language)
     end
     if language == nil then
-        language = token.properties:CurrentlySpokenLanguage()
+        language = token.properties:CurrentlySpokenLanguage() or MonsterAI.VoiceLanguage(token)
         if language == nil then
             text = "..."
         end
@@ -9650,6 +9664,130 @@ function MonsterAI:SpeakNow(token, text, options)
             }
         end,
     }
+end
+
+--------------------------------------------------------------------------------
+-- Voices: how a family of monsters talks. A band registers one to give its
+-- creatures a language when they know none, and its own lines for the shouts
+-- the framework makes on their behalf (charge, retreat, squad calls, generic
+-- moves) plus an occasional bark as they strike. The undead voice is in
+-- MonsterAIUndead.lua.
+--
+-- MonsterAI:RegisterVoice{
+--     id = "Undead",
+--     match = function(token) return true end,  --which creatures use it
+--     language = "Caelian",        --id or name; only used when they know none
+--     strikeChance = 0.35,         --chance of a bark on a strike, once per turn
+--     lines = function(token, situation) return {"Die!"} end,
+-- }
+--
+-- lines() returns a string or a list of strings, or nil to keep the
+-- framework's own line. Situations: "strike", "charge", "retreat",
+-- "squadCall", "squadAnswer", "knockback", "grab", "aidAttack".
+--------------------------------------------------------------------------------
+
+---@class MonsterAIVoice
+---@field id string
+---@field match fun(token: CharacterToken): boolean
+---@field language? string
+---@field strikeChance? number
+---@field lines fun(token: CharacterToken, situation: string): string|string[]|nil
+
+---@type MonsterAIVoice[]
+MonsterAI.voices = {}
+
+--- @param args MonsterAIVoice
+function MonsterAI:RegisterVoice(args)
+    for i,voice in ipairs(MonsterAI.voices) do
+        if voice.id == args.id then
+            MonsterAI.voices[i] = args
+            return
+        end
+    end
+    MonsterAI.voices[#MonsterAI.voices+1] = args
+end
+
+--The voice a creature speaks with, or nil. The first registered match wins.
+--- @param token CharacterToken|nil
+--- @return MonsterAIVoice|nil
+function MonsterAI.VoiceFor(token)
+    if token == nil or not token.valid or token.properties == nil then
+        return nil
+    end
+    for _,voice in ipairs(MonsterAI.voices) do
+        local ok, matches = pcall(voice.match, token)
+        if ok and matches then
+            return voice
+        end
+    end
+    return nil
+end
+
+--The language a creature's voice gives it, only when it knows none of its own.
+--- @param token CharacterToken
+--- @return string|nil
+function MonsterAI.VoiceLanguage(token)
+    local voice = MonsterAI.VoiceFor(token)
+    if voice == nil or voice.language == nil then
+        return nil
+    end
+    if token.properties:CurrentlySpokenLanguage() ~= nil then
+        return nil
+    end
+    return MonsterAI.FindLanguageId(voice.language)
+end
+
+--The creature's own lines for a situation, or `default` when its voice has none.
+--- @param token CharacterToken
+--- @param situation string
+--- @param default string|string[]|nil
+--- @return string|string[]|nil
+function MonsterAI:VoiceLines(token, situation, default)
+    local voice = MonsterAI.VoiceFor(token)
+    if voice ~= nil then
+        local ok, lines = pcall(voice.lines, token, situation)
+        if ok and lines ~= nil and (type(lines) == "string" or #lines > 0) then
+            return lines
+        end
+    end
+    return default
+end
+
+--charid -> the turn ("<queue guid>|<round>|<turn>") the creature last barked in.
+local g_voiceBarkTurn = {}
+
+local function VoiceTurnKey()
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return "none"
+    end
+    return string.format("%s|%s|%s", tostring(q:try_get("guid")), tostring(q:try_get("round")), tostring(q:try_get("turn")))
+end
+
+--Maybe bark as a voiced creature strikes: at most once per creature per turn,
+--with its voice's strikeChance. Called by ExecuteAbility before a strike's cast.
+--- @param token CharacterToken
+--- @param ability ActivatedAbility
+function MonsterAI:VoiceStrikeBark(token, ability)
+    local isStrike = ability:HasKeyword("Strike") or ability.name == "Melee Free Strike" or ability.name == "Ranged Free Strike"
+    if not isStrike then
+        return
+    end
+    local voice = MonsterAI.VoiceFor(token)
+    if voice == nil or (voice.strikeChance or 0) <= 0 then
+        return
+    end
+    local turnKey = VoiceTurnKey()
+    if g_voiceBarkTurn[token.charid] == turnKey then
+        return
+    end
+    local lines = self:VoiceLines(token, "strike", nil)
+    if lines == nil or math.random() >= voice.strikeChance then
+        return
+    end
+    g_voiceBarkTurn[token.charid] = turnKey
+    self:SpeakNow(token, lines)
+    self.Sleep(0.6)
 end
 
 --A squad's battle cry before it moves: the captain (or, without one, a
@@ -9675,7 +9813,8 @@ function MonsterAI:AnnounceSquadStrike(plans, ability)
     if caller == nil then
         return
     end
-    self:SpeakNow(caller, ability:HasKeyword("Melee") and self.squadCallLines.melee or self.squadCallLines.ranged)
+    local callLines = ability:HasKeyword("Melee") and self.squadCallLines.melee or self.squadCallLines.ranged
+    self:SpeakNow(caller, self:VoiceLines(caller, "squadCall", callLines))
 
     local answerCount = math.min(#speakers, math.random(2, 3))
     if answerCount > 0 then
@@ -9689,7 +9828,8 @@ function MonsterAI:AnnounceSquadStrike(plans, ability)
             lines[i], lines[j] = lines[j], lines[i]
         end
         for i=1,answerCount do
-            self:SpeakNow(speakers[i], lines[(i-1) % #lines + 1])
+            --A voiced member answers with its own lines; the rest share the shuffle.
+            self:SpeakNow(speakers[i], self:VoiceLines(speakers[i], "squadAnswer", lines[(i-1) % #lines + 1]))
         end
     end
     self.Sleep(0.8)

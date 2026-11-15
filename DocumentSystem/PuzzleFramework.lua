@@ -1242,7 +1242,8 @@ end
 ---@param stillWanted fun(): boolean
 ---@param onDone fun(tier: integer, natural: number|nil)
 ---@param onCancel fun()|nil
-function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel)
+---@param bane string|nil why this roll has a bane (shown on the roll), or nil for none
+function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel, bane)
     local info = (creature.attributesInfo or {})[attrid]
     local attrName = info ~= nil and info.description or "Intuition"
     local attr = attrName
@@ -1251,7 +1252,12 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
     end
     local montage = rawget(_G, "EncounterMontage")
     if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
-        local parts = montage.BuildTestRoll(tok, attr, name, nil)
+        --a bane rides in as a test rider, as the montage's own banes do.
+        local verdict = nil
+        if bane ~= nil then
+            verdict = { applied = { { rider = { effect = "bane" }, why = bane } } }
+        end
+        local parts = montage.BuildTestRoll(tok, attr, name, verdict)
         montage.ShowTestRoll{
             creature = tok.properties,
             heroToken = tok,
@@ -1278,6 +1284,9 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
     end
     local bonus = 0
     pcall(function() bonus = tok.properties:GetAttribute(attrid):Modifier() end)
+    if bane ~= nil then
+        bonus = bonus - 2
+    end
     dmhub.Roll{
         roll = string.format("2d10 + %d", bonus),
         description = string.format("%s: %s", name, attr),

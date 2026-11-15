@@ -15,6 +15,7 @@ local mod = dmhub.GetModLoading()
 -- Host secret (GameOfChanceTurns): { challenge, salt, hands = { s2 = "2,5,5,1,6" } }.
 
 local B = LiarsDiceBidder
+local S = GameOfChance.Shared
 
 local DICE = 5
 local MAX_SEATS = 4
@@ -53,6 +54,17 @@ local CALL_LINES = {
     shady = "Liar! I don't buy it.",
     crooked = "Liar, friend. Lift your cup.",
 }
+
+local CAUGHT_LINES = {
+    honest = "Hah. Fair's fair.",
+    shady = "Now, now, no need to shout.",
+    crooked = "...You saw that, did you?",
+}
+
+--Seconds an open test roll holds the champion's next move (C3), and how long
+--a forgotten one may hold it (shell #35).
+local ROLL_HOLD_SECONDS = 60
+local NOTES_KEEP = 8
 
 local CAST_OPTIONS = {}
 for _, c in ipairs(CAST) do
@@ -224,6 +236,12 @@ local function Shake(g, random, secret)
     g.hist = {}
     g.reveal = nil
     g.pendingShakeAt = nil
+    --what tests told the table about this challenge's cups.
+    g.reads = {}
+    g.sells = {}
+    g.sell = nil
+    g.known = {}
+    g.suggest = {}
     g.turn = Alive(g, tonumber(g.opener) or 1) and (tonumber(g.opener) or 1) or NextAlive(g, tonumber(g.opener) or 1)
     g.thinking = nil
     g.nextAt = nil
@@ -256,6 +274,24 @@ local function Resolve(g, secret, caller, random, events)
     local bid = g.bid
     local bidder = tonumber(bid.by) or 1
     local hands = AllHands(g, secret)
+    --loaded dice (#9, C6): decided now, and only for a crooked gambler's own short bid.
+    local loadedSeat, loadedIdx, original = nil, nil, nil
+    if bidder ~= 1 and TakenSeat(g, bidder).honesty == "crooked" then
+        local before = hands[bidder]
+        local after, loaded = B.Load(hands, bidder, bid)
+        if loaded > 0 then
+            hands[bidder] = after
+            loadedSeat = "s" .. bidder
+            original = B.HandText(before)
+            local idx = {}
+            for k, d in ipairs(after) do
+                if d ~= before[k] then
+                    idx[#idx + 1] = tostring(k)
+                end
+            end
+            loadedIdx = table.concat(idx, ",")
+        end
+    end
     local count = B.Count(hands, bid.f)
     local loser = count >= bid.q and caller or bidder
     local seat = TakenSeat(g, loser)
@@ -267,7 +303,20 @@ local function Resolve(g, secret, caller, random, events)
     end
     local text = string.format("%s called Liar on %s's %s. There were %d (ones count). %s loses a die.",
         SeatName(g, caller), SeatName(g, bidder), BidText(bid.q, bid.f), count, SeatName(g, loser))
-    g.reveal = { hands = revealed, salt = secret.salt, count = count, q = bid.q, f = bid.f, caller = caller, bidder = bidder, loser = loser, text = text }
+    if loadedSeat ~= nil then
+        text = text .. string.format(" %s's dice were loaded!", SeatName(g, bidder))
+    end
+    --a strong read reports belief, not the dice (C17): say so when belief fell short.
+    if count < bid.q then
+        for _, read in pairs(g.reads or {}) do
+            if type(read) == "table" and tonumber(read.target) == bidder and read.believed == true then
+                text = text .. string.format(" %s believed it, but the dice fell short.", SeatName(g, bidder))
+                break
+            end
+        end
+    end
+    g.reveal = { hands = revealed, salt = secret.salt, count = count, q = bid.q, f = bid.f, caller = caller, bidder = bidder, loser = loser, text = text,
+        loaded = loadedSeat, loadedIdx = loadedIdx, original = original }
     AddHist(g, text)
     g.opener = loser
     g.turn = nil
@@ -298,6 +347,209 @@ local function Resolve(g, secret, caller, random, events)
         events[#events + 1] = { log = text }
         g.pendingShakeAt = dmhub.serverTime + NPC_REVEAL_PAUSE
     end
+end
+
+--A private test result. Most describe this challenge's cups and are hidden after the
+--next shake; a game-long one (Watch the table) stays.
+---@param g table
+---@param userid string
+---@param text string
+---@param gameLong boolean|nil
+local function Note(g, userid, text, gameLong)
+    g.notes = g.notes or {}
+    local mine = g.notes[userid] or {}
+    g.notes[userid] = mine
+    g.noteSeq = (tonumber(g.noteSeq) or 0) + 1
+    mine["n" .. g.noteSeq] = { seq = g.noteSeq, text = text, challenge = gameLong and 0 or g.challenge }
+    for k, n in pairs(mine) do
+        if type(n) ~= "table" or (tonumber(n.seq) or 0) <= g.noteSeq - NOTES_KEEP then
+            mine[k] = nil
+        end
+    end
+end
+
+---@param g table
+---@return boolean
+local function RollingOpen(g)
+    for _, at in pairs(g.rolling or {}) do
+        if type(at) == "number" and dmhub.serverTime - at <= ROLL_HOLD_SECONDS then
+            return true
+        end
+    end
+    return false
+end
+
+---@param tokenid string|nil
+---@param userid string
+---@return string
+local function HeroName(tokenid, userid)
+    local tok = tokenid ~= nil and Puzzle.HeroById(tokenid) or nil
+    if tok ~= nil and tok.name ~= nil and tok.name ~= "" then
+        return tok.name
+    end
+    return Puzzle.UserName(userid)
+end
+
+--The gamblers who cheat (crooked seats still in the game).
+---@param g table
+---@return integer[]
+local function CrookedSeats(g)
+    local out = {}
+    for i = 2, SeatCount(g) do
+        if Alive(g, i) and TakenSeat(g, i).honesty == "crooked" then
+            out[#out + 1] = i
+        end
+    end
+    return out
+end
+
+--A party member's test result, judged by the host (#4, #12, #13, C2-C6). Results are
+--private notes; what changes at the table is public.
+---@param g table
+---@param eff table
+---@param secret table
+---@param req table
+---@param userid string
+---@param random fun(k: integer): integer
+---@return boolean
+local function Test(g, eff, secret, req, userid, random)
+    (g.rolling or {})[userid] = nil
+    if eff.tests ~= true then
+        return true
+    end
+    local tier = math.max(1, math.min(3, math.tointeger(tonumber(req.tier)) or 1))
+    local natural = tonumber(req.natural)
+    local outcome = S.Outcome(tier, natural, tostring(eff.difficulty or "medium"))
+    local ok = outcome == "success" or outcome == "consequence"
+    local noticed = outcome == "consequence" or outcome == "failconsequence"
+    local champ = Seat(g, 1)
+    local isChamp = champ ~= nil and champ.user == userid
+    local who = HeroName(req.tokenid, userid)
+    local total = TotalDice(g)
+    local test = req.test
+
+    if test == "read" then
+        local bid = g.bid
+        g.reads = g.reads or {}
+        if isChamp or bid == nil or tonumber(bid.by) == 1 or tonumber(g.turn) ~= 1 or g.reads[userid] ~= nil then
+            return true
+        end
+        local target = tonumber(bid.by) or 2
+        local seat = TakenSeat(g, target)
+        local hand = B.ParseHand((secret.hands or {})["s" .. target])
+        local believed = B.Expect(hand, total, bid.f) >= bid.q - 0.5
+        g.reads[userid] = { target = target, believed = ok and believed or nil }
+        local text
+        if ok then
+            text = believed and string.format("%s believes that bid.", seat.name) or string.format("%s is bluffing.", seat.name)
+            if seat.honesty == "crooked" then
+                text = text .. " ...Unless they have something up their sleeve."
+            end
+        else
+            text = string.format("%s gives nothing away.", seat.name)
+        end
+        if noticed then
+            g.clammed = g.clammed or {}
+            g.clammed["s" .. target] = true
+            text = text .. string.format(" %s caught you staring and clams up.", seat.name)
+            AddHist(g, string.format("%s notices %s staring.", seat.name, who))
+        end
+        Note(g, userid, "Read the bid: " .. text)
+    elseif test == "sell" then
+        g.sells = g.sells or {}
+        if tonumber(g.turn) ~= 1 or g.sells[userid] ~= nil then
+            return true
+        end
+        g.sells[userid] = tier
+        g.sell = g.sell or { trust = 0, wary = 0 }
+        local amount = ok and (tier >= 3 and 2 or 1) or 0
+        g.sell.trust = math.max(tonumber(g.sell.trust) or 0, amount)
+        if noticed then
+            g.sell.wary = 0.5
+        end
+        AddHist(g, string.format("%s talks up the champion.", who))
+        local text
+        if amount >= 2 then
+            text = "The table hangs on your words: the next gambler gives the champion's bid a lot of credit."
+        elseif amount == 1 then
+            text = "They lean in to listen: the next gambler gives the champion's bid some credit."
+        else
+            text = "Nobody's buying it."
+        end
+        if noticed then
+            text = text .. " The gamblers grow wary of the champion."
+        end
+        Note(g, userid, "Sell the bluff: " .. text)
+    elseif test == "peek" then
+        g.peeked = g.peeked or {}
+        g.guarded = g.guarded or {}
+        local target = math.tointeger(tonumber(req.seat))
+        if isChamp or g.peeked[userid] ~= nil or target == nil or target < 2 or not Alive(g, target) or g.guarded["s" .. target] then
+            return true
+        end
+        g.peeked[userid] = true
+        local seat = TakenSeat(g, target)
+        local text
+        if ok then
+            local hand = B.ParseHand((secret.hands or {})["s" .. target])
+            g.known = g.known or {}
+            local knownList = B.ParseHand(g.known["s" .. target])
+            if #knownList < #hand then
+                local face = hand[#knownList + 1]
+                knownList[#knownList + 1] = face
+                g.known["s" .. target] = B.HandText(knownList)
+                text = string.format("You glimpse one of %s's dice: a %d. The party can see it on the table.", seat.name, face)
+            else
+                text = string.format("You've seen all of %s's dice already.", seat.name)
+            end
+        else
+            text = string.format("You couldn't get a look under %s's cup.", seat.name)
+        end
+        if noticed then
+            --goodwill, never a die (C4): the cup is guarded and they call the champion sooner.
+            g.guarded["s" .. target] = true
+            g.wary = g.wary or {}
+            g.wary["s" .. target] = 0.5
+            text = text .. string.format(" %s caught you.", seat.name)
+            AddHist(g, string.format("%s caught %s peeking.", seat.name, who))
+        end
+        Note(g, userid, "Peek at a die: " .. text)
+    elseif test == "watch" then
+        g.watched = g.watched or {}
+        if g.watched[userid] ~= nil then
+            return true
+        end
+        g.watched[userid] = tier
+        local crooked = CrookedSeats(g)
+        local names = {}
+        for k, i in ipairs(crooked) do
+            names[k] = TakenSeat(g, i).name
+        end
+        local text
+        --the plain tiers, not the difficulty row (shell #45).
+        if tier >= 3 then
+            if #crooked > 0 then
+                g.caught = g.caught or {}
+                for _, i in ipairs(crooked) do
+                    g.caught["s" .. i] = true
+                end
+                text = string.format("%s %s loading dice! The champion can call it out.", table.concat(names, " and "), #names > 1 and "are" or "is")
+            else
+                text = "Clean table: nobody here is cheating."
+            end
+        elseif tier == 2 then
+            text = "Something's off at this table."
+        else
+            text = "You didn't see anything odd."
+        end
+        --the rules' Notice the Cheaters top tier: win without any other test (C6).
+        if natural ~= nil and natural >= 19 and #crooked > 0 then
+            g.claim = true
+            text = text .. " You know exactly how they cheat: the champion may claim the game."
+        end
+        Note(g, userid, "Watch the table: " .. text, true)
+    end
+    return true
 end
 
 ---@param g table
@@ -349,6 +601,7 @@ local function EnsureBindings()
     Bind("return", "ld_bid")
     Bind("enter", "ld_bid2")
     Bind("l", "ld_liar")
+    Bind("s", "ld_suggest")
 end
 
 local g_oddsSetting = setting{
@@ -420,11 +673,28 @@ local function Board()
                     bgimage = "phosphor/dice-" .. FACE_NAMES[face] .. ".png", bgcolor = DIE_COLOR, interactable = false },
             },
             Label(tostring(face) .. (opts.match and "+" or ""), {"sizeXs"}, { halign = "center", interactable = false }),
+            opts.tag ~= nil and Label(opts.tag, {"sizeXs", "bold"}, { halign = "center", interactable = false }) or nil,
         }
     end
 
     local function Me()
         return m_view ~= nil and m_view.me or dmhub.userid
+    end
+
+    --every die the whole party can see: the champion's hand and any peeked dice.
+    local function KnownDice(g)
+        local known = B.ParseHand(g.champHand)
+        for _, text in pairs(g.known or {}) do
+            for _, d in ipairs(B.ParseHand(text)) do
+                known[#known + 1] = d
+            end
+        end
+        return known
+    end
+
+    local function IsChampion()
+        local champ = Seat(m_view.g, 1)
+        return champ ~= nil and champ.user == Me()
     end
 
     local function IsChampionTurn()
@@ -519,15 +789,27 @@ local function Board()
             end
             local face = reveal ~= nil and reveal.f or (bid ~= nil and bid.f or nil)
             local dieRow = {}
+            local loadedAt = {}
+            if reveal ~= nil and reveal.loaded == "s" .. i then
+                for k in string.gmatch(tostring(reveal.loadedIdx or ""), "%d+") do
+                    loadedAt[tonumber(k)] = true
+                end
+            end
             if dice == 0 and (hand == nil or #hand == 0) then
                 dieRow[1] = Label("Out of dice", {"sizeS", "fgMuted"})
             elseif hand ~= nil and #hand > 0 then
-                for _, d in ipairs(hand) do
-                    dieRow[#dieRow + 1] = Die(d, { match = face ~= nil and (d == face or d == 1) })
+                for k, d in ipairs(hand) do
+                    dieRow[#dieRow + 1] = Die(d, { match = face ~= nil and (d == face or d == 1), tag = loadedAt[k] and "loaded" or nil })
                 end
             else
-                for _ = 1, dice do
-                    dieRow[#dieRow + 1] = Die(1, { hidden = true })
+                --a peeked die shows for the whole party (C7 builds on it).
+                local known = B.ParseHand((g.known or {})["s" .. i])
+                for k = 1, dice do
+                    if known[k] ~= nil then
+                        dieRow[#dieRow + 1] = Die(known[k], { match = face ~= nil and (known[k] == face or known[k] == 1), tag = "peeked" })
+                    else
+                        dieRow[#dieRow + 1] = Die(1, { hidden = true })
+                    end
                 end
             end
             local caption = string.format("%d %s", dice, dice == 1 and "die" or "dice")
@@ -565,11 +847,11 @@ local function Board()
         end
         rows[#rows + 1] = Label(string.format("%d dice on the table. Ones are wild: they count as any face.", total), {"sizeS"})
         if g.bid ~= nil and g.champHand ~= nil and g_oddsSetting:Get() == true and g.reveal == nil then
-            local known = B.ParseHand(g.champHand)
+            local known = KnownDice(g)
             local verdict = B.Verdict(known, total, g.bid.q, g.bid.f)
             local hidden = total - #known
             local likely = math.floor(hidden / 3 + 0.5)
-            rows[#rows + 1] = Label(string.format("%s is %s. The champion holds %d; about %d more are likely among the %d hidden dice.",
+            rows[#rows + 1] = Label(string.format("%s is %s. The party can see %d; about %d more are likely among the %d hidden dice.",
                 BidText(g.bid.q, g.bid.f), VERDICT_WORDS[verdict], B.Matches(known, g.bid.f), likely, hidden), {"sizeS", "info"})
         end
         return rows
@@ -600,7 +882,8 @@ local function Board()
     end
 
     --The champion's controls: quantity, face, Bid and Liar, all on keys too (C15).
-    local function Controls()
+    --The rest of the party gets the same picker to suggest a bid (C14).
+    local function Controls(suggest)
         local g = m_view.g
         local total = TotalDice(g)
         local legal = B.Legal(g.bid, m_q, m_f, total)
@@ -623,7 +906,7 @@ local function Board()
                 reason = "That's no raise: bid more dice, or the same number of a higher face."
             end
         end
-        local known = B.ParseHand(g.champHand)
+        local known = KnownDice(g)
         local verdict = B.Verdict(known, total, m_q, m_f)
         local rows = {
             gui.Panel{
@@ -635,7 +918,14 @@ local function Board()
                 Label("x", {"sizeM"}, { valign = "center", hmargin = 6 }),
                 gui.Panel{ flow = "horizontal", width = "auto", height = "auto", valign = "center", children = faces },
             },
-            gui.Panel{
+            suggest and gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto", tmargin = 4,
+                gui.Button{ classes = {"sizeS"}, text = string.format("Suggest %s", BidText(m_q, m_f)), width = Px(160), height = Px(28),
+                    click = function()
+                        local tok = Puzzle.MyHero()
+                        Send({ kind = "move", act = "suggest", q = m_q, f = m_f, tokenid = tok ~= nil and tok.charid or nil })
+                    end },
+            } or gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto", tmargin = 4,
                 gui.Button{ classes = {"sizeM"}, text = string.format("Bid %s", BidText(m_q, m_f)), width = Px(150), height = Px(32),
                     click = function() BidNow() end },
@@ -647,10 +937,162 @@ local function Board()
         if reason ~= nil then
             rows[#rows + 1] = Label(reason, {"sizeS", "warning"})
         elseif g_oddsSetting:Get() == true then
-            rows[#rows + 1] = Label(string.format("Your %s would be %s.", BidText(m_q, m_f), VERDICT_WORDS[verdict]), {"sizeS", "info"})
+            rows[#rows + 1] = Label(string.format("%s would be %s.", BidText(m_q, m_f), VERDICT_WORDS[verdict]), {"sizeS", "info"})
         end
-        rows[#rows + 1] = Label(m_contextActive and "Keys: Up and Down change the number, 2-6 pick the face, Enter bids, L calls Liar."
-            or "Click the table to play with the keyboard.", {"sizeXs", "fgMuted"})
+        if not suggest then
+            if RollingOpen(g) then
+                rows[#rows + 1] = Label("Waiting for a test roll to finish.", {"sizeS", "warning"})
+            end
+            rows[#rows + 1] = Label(m_contextActive and "Keys: Up and Down change the number, 2-6 pick the face, Enter bids, L calls Liar, S takes the newest suggestion."
+                or "Click the table to play with the keyboard.", {"sizeXs", "fgMuted"})
+        end
+        return rows
+    end
+
+    --The party's suggested bids, for everyone; too-low ones greyed with a reason (C14).
+    ---@return Panel|nil
+    local function Suggestions()
+        local g = m_view.g
+        local list = {}
+        for userid, sug in pairs(g.suggest or {}) do
+            if type(sug) == "table" then
+                list[#list + 1] = { user = userid, s = sug }
+            end
+        end
+        if #list == 0 then
+            return nil
+        end
+        table.sort(list, function(a, b) return (tonumber(a.s.at) or 0) < (tonumber(b.s.at) or 0) end)
+        local champ = IsChampion() and IsChampionTurn()
+        local tags = { Label("Suggestions:", {"sizeS", "bold"}, { valign = "center", hmargin = 4 }) }
+        for _, item in ipairs(list) do
+            local sug = item.s
+            local q, f = tonumber(sug.q) or 1, tonumber(sug.f) or 2
+            local legal = B.Legal(g.bid, q, f, TotalDice(g))
+            local text = string.format("%s: %s%s", tostring(sug.name), BidText(q, f), legal and "" or " (too low now)")
+            if champ and legal then
+                tags[#tags + 1] = gui.Button{ classes = {"sizeS"}, text = text, width = "auto", hpad = 8, height = Px(26), hmargin = 3, valign = "center",
+                    click = function() SetChoice(q, f) end }
+            else
+                tags[#tags + 1] = Label(text, {"sizeS", legal and "fg" or "fgMuted"}, { valign = "center", hmargin = 6 })
+            end
+        end
+        return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", wrap = true, tmargin = 4, children = tags }
+    end
+
+    --A test for this player's hero: once-per scopes, the roll, and its result to the host.
+    local READ_TIERS = { "Their face gives nothing away.", "You get a sense of them.", "You read them like a book." }
+    local SELL_TIERS = { "Nobody's buying it.", "They lean in to listen.", "The table hangs on your words." }
+    local PEEK_TIERS = { "You can't get a look.", "You glimpse a die.", "A clean look, unseen." }
+    local WATCH_TIERS = { "Nothing odd.", "Something's off.", "You see exactly how they cheat." }
+
+    local function RollFor(test, attrid, skill, name, tiers, extra, bane)
+        local tok = Puzzle.MyHero()
+        if tok == nil then
+            return
+        end
+        Send({ kind = "move", act = "rolling", on = true })
+        Puzzle.RollTest(tok, attrid, skill, name, tiers, function()
+            return m_view ~= nil and m_view.phase == "playing"
+        end, function(tier, natural)
+            local args = { kind = "move", act = "test", test = test, tier = tier, natural = natural, tokenid = tok.charid }
+            for k, v in pairs(extra or {}) do
+                args[k] = v
+            end
+            Send(args)
+        end, function()
+            Send({ kind = "move", act = "rolling", on = false })
+        end, bane)
+    end
+
+    --This player's tests and their private results.
+    local function TestRows()
+        local g = m_view.g
+        local eff = m_view.eff or {}
+        local rows = {}
+        local me = Me()
+        local notes = {}
+        for _, n in pairs((g.notes or {})[me] or {}) do
+            if type(n) == "table" and (tonumber(n.challenge) == 0 or tonumber(n.challenge) == tonumber(g.challenge)) then
+                notes[#notes + 1] = n
+            end
+        end
+        table.sort(notes, function(a, b) return (tonumber(a.seq) or 0) < (tonumber(b.seq) or 0) end)
+        if #notes > 0 then
+            local lines = {}
+            for i = math.max(1, #notes - 3), #notes do
+                lines[#lines + 1] = notes[i].text
+            end
+            rows[#rows + 1] = Label("Only you see this:\n" .. table.concat(lines, "\n"), {"sizeS", "info"}, { tmargin = 4 })
+        end
+        if eff.tests ~= true or m_view.phase ~= "playing" or m_view.readonly or g.pendingShakeAt ~= nil then
+            return rows
+        end
+        local tok = Puzzle.MyHero()
+        if tok == nil then
+            rows[#rows + 1] = Label("Select your hero to roll a test.", {"sizeS", "fgMuted"})
+            return rows
+        end
+        local champ = IsChampion()
+        local champTurn = tonumber(g.turn) == 1
+        local buttons = {}
+        local function Add(text, fn)
+            buttons[#buttons + 1] = gui.Button{ classes = {"sizeS"}, text = text, width = "auto", hpad = 8, height = Px(28), hmargin = 3, vmargin = 2,
+                click = function() fn() end }
+        end
+        local bid = g.bid
+        if not champ and champTurn and bid ~= nil and tonumber(bid.by) ~= 1 and (g.reads or {})[me] == nil then
+            local target = tonumber(bid.by) or 2
+            local name = SeatName(g, target)
+            local bane = (g.clammed or {})["s" .. target] and string.format("%s has clammed up", name) or nil
+            Add(string.format("Read %s's bid (Intuition)", name), function()
+                RollFor("read", "inu", "Read Person, Gamble", "Read the bid", READ_TIERS, nil, bane)
+            end)
+        end
+        if champTurn and (g.sells or {})[me] == nil then
+            Add("Sell the bluff (Presence)", function()
+                RollFor("sell", "prs", "Lie, Gamble", "Sell the bluff", SELL_TIERS, nil, nil)
+            end)
+        end
+        if not champ and (g.peeked or {})[me] == nil then
+            for i = 2, SeatCount(g) do
+                if Alive(g, i) and not (g.guarded or {})["s" .. i] then
+                    local seatIndex = i
+                    Add(string.format("Peek at %s (Agility)", SeatName(g, i)), function()
+                        RollFor("peek", "agl", "Pick Pocket", "Peek at a die", PEEK_TIERS, { seat = seatIndex }, nil)
+                    end)
+                end
+            end
+        end
+        if (g.watched or {})[me] == nil then
+            Add("Watch the table (Intuition)", function()
+                RollFor("watch", "inu", "Read Person, Gamble", "Watch the table", WATCH_TIERS, nil, nil)
+            end)
+        end
+        if #buttons > 0 then
+            rows[#rows + 1] = gui.Panel{ flow = "horizontal", width = "auto", height = "auto", wrap = true, tmargin = 4, children = buttons }
+        end
+        --the champion's answers to a caught cheat (#9, C6).
+        if champ then
+            local answers = {}
+            if g.claim then
+                answers[#answers + 1] = gui.Button{ classes = {"sizeS"}, text = "Claim the game", width = "auto", hpad = 8, height = Px(28), hmargin = 3,
+                    click = function() Send({ kind = "move", act = "claim" }) end }
+            end
+            if champTurn then
+                for i = 2, SeatCount(g) do
+                    if (g.caught or {})["s" .. i] and Alive(g, i) then
+                        local seatIndex = i
+                        answers[#answers + 1] = gui.Button{ classes = {"sizeS"}, text = string.format("Call out %s's loaded dice", SeatName(g, i)),
+                            width = "auto", hpad = 8, height = Px(28), hmargin = 3,
+                            click = function() Send({ kind = "move", act = "callout", seat = seatIndex }) end }
+                    end
+                end
+            end
+            if #answers > 0 then
+                rows[#rows + 1] = gui.Panel{ flow = "horizontal", width = "auto", height = "auto", tmargin = 4, children = answers }
+            end
+        end
         return rows
     end
 
@@ -704,10 +1146,23 @@ local function Board()
                 Label(string.format("Salt %s -- each hand checks against its hash.", tostring(g.reveal.salt or "")), {"sizeXs", "fgMuted"}),
             }
         end
+        if g.reveal == nil then
+            local suggestions = Suggestions()
+            if suggestions ~= nil then
+                children[#children + 1] = suggestions
+            end
+        end
         if IsChampionTurn() then
-            for _, row in ipairs(Controls()) do
+            for _, row in ipairs(Controls(false)) do
                 children[#children + 1] = row
             end
+        elseif m_view.phase == "playing" and not m_view.readonly and Seat(g, 1) ~= nil and not IsChampion() and g.reveal == nil then
+            for _, row in ipairs(Controls(true)) do
+                children[#children + 1] = row
+            end
+        end
+        for _, row in ipairs(TestRows()) do
+            children[#children + 1] = row
         end
         local history = History()
         if history ~= nil then
@@ -776,6 +1231,19 @@ local function Board()
         ld_bid = Key(BidNow),
         ld_bid2 = Key(BidNow),
         ld_liar = Key(CallNow),
+        ld_suggest = Key(function()
+            local g = m_view.g
+            local best = nil
+            for _, sug in pairs(g.suggest or {}) do
+                if type(sug) == "table" and B.Legal(g.bid, tonumber(sug.q) or 0, tonumber(sug.f) or 0, TotalDice(g))
+                    and (best == nil or (tonumber(sug.at) or 0) > (tonumber(best.at) or 0)) then
+                    best = sug
+                end
+            end
+            if best ~= nil then
+                SetChoice(tonumber(best.q) or 1, tonumber(best.f) or 2)
+            end
+        end),
     }
     for f = 2, 6 do
         local face = f
@@ -842,8 +1310,61 @@ GameOfChance.Register{
     end,
     Move = function(g, eff, secret, req, userid, random, events)
         local champ = Seat(g, 1)
-        if champ == nil or champ.user ~= userid or tonumber(g.turn) ~= 1 or g.pendingShakeAt ~= nil then
+        local act = req.act
+        if act == "rolling" then
+            g.rolling = g.rolling or {}
+            g.rolling[userid] = req.on == true and dmhub.serverTime or nil
+            return true
+        elseif act == "test" then
+            return Test(g, eff, secret, req, userid, random)
+        elseif act == "suggest" then
+            local q = math.tointeger(tonumber(req.q))
+            local f = math.tointeger(tonumber(req.f))
+            if (champ ~= nil and champ.user == userid) or q == nil or f == nil or not B.Legal(nil, q, f, TotalDice(g)) then
+                return false
+            end
+            g.suggest = g.suggest or {}
+            g.suggest[userid] = { q = q, f = f, name = HeroName(req.tokenid, userid), at = dmhub.serverTime }
+            return true
+        end
+        if champ == nil or champ.user ~= userid then
             return false
+        end
+        if act == "claim" and g.claim then
+            --the rules' Notice the Cheaters 17+: win without any other test (C6).
+            g.claim = nil
+            AddHist(g, string.format("%s shows the table how the cheating works and claims the game.", champ.name))
+            events[#events + 1] = { log = string.format("%s claims the game: the cheats are exposed.", champ.name), round = "win", final = true,
+                bettor = { user = champ.user, tokenid = champ.tokenid } }
+            g.turn = nil
+            return true
+        end
+        if tonumber(g.turn) ~= 1 or g.pendingShakeAt ~= nil or RollingOpen(g) then
+            return false
+        end
+        if act == "callout" then
+            local target = math.tointeger(tonumber(req.seat))
+            if target == nil or not (g.caught or {})["s" .. target] or not Alive(g, target) then
+                return false
+            end
+            g.caught["s" .. target] = nil
+            local seat = TakenSeat(g, target)
+            seat.dice = math.max(0, (tonumber(seat.dice) or 0) - 1)
+            local text = string.format("%s calls out %s's loaded dice! %s loses a die.", champ.name, seat.name, seat.name)
+            AddHist(g, string.format("%s: \"%s\"", seat.name, CAUGHT_LINES[seat.honesty] or CAUGHT_LINES.crooked))
+            AddHist(g, text)
+            g.reveal = { text = text, loser = target }
+            g.opener = target
+            g.turn = nil
+            local gamblersLeft = false
+            for i = 2, SeatCount(g) do
+                if Alive(g, i) then
+                    gamblersLeft = true
+                end
+            end
+            events[#events + 1] = { log = text, chat = text, round = "win", final = not gamblersLeft,
+                bettor = { user = champ.user, tokenid = champ.tokenid } }
+            return true
         end
         if req.act == "bid" then
             local q = math.tointeger(tonumber(req.q))
@@ -863,6 +1384,13 @@ GameOfChance.Register{
         return false
     end,
     HostStep = function(g, eff, secret, now, random, events)
+        local expired = false
+        for userid, at in pairs(g.rolling or {}) do
+            if type(at) ~= "number" or now - at > ROLL_HOLD_SECONDS then
+                g.rolling[userid] = nil
+                expired = true
+            end
+        end
         --a new host has no hands for this challenge: shake again (#15).
         if tonumber(secret.challenge) ~= tonumber(g.challenge) and g.reveal == nil then
             Shake(g, random, secret)
@@ -874,15 +1402,22 @@ GameOfChance.Register{
                 Shake(g, random, secret)
                 return true
             end
-            return false
+            return expired
         end
         local turn = tonumber(g.turn)
         if turn == nil or turn == 1 or g.nextAt == nil or now < g.nextAt then
-            return false
+            return expired
         end
         local seat = TakenSeat(g, turn)
         local hand = B.ParseHand((secret.hands or {})["s" .. turn])
-        local move = B.Turn(random, hand, TotalDice(g), g.bid, seat.honesty)
+        local opts = nil
+        if g.bid ~= nil and tonumber(g.bid.by) == 1 then
+            --facing the champion's bid: a sold bluff (C2) and lost goodwill (C4).
+            local sell = g.sell or {}
+            opts = { trust = tonumber(sell.trust) or 0, wary = (tonumber(sell.wary) or 0) + (tonumber((g.wary or {})["s" .. turn]) or 0) }
+            g.sell = nil
+        end
+        local move = B.Turn(random, hand, TotalDice(g), g.bid, seat.honesty, opts)
         if move == "call" and g.bid ~= nil then
             AddHist(g, string.format("%s: \"%s\"", seat.name, CALL_LINES[seat.honesty] or CALL_LINES.honest))
             Resolve(g, secret, turn, random, events)
@@ -909,6 +1444,9 @@ GameOfChance.Register{
         end
         local turn = tonumber(g.turn) or 1
         if turn == 1 then
+            if RollingOpen(g) then
+                return "Waiting for a test roll to finish."
+            end
             if champ ~= nil and champ.user == viewer then
                 return g.bid ~= nil and string.format("Your turn: raise %s or call Liar.", BidText(g.bid.q, g.bid.f))
                     or "Your turn: open the bidding."

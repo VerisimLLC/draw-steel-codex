@@ -799,6 +799,9 @@ local function FieldControl(field, config, setConfig)
             classes = {"sizeS"},
             width = "auto",
             height = 22,
+            --sizeS does not reach the check's own label; without this a long
+            --label pushes the setup box past its window.
+            fontSize = 14,
             text = field.label,
             value = value == true,
             change = function(element)

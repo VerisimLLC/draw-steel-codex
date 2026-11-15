@@ -626,7 +626,24 @@ local function OpenSetup(id, floorid, objid)
             flow = "horizontal",
             width = "auto",
             height = "auto",
+            tmargin = 2,
         }
+        --the second step sits under the kind dropdown (side by side is wider than
+        --the window), with an X that abandons the half-made effect.
+        local function SetTarget(control)
+            targetRow.children = {
+                control,
+                gui.DeleteItemButton{
+                    width = 16,
+                    height = 16,
+                    valign = "center",
+                    lmargin = 6,
+                    click = function(element)
+                        Rebuild()
+                    end,
+                },
+            }
+        end
         local function AddEffect(effect)
             local current = ReadLock()
             table.insert(current[listName], effect)
@@ -634,7 +651,7 @@ local function OpenSetup(id, floorid, objid)
             Rebuild()
         end
         rows[#rows + 1] = gui.Panel{
-            flow = "horizontal",
+            flow = "vertical",
             width = "auto",
             height = "auto",
             vmargin = 2,
@@ -650,24 +667,22 @@ local function OpenSetup(id, floorid, objid)
                         return
                     end
                     if kind == "chat" then
-                        targetRow.children = {
-                            gui.Input{
-                                width = 260,
-                                height = 26,
-                                bgimage = "panels/square.png",
-                                bgcolor = "#00000059",
-                                border = 1,
-                                borderColor = "#ffffff47",
-                                hpad = 6,
-                                borderBox = true,
-                                placeholderText = "Message...",
-                                change = function(input)
-                                    if input.text ~= "" then
-                                        AddEffect({ kind = "chat", text = input.text })
-                                    end
-                                end,
-                            },
-                        }
+                        SetTarget(gui.Input{
+                            width = 260,
+                            height = 26,
+                            bgimage = "panels/square.png",
+                            bgcolor = "#00000059",
+                            border = 1,
+                            borderColor = "#ffffff47",
+                            hpad = 6,
+                            borderBox = true,
+                            placeholderText = "Message...",
+                            change = function(input)
+                                if input.text ~= "" then
+                                    AddEffect({ kind = "chat", text = input.text })
+                                end
+                            end,
+                        })
                         return
                     end
                     local doors, objects = ListTargets(floorid, fromX, fromY, objid)
@@ -677,39 +692,35 @@ local function OpenSetup(id, floorid, objid)
                         options[#options + 1] = { id = tostring(i), text = t.label }
                     end
                     if #options == 0 then
-                        targetRow.children = {
-                            gui.Label{
-                                classes = {"sizeS", "warning"},
-                                width = "auto",
-                                height = "auto",
-                                valign = "center",
-                                text = cond(kind == "unlock" or kind == "open", "No doors on this floor.", "No other objects on this floor."),
-                            },
-                        }
+                        SetTarget(gui.Label{
+                            classes = {"sizeS", "warning"},
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            text = cond(kind == "unlock" or kind == "open", "No doors on this floor.", "No other objects on this floor."),
+                        })
                         return
                     end
-                    targetRow.children = {
-                        gui.Dropdown{
-                            width = 260,
-                            options = options,
-                            textDefault = "Choose...",
-                            change = function(d)
-                                ---@cast d Dropdown
-                                local t = list[math.tointeger(tonumber(d.idChosen)) or 0]
-                                if t == nil then
-                                    return
-                                end
-                                local effect = { floorid = floorid, x = t.x, y = t.y, objid = t.objid, label = t.label }
-                                if kind == "unlock" or kind == "open" then
-                                    effect.kind = cond(t.kind == "doorobj", "doorobj", "door")
-                                    effect.open = kind == "open"
-                                else
-                                    effect.kind = kind
-                                end
-                                AddEffect(effect)
-                            end,
-                        },
-                    }
+                    SetTarget(gui.Dropdown{
+                        width = 260,
+                        options = options,
+                        textDefault = "Choose...",
+                        change = function(d)
+                            ---@cast d Dropdown
+                            local t = list[math.tointeger(tonumber(d.idChosen)) or 0]
+                            if t == nil then
+                                return
+                            end
+                            local effect = { floorid = floorid, x = t.x, y = t.y, objid = t.objid, label = t.label }
+                            if kind == "unlock" or kind == "open" then
+                                effect.kind = cond(t.kind == "doorobj", "doorobj", "door")
+                                effect.open = kind == "open"
+                            else
+                                effect.kind = kind
+                            end
+                            AddEffect(effect)
+                        end,
+                    })
                 end,
             },
             targetRow,
@@ -778,6 +789,7 @@ local function OpenSetup(id, floorid, objid)
             classes = {"sizeS"},
             width = "auto",
             height = 22,
+            fontSize = 14,
             halign = "left",
             tmargin = 10,
             text = "Can be solved from anywhere",
@@ -859,6 +871,7 @@ local function OpenSetup(id, floorid, objid)
             classes = {"sizeS"},
             width = "auto",
             height = 24,
+            fontSize = 14,
             text = "Hide this object when solved",
             value = lock.hideWhenSolved == true,
             change = function(element)
@@ -898,10 +911,13 @@ local function OpenSetup(id, floorid, objid)
         body.children = children
     end
 
+    --scrolls rather than growing the window off the screen.
     body = gui.Panel{
         flow = "vertical",
-        width = "auto",
+        width = "100%",
         height = "auto",
+        maxHeight = 820,
+        vscroll = true,
     }
 
     window = gui.Panel{

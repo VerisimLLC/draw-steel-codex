@@ -470,7 +470,11 @@ function MonsterAI.AssessSupport(props)
     for _, registration in pairs(ai.maliceAbilities) do
         local name = (registration.abilities or {})[1]
         if name ~= nil and ai.MaliceAbilityMatchesMonster(fakeToken, registration, true) then
-            maliceFor[name] = registration
+            --a band's own registration outranks a generic one (Solo Action has both).
+            local existing = maliceFor[name]
+            if existing == nil or (existing.monsters == nil and existing.monsterGroups == nil) then
+                maliceFor[name] = registration
+            end
         end
     end
 

@@ -348,6 +348,37 @@ MonsterAI:RegisterMove{
     end,
 }
 
+--Solo Action is the same 5 Malice "extra main action" in every solo monster's
+--group, so one rule covers them all. A band that registers its own Solo Action
+--(e.g. the Emerald Dragon, which keeps Malice back) is left to that rule.
+local g_soloActionName = "Solo Action"
+local g_soloActionId = "Generic Malice: Solo Action"
+
+local function HasBandSoloAction(ai, token)
+    for id, registration in pairs(ai.maliceAbilities) do
+        if id ~= g_soloActionId and (registration.abilities or {})[1] == g_soloActionName
+            and MonsterAI.MaliceAbilityMatchesMonster(token, registration, true) then
+            return true
+        end
+    end
+    return false
+end
+
+MonsterAI:RegisterMaliceAbility{
+    id = g_soloActionId,
+    abilities = {g_soloActionName},
+    description = "Spend 5 Malice for an extra main action while enemies remain. Monsters with their own Solo Action AI use that instead.",
+    score = function(self, ai, token, ability, context)
+        if HasBandSoloAction(ai, token) then
+            return nil, "this monster's own AI decides Solo Action"
+        end
+        if #(context.enemyTokens or {}) == 0 then
+            return nil, "no enemies"
+        end
+        return {score = 0.78}
+    end,
+}
+
 MonsterAI:RegisterMove{
     id = "Spear Charge",
     category = "Main Actions",

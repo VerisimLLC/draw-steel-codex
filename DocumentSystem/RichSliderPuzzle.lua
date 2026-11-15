@@ -341,6 +341,12 @@ end
 PuzzleType.Register{
     id = "slider",
     name = "Slider puzzle",
+    howToPlay = [[
+The picture is cut into tiles with one missing. Slide the tiles back into place to make the picture whole.
+
+Click a tile in the same row or column as the gap to slide it into the gap. Any tiles between it and the gap slide along with it.
+
+Tick Show tile numbers to see where each tile belongs: tile 1 goes top left, then along each row in order.]],
     fields = {
         { id = "image", type = "image", label = "Image", default = false },
         { id = "grid", type = "choice", label = "Grid", default = "3", options = gridOptions },

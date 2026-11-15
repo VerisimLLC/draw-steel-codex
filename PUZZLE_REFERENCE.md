@@ -79,6 +79,7 @@ New files only load once registered in their CodeMod (see the codex `CLAUDE.md`)
 | `HandleRequest(id, state, req, userid, after)` | no | The host applies players' requests (see Requests below). |
 | `HostTick(id)` | no | Runs about once a second on the host for each puzzle of the type; a type with one applies its own requests with `Puzzle.ProcessRequests`. |
 | `noTimeLimit` | no | The framework's time limit is not offered. |
+| `howToPlay` | no, but every shipped type has one | Text for the frame's "?" button, shown to everyone: how to play, never the answer. A string, or `function(config)` returning one so it can follow the setup (tries, optional tests). Blank lines split paragraphs. Games of chance pass it through `GameOfChance.Register`. |
 
 Setup field `type`s: `text`, `multiline`, `number` (`min`, `max`), `toggle`, `choice`
 (`options = { {id, text}, ... }`), `image`, and `custom`: `Control = function(config,

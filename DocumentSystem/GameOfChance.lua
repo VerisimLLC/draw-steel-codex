@@ -30,6 +30,7 @@ local mod = dmhub.GetModLoading()
 ---@field perception? string characteristic id that slows a player's view (nil: none)
 ---@field test? ChanceTest the game's own test, rolled once per player per round
 ---@field flow? string "bet" (this file's flow, the default) or "turns" (GameOfChanceTurns.lua)
+---@field howToPlay? string|fun(config: table): string the puzzle frame's "?" text (PuzzleTypeDef.howToPlay)
 ---@field cheatText string what the dealer's cheat was, e.g. "the dealer palmed the pea"
 ---@field DealRound fun(config: table, random: (fun(k: integer): integer), difficulty: string): table public round data (plain, no lists)
 ---@field Duration fun(data: table): number seconds the deal takes at normal speed
@@ -1494,6 +1495,7 @@ function GameOfChance.Register(game)
         name = game.name,
         fields = LayerFields(game),
         noTimeLimit = true,
+        howToPlay = game.howToPlay,
         NewState = function(config, ctx)
             return NewGameState()
         end,

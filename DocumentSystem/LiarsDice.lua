@@ -1380,6 +1380,18 @@ end
 GameOfChance.Register{
     id = "liarsdice",
     name = "Liar's dice",
+    howToPlay = [[
+One hero, the champion, plays against the gamblers at the table. Everyone has five dice under a cup. Ones are wild: they count as every face.
+
+Press Take a seat and your selected hero becomes the champion. The whole party sees the champion's dice and can help.
+
+On your turn, bid how many dice on the whole table show one face, such as "four 5s". Every bid must raise the last: more dice, or the same number of a higher face. Or call Liar! if you think the last bid is too high.
+
+When someone calls Liar, the cups lift and the dice are counted. If the bid was right, the caller loses a die. If not, the bidder does. Each challenge the champion takes part in is a round: win enough rounds before you lose too many.
+
+The rest of the party can suggest bids and roll tests: Read the bid (Intuition), Sell the bluff (Presence), Peek at a gambler's die (Agility) and Watch the table (Intuition) for cheating. Odds help shows how likely a bid is.
+
+Keyboard: click the table, then Up and Down change the number, 2-6 pick the face, Enter bids, L calls Liar, and S takes the newest suggestion.]],
     flow = "turns",
     presets = PRESETS,
     presetOptions = {

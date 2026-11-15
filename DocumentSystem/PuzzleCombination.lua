@@ -1435,6 +1435,21 @@ end
 PuzzleType.Register{
     id = "combination",
     name = "Combination lock",
+    howToPlay = function(config)
+        local attempts = math.tointeger(tonumber(config.attempts)) or 0
+        local lines = {
+            "Turn the dials to the right code, then press Try the code. The code is somewhere else: a journal page, a torn note, a mural on the wall.",
+            "Click + or - to turn a dial, or click a dial's face to pick a symbol. Click the lock to use the keyboard: Left and Right move between dials, Up and Down turn them, typing a symbol sets the dial and moves on, and Enter tries the code.",
+            "Everyone turns the same dials. Under each dial is the name of whoever set it last.",
+        }
+        if attempts > 0 then
+            lines[#lines + 1] = string.format("The lock jams after %d wrong %s.", attempts, attempts == 1 and "try" or "tries")
+        end
+        if config.tumbler ~= false then
+            lines[#lines + 1] = "Listen (Agility): each hero can listen at the lock once. Click up to three dials in the order you want to hear them, then roll. The better the roll, the more of those dials you hear the right symbol for."
+        end
+        return table.concat(lines, "\n\n")
+    end,
     fields = {
         { id = "symbols", type = "choice", label = "Symbols", default = "digits", options = {
             { id = "digits", text = "Digits (0-9)" },

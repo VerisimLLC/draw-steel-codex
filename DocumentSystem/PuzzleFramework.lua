@@ -46,6 +46,7 @@ local mod = dmhub.GetModLoading()
 ---@field HostTick? fun(id: string) runs about once a second on the host for every puzzle of this type
 ---@field HandleRequest? PuzzleRequestHandler the host applies players' requests (Puzzle.Request); types with their own HostTick call Puzzle.ProcessRequests instead
 ---@field noTimeLimit? boolean the framework's time limit is not offered for this type
+---@field howToPlay? string|fun(config: table): string the frame's "?" popup; paragraphs split by blank lines
 
 ---@class PuzzleStatus
 ---@field solved boolean|nil

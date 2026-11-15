@@ -34,6 +34,7 @@ local mod = dmhub.GetModLoading()
 ---@field id string
 ---@field name string
 ---@field flow "turns"
+---@field howToPlay? string|fun(config: table): string the puzzle frame's "?" text (PuzzleTypeDef.howToPlay)
 ---@field presets table<string, table> preset id -> setup values
 ---@field presetOptions {id: string, text: string}[] the setup's first choice
 ---@field fields? PuzzleField[] the game's own setup, shown under Customize
@@ -551,6 +552,7 @@ function GameOfChanceTurns.Register(game)
         name = game.name,
         fields = Fields(game),
         noTimeLimit = true,
+        howToPlay = game.howToPlay,
         NewState = function(config, ctx)
             return NewState(game, Eff(game, config))
         end,

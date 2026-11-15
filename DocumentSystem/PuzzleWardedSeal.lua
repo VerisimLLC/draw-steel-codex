@@ -2198,6 +2198,18 @@ end
 PuzzleType.Register{
     id = "wardedseal",
     name = "Warded seal",
+    howToPlay = [[
+One player is the hands: only they can see the ward and act on it. Everyone else reads: each reader holds pages of the ward's codex, the rules for opening it, but can't see the ward. Talk to each other.
+
+Before you start, choose Be the hands, Read or Either part. Anyone can press Begin, and the parts are dealt then. If you begin alone, you see the ward and the codex both.
+
+Hands: describe what you see. A ward has up to four modules: threads to cut, glyphs to touch in the right order, and a sigil dial to turn and set. Click a part's name to quote it in the party chat.
+
+Readers: find the rules on your pages that fit what the hands describe, and tell them what to do. On each page, the first rule that fits is the one that counts. Some rules need a Lexicon page, which another reader may hold. Ask puts a question from your page to the hands; Point tells them an action.
+
+Every wrong action is a strike. Too many strikes and the seal bursts.
+
+Tests: the hands can Brace (Agility) once, so their next slip doesn't count. Each reader can Study (Reason) once to see through rules on their pages. If the ward is timed, anyone can ask for more time.]],
     fields = {
         { id = "preset", type = "choice", label = "Seal", default = "vault", options = {
             { id = "simple", text = "Simple ward (1-2 modules, plain rules)" },

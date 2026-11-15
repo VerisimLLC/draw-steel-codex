@@ -303,6 +303,7 @@ function Puzzle.CreatePanel(id, opts)
     local assistRow
     local directorRow
     local timerButtons
+    local helpButton
     local Refresh
 
     local function Editing()
@@ -449,7 +450,7 @@ function Puzzle.CreatePanel(id, opts)
                 "Save the page to set up this puzzle.",
                 opts.placeholder or "Puzzle: choose a type in the annotations strip below.")
             placeholder:SetClass("collapsed", false)
-            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel}) do
+            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel, helpButton}) do
                 panel:SetClass("collapsed", true)
             end
             return
@@ -497,6 +498,7 @@ function Puzzle.CreatePanel(id, opts)
         end
         statusLabel.text = line or ""
         statusLabel:SetClass("collapsed", line == nil)
+        helpButton:SetClass("collapsed", def.howToPlay == nil)
 
         local left = Puzzle.TimeLeft(id)
         local limit = Puzzle.EffectiveLimit(ctx.config)
@@ -576,6 +578,60 @@ function Puzzle.CreatePanel(id, opts)
         height = "auto",
         halign = "left",
         text = "",
+    }
+
+    helpButton = gui.Button{
+        classes = {"collapsed", "sizeXs"},
+        text = "?",
+        width = 22,
+        height = 22,
+        hmargin = 4,
+        valign = "top",
+        hover = gui.Tooltip("How to play"),
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            local def = m_id ~= nil and Puzzle.GetType(m_id) or nil
+            local help = def ~= nil and def.howToPlay or nil
+            if type(help) == "function" then
+                help = help(Puzzle.ReadConfig(m_id --[[@as string]]))
+            end
+            if def == nil or type(help) ~= "string" or help == "" then
+                return
+            end
+            local children = {
+                gui.Label{
+                    classes = {"sizeM", "bold"},
+                    width = 420,
+                    height = "auto",
+                    vmargin = 2,
+                    text = string.format("How to play: %s", def.name),
+                },
+            }
+            for paragraph in string.gmatch(help .. "\n\n", "(.-)\n%s*\n") do
+                if paragraph:match("%S") then
+                    children[#children + 1] = gui.Label{
+                        classes = {"sizeS"},
+                        width = 420,
+                        height = "auto",
+                        vmargin = 3,
+                        text = paragraph,
+                    }
+                end
+            end
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                classes = {"bordered", "bg"},
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                pad = 10,
+                borderBox = true,
+                children = children,
+            }
+        end,
     }
 
     assistRow = gui.Panel{
@@ -725,7 +781,15 @@ function Puzzle.CreatePanel(id, opts)
         end,
         data = {},
 
-        content,
+        --the "?" sits beside the board's top-right corner, never over the board.
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            content,
+            helpButton,
+        },
         placeholder,
         awayLabel,
         banner,

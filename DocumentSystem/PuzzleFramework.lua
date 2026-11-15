@@ -1157,6 +1157,10 @@ end
 ---@param where string|nil
 function Puzzle.MarkPresent(id, present, where)
     local doc = mod:GetDocumentSnapshot(PRESENCE_DOC)
+    --leaving a puzzle with no entry (a deleted one) must not create one.
+    if not present and type(doc.data[id]) ~= "table" then
+        return
+    end
     doc:BeginChange()
     local entry = doc.data[id]
     if type(entry) ~= "table" then

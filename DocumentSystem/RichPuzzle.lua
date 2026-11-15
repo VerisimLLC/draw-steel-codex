@@ -1154,10 +1154,21 @@ function Puzzle.OpenWindow(id, opts)
         escape = function(element)
             Close()
         end,
-        data = { atLock = opts.atLock == true },
+        data = { atLock = opts.atLock == true, existed = Puzzle.Exists(id) },
+        --deleting the puzzle (Puzzle.Forget) closes it on every client.
+        monitorGame = Puzzle.MonitorPaths(id),
+        refreshGame = function(element)
+            if Puzzle.Exists(id) then
+                element.data.existed = true
+            elseif element.data.existed then
+                Close()
+            end
+        end,
         thinkTime = HEARTBEAT_SECONDS,
         think = function(element)
-            Puzzle.MarkPresent(id, true, opts.where)
+            if Puzzle.Exists(id) then
+                Puzzle.MarkPresent(id, true, opts.where)
+            end
         end,
         destroy = function(element)
             g_windows[id] = nil

@@ -1397,10 +1397,14 @@ GameOfChance.Register{
     NewGame = NewGame,
     CanStart = function(g, eff, req, userid)
         local champ = Seat(g, 1)
-        if champ == nil then
-            return type(req.tokenid) == "string" and Puzzle.HeroById(req.tokenid) ~= nil
+        local tokenid = champ ~= nil and champ.tokenid or req.tokenid
+        local tok = type(tokenid) == "string" and Puzzle.HeroById(tokenid) or nil
+        if tok == nil or (champ ~= nil and not Alive(g, 1)) then
+            return false
         end
-        return Alive(g, 1)
+        --a hero who can't cover the stake can't play for it (shell #32): a stake never
+        --takes a hero below nothing, so they could only win.
+        return S.CanCover(tok, eff)
     end,
     Start = function(g, eff, random, secret, events, req, userid)
         if Seat(g, 1) == nil then
@@ -1438,7 +1442,7 @@ GameOfChance.Register{
             --the champion's turn sat idle (stepped away, or gone): another hero takes the
             --same seat and dice (C13). The first request wins; later ones find it taken.
             local tok = type(req.tokenid) == "string" and Puzzle.HeroById(req.tokenid) or nil
-            if champ == nil or champ.user == userid or tok == nil or tonumber(g.turn) ~= 1
+            if champ == nil or champ.user == userid or tok == nil or not S.CanCover(tok, eff) or tonumber(g.turn) ~= 1
                 or dmhub.serverTime - (tonumber(g.turnAt) or dmhub.serverTime) < IDLE_SECONDS then
                 return false
             end
@@ -1598,6 +1602,17 @@ GameOfChance.Register{
     Status = function(g, eff, phase, viewer)
         local champ = Seat(g, 1)
         if phase ~= "playing" then
+            local stake = S.StakeText(eff)
+            local tok = nil
+            if champ ~= nil then
+                tok = Puzzle.HeroById(champ.tokenid)
+            else
+                tok = Puzzle.MyHero()
+            end
+            if stake ~= nil and tok ~= nil and not S.CanCover(tok, eff) then
+                return string.format("%s can't cover the stake (%s).%s", champ ~= nil and champ.name or (tok.name or "Your hero"), stake,
+                    champ ~= nil and " They can stand up for another hero." or "")
+            end
             if champ == nil then
                 return "Take a seat to play: your selected hero becomes the champion."
             end

@@ -150,9 +150,11 @@ player files a request and the host applies it:
 
 - `Puzzle.MyHero()` -- the player's selected token, else their primary character.
 - `Puzzle.HeroById(tokenid)`.
-- `Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel)` -- the
-  montage's skill-aware test (Skilled chip, features), private to the roller; `skill` may be
-  `""`. `onDone(tier, natural)`; `onCancel` when the player closes the roll.
+- `Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel, bane)` --
+  the montage's skill-aware test (Skilled chip, features), private to the roller; `skill`
+  may be `""` or two skills ("Read Person, Gamble": the Skilled chip lights for either).
+  `onDone(tier, natural)`; `onCancel` when the player closes the roll. `bane`, optional, is a
+  reason string: the roll gets a bane that names it ("Bane: Vell has clammed up").
 - `Puzzle.TestOutcome(tier, natural, difficulty)` -- Draw Steel's test difficulty rows:
   `"success"`, `"consequence"`, `"failure"`, `"failconsequence"`, plus `reward`.
 
@@ -249,6 +251,46 @@ their patterns (solid, dashed, dotted), and `PuzzleRunes.ThreadPanel(colour, pat
 width, thickness)`. Always show a rune's or thread's name as text beside it. New rune art
 dropped into the same slots upgrades every puzzle that uses them.
 
+## Games of chance
+
+`GameOfChance.Register{...}` (`GameOfChance.lua`) makes a game of chance a puzzle type:
+winning the required rounds solves it, losing the allowed rounds fails it or offers another
+game, and stakes (gold, 1 Wealth, a Recovery) are paid once per game by the host and given
+back by Reset -- every game's payment, kept through Play again. Two flows:
+
+- **Bet** (the default; the shell game): the host deals a round everyone watches in sync,
+  players point and test, one places the bet, the host judges it. A game supplies
+  `DealRound`, `Duration`, `Options`, `Judge`, `Board` and its test.
+- **Turns** (`flow = "turns"`, `GameOfChanceTurns.lua`; Liar's dice in `LiarsDice.lua`): a
+  round is a challenge made of turns -- players' moves as requests, NPC turns run by the
+  host. A game supplies `presets`, `presetOptions`, `startLabel(g)`, `NewGame`,
+  `CanStart`, `Start`, `Move` (any phase but "over"; it gets the phase), `HostStep` (gets
+  the pace), `Status`, `Board` (receives the `chanceTurns` event), and optionally `EndNow`.
+  It reports `{log, chat, round = "win"|"lose", final, bettor}` events; the layer counts
+  rounds, pays stakes and ends the game. The game's public data lives in `state.g`.
+
+**Host-held secrets.** Everything in a puzzle's state is on every client. When reading it
+would win the game (the gamblers' hidden dice), keep it on the host only:
+`GameOfChanceTurns.ReadSecret(id)` / `WriteSecret(id, t)` store it in a `PerGamePreference`
+setting -- the host's own local file, kept through a Lua reload or restart on that machine.
+Put a salted hash of each secret in state (`LiarsDiceBidder.Commit(salt, text)`, 64-bit
+FNV-1a) and publish the salt at the reveal so the table can check it; the salt is what stops
+anyone guessing a small secret from its hash. A new host has no secret: the game must cope
+(Liar's dice shakes the challenge again). At a table with no Director the host is a player,
+who could look. The preference file is per machine, not per account (`{persistentDataPath}
+/settings/<gameid>.<id>.txt`), so two windows on one computer share it: a second test window
+can read the host's secret. Check the hiding with two computers, not two windows.
+
+**Pacing.** Each window reports how its player watches (slowly = 2, "don't watch" = 0) and
+the host times NPC turns to the slowest player present. Report from what the window last
+*sent*, never by comparing with saved state inside the redraw: the request's own write
+redraws before the host has applied it, and that loop overflows the stack.
+
+**Rolls that hold the table.** A test roll opens a dialog that takes time. Send a
+"rolling" request when it opens and when it closes (or the result arrives); while any are
+open the host holds the moves that would make the result stale, and drops a forgotten one
+after a minute. Never pause on a single flag: several players can roll at once.
+
 ## Map locks and effects
 
 A Puzzle Lock (Interactable component -> Puzzle Lock on any map object) shows your type
@@ -295,3 +337,10 @@ adjustable timers. Your type must still:
   different players.
 - `Puzzle.SetAssist(id, assistid, on)` from Lua works but does not tick the assist's
   checkbox; click the checkbox when you want to see both agree.
+- A turns game's party-side tests from one window: set `state.g.seats.s1.user` to a stand-in
+  so your window counts as the party, send the requests, set it back. A throwaway turns game
+  can be registered at runtime from Lua to test the layer; never ship one.
+- A second window that you drive over HTTP needs its own MCP port:
+  `dmhub.DuplicateWindowInNewProcess{asplayer = true, args = "--mcp-port 19878"}`.
+- `wrap = true` on a horizontal panel does not grow its height: a second line overlaps what
+  follows. Lay buttons out in explicit lines instead.

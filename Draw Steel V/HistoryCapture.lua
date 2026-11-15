@@ -1297,6 +1297,80 @@ local function OnSaved(creature, info)
     })
 end
 
+--A test rolled outside an ability: the character panel, Hero sheet, a journal, or one the
+--Director requested (L44). It keeps its roll in an action's shape, so its card can show it.
+local function OnTested(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil or info.total == nil then
+        return
+    end
+    local roll = {
+        total = info.total,
+        edges = info.edges,
+        banes = info.banes,
+        tier = info.tier,
+        natural = info.natural,
+        characteristic = info.characteristic,
+        sources = info.sources ~= nil and EdgeSources(info.sources) or nil,
+    }
+    if #info.dice == 2 then
+        roll.low = math.min(info.dice[1], info.dice[2])
+        roll.high = math.max(info.dice[1], info.dice[2])
+    end
+    if info.natural ~= nil then
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(info.edges or 0, info.banes or 0)
+        local value = info.characteristic ~= nil and info.characteristic.value or 0
+        local bonus = info.total - info.natural - edgeBonus - value
+        roll.bonus = bonus ~= 0 and bonus or nil
+    end
+    WriteLine(token, "test", {
+        name = info.name,
+        total = info.total,
+        roll = roll,
+        causetext = string.format("%s%sTier %d", info.name, History.DOT, info.tier),
+    })
+end
+
+--A Dice panel roll (L45). It is named for the character the roller is acting as (selected,
+--else their own); with none, the player, or "Director" for the Director.
+local function OnDiceRoll(rollInfo, kind)
+    if not History.Enabled() or rollInfo.total == nil then
+        return
+    end
+    local token = dmhub.currentToken
+    local text = type(rollInfo.rollStr) == "string" and trim(rollInfo.rollStr) or ""
+    local faces = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+    --the Power Roll tile is two d10s, so it has a tier; other dice don't.
+    local tier = kind == "power" and RollUtils.DiceResultToTier(rollInfo) or nil
+    local cause = text ~= "" and text or nil
+    if tier ~= nil then
+        cause = string.format("%s%sTier %d", cause or "2d10", History.DOT, tier)
+    end
+    local entry = {
+        kind = "line",
+        family = "dice",
+        map = (token ~= nil and token.mapid) or game.currentMapId,
+        total = rollInfo.total,
+        dice = faces,
+        tier = tier,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        causetext = cause,
+    }
+    if token ~= nil then
+        entry.who = History.Creature(token)
+    else
+        entry.roller = dmhub.isDM and "Director" or rollInfo.playerName
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1360,6 +1434,8 @@ GameSystem.RegisterPlayObserver("history", {
     conditionimmune = OnConditionImmune,
     resisted = OnResisted,
     saved = OnSaved,
+    tested = OnTested,
+    diceroll = OnDiceRoll,
     persistenceended = OnPersistenceEnded,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,

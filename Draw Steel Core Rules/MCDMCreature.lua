@@ -5344,6 +5344,10 @@ end
 --_tmp_ field on the creature, which survives reloads and would pin future clicks.
 local g_pendingQueuedRoll = {}
 
+local function NotifyTested(creature, attrInfo, rollInfo, details)
+    RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+end
+
 --options (optional): { modifiers = { modifierEntry, ... } } -- extra
 --entries for the roll dialog's modifier list, in the same shape
 --GetModifiersForPowerRoll returns ({ modifier, hint, context }). The
@@ -5507,9 +5511,10 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
                 rollProperties = rollProperties,
                 PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
 
-                completeRoll = function(rollInfo)
+                completeRoll = function(rollInfo, details)
                     settled = true
                     HideCard()
+                    NotifyTested(self, attrInfo, rollInfo, details)
                     if onComplete ~= nil then
                         local tier = 1
                         pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
@@ -5601,7 +5606,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
             rollProperties = rollProperties,
             PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
 
-            completeRoll = function(rollInfo)
+            completeRoll = function(rollInfo, details)
                 if displaying then
                     CharacterPanel.HideAbility(syntheticAbility)
                 end
@@ -5624,6 +5629,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
                 if onComplete ~= nil then
                     pcall(onComplete, tier)
                 end
+                NotifyTested(self, attrInfo, rollInfo, details)
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,

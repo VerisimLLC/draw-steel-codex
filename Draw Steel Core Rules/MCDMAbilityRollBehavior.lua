@@ -445,6 +445,41 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+--- Tells a record of play (History) that a test outside an ability finished, with what it
+--- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
+--- @param props creature The creature that rolled.
+--- @param testName string What the test is called, e.g. "Might test".
+--- @param rollInfo table The finished roll.
+--- @param details nil|{edgeSources: nil|table[]} The roll dialog's second completeRoll argument.
+--- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic)
+    local value = nil
+    for id, info in pairs(creature.attributesInfo) do
+        if characteristic ~= nil and info.description == characteristic then
+            local attr = props:GetAttribute(id)
+            value = attr ~= nil and attr:Modifier() or nil
+        end
+    end
+    local dice = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            dice[#dice + 1] = roll.result
+        end
+    end
+    local overrideTier = rollInfo.properties ~= nil and rollInfo.properties:try_get("overrideTier") or nil
+    GameSystem.NotifyPlayObservers("tested", props, {
+        name = testName,
+        total = rollInfo.total,
+        tier = overrideTier or RollUtils.DiceResultToTier(rollInfo),
+        dice = dice,
+        natural = rollInfo.naturalRoll,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        characteristic = value ~= nil and {name = characteristic, value = value} or nil,
+        sources = details ~= nil and details.edgeSources or nil,
+    })
+end
+
 --- One target's effective roll: the roll as rolled, plus that target's post-roll
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves

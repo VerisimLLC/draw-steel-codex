@@ -771,7 +771,16 @@ local function Header(entry, width, inTray, close)
     end
 
     local title = "Encounter ended"
-    if entry.actor ~= nil then
+    --a test or Dice panel line: who rolled, and what ("Gordon - Might test", "Gordon - Dice").
+    local roller = entry.who
+    if entry.family == "test" or entry.family == "dice" then
+        local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
+        title = name .. History.DOT .. (entry.family == "test" and entry.name or "Dice")
+        if roller ~= nil then
+            children[#children + 1] = History.Face(roller, 30)
+            titleWidth = titleWidth - 39
+        end
+    elseif entry.actor ~= nil then
         children[#children + 1] = History.Face(entry.actor, 30)
         titleWidth = titleWidth - 39
         --the ability's name is bracketed and hovers to its card, as names do in the Why; only
@@ -788,7 +797,7 @@ local function Header(entry, width, inTray, close)
         flow = "vertical",
         width = titleWidth,
         height = "auto",
-        lmargin = entry.actor ~= nil and 9 or 0,
+        lmargin = (entry.actor ~= nil or (roller ~= nil and (entry.family == "test" or entry.family == "dice"))) and 9 or 0,
         halign = "left",
         valign = "center",
         gui.Label(Linked{
@@ -1839,6 +1848,25 @@ local function NumbersRows(entry, kids, width)
             end
         end
         rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = tier, value = tostring(roll.total), total = true})
+    end
+
+    --a Dice panel roll: each die, its edges and banes, and what the total adds past them.
+    if entry.family == "dice" and entry.dice ~= nil then
+        rows[#rows + 1] = SubHead("Dice", width)
+        local lead = {}
+        local sum = 0
+        for _, face in ipairs(entry.dice) do
+            lead[#lead + 1] = Die(face)
+            sum = sum + face
+        end
+        rows[#rows + 1] = ReceiptLine(width, {lead = lead, value = tostring(sum)})
+        AddEdgeLines(rows, width, entry.edges, entry.banes, false, nil)
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(entry.edges or 0, entry.banes or 0)
+        local bonus = entry.total - sum - edgeBonus
+        if bonus ~= 0 then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = entry.tier, value = tostring(entry.total), total = true})
     end
 
     local groups = {}
@@ -2998,18 +3026,23 @@ function History.CreateCard(args)
     local width = args.width
     local inner = width - 2 * CARD_PAD
 
-    local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
-    for _, row in ipairs(History.Story(entry, args.kids)) do
-        body[#body + 1] = StoryRow(row, inner, entry.map)
-    end
-    local why = History.Why(entry, args.kids)
-    if #why > 0 then
-        body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
-        for _, row in ipairs(why) do
-            body[#body + 1] = WhyRow(row, inner)
+    --a test or Dice panel line's card is only its numbers: the line already says what happened.
+    local rolled = entry.family == "test" or entry.family == "dice"
+    local body = {}
+    if not rolled then
+        body[1] = SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)
+        for _, row in ipairs(History.Story(entry, args.kids)) do
+            body[#body + 1] = StoryRow(row, inner, entry.map)
+        end
+        local why = History.Why(entry, args.kids)
+        if #why > 0 then
+            body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
+            for _, row in ipairs(why) do
+                body[#body + 1] = WhyRow(row, inner)
+            end
         end
     end
-    if entry.kind == "action" then
+    if entry.kind == "action" or rolled then
         local numbers = NumbersRows(entry, args.kids, inner)
         if #numbers > 0 then
             body[#body + 1] = SectionHead("The numbers", THE_NUMBERS_WIDTH, inner)

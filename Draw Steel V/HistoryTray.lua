@@ -1396,6 +1396,11 @@ local function LineWords(entry)
             most[i] = names[i]
         end
         return string.format("%s %s and %s", name, table.concat(most, ", "), names[#names])
+    elseif family == "test" or family == "dice" then
+        if entry.who == nil and entry.roller ~= nil then
+            name = string.format("<b>%s</b>", entry.roller)
+        end
+        return string.format("%s rolled %d", name, entry.total)
     elseif family == "save" then
         return string.format("%s %s %s", name, cond(entry.passed, "saved against", "failed a save against"), entry.name)
     elseif family == "persistence" then
@@ -1591,7 +1596,10 @@ local function BuildLine(item)
     end
 
     --the closing line of an encounter lists what ended on its card (L17).
-    local opens = entry.family == "encounterend" and #(entry.ended or {}) > 0 and OpensCard(item) or nil
+    --a test or Dice panel roll opens its numbers.
+    local hasCard = (entry.family == "encounterend" and #(entry.ended or {}) > 0)
+        or entry.family == "test" or entry.family == "dice"
+    local opens = hasCard and OpensCard(item) or nil
     return gui.Panel{
         classes = {"historyFold"},
         bgimage = "panels/square.png",

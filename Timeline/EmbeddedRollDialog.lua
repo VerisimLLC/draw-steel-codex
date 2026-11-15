@@ -8342,7 +8342,9 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
 
                     if completeRollFn ~= nil then
-                        completeRollFn(rollInfo)
+                        --the second argument says what gave the roll its edges, banes and
+                        --bonuses, for a record of play (History); callers may ignore it.
+                        completeRollFn(rollInfo, {edgeSources = m_edgeSources})
                     end
                 end
 

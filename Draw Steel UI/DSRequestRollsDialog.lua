@@ -96,6 +96,9 @@ RollCheck.explanation = ''
 
 RollRequest.contest = false
 RollRequest.dicetower = false
+--Set when the Director asked for the rolls from Request Rolls, not an ability: each test
+--then gets its own History line (an ability's go on its row).
+RollRequest.director = false
 
 --Directorless pause on the group roll board: the Monster AI sets
 --awaitingContinue once every roll is in and waits; any player's Continue sets
@@ -646,10 +649,10 @@ local function ShowTimelinePrompt(check, dialogParams)
     local origCancel = dialogParams.cancelRoll
 
     --Original first so the action request is always written, teardown after.
-    dialogParams.completeRoll = function(rollInfo)
+    dialogParams.completeRoll = function(rollInfo, details)
         resolved = true
         if origComplete ~= nil then
-            origComplete(rollInfo)
+            origComplete(rollInfo, details)
         end
         Teardown()
     end
@@ -1088,7 +1091,10 @@ function GameHud:RequireRollListenerPanel()
 												req:CompleteChanges("Begin roll")
 											end
 										end,
-										completeRoll = function(rollInfo)
+										completeRoll = function(rollInfo, details)
+											if rollType == "test_power_roll" and request.info.director then
+												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
+											end
 											local req = dmhub.GetPlayerActionRequest(k)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then
 												req:BeginChanges()
@@ -2242,6 +2248,7 @@ function ShowRequireRollDialog(args)
 					checks = checks,
 					tokens = tokensSelected,
 					dicetower = m_dicetower,
+					director = true,
 				})
 
 				gamehud:ShowRollSummaryDialog(actionid)

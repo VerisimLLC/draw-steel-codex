@@ -39,7 +39,13 @@ local mod = dmhub.GetModLoading()
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
---- "resource", "malice", "globalresource" or "moved".
+--- "resource", "malice", "globalresource", "moved", "test" or "dice".
+--- @field total? number On a test or dice line: what the roll came to.
+--- @field dice? number[] On a dice line: each die as it landed.
+--- @field tier? integer On a dice line from the Power Roll tile: its tier.
+--- @field edges? integer On a dice line: edges on the roll.
+--- @field banes? integer On a dice line: banes on the roll.
+--- @field roller? string On a dice line with no creature: who rolled ("Director" for the Director).
 --- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
 --- @field amount? number On a resource line (or a heal with its Recovery): the change, negative when spent.
 --- @field resourceid? string On a resource line or a Recovery heal: the resource, for Undo.
@@ -51,7 +57,7 @@ local mod = dmhub.GetModLoading()
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
---- @field name? string On a condition, save or persistence line: what it is about.
+--- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test").
 --- @field names? string[] On an ended line: what ended.
 --- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.

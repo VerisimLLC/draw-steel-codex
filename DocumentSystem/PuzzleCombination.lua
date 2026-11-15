@@ -182,6 +182,139 @@ local function DialValues(state, config)
     return result
 end
 
+--------------------------------------------------------------------------------
+-- Listening to the tumblers: once per hero, kept through a Reset
+--------------------------------------------------------------------------------
+--Kept data (Puzzle.ReadKept):
+--  listen = { <tokenid> = {at, user, tier, outcome, dials = "2,4"} }  who has listened
+--  marks  = { d2 = {at, user, tokenid} }                              dials heard right
+
+local LISTEN_TIERS = { "You hear nothing useful.", "You hear the tumblers.", "You hear them clearly." }
+
+---@param id string
+---@return table listen, table marks
+local function Listening(id)
+    local kept = Puzzle.ReadKept(id)
+    local listen = type(kept.listen) == "table" and kept.listen or {}
+    local marks = type(kept.marks) == "table" and kept.marks or {}
+    return listen, marks
+end
+
+---@param marks table
+---@return integer
+local function MarkCount(marks)
+    local n = 0
+    for _, m in pairs(marks) do
+        if type(m) == "table" then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+--A hero's name, or the player's when the token has none.
+---@param tokenid string|nil
+---@param userid string|nil
+---@return string
+local function HeroName(tokenid, userid)
+    local tok = Puzzle.HeroById(tokenid)
+    local name = nil
+    if tok ~= nil then
+        pcall(function() name = tok.name end)
+    end
+    if type(name) ~= "string" or name == "" then
+        return Puzzle.UserName(userid)
+    end
+    return name
+end
+
+--How many dials a result reveals: the test difficulty rows decide success; a
+--success shows one, tier 3 one more, a natural 19-20 one more.
+---@param tier integer
+---@param natural number|nil
+---@param difficulty string
+---@return integer count, string outcome
+local function RevealCount(tier, natural, difficulty)
+    local outcome = Puzzle.TestOutcome(tier, natural, difficulty)
+    if outcome ~= "success" and outcome ~= "consequence" then
+        return 0, outcome
+    end
+    local count = 1
+    if tier >= 3 then
+        count = count + 1
+    end
+    if natural ~= nil and natural >= 19 then
+        count = count + 1
+    end
+    return count, outcome
+end
+
+--Host: apply a "listen" request. Checked and written in the follow-up step, so
+--two requests in one tick (a double click, two windows) count once.
+---@type PuzzleRequestHandler
+local function HandleRequest(id, state, req, userid, after)
+    if req.kind ~= "listen" or type(req.tokenid) ~= "string" then
+        return
+    end
+    local tokenid = req.tokenid
+    local tier = math.tointeger(tonumber(req.tier)) or 1
+    local natural = tonumber(req.natural)
+    local picks = {}
+    for part in string.gmatch(tostring(req.picks or ""), "[^,]+") do
+        picks[#picks + 1] = math.tointeger(tonumber(part))
+    end
+    after[#after + 1] = function()
+        local status = Puzzle.Status(id)
+        if status.solved or status.failed then
+            return
+        end
+        local config = Puzzle.ReadConfig(id)
+        if config.tumbler == false or ParseCode(config) == nil then
+            return
+        end
+        local listen, marks = Listening(id)
+        if listen[tokenid] ~= nil then
+            return
+        end
+        local count, outcome = RevealCount(tier, natural, tostring(config.difficulty or "medium"))
+        local n = DialCount(config)
+        local marked = MarkCount(marks)
+        local revealed = {}
+        local taken = {}
+        for _, d in ipairs(picks) do
+            if #revealed >= count or marked >= n - 1 then
+                break
+            end
+            if d ~= nil and d >= 1 and d <= n and marks["d" .. d] == nil and not taken[d] then
+                taken[d] = true
+                revealed[#revealed + 1] = d
+                marked = marked + 1
+            end
+        end
+        local now = dmhub.serverTime
+        Puzzle.ChangeKept(id, function(kept)
+            kept.listen = kept.listen or {}
+            kept.marks = kept.marks or {}
+            kept.listen[tokenid] = { at = now, user = userid, tier = tier, outcome = outcome, dials = CodeString(revealed) }
+            for _, d in ipairs(revealed) do
+                kept.marks["d" .. d] = { at = now, user = userid, tokenid = tokenid }
+            end
+        end, "Listen to the tumblers")
+        if outcome == "consequence" or outcome == "failconsequence" then
+            local who = HeroName(tokenid, userid)
+            local limited = (math.tointeger(tonumber(config.attempts)) or 0) > 0
+            if config.consequence == "try" and limited then
+                Puzzle.Change(id, function(st)
+                    st.tries = st.tries or {}
+                    st.tries[dmhub.GenerateGuid()] = { at = now, user = userid, code = "", slip = tokenid }
+                end, "Listening cost a try")
+            else
+                chat.Send(string.format("The lock clicks loudly as %s listens at %s.", who, Puzzle.Title(id)))
+            end
+        end
+    end
+end
+
 --The setup's image list: up to ten images, each with a name players see in
 --words (marks, the log, the confirm).
 ---@param config table
@@ -427,6 +560,7 @@ local function EnsureBindings()
     Bind("down", "combo_down")
     Bind("return", "combo_try")
     Bind("enter", "combo_try2")
+    Bind("space", "combo_pick")
     for i = 0, 9 do
         Bind(tostring(i), "combo_k" .. i)
     end
@@ -457,6 +591,14 @@ local function Render(ctx)
     local tryButton
     local confirmRow
     local confirmLabel
+    --listening: the dials picked so far (in order) while choosing, else nil.
+    local m_picking = nil ---@type integer[]|nil
+    local m_listenPending = {} ---@type table<string, boolean>
+    local listenButton
+    local listenReason
+    local pickRow
+    local pickLabel
+    local directorRow
 
     local function Large()
         return m_ctx:Assist("large")
@@ -573,6 +715,9 @@ local function Render(ctx)
     --in runes and images. Sets the dial under the cursor and moves on.
     ---@param key string
     local function TypeKey(key)
+        if m_picking ~= nil then
+            return
+        end
         local config = m_ctx.config
         local set = config.symbols
         local count = #Symbols(config)
@@ -596,6 +741,94 @@ local function Render(ctx)
         SetDial(m_cursor, value)
         m_cursor = math.min(DialCount(config), m_cursor + 1)
         Refresh()
+    end
+
+    --Who would listen now, and why they can't (nil when they can).
+    ---@return CharacterToken|nil hero, string|nil reason
+    local function Listener()
+        local config = m_ctx.config
+        local tok = Puzzle.MyHero()
+        if tok == nil then
+            return nil, "Select your hero to listen."
+        end
+        local listen, marks = Listening(m_ctx.id)
+        if listen[tok.charid] ~= nil or m_listenPending[tok.charid] then
+            return tok, string.format("%s has listened.", HeroName(tok.charid, m_ctx.userid))
+        end
+        if MarkCount(marks) >= DialCount(config) - 1 then
+            return tok, "There is nothing more to hear."
+        end
+        return tok, nil
+    end
+
+    --Up to three dials (the most one roll can reveal), in the order picked.
+    ---@param d integer
+    local function TogglePick(d)
+        if m_picking == nil then
+            return
+        end
+        local _, marks = Listening(m_ctx.id)
+        if marks["d" .. d] ~= nil then
+            return
+        end
+        for i, p in ipairs(m_picking) do
+            if p == d then
+                table.remove(m_picking, i)
+                Refresh()
+                return
+            end
+        end
+        if #m_picking < 3 then
+            m_picking[#m_picking + 1] = d
+        end
+        Refresh()
+    end
+
+    local function StartListen()
+        Focus()
+        local tok, reason = Listener()
+        if tok == nil or reason ~= nil or m_ctx.readonly then
+            return
+        end
+        m_picking = {}
+        m_confirming = nil
+        Refresh()
+    end
+
+    local function CancelListen()
+        Focus()
+        m_picking = nil
+        Refresh()
+    end
+
+    local function RollListen()
+        Focus()
+        if m_picking == nil or #m_picking == 0 then
+            return
+        end
+        local tok, reason = Listener()
+        if tok == nil or reason ~= nil then
+            m_picking = nil
+            Refresh()
+            return
+        end
+        local tokenid = tok.charid
+        local id = m_ctx.id
+        local picks = CodeString(m_picking)
+        m_picking = nil
+        m_listenPending[tokenid] = true
+        Refresh()
+        local function StillWanted()
+            local status = Puzzle.Status(id)
+            local listen = Listening(id)
+            return not status.solved and not status.failed and listen[tokenid] == nil
+        end
+        Puzzle.RollTest(tok, "agl", "Pick Lock", "Listen to the tumblers", LISTEN_TIERS, StillWanted, function(tier, natural)
+            Puzzle.Request(id, { kind = "listen", tokenid = tokenid, tier = tier, natural = natural, picks = picks })
+        end, function()
+            m_listenPending[tokenid] = nil
+            Refresh()
+        end)
     end
 
     ---@param s ComboSymbol|nil
@@ -704,6 +937,10 @@ local function Render(ctx)
                 press = function(element)
                     m_cursor = dial
                     Focus()
+                    if m_picking ~= nil then
+                        TogglePick(dial)
+                        return
+                    end
                     if not m_ctx.readonly then
                         ShowStrip(element, dial)
                     end
@@ -718,7 +955,11 @@ local function Render(ctx)
                         element.data.shown = key
                         element.children = { SymbolFace(s, size) }
                     end
-                    local cursor = m_cursor == dial and not m_ctx.readonly
+                    local picked = false
+                    for _, p in ipairs(m_picking or {}) do
+                        picked = picked or p == dial
+                    end
+                    local cursor = (m_cursor == dial or picked) and not m_ctx.readonly
                     element.selfStyle.borderColor = cond(cursor, FACE_BORDER_CURSOR, FACE_BORDER)
                     element.selfStyle.border = cond(cursor, 4, 2)
                 end,
@@ -791,6 +1032,33 @@ local function Render(ctx)
                         element.text = who ~= nil and string.format("by %s", Puzzle.UserName(who)) or ""
                     end,
                 },
+                --while picking: the pick order; otherwise what a hero heard here.
+                gui.Label{
+                    classes = {"sizeS", "bold"},
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 2,
+                    textAlignment = "center",
+                    refreshCombo = function(element)
+                        local text = nil
+                        if m_picking ~= nil then
+                            for i, p in ipairs(m_picking) do
+                                if p == dial then
+                                    text = string.format("Pick %d", i)
+                                end
+                            end
+                        end
+                        local _, marks = Listening(m_ctx.id)
+                        local mark = marks["d" .. dial]
+                        local code = ParseCode(m_ctx.config)
+                        if text == nil and type(mark) == "table" and code ~= nil then
+                            local s = Symbols(m_ctx.config)[code[dial]]
+                            text = string.format("%s felt %s", HeroName(mark.tokenid, mark.user), s ~= nil and s.name or "?")
+                        end
+                        element:SetClass("collapsed", text == nil)
+                        element.text = text or ""
+                    end,
+                },
             }
         end
         dialRow.children = dials
@@ -808,8 +1076,31 @@ local function Render(ctx)
                     Puzzle.UserName(t.user), tostring(t.dial), s ~= nil and s.name or "?") }
             end
         end
+        local code = ParseCode(config)
+        local listen = Listening(m_ctx.id)
+        for tokenid, rec in pairs(listen) do
+            if type(rec) == "table" then
+                local heard = {}
+                for part in string.gmatch(tostring(rec.dials or ""), "[^,]+") do
+                    local d = math.tointeger(tonumber(part)) or 0
+                    local s = code ~= nil and symbols[code[d] or 0] or nil
+                    heard[#heard + 1] = string.format("%s on dial %d", s ~= nil and s.name or "?", d)
+                end
+                local who = HeroName(tokenid, rec.user)
+                local text
+                if #heard == 0 then
+                    text = string.format("%s listened at the lock and heard nothing useful.", who)
+                else
+                    text = string.format("%s listened at the lock and felt %s.", who, table.concat(heard, ", "))
+                end
+                entries[#entries + 1] = { at = tonumber(rec.at) or 0, text = text }
+            end
+        end
         for _, t in pairs(state.tries or {}) do
-            if type(t) == "table" then
+            if type(t) == "table" and t.slip ~= nil then
+                entries[#entries + 1] = { at = tonumber(t.at) or 0, text = string.format("%s fumbled while listening: it cost a try.",
+                    HeroName(t.slip, t.user)) }
+            elseif type(t) == "table" then
                 local values = {}
                 for part in string.gmatch(tostring(t.code or ""), "[^,]+") do
                     values[#values + 1] = math.tointeger(tonumber(part)) or 0
@@ -848,7 +1139,71 @@ local function Render(ctx)
         end
         logLabel.text = LogText()
         logLabel:SetClass("collapsed", logLabel.text == "")
-        tryButton:SetClass("collapsed", m_ctx.readonly or m_confirming ~= nil or not ready)
+        tryButton:SetClass("collapsed", m_ctx.readonly or m_confirming ~= nil or m_picking ~= nil or not ready)
+
+        --listening: offered while the tumbler test is on and the lock is live.
+        local canListen = config.tumbler ~= false and ready and not m_ctx.readonly
+        if not canListen then
+            m_picking = nil
+        end
+        local _, reason = Listener()
+        listenButton:SetClass("collapsed", not canListen or m_picking ~= nil or m_confirming ~= nil)
+        listenButton:SetClass("disabled", reason ~= nil)
+        listenReason.text = reason or ""
+        listenReason:SetClass("collapsed", not canListen or reason == nil or m_picking ~= nil)
+        pickRow:SetClass("collapsed", m_picking == nil)
+        if m_picking ~= nil then
+            if #m_picking == 0 then
+                pickLabel.text = "Click the dials to listen to, in order (or press Space on one)."
+            else
+                local names = {}
+                for i, p in ipairs(m_picking) do
+                    names[i] = tostring(p)
+                end
+                pickLabel.text = string.format("Listening to dial %s. A good roll hears the first ones.", table.concat(names, ", then "))
+            end
+        end
+
+        --the Director (or the host of a game with no Director) can let a hero listen again.
+        local names = {}
+        if IsDMOrPlayerHost() then
+            for tokenid, rec in pairs(Listening(m_ctx.id)) do
+                if type(rec) == "table" then
+                    names[#names + 1] = { tokenid = tokenid, name = HeroName(tokenid, rec.user) }
+                end
+            end
+            table.sort(names, function(a, b) return a.name < b.name end)
+        end
+        local keyParts = {}
+        for i, n in ipairs(names) do
+            keyParts[i] = n.tokenid .. "=" .. n.name
+        end
+        local key = table.concat(keyParts, "|")
+        if directorRow.data.key ~= key then
+            directorRow.data.key = key
+            local again = {}
+            for _, n in ipairs(names) do
+                local tokenid = n.tokenid
+                again[#again + 1] = gui.Button{
+                    classes = {"sizeXs"},
+                    text = string.format("%s: listen again", n.name),
+                    width = "auto",
+                    hpad = 6,
+                    height = 22,
+                    hmargin = 2,
+                    click = function(element)
+                        m_listenPending[tokenid] = nil
+                        Puzzle.ChangeKept(m_ctx.id, function(kept)
+                            if type(kept.listen) == "table" then
+                                kept.listen[tokenid] = nil
+                            end
+                        end, "Let a hero listen again")
+                    end,
+                }
+            end
+            directorRow.children = again
+        end
+        directorRow:SetClass("collapsed", #names == 0)
         if m_confirming ~= nil and not m_ctx.readonly then
             local left = TriesLeft(state, config) or 0
             confirmLabel.text = string.format("Try %s? %d %s left.", CodeWords(config, m_confirming), left, cond(left == 1, "try", "tries"))
@@ -923,6 +1278,72 @@ local function Render(ctx)
         },
     }
 
+    listenButton = gui.Button{
+        classes = {"sizeM"},
+        text = "Listen (Agility)",
+        width = 160,
+        tmargin = 6,
+        hmargin = 6,
+        click = function(element)
+            StartListen()
+        end,
+    }
+
+    listenReason = gui.Label{
+        classes = {"sizeS", "fgMuted", "collapsed"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        hmargin = 8,
+        text = "",
+    }
+
+    pickLabel = gui.Label{
+        classes = {"sizeS"},
+        width = 300,
+        height = "auto",
+        valign = "center",
+        text = "",
+    }
+
+    pickRow = gui.Panel{
+        classes = {"collapsed"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        tmargin = 6,
+        pickLabel,
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Roll",
+            width = 70,
+            hmargin = 6,
+            valign = "center",
+            click = function(element)
+                RollListen()
+            end,
+        },
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Cancel",
+            width = 80,
+            valign = "center",
+            click = function(element)
+                CancelListen()
+            end,
+        },
+    }
+
+    directorRow = gui.Panel{
+        classes = {"collapsed"},
+        flow = "horizontal",
+        wrap = true,
+        width = 460,
+        height = "auto",
+        tmargin = 6,
+        data = { key = nil },
+    }
+
     logLabel = gui.Label{
         classes = {"sizeS", "collapsed"},
         width = 460,
@@ -969,17 +1390,31 @@ local function Render(ctx)
             Turn(m_cursor, -1)
         end,
         combo_try = function(element)
-            if m_confirming ~= nil then
+            if m_picking ~= nil then
+                RollListen()
+            elseif m_confirming ~= nil then
                 ConfirmTry()
             else
                 TryCode()
             end
         end,
+        combo_pick = function(element)
+            TogglePick(m_cursor)
+        end,
         dialRow,
         dialReading,
-        tryButton,
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            tryButton,
+            listenButton,
+            listenReason,
+        },
         confirmRow,
+        pickRow,
         logLabel,
+        directorRow,
     }
     args.combo_try2 = args.combo_try
     for i = 0, 9 do
@@ -1004,6 +1439,12 @@ local function UsesImages(config)
     return config.symbols == "images"
 end
 
+---@param config table
+---@return boolean
+local function Listens(config)
+    return config.tumbler ~= false
+end
+
 PuzzleType.Register{
     id = "combination",
     name = "Combination lock",
@@ -1018,6 +1459,16 @@ PuzzleType.Register{
         { id = "images", type = "custom", label = "Images (up to ten, each with a name)", default = {}, visible = UsesImages, Control = ImagesControl },
         { id = "code", type = "custom", label = "The code", default = "", Control = CodeControl },
         { id = "attempts", type = "number", label = "Tries before it jams (0 for unlimited)", default = 0, min = 0, max = 10 },
+        { id = "tumbler", type = "toggle", label = "Heroes can listen to the tumblers (Agility, Pick Lock)", default = true },
+        { id = "difficulty", type = "choice", label = "Listening difficulty", default = "medium", visible = Listens, options = {
+            { id = "easy", text = "Easy" },
+            { id = "medium", text = "Medium" },
+            { id = "hard", text = "Hard" },
+        } },
+        { id = "consequence", type = "choice", label = "A success or failure with a consequence", default = "noise", visible = Listens, options = {
+            { id = "noise", text = "Makes a noise (a chat line)" },
+            { id = "try", text = "Costs a try (when tries are limited)" },
+        } },
         { id = "hint", type = "text", label = "Hint", default = "" },
     },
     assists = {
@@ -1089,5 +1540,6 @@ PuzzleType.Register{
         end
         return nil
     end,
+    HandleRequest = HandleRequest,
     Render = Render,
 }

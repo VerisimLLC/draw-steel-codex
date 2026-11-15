@@ -24,6 +24,8 @@ local HIST_SHOW = 6
 --seconds a gambler "thinks", and the pause after a challenge between gamblers.
 local THINK_MIN, THINK_MAX = 1.1, 2.5
 local NPC_REVEAL_PAUSE = 3
+--the champion's turn left alone this long: the others may take over the seat (C13).
+local IDLE_SECONDS = 60
 
 --------------------------------------------------------------------------------
 -- The cast (C12): gamblers presets and the Director pick from
@@ -173,10 +175,13 @@ local function AddHist(g, text)
     end
 end
 
+--A gambler's think time at the table's pace (g.pace, set by the host each step).
 ---@param random fun(k: integer): integer
+---@param g table
 ---@return number
-local function ThinkTime(random)
-    return THINK_MIN + (random(15) - 1) / 14 * (THINK_MAX - THINK_MIN)
+local function ThinkTime(random, g)
+    local pace = tonumber(g.pace) or 1
+    return (THINK_MIN + (random(15) - 1) / 14 * (THINK_MAX - THINK_MIN)) * pace
 end
 
 ---@param random fun(k: integer): integer
@@ -246,7 +251,9 @@ local function Shake(g, random, secret)
     g.thinking = nil
     g.nextAt = nil
     if g.turn ~= 1 then
-        g.nextAt = dmhub.serverTime + ThinkTime(random)
+        g.nextAt = dmhub.serverTime + ThinkTime(random, g)
+    else
+        g.turnAt = dmhub.serverTime
     end
 end
 
@@ -256,8 +263,10 @@ local function PassTurn(g, random)
     g.turn = NextAlive(g, tonumber(g.turn) or 1)
     g.thinking = nil
     g.nextAt = nil
-    if g.turn ~= 1 then
-        g.nextAt = dmhub.serverTime + ThinkTime(random)
+    if g.turn == 1 then
+        g.turnAt = dmhub.serverTime
+    else
+        g.nextAt = dmhub.serverTime + ThinkTime(random, g)
         local seat = TakenSeat(g, g.turn)
         local lines = THINK_LINES[seat.honesty] or THINK_LINES.honest
         g.thinking = string.format(lines[random(#lines)], seat.name)
@@ -345,7 +354,7 @@ local function Resolve(g, secret, caller, random, events)
     else
         --gamblers among themselves: a die, a log line, and the cups go round again (C1).
         events[#events + 1] = { log = text }
-        g.pendingShakeAt = dmhub.serverTime + NPC_REVEAL_PAUSE
+        g.pendingShakeAt = dmhub.serverTime + NPC_REVEAL_PAUSE * math.max(0.5, tonumber(g.pace) or 1)
     end
 end
 
@@ -615,6 +624,14 @@ local DIE_HIDDEN = "#4a3b2cff"
 local MATCH_BORDER = "#56b4e9ff"
 local TURN_BORDER = "#f2c96bff"
 
+--Under a high-contrast scheme: white dice on black, stark borders.
+---@return boolean
+local function HighContrast()
+    local high = false
+    pcall(function() high = ThemeEngine.GetAccessibility().highContrast == true end)
+    return high
+end
+
 local FACE_NAMES = { "one", "two", "three", "four", "five", "six" }
 
 local VERDICT_WORDS = {
@@ -643,6 +660,24 @@ local function Board()
         return math.floor(n * (Large() and 1.4 or 1))
     end
 
+    --Items laid out in lines of perLine: a wrapping panel does not grow its own height,
+    --so its second line would overlap whatever comes next.
+    ---@param items Panel[]
+    ---@param perLine integer
+    ---@param tmargin number|nil
+    ---@return Panel
+    local function Lines(items, perLine, tmargin)
+        local lines = {}
+        for i = 1, #items, perLine do
+            local line = {}
+            for k = i, math.min(#items, i + perLine - 1) do
+                line[#line + 1] = items[k]
+            end
+            lines[#lines + 1] = gui.Panel{ flow = "horizontal", width = "auto", height = "auto", children = line }
+        end
+        return gui.Panel{ flow = "vertical", width = "auto", height = "auto", tmargin = tmargin or 0, children = lines }
+    end
+
     local function Label(text, classes, extra)
         local args = { classes = classes or {"sizeS"}, width = "auto", maxWidth = Px(700), height = "auto", text = text }
         for k, v in pairs(extra or {}) do
@@ -659,7 +694,8 @@ local function Board()
         if opts.hidden then
             return gui.Panel{
                 width = size, height = size, hmargin = 2, valign = "center",
-                bgimage = "panels/square.png", bgcolor = DIE_HIDDEN, border = 1, borderColor = "#00000088",
+                bgimage = "panels/square.png", bgcolor = HighContrast() and "#000000ff" or DIE_HIDDEN, border = HighContrast() and 2 or 1,
+                borderColor = HighContrast() and "#ffffffff" or "#00000088",
                 Label("?", {"sizeS", "bold"}, { halign = "center", valign = "center", interactable = false }),
             }
         end
@@ -668,9 +704,9 @@ local function Board()
             gui.Panel{
                 width = size + 4, height = size + 4, halign = "center",
                 bgimage = "panels/square.png", bgcolor = "#00000000",
-                border = opts.match and 2 or 0, borderColor = MATCH_BORDER,
+                border = opts.match and (HighContrast() and 3 or 2) or 0, borderColor = HighContrast() and "#00e5ffff" or MATCH_BORDER,
                 gui.Panel{ width = size, height = size, halign = "center", valign = "center",
-                    bgimage = "phosphor/dice-" .. FACE_NAMES[face] .. ".png", bgcolor = DIE_COLOR, interactable = false },
+                    bgimage = "phosphor/dice-" .. FACE_NAMES[face] .. ".png", bgcolor = HighContrast() and "#ffffffff" or DIE_COLOR, interactable = false },
             },
             Label(tostring(face) .. (opts.match and "+" or ""), {"sizeXs"}, { halign = "center", interactable = false }),
             opts.tag ~= nil and Label(opts.tag, {"sizeXs", "bold"}, { halign = "center", interactable = false }) or nil,
@@ -834,7 +870,7 @@ local function Board()
         if #boxes == 0 then
             boxes[1] = Label("Nobody has taken a seat yet.", {"sizeS", "fgMuted"})
         end
-        return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", wrap = true, children = boxes }
+        return Lines(boxes, (Large() and #boxes > 3) and 2 or 4)
     end
 
     --The bid on the table in numerals first (C9), and what the party can see of it (C7).
@@ -977,7 +1013,68 @@ local function Board()
                 tags[#tags + 1] = Label(text, {"sizeS", legal and "fg" or "fgMuted"}, { valign = "center", hmargin = 6 })
             end
         end
-        return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", wrap = true, tmargin = 4, children = tags }
+        return Lines(tags, 4, 4)
+    end
+
+    --The seat (C13): stand up between challenges; take over an idle champion's turn,
+    --with a confirm. The Director's nudges for each gambler (C16).
+    local m_confirmTakeover = false
+
+    local function Idle()
+        local g = m_view.g
+        return m_view.phase == "playing" and tonumber(g.turn) == 1 and g.pendingShakeAt == nil
+            and dmhub.serverTime - (tonumber(g.turnAt) or dmhub.serverTime) >= IDLE_SECONDS
+    end
+
+    local function SeatRows()
+        local g = m_view.g
+        local rows = {}
+        if m_view.readonly then
+            return rows
+        end
+        local champ = Seat(g, 1)
+        local tok = Puzzle.MyHero()
+        if champ ~= nil and IsChampion() and m_view.phase ~= "playing" then
+            rows[#rows + 1] = gui.Button{ classes = {"sizeS"}, text = "Stand up", width = "auto", hpad = 8, height = Px(28), tmargin = 4, halign = "left",
+                click = function() Send({ kind = "move", act = "standup" }) end }
+        end
+        if champ ~= nil and not IsChampion() and Idle() and tok ~= nil then
+            if m_confirmTakeover then
+                rows[#rows + 1] = gui.Panel{
+                    flow = "horizontal", width = "auto", height = "auto", tmargin = 4,
+                    Label(string.format("Take over %s's seat and dice as %s?", champ.name, tok.name or "your hero"), {"sizeS", "bold"}, { valign = "center", hmargin = 4 }),
+                    gui.Button{ classes = {"sizeS"}, text = "Yes", width = Px(60), height = Px(26), hmargin = 3, valign = "center",
+                        click = function()
+                            m_confirmTakeover = false
+                            Send({ kind = "move", act = "takeover", tokenid = tok.charid })
+                        end },
+                    gui.Button{ classes = {"sizeS"}, text = "No", width = Px(60), height = Px(26), valign = "center",
+                        click = function() m_confirmTakeover = false Rebuild(true) end },
+                }
+            else
+                rows[#rows + 1] = gui.Button{ classes = {"sizeS"}, text = "Take over the seat", width = "auto", hpad = 8, height = Px(28), tmargin = 4, halign = "left",
+                    click = function() m_confirmTakeover = true Rebuild(true) end }
+            end
+        end
+        if dmhub.isDM and m_view.phase == "playing" then
+            local nudges = { Label("Director:", {"sizeS", "bold"}, { hmargin = 4 }) }
+            for i = 2, SeatCount(g) do
+                if Alive(g, i) then
+                    local seatIndex = i
+                    local pending = (g.nudge or {})["s" .. i]
+                    nudges[#nudges + 1] = gui.Panel{
+                        flow = "horizontal", width = "auto", height = "auto", vmargin = 1,
+                        Label(SeatName(g, i) .. (pending ~= nil and string.format(" (will %s)", pending) or "") .. ":", {"sizeS"}, { valign = "center", hmargin = 4, minWidth = Px(120) }),
+                        gui.Button{ classes = {"sizeXs"}, text = "Call next", width = "auto", hpad = 6, height = Px(24), hmargin = 2, valign = "center",
+                            click = function() Send({ kind = "move", act = "nudge", seat = seatIndex, nudge = "call" }) end },
+                        gui.Button{ classes = {"sizeXs"}, text = "Bluff next", width = "auto", hpad = 6, height = Px(24), hmargin = 2, valign = "center",
+                            click = function() Send({ kind = "move", act = "nudge", seat = seatIndex, nudge = "bluff" }) end },
+                    }
+                end
+            end
+            rows[#rows + 1] = gui.Panel{ flow = "vertical", width = "auto", height = "auto", tmargin = 6, children = nudges }
+        end
+        return rows
     end
 
     --A test for this player's hero: once-per scopes, the roll, and its result to the host.
@@ -1070,7 +1167,7 @@ local function Board()
             end)
         end
         if #buttons > 0 then
-            rows[#rows + 1] = gui.Panel{ flow = "horizontal", width = "auto", height = "auto", wrap = true, tmargin = 4, children = buttons }
+            rows[#rows + 1] = Lines(buttons, 3, 4)
         end
         --the champion's answers to a caught cheat (#9, C6).
         if champ then
@@ -1164,6 +1261,9 @@ local function Board()
         for _, row in ipairs(TestRows()) do
             children[#children + 1] = row
         end
+        for _, row in ipairs(SeatRows()) do
+            children[#children + 1] = row
+        end
         local history = History()
         if history ~= nil then
             children[#children + 1] = history
@@ -1199,6 +1299,7 @@ local function Board()
     end
 
     local handlers = {
+        data = {},
         flow = "vertical",
         width = "auto",
         height = "auto",
@@ -1218,6 +1319,13 @@ local function Board()
         thinkTime = 0.2,
         think = function(element)
             SyncContext()
+            if m_view ~= nil then
+                local idle = Idle()
+                if idle ~= element.data.idle then
+                    element.data.idle = idle
+                    Rebuild(true)
+                end
+            end
         end,
         destroy = function(element)
             if m_contextActive then
@@ -1301,16 +1409,59 @@ GameOfChance.Register{
             if tok ~= nil and tok.name ~= nil and tok.name ~= "" then
                 name = tok.name
             end
-            g.seats.s1 = { user = userid, tokenid = req.tokenid, name = name, dice = DICE }
+            --a seat someone stood up from keeps its dice (C13).
+            g.seats.s1 = { user = userid, tokenid = req.tokenid, name = name, dice = tonumber(g.vacantDice) or DICE }
+            g.vacantDice = nil
             events[#events + 1] = { log = string.format("%s takes a seat at the table.", name) }
         end
         g.challenge = (tonumber(g.challenge) or 0) + 1
         Shake(g, random, secret)
         events[#events + 1] = { log = string.format("Challenge %d: the cups go down.", g.challenge) }
     end,
-    Move = function(g, eff, secret, req, userid, random, events)
+    Move = function(g, eff, secret, req, userid, random, events, phase)
         local champ = Seat(g, 1)
         local act = req.act
+        if act == "standup" then
+            --between challenges only: the seat and its dice wait for the next hero.
+            if phase == "playing" or champ == nil or champ.user ~= userid then
+                return false
+            end
+            g.vacantDice = tonumber(champ.dice) or DICE
+            g.seats.s1 = nil
+            events[#events + 1] = { log = string.format("%s stands up from the table.", champ.name) }
+            return true
+        end
+        if phase ~= "playing" then
+            return false
+        end
+        if act == "takeover" then
+            --the champion's turn sat idle (stepped away, or gone): another hero takes the
+            --same seat and dice (C13). The first request wins; later ones find it taken.
+            local tok = type(req.tokenid) == "string" and Puzzle.HeroById(req.tokenid) or nil
+            if champ == nil or champ.user == userid or tok == nil or tonumber(g.turn) ~= 1
+                or dmhub.serverTime - (tonumber(g.turnAt) or dmhub.serverTime) < IDLE_SECONDS then
+                return false
+            end
+            local name = HeroName(req.tokenid, userid)
+            events[#events + 1] = { log = string.format("%s takes over %s's seat.", name, champ.name) }
+            AddHist(g, string.format("%s takes over the seat.", name))
+            champ.user = userid
+            champ.tokenid = req.tokenid
+            champ.name = name
+            g.turnAt = dmhub.serverTime
+            return true
+        elseif act == "nudge" then
+            --the Director steers a gambler's next move (C16).
+            local dm = false
+            pcall(function() dm = dmhub.GetSessionInfo(userid).dm == true end)
+            local target = math.tointeger(tonumber(req.seat))
+            if not dm or target == nil or target < 2 or not Alive(g, target) then
+                return false
+            end
+            g.nudge = g.nudge or {}
+            g.nudge["s" .. target] = (req.nudge == "call" or req.nudge == "bluff") and req.nudge or nil
+            return true
+        end
         if act == "rolling" then
             g.rolling = g.rolling or {}
             g.rolling[userid] = req.on == true and dmhub.serverTime or nil
@@ -1383,7 +1534,8 @@ GameOfChance.Register{
         end
         return false
     end,
-    HostStep = function(g, eff, secret, now, random, events)
+    HostStep = function(g, eff, secret, now, random, events, pace)
+        g.pace = pace
         local expired = false
         for userid, at in pairs(g.rolling or {}) do
             if type(at) ~= "number" or now - at > ROLL_HOLD_SECONDS then
@@ -1418,6 +1570,18 @@ GameOfChance.Register{
             g.sell = nil
         end
         local move = B.Turn(random, hand, TotalDice(g), g.bid, seat.honesty, opts)
+        local nudge = (g.nudge or {})["s" .. turn]
+        if nudge ~= nil then
+            g.nudge["s" .. turn] = nil
+            if nudge == "call" and g.bid ~= nil then
+                move = "call"
+            elseif nudge == "bluff" then
+                local raises = B.MinRaises(g.bid, TotalDice(g))
+                if #raises > 0 then
+                    move = raises[random(#raises)]
+                end
+            end
+        end
         if move == "call" and g.bid ~= nil then
             AddHist(g, string.format("%s: \"%s\"", seat.name, CALL_LINES[seat.honesty] or CALL_LINES.honest))
             Resolve(g, secret, turn, random, events)
@@ -1451,9 +1615,24 @@ GameOfChance.Register{
                 return g.bid ~= nil and string.format("Your turn: raise %s or call Liar.", BidText(g.bid.q, g.bid.f))
                     or "Your turn: open the bidding."
             end
+            if dmhub.serverTime - (tonumber(g.turnAt) or dmhub.serverTime) >= IDLE_SECONDS then
+                return string.format("%s's turn has waited a while. Anyone can take over the seat.", champ ~= nil and champ.name or "The champion")
+            end
             return string.format("%s's turn. Suggest a bid, or watch.", champ ~= nil and champ.name or "The champion")
         end
         return string.format("%s is thinking...", SeatName(g, turn))
+    end,
+    EndNow = function(g, secret)
+        local hands = AllHands(g, secret)
+        local revealed = {}
+        for i = 1, #hands do
+            revealed["s" .. i] = B.HandText(hands[i])
+        end
+        g.reveal = { hands = revealed, salt = secret.salt, text = "The Director ends the game. The cups are lifted." }
+        g.turn = nil
+        g.nextAt = nil
+        g.thinking = nil
+        g.pendingShakeAt = nil
     end,
     Board = Board,
 }

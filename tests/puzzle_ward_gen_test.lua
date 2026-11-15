@@ -148,6 +148,22 @@ for _, setup in ipairs(setups) do
             if Serialize(ward) ~= Serialize(again) then
                 Fail("%s seed %d: not deterministic", setup.name, s)
             end
+            --every page, Lexicon included, gives a reader something to ask.
+            local keys = { "L1", "L2", "L3" }
+            for i in ipairs(ward.modules) do
+                keys[#keys + 1] = "m" .. i
+            end
+            for _, key in ipairs(keys) do
+                local qs = PuzzleWardGen.Questions(ward, key)
+                if #qs == 0 then
+                    Fail("%s seed %d: page %s has no questions", setup.name, s, key)
+                end
+                for _, q in ipairs(qs) do
+                    if q:find("[^\32-\126]") or q:sub(-1) ~= "?" then
+                        Fail("%s seed %d: bad question on %s: %s", setup.name, s, key, q)
+                    end
+                end
+            end
             for i, m in ipairs(ward.modules) do
                 local page = PuzzleWardGen.PageText(ward, i)
                 for _, line in ipairs(page.lines) do

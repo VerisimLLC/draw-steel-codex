@@ -11,14 +11,63 @@ local mod = dmhub.GetModLoading()
 --   parts   = { hands = userid, solo = boolean, readers = { <userid> = "m1,L2" } }
 --   act     = { m1 = { cut = { t3 = true } }, m2 = { lit = "2,4" }, m3 = { pos = 5, set = 7 } }
 --   strikes = number; log = { <guid> = {at, text} }
+--   chat    = { c<seq> = {seq, user, style = "say"|"quote"|"ask"|"point", text} }, chatSeq
 
 local LOG_LINES = 6
+local CHAT_KEEP = 40
+local CHAT_SHOW = 10
 
---The ward's own art, fixed whatever the app's theme.
-local WARD_BG = "#15121cff"
-local WARD_BORDER = "#6c5a8cff"
-local GLYPH_LIT = "#f2c96bff"
-local RUNE_TINT = "#e9e2f5ff"
+--The ward's own art, fixed whatever the app's theme; starker under a high-contrast scheme.
+---@return {bg: string, border: string, lit: string, rune: string, cursor: string, thick: number}
+local function WardColours()
+    local high = false
+    pcall(function() high = ThemeEngine.GetAccessibility().highContrast == true end)
+    if high then
+        return { bg = "#000000ff", border = "#ffffffff", lit = "#ffd700ff", rune = "#ffffffff", cursor = "#00e5ffff", thick = 12 }
+    end
+    return { bg = "#15121cff", border = "#6c5a8cff", lit = "#f2c96bff", rune = "#e9e2f5ff", cursor = "#56b4e9ff", thick = 8 }
+end
+
+--The ward's pictures are fixed pixels, so they follow the player's UI scale. With the icon
+--rail on, the engine zooms the whole window instead.
+---@return number
+local function ArtScale()
+    if dmhub.GetSettingValue("iconrail") == true then
+        return 1
+    end
+    local scale = 1
+    pcall(function() scale = ThemeEngine.GetAccessibility().scale or 1 end)
+    if type(scale) ~= "number" or scale <= 0 then
+        return 1
+    end
+    return scale
+end
+
+--Keyboard play for the hands: a command context while the seal window has the focus.
+local COMMAND_CONTEXT = "wardseal"
+local KEY_COMMANDS = {}
+local g_bindingsReady = false
+
+local function EnsureBindings()
+    if g_bindingsReady then
+        return
+    end
+    g_bindingsReady = true
+    local function Bind(key, cmd)
+        dmhub.SetCommandBinding(key, cmd, COMMAND_CONTEXT)
+        KEY_COMMANDS[#KEY_COMMANDS + 1] = cmd
+    end
+    Bind("up", "seal_up")
+    Bind("down", "seal_down")
+    Bind("left", "seal_left")
+    Bind("right", "seal_right")
+    Bind("return", "seal_act")
+    Bind("enter", "seal_act2")
+    Bind("space", "seal_act3")
+    Bind("q", "seal_quote")
+    --Escape belongs to the window (it closes it), so No is N.
+    Bind("n", "seal_cancel")
+end
 
 local PRESETS = {
     simple = { count = 0, depth = "plain", strikes = 3 }, --count 0: one or two, by the seed
@@ -245,6 +294,28 @@ local function Log(state, text)
     --several lines can land in one host tick, so they carry their order.
     state.logSeq = (tonumber(state.logSeq) or 0) + 1
     state.log[dmhub.GenerateGuid()] = { at = dmhub.serverTime, seq = state.logSeq, text = text }
+end
+
+local CHAT_STYLES = { say = true, quote = true, ask = true, point = true }
+
+--A party chat line: plain text (no markup), capped, the oldest trimmed.
+---@param state table
+---@param userid string
+---@param req table
+local function Say(state, userid, req)
+    local text = tostring(req.text or ""):gsub("[<>]", ""):gsub("%s+", " "):match("^%s*(.-)%s*$")
+    if text == "" then
+        return
+    end
+    state.chat = state.chat or {}
+    state.chatSeq = (tonumber(state.chatSeq) or 0) + 1
+    local seq = state.chatSeq
+    state.chat["c" .. seq] = { seq = seq, user = userid, style = CHAT_STYLES[req.style] and req.style or "say", text = text:sub(1, 200) }
+    for key, line in pairs(state.chat) do
+        if type(line) ~= "table" or (tonumber(line.seq) or 0) <= seq - CHAT_KEEP then
+            state.chat[key] = nil
+        end
+    end
 end
 
 ---@param parts table
@@ -678,6 +749,10 @@ end
 ---@type PuzzleRequestHandler
 local function HandleRequest(id, state, req, userid, after)
     local config = Puzzle.ReadConfig(id)
+    if req.kind == "say" then
+        Say(state, userid, req)
+        return
+    end
     if req.kind == "begin" then
         if state.phase ~= "playing" then
             Deal(id, state, config, userid)
@@ -999,11 +1074,23 @@ local g_pencil = {}
 ---@param ctx PuzzleContext
 ---@return Panel
 local function Render(ctx)
+    EnsureBindings()
     local m_ctx = ctx
     local m_confirmSolo = false
     local m_gatherKey = nil
+    local m_thinks = 0
     local resultPanel
     local body
+    local chatPanel
+    local chatInputRow
+    local C = WardColours()
+    --keyboard: the parts the hands can act on, the one under the cursor, an action
+    --waiting for "Confirm each action".
+    local m_targets = {} ---@type table[]
+    local m_cursor = 1
+    local m_contextActive = false
+    local m_pending = nil ---@type {req: table, words: string, at: number}|nil
+    local m_signature = nil
 
     local function State()
         return m_ctx.state or {}
@@ -1015,12 +1102,88 @@ local function Render(ctx)
 
     local Refresh
 
+    local SIZE_UP = { sizeXs = "sizeS", sizeS = "sizeM", sizeM = "sizeL", sizeL = "sizeXl" }
+
+    --"Larger text": every size class one step up.
+    ---@param classes string[]
+    ---@return string[]
+    local function Classes(classes)
+        if not m_ctx:Assist("text") then
+            return classes
+        end
+        local out = {}
+        for i, c in ipairs(classes) do
+            out[i] = SIZE_UP[c] or c
+        end
+        return out
+    end
+
+    --a control's fixed size, grown to fit larger text.
+    ---@param px number
+    ---@return number
+    local function H(px)
+        return m_ctx:Assist("text") and math.floor(px * 1.35) or px
+    end
+
+    --the ward's pictures: "Larger ward" and the UI scale.
+    ---@param px number
+    ---@return number
+    local function Art(px)
+        return math.floor(px * (m_ctx:Assist("large") and 1.5 or 1) * ArtScale())
+    end
+
+    --keys reach the seal only while its window itself holds the focus (not the chat box).
+    local function SyncContext()
+        --only the hands has anything for the keys to do; for anyone else a focus change
+        --must not rebuild the panel (that would close an open dropdown).
+        local want = #m_targets > 0 and resultPanel ~= nil and resultPanel.valid and gui.GetFocus() == resultPanel
+        if want ~= m_contextActive then
+            m_contextActive = want
+            if want then
+                dmhub.PushCommandContext(COMMAND_CONTEXT)
+            else
+                dmhub.PopCommandContext(COMMAND_CONTEXT)
+            end
+            --redraw (cursor, key hint) only on gaining the keys: losing them can mean a
+            --dropdown just opened, and a rebuild would close it.
+            if want and Refresh ~= nil then
+                Refresh()
+            end
+        end
+    end
+
+    local function Focus()
+        if resultPanel ~= nil and resultPanel.valid and gui.GetFocus() ~= resultPanel then
+            gui.SetFocus(resultPanel)
+        end
+        SyncContext()
+    end
+
+    --a chat line from this player.
+    ---@param style string
+    ---@param text string
+    local function Post(style, text)
+        Request({ kind = "say", style = style, text = text })
+    end
+
+    --an action on the ward: straight to the host, or held for a yes under "Confirm each action".
+    ---@param req table
+    ---@param words string
+    local function Do(req, words)
+        if m_ctx:Assist("confirm") then
+            m_pending = { req = req, words = words, at = dmhub.Time() }
+            Refresh()
+            return
+        end
+        Request(req)
+    end
+
     ---@param text string
     ---@param classes string[]|nil
     ---@param extra table|nil
     ---@return Panel
     local function Label(text, classes, extra)
-        local args = { classes = classes or {"sizeS"}, width = "auto", maxWidth = 520, height = "auto", text = text }
+        local args = { classes = Classes(classes or {"sizeS"}), width = "auto", maxWidth = m_ctx:Assist("text") and 700 or 520, height = "auto", text = text }
         for k, v in pairs(extra or {}) do
             args[k] = v
         end
@@ -1034,7 +1197,7 @@ local function Render(ctx)
             height = size,
             valign = "center",
             bgimage = r ~= nil and r.icon or "panels/square.png",
-            bgcolor = color or RUNE_TINT,
+            bgcolor = color or C.rune,
             interactable = false,
         }
     end
@@ -1079,8 +1242,8 @@ local function Render(ctx)
                     flow = "horizontal", width = "auto", height = "auto", vmargin = 1,
                     Label(Puzzle.UserName(uid) .. (pinned and " (will be the hands)" or ""), {"sizeS"}, { width = 240, valign = "center" }),
                     gui.Button{
-                        classes = {"sizeXs"}, text = pinned and "Let the deal decide" or "Make the hands",
-                        width = 140, height = 22, valign = "center",
+                        classes = Classes{"sizeXs"}, text = pinned and "Let the deal decide" or "Make the hands",
+                        width = 140, height = H(22), valign = "center",
                         click = function()
                             local roles = {}
                             if not pinned then
@@ -1096,14 +1259,14 @@ local function Render(ctx)
             children[#children + 1] = Label("You alone will see the ward and its codex. Begin?", {"sizeM"}, { tmargin = 6 })
             children[#children + 1] = gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto",
-                gui.Button{ classes = {"sizeS"}, text = "Begin alone", width = 120, hmargin = 4,
+                gui.Button{ classes = Classes{"sizeS"}, text = "Begin alone", width = 120, hmargin = 4,
                     click = function() m_confirmSolo = false Request({ kind = "begin" }) end },
-                gui.Button{ classes = {"sizeS"}, text = "Cancel", width = 90,
+                gui.Button{ classes = Classes{"sizeS"}, text = "Cancel", width = 90,
                     click = function() m_confirmSolo = false Refresh() end },
             }
         else
             children[#children + 1] = gui.Button{
-                classes = {"sizeM"},
+                classes = Classes{"sizeM"},
                 text = "Begin",
                 width = 140,
                 tmargin = 8,
@@ -1153,13 +1316,69 @@ local function Render(ctx)
         return Label(table.concat(lines, "\n"), {"sizeS"}, { tmargin = 4 })
     end
 
-    local function WardFace()
+    --is this part under the keyboard cursor? (n is 0 for a dial)
+    local function Cursor(i, n)
+        local t = m_targets[m_cursor]
+        return m_contextActive and t ~= nil and t.i == i and t.n == n
+    end
+
+    local function TurnDial(i, step)
+        local state = State()
+        local m = state.ward.modules[i]
+        local pos = math.tointeger(tonumber(Act(state, i).pos)) or m.waking
+        local v = ((pos - 1 + step) % #PuzzleRunes.list) + 1
+        m_ctx:Change(function(st)
+            st.act = st.act or {}
+            st.act["m" .. i] = st.act["m" .. i] or {}
+            st.act["m" .. i].pos = v
+        end, "Turn the dial")
+    end
+
+    ---@param i integer
+    ---@param m table
+    ---@return string
+    local function DialWords(i, m)
+        local pos = math.tointeger(tonumber(Act(State(), i).pos)) or m.waking
+        return string.format("Sigil dial: woke on %s, now shows %s.", PuzzleRunes.Name(m.waking), PuzzleRunes.Name(pos))
+    end
+
+    --one line for the chat that says everything the hands sees on a module.
+    ---@param i integer
+    ---@param m table
+    ---@return string
+    local function ModuleWords(i, m)
+        local items = {}
+        if m.kind == "threads" then
+            for n, t in ipairs(m.threads) do
+                items[n] = string.format("%d %s, %s", n, PuzzleRunes.threadColours[t.colour].name, PuzzleRunes.threadPatterns[t.pattern].name)
+            end
+            return "Threads: " .. table.concat(items, "; ") .. "."
+        elseif m.kind == "glyphs" then
+            for pos, rune in ipairs(m.glyphs) do
+                items[pos] = string.format("%s %s", PuzzleWardGen.letters[pos], PuzzleRunes.Name(rune))
+            end
+            return "Glyphs: " .. table.concat(items, ", ") .. "."
+        end
+        return DialWords(i, m)
+    end
+
+    --a label the hands can click to quote it in the chat.
+    local function Quotable(text, words, classes, extra, canAct)
+        extra = extra or {}
+        if canAct then
+            extra.press = function() Post("quote", words) end
+        end
+        return Label(text, classes, extra)
+    end
+
+    local function WardFace(canAct)
         local face = State().ward.face
+        local words = string.format("Rim: %s. Candles lit: %d.", PuzzleRunes.Name(face.rim), face.candles)
         return gui.Panel{
             flow = "horizontal", width = "auto", height = "auto", vmargin = 4,
             Label("Rim:", {"sizeM"}, { valign = "center" }),
-            RuneIcon(face.rim, 28),
-            Label(string.format("%s.   Candles lit: %d", PuzzleRunes.Name(face.rim), face.candles), {"sizeM"}, { valign = "center", hmargin = 6 }),
+            RuneIcon(face.rim, Art(28)),
+            Quotable(string.format("%s.   Candles lit: %d", PuzzleRunes.Name(face.rim), face.candles), words, {"sizeM"}, { valign = "center", hmargin = 6 }, canAct),
         }
     end
 
@@ -1168,19 +1387,23 @@ local function Render(ctx)
         local rows = {}
         for n, t in ipairs(m.threads) do
             local severed = type(act.cut) == "table" and act.cut["t" .. n] == true
-            local words = string.format("Thread %d: %s, %s%s", n, PuzzleRunes.threadColours[t.colour].name,
-                PuzzleRunes.threadPatterns[t.pattern].name, severed and " (severed)" or "")
-            local thread = n
+            local words = string.format("Thread %d: %s, %s", n, PuzzleRunes.threadColours[t.colour].name, PuzzleRunes.threadPatterns[t.pattern].name)
+            local req = { kind = "cut", module = i, thread = n }
+            if canAct and not severed then
+                m_targets[#m_targets + 1] = { i = i, n = n, words = words, req = req, ask = "Cut " .. words .. "?" }
+            end
+            local here = Cursor(i, n)
             rows[#rows + 1] = gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto", vmargin = 1,
+                bgimage = "panels/square.png", bgcolor = "#00000000", border = here and 2 or 0, borderColor = C.cursor,
                 gui.Panel{
-                    width = 260, height = 20, valign = "center", opacity = severed and 0.35 or 1,
-                    PuzzleRunes.ThreadPanel(t.colour, t.pattern, 260, 8),
+                    width = Art(260), height = Art(20), valign = "center", opacity = severed and 0.35 or 1,
+                    PuzzleRunes.ThreadPanel(t.colour, t.pattern, Art(260), Art(C.thick)),
                 },
-                Label(words, {"sizeS"}, { width = 220, valign = "center", hmargin = 8 }),
+                Quotable(words .. (severed and " (severed)" or ""), words, {"sizeS"}, { width = H(220), valign = "center", hmargin = 8 }, canAct),
                 (canAct and not severed) and gui.Button{
-                    classes = {"sizeXs"}, text = "Cut", width = 50, height = 22, valign = "center",
-                    click = function() Request({ kind = "cut", module = i, thread = thread }) end,
+                    classes = Classes{"sizeXs"}, text = "Cut", width = H(50), height = H(22), valign = "center",
+                    click = function() Focus() Do(req, "Cut " .. words .. "?") end,
                 } or nil,
             }
         end
@@ -1194,23 +1417,29 @@ local function Render(ctx)
         end
         local cells = {}
         for pos, rune in ipairs(m.glyphs) do
-            local p = pos
+            local words = string.format("Glyph %s: %s", PuzzleWardGen.letters[pos], PuzzleRunes.Name(rune))
+            local req = { kind = "touch", module = i, glyph = pos }
+            if canAct and not lit[pos] then
+                m_targets[#m_targets + 1] = { i = i, n = pos, words = words, req = req, ask = "Touch " .. words .. "?" }
+            end
+            local here = Cursor(i, pos)
             cells[#cells + 1] = gui.Panel{
-                flow = "vertical", width = 96, height = "auto", hmargin = 4,
+                flow = "vertical", width = math.max(Art(96), H(96)), height = "auto", hmargin = 4,
                 gui.Panel{
-                    width = 56, height = 56, halign = "center",
-                    bgimage = "panels/square.png", bgcolor = WARD_BG,
-                    border = lit[pos] and 3 or 1, borderColor = lit[pos] and GLYPH_LIT or WARD_BORDER,
+                    width = Art(56), height = Art(56), halign = "center",
+                    bgimage = "panels/square.png", bgcolor = C.bg,
+                    border = (here or lit[pos]) and 3 or 1, borderColor = here and C.cursor or (lit[pos] and C.lit or C.border),
                     press = function()
-                        if canAct and not lit[p] then
-                            Request({ kind = "touch", module = i, glyph = p })
+                        if canAct and not lit[pos] then
+                            Focus()
+                            Do(req, "Touch " .. words .. "?")
                         end
                     end,
-                    gui.Panel{ width = 40, height = 40, halign = "center", valign = "center",
-                        bgimage = PuzzleRunes.list[rune].icon, bgcolor = lit[pos] and GLYPH_LIT or RUNE_TINT, interactable = false },
+                    gui.Panel{ width = Art(40), height = Art(40), halign = "center", valign = "center",
+                        bgimage = PuzzleRunes.list[rune].icon, bgcolor = lit[pos] and C.lit or C.rune, interactable = false },
                 },
-                Label(string.format("%s: %s%s", PuzzleWardGen.letters[pos], PuzzleRunes.Name(rune), lit[pos] and " (lit)" or ""),
-                    {"sizeS"}, { halign = "center", textAlignment = "center", width = 96 }),
+                Quotable(string.format("%s: %s%s", PuzzleWardGen.letters[pos], PuzzleRunes.Name(rune), lit[pos] and " (lit)" or ""), words,
+                    {"sizeS"}, { halign = "center", textAlignment = "center", width = math.max(Art(96), H(96)) }, canAct),
             }
         end
         return { gui.Panel{ flow = "horizontal", width = "auto", height = "auto", children = cells } }
@@ -1218,29 +1447,29 @@ local function Render(ctx)
 
     local function DialView(i, m, canAct)
         local state = State()
-        local act = Act(state, i)
-        local pos = math.tointeger(tonumber(act.pos)) or m.waking
+        local pos = math.tointeger(tonumber(Act(state, i).pos)) or m.waking
         local live = canAct and not ModuleSealed(state, i)
-        local function Turn(step)
-            local n = #PuzzleRunes.list
-            local v = ((pos - 1 + step) % n) + 1
-            m_ctx:Change(function(st)
-                st.act = st.act or {}
-                st.act["m" .. i] = st.act["m" .. i] or {}
-                st.act["m" .. i].pos = v
-            end, "Turn the dial")
+        local words = DialWords(i, m)
+        local req = { kind = "set", module = i, rune = pos }
+        local ask = string.format("Set the seal on %s?", PuzzleRunes.Name(pos))
+        if live then
+            m_targets[#m_targets + 1] = { i = i, n = 0, dial = true, words = words, req = req, ask = ask }
         end
+        local here = Cursor(i, 0)
         local rows = {
-            Label(string.format("Woke on %s.", PuzzleRunes.Name(m.waking)), {"sizeS"}),
+            Quotable(string.format("Woke on %s.", PuzzleRunes.Name(m.waking)), words, {"sizeS"}, nil, canAct),
             gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto", vmargin = 2,
-                live and gui.Button{ classes = {"sizeXs"}, text = "-", width = 30, height = 24, valign = "center", click = function() Turn(-1) end } or nil,
-                gui.Panel{ width = 56, height = 56, hmargin = 6, bgimage = "panels/square.png", bgcolor = WARD_BG, border = 2, borderColor = WARD_BORDER,
-                    RuneIcon(pos, 40) },
-                live and gui.Button{ classes = {"sizeXs"}, text = "+", width = 30, height = 24, valign = "center", click = function() Turn(1) end } or nil,
-                Label(PuzzleRunes.Name(pos), {"sizeM"}, { valign = "center", hmargin = 8 }),
-                live and gui.Button{ classes = {"sizeS"}, text = "Set the seal", width = 120, valign = "center", hmargin = 8,
-                    click = function() Request({ kind = "set", module = i, rune = pos }) end } or nil,
+                live and gui.Button{ classes = Classes{"sizeXs"}, text = "-", width = H(30), height = H(24), valign = "center",
+                    click = function() Focus() TurnDial(i, -1) end } or nil,
+                gui.Panel{ width = Art(56), height = Art(56), hmargin = 6, bgimage = "panels/square.png", bgcolor = C.bg,
+                    border = here and 3 or 2, borderColor = here and C.cursor or C.border,
+                    RuneIcon(pos, Art(40)) },
+                live and gui.Button{ classes = Classes{"sizeXs"}, text = "+", width = H(30), height = H(24), valign = "center",
+                    click = function() Focus() TurnDial(i, 1) end } or nil,
+                Quotable(PuzzleRunes.Name(pos), words, {"sizeM"}, { valign = "center", hmargin = 8 }, canAct),
+                live and gui.Button{ classes = Classes{"sizeS"}, text = "Set the seal", width = H(120), valign = "center", hmargin = 8,
+                    click = function() Focus() Do(req, ask) end } or nil,
             },
         }
         if ModuleSealed(state, i) then
@@ -1252,10 +1481,35 @@ local function Render(ctx)
     --The ward itself: face and every module, for the hands (and solo, and the Director).
     local function WardView(canAct)
         local state = State()
-        local children = { WardFace() }
+        m_targets = {}
+        local children = {}
+        if m_pending ~= nil and canAct then
+            children[#children + 1] = gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto", vmargin = 4,
+                Label(m_pending.words, {"sizeM", "bold"}, { valign = "center", hmargin = 4 }),
+                gui.Button{ classes = Classes{"sizeS"}, text = "Yes", width = H(70), hmargin = 4, valign = "center",
+                    click = function()
+                        local pending = m_pending
+                        m_pending = nil
+                        if pending ~= nil then
+                            Request(pending.req)
+                        end
+                        Focus()
+                        Refresh()
+                    end },
+                gui.Button{ classes = Classes{"sizeS"}, text = "No", width = H(70), valign = "center",
+                    click = function() m_pending = nil Focus() Refresh() end },
+            }
+        end
+        children[#children + 1] = WardFace(canAct)
         for i, m in ipairs(state.ward.modules) do
             local done = ModuleDone(state, i)
-            children[#children + 1] = Label(string.format("%d. %s%s", i, KIND_NAMES[m.kind], done and " (done)" or ""), {"sizeM", "bold"}, { tmargin = 6 })
+            children[#children + 1] = gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto", tmargin = 6,
+                Label(string.format("%d. %s%s", i, KIND_NAMES[m.kind], done and " (done)" or ""), {"sizeM", "bold"}, { valign = "center" }),
+                (canAct and not done) and gui.Button{ classes = Classes{"sizeXs"}, text = "Quote", width = H(60), height = H(22), hmargin = 8, valign = "center",
+                    click = function() Post("quote", ModuleWords(i, m)) end } or nil,
+            }
             local rows = {}
             if not done then
                 if m.kind == "threads" then
@@ -1270,11 +1524,49 @@ local function Render(ctx)
                 children[#children + 1] = row
             end
         end
+        m_cursor = math.max(1, math.min(m_cursor, #m_targets))
+        if canAct then
+            children[#children + 1] = Label(m_contextActive
+                and ("Keys: Up and Down choose a part, Left and Right turn the dial, Enter acts, Q quotes it in the chat."
+                    .. (m_ctx:Assist("confirm") and " Enter again says yes; N says no." or ""))
+                or "Click a part's name to quote it in the chat. Click the ward to play with the keyboard.",
+                {"sizeXs", "fgMuted"}, { tmargin = 6 })
+        end
         return gui.Panel{
             flow = "vertical", width = "auto", height = "auto", pad = 10, borderBox = true, tmargin = 4,
-            bgimage = "panels/square.png", bgcolor = WARD_BG, border = 1, borderColor = WARD_BORDER,
+            bgimage = "panels/square.png", bgcolor = C.bg, border = 1, borderColor = C.border,
+            click = canAct and function() Focus() end or nil,
             children = children,
         }
+    end
+
+    --the keyboard's Enter: answer a waiting confirm, else act on the part under the cursor.
+    local function Activate()
+        if m_pending ~= nil then
+            --one Enter press fires both the "return" and "enter" bindings: the second
+            --must not answer the question the first just asked.
+            if dmhub.Time() - m_pending.at < 0.3 then
+                return
+            end
+            local pending = m_pending
+            m_pending = nil
+            Request(pending.req)
+            Refresh()
+            return
+        end
+        local t = m_targets[m_cursor]
+        if t ~= nil then
+            Do(t.req, t.ask)
+        end
+    end
+
+    ---@param step integer
+    local function MoveCursor(step)
+        if #m_targets == 0 then
+            return
+        end
+        m_cursor = ((m_cursor - 1 + step) % #m_targets) + 1
+        Refresh()
     end
 
     local BRACE_TIERS = { "Your hands shake.", "Your hands steady.", "Your hands are stone." }
@@ -1322,7 +1614,7 @@ local function Render(ctx)
             return Label(reason, {"sizeXs", "fgMuted"}, { valign = "center", hmargin = 8 })
         end
         return gui.Button{
-            classes = {"sizeXs"}, text = "Study (Reason)", width = "auto", minWidth = 110, hpad = 6, height = 22, hmargin = 8, valign = "center",
+            classes = Classes{"sizeXs"}, text = "Study (Reason)", width = "auto", minWidth = 110, hpad = 6, height = H(22), hmargin = 8, valign = "center",
             click = function()
                 RollFor(tok --[[@as CharacterToken]], "rea", "Magic", "Study the ward", STUDY_TIERS, { kind = "study", page = key })
             end,
@@ -1351,7 +1643,7 @@ local function Render(ctx)
                     rows[#rows + 1] = Label(reason, {"sizeS", "fgMuted"}, { tmargin = 4 })
                 else
                     rows[#rows + 1] = gui.Button{
-                        classes = {"sizeS"}, text = "Brace (Agility)", width = 160, tmargin = 4,
+                        classes = Classes{"sizeS"}, text = "Brace (Agility)", width = 160, tmargin = 4,
                         click = function()
                             RollFor(tok --[[@as CharacterToken]], "agl", "Sabotage", "Brace", BRACE_TIERS, { kind = "brace" })
                         end,
@@ -1364,14 +1656,14 @@ local function Render(ctx)
                 rows[#rows + 1] = gui.Panel{
                     flow = "horizontal", width = "auto", height = "auto", tmargin = 4,
                     Label("Someone at the seal asks for more time.", {"sizeS"}, { valign = "center" }),
-                    gui.Button{ classes = {"sizeXs"}, text = "Double the time", width = "auto", hpad = 6, height = 22, hmargin = 4, valign = "center",
+                    gui.Button{ classes = Classes{"sizeXs"}, text = "Double the time", width = "auto", hpad = 6, height = H(22), hmargin = 4, valign = "center",
                         click = function() Request({ kind = "timeanswer", give = true }) end },
-                    gui.Button{ classes = {"sizeXs"}, text = "No", width = 50, height = 22, valign = "center",
+                    gui.Button{ classes = Classes{"sizeXs"}, text = "No", width = 50, height = H(22), valign = "center",
                         click = function() Request({ kind = "timeanswer", give = false }) end },
                 }
             elseif not m_ctx.isDirector then
                 rows[#rows + 1] = gui.Button{
-                    classes = {"sizeS"}, text = state.timeAsk ~= nil and "More time asked" or "More time", width = 160, tmargin = 4,
+                    classes = Classes{"sizeS"}, text = state.timeAsk ~= nil and "More time asked" or "More time", width = 160, tmargin = 4,
                     click = function()
                         if state.timeAsk == nil then
                             Request({ kind = "moretime" })
@@ -1383,6 +1675,72 @@ local function Render(ctx)
         return rows
     end
 
+
+    --A reader's Ask (questions from this page's rules) and Point (an action for the hands).
+    ---@param key string
+    ---@return Panel|nil
+    local function AskRow(key)
+        local state = State()
+        local role = RoleOf(state, m_ctx.userid, m_ctx.isDirector)
+        if role ~= "reader" or m_ctx.readonly then
+            return nil
+        end
+        local asks = {}
+        for k, q in ipairs(PuzzleWardGen.Questions(state.ward, key)) do
+            asks[k] = { id = q, text = q }
+        end
+        local controls = {
+            gui.Dropdown{
+                classes = Classes{"sizeS"}, width = H(300), hmargin = 3,
+                options = asks,
+                textDefault = "Ask the hands...",
+                change = function(dropdown)
+                    ---@cast dropdown Dropdown
+                    if dropdown.idChosen ~= nil then
+                        Post("ask", tostring(dropdown.idChosen))
+                    end
+                end,
+            },
+        }
+        local i = key:sub(1, 1) == "m" and math.tointeger(tonumber(key:sub(2))) or nil
+        local m = i ~= nil and state.ward.modules[i] or nil
+        if m ~= nil then
+            --never more than the page already tells: up to six threads, any rune.
+            local points = {}
+            if m.kind == "threads" then
+                for n = 1, 6 do
+                    points[#points + 1] = string.format("cut Thread %d", n)
+                end
+            elseif m.kind == "glyphs" then
+                for _, letter in ipairs(PuzzleWardGen.letters) do
+                    points[#points + 1] = string.format("touch Glyph %s", letter)
+                end
+                for _, r in ipairs(PuzzleRunes.list) do
+                    points[#points + 1] = string.format("touch the %s", r.name)
+                end
+            else
+                for _, r in ipairs(PuzzleRunes.list) do
+                    points[#points + 1] = string.format("set the dial to %s", r.name)
+                end
+            end
+            local options = {}
+            for k, text in ipairs(points) do
+                options[k] = { id = text, text = text }
+            end
+            controls[#controls + 1] = gui.Dropdown{
+                classes = Classes{"sizeS"}, width = H(200), hmargin = 3,
+                options = options,
+                textDefault = "Point...",
+                change = function(dropdown)
+                    ---@cast dropdown Dropdown
+                    if dropdown.idChosen ~= nil then
+                        Post("point", tostring(dropdown.idChosen))
+                    end
+                end,
+            }
+        end
+        return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 2, children = controls }
+    end
 
     --A codex page: click a rule to pencil it out (only you see it).
     local function PageView(key)
@@ -1398,6 +1756,7 @@ local function Render(ctx)
                 Label(page.title, {"sizeM", "bold"}, { valign = "center" }),
                 StudyButton(key),
             },
+            AskRow(key),
             Label(page.intro, {"sizeS", "fgMuted"}),
         }
         local marks = State().studyMarks or {}
@@ -1409,8 +1768,8 @@ local function Render(ctx)
             local studied = type(marks[key .. "_" .. n]) == "table"
             local out = pencil[mark] == true or studied
             children[#children + 1] = gui.Label{
-                classes = {"sizeS", out and "fgMuted" or "fg"},
-                width = 480, height = "auto", vmargin = 1,
+                classes = Classes{"sizeS", out and "fgMuted" or "fg"},
+                width = m_ctx:Assist("text") and 640 or 480, height = "auto", vmargin = 1,
                 text = out and ("<s>" .. line .. "</s>" .. (studied and " (studied)" or "")) or line,
                 press = function()
                     pencil[mark] = (not out) or nil
@@ -1456,7 +1815,7 @@ local function Render(ctx)
             return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 1, children = { ... } }
         end
         local function Small(text, fn)
-            return gui.Button{ classes = {"sizeXs"}, text = text, width = "auto", minWidth = 70, hpad = 6, height = 22, hmargin = 3, valign = "center", click = fn }
+            return gui.Button{ classes = Classes{"sizeXs"}, text = text, width = "auto", minWidth = 70, hpad = 6, height = H(22), hmargin = 3, valign = "center", click = fn }
         end
 
         if role == "watching" and not m_ctx.readonly then
@@ -1610,6 +1969,10 @@ local function Render(ctx)
             children[#children + 1] = row
         end
         children[#children + 1] = ModuleList()
+        m_targets = {}
+        if not canAct then
+            m_pending = nil
+        end
         if role == "hands" or role == "solo" or role == "director" then
             children[#children + 1] = WardView(canAct)
         end
@@ -1633,15 +1996,59 @@ local function Render(ctx)
         return children
     end
 
+    --The party chat: the last few lines, newest at the bottom.
+    ---@return string
+    local function ChatText()
+        local lines = {}
+        for _, line in pairs(State().chat or {}) do
+            if type(line) == "table" then
+                lines[#lines + 1] = line
+            end
+        end
+        table.sort(lines, function(a, b) return (tonumber(a.seq) or 0) < (tonumber(b.seq) or 0) end)
+        local out = {}
+        for k = math.max(1, #lines - CHAT_SHOW + 1), #lines do
+            local line = lines[k]
+            local who = Puzzle.UserName(line.user)
+            local text = tostring(line.text)
+            if line.style == "quote" then
+                out[#out + 1] = string.format("%s sees: %s", who, text)
+            elseif line.style == "ask" then
+                out[#out + 1] = string.format("%s asks: %s", who, text)
+            elseif line.style == "point" then
+                out[#out + 1] = string.format("<b>%s points: %s.</b>", who, text)
+            else
+                out[#out + 1] = string.format("%s: %s", who, text)
+            end
+        end
+        return table.concat(out, "\n")
+    end
+
+    local function RefreshChat()
+        local text = ChatText()
+        local children = { Label("Party chat", {"sizeS", "bold"}) }
+        if text == "" then
+            children[#children + 1] = Label("Nothing said yet.", {"sizeS", "fgMuted"})
+        else
+            children[#children + 1] = Label(text, {"sizeS"})
+        end
+        children[#children + 1] = chatInputRow
+        chatInputRow:SetClass("collapsed", m_ctx.readonly == true)
+        chatPanel.children = children
+    end
+
     Refresh = function()
         if not resultPanel.valid then
             return
         end
+        C = WardColours()
         if State().phase == "playing" and State().ward ~= nil then
             body.children = Playing()
         else
+            m_targets = {}
             body.children = Gathering()
         end
+        RefreshChat()
     end
 
     body = gui.Panel{
@@ -1649,7 +2056,37 @@ local function Render(ctx)
         width = "auto",
         height = "auto",
         vscroll = true,
-        maxHeight = 720,
+        maxHeight = 640,
+    }
+
+    local chatInput = gui.Input{
+        classes = {"sizeS"},
+        width = 420,
+        height = 26,
+        placeholderText = "Say something to the party...",
+        submit = function(element)
+            local text = element.text
+            element.text = ""
+            if text ~= nil and text ~= "" then
+                Post("say", text)
+            end
+        end,
+    }
+    chatInputRow = gui.Panel{
+        flow = "horizontal", width = "auto", height = "auto", tmargin = 2,
+        chatInput,
+        gui.Button{ classes = {"sizeS"}, text = "Send", width = 70, height = 26, hmargin = 4, valign = "center",
+            click = function()
+                local text = chatInput.text
+                chatInput.text = ""
+                if text ~= nil and text ~= "" then
+                    Post("say", text)
+                end
+            end },
+    }
+    chatPanel = gui.Panel{
+        flow = "vertical", width = "auto", height = "auto", tmargin = 8,
+        chatInputRow,
     }
 
     resultPanel = gui.Panel{
@@ -1657,13 +2094,67 @@ local function Render(ctx)
         width = "auto",
         height = "auto",
         halign = "left",
+        --the frame re-sends this every half second while a timer runs; rebuilding each
+        --time would close an open dropdown, so only rebuild when what is drawn changed.
         refreshPuzzle = function(element, newCtx)
             m_ctx = newCtx
-            Refresh()
+            local tok = Puzzle.MyHero()
+            local sig = table.concat({
+                json(m_ctx.state or {}), json(Puzzle.ReadKept(m_ctx.id)), json(m_ctx.config or {}),
+                tostring(m_ctx.readonly), tostring(Puzzle.TimeLeft(m_ctx.id) ~= nil), tok ~= nil and tok.charid or "",
+                tostring(m_ctx:Assist("confirm")), tostring(m_ctx:Assist("large")), tostring(m_ctx:Assist("text")),
+                tostring(IsDMOrPlayerHost()), tostring(WardColours().thick), tostring(ArtScale()),
+            }, "|")
+            if sig ~= m_signature then
+                m_signature = sig
+                Refresh()
+            end
         end,
-        --the gathering list follows presence, which changes without a board write.
-        thinkTime = 2,
+        destroy = function(element)
+            if m_contextActive then
+                m_contextActive = false
+                dmhub.PopCommandContext(COMMAND_CONTEXT)
+            end
+        end,
+        commands = KEY_COMMANDS,
+        seal_up = function(element) MoveCursor(-1) end,
+        seal_down = function(element) MoveCursor(1) end,
+        seal_left = function(element)
+            local t = m_targets[m_cursor]
+            if t ~= nil and t.dial then
+                TurnDial(t.i, -1)
+            end
+        end,
+        seal_right = function(element)
+            local t = m_targets[m_cursor]
+            if t ~= nil and t.dial then
+                TurnDial(t.i, 1)
+            end
+        end,
+        seal_act = function(element) Activate() end,
+        seal_act2 = function(element) Activate() end,
+        seal_act3 = function(element) Activate() end,
+        seal_quote = function(element)
+            local t = m_targets[m_cursor]
+            if t ~= nil then
+                Post("quote", t.words)
+            end
+        end,
+        seal_cancel = function(element)
+            if m_pending ~= nil then
+                m_pending = nil
+                Refresh()
+            end
+        end,
+        --keys follow the focus (checked often); the gathering list follows presence,
+        --which changes without a board write (checked every 2 s).
+        thinkTime = 0.2,
         think = function(element)
+            SyncContext()
+            m_thinks = m_thinks + 1
+            if m_thinks % 10 ~= 0 then
+                return
+            end
             if State().phase ~= "playing" then
                 --tell the host which part this player would rather have.
                 local pref = g_partPreference:Get()
@@ -1683,6 +2174,7 @@ local function Render(ctx)
             end
         end,
         body,
+        chatPanel,
     }
     return resultPanel
 end
@@ -1734,6 +2226,11 @@ PuzzleType.Register{
             { id = "hard", text = "Hard" },
         } },
         { id = "hint", type = "text", label = "Hint", default = "" },
+    },
+    assists = {
+        { id = "confirm", label = "Confirm each action" },
+        { id = "large", label = "Larger ward" },
+        { id = "text", label = "Larger text" },
     },
     --changing what the ward is made of makes a new ward.
     ConfigKey = function(config)

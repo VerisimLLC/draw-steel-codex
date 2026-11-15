@@ -730,3 +730,84 @@ function PuzzleWardGen.LexiconText(ward)
         } },
     }
 end
+
+--What a reader can ask the hands, built from the rules on one page (key "m<i>", or "L<k>"
+--for a Lexicon page). The hands answers in the chat; nothing checks the answer.
+---@param ward table
+---@param key string
+---@return string[]
+function PuzzleWardGen.Questions(ward, key)
+    local out, seen = {}, {}
+    local function Ask(text)
+        if not seen[text] then
+            seen[text] = true
+            out[#out + 1] = text
+        end
+    end
+    local function ColourCount(c) Ask(string.format("How many threads are %s?", ColourName(c))) end
+    local function PatternWhich(p) Ask(string.format("Which threads are %s?", PatternName(p))) end
+    local n = math.tointeger(tonumber(key:sub(2)))
+    if key:sub(1, 1) == "L" then
+        if n == 1 then
+            Ask("What rune is on the rim?")
+        elseif n == 2 then
+            Ask("How many candles are lit?")
+        else
+            Ask("Which glyph did you touch last?")
+        end
+        return out
+    end
+    local m = n ~= nil and ward.modules[n] or nil
+    if m == nil then
+        return out
+    end
+    if m.kind == "threads" then
+        Ask("How many threads are there?")
+        for _, r in ipairs(m.rules) do
+            local id = r.id
+            if id == "noColour" or id == "moreThanOne" then
+                ColourCount(r.c)
+            elseif id == "threadIsPattern" then
+                Ask(string.format("What pattern is Thread %d?", r.i))
+            elseif id == "noPattern" or id == "exactlyCount" or id == "onePatternMany" then
+                PatternWhich(r.p)
+            elseif id == "firstIsColour" then
+                Ask("What colour is the first thread?")
+            elseif id == "lastColourNoColour" then
+                Ask("What colour is the last thread?")
+                ColourCount(r.c2)
+                PatternWhich(r.p)
+            elseif id == "twoColourPattern" then
+                ColourCount(r.c)
+                Ask(string.format("What pattern is Thread %d?", r.i))
+            elseif id == "wardenTwice" then
+                Ask("What colours are the threads, in order?")
+            elseif id == "wardenNone" then
+                Ask("What colours are the threads, in order?")
+                Ask("How many candles are lit?")
+            elseif id == "rimIs" then
+                Ask("What rune is on the rim?")
+                PatternWhich(r.p)
+            end
+        end
+    elseif m.kind == "glyphs" then
+        Ask("What are your four glyphs?")
+        for _, r in ipairs(m.rules) do
+            if r.id == "reverseIf" then
+                Ask(string.format("Is the %s one of your glyphs?", RuneName(r.rune)))
+            elseif r.id == "rimStart" then
+                Ask("What rune is on the rim?")
+            end
+        end
+    else
+        Ask("What rune did the dial wake on?")
+        if m.twoColumns then
+            Ask("How many candles are lit?")
+        end
+        if m.afterGlyphs then
+            Ask("Are the Glyphs done?")
+            Ask("Which glyph did you touch last?")
+        end
+    end
+    return out
+end

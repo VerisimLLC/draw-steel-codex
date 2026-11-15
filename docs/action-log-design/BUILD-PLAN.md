@@ -455,6 +455,8 @@ mode it was written in; a mode change starts a new section. Headings to sign off
 5.1a f7fa100a (2026-11-14): headings signed and checked live. Respite entries record `mode`; Exploration records none, so older entries go under Exploration.
 
 5.1b a04aec42 (2026-11-15), checked live by James: tests (character panel, roll dialog, Director Request Rolls) and Dice panel rolls write `test` / `dice` lines; each opens a numbers-only card (dice, characteristic, edges and sources, bonus, total, tier). The roll dialog passes `{edgeSources}` as completeRoll's second argument; requests carry `director = true`. Card titles "Gordon · Might test" / "Gordon · Dice" signed. A Recovery spend joins its heal row (bcb6e00d). Left in 5.1: tables, macros, montages, negotiation, respite, downtime.
+
+5.1 copy signed 2026-11-15: COPY.md Round 21 (L48-L85). Build order, one commit each: 5.1c hidden rolls (GM only = no line for other players; Dice Tower = rolled in secret; follow Reveal/Hide; fixes the 5.1b test and dice lines), 5.1d respite, 5.1e montages, 5.1f negotiation, 5.1g downtime, 5.1h tables and macros.
 | 5.2 | F9 Director actions: reinforcements, villain actions, overrides, hand edits, reveals; right-click Hide/Reveal, Delete entry, Clear History | M |
 | 5.3 | Revert Turn and Turn Rewind: Reverted rows, the Turn reverted line, out of the totals | M |
 

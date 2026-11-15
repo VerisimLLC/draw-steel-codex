@@ -4538,6 +4538,7 @@ end
 local AREA_TOOL_ID = "encounterarea"
 local START_ZONE_EDIT_COLOR = "#79d2a0"
 local RETREAT_ZONE_EDIT_COLOR = "#e0a15a"
+local STRAGGLER_ZONE_EDIT_COLOR = "#b48ce0"
 
 --The tiles a closed rectangle stroke covers: those whose centers it contains
 --(tile (x, y) is centred on world (x, y)). A click-sized stroke gives the tile
@@ -4580,14 +4581,14 @@ end
 --The region shrinks the map's bounds during combat, and the start zone confines
 --the heroes until combat starts: see "Encounter region and hero start zone" in
 --MCDMEncounter.lua.
---The Retreat Zone badge shows once the encounter has a script that makes
---monsters retreat (the Retreat built-in) or already has retreat tiles: the
---tiles the Monster AI runs retreating monsters to.
+--Script zones (SCRIPT_ZONES below) get a badge once the encounter has a
+--script that uses them, or already has their tiles: the Retreat Zone (the
+--Retreat built-in) and the Stragglers Zone (Monsters Fled from Last Fight).
 local function CreateEncounterAreaBadges(encounter, refresh)
     local column
 
-    --nil, "region" (one rectangle, then done), "start" or "retreat"
-    --(rectangles add tiles until the badge is pressed again).
+    --nil, "region" (one rectangle, then done), "start" or a script zone's
+    --mode (rectangles add tiles until the badge is pressed again).
     local drawing = nil
 
     local startMarker = nil
@@ -4595,16 +4596,50 @@ local function CreateEncounterAreaBadges(encounter, refresh)
     --bumped by every start zone edit, so the outline is rebuilt.
     local startVersion = 0
 
-    local retreatMarker = nil
-    local retreatMarkerKey = nil
-    local retreatVersion = 0
+    --Zones an attached Encounter Script asks the author to draw, each kept
+    --like the start zone ({x, y, floor} tiles on the encounter). `defField`
+    --is the script definition field that asks for it. Each also gets
+    --marker/markerKey/version at run time.
+    local scriptZones = {
+        {
+            mode = "retreat",
+            defField = "retreat",
+            color = RETREAT_ZONE_EDIT_COLOR,
+            get = function() return encounter:GetRetreatLocs() end,
+            set = function(locs) encounter:SetRetreatLocs(locs) end,
+            none = "No Retreat Zone",
+            label = "Retreat Zone",
+            drawingTip = "Drag rectangles on the map to add the tiles retreating monsters run to. Click when you are done.",
+            emptyTip = "Click, then drag rectangles on the map to mark where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map.",
+            tip = "Where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map. Click to add more tiles.",
+            clearTip = "Clear the Retreat Zone.",
+        },
+        {
+            mode = "stragglers",
+            defField = "stragglers",
+            color = STRAGGLER_ZONE_EDIT_COLOR,
+            get = function() return encounter:GetStragglerLocs() end,
+            set = function(locs) encounter:SetStragglerLocs(locs) end,
+            none = "No Stragglers Zone",
+            label = "Stragglers Zone",
+            drawingTip = "Drag rectangles on the map to add the tiles where monsters that fled the last fight appear. Click when you are done.",
+            emptyTip = "Click, then drag rectangles on the map to mark where the monsters that fled the last fight appear when this fight starts.",
+            tip = "Where the monsters that fled the last fight appear when this fight starts. Click to add more tiles.",
+            clearTip = "Clear the Stragglers Zone.",
+        },
+    }
+    local scriptZoneByMode = {}
+    for _, zone in ipairs(scriptZones) do
+        zone.version = 0
+        scriptZoneByMode[zone.mode] = zone
+    end
 
-    --does an attached script decide when monsters retreat?
-    local function HasRetreatScript()
+    --does an attached script ask for this zone?
+    local function HasZoneScript(zone)
         for _, instance in ipairs(encounter:GetScripts()) do
             local def = nil
             pcall(function() def = instance:GetDefinition() end)
-            if def ~= nil and def.retreat ~= nil then
+            if def ~= nil and def[zone.defField] ~= nil then
                 return true
             end
         end
@@ -4650,33 +4685,34 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         startMarkerKey = nil
     end
 
-    local function ClearRetreatMarker()
-        if retreatMarker ~= nil then
-            pcall(function() retreatMarker:Destroy() end)
-            retreatMarker = nil
+    local function ClearZoneMarker(zone)
+        if zone.marker ~= nil then
+            local marker = zone.marker
+            pcall(function() marker:Destroy() end)
+            zone.marker = nil
         end
-        retreatMarkerKey = nil
+        zone.markerKey = nil
     end
 
-    local function UpdateRetreatMarker(floorCount)
-        local retreatLocs = encounter:GetRetreatLocs()
+    local function UpdateZoneMarker(zone, floorCount)
+        local zoneLocs = zone.get()
         local key = nil
-        if OnEncounterMap() and #retreatLocs > 0 then
-            key = string.format("%s|%d|%d", encounter.mapid, retreatVersion, floorCount)
+        if OnEncounterMap() and #zoneLocs > 0 then
+            key = string.format("%s|%d|%d", encounter.mapid, zone.version, floorCount)
         end
-        if key == retreatMarkerKey then
+        if key == zone.markerKey then
             return
         end
-        ClearRetreatMarker()
+        ClearZoneMarker(zone)
         if key == nil then
             return
         end
-        retreatMarkerKey = key
-        local locs = Encounter.StartLocsOnCurrentMap(retreatLocs)
+        zone.markerKey = key
+        local locs = Encounter.StartLocsOnCurrentMap(zoneLocs)
         if #locs > 0 then
-            retreatMarker = dmhub.MarkLocs {
+            zone.marker = dmhub.MarkLocs {
                 locs = locs,
-                color = RETREAT_ZONE_EDIT_COLOR,
+                color = zone.color,
             }
         end
     end
@@ -4700,7 +4736,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         local startLocs = encounter:GetHeroStartLocs()
         local floorCount = 0
         pcall(function() floorCount = #game.currentMap.floors end)
-        UpdateRetreatMarker(floorCount)
+        for _, zone in ipairs(scriptZones) do
+            UpdateZoneMarker(zone, floorCount)
+        end
         local key = nil
         if OnEncounterMap() and #startLocs > 0 then
             key = string.format("%s|%d|%d", encounter.mapid, startVersion, floorCount)
@@ -4749,8 +4787,8 @@ local function CreateEncounterAreaBadges(encounter, refresh)
     end
 
     --adds a rectangle of tiles on the current floor to the start zone, or
-    --(retreat = true) to the Retreat Zone.
-    local function DrawStartTiles(x1, y1, x2, y2, retreat)
+    --to a script zone (an entry of scriptZones).
+    local function DrawStartTiles(x1, y1, x2, y2, zone)
         local floor = game.currentFloor
         if floor == nil then
             return
@@ -4760,8 +4798,8 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         local locs = {}
         local seen = {}
         local existing = encounter:GetHeroStartLocs()
-        if retreat then
-            existing = encounter:GetRetreatLocs()
+        if zone ~= nil then
+            existing = zone.get()
         end
         for _, l in ipairs(existing) do
             local k = string.format("%s:%d:%d", l.floor, l.x, l.y)
@@ -4780,9 +4818,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             end
         end
 
-        if retreat then
-            encounter:SetRetreatLocs(locs)
-            retreatVersion = retreatVersion + 1
+        if zone ~= nil then
+            zone.set(locs)
+            zone.version = zone.version + 1
         else
             encounter:SetHeroStartLocs(locs)
             startVersion = startVersion + 1
@@ -4911,65 +4949,81 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         end,
     }
 
-    local retreatBadge = gui.Label {
-        classes = { "encounterBadge", "encounterAreaBadge" },
-        width = "100%-22",
-        height = "auto",
-        textAlignment = "center",
-        text = "",
+    --one script zone's row: its badge (draw / done) and its clear button,
+    --collapsed until a script asks for the zone or it has tiles.
+    local function ScriptZoneRow(zone)
+        local badge = gui.Label {
+            classes = { "encounterBadge", "encounterAreaBadge" },
+            width = "100%-22",
+            height = "auto",
+            textAlignment = "center",
+            text = "",
 
-        refreshBuilder = function(element)
-            local count = #encounter:GetRetreatLocs()
-            element:SetClass("drawing", drawing == "retreat")
-            if drawing == "retreat" then
-                element.text = "Done Drawing"
-            elseif count == 0 then
-                element.text = "No Retreat Zone"
-            else
-                element.text = string.format("Retreat Zone: %d %s", count, cond(count == 1, "tile", "tiles"))
-            end
-        end,
+            refreshBuilder = function(element)
+                local count = #zone.get()
+                element:SetClass("drawing", drawing == zone.mode)
+                if drawing == zone.mode then
+                    element.text = "Done Drawing"
+                elseif count == 0 then
+                    element.text = zone.none
+                else
+                    element.text = string.format("%s: %d %s", zone.label, count, cond(count == 1, "tile", "tiles"))
+                end
+            end,
 
-        hover = function(element)
-            local text
-            if drawing == "retreat" then
-                text = "Drag rectangles on the map to add the tiles retreating monsters run to. Click when you are done."
-            elseif #encounter:GetRetreatLocs() == 0 then
-                text = "Click, then drag rectangles on the map to mark where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map."
-            else
-                text = "Where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map. Click to add more tiles."
-            end
-            gui.Tooltip(text)(element)
-        end,
+            hover = function(element)
+                local text
+                if drawing == zone.mode then
+                    text = zone.drawingTip
+                elseif #zone.get() == 0 then
+                    text = zone.emptyTip
+                else
+                    text = zone.tip
+                end
+                gui.Tooltip(text)(element)
+            end,
 
-        press = function(element)
-            if drawing == "retreat" then
-                StopDrawing()
+            press = function(element)
+                if drawing == zone.mode then
+                    StopDrawing()
+                    refresh()
+                else
+                    StartDrawing(zone.mode)
+                end
+            end,
+        }
+
+        local clear = gui.DeleteItemButton {
+            width = 16,
+            height = 16,
+            valign = "center",
+            lmargin = 6,
+            hover = gui.Tooltip(zone.clearTip),
+            refreshBuilder = function(element)
+                element:SetClass("hidden", #zone.get() == 0)
+            end,
+            click = function(element)
+                zone.set(nil)
+                zone.version = zone.version + 1
+                if drawing == zone.mode then
+                    StopDrawing()
+                end
                 refresh()
-            else
-                StartDrawing("retreat")
-            end
-        end,
-    }
+            end,
+        }
 
-    local retreatClear = gui.DeleteItemButton {
-        width = 16,
-        height = 16,
-        valign = "center",
-        lmargin = 6,
-        hover = gui.Tooltip("Clear the Retreat Zone."),
-        refreshBuilder = function(element)
-            element:SetClass("hidden", #encounter:GetRetreatLocs() == 0)
-        end,
-        click = function(element)
-            encounter:SetRetreatLocs(nil)
-            retreatVersion = retreatVersion + 1
-            if drawing == "retreat" then
-                StopDrawing()
-            end
-            refresh()
-        end,
-    }
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            refreshBuilder = function(element)
+                element:SetClass("collapsed", #zone.get() == 0 and drawing ~= zone.mode and not HasZoneScript(zone))
+            end,
+            badge,
+            clear,
+        }
+    end
 
     column = gui.Panel {
         width = MAP_CARD_WIDTH,
@@ -4999,7 +5053,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             StopDrawing()
             MapTools.Unregister(AREA_TOOL_ID)
             ClearStartMarker()
-            ClearRetreatMarker()
+            for _, zone in ipairs(scriptZones) do
+                ClearZoneMarker(zone)
+            end
             dmhub.SetMapFocusRegion(nil)
         end,
 
@@ -5032,7 +5088,7 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             if drawing == "region" then
                 DrawRegion(x1, y1, x2, y2)
             else
-                DrawStartTiles(x1, y1, x2, y2, drawing == "retreat")
+                DrawStartTiles(x1, y1, x2, y2, scriptZoneByMode[drawing])
             end
         end,
 
@@ -5056,17 +5112,8 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             startClear,
         },
 
-        gui.Panel {
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            tmargin = 4,
-            refreshBuilder = function(element)
-                element:SetClass("collapsed", #encounter:GetRetreatLocs() == 0 and drawing ~= "retreat" and not HasRetreatScript())
-            end,
-            retreatBadge,
-            retreatClear,
-        },
+        ScriptZoneRow(scriptZones[1]),
+        ScriptZoneRow(scriptZones[2]),
     }
 
     return column

@@ -110,6 +110,7 @@ dialog, log). Use it for hidden mechanics.
 | `your rolled damage is increased by 1` / `+1 to rolled damage` / `each party member's rolled damage is increased by 1` | +N to the damage of every damaging power roll, until the next respite |
 | `your maximum Stamina is reduced by 5` / `you lose 5 maximum stamina` / `each party member's maximum stamina is reduced by 5` | Stamina maximum curse, until the next respite |
 | `you lose a consumable` / `each party member loses a consumable` | one random consumable item leaves the inventory; a hero carrying none silently loses 1 Recovery instead |
+| `one of the fleeing monsters is destroyed` / `you kill one of the fleeing undead` | in a series part: one fewer of the monsters that fled an earlier part joins this part's fight (a random one; see Monsters that fled the last fight below). Usually braced: `{One of the fleeing monsters is destroyed}` |
 | `the Start2 zone becomes a starting area` / `you may also start in the Start2 zone` | that zone type joins the Start zone for pre-combat confinement (heroes may stand there before the fight; it is revealed at the encounter beat) |
 | `reveal the Treasure Chest object` / `the Treasure Chest object is revealed` | a map object the author left INACTIVE (Object Properties -> deactivate) is switched on at the encounter beat. The word "object" is required |
 | `you fail ...`, `you succeed ...`, `nothing happens` | narrative only (recognized, no effect) |
@@ -540,6 +541,18 @@ Arrows hiss from the trees. Draw steel!
   option routes: the party leaves by the section's exit once everyone has
   rolled (a player who never rolls is rolled for by the host after 4 minutes;
   `/eotwnarrative force` rolls for everyone left).
+- **Party result.** Add the paragraph `Party result: median` to an
+  `Everyone rolls:` section and the party shares ONE result instead: once
+  everyone has rolled, the middle tier of the rolls (for an even party, the
+  lower of the two middle ones) applies once, as the hero with the highest
+  total (so `You gain 1 Healing Potion` goes to them). Each hero's own roll
+  still shows, without its own effects.
+- **Options the story offers.** `When <condition>:` with nothing after the
+  colon, under a narrative option's `###` heading, offers that option only
+  while a series story condition holds (`When the previous part had 1 or
+  more retreats:`). Otherwise nobody sees it. Put a story-gated option after
+  an ungated one, so a section always has something to choose. Story text
+  in the section (`If ...:` ... `End`) can say why it is there.
 - `Unlock: Intelligence` (a paragraph in a narrative beat or section) turns on
   the Intelligence pool and the Tactical Preparation screen for the rest of the
   game; earn it with `+N intelligence` clauses. With it on, the party starts
@@ -713,6 +726,18 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   is re-levelled when heroes join late, and monsters an enemy summons
   mid-fight move by the difference rounded (a 1.5 party in a Level 1
   encounter meets Level 2 summons). Each part of a series reads its own line.
+- **Monsters that fled the last fight**: not a script line. Attach the
+  **Monsters Fled from Last Fight** Encounter Script (built-in) to the part's
+  opening encounter in the encounter builder, then draw its **Stragglers
+  Zone** (the button appears under the Start zone once the script is on).
+  The monsters that escaped the previous part's fight through its Retreat
+  Zone (its result's `retreated` list) spawn with the opening fight, one
+  initiative group per monster type, on the Stragglers Zone's tiles, less one
+  for each `one of the fleeing monsters is destroyed` clause this part
+  applied. Levelled like the rest of the fight. A part recorded with a count
+  but no list (Test Encounter's Story so far) takes the missing ones from
+  that part's own opening fight, non-minions first. Part 1, or a game outside
+  a series, brings nobody.
 - **Reinforcements**: a `## Reinforcements: <Name>` section, written AFTER the
   opening `[[encounter]]` and after every setup line (everything below it
   belongs to it until the next `##` or `#`):

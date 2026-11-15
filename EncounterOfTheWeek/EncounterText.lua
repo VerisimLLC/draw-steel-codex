@@ -720,6 +720,7 @@ text("montage.effect.ally.unknown", [[Unknown monster '{monster}']])
 text("montage.effect.ally.no_hero", [[{monster} cannot join: no hero]])
 text("montage.effect.ally.not_placed", [[{monster} could not be placed]])
 
+text("montage.effect.retreat_kill", [[One of the fleeing monsters is destroyed]])
 --A threat dealt with.
 text("montage.effect.vanquished", [[The threat is vanquished]])
 --Challenge Mode: a threat that must be vanquished more than once, after a
@@ -955,6 +956,8 @@ text("stage.gauntlet.group_hint", [[Everyone makes this test.]])
 text("stage.gauntlet.group_waiting", [[Waiting on: {heroes}]])
 text("stage.gauntlet.group_landed", [[{hero}: {tier}]])
 text("stage.gauntlet.group_auto", [[(rolled for them)]])
+text("stage.gauntlet.group_party_hint", [[The party shares the middle result.]])
+text("stage.gauntlet.group_party_result", [[Party result: {tier}]])
 --The big word across the stage when an interrupted roll fades mid-throw.
 text("stage.gauntlet.interrupted_banner", [[Interrupted!]])
 
@@ -1315,6 +1318,7 @@ text("script.reveal_zones", [[The {zones} will be revealed during the next comba
 text("script.know_stamina", [[The party knows the Stamina of {monsters}]])
 text("script.fair_initiative", [[The encounter begins with a fair roll for initiative]])
 text("script.no_surprise", [[The heroes cannot be surprised]])
+text("script.effect.retreat_kill", [[one fewer of the monsters that fled joins the fight]])
 
 --What the coming encounter's initiative will be.
 --When the heroes are to be surprised but already cannot be surprised:

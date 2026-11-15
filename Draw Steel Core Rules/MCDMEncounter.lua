@@ -3898,6 +3898,11 @@ end
 -- Encounter Script says a monster wants to retreat (the Retreat script), the
 -- Monster AI runs it to these tiles and it leaves the map there. Unset = no
 -- Retreat Zone (Retreat zone types painted on the map still count).
+--
+-- stragglerLocs: the Stragglers Zone, same shape. With the "Monsters Fled
+-- from Last Fight" script on the encounter, the monsters that fled the
+-- previous part of an Encounter of the Week series (through its Retreat
+-- Zone) appear on these tiles when the fight spawns.
 
 --- @alias EncounterRegion {x1: number, y1: number, x2: number, y2: number}
 --- @alias EncounterStartLoc {x: number, y: number, floor: string}
@@ -3948,6 +3953,37 @@ function Encounter:SetRetreatLocs(locs)
         locs = nil
     end
     self.retreatLocs = locs
+end
+
+--- @return EncounterStartLoc[]
+function Encounter:GetStragglerLocs()
+    local locs = self:try_get("stragglerLocs")
+    if type(locs) ~= "table" then
+        return {}
+    end
+    return locs
+end
+
+--- @param locs EncounterStartLoc[]|nil nil or empty = no Stragglers Zone.
+function Encounter:SetStragglerLocs(locs)
+    if locs ~= nil and #locs == 0 then
+        locs = nil
+    end
+    self.stragglerLocs = locs
+end
+
+--- Does an attached script bring back the monsters that fled the last fight
+--- (the "Monsters Fled from Last Fight" built-in: `stragglers = true`)?
+--- @return boolean
+function Encounter:HasStragglersScript()
+    for _, instance in ipairs(self:GetScripts()) do
+        local def = nil
+        pcall(function() def = instance:GetDefinition() end)
+        if def ~= nil and def.stragglers then
+            return true
+        end
+    end
+    return false
 end
 
 --- @alias EncounterMapRef {pack: string, mapid: string, name: string}
@@ -5950,6 +5986,10 @@ local function NormalizeDefinition(def)
     end
     norm.retreat = def.retreat
 
+    --"Monsters Fled from Last Fight": the builder offers a Stragglers Zone
+    --and Encounter of the Week spawns the fled monsters there.
+    norm.stragglers = def.stragglers == true or nil
+
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
@@ -6031,6 +6071,9 @@ function EncounterScript.DescribeDefinition(def)
     end
     if def.retreat ~= nil then
         parts[#parts + 1] = "decides when monsters retreat"
+    end
+    if def.stragglers then
+        parts[#parts + 1] = "brings back monsters that fled the last fight"
     end
     local handlers = {}
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
@@ -6611,6 +6654,8 @@ function LiveEncounter:RecordRetreat(token)
         charid = token.charid,
         name = token.name or props:try_get("monster_type") or "creature",
         monsterType = props:try_get("monster_type"),
+        --the bestiary entry it was spawned from, when the spawn kept it.
+        monsterid = props:try_get("encounterSpawnMonster"),
         keywords = keywords,
         minion = props.minion == true,
         round = q ~= nil and q.round or 0,
@@ -7684,6 +7729,19 @@ return {
         end
         return ctx.state.retreating == true or Outnumbered(ctx)
     end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:fled-monsters",
+    name = "Monsters Fled from Last Fight",
+    description = "The monsters that fled the last fight of an Encounter of the Week series appear in the Stragglers Zone when this fight starts.",
+    code = [==[
+return {
+    name = "Monsters Fled from Last Fight",
+    description = "In an Encounter of the Week series, the monsters that fled the previous part through its Retreat Zone join this fight: they appear in the Stragglers Zone (draw it with the encounter's Stragglers Zone button) when the monsters spawn, levelled like the rest. One the story killed on the way (\"one of the fleeing monsters is destroyed\") does not come. Outside a series it does nothing.",
+    stragglers = true,
 }
 ]==],
 }

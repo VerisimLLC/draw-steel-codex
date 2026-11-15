@@ -219,6 +219,32 @@ end
 
 --The story as the condition evaluator reads it (EncounterScript.EvalStoryAtom):
 --{ part, parts = { [k] = {...} }, tracks = { [track key] = value }, this }.
+--A clean copy of a part's `retreated` list (the monsters that escaped its
+--fight through a Retreat Zone): { { name, monsterType, monsterid, keywords,
+--minion }, ... }, empty when there is none.
+function EncounterMontage.CopyRetreated(list)
+    local result = {}
+    if type(list) ~= "table" then
+        return result
+    end
+    for _, rec in ipairs(list) do
+        if type(rec) == "table" then
+            local keywords = {}
+            for _, keyword in ipairs(type(rec.keywords) == "table" and rec.keywords or {}) do
+                keywords[#keywords + 1] = tostring(keyword)
+            end
+            result[#result + 1] = {
+                name = rec.name ~= nil and tostring(rec.name) or nil,
+                monsterType = rec.monsterType ~= nil and tostring(rec.monsterType) or nil,
+                monsterid = rec.monsterid ~= nil and tostring(rec.monsterid) or nil,
+                keywords = keywords,
+                minion = rec.minion == true,
+            }
+        end
+    end
+    return result
+end
+
 --`doc` defaults to the live document.
 function EncounterMontage.Story(doc)
     local result = { part = 1, parts = {}, tracks = {} }
@@ -230,7 +256,8 @@ function EncounterMontage.Story(doc)
             for k, v in pairs(story.parts or {}) do
                 local n = tonumber(string.match(tostring(k), "^p(%d+)$"))
                 if n ~= nil and type(v) == "table" then
-                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats) }
+                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
+                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
                 end
             end
             for _, rec in pairs(story.tracks or {}) do
@@ -241,7 +268,8 @@ function EncounterMontage.Story(doc)
         end
         local r = doc.data.seriesResult
         if type(r) == "table" then
-            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds), retreats = tonumber(r.retreats) }
+            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds), retreats = tonumber(r.retreats),
+                retreated = EncounterMontage.CopyRetreated(r.retreated) }
         end
     end)
     return result
@@ -288,7 +316,8 @@ function EncounterMontage.SeedStory(doc, part, carried)
             local n = tonumber(k) or tonumber(string.match(tostring(k), "^p(%d+)$"))
             if n ~= nil and n < part then
                 if type(v) == "table" then
-                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats) }
+                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
+                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
                 else
                     story.parts["p" .. n] = "not recorded"
                 end
@@ -417,7 +446,7 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
                     keywords[#keywords + 1] = keyword
                 end
                 table.sort(keywords)
-                retreated[#retreated + 1] = { name = rec.name, monsterType = rec.monsterType, keywords = keywords, minion = rec.minion }
+                retreated[#retreated + 1] = { name = rec.name, monsterType = rec.monsterType, monsterid = rec.monsterid, keywords = keywords, minion = rec.minion }
             end
         end
     end)
@@ -3200,6 +3229,14 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --their own immunity read as the immunity having been
                 --forgotten (reported live 2026-09-20).
                 applied[#applied + 1] = EncounterScript.DescribeInitiativeOutcome(effect.outcome, surpriseImmune and effect.outcome == "surprised")
+            elseif effect.kind == "retreatkill" then
+                --one fewer of the monsters that fled an earlier part joins
+                --this part's fight (EncounterReinforcements.RetreatedJoining).
+                --At the TOP level of the document, like noSurprise.
+                if ctx.doc ~= nil then
+                    ctx.doc.data.retreatKills = (tonumber(ctx.doc.data.retreatKills) or 0) + 1
+                end
+                applied[#applied + 1] = T("montage.effect.retreat_kill")
             elseif effect.kind == "nosurprise" then
                 --party-wide and permanent for the run, whoever earned it.
                 --Like initiative it lives at the TOP level of the document
@@ -7944,6 +7981,7 @@ function EncounterMontage.ResetTest(options)
     doc.data.foeResistances = nil
     doc.data.noSurprise = nil
     doc.data.surprised = nil
+    doc.data.retreatKills = nil
     doc.data.zoneSetup = nil
     doc.data.reinforcements = nil
     doc.data.revealZones = nil

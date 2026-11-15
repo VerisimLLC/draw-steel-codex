@@ -4276,6 +4276,18 @@ function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, extraLeve
         end
     end
 
+    --monsters that fled the previous part of a series (the encounter's
+    --"Monsters Fled from Last Fight" script and Stragglers Zone).
+    local fledOk, fled = pcall(EncounterReinforcements.SpawnRetreatedJoining, entry.encounter, numHeroes,
+        ((entry.encounter.groups[1] or {}).spawnlocs or {})[1])
+    if fledOk then
+        for _, charid in ipairs(fled) do
+            spawns[#spawns+1] = charid
+        end
+    else
+        printf("EotW: the monsters that fled an earlier part failed to join: %s", tostring(fled))
+    end
+
     entry.encounter:RestoreMounts(mountEntries)
 
     --level the monsters for the party's Level (and Challenge Mode's full

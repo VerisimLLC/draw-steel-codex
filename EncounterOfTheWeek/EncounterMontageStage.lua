@@ -7607,6 +7607,9 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
     local group = (m.gauntlet or {}).group
     local option = section.options[1]
     children[#children + 1] = gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.gauntlet.group_hint"), halign = "center" }
+    if section.partyResult ~= nil then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_party_hint"), halign = "center" }
+    end
     if option ~= nil then
         children[#children + 1] = gui.Panel{
             width = GAUNTLET_TILE_WIDTH,
@@ -7633,7 +7636,8 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
                 for _, line in ipairs(rec.applied or {}) do
                     children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
                 end
-                if #(rec.applied or {}) == 0 and (rec.tierText or "") ~= "" then
+                --under a party result a hero's own tier text is not what happens.
+                if #(rec.applied or {}) == 0 and (rec.tierText or "") ~= "" and section.partyResult == nil then
                     children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = rec.tierText, interactable = false }
                 end
             else
@@ -7644,6 +7648,16 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
     if #waiting > 0 then
         children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_waiting", { heroes = table.concat(waiting, ", ") }), halign = "center" }
     elseif group.result ~= nil then
+        local party = group.result.party
+        if party ~= nil then
+            children[#children + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.group_party_result", { tier = TierName(party.tier, true) }), interactable = false }
+            for _, line in ipairs(party.applied or {}) do
+                children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+            end
+            if #(party.applied or {}) == 0 and (party.tierText or "") ~= "" then
+                children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = party.tierText, interactable = false }
+            end
+        end
         children[#children + 1] = GauntletNextLabel(beat, m)
     end
     return children
@@ -7750,7 +7764,10 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
         local how = cond(section.kind == "individual", T("stage.gauntlet.individual_how"), T("stage.gauntlet.vote_how"))
         Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = string.format("%s %s", section.prompt or "", how), halign = "center" })
         for i, option in ipairs(section.options) do
-            tiles[#tiles + 1] = GauntletVoteTile(section, option, i, m, heroes)
+            --an option whose story gate is shut is not on offer.
+            if not EncounterGauntlet.OptionGated(option) then
+                tiles[#tiles + 1] = GauntletVoteTile(section, option, i, m, heroes)
+            end
         end
     elseif section.kind == "group" then
         for _, child in ipairs(EncounterMontageStage.GauntletGroupChildren(beat, m, section)) do

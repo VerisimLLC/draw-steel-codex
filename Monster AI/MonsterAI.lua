@@ -4805,6 +4805,18 @@ function MonsterAI:ResolvePendingMinionDeaths(timeout)
     end
 end
 
+local function GroupIsListed(group, groupNamesOrIds)
+    if group == nil then
+        return false
+    end
+    for _,groupNameOrId in ipairs(groupNamesOrIds) do
+        if group.name == groupNameOrId or group.id == groupNameOrId then
+            return true
+        end
+    end
+    return false
+end
+
 function MonsterAI.MaliceAbilityMatchesMonster(token, maliceAbility, includeDisabled)
     if token == nil or not token.valid or token.properties == nil then
         return false
@@ -4817,17 +4829,9 @@ function MonsterAI.MaliceAbilityMatchesMonster(token, maliceAbility, includeDisa
     end
 
     if maliceAbility.monsterGroups ~= nil then
-        local group = token.properties:MonsterGroup()
-        if group == nil then
-            return false
-        end
-
-        for _,groupNameOrId in ipairs(maliceAbility.monsterGroups) do
-            if group.name == groupNameOrId or group.id == groupNameOrId then
-                return true
-            end
-        end
-        return false
+        --its own group, or the group of the monster it is "similar to".
+        return GroupIsListed(token.properties:MonsterGroup(), maliceAbility.monsterGroups)
+            or GroupIsListed(MonsterAI.SimilarMonsterGroup(token.properties), maliceAbility.monsterGroups)
     end
 
     return MonsterAI.MoveMatchesMonster(token, maliceAbility, includeDisabled)
@@ -7294,8 +7298,11 @@ end
 --the AI then plays it like that monster: a reskinned or homebrew stat block
 --borrows the hand-written AI of the one it is based on. Registrations listing
 --either the monster's own type or the similar type apply, and band code that
---asks "what is this monster?" gets the similar type (AIMonsterType). The
---Monster AI panel's per-type switches stay keyed by the monster's own type.
+--asks "what is this monster?" gets the similar type (AIMonsterType). Band
+--Malice written for a monster group also applies when the similar monster is
+--in that group (SimilarMonsterGroup), so a reskin filed in a homebrew group
+--still spends it. The Monster AI panel's per-type switches stay keyed by the
+--monster's own type.
 --Set in the Monster AI tab of the character sheet in an EotW authoring game.
 
 --- The monster type this creature's properties are similar to for AI
@@ -7342,6 +7349,42 @@ function MonsterAI.AIMonsterTypes(props)
         return {own, similar}
     end
     return {own}
+end
+
+--Malice matching asks for the similar group once per registration per acting
+--monster each turn, and finding it walks the whole bestiary, so answers are
+--remembered for this many seconds.
+MonsterAI.similarGroupCacheSeconds = 10
+local g_similarGroupCache = {}
+
+--- The monster group of the bestiary monster this creature is "similar to",
+--- or nil when it names no similar type or no bestiary monster of that type
+--- has a group.
+--- @param props any
+--- @return MonsterGroup|nil
+function MonsterAI.SimilarMonsterGroup(props)
+    local similar = MonsterAI.SimilarMonsterType(props)
+    if similar == nil then
+        return nil
+    end
+    local now = dmhub.Time()
+    local cached = g_similarGroupCache[similar]
+    if cached ~= nil and now - cached.time < MonsterAI.similarGroupCacheSeconds then
+        return cached.group
+    end
+    local group = nil
+    for _, asset in pairs(assets.monsters) do
+        pcall(function()
+            if asset.properties:try_get("monster_type") == similar then
+                group = asset.properties:MonsterGroup()
+            end
+        end)
+        if group ~= nil then
+            break
+        end
+    end
+    g_similarGroupCache[similar] = {group = group, time = now}
+    return group
 end
 
 --- Does a registration's `monsters` list name any of these types?

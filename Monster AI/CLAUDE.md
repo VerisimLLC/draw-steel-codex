@@ -954,9 +954,12 @@ The helpers are at the "Similar to" section of `MonsterAI.lua`:
 - `AssessSupport` counts the similar type's registrations as the monster's
   own, and never reports them as stale. Its result carries `similarTo`.
 
-Not covered: `monsterGroups` Malice registrations match the monster's own
-group, so a reskin in a different monster group does not use the base's band
-Malice. Run `../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`
+Band Malice (`monsterGroups` registrations) matches the monster's own group or
+the group of the bestiary monster it is similar to
+(`MonsterAI.SimilarMonsterGroup`, remembered for
+`MonsterAI.similarGroupCacheSeconds`), so a reskin filed in a homebrew group
+still spends the base band's Malice. It can only spend Malice it has, though:
+the abilities come from its own monster group's data, matched by name. Run `../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`
 and `tests/ai_support_assessment_test.lua` for coverage.
 
 ## Bestiary support assessment

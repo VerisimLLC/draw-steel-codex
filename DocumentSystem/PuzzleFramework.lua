@@ -11,12 +11,13 @@ local mod = dmhub.GetModLoading()
 
 ---@class PuzzleField
 ---@field id string config key
----@field type "text"|"multiline"|"number"|"toggle"|"choice"|"image"
+---@field type "text"|"multiline"|"number"|"toggle"|"choice"|"image"|"custom"
 ---@field label string
 ---@field default any
 ---@field options? {id: string, text: string}[] for "choice"
 ---@field min? number for "number"
 ---@field max? number for "number"
+---@field Control? fun(config: table, setConfig: fun(changes: table)): Panel|nil for "custom": the type draws the control
 ---@field visible? fun(config: table): boolean hide the field unless this returns true
 
 ---@class PuzzleRole
@@ -43,6 +44,7 @@ local mod = dmhub.GetModLoading()
 ---@field Render fun(ctx: PuzzleContext): Panel built once; refreshed with the "refreshPuzzle" event
 ---@field CreateEditor? fun(puzzleid: string, config: table, setConfig: fun(changes: table)): Panel|nil
 ---@field HostTick? fun(id: string) runs about once a second on the host for every puzzle of this type
+---@field HandleRequest? PuzzleRequestHandler the host applies players' requests (Puzzle.Request); types with their own HostTick call Puzzle.ProcessRequests instead
 ---@field noTimeLimit? boolean the framework's time limit is not offered for this type
 
 ---@class PuzzleStatus
@@ -380,6 +382,7 @@ function Puzzle.Create(id, typeid, config, title)
         data.state = nil
         data.stateKey = nil
         data.holds = nil
+        data.kept = nil
         if title ~= nil then
             data.title = title
         end
@@ -553,7 +556,33 @@ function Puzzle.ImportState(id, state, status)
     end
 end
 
---Director: a fresh board from a new seed, and the status cleared.
+--Kept data: what a puzzle remembers through a Reset (who has rolled a once-only
+--test, what it revealed). Cleared only when the puzzle is set up again.
+---@param id string
+---@return table
+function Puzzle.ReadKept(id)
+    local kept = BoardData(id).kept
+    if type(kept) ~= "table" then
+        return {}
+    end
+    return DeepCopy(kept)
+end
+
+--fn edits the kept table in place, so only the fields it touches go up. Keyed
+--tables only, as for boards.
+---@param id string
+---@param fn fun(kept: table)
+---@param description string|nil
+function Puzzle.ChangeKept(id, fn, description)
+    WriteBoardDoc(id, function(data)
+        if type(data.kept) ~= "table" then
+            data.kept = {}
+        end
+        fn(data.kept)
+    end, description or "Puzzle kept data")
+end
+
+--Director: a fresh board from a new seed, and the status cleared. Kept data stays.
 ---@param id string
 function Puzzle.Reset(id)
     local def = Puzzle.GetType(id)
@@ -1025,6 +1054,237 @@ function Puzzle.AllPresence()
 end
 
 --------------------------------------------------------------------------------
+-- Requests: players ask, the host decides
+--------------------------------------------------------------------------------
+
+--A handler applies one request to the board copy it is given. Return false to
+--wait (that player's later requests wait behind it); anything else finishes it.
+--Writes to other documents (chat, kept data, status) go in `after`, which runs
+--once the board is saved.
+---@alias PuzzleRequestHandler fun(id: string, state: table, req: table, userid: string, after: fun()[]): boolean|nil
+
+--Handlers for request kinds every type shares (a lock's bypass test), tried
+--before the type's own.
+---@type table<string, PuzzleRequestHandler>
+local g_requestHandlers = {}
+
+---@param kind string
+---@param handler PuzzleRequestHandler
+function Puzzle.RegisterRequestHandler(kind, handler)
+    g_requestHandlers[kind] = handler
+end
+
+--File a request for the host: a small queue per player in the board, numbered
+--so the host applies each once and in order. args.kind names it.
+---@param id string
+---@param args table
+function Puzzle.Request(id, args)
+    Puzzle.Change(id, function(state)
+        state.req = state.req or {}
+        local queue = state.req[dmhub.userid]
+        if type(queue) ~= "table" or queue.seq ~= nil then
+            queue = {}
+            state.req[dmhub.userid] = queue
+        end
+        local seq = tonumber((state.done or {})[dmhub.userid]) or 0
+        for _, queued in pairs(queue) do
+            if type(queued) == "table" then
+                seq = math.max(seq, tonumber(queued.seq) or 0)
+            end
+        end
+        seq = seq + 1
+        local req = { seq = seq }
+        for k, v in pairs(args) do
+            req[k] = v
+        end
+        --keyed, not a list, and one entry per request: a second request sent
+        --before the host's next tick must not replace the first.
+        queue["s" .. seq] = req
+    end, "Puzzle request")
+end
+
+--Host: apply every pending request in the board copy `state`, in order per
+--player. handler is the type's; shared kinds go to their registered handler.
+--Returns true if the board changed.
+---@param id string
+---@param state table
+---@param handler PuzzleRequestHandler|nil
+---@param after fun()[]
+---@return boolean
+function Puzzle.ProcessRequests(id, state, handler, after)
+    local changed = false
+    state.req = state.req or {}
+    state.done = state.done or {}
+    for userid, queue in pairs(state.req) do
+        if type(queue) == "table" and queue.seq ~= nil then
+            --a request in the old one-slot form: drop it.
+            state.req[userid] = {}
+            changed = true
+        elseif type(queue) == "table" then
+            local pending = {}
+            for key, queued in pairs(queue) do
+                if type(queued) == "table" then
+                    pending[#pending + 1] = { key = key, req = queued }
+                end
+            end
+            table.sort(pending, function(a, b) return (tonumber(a.req.seq) or 0) < (tonumber(b.req.seq) or 0) end)
+            for _, item in ipairs(pending) do
+                local req = item.req
+                local doneSeq = tonumber(state.done[userid]) or 0
+                if (tonumber(req.seq) or 0) <= doneSeq then
+                    queue[item.key] = nil
+                    changed = true
+                else
+                    local fn = g_requestHandlers[req.kind] or handler
+                    local finished = true
+                    if fn ~= nil then
+                        finished = fn(id, state, req, userid, after) ~= false
+                    end
+                    if not finished then
+                        break
+                    end
+                    state.done[userid] = req.seq
+                    queue[item.key] = nil
+                    changed = true
+                end
+            end
+        end
+    end
+    return changed
+end
+
+--Any request waiting in the saved board, without building a state copy.
+---@param id string
+---@return boolean
+local function HasPendingRequests(id)
+    local state = BoardData(id).state
+    if type(state) ~= "table" or type(state.req) ~= "table" then
+        return false
+    end
+    for _, queue in pairs(state.req) do
+        if type(queue) == "table" and next(queue) ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--------------------------------------------------------------------------------
+-- Heroes and tests
+--------------------------------------------------------------------------------
+
+--The hero a player acts as: their selected token, else their primary character.
+---@return CharacterToken|nil
+function Puzzle.MyHero()
+    local tokens = dmhub.selectedOrPrimaryTokens or {}
+    local tok = tokens[1]
+    if tok ~= nil and tok.valid and tok.properties ~= nil then
+        return tok
+    end
+    return nil
+end
+
+---@param tokenid string|nil
+---@return CharacterToken|nil
+function Puzzle.HeroById(tokenid)
+    if tokenid == nil then
+        return nil
+    end
+    local tok = dmhub.GetCharacterById(tokenid)
+    if tok ~= nil and tok.valid then
+        return tok
+    end
+    return nil
+end
+
+--Draw Steel's test difficulty rows: "success", "consequence" (success with a
+--consequence), "failure" or "failconsequence"; reward is true for a natural
+--19-20 or an easy tier 3.
+---@param tier integer
+---@param natural number|nil
+---@param difficulty string "easy"|"medium"|"hard"
+---@return string outcome, boolean reward
+function Puzzle.TestOutcome(tier, natural, difficulty)
+    local reward = natural ~= nil and natural >= 19
+    if difficulty == "easy" then
+        if tier >= 3 then
+            return "success", true
+        elseif tier == 2 then
+            return "success", reward
+        end
+        return "consequence", reward
+    elseif difficulty == "hard" then
+        if tier >= 3 then
+            return "success", reward
+        elseif tier == 2 then
+            return "failure", reward
+        end
+        return "failconsequence", reward
+    end
+    if tier >= 3 then
+        return "success", reward
+    elseif tier == 2 then
+        return "consequence", reward
+    end
+    return "failure", reward
+end
+
+--A player's test: the montage's skill-aware roll (characteristic, the Skilled
+--chip, the hero's features), private to the roller; without Encounter of the
+--Week, the characteristic alone. tiers are the three result lines the roll
+--dialog shows. onDone(tier, natural).
+---@param tok CharacterToken
+---@param attrid string
+---@param skill string
+---@param name string
+---@param tiers string[]
+---@param stillWanted fun(): boolean
+---@param onDone fun(tier: integer, natural: number|nil)
+function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone)
+    local info = (creature.attributesInfo or {})[attrid]
+    local attrName = info ~= nil and info.description or "Intuition"
+    local attr = string.format("%s, %s", attrName, skill)
+    local montage = rawget(_G, "EncounterMontage")
+    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
+        local parts = montage.BuildTestRoll(tok, attr, name, nil)
+        montage.ShowTestRoll{
+            creature = tok.properties,
+            heroToken = tok,
+            title = parts.title,
+            rollType = parts.rollType,
+            roll = parts.roll,
+            modifiers = parts.modifiers,
+            tiers = tiers,
+            rollSeq = 1,
+            share = false,
+            completeKind = "rolled",
+            cancelKind = "cancel",
+            stillWanted = stillWanted,
+            send = function(kind, req)
+                if kind == "rolled" and stillWanted() then
+                    onDone(math.tointeger(tonumber(req.tier)) or 1, tonumber(req.natural))
+                end
+                return true
+            end,
+        }
+        return
+    end
+    local bonus = 0
+    pcall(function() bonus = tok.properties:GetAttribute(attrid):Modifier() end)
+    dmhub.Roll{
+        roll = string.format("2d10 + %d", bonus),
+        description = string.format("%s: %s", name, attr),
+        complete = function(rollInfo)
+            local tier = 1
+            pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+            if stillWanted() then
+                onDone(tier, rollInfo.naturalRoll)
+            end
+        end,
+    }
+end
+
+--------------------------------------------------------------------------------
 -- Host watcher
 --------------------------------------------------------------------------------
 
@@ -1088,8 +1348,30 @@ local function HostTick()
     end
 end
 
+--Apply waiting requests for a type without its own HostTick.
+---@param id string
+---@param def PuzzleTypeDef
+local function HostRequests(id, def)
+    local status = Puzzle.Status(id)
+    if status.solved or status.failed or not HasPendingRequests(id) then
+        return
+    end
+    local after = {}
+    Puzzle.Change(id, function(state)
+        if not Puzzle.ProcessRequests(id, state, def.HandleRequest, after) then
+            return false
+        end
+    end, "Puzzle requests")
+    for _, fn in ipairs(after) do
+        local ok, err = pcall(fn)
+        if not ok then
+            print("PUZZLE:: request follow-up failed for", id, err)
+        end
+    end
+end
+
 --Types with their own host work (games of chance resolving bets) get a tick
---for each of their puzzles.
+--for each of their puzzles; the rest have their requests applied.
 local function TypeHostTicks()
     local ids = Puzzle.Index()
     for id in pairs(mod:GetDocumentSnapshot(STATUS_DOC).data) do
@@ -1097,8 +1379,14 @@ local function TypeHostTicks()
     end
     for id in pairs(ids) do
         local def = Puzzle.GetType(id)
-        if def ~= nil and def.HostTick ~= nil then
-            local ok, err = pcall(def.HostTick, id)
+        if def ~= nil then
+            local ok, err = pcall(function()
+                if def.HostTick ~= nil then
+                    def.HostTick(id)
+                else
+                    HostRequests(id, def)
+                end
+            end)
             if not ok then
                 print("PUZZLE:: host tick failed for", id, err)
             end

@@ -582,6 +582,8 @@ local function FieldControl(field, config, setConfig)
                 setConfig({ [key] = element.value })
             end,
         }
+    elseif field.type == "custom" and field.Control ~= nil then
+        return field.Control(config, setConfig)
     end
     return nil
 end

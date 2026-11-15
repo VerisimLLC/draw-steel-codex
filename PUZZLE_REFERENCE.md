@@ -8,9 +8,11 @@ map object. Your file only says what the puzzle looks like and how a move change
 
 Worked example: `DocumentSystem/PuzzleTerminal.lua` (a password terminal with a code
 sheet only one role can read). Others: `RichSliderPuzzle.lua` (click-only grid),
-`RichTornPuzzle.lua` (drag plus click-to-place, holds) and `PuzzleCombination.lua` (the
-fullest example: custom setup controls, keyboard play, a once-per-hero test through the
-host request queue, kept data). The framework itself is
+`RichTornPuzzle.lua` (drag plus click-to-place, holds), `PuzzleCombination.lua` (custom
+setup controls, keyboard play, a once-per-hero test through the host request queue, kept
+data) and `PuzzleWardedSeal.lua` (the fullest example: a host that deals players different
+parts, a generated puzzle from an engine-free module, an in-window chat, its own `HostTick`
+with presence and timer control). The framework itself is
 `DocumentSystem/PuzzleFramework.lua` (model) and `RichPuzzle.lua` (frame and window).
 
 ## The smallest useful type
@@ -64,7 +66,7 @@ New files only load once registered in their CodeMod (see the codex `CLAUDE.md`)
 | `fields` | no | Director setup fields, drawn by the framework (below). |
 | `NewState(config, ctx)` | yes | A fresh board. Use `ctx.random` for anything random. |
 | `IsSolved(state, config)` | yes | Pure check, run after every move and again by the host before anything opens. |
-| `Render(ctx)` | yes | Build the panel ONCE. It is refreshed by the `refreshPuzzle(element, ctx)` event, fired down the whole tree. |
+| `Render(ctx)` | yes | Build the panel ONCE. It is refreshed by the `refreshPuzzle(element, ctx)` event, fired down the whole tree -- **every half second while a timer runs**, not only on change (see State rules). |
 | `IsFailed(state, config, now)` | no | True when the puzzle is lost (a bomb went off). Timers are separate (below). |
 | `SolvedState(config)` | no | A finished board, so the Director's Solve shows it. Without it, Solve bypasses. |
 | `Hint(state, config)` | no | Text the Director can reveal with "Show hint". |
@@ -109,6 +111,11 @@ setup popup does not tick). Every puzzle also gets a "Time limit" field from the
 - **Redraw from `ctx`, never from local variables**, so Reset, Revert Turn and other
   players' moves all show. Local state is fine for things only this client sees (what is
   being dragged).
+- **Don't rebuild on every `refreshPuzzle`.** While a timer runs (or holds are live) the
+  frame fires it every half second with nothing changed. A panel that rebuilds its children
+  each time closes any open dropdown and loses half-typed input. Update text in place, or
+  compare a signature of what you draw (`json(ctx.state)` plus anything else you show) and
+  rebuild only when it differs, as the Warded seal does.
 - **Never write config from `Render`**; config is the Director's.
 - Text entry: Enter fires `submit` on a single-line `gui.Input` (not `confirm`). Give it a
   button too, as the terminal does.
@@ -160,6 +167,17 @@ your panel has the GUI focus (`gui.ChildHasFocus(panel)`; push straight away whe
 destroyed, and receive the keys as events via `commands = { "mycmd", ... }`. See
 `PuzzleCombination.lua` (`combolock`).
 
+Three traps, found on the Warded seal (`wardseal`):
+
+- **One Enter press fires both the `return` and `enter` bindings.** If Enter opens a
+  confirm, the second binding answers it at once; ignore a repeat within a few tenths of a
+  second.
+- **Escape belongs to the window**: binding it in your context does not stop it closing the
+  puzzle window. Use another key for "no".
+- **A text box inside the panel** (a chat input) also counts for `gui.ChildHasFocus`, so
+  typing would trigger your keys. Push the context only when `gui.GetFocus() == panel`, and
+  set the focus to the panel itself when the player clicks your board.
+
 ## Solving, failing, timers
 
 - Board puzzles: `IsSolved` reads the board, and the host re-checks it, so a client
@@ -172,6 +190,64 @@ destroyed, and receive the keys as events via `commands = { "mycmd", ... }`. See
 - Timers: the Director sets a time limit and presses Start timer; the host fails the
   puzzle when it runs out. The game setting "Puzzle timers" (normal / double / off) scales
   every limit. Use `IsFailed` only for losses your board decides (a wrong wire cut).
+- A type can drive the timer itself from the host: `Puzzle.StartTimer(id)` (the seal's
+  Begin, so a table with no Director still gets one), `Puzzle.PauseTimer` / `ResumeTimer` /
+  `ExtendTimer(id, seconds)`, `Puzzle.TimeLeft(id)` (nil when none) and
+  `Puzzle.TimerPaused(id)`. Pause is one flag, not a count: if several things can pause it
+  (two players rolling at once), keep who is pausing in your state, pause when the first
+  starts, resume only when the last ends, and never resume a pause you did not make (the
+  seal's `RollPause`). Call these from `after`, not inside the board edit.
+
+## Split parts: one puzzle, different views
+
+The framework's `roles` are handed out by the Director in config. A table with no Director,
+or one where the parts must follow who turns up, needs the host to deal instead. The Warded
+seal's pattern (`PuzzleWardedSeal.lua`):
+
+- **A gathering, then Begin.** The board starts at `phase = "gathering"`; anyone can press
+  Begin, which is a request, and the host deals in `HandleRequest`. Parts live in **state**
+  (`state.parts = { hands = userid, solo = bool, readers = { [userid] = "m1,L2" } }`), not
+  in `config.roles`: players never write config, and a Reset must re-deal.
+- **Who is there:** `Puzzle.PresentUsers(id)` (fresh heartbeats). Leave Directors out of the
+  deal (`dmhub.GetSessionInfo(userid).dm`); a player host is a player and is dealt in.
+- **What the player would rather have:** an `"account"` setting follows the player but other
+  players cannot read it, so each window writes it into the gathering state
+  (`state.prefs[userid]`) and the host honours it where it can. A Director's pin goes in
+  config and wins.
+- **One function says who sees what**, `RoleOf(state, userid, isDirector)`, and the panel
+  draws from it alone: hands, solo (one player sees everything), reader with page keys,
+  Director (sees all) or watching.
+- **Coming and going in `HostTick`:** mark the hands away after a few seconds without a
+  heartbeat, hand over to a present reader after a minute, let a returning player read
+  again, and give any page nobody holds to the reader with the fewest. Log each change in
+  words.
+- **Changing parts:** swap / pass / take are offers in state, answered by the other player;
+  once anything has been done to the board they also need the referee (the Director, or the
+  player host at a table without one: `IsDMOrPlayerHost()`).
+- **Hidden is not secret.** Every client has the whole state, ward and pages included; the
+  split is a table agreement, as with any puzzle answer.
+
+## Generated puzzles: keep the generator engine-free
+
+The seal's ward and codex pages come from `PuzzleWardGen.lua`, which touches no engine API:
+it takes a seeded `random(k)` (`Puzzle.SeededRandom`) and returns plain tables. That lets
+`tests/puzzle_ward_gen_test.lua` run thousands of seeds through the bundled `lua.exe`
+(from the codex root: `../dmhubclient/dependencies/lua/bin/lua.exe
+tests/puzzle_ward_gen_test.lua [seeds]`), checking that every ward has exactly one answer,
+that the rule which decides is spread across lines, that the page text reads back to the
+rule it came from, and that the Ask questions exist for every page. The host generates once
+at Begin and writes the result into state, so every client draws the same thing without
+re-running it. Do the same for any type whose content is generated: the module owns
+`Generate`, `Solve` and the player-facing text, and the type file only deals and draws.
+
+## Shared rune art
+
+`DocumentSystem/PuzzleRunes.lua` holds the ten named runes (Flame, Eye, Key, Moon, Sun,
+Skull, Star, Sword, Crown, Hourglass) used by the combination lock and the seal, the
+colour-blind-safe thread colours (Okabe-Ito: Crimson, Amber, Gold, Jade, Azure, Rose) with
+their patterns (solid, dashed, dotted), and `PuzzleRunes.ThreadPanel(colour, pattern,
+width, thickness)`. Always show a rune's or thread's name as text beside it. New rune art
+dropped into the same slots upgrades every puzzle that uses them.
 
 ## Map locks and effects
 
@@ -213,3 +289,9 @@ adjustable timers. Your type must still:
 - A second window as a player: `dmhub.DuplicateWindowInNewProcess{asplayer = true}`.
   A window started before a new file was registered does not load it; restart it.
 - The Director's Panels -> Puzzles list shows every puzzle, its state and who is at it.
+- To see another part's view from one window, write it into state by hand
+  (`Puzzle.Change(id, function(st) st.parts = {...} end, "test")`); the duplicate window
+  always logs in as the same secondary account, so it cannot show a deal between two
+  different players.
+- `Puzzle.SetAssist(id, assistid, on)` from Lua works but does not tick the assist's
+  checkbox; click the checkbox when you want to see both agree.

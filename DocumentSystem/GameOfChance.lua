@@ -29,6 +29,7 @@ local mod = dmhub.GetModLoading()
 ---@field fields? PuzzleField[] the game's own setup, shown under Customize
 ---@field perception? string characteristic id that slows a player's view (nil: none)
 ---@field test? ChanceTest the game's own test, rolled once per player per round
+---@field flow? string "bet" (this file's flow, the default) or "turns" (GameOfChanceTurns.lua)
 ---@field cheatText string what the dealer's cheat was, e.g. "the dealer palmed the pea"
 ---@field DealRound fun(config: table, random: (fun(k: integer): integer), difficulty: string): table public round data (plain, no lists)
 ---@field Duration fun(data: table): number seconds the deal takes at normal speed
@@ -77,7 +78,8 @@ local g_largeSetting = setting{
     default = false,
 }
 
----@type table<string, ChanceGameDef>
+--every registered game of chance, either flow (a Reset refunds stakes for these).
+---@type table<string, ChanceGameDef|ChanceTurnsGameDef>
 local g_games = {}
 
 --------------------------------------------------------------------------------
@@ -166,13 +168,14 @@ end
 --The setup in force: a preset's values, or the Director's own under Customize.
 --Crooked with no tests is refused (nothing could ever win), so it reads as shady.
 ---@param config table
+---@param presets table|nil a game's own presets (the shell game's when nil)
 ---@return table
-local function Effective(config)
+local function Effective(config, presets)
     local result = {}
     for k, v in pairs(config) do
         result[k] = v
     end
-    local preset = PRESETS[config.preset or "tavern"]
+    local preset = (presets or PRESETS)[config.preset or "tavern"]
     if preset ~= nil then
         for k, v in pairs(preset) do
             result[k] = v
@@ -663,6 +666,8 @@ local function FinishRound(state, eff, result, bettor, effects)
     end
 end
 
+local RunEffects
+
 ---@param game ChanceGameDef
 ---@param id string
 local function HostTick(game, id)
@@ -807,6 +812,15 @@ local function HostTick(game, id)
             print("PUZZLE:: request follow-up failed for", id, err)
         end
     end
+    RunEffects(id, effects, nil)
+end
+
+--Side effects a host tick queued, run once its write is saved: chat lines, pushing the
+--game to everyone, and paying the stake (recorded per game so a Reset can undo it).
+---@param id string
+---@param effects table[]
+---@param presets table|nil the game's presets, for the stake in force
+function RunEffects(id, effects, presets)
     for _, effect in ipairs(effects) do
         if effect.chat ~= nil then
             chat.Send(effect.chat)
@@ -815,7 +829,7 @@ local function HostTick(game, id)
         elseif effect.pay ~= nil then
             local tok = HeroById(effect.pay)
             local config = Puzzle.ReadConfig(id)
-            local eff = Effective(config)
+            local eff = Effective(config, presets)
             if tok ~= nil then
                 local paid = PayStake(tok, eff, effect.sign)
                 if paid ~= nil then
@@ -1444,11 +1458,37 @@ end
 -- Registration
 --------------------------------------------------------------------------------
 
---Register a game of chance. It becomes a puzzle type with the same id.
----@param game ChanceGameDef
+--What the "turns" flow (GameOfChanceTurns.lua) shares with this one. Internal to the
+--games-of-chance files; a game itself never needs it.
+GameOfChance.Shared = {
+    IsCustom = IsCustom,
+    CHARACTERISTIC_OPTIONS = CHARACTERISTIC_OPTIONS,
+    Effective = Effective,
+    StakeText = StakeText,
+    CanCover = CanCover,
+    FinishRound = FinishRound,
+    AppendLog = AppendLog,
+    RunEffects = RunEffects,
+    HeroName = HeroName,
+    RollTest = RollTest,
+    Outcome = Outcome,
+    slowSetting = g_slowSetting,
+    skipSetting = g_skipSetting,
+    largeSetting = g_largeSetting,
+}
+
+--Register a game of chance. It becomes a puzzle type with the same id. A game with
+--flow = "turns" (Liar's dice) is played in turns, not dealt and bet on.
+---@param game ChanceGameDef|ChanceTurnsGameDef
 function GameOfChance.Register(game)
     assert(type(game.id) == "string" and game.id ~= "", "GameOfChance.Register: id required")
     g_games[game.id] = game
+    if game.flow == "turns" then
+        ---@cast game ChanceTurnsGameDef
+        GameOfChanceTurns.Register(game)
+        return
+    end
+    ---@cast game ChanceGameDef
     PuzzleType.Register{
         id = game.id,
         name = game.name,

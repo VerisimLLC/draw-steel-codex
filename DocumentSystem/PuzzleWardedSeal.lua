@@ -444,6 +444,69 @@ local function CanReferee(userid)
     return IsDirectorUser(userid) or userid == dmhub.userid
 end
 
+--Heroes who have braced at this seal (tokenid -> record); kept through a Reset.
+---@param id string
+---@return table<string, table>
+local function BraceTries(id)
+    local tries = Puzzle.ReadKept(id).brace
+    if type(tries) ~= "table" then
+        return {}
+    end
+    return tries
+end
+
+--A Director is in the game, so they decide on more time.
+---@return boolean
+local function DirectorOnline()
+    for _, userid in ipairs(dmhub.users or {}) do
+        local online = false
+        pcall(function()
+            local info = dmhub.GetSessionInfo(userid)
+            online = info.dm == true and not info.loggedOut
+        end)
+        if online then
+            return true
+        end
+    end
+    return false
+end
+
+local ROLL_SECONDS = 60
+
+--Host: hold the timer while anyone is rolling a test, and let it go when they are done.
+--Only a pause this made is resumed, never the Director's own.
+---@param id string
+---@param state table
+---@param after fun()[]
+---@return boolean changed
+local function RollPause(id, state, after)
+    if state.phase ~= "playing" then
+        return false
+    end
+    local now = dmhub.serverTime
+    local changed = false
+    local rolling = false
+    for userid, at in pairs(state.rolling or {}) do
+        if type(at) ~= "number" or now - at > ROLL_SECONDS then
+            state.rolling[userid] = nil
+            changed = true
+        else
+            rolling = true
+        end
+    end
+    if rolling and not state.rollPaused and Puzzle.TimeLeft(id) ~= nil and not Puzzle.TimerPaused(id) then
+        state.rollPaused = true
+        after[#after + 1] = function() Puzzle.PauseTimer(id) end
+        changed = true
+    elseif not rolling and state.rollPaused then
+        state.rollPaused = nil
+        after[#after + 1] = function() Puzzle.ResumeTimer(id) end
+        changed = true
+    end
+    return changed
+end
+
+
 local AWAY_SECONDS = 5
 local GONE_SECONDS = 60
 local OFFER_SECONDS = 120
@@ -598,6 +661,11 @@ end
 ---@param userid string
 ---@param words string what was done, for the strike line
 local function Strike(state, config, userid, words)
+    if state.braced then
+        state.braced = nil
+        Log(state, string.format("%s %s: the ward flares, but braced hands hold it. No strike.", Puzzle.UserName(userid), words))
+        return
+    end
     state.strikes = (state.strikes or 0) + 1
     local limit = Effective(config).strikes
     if state.strikes >= limit then
@@ -613,6 +681,9 @@ local function HandleRequest(id, state, req, userid, after)
     if req.kind == "begin" then
         if state.phase ~= "playing" then
             Deal(id, state, config, userid)
+            if Puzzle.EffectiveLimit(config) > 0 and Puzzle.TimeLeft(id) == nil then
+                after[#after + 1] = function() Puzzle.StartTimer(id) end
+            end
         end
         return
     end
@@ -621,7 +692,127 @@ local function HandleRequest(id, state, req, userid, after)
     end
     local parts = state.parts or {}
     parts.readers = parts.readers or {}
-    state.offers = state.offers or {}
+    state.rolling = state.rolling or {}
+    if req.kind == "rolling" then
+        state.rolling[userid] = (req.on == true) and dmhub.serverTime or nil
+        return
+    elseif req.kind == "brace" then
+        state.rolling[userid] = nil
+        local tokenid = req.tokenid
+        if config.brace == false or parts.hands ~= userid or type(tokenid) ~= "string" then
+            return
+        end
+        local tier = math.tointeger(tonumber(req.tier)) or 1
+        local outcome = Puzzle.TestOutcome(tier, tonumber(req.natural), tostring(config.testDifficulty or "medium"))
+        --checked in the follow-up step: two requests in one tick both see the saved kept data.
+        after[#after + 1] = function()
+            if BraceTries(id)[tokenid] ~= nil then
+                return
+            end
+            Puzzle.ChangeKept(id, function(kept)
+                kept.brace = kept.brace or {}
+                kept.brace[tokenid] = { tier = tier, user = userid, at = dmhub.serverTime }
+            end, "Brace")
+            local ok = outcome == "success" or outcome == "consequence"
+            Puzzle.Change(id, function(st)
+                if ok then
+                    st.braced = true
+                    Log(st, string.format("%s braces (tier %d): the next slip won't count.", Puzzle.UserName(userid), tier))
+                else
+                    Log(st, string.format("%s tries to brace, but their hands won't steady (tier %d).", Puzzle.UserName(userid), tier))
+                end
+            end, "Brace")
+        end
+        return
+    elseif req.kind == "study" then
+        state.rolling[userid] = nil
+        local tokenid, key = req.tokenid, req.page
+        if config.study == false or type(tokenid) ~= "string" or type(key) ~= "string" or key:sub(1, 1) ~= "m" then
+            return
+        end
+        local holds = parts.solo == true and parts.hands == userid
+        for _, k in ipairs(PagesOf(parts, userid)) do
+            holds = holds or k == key
+        end
+        local i = math.tointeger(tonumber(key:sub(2)))
+        if not holds or i == nil or state.ward.modules[i] == nil then
+            return
+        end
+        --once per hero per ward: kept in the board, so a Reset (a new ward) clears it.
+        state.studied = state.studied or {}
+        if state.studied[tokenid] then
+            return
+        end
+        state.studied[tokenid] = true
+        local tier = math.tointeger(tonumber(req.tier)) or 1
+        local outcome = Puzzle.TestOutcome(tier, tonumber(req.natural), tostring(config.testDifficulty or "medium"))
+        local count = 0
+        if outcome == "success" or outcome == "consequence" then
+            count = tier >= 3 and 2 or 1
+        end
+        state.studyMarks = state.studyMarks or {}
+        local deciding = PuzzleWardGen.DecidingLine(state.ward, i)
+        local candidates = {}
+        for _, line in ipairs(PuzzleWardGen.PageText(state.ward, i).lines) do
+            local n = math.tointeger(tonumber(line:match("^(%d+)%.")))
+            if n ~= nil and n ~= deciding and state.studyMarks[key .. "_" .. n] == nil then
+                candidates[#candidates + 1] = n
+            end
+        end
+        local random = Puzzle.SeededRandom(dmhub.GenerateGuid())
+        local struck = {}
+        while #struck < count and #candidates > 0 do
+            local n = table.remove(candidates, random(#candidates))
+            state.studyMarks[key .. "_" .. n] = { user = userid }
+            struck[#struck + 1] = tostring(n)
+        end
+        table.sort(struck)
+        local title = PageTitle(state.ward, key)
+        if #struck == 0 then
+            Log(state, string.format("%s studies the %s page but learns nothing (tier %d).", Puzzle.UserName(userid), title, tier))
+        else
+            Log(state, string.format("%s studies the ward and strikes out rule%s %s on the %s page.", Puzzle.UserName(userid),
+                #struck > 1 and "s" or "", table.concat(struck, " and "), title))
+        end
+        return
+    elseif req.kind == "moretime" then
+        if Puzzle.TimeLeft(id) == nil then
+            return
+        end
+        --unnamed: nobody has to say it was them.
+        if DirectorOnline() then
+            if state.timeAsk == nil then
+                state.timeAsk = dmhub.serverTime
+                Log(state, "Someone at the seal asks for more time.")
+            end
+        else
+            after[#after + 1] = function()
+                local left = Puzzle.TimeLeft(id)
+                if left ~= nil then
+                    Puzzle.ExtendTimer(id, left)
+                end
+            end
+            Log(state, "Someone asks for more time: the ward's pulse slows.")
+        end
+        return
+    elseif req.kind == "timeanswer" then
+        if not CanReferee(userid) or state.timeAsk == nil then
+            return
+        end
+        state.timeAsk = nil
+        if req.give == true then
+            after[#after + 1] = function()
+                local left = Puzzle.TimeLeft(id)
+                if left ~= nil then
+                    Puzzle.ExtendTimer(id, left)
+                end
+            end
+            Log(state, "The Director gives more time: the ward's pulse slows.")
+        else
+            Log(state, "The Director keeps the time as it is.")
+        end
+        return
+    end
     if req.kind == "join" then
         if not Dealt(parts, userid) and not IsDirectorUser(userid) then
             local key = LeastCovered(state.ward, parts)
@@ -787,6 +978,7 @@ local function HostTick(id)
     Puzzle.Change(id, function(state)
         local changed = Puzzle.ProcessRequests(id, state, HandleRequest, after)
         changed = Presence(id, state) or changed
+        changed = RollPause(id, state, after) or changed
         if not changed then
             return false
         end
@@ -1085,6 +1277,113 @@ local function Render(ctx)
         }
     end
 
+    local BRACE_TIERS = { "Your hands shake.", "Your hands steady.", "Your hands are stone." }
+    local STUDY_TIERS = { "The ward keeps its secrets.", "You see through one rule.", "You see through two rules." }
+
+    --A test roll: the timer waits while it is open; the result goes to the host.
+    ---@param tok CharacterToken
+    ---@param attrid string
+    ---@param skill string
+    ---@param name string
+    ---@param tiers string[]
+    ---@param args table the request to send with the result
+    local function RollFor(tok, attrid, skill, name, tiers, args)
+        local id = m_ctx.id
+        Request({ kind = "rolling", on = true })
+        Puzzle.RollTest(tok, attrid, skill, name, tiers, function()
+            return not Puzzle.Status(id).solved and not Puzzle.Status(id).failed
+        end, function(tier, natural)
+            args.tokenid = tok.charid
+            args.tier = tier
+            args.natural = natural
+            Puzzle.Request(id, args)
+        end, function()
+            Puzzle.Request(id, { kind = "rolling", on = false })
+        end)
+    end
+
+    --The Study button on a module page, for whoever holds it.
+    ---@param key string
+    ---@return Panel|nil
+    local function StudyButton(key)
+        local state = State()
+        local role = RoleOf(state, m_ctx.userid, m_ctx.isDirector)
+        if key:sub(1, 1) ~= "m" or m_ctx.config.study == false or m_ctx.readonly or (role ~= "reader" and role ~= "solo") then
+            return nil
+        end
+        local tok = Puzzle.MyHero()
+        local reason = nil
+        if tok == nil then
+            reason = "Select your hero to study."
+        elseif (state.studied or {})[tok.charid] then
+            reason = "Your hero has studied this ward."
+        end
+        if reason ~= nil then
+            return Label(reason, {"sizeXs", "fgMuted"}, { valign = "center", hmargin = 8 })
+        end
+        return gui.Button{
+            classes = {"sizeXs"}, text = "Study (Reason)", width = "auto", minWidth = 110, hpad = 6, height = 22, hmargin = 8, valign = "center",
+            click = function()
+                RollFor(tok --[[@as CharacterToken]], "rea", "Magic", "Study the ward", STUDY_TIERS, { kind = "study", page = key })
+            end,
+        }
+    end
+
+    --Brace for the hands, More time for the players, the Director's answer.
+    ---@param role string
+    ---@param canAct boolean
+    ---@return Panel[]
+    local function TestRows(role, canAct)
+        local state = State()
+        local rows = {}
+        if canAct and m_ctx.config.brace ~= false then
+            if state.braced then
+                rows[#rows + 1] = Label("Braced: your next slip won't count.", {"sizeS", "bold"}, { tmargin = 4 })
+            else
+                local tok = Puzzle.MyHero()
+                local reason = nil
+                if tok == nil then
+                    reason = "Select your hero to brace."
+                elseif BraceTries(m_ctx.id)[tok.charid] ~= nil then
+                    reason = "Your hero has braced at this seal."
+                end
+                if reason ~= nil then
+                    rows[#rows + 1] = Label(reason, {"sizeS", "fgMuted"}, { tmargin = 4 })
+                else
+                    rows[#rows + 1] = gui.Button{
+                        classes = {"sizeS"}, text = "Brace (Agility)", width = 160, tmargin = 4,
+                        click = function()
+                            RollFor(tok --[[@as CharacterToken]], "agl", "Sabotage", "Brace", BRACE_TIERS, { kind = "brace" })
+                        end,
+                    }
+                end
+            end
+        end
+        if Puzzle.TimeLeft(m_ctx.id) ~= nil and not m_ctx.readonly then
+            if state.timeAsk ~= nil and IsDMOrPlayerHost() then
+                rows[#rows + 1] = gui.Panel{
+                    flow = "horizontal", width = "auto", height = "auto", tmargin = 4,
+                    Label("Someone at the seal asks for more time.", {"sizeS"}, { valign = "center" }),
+                    gui.Button{ classes = {"sizeXs"}, text = "Double the time", width = "auto", hpad = 6, height = 22, hmargin = 4, valign = "center",
+                        click = function() Request({ kind = "timeanswer", give = true }) end },
+                    gui.Button{ classes = {"sizeXs"}, text = "No", width = 50, height = 22, valign = "center",
+                        click = function() Request({ kind = "timeanswer", give = false }) end },
+                }
+            elseif not m_ctx.isDirector then
+                rows[#rows + 1] = gui.Button{
+                    classes = {"sizeS"}, text = state.timeAsk ~= nil and "More time asked" or "More time", width = 160, tmargin = 4,
+                    click = function()
+                        if state.timeAsk == nil then
+                            Request({ kind = "moretime" })
+                        end
+                    end,
+                }
+            end
+        end
+        return rows
+    end
+
+
     --A codex page: click a rule to pencil it out (only you see it).
     local function PageView(key)
         local page = PageFor(State().ward, key)
@@ -1094,19 +1393,25 @@ local function Render(ctx)
         local pencil = g_pencil[m_ctx.id] or {}
         g_pencil[m_ctx.id] = pencil
         local children = {
-            Label(page.title, {"sizeM", "bold"}),
+            gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto",
+                Label(page.title, {"sizeM", "bold"}, { valign = "center" }),
+                StudyButton(key),
+            },
             Label(page.intro, {"sizeS", "fgMuted"}),
         }
+        local marks = State().studyMarks or {}
         if key:sub(1, 1) == "m" then
             children[#children + 1] = Label(PuzzleWardGen.pageHeader, {"sizeS", "bold"})
         end
         for n, line in ipairs(page.lines) do
             local mark = key .. ":" .. n
-            local out = pencil[mark] == true
+            local studied = type(marks[key .. "_" .. n]) == "table"
+            local out = pencil[mark] == true or studied
             children[#children + 1] = gui.Label{
                 classes = {"sizeS", out and "fgMuted" or "fg"},
                 width = 480, height = "auto", vmargin = 1,
-                text = out and ("<s>" .. line .. "</s>") or line,
+                text = out and ("<s>" .. line .. "</s>" .. (studied and " (studied)" or "")) or line,
                 press = function()
                     pencil[mark] = (not out) or nil
                     Refresh()
@@ -1308,6 +1613,9 @@ local function Render(ctx)
         if role == "hands" or role == "solo" or role == "director" then
             children[#children + 1] = WardView(canAct)
         end
+        for _, row in ipairs(TestRows(role, canAct)) do
+            children[#children + 1] = row
+        end
         local show = pages
         if role == "solo" or role == "director" then
             show = PageKeys(state.ward)
@@ -1389,6 +1697,12 @@ local function IsCustom(config)
     return config.preset == "custom"
 end
 
+---@param config table
+---@return boolean
+local function HasTests(config)
+    return config.brace ~= false or config.study ~= false
+end
+
 PuzzleType.Register{
     id = "wardedseal",
     name = "Warded seal",
@@ -1412,6 +1726,13 @@ PuzzleType.Register{
             { id = "chained", text = "Chained (uses the Lexicon)" },
         } },
         { id = "strikes", type = "number", label = "Strikes before it bursts", default = 3, min = 1, max = 5, visible = IsCustom },
+        { id = "brace", type = "toggle", label = "Brace test for the hands (Agility, Sabotage)", default = true },
+        { id = "study", type = "toggle", label = "Study the ward test for readers (Reason, Magic)", default = true },
+        { id = "testDifficulty", type = "choice", label = "Test difficulty", default = "medium", visible = HasTests, options = {
+            { id = "easy", text = "Easy" },
+            { id = "medium", text = "Medium" },
+            { id = "hard", text = "Hard" },
+        } },
         { id = "hint", type = "text", label = "Hint", default = "" },
     },
     --changing what the ward is made of makes a new ward.

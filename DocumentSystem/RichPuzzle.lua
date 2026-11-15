@@ -589,8 +589,9 @@ end
 --The settings popup's contents: type picker, the type's fields, time limit.
 ---@param id string
 ---@param onTypeChosen fun(typeid: string)
+---@param skipImages boolean|nil true where the image field is already shown beside the setup (the annotations strip)
 ---@return Panel
-function Puzzle.SetupPanel(id, onTypeChosen)
+function Puzzle.SetupPanel(id, onTypeChosen, skipImages)
     local def = Puzzle.GetType(id)
     local config = Puzzle.ReadConfig(id)
     local rows = {}
@@ -623,7 +624,7 @@ function Puzzle.SetupPanel(id, onTypeChosen)
     if def ~= nil then
         local fieldRows = {}
         for _, field in ipairs(def.fields) do
-            if field.type ~= "image" then
+            if field.type ~= "image" or not skipImages then
                 local control = FieldControl(field, config, function(changes)
                     SetConfig(changes)
                     for _, row in ipairs(fieldRows) do
@@ -745,7 +746,7 @@ function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
                     element.popup = nil
                     resultPanel.data.builtFor = nil
                     resultPanel:FireEvent("refreshEditor")
-                end)
+                end, true)
             end,
         },
         tile,

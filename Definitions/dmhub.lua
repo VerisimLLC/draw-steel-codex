@@ -1528,6 +1528,17 @@ function dmhub.RunSteamHandoffDiagnostic(variant, onComplete) end
 --- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete) end
 
+--- Reads a secret stored on this machine only with @see SetLocalSecret (Windows: DPAPI for this Windows user; macOS: the keychain). Returns nil when there is none. Keys are [a-z0-9_-], at most 64 characters.
+--- @param key string
+--- @return nil|string
+function dmhub.GetLocalSecret(key) end
+
+--- Stores a secret on this machine only, never in the cloud, logs or settings files: for credentials such as a partner's device token. nil or an empty string removes it. Returns false when it could not be stored.
+--- @param key string
+--- @param value nil|string
+--- @return boolean
+function dmhub.SetLocalSecret(key, value) end
+
 --- Open the given URL in a web browser. Only links to certain approved domains will be allowed for security reasons.
 --- @param url? string
 function dmhub.OpenURL(url) end

@@ -3,8 +3,9 @@
 A puzzle type is one Lua file that calls `PuzzleType.Register{...}`. The framework does
 everything around it: shared state and sync, late joiners, the Solved / Failed banner,
 the chat line, timers, Director Reset / Solve / Bypass, hints, roles, per-player assists,
-and showing the puzzle in a journal page (`[[puzzle:Name]]`) or behind a Puzzle Lock on a
-map object. Your file only says what the puzzle looks like and how a move changes it.
+and showing the puzzle in a journal page (`[[puzzle:Name]]`), behind a Puzzle Lock on a
+map object, on the table, the icon rail or in chat -- one puzzle in any number of these
+places (see "Where a puzzle lives"). Your file only says what the puzzle looks like and how a move changes it.
 
 Worked example: `DocumentSystem/PuzzleTerminal.lua` (a password terminal with a code
 sheet only one role can read). Others: `RichSliderPuzzle.lua` (click-only grid),
@@ -93,7 +94,8 @@ setup popup does not tick). Every puzzle also gets a "Time limit" field from the
 |---|---|
 | `ctx.state`, `ctx.config` | The board and the Director's setup. Copies: change the board only through `ctx:Change`. |
 | `ctx:Change(fn, description)` | `fn(state, config)` edits a copy; return `false` to cancel. Saved, synced, checked for solve/fail. |
-| `ctx.readonly` | True when solved, failed, or the journal page is in edit mode. Ignore input then. |
+| `ctx.readonly` | True when solved, failed, the journal page is in edit mode, or `ctx.away`. Ignore input then. |
+| `ctx.away` | A player opened a lock's puzzle away from the lock (a page, the table, chat). The frame already makes your panel take no clicks; dim or explain if you like. |
 | `ctx.solved`, `ctx.failed`, `ctx.status` | Outcome. The framework draws the banner; you only adjust your own look if you want. |
 | `ctx.now` | `dmhub.serverTime`: within about half a second on every client. |
 | `ctx.random(k)` | Seeded integer in 1..k: the same on every client for the same board. |
@@ -309,6 +311,73 @@ PuzzleEffect.Register{
 }
 ```
 
+## Where a puzzle lives (placement)
+
+One puzzle can live in several places at once, and they all show the same board. The
+Director puts it there from the Puzzles panel: drag a row, or use its Place menu (also on
+right-click). Code: `PuzzlePlace.lua` (building blocks), `PuzzlePlaceMap.lua` (the map),
+`PuzzleShare.lua` (table, rail, chat, and the row's drag to every surface).
+
+| Place | How it gets there | Home kind |
+|---|---|---|
+| A map object | Dropped on it, Place on map + click, or Lock the selected object: a Puzzle Lock component is added (or an existing one repointed) | `lock` |
+| Empty floor | Dropped there: a Puzzle switch (or Combination lock) object is placed | `lock` |
+| Near a door | Dropped by a drawn door or a door object: a lock object with "Unlock this door" already set | `lock` |
+| A journal page | Dropped on the page: a `[[puzzle:...]]` tag whose `puzzleid` names this puzzle | `journal` |
+| The table | Dropped on the bare table, or Put on your table: a table item (share it from its title bar) | `table` |
+| The icon rail | Dropped on a rail, or Add to your rail: a button | `rail` |
+| Chat | Dropped on chat, or Post in chat: a link anyone can click | (not a home) |
+
+**Homes.** `Puzzle.Homes(id)` returns home key -> `{kind, floorid, objid, docid, tag, placed}`
+from the index document. `placed` records what placing added (`"component"`, `"object"`), so
+`PuzzlePlace.RemoveHome` takes exactly that away; a lock the Director built by hand keeps its
+component with an empty puzzle id. Deleting tag text or a component sends no event, so the
+panel checks every home each time it builds (`PuzzlePlace.HomeLive`) and shows gone ones
+with Clear. Old single-home index entries (`kind`/`floorid`/`objid`/`docid` on the entry) are
+read as one home and moved into `homes` on their next write.
+
+**Journal tags.** A tag's puzzle is `Puzzle.JournalId(tag, prefix)`: its `puzzleid` field when
+set, else the page's own id (`Puzzle.OwnJournalId`: page + tag name). The lock setup and the
+tag's cog offer "Use an existing puzzle" (`Puzzle.SetupPanel`'s `pick`); a lock that moves
+to another puzzle takes its targets and range with it (`PuzzlePlace.MoveLock`).
+
+**Table, rail and chat are the journal's own.** A puzzle is a stand-in journal entry
+`"puzzle:<id>"`: `CustomDocument.JournalEntryProviders.puzzle` returns a plain table marked
+`virtual` (description, `kindName` "Puzzle: Solved", `icon`, `open()`, `DisplayPanel` for the
+hover preview), and `FindJournalEntry`, `JournalEntryKindName/Icon` and `OpenContent` honour
+it. So `Tabletop.OpenDocItem("puzzle:<id>")`, the rail's `"journal:puzzle:<id>"` key and
+`ChatItemLinks.DocItem("puzzle:<id>")` need no puzzle code of their own. Another module can
+add its own prefix the same way. (`CustomDocument` is a GameType: reading an unset field on
+it raises, so use `rawget`.)
+
+**Solve at the lock.** `Puzzle.SolveOnlyAtLock(id)` is true when the puzzle has locks and the
+lock setup's "Can be solved from anywhere" (`config.solveAnywhere`) is off. A window opened
+at the lock passes `atLock = true` to `Puzzle.OpenWindow` / `Puzzle.CreatePanel`; anywhere
+else a player gets the board built non-interactive, `ctx.away`, and "Solve this at the ...".
+The Director is never away.
+
+**Puzzle-wide actions.** `Puzzle.ConfirmWide(id, title, lines, confirmText, fn, opts)` asks
+before Reset (always), Solve, Bypass and a type change when the puzzle lives in more than
+one place, naming the places, who is in it (`Puzzle.UserNameWhere`) and the lock effects
+(`Puzzle.LockEffectLines`). Use it for any new action that changes every place at once.
+
+**Presence says where.** `Puzzle.MarkPresent(id, present, where)`: "at the Chest" (lock),
+"on Handout 3" (page frames), "from chat" (`ChatItemLinks.openingFromChat` is true while a
+chat link opens). Directors never trigger a Join notice and are left out of players'
+presence lines.
+
+**Map placement gotchas.**
+- `obj:AddComponent` returns a component with no properties: find the new key in
+  `obj.components`, then `properties:Construct("PuzzleLock")`.
+- The hit test is each object's `area` padded half a tile, smallest wins; boxes under a
+  tenth of a tile (glow and scratch effects) count only with the point inside.
+- `obj:Destroy()` takes several seconds to show.
+- `GameHud:ModalDialog` closes the top modal after a button's click returns, so a confirm
+  opened from another confirm's button would close at once: schedule it (0.05 s).
+- Place on map catches the click on a see-through layer in `GameHud.instance.bannerLayer`;
+  in the tabletop view only clicks inside the live map window count
+  (`Tabletop.MapWindowRect`).
+
 ## Accessibility checklist
 
 The framework gives every type a Bypass, a Draw Steel "Force it" test on locks (once per
@@ -327,7 +396,12 @@ adjustable timers. Your type must still:
   A page made from Lua also needs the tag's annotation, which the editor adds when you
   type the tag: `annotations = { ["puzzle:Name"] = tag }` with
   `tag = RichPuzzle.Create(); tag.identifier = "Name"`. Without it the tag draws nothing.
-- The Director's Panels -> Puzzles -> New puzzle makes a puzzle with no page or lock.
+- The Director's Panels -> Puzzles -> New puzzle makes a puzzle with no page or lock; its
+  Place menu puts it anywhere without dragging (`PuzzlePlace.PlaceAt`, `PutOnTable`,
+  `AddToRail`, `PostInChat` from Lua). Remove test homes with `PuzzlePlace.RemoveEverywhere`
+  and the puzzle with `PuzzlePlace.Forget`, by id.
+- A page drop is easiest to test by dragging onto an open page (`doc:ShowDocument()`); the
+  drop goes through the page's `itemLinkDrop`, not through puzzle code.
 - A second window as a player: `dmhub.DuplicateWindowInNewProcess{asplayer = true}`.
   A window started before a new file was registered does not load it; restart it.
 - The Director's Panels -> Puzzles list shows every puzzle, its state and who is at it.

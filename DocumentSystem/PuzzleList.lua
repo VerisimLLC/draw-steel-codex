@@ -53,7 +53,7 @@ end
 ---@return PuzzleListHome
 local function BuildHome(id, key, home)
     local live = PuzzlePlace.HomeLive(id, home)
-    local kindText = cond(home.kind == "lock", "Lock", "Page")
+    local kindText = ({ lock = "Lock", journal = "Page", table = "Table", rail = "Rail" })[home.kind] or "Place"
     local result = {
         key = key,
         home = home,
@@ -116,7 +116,7 @@ local function BuildRow(id, entry)
     table.sort(row.homes, function(a, b) return a.text < b.text end)
 
     if #row.homes == 0 then
-        row.where = cond(entry.kind == "standalone", "In the Puzzles panel", "Not in any place")
+        row.where = "Not placed yet. Drag it onto a page, an object, the table or chat."
     else
         row.where = string.format("%d %s%s", #row.homes, cond(#row.homes == 1, "place", "places"),
             cond(gone > 0, string.format(", %d gone", gone), ""))
@@ -270,6 +270,10 @@ local function HomePanel(row, h)
                 lines[#lines + 1] = cond(home.placed == "object", "The lock object is taken off the map.",
                     cond(home.placed == "component", "The object stops being a lock.", "The object keeps its Puzzle Lock, with no puzzle set."))
                 lines[#lines + 1] = "What this lock opens is forgotten."
+            elseif home.kind == "table" then
+                lines[#lines + 1] = "The puzzle is taken off your table, and off the players' tables if you shared it."
+            elseif home.kind == "rail" then
+                lines[#lines + 1] = "The button is taken off your icon rail."
             else
                 lines[#lines + 1] = "The puzzle is taken off the page."
             end
@@ -334,16 +338,7 @@ local function RowPanel(row)
             return
         end
         placeButton.popup = gui.ContextMenu{
-            entries = {
-                { text = "Place on map", click = function()
-                    placeButton.popup = nil
-                    PuzzlePlace.StartPlacing(id)
-                end },
-                { text = "Lock the selected object", click = function()
-                    placeButton.popup = nil
-                    PuzzlePlace.LockSelected(id)
-                end },
-            },
+            entries = PuzzlePlace.MenuEntries(id, function() placeButton.popup = nil end),
         }
     end)
     buttons[#buttons + 1] = placeButton
@@ -385,6 +380,18 @@ local function RowPanel(row)
             flow = "horizontal",
             width = "100%",
             height = "auto",
+            --the grip: the row drags.
+            gui.Panel{
+                width = 14,
+                height = 14,
+                halign = "left",
+                valign = "center",
+                rmargin = 4,
+                bgimage = "ui-icons/ph-dots-six-vertical-fill.png",
+                bgcolor = "white",
+                opacity = 0.6,
+                interactable = false,
+            },
             gui.Label{
                 classes = {"sizeM", "bold"},
                 width = "auto",
@@ -450,16 +457,27 @@ local function RowPanel(row)
         vmargin = 3,
         pad = 6,
         borderBox = true,
-        --dragged onto the map: lock an object, or place a lock object.
+        --dragged onto a page, chat, the rail, the table or the map.
         draggable = true,
+        canDragOnto = function(element, target)
+            return PuzzlePlace.RowCanDragOnto(target)
+        end,
         dragging = function(element, target)
-            PuzzlePlace.RowDragging(id)
+            PuzzlePlace.RowDraggingAnywhere(element, id, target)
         end,
         drag = function(element, target)
-            PuzzlePlace.RowDropped(id)
+            PuzzlePlace.RowDroppedAnywhere(element, id, target)
         end,
         destroy = function(element)
             PuzzlePlace.RowDragEnded()
+        end,
+        rightClick = function(element)
+            element.popup = gui.ContextMenu{
+                entries = PuzzlePlace.MenuEntries(id, function() element.popup = nil end),
+            }
+        end,
+        hover = function(element)
+            gui.Tooltip("Drag onto a page, an object, the table, the rail or chat. Right-click to place it.")(element)
         end,
         children = children,
     }

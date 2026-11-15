@@ -29,6 +29,7 @@ local g_status = nil
 local function SetStatus(text, undo)
     g_status = { text = text, undo = undo, time = dmhub.Time() }
 end
+PuzzlePlace.SetStatus = SetStatus
 
 --The last placement's line for the Puzzles panel, while it is fresh.
 ---@return PuzzlePlaceStatus|nil

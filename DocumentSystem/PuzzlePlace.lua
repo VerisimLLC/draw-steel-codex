@@ -2,8 +2,9 @@ local mod = dmhub.GetModLoading()
 
 -- Putting puzzles in places and taking them out again: the object under a map
 -- point, a drawn door near it, making an object a lock (or placing a lock object
--- on empty floor), clearing a lock, taking a puzzle tag off a page, and checking
--- that each home a puzzle's index entry lists is still there. The Puzzles panel
+-- on empty floor), clearing a lock, taking a puzzle tag off a page or the table
+-- or the rail, and checking that each home a puzzle's index entry lists is
+-- still there. The Puzzles panel
 -- and the placement drags (PuzzleList.lua) use these; the homes themselves are
 -- in PuzzleFramework.lua (Puzzle.Homes).
 
@@ -110,6 +111,10 @@ function PuzzlePlace.HomeLive(id, home)
             end
         end
         return false
+    elseif home.kind == "table" then
+        return Tabletop.HasDocItem(PuzzlePlace.EntryId(id))
+    elseif home.kind == "rail" then
+        return IconRailKeySlot(PuzzlePlace.RailKey(id)) ~= nil
     end
     return false
 end
@@ -133,6 +138,10 @@ function PuzzlePlace.HomeName(home)
     elseif home.kind == "journal" then
         local page = home.docid ~= nil and Page(home.docid) or nil
         return page ~= nil and tostring(page.description) or "A page"
+    elseif home.kind == "table" then
+        return "your table"
+    elseif home.kind == "rail" then
+        return "your icon rail"
     end
     return "Somewhere"
 end
@@ -437,6 +446,10 @@ function PuzzlePlace.RemoveHome(id, key)
         PuzzlePlace.ClearLock(id, home)
     elseif home.kind == "journal" then
         PuzzlePlace.ClearPage(id, home)
+    elseif home.kind == "table" then
+        Tabletop.RemoveDocItem(PuzzlePlace.EntryId(id))
+    elseif home.kind == "rail" then
+        IconRailKeyPurge(PuzzlePlace.RailKey(id))
     end
     Puzzle.RemoveHome(id, key)
 end

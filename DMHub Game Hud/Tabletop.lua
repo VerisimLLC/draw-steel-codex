@@ -9101,6 +9101,24 @@ do
         AnimateGhost(DocGhost(entry), from, to, done)
     end
 
+    --- Whether a journal entry (or another entry that goes on the table, a
+    --- puzzle's "puzzle:<id>") has an item on this user's table.
+    --- @param entryid string
+    --- @return boolean
+    function Tabletop.HasDocItem(entryid)
+        return DocItemById(entryid) ~= nil
+    end
+
+    --- Takes an entry's item off this user's table and stops sharing it.
+    --- @param entryid string
+    function Tabletop.RemoveDocItem(entryid)
+        local item = DocItemById(entryid)
+        if item ~= nil then
+            CloseDocItem(item)
+        end
+        UnshareItem(DocItemId(entryid))
+    end
+
     --- Whether a rail button for a journal entry can go back to the table.
     --- @param entryid string
     --- @return boolean

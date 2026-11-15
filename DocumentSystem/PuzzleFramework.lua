@@ -298,8 +298,9 @@ function Puzzle.Exists(id)
 end
 
 --One place a puzzle lives. A puzzle can live in several (a lock and a page).
+--table and rail are the Director's own table item and rail button.
 ---@class PuzzleHome
----@field kind "lock"|"journal"
+---@field kind "lock"|"journal"|"table"|"rail"
 ---@field floorid string|nil a lock's floor
 ---@field objid string|nil a lock's object
 ---@field docid string|nil a journal puzzle's page
@@ -332,6 +333,8 @@ function Puzzle.HomeKey(home)
         return Puzzle.SafeId(string.format("lock_%s_%s", home.floorid, home.objid))
     elseif home.kind == "journal" and home.docid ~= nil then
         return Puzzle.SafeId(string.format("journal_%s_%s", home.docid, tostring(home.tag or "")))
+    elseif home.kind == "table" or home.kind == "rail" then
+        return home.kind
     end
     return nil
 end
@@ -347,6 +350,8 @@ local function SameHome(homes, home)
             if home.kind == "lock" and h.floorid == home.floorid and h.objid == home.objid then
                 return key
             elseif home.kind == "journal" and h.docid == home.docid and (h.tag == nil or home.tag == nil or h.tag == home.tag) then
+                return key
+            elseif home.kind == "table" or home.kind == "rail" then
                 return key
             end
         end
@@ -417,7 +422,7 @@ end
 function Puzzle.IndexPuzzle(id, info)
     local current = mod:GetDocumentSnapshot(INDEX_DOC).data[id]
     local home = nil
-    if info ~= nil and (info.kind == "lock" or info.kind == "journal") then
+    if info ~= nil and info.kind ~= "standalone" then
         home = info --[[@as PuzzleHome]]
     end
     local standalone = info ~= nil and info.kind == "standalone"

@@ -91,7 +91,7 @@ Run `../dependencies/lua/bin/lua.exe tests/ai_advance_test.lua` and
 `../dependencies/lua/bin/lua.exe tests/ai_minion_critical_test.lua` from the codex
 root to check route selection, action economy, attack priority, and squad retries.
 
-### Zone directives (Avoid, Force Into, Hold)
+### Zone directives (Avoid, Force Into, Hold, Retreat)
 
 A zone type (Environmental Keyword) can carry "Monster AI Directives": a list
 of entries edited in the keyword editor ("Add Monster AI Directive..."), stored
@@ -123,6 +123,38 @@ checked), cached per frame.
   shifts) asks `MonsterAI.HoldPermits(token, loc)`; `MonsterAI.Holds`,
   `MonsterAI.InHoldZone` and `MonsterAI.HoldSquares` are the other helpers.
   The Angulotl Daybringer holds the Ritual Basin in Aixco Hollow this way.
+- **Retreat**: where monsters run to once an Encounter Script says they want
+  to retreat; see "Retreating" below. The encounter's own Retreat Zone (drawn
+  with the Retreat Zone badge in the encounter builder, stored as
+  `Encounter.retreatLocs`) counts for every creature, as do zone types with
+  this directive (filter checked on the creature that flees).
+
+### Retreating
+
+Monsters never retreat unless an Encounter Script on the encounter has a
+`retreat = function(ctx, token)` that returns true for them (the "Retreat"
+built-in in `MCDMEncounter.lua`, with "Retreat When: When Outnumbered" etc.,
+latches once the heroes outnumber the monsters, a minion squad counting as
+one). `MonsterAI.WantsToRetreat(token)` asks it, and only when the creature
+has somewhere to go (`MonsterAI.RetreatSquares`). `PlayTurnCoroutine` then
+runs `ExecuteRetreat` for the actor (or every member of a squad) instead of
+the normal move cycles:
+
+- It shouts once per combat ("Retreat!", "Run!", "I need to get out of
+  here!": `MonsterAI.retreatSpeech`).
+- `PlanRetreat` compares walking, dashing (main action as a move) and
+  Disengage plus a dash, routes each to the reachable Retreat square (checked
+  with `MarkMovementArrow`, `MonsterAI.retreatRouteTries` routes), and ranks
+  them by: reaches the zone, then fewer opportunity attacks along the route
+  (`OpportunityAttacksAlongRoute`), then keeps the main action, then shorter.
+- With the main action kept, it first takes a parting strike from where it
+  stands (`RetreatStrikeInPlace`: strike moves only, no charge, no moving;
+  minions never), then moves.
+- A creature in a Retreat square leaves the map (`ExitThroughRetreatZone`:
+  `token.despawned`, logged `RETREAT ESCAPED`) and is recorded with
+  `LiveEncounter:RecordRetreat` (`live:GetRetreated()`), which Encounter of the
+  Week stores with the part's result (`retreats`, `retreated`).
+- A creature with no route at all fights on as normal.
 
 ### Player reactions during AI movement
 

@@ -4537,6 +4537,7 @@ end
 --The MapTools id the builder's rectangle tool claims (DMHub Core UI/MapToolArbiter.lua).
 local AREA_TOOL_ID = "encounterarea"
 local START_ZONE_EDIT_COLOR = "#79d2a0"
+local RETREAT_ZONE_EDIT_COLOR = "#e0a15a"
 
 --The tiles a closed rectangle stroke covers: those whose centers it contains
 --(tile (x, y) is centred on world (x, y)). A click-sized stroke gives the tile
@@ -4579,17 +4580,36 @@ end
 --The region shrinks the map's bounds during combat, and the start zone confines
 --the heroes until combat starts: see "Encounter region and hero start zone" in
 --MCDMEncounter.lua.
+--The Retreat Zone badge shows once the encounter has a script that makes
+--monsters retreat (the Retreat built-in) or already has retreat tiles: the
+--tiles the Monster AI runs retreating monsters to.
 local function CreateEncounterAreaBadges(encounter, refresh)
     local column
 
-    --nil, "region" (one rectangle, then done) or "start" (rectangles add
-    --tiles until the badge is pressed again).
+    --nil, "region" (one rectangle, then done), "start" or "retreat"
+    --(rectangles add tiles until the badge is pressed again).
     local drawing = nil
 
     local startMarker = nil
     local startMarkerKey = nil
     --bumped by every start zone edit, so the outline is rebuilt.
     local startVersion = 0
+
+    local retreatMarker = nil
+    local retreatMarkerKey = nil
+    local retreatVersion = 0
+
+    --does an attached script decide when monsters retreat?
+    local function HasRetreatScript()
+        for _, instance in ipairs(encounter:GetScripts()) do
+            local def = nil
+            pcall(function() def = instance:GetDefinition() end)
+            if def ~= nil and def.retreat ~= nil then
+                return true
+            end
+        end
+        return false
+    end
 
     local function OnEncounterMap()
         return encounter.mapid ~= "" and encounter.mapid == game.currentMapId
@@ -4630,6 +4650,37 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         startMarkerKey = nil
     end
 
+    local function ClearRetreatMarker()
+        if retreatMarker ~= nil then
+            pcall(function() retreatMarker:Destroy() end)
+            retreatMarker = nil
+        end
+        retreatMarkerKey = nil
+    end
+
+    local function UpdateRetreatMarker(floorCount)
+        local retreatLocs = encounter:GetRetreatLocs()
+        local key = nil
+        if OnEncounterMap() and #retreatLocs > 0 then
+            key = string.format("%s|%d|%d", encounter.mapid, retreatVersion, floorCount)
+        end
+        if key == retreatMarkerKey then
+            return
+        end
+        ClearRetreatMarker()
+        if key == nil then
+            return
+        end
+        retreatMarkerKey = key
+        local locs = Encounter.StartLocsOnCurrentMap(retreatLocs)
+        if #locs > 0 then
+            retreatMarker = dmhub.MarkLocs {
+                locs = locs,
+                color = RETREAT_ZONE_EDIT_COLOR,
+            }
+        end
+    end
+
     --the desaturated surround and the start zone outline, kept matching the
     --encounter and whatever map is on screen.
     local function UpdateMapVisuals()
@@ -4649,6 +4700,7 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         local startLocs = encounter:GetHeroStartLocs()
         local floorCount = 0
         pcall(function() floorCount = #game.currentMap.floors end)
+        UpdateRetreatMarker(floorCount)
         local key = nil
         if OnEncounterMap() and #startLocs > 0 then
             key = string.format("%s|%d|%d", encounter.mapid, startVersion, floorCount)
@@ -4696,7 +4748,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         refresh()
     end
 
-    local function DrawStartTiles(x1, y1, x2, y2)
+    --adds a rectangle of tiles on the current floor to the start zone, or
+    --(retreat = true) to the Retreat Zone.
+    local function DrawStartTiles(x1, y1, x2, y2, retreat)
         local floor = game.currentFloor
         if floor == nil then
             return
@@ -4705,7 +4759,11 @@ local function CreateEncounterAreaBadges(encounter, refresh)
 
         local locs = {}
         local seen = {}
-        for _, l in ipairs(encounter:GetHeroStartLocs()) do
+        local existing = encounter:GetHeroStartLocs()
+        if retreat then
+            existing = encounter:GetRetreatLocs()
+        end
+        for _, l in ipairs(existing) do
             local k = string.format("%s:%d:%d", l.floor, l.x, l.y)
             if not seen[k] then
                 seen[k] = true
@@ -4722,8 +4780,13 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             end
         end
 
-        encounter:SetHeroStartLocs(locs)
-        startVersion = startVersion + 1
+        if retreat then
+            encounter:SetRetreatLocs(locs)
+            retreatVersion = retreatVersion + 1
+        else
+            encounter:SetHeroStartLocs(locs)
+            startVersion = startVersion + 1
+        end
         refresh()
     end
 
@@ -4848,6 +4911,66 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         end,
     }
 
+    local retreatBadge = gui.Label {
+        classes = { "encounterBadge", "encounterAreaBadge" },
+        width = "100%-22",
+        height = "auto",
+        textAlignment = "center",
+        text = "",
+
+        refreshBuilder = function(element)
+            local count = #encounter:GetRetreatLocs()
+            element:SetClass("drawing", drawing == "retreat")
+            if drawing == "retreat" then
+                element.text = "Done Drawing"
+            elseif count == 0 then
+                element.text = "No Retreat Zone"
+            else
+                element.text = string.format("Retreat Zone: %d %s", count, cond(count == 1, "tile", "tiles"))
+            end
+        end,
+
+        hover = function(element)
+            local text
+            if drawing == "retreat" then
+                text = "Drag rectangles on the map to add the tiles retreating monsters run to. Click when you are done."
+            elseif #encounter:GetRetreatLocs() == 0 then
+                text = "Click, then drag rectangles on the map to mark where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map."
+            else
+                text = "Where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map. Click to add more tiles."
+            end
+            gui.Tooltip(text)(element)
+        end,
+
+        press = function(element)
+            if drawing == "retreat" then
+                StopDrawing()
+                refresh()
+            else
+                StartDrawing("retreat")
+            end
+        end,
+    }
+
+    local retreatClear = gui.DeleteItemButton {
+        width = 16,
+        height = 16,
+        valign = "center",
+        lmargin = 6,
+        hover = gui.Tooltip("Clear the Retreat Zone."),
+        refreshBuilder = function(element)
+            element:SetClass("hidden", #encounter:GetRetreatLocs() == 0)
+        end,
+        click = function(element)
+            encounter:SetRetreatLocs(nil)
+            retreatVersion = retreatVersion + 1
+            if drawing == "retreat" then
+                StopDrawing()
+            end
+            refresh()
+        end,
+    }
+
     column = gui.Panel {
         width = MAP_CARD_WIDTH,
         height = "auto",
@@ -4876,6 +4999,7 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             StopDrawing()
             MapTools.Unregister(AREA_TOOL_ID)
             ClearStartMarker()
+            ClearRetreatMarker()
             dmhub.SetMapFocusRegion(nil)
         end,
 
@@ -4908,7 +5032,7 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             if drawing == "region" then
                 DrawRegion(x1, y1, x2, y2)
             else
-                DrawStartTiles(x1, y1, x2, y2)
+                DrawStartTiles(x1, y1, x2, y2, drawing == "retreat")
             end
         end,
 
@@ -4930,6 +5054,18 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             tmargin = 4,
             startBadge,
             startClear,
+        },
+
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            refreshBuilder = function(element)
+                element:SetClass("collapsed", #encounter:GetRetreatLocs() == 0 and drawing ~= "retreat" and not HasRetreatScript())
+            end,
+            retreatBadge,
+            retreatClear,
         },
     }
 

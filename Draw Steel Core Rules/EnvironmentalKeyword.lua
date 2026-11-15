@@ -105,6 +105,12 @@ EnvironmentalKeyword.aiDirectiveTypes = {
 		tooltip = "Creatures the Monster AI controls treat a zone of this type as their post: when they can reach it they always end their movement inside it, and one that is driven out heads back before doing anything else.",
 		filterHelp = "Which creatures hold zones of this type. Leave it empty for every creature the Monster AI controls.",
 	},
+	{
+		id = "retreat",
+		text = "Retreat",
+		tooltip = "Where creatures the Monster AI controls run to once they want to retreat (an Encounter Script decides when). A retreating creature flees here, avoiding opportunity attacks where it can, and leaves the map once it reaches the zone. Monsters never retreat unless a script says so.",
+		filterHelp = "Which creatures may escape through zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
 }
 
 --- This keyword's Monster AI directives. A keyword saved before the list

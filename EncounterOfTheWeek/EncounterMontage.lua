@@ -230,7 +230,7 @@ function EncounterMontage.Story(doc)
             for k, v in pairs(story.parts or {}) do
                 local n = tonumber(string.match(tostring(k), "^p(%d+)$"))
                 if n ~= nil and type(v) == "table" then
-                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats) }
                 end
             end
             for _, rec in pairs(story.tracks or {}) do
@@ -241,7 +241,7 @@ function EncounterMontage.Story(doc)
         end
         local r = doc.data.seriesResult
         if type(r) == "table" then
-            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds) }
+            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds), retreats = tonumber(r.retreats) }
         end
     end)
     return result
@@ -288,7 +288,7 @@ function EncounterMontage.SeedStory(doc, part, carried)
             local n = tonumber(k) or tonumber(string.match(tostring(k), "^p(%d+)$"))
             if n ~= nil and n < part then
                 if type(v) == "table" then
-                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats) }
                 else
                     story.parts["p" .. n] = "not recorded"
                 end
@@ -405,7 +405,25 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
     local perHero = totals.score / heroes
     local bars = (results ~= nil and results.bars) or EncounterScript.DEFAULT_OUTCOME_BARS
     local outcome = EncounterMontage.OutcomeFor(perHero, bars)
+    --the monsters that escaped through a Retreat zone (LiveEncounter:RecordRetreat).
+    local retreated = {}
+    pcall(function()
+        local q = dmhub.initiativeQueue
+        local live = q ~= nil and q:try_get("liveEncounter") or nil
+        if type(live) == "table" then
+            for _, rec in ipairs(live:GetRetreated()) do
+                local keywords = {}
+                for keyword in pairs(rec.keywords or {}) do
+                    keywords[#keywords + 1] = keyword
+                end
+                table.sort(keywords)
+                retreated[#retreated + 1] = { name = rec.name, monsterType = rec.monsterType, keywords = keywords, minion = rec.minion }
+            end
+        end
+    end)
     local stamp = {
+        retreats = #retreated,
+        retreated = retreated,
         part = parse.part.number,
         outcome = outcome,
         score = totals.score,
@@ -442,8 +460,8 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
     end
     doc.data.seriesResult = stamp
     doc:CompleteChange("Encounter of the Week: series result", { undoable = false })
-    printf("EotW story: Part %d result: %s (score %d, %.2f per hero over %d heroes; %d successes, %d failures, %d threats left), won in round %s",
-        stamp.part, outcome, totals.score, perHero, heroes, totals.successes, totals.failures, totals.unvanquished, tostring(rounds))
+    printf("EotW story: Part %d result: %s (score %d, %.2f per hero over %d heroes; %d successes, %d failures, %d threats left), won in round %s, %d monster(s) retreated",
+        stamp.part, outcome, totals.score, perHero, heroes, totals.successes, totals.failures, totals.unvanquished, tostring(rounds), #retreated)
     return stamp
 end
 

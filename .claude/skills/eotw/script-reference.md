@@ -915,9 +915,14 @@ parentheses; comparisons are `2 or more` / `or higher` / `at least 2`,
   joined someone else's party for it). Every other condition about that part is
   false and its track shares count 0. The parser nudges you to handle it.
 - `Part 1 scored 0.5 or more`, `Part 1's fight lasted 5 or more rounds`
+- `Part 2 had 2 or more retreats` (also `had 2 or more monsters retreat`): how
+  many monsters escaped through the Retreat Zone in that part's fight (each
+  creature counts, minions too). The part's result also keeps who they were
+  (`seriesResult.retreated`: name, monster type, keywords, minion).
 - `the previous part ...` works in place of `Part n ...`
 - in `# Results` only, about this part: `total success`, `partial success`,
-  `failure`, `score 0.5 or more`, `the fight lasted 5 or more rounds`
+  `failure`, `score 0.5 or more`, `the fight lasted 5 or more rounds`,
+  `2 or more monsters retreated` / `there were 2 or more retreats`
 
 Where they go:
 

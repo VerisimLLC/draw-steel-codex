@@ -3893,6 +3893,11 @@ end
 -- Unset or empty = no start zone. Once the encounter is placed on the map,
 -- every client shows the zone and players' tokens can only move inside it,
 -- until combat starts.
+--
+-- retreatLocs: the Retreat Zone, same shape as heroStartLocs. When an
+-- Encounter Script says a monster wants to retreat (the Retreat script), the
+-- Monster AI runs it to these tiles and it leaves the map there. Unset = no
+-- Retreat Zone (Retreat zone types painted on the map still count).
 
 --- @alias EncounterRegion {x1: number, y1: number, x2: number, y2: number}
 --- @alias EncounterStartLoc {x: number, y: number, floor: string}
@@ -3926,6 +3931,23 @@ function Encounter:SetHeroStartLocs(locs)
         locs = nil
     end
     self.heroStartLocs = locs
+end
+
+--- @return EncounterStartLoc[]
+function Encounter:GetRetreatLocs()
+    local locs = self:try_get("retreatLocs")
+    if type(locs) ~= "table" then
+        return {}
+    end
+    return locs
+end
+
+--- @param locs EncounterStartLoc[]|nil nil or empty = no Retreat Zone.
+function Encounter:SetRetreatLocs(locs)
+    if locs ~= nil and #locs == 0 then
+        locs = nil
+    end
+    self.retreatLocs = locs
 end
 
 --- @alias EncounterMapRef {pack: string, mapid: string, name: string}
@@ -5731,6 +5753,15 @@ return {
     --     }
     -- end,
 
+    -- Uncomment to make monsters retreat. The Monster AI asks it on the host
+    -- at the start of each monster's turn (ctx is read-only, like a victory
+    -- check). Return true and the monster flees to a zone whose type has the
+    -- "Retreat" Monster AI directive, then leaves the map. With no such zone
+    -- on the map, or no retreat function, monsters never retreat.
+    -- retreat = function(ctx, token)
+    --     return ctx.state.retreating == true
+    -- end,
+
     onPrepare = function(ctx)
     end,
 
@@ -5914,6 +5945,11 @@ local function NormalizeDefinition(def)
     end
     norm.status = def.status
 
+    if def.retreat ~= nil and type(def.retreat) ~= "function" then
+        return nil, "retreat must be a function"
+    end
+    norm.retreat = def.retreat
+
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
@@ -5992,6 +6028,9 @@ function EncounterScript.DescribeDefinition(def)
     end
     if def.status ~= nil then
         parts[#parts + 1] = "initiative bar status"
+    end
+    if def.retreat ~= nil then
+        parts[#parts + 1] = "decides when monsters retreat"
     end
     local handlers = {}
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
@@ -6463,6 +6502,133 @@ end
 --- Evaluate a script's defeat check.
 function EncounterScript.EvaluateDefeatCheck(liveEncounter, instance, def)
     return EvaluateConditionCheck(liveEncounter, instance, def, def.defeat.check, "defeat")
+end
+
+-- ---------------------------------------------------------------------------
+-- Retreat
+-- ---------------------------------------------------------------------------
+-- A script's retreat(ctx, token) decides whether a monster wants to flee. The
+-- Monster AI asks it (MonsterAI.WantsToRetreat) and does the fleeing; a monster
+-- that escapes is noted here so later code (an Encounter of the Week series
+-- part, for one) can see who got away.
+
+--- The live encounter of the current combat, or nil.
+--- @return LiveEncounter|nil
+local function CurrentLiveEncounter()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return nil
+    end
+    local live = q:try_get("liveEncounter")
+    if type(live) ~= "table" then
+        return nil
+    end
+    return live
+end
+
+--- The current combat's Retreat Zone tiles (Encounter:GetRetreatLocs) that lie
+--- on the map on screen, as locs. Empty when there is no combat or zone.
+--- @return Loc[]
+function EncounterScript.LiveRetreatLocs()
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return {}
+    end
+    local mapid = live:try_get("mapid", "")
+    if mapid ~= "" and mapid ~= game.currentMapId then
+        return {}
+    end
+    return Encounter.StartLocsOnCurrentMap(live:GetRetreatLocs())
+end
+
+--- True when an attached Encounter Script's retreat function says this
+--- monster wants to retreat. Runs script code: host/director side only.
+--- @param token CharacterToken
+--- @return boolean
+function EncounterScript.MonsterWantsToRetreat(token)
+    local live = CurrentLiveEncounter()
+    if live == nil or token == nil or not token.valid then
+        return false
+    end
+    for _, instance in ipairs(live:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.retreat ~= nil then
+            local ctx = MakeReadContext(live, instance, def)
+            local ok, result = pcall(def.retreat, ctx, token)
+            if not ok then
+                PrintScriptError(instance, "retreat error: " .. tostring(result))
+            elseif result == true then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- True when any attached Encounter Script has a retreat function, so the
+--- Monster AI can skip the question entirely in ordinary fights.
+--- @return boolean
+function EncounterScript.AnyRetreatScripts()
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return false
+    end
+    for _, instance in ipairs(live:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.retreat ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--Creatures that escaped through a Retreat zone this combat, in order:
+--{ charid, name, monsterType, keywords = {Undead = true, ...}, minion, round }.
+LiveEncounter.retreated = {}
+
+--- Every creature that retreated off the map this combat.
+--- @return {charid: string, name: string, monsterType: string|nil, keywords: table<string,boolean>, minion: boolean, round: number}[]
+function LiveEncounter:GetRetreated()
+    return self:try_get("retreated", {})
+end
+
+--- Note that a creature escaped. The caller removes it from the map and
+--- uploads the queue (the record rides in it).
+--- @param token CharacterToken
+function LiveEncounter:RecordRetreat(token)
+    local props = token.properties
+    local keywords = {}
+    pcall(function()
+        for keyword, on in pairs(props:try_get("keywords", {})) do
+            if on then
+                keywords[keyword] = true
+            end
+        end
+    end)
+    local q = dmhub.initiativeQueue
+    local list = DeepCopy(self:try_get("retreated", {}))
+    list[#list + 1] = {
+        charid = token.charid,
+        name = token.name or props:try_get("monster_type") or "creature",
+        monsterType = props:try_get("monster_type"),
+        keywords = keywords,
+        minion = props.minion == true,
+        round = q ~= nil and q.round or 0,
+    }
+    self.retreated = list
+end
+
+--- Record the creature's escape on the current combat. False with no live
+--- encounter (the creature still leaves; there is just nowhere to note it).
+--- @param token CharacterToken
+--- @return boolean
+function LiveEncounter.RecordCurrentRetreat(token)
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return false
+    end
+    live:RecordRetreat(token)
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -7457,6 +7623,66 @@ return {
         elseif remaining == 1 then
             ctx:Announce(string.format("Round %d: survive this round to win!", ctx.round))
         end
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:retreat",
+    name = "Retreat",
+    description = "The monsters flee to the Retreat Zone and leave the map, starting when you choose (e.g. once the heroes outnumber them).",
+    code = [==[
+--the same count the victory conditions use: live heroes against live
+--monsters plus reinforcements still to come, a minion squad as one.
+local function Outnumbered(ctx)
+    local live = ctx.encounter
+    if live == nil or ctx.queue == nil then
+        return false
+    end
+    local heroes, monsters = live:CountLiveCombatants()
+    monsters = monsters + live:CountPendingReinforcements(dmhub.GetSettingValue("numheroes"))
+    if heroes <= 0 then
+        return false
+    end
+    if ctx.params.when == "two_to_one" then
+        return heroes >= 2 * monsters
+    end
+    return heroes > monsters
+end
+
+return {
+    name = "Retreat",
+    description = "When the moment you choose comes, the monsters left standing flee to the Retreat Zone and leave the map. Draw the zone with the encounter's Retreat Zone button (a zone type with the Monster AI's Retreat directive works too). Once the retreat starts it holds for the rest of the fight. Monsters that escape count as gone for the victory condition.",
+
+    params = {
+        { id = "when", name = "Retreat When", type = "choice", default = "outnumber",
+            options = {
+                { id = "outnumber", text = "When Outnumbered" },
+                { id = "two_to_one", text = "When Outnumbered Two-to-One" },
+            },
+        },
+    },
+
+    --the host latches the retreat the first time the numbers turn, so a
+    --hero going down later does not call the monsters back.
+    think = function(ctx)
+        if not ctx.state.retreating and Outnumbered(ctx) then
+            ctx.state.retreating = true
+        end
+    end,
+
+    --only the heroes' enemies run, never a monster fighting on their side.
+    retreat = function(ctx, token)
+        if Encounter.VictoryUnitKey(token) == nil then
+            return false
+        end
+        for _, other in ipairs(dmhub.allTokens) do
+            if other.properties ~= nil and other.properties:IsHero() and dmhub.TokensAreFriendly(token, other) then
+                return false
+            end
+        end
+        return ctx.state.retreating == true or Outnumbered(ctx)
     end,
 }
 ]==],

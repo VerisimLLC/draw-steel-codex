@@ -3900,8 +3900,8 @@ local OUTCOME_WORDS = {
 }
 
 --A condition atom about the story (lowered text), or nil:
---  { op = "part", part = n|"previous", what = "notrecorded"|"outcome"|"score"|"rounds", outcome, comparison }
---  { op = "this", what = "outcome"|"score"|"rounds", outcome, comparison }  ("# Results" only)
+--  { op = "part", part = n|"previous", what = "notrecorded"|"outcome"|"score"|"rounds"|"retreats", outcome, comparison }
+--  { op = "this", what = "outcome"|"score"|"rounds"|"retreats", outcome, comparison }  ("# Results" only)
 --  { op = "track", name, key, comparison }
 function EncounterScript.ParseStoryAtom(s)
     s = trim(s or "")
@@ -3934,6 +3934,12 @@ function EncounterScript.ParseStoryAtom(s)
         if comparison ~= nil then
             return { op = "part", part = part, what = "rounds", comparison = comparison }
         end
+        --"Part 2 had 2 or more retreats": monsters that escaped through a Retreat zone.
+        local retreatsText = string.match(rest, "^had (.-) retreats?$") or string.match(rest, "^had (.-) monsters? retreat$")
+        comparison = retreatsText ~= nil and EncounterScript.ParseComparison(retreatsText) or nil
+        if comparison ~= nil then
+            return { op = "part", part = part, what = "retreats", comparison = comparison }
+        end
         return nil
     end
     if OUTCOME_WORDS[s] ~= nil then
@@ -3948,6 +3954,11 @@ function EncounterScript.ParseStoryAtom(s)
     comparison = roundsText ~= nil and EncounterScript.ParseComparison(roundsText) or nil
     if comparison ~= nil then
         return { op = "this", what = "rounds", comparison = comparison }
+    end
+    local retreatsText = string.match(s, "^(.-) monsters? retreated$") or string.match(s, "^there were (.-) retreats?$")
+    comparison = retreatsText ~= nil and EncounterScript.ParseComparison(retreatsText) or nil
+    if comparison ~= nil then
+        return { op = "this", what = "retreats", comparison = comparison }
     end
     local name, compareText = string.match(s, "^(.-) is (.+)$")
     comparison = compareText ~= nil and EncounterScript.ParseComparison(compareText) or nil
@@ -3964,9 +3975,9 @@ end
 
 --Answer a story atom. `story` = {
 --  part = this part's number,
---  parts = { [k] = { outcome, score, rounds } | anything else = not recorded },
+--  parts = { [k] = { outcome, score, rounds, retreats } | anything else = not recorded },
 --  tracks = { [track key] = value },
---  this = nil | { outcome, score, rounds }   (only while "# Results" runs) }.
+--  this = nil | { outcome, score, rounds, retreats }   (only while "# Results" runs) }.
 --Returns nil for an atom that is not about the story.
 function EncounterScript.EvalStoryAtom(node, story)
     if not EncounterScript.IsStoryAtom(node) then
@@ -4002,6 +4013,9 @@ function EncounterScript.EvalStoryAtom(node, story)
         return EncounterScript.Compare(result.score, node.comparison)
     elseif node.what == "rounds" then
         return EncounterScript.Compare(result.rounds, node.comparison)
+    elseif node.what == "retreats" then
+        --a part recorded before retreats were counted had none.
+        return EncounterScript.Compare(tonumber(result.retreats) or 0, node.comparison)
     end
     return false
 end

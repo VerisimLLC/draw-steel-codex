@@ -2199,7 +2199,7 @@ end
 --Monster AI zone directives (an Environmental Keyword's "Monster AI
 --Directives"): which squares lie in a zone whose type has a given directive.
 --Results are memoised per frame: the AI plans within a frame (see PlanningMemo).
-local g_zoneDirectiveNames = {"avoid", "forceInto", "hold"}
+local g_zoneDirectiveNames = {"avoid", "forceInto", "hold", "retreat"}
 local g_zoneDirectives = {time = -1}
 
 local function ZoneDirectivesFrame()
@@ -2207,9 +2207,9 @@ local function ZoneDirectivesFrame()
     if g_zoneDirectives.time ~= now then
         --filters: directive -> keyword id -> its entries' creature filters ("" = everyone).
         --accepts: directive -> charid -> set of keyword ids whose filters accept that creature.
-        --holdSquares: Hold keyword id -> every square of its zones on the map.
+        --zoneSquares: Hold or Retreat keyword id -> every square of its zones on the map.
         local frame = {time = now, any = {}, keywordIds = {}, squares = {}, movers = {},
-            filters = {}, accepts = {}, holdSquares = {}}
+            filters = {}, accepts = {}, zoneSquares = {}, encounterRetreat = false}
         for _,name in ipairs(g_zoneDirectiveNames) do
             frame.keywordIds[name] = {}
             frame.filters[name] = {}
@@ -2412,9 +2412,9 @@ local function HoldKeywordsFor(frame, token)
     return DirectiveKeywordsFor(frame, "hold", token)
 end
 
---Every square of the map's zones of one Hold zone type, read from the zone records.
+--Every square of the map's zones of one zone type, read from the zone records.
 local function HoldZoneSquares(frame, keywordid)
-    local result = frame.holdSquares[keywordid]
+    local result = frame.zoneSquares[keywordid]
     if result == nil then
         result = {}
         local map = game.currentMap
@@ -2435,7 +2435,7 @@ local function HoldZoneSquares(frame, keywordid)
                 end
             end
         end
-        frame.holdSquares[keywordid] = result
+        frame.zoneSquares[keywordid] = result
     end
     return result
 end
@@ -2513,6 +2513,92 @@ function MonsterAI.HoldPermits(token, loc)
     return MonsterAI.InHoldZone(token, loc)
 end
 
+--"Retreat": where a creature an Encounter Script wants to retreat runs to,
+--and where it leaves the map (ExecuteRetreat): the encounter's Retreat Zone,
+--or a zone type with the Retreat directive. Monsters never retreat without
+--both a script that says so and such a zone on the map.
+
+--The encounter's own Retreat Zone (drawn in the encounter builder), cached per
+--frame: {list = Loc[], keys = set of loc.xyfloorOnly.str}. It applies to every
+--creature; the encounter's script decides who retreats.
+local function EncounterRetreatTiles(frame)
+    local tiles = frame.encounterRetreat
+    if not tiles then
+        tiles = {list = {}, keys = {}}
+        local scripts = rawget(_G, "EncounterScript")
+        if scripts ~= nil and scripts.LiveRetreatLocs ~= nil then
+            for _,loc in ipairs(scripts.LiveRetreatLocs()) do
+                local key = loc.xyfloorOnly.str
+                if not tiles.keys[key] then
+                    tiles.keys[key] = true
+                    tiles.list[#tiles.list+1] = loc
+                end
+            end
+        end
+        frame.encounterRetreat = tiles
+    end
+    return tiles
+end
+
+--- Every square of the Retreat zones this creature may escape through.
+--- @param token CharacterToken
+--- @return Loc[]
+--- (the encounter's Retreat Zone, then Retreat zone types on the map).
+function MonsterAI.RetreatSquares(token)
+    local frame = ZoneDirectivesFrame()
+    local result = {}
+    for _,loc in ipairs(EncounterRetreatTiles(frame).list) do
+        result[#result+1] = loc
+    end
+    if not frame.any.retreat then
+        return result
+    end
+    for keywordid,_ in pairs(DirectiveKeywordsFor(frame, "retreat", token)) do
+        for _,loc in ipairs(HoldZoneSquares(frame, keywordid)) do
+            result[#result+1] = loc
+        end
+    end
+    return result
+end
+
+--- True when the creature, standing at loc (default: where it is), would be
+--- in a Retreat zone it may escape through.
+--- @param token CharacterToken whose Retreat filter is checked
+--- @param loc? Loc
+--- @param footprintToken? CharacterToken whose footprint is placed at loc (its mount; default token)
+--- @return boolean
+function MonsterAI.InRetreatZone(token, loc, footprintToken)
+    local mover = footprintToken or token
+    local tiles = EncounterRetreatTiles(ZoneDirectivesFrame())
+    if #tiles.list > 0 then
+        for _,square in ipairs(DirectiveFootprint(mover, loc or mover.loc)) do
+            if tiles.keys[square.xyfloorOnly.str] then
+                return true
+            end
+        end
+    end
+    return MonsterAI.InDirectiveZone("retreat", mover, loc, token)
+end
+
+--- True when the creature wants to retreat: an attached Encounter Script's
+--- retreat function says so and the map has a Retreat zone for it. Runs the
+--- script on this client, so ask it on the AI host only.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI.WantsToRetreat(token)
+    if not MonsterAI.TokenIsLiveCombatant(token) or token.playerControlled then
+        return false
+    end
+    local scripts = rawget(_G, "EncounterScript")
+    if scripts == nil or scripts.MonsterWantsToRetreat == nil or not scripts.AnyRetreatScripts() then
+        return false
+    end
+    if #MonsterAI.RetreatSquares(token) == 0 then
+        return false
+    end
+    return scripts.MonsterWantsToRetreat(token) == true
+end
+
 local g_baseMoveToLocPermitted = creature.MoveToLocPermitted
 function creature:MoveToLocPermitted(loc)
     if not g_baseMoveToLocPermitted(self, loc) then
@@ -2552,6 +2638,31 @@ MonsterAI.opportunityAttackPenalty = 0.8
 --Minion squads don't use this penalty: a free strike kills a minion, so squad
 --members never strike from a square that provokes one.
 
+--- Every live enemy who could make an opportunity attack on this moving
+--- creature were it to walk out of their reach, wherever they stand.
+--- Mirrors the observer checks in creature:OnMove (Creature.lua).
+--- @param mover CharacterToken the token that moves (a mount, not its rider)
+--- @return CharacterToken[]
+function MonsterAI:OpportunityAttackCapableEnemies(mover)
+    local moverImmune = (mover.properties:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") or 0) > 0
+    local result = {}
+    for _,enemy in ipairs(self:try_get("enemyTokens", {})) do
+        if self.TokenIsLiveCombatant(enemy) and not enemy:IsFriend(mover) then
+            local p = enemy.properties
+            local anyMovement = (p:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") or 0) > 0
+            if (not moverImmune or anyMovement)
+                and p:try_get("_tmp_grabbedby") ~= mover.charid
+                and p:CanUseTriggeredAbilities()
+                and p:CanMakeOpportunityAttacks()
+                and not p:HasBanesOnGenericFreeStrike(mover)
+                and p:CanOpportunityAttack(enemy, mover) then
+                result[#result+1] = enemy
+            end
+        end
+    end
+    return result
+end
+
 --- The enemies who could make an opportunity attack if this creature walked
 --- out of their reach now, or nil when there are none or it does not have the
 --- Avoid Opportunity Attacks behavior. Mirrors the observer checks in
@@ -2573,21 +2684,10 @@ function MonsterAI:OpportunityAttackers(token)
         return cached or nil
     end
 
-    local moverImmune = (mover.properties:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") or 0) > 0
     local result = {}
-    for _,enemy in ipairs(self:try_get("enemyTokens", {})) do
-        if self.TokenIsLiveCombatant(enemy) and not enemy:IsFriend(mover)
-            and MonsterAI.TargetDistance(mover, enemy) <= 1 then
-            local p = enemy.properties
-            local anyMovement = (p:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") or 0) > 0
-            if (not moverImmune or anyMovement)
-                and p:try_get("_tmp_grabbedby") ~= mover.charid
-                and p:CanUseTriggeredAbilities()
-                and p:CanMakeOpportunityAttacks()
-                and not p:HasBanesOnGenericFreeStrike(mover)
-                and p:CanOpportunityAttack(enemy, mover) then
-                result[#result+1] = enemy
-            end
+    for _,enemy in ipairs(self:OpportunityAttackCapableEnemies(mover)) do
+        if MonsterAI.TargetDistance(mover, enemy) <= 1 then
+            result[#result+1] = enemy
         end
     end
     if #result == 0 then
@@ -4120,7 +4220,35 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                         squadMembers = #self.squadMembers,
                     })
 
-                    for cycle=1,6 do
+                    --A creature an Encounter Script wants to retreat runs for a
+                    --Retreat zone instead of fighting (ExecuteRetreat). A minion
+                    --squad's members each run on their own; one of them shouts.
+                    local retreated = false
+                    local runners = {token}
+                    if #self.squadMembers > 0 then
+                        runners = {}
+                        for _,member in ipairs(self.squadMembers) do
+                            runners[#runners+1] = member.token
+                        end
+                    end
+                    if MonsterAI.WantsToRetreat(runners[1]) then
+                        for i,runner in ipairs(runners) do
+                            if self.TokenIsLiveCombatant(runner) and self:try_get("_tmp_abortTurn") == nil then
+                                self.token = runner
+                                self:SetLogContext(runner, {
+                                    turn = initiativeid,
+                                    round = queue.round,
+                                })
+                                self:SetupCombatants(runner, queue)
+                                if self:ExecuteRetreat(runner, i == 1) then
+                                    retreated = true
+                                end
+                            end
+                        end
+                        self.token = token
+                    end
+
+                    for cycle=1,(retreated and 0 or 6) do
                         local actingToken = token
                         if #self.squadMembers > 0 then
                             actingToken = self:FindSquadActionToken()
@@ -5517,7 +5645,9 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
     end
 
     ProfCount("strike target evaluations (tile x enemy)", #filteredTokens)
-    local hasCharge = ability:HasKeyword("Charge") or ability.name == "Melee Free Strike"
+    --a retreating creature's parting strike (RetreatStrikeInPlace) never charges.
+    local hasCharge = (ability:HasKeyword("Charge") or ability.name == "Melee Free Strike")
+        and not self:try_get("_tmp_noCharge", false)
     range = range or ability:GetRange(token.properties)
     local chargeRange = MonsterAI.StrikeChargeRange(token, ability, range)
     local result = {}
@@ -8068,6 +8198,394 @@ function MonsterAI:ExecuteReturnToHoldZone(token)
     return mover.valid and mover.loc.str ~= origin
 end
 
+--Retreat ---------------------------------------------------------------------
+--A creature an Encounter Script wants to retreat (MonsterAI.WantsToRetreat)
+--runs for a Retreat zone and leaves the map once it stands in one. Its turn is
+--a few steps, each re-planned from where it then stands (PlanRetreat):
+--  walk       its move action, keeping the main action for a parting strike;
+--  dash       its main action spent on Use Move Action (after any walking);
+--  disengage  Disengage (a shift, so no opportunity attacks) then dash.
+--A way that reaches the zone this turn beats one that does not; then the one
+--provoking the fewest opportunity attacks; then one that keeps the main
+--action; then the shortest. With no way in this turn it gets as close as it
+--can, still avoiding opportunity attacks first. Opportunity attacks are
+--counted along the engine's route, step by step (OpportunityAttacksAlongRoute).
+
+--What a creature shouts as it starts to retreat (one at random).
+MonsterAI.retreatSpeech = {"Retreat!", "Run!", "I need to get out of here!"}
+--How many Retreat zone squares (nearest first, by straight line) get a route
+--checked per starting square. Each check is one engine path search.
+MonsterAI.retreatRouteTries = 6
+
+--charid -> queue guid of the combat it shouted in, so each creature shouts once.
+local g_retreatAnnounced = {}
+
+--- How many enemies get an opportunity attack on a creature walking (not
+--- shifting) along steps: each enemy whose reach a step leaves, once.
+--- @param token CharacterToken
+--- @param steps Loc[] the route, its first entry where the creature starts
+--- @param enemies CharacterToken[] from OpportunityAttackCapableEnemies
+--- @return integer
+function MonsterAI:OpportunityAttacksAlongRoute(token, steps, enemies)
+    local mover = self:GetMovementToken(token)
+    local struck = {}
+    local count = 0
+    for i=2,#steps do
+        for _,enemy in ipairs(enemies) do
+            if not struck[enemy.charid]
+                and self:TargetDistanceFromLoc(mover, enemy, steps[i-1]) <= 1
+                and self:TargetDistanceFromLoc(mover, enemy, steps[i]) > 1 then
+                struck[enemy.charid] = true
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+--The engine's route from where the mover stands (or is imagined to stand) to
+--goal, as plain locs (the engine reuses its path object), or nil.
+local function RetreatRoute(mover, goal)
+    local arrowProf = ProfBegin("engine: MarkMovementArrow")
+    local preview = mover:MarkMovementArrow(goal, {})
+    ProfEnd(arrowProf)
+    ---@type LuaPath?
+    local path = preview ~= nil and preview.path or nil
+    if path == nil or path.destination.xyfloorOnly.str ~= goal.xyfloorOnly.str then
+        return nil
+    end
+    local steps = {}
+    for _,step in ipairs(path.steps) do
+        steps[#steps+1] = step
+    end
+    return steps
+end
+
+--The last step of a route inside an area from CalculateMovementPaths: its
+--index and the area's loc there (which carries the altitude a step lacks).
+local function FurthestStepInArea(steps, area)
+    local index, loc = 1, nil
+    for i,step in ipairs(steps) do
+        local info = area[step.xyfloorOnly.str]
+        if info ~= nil then
+            index, loc = i, info.loc
+        end
+    end
+    return index, loc
+end
+
+--An area from CalculateMovementPaths keyed by square, for route lookups.
+local function AreaBySquare(paths)
+    local result = {}
+    for _,info in pairs(paths) do
+        result[info.loc.xyfloorOnly.str] = info
+    end
+    return result
+end
+
+--Is option a better way out than option b? (see the section comment)
+local function BetterRetreat(a, b)
+    if b == nil then
+        return true
+    end
+    if a.reaches ~= b.reaches then
+        return a.reaches
+    end
+    if a.provokes ~= b.provokes then
+        return a.provokes < b.provokes
+    end
+    if a.reaches then
+        if a.keepsMain ~= b.keepsMain then
+            return a.keepsMain
+        end
+        return a.length < b.length
+    end
+    if a.remaining ~= b.remaining then
+        return a.remaining < b.remaining
+    end
+    return a.keepsMain and not b.keepsMain
+end
+
+--- This creature's best next step toward a Retreat zone, or nil when no
+--- route reaches one at all. The plan is
+--- { kind = "walk"|"dash"|"disengage", loc = where this step ends,
+---   reaches, provokes, keepsMain, remaining, length }.
+--- @param token CharacterToken
+--- @return table|nil
+function MonsterAI:PlanRetreat(token)
+    local mover = self:GetMovementToken(token)
+    local props = mover.properties
+    local abilities = token.properties:GetActivatedAbilities()
+    local speed = math.max(0, props:CurrentMovementSpeed())
+    local moved = props:DistanceMovedThisTurn()
+    local dash = FindAbilityByName(abilities, "Use Move Action")
+    local canDash = dash ~= nil and dash:CanAfford(token)
+    local disengage = mover == token and FindAbilityByName(abilities, "Disengage") or nil
+    local canDisengage = disengage ~= nil and moved <= 0 and canDash and disengage:CanAfford(token)
+    local mainLeft = canDash
+    local enemies = self:OpportunityAttackCapableEnemies(mover)
+
+    --the Retreat squares to try, nearest first, free of other creatures.
+    local goals = {}
+    for _,loc in ipairs(MonsterAI.RetreatSquares(token)) do
+        if not self:MovementLocOverlapsCreature(token, loc) then
+            goals[#goals+1] = {loc = loc, distance = mover.loc:DistanceInTiles(loc)}
+        end
+    end
+    table.sort(goals, function(a, b) return a.distance < b.distance end)
+
+    local walkArea = AreaBySquare(self:CalculateRemainingMovementPaths(token))
+    local dashArea = canDash and AreaBySquare(self:CalculateMovementPaths(token,
+        (math.max(0, speed - moved) + speed)*10)) or nil
+
+    local best = nil
+    local function Consider(option)
+        if BetterRetreat(option, best) then
+            best = option
+        end
+    end
+
+    --walking, then dashing, from where it stands.
+    for i=1,math.min(#goals, MonsterAI.retreatRouteTries) do
+        local steps = RetreatRoute(mover, goals[i].loc)
+        if steps ~= nil then
+            local walkIndex, walkLoc = FurthestStepInArea(steps, walkArea)
+            local walkSteps = {}
+            for j=1,walkIndex do walkSteps[j] = steps[j] end
+            Consider{
+                kind = "walk",
+                loc = walkLoc,
+                reaches = walkIndex == #steps,
+                provokes = self:OpportunityAttacksAlongRoute(token, walkSteps, enemies),
+                keepsMain = mainLeft,
+                remaining = #steps - walkIndex,
+                length = #steps,
+            }
+            if dashArea ~= nil and walkIndex < #steps then
+                local dashIndex = FurthestStepInArea(steps, dashArea)
+                if dashIndex > walkIndex then
+                    local dashSteps = {}
+                    for j=1,dashIndex do dashSteps[j] = steps[j] end
+                    Consider{
+                        kind = "dash",
+                        --the walk first when it gets anywhere; the dash comes next step.
+                        loc = walkIndex > 1 and walkLoc or nil,
+                        goal = steps[dashIndex],
+                        reaches = dashIndex == #steps,
+                        provokes = self:OpportunityAttacksAlongRoute(token, dashSteps, enemies),
+                        keepsMain = false,
+                        remaining = #steps - dashIndex,
+                        length = #steps,
+                    }
+                end
+            end
+        end
+    end
+
+    --Disengage (a shift: no opportunity attacks) to a square out of every
+    --enemy's reach where possible, then dash from there.
+    if canDisengage then
+        ---@cast disengage ActivatedAbility
+        local range = disengage:GetRange(token.properties)
+        local predicate = disengage:TargetLocPassesFilterPredicate(token, {}) or function(_) return true end
+        local shiftArea = AreaBySquare(self:CalculateMovementPaths(token, range*10, {"shift"}))
+        for _,info in pairs(shiftArea) do
+            local loc = info.loc
+            if info.cost > 0 and predicate(loc) and not self:MovementLocOverlapsCreature(token, loc) then
+                if MonsterAI.InRetreatZone(token, loc, mover) then
+                    Consider{kind = "disengage", loc = loc, reaches = true, provokes = 0,
+                        keepsMain = true, remaining = 0, length = 1}
+                else
+                    self:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+                        local area = AreaBySquare(self:CalculateMovementPaths(token, speed*10))
+                        for i=1,math.min(#goals, math.max(2, MonsterAI.retreatRouteTries//2)) do
+                            local steps = RetreatRoute(mover, goals[i].loc)
+                            if steps ~= nil then
+                                local index = FurthestStepInArea(steps, area)
+                                local dashSteps = {}
+                                for j=1,index do dashSteps[j] = steps[j] end
+                                Consider{
+                                    kind = "disengage",
+                                    loc = loc,
+                                    reaches = index == #steps,
+                                    provokes = self:OpportunityAttacksAlongRoute(token, dashSteps, enemies),
+                                    keepsMain = false,
+                                    remaining = #steps - index,
+                                    length = #steps + 1,
+                                }
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    mover:ClearMovementArrow()
+    return best
+end
+
+--- A parting strike from where the creature stands: the best strike the
+--- normal move search finds with no movement and no charge. Minions never
+--- take one (their strike is the squad's). True when it struck.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI:RetreatStrikeInPlace(token)
+    if token.properties.minion then
+        return false
+    end
+    local mover = self:GetMovementToken(token)
+    local here = mover.loc
+    self.token = token
+    self.paths = {[{here.x, here.y}] = {loc = here, cost = 0}}
+    self._tmp_retreatStrikeOnly = true
+    self._tmp_noCharge = true
+    local result = nil
+    local ok, err = RunYieldingFunction(function()
+        result = self:FindAndExecuteMove()
+    end)
+    self._tmp_retreatStrikeOnly = false
+    self._tmp_noCharge = false
+    if not ok then
+        error(err)
+    end
+    return result == g_moveResultExecuted
+end
+
+--Spend the main action on Use Move Action to move to loc, as the advance
+--fallback does, waiting for the movement's reactions.
+function MonsterAI:RetreatDashTo(token, loc)
+    local mover = self:GetMovementToken(token)
+    local dash = FindAbilityByName(token.properties:GetActivatedAbilities(), "Use Move Action")
+    if dash == nil or not dash:CanAfford(token) then
+        return
+    end
+    local activityId = dmhub.GenerateGuid()
+    local previous = creature.SetTokenAIActivity(mover.charid, activityId)
+    self:SetTargetsForExpectedPrompt{casterid = token.charid, targets = {{loc = loc}}}
+    local ok, err = RunYieldingFunction(function()
+        self:ExecuteAbility(token, dash, {{token = token}}, {symbols = {mode = 1}})
+    end)
+    creature.SetTokenAIActivity(mover.charid, previous)
+    self._tmp_expectedPromptTarget = nil
+    if not ok then error(err) end
+    local completed, reason = self:WaitForMovementActivity(mover, activityId)
+    if not completed then
+        self._tmp_abortTurn = reason
+        error(reason)
+    end
+end
+
+--- The creature stands in a Retreat zone: it leaves the map (the engine fades
+--- it out) and the escape is noted on the combat (LiveEncounter:RecordRetreat).
+--- @param token CharacterToken
+function MonsterAI:ExitThroughRetreatZone(token)
+    self:LogDecision("RETREAT ESCAPED", {
+        actor = self.TokenLogName(token),
+        from = self.LocLogName(self:GetMovementToken(token).loc),
+        result = "leaves the map",
+    })
+    local live = rawget(_G, "LiveEncounter")
+    if live ~= nil and live.RecordCurrentRetreat ~= nil then
+        live.RecordCurrentRetreat(token)
+    end
+    --despawn, not delete: the creature's record stays, as for a removed monster.
+    token.despawned = true
+    dmhub:UploadInitiativeQueue()
+    self.Sleep(0.6)
+end
+
+--- Play a retreating creature's turn. False when it has no way to any
+--- Retreat zone, so it fights as usual instead.
+--- @param token CharacterToken
+--- @param shout boolean whether it may shout as it starts to run
+--- @return boolean
+function MonsterAI:ExecuteRetreat(token, shout)
+    local mover = self:GetMovementToken(token)
+    local struck = false
+
+    if not MonsterAI.InRetreatZone(token, nil, mover) and self:PlanRetreat(token) == nil then
+        self:LogDecision("RETREAT", {
+            actor = self.TokenLogName(token),
+            reason = "no route to any Retreat zone",
+            result = "fights instead",
+        })
+        return false
+    end
+
+    local q = dmhub.initiativeQueue
+    local combat = q ~= nil and tostring(q:try_get("guid")) or ""
+    if shout and g_retreatAnnounced[token.charid] ~= combat then
+        g_retreatAnnounced[token.charid] = combat
+        self:Speech(token, self:VoiceLines(token, "retreat", MonsterAI.retreatSpeech))
+    end
+
+    for _=1,6 do
+        if not self.TokenIsLiveCombatant(token) or self:try_get("_tmp_abortTurn") ~= nil then
+            return true
+        end
+        if self:TurnTakenBeforeMove() then
+            return true
+        end
+        if MonsterAI.InRetreatZone(token, nil, mover) then
+            if not struck then
+                struck = true
+                self:RetreatStrikeInPlace(token)
+            end
+            if self.TokenIsLiveCombatant(token) then
+                self:ExitThroughRetreatZone(token)
+            end
+            return true
+        end
+
+        local plan = self:PlanRetreat(token)
+        if plan == nil then
+            break
+        end
+        self:LogDecision("RETREAT", {
+            actor = self.TokenLogName(token),
+            plan = plan.kind,
+            to = plan.loc ~= nil and self.LocLogName(plan.loc) or (plan.goal ~= nil and self.LocLogName(plan.goal) or nil),
+            reason = string.format("%s; %d opportunity attack(s); %d square(s) left after this turn%s",
+                plan.reaches and "reaches a Retreat zone this turn" or "cannot reach a Retreat zone this turn",
+                plan.provokes, plan.remaining, plan.keepsMain and "; keeps its main action" or ""),
+        })
+
+        --a way out that keeps the main action: take the parting strike first.
+        if plan.keepsMain and not struck then
+            struck = true
+            if self:RetreatStrikeInPlace(token) then
+                goto continue
+            end
+        end
+
+        do
+            local origin = mover.loc.str
+            if plan.kind == "disengage" then
+                local disengage = FindAbilityByName(token.properties:GetActivatedAbilities(), "Disengage")
+                if disengage == nil then break end
+                self:ExecuteAbility(token, disengage, {{loc = plan.loc}}, {sleep = 0.3})
+            elseif plan.kind == "dash" and plan.loc == nil then
+                self:RetreatDashTo(token, plan.goal)
+                self.Sleep(0.3)
+            elseif plan.loc ~= nil then
+                self:MoveToken(token, plan.loc, {maxCost = 10000, ignoreFalling = false}, true)
+                self.Sleep(0.3)
+            end
+            if not mover.valid or mover.loc.str == origin then
+                break
+            end
+        end
+        ::continue::
+    end
+
+    --could not get all the way: a parting strike if it still has one.
+    if not struck and self.TokenIsLiveCombatant(token) and self:try_get("_tmp_abortTurn") == nil
+        and not self:TurnTakenBeforeMove() then
+        self:RetreatStrikeInPlace(token)
+    end
+    return true
+end
+
 --Plan preview, host side --------------------------------------------------
 --Each unit of a turn is described as a preview before it runs, then
 --AwaitPlanPreview shows it to the table (see PREVIEW_DOC) and waits for
@@ -8729,12 +9247,19 @@ function MonsterAI:FindAndExecuteMove()
     --the author's per-move score multipliers (MonsterAI.ScoreWeights).
     local scoreWeights = MonsterAI.ScoreWeights(token.properties)
 
+    --A retreating creature's parting strike (RetreatStrikeInPlace): only
+    --strikes, from where it stands, and no fallback movement afterwards.
+    local strikeOnly = self:try_get("_tmp_retreatStrikeOnly", false)
+    local function IsStrike(ability)
+        return ability:HasKeyword("Strike") or IsMeleeStrike(ability) or IsRangedStrike(ability)
+    end
+
     local function ScoreMoves()
         local bestScore = {score = 0}
         local bestMove = nil
         --far from melee with only a weak ranged attack: no strikes this
         --turn, so the advance spends the main action on movement.
-        local dashing = self:ShouldDashInsteadOfShooting(token, abilities)
+        local dashing = not strikeOnly and self:ShouldDashInsteadOfShooting(token, abilities)
         for _,moveid in ipairs(self:MovesInScoringOrder()) do
             local move = self.moves[moveid]
             local registeredForMonster = self.MoveMatchesMonster(token, move, true)
@@ -8792,6 +9317,20 @@ function MonsterAI:FindAndExecuteMove()
                     end
 
                     usingAbilities[#usingAbilities+1] = ability
+                end
+            end
+
+            if matchesMonster and strikeOnly then
+                for _,ability in ipairs(usingAbilities) do
+                    if not IsStrike(ability) then
+                        self:SetMoveLogContext(token, move)
+                        self:LogDecision("MOVE REJECTED", {
+                            ability = ability.name,
+                            reason = "retreating: only a strike from where it stands",
+                        })
+                        matchesMonster = false
+                        break
+                    end
                 end
             end
 
@@ -8883,10 +9422,19 @@ function MonsterAI:FindAndExecuteMove()
         end
 
         local synthesizedMove = nil
+        local synthesizedAbilities = dashing and WithoutStrikes(abilities) or abilities
+        if strikeOnly then
+            synthesizedAbilities = {}
+            for _,ability in ipairs(abilities) do
+                if IsStrike(ability) then
+                    synthesizedAbilities[#synthesizedAbilities+1] = ability
+                end
+            end
+        end
         if not self:try_get("_tmp_synthesizedPlanningFailed", false) then
             local synthesizedOk, synthesizedResult = pcall(
                 self.FindBestSynthesizedAbilityMove, self,
-                token, dashing and WithoutStrikes(abilities) or abilities, self:GetClaimedAbilityNames(token))
+                token, synthesizedAbilities, self:GetClaimedAbilityNames(token))
             if synthesizedOk then
                 synthesizedMove = synthesizedResult
             else
@@ -9035,6 +9583,16 @@ function MonsterAI:FindAndExecuteMove()
             result = "execution function completed",
         })
         return g_moveResultExecuted
+    end
+
+    --A parting strike that found nothing to hit: the retreat does the moving.
+    if strikeOnly then
+        self:LogDecision("MOVE SEARCH FINISHED", {
+            reason = "retreating: no strike from where it stands",
+            result = "no legal move",
+        })
+        ProfEnd(chooseProf)
+        return g_moveResultNone
     end
 
     --Off the post it holds with nothing better to do: head back before advancing.

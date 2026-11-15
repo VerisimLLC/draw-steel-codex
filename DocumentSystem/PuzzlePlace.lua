@@ -334,7 +334,8 @@ function PuzzlePlace.MoveLock(id, floorid, objid, otherId)
 end
 
 --Place a lock object for a puzzle on empty floor. A combination lock puzzle gets
---the Combination lock object; the rest the Puzzle switch. Returns the object.
+--the Combination lock object where the game's library has it; otherwise (and for
+--every other type) the Puzzle switch. Returns the object.
 ---@param floorid string
 ---@param x number
 ---@param y number
@@ -345,7 +346,10 @@ function PuzzlePlace.PlaceLockObject(floorid, x, y, id)
     if floor == nil then
         return nil
     end
-    local assetid = cond(Puzzle.GetTypeId(id) == "combination", PuzzlePlace.COMBINATION_OBJECT, PuzzlePlace.LOCK_OBJECT)
+    local assetid = PuzzlePlace.LOCK_OBJECT
+    if Puzzle.GetTypeId(id) == "combination" and assets.allObjects[PuzzlePlace.COMBINATION_OBJECT] ~= nil then
+        assetid = PuzzlePlace.COMBINATION_OBJECT
+    end
     local obj = floor:SpawnObjectLocal(assetid)
     if obj == nil then
         return nil

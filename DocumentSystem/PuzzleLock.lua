@@ -32,10 +32,12 @@ end
 ---@class PuzzleLockInteractive: Interactive
 --- @field new fun(o?: table): PuzzleLockInteractive
 --- @field puzzleid string
+--- @field puzzletype string a library object's preset type ("combination"), or "" to ask
 PuzzleLockInteractive = RegisterGameType("PuzzleLockInteractive", "Interactive")
 PuzzleLockInteractive.id = "PuzzleLock"
 PuzzleLockInteractive.text = "Puzzle Lock"
 PuzzleLockInteractive.puzzleid = ""
+PuzzleLockInteractive.puzzletype = ""
 --The lock keeps its own range and lock state; the component's versions would
 --only confuse (see InteractiveContainer.FieldHidden).
 PuzzleLockInteractive.hiddenFields = { locked = true, distance = true }
@@ -1135,6 +1137,24 @@ Puzzle.OpenForJoin = function(id)
 end
 
 
+--A library object that names its type (the Combination lock object) starts as
+--that puzzle; a combination lock can be forced with Might.
+---@param lockObject PuzzleLockInteractive
+---@param floorid string
+---@param objid string
+local function CreatePresetPuzzle(lockObject, floorid, objid)
+    local id = lockObject.puzzleid
+    local typeid = lockObject.puzzletype
+    if id == "" or typeid == nil or typeid == "" or Puzzle.Exists(id) or PuzzleType.Get(typeid) == nil then
+        return
+    end
+    local lock = { floorid = floorid, objid = objid, range = DEFAULT_RANGE, onSolve = {}, onFail = {} }
+    if typeid == "combination" then
+        lock.bypassAttr = "mgt"
+    end
+    Puzzle.Create(id, typeid, { locks = { [LockKey(floorid, objid)] = lock } }, nil)
+end
+
 --The Director's Edit command on the object: straight to the lock setup.
 function PuzzleLockInteractive:Edit(controller)
     if self.puzzleid == "" then
@@ -1143,6 +1163,7 @@ function PuzzleLockInteractive:Edit(controller)
         controller:CompleteChanges("Set up puzzle lock")
         pcall(function() controller:SetAndUploadProperties{ distance = ENGINE_DISTANCE } end)
     end
+    CreatePresetPuzzle(self, controller.floorid, controller.objid)
     OpenSetup(self.puzzleid, controller.floorid, controller.objid)
     return nil
 end
@@ -1161,6 +1182,7 @@ function PuzzleLockInteractive:Interact(controller, token)
         end
         local id = self.puzzleid
         if not Puzzle.Exists(id) then
+            CreatePresetPuzzle(self, floorid, objid)
             OpenSetup(id, floorid, objid)
             return nil
         end

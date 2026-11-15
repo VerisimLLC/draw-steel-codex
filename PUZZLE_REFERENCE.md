@@ -7,8 +7,10 @@ and showing the puzzle in a journal page (`[[puzzle:Name]]`) or behind a Puzzle 
 map object. Your file only says what the puzzle looks like and how a move changes it.
 
 Worked example: `DocumentSystem/PuzzleTerminal.lua` (a password terminal with a code
-sheet only one role can read). Others: `RichSliderPuzzle.lua` (click-only grid) and
-`RichTornPuzzle.lua` (drag plus click-to-place, holds). The framework itself is
+sheet only one role can read). Others: `RichSliderPuzzle.lua` (click-only grid),
+`RichTornPuzzle.lua` (drag plus click-to-place, holds) and `PuzzleCombination.lua` (the
+fullest example: custom setup controls, keyboard play, a once-per-hero test through the
+host request queue, kept data). The framework itself is
 `DocumentSystem/PuzzleFramework.lua` (model) and `RichPuzzle.lua` (frame and window).
 
 ## The smallest useful type
@@ -71,10 +73,17 @@ New files only load once registered in their CodeMod (see the codex `CLAUDE.md`)
 | `roles` | no | `{ {id, name}, ... }` the Director can hand to players; read `ctx.role`. |
 | `assists` | no | `{ {id, label}, ... }` per-player toggles drawn under the puzzle; read `ctx:Assist(id)`. |
 | `CreateEditor(id, config, setConfig)` | no | The annotations-strip tile, when an image picker is not enough. |
+| `HandleRequest(id, state, req, userid, after)` | no | The host applies players' requests (see Requests below). |
+| `HostTick(id)` | no | Runs about once a second on the host for each puzzle of the type; a type with one applies its own requests with `Puzzle.ProcessRequests`. |
+| `noTimeLimit` | no | The framework's time limit is not offered. |
 
 Setup field `type`s: `text`, `multiline`, `number` (`min`, `max`), `toggle`, `choice`
-(`options = { {id, text}, ... }`), `image`. Optional `visible = function(config)` hides a
-field until it applies. Every puzzle also gets a "Time limit" field from the framework.
+(`options = { {id, text}, ... }`), `image`, and `custom`: `Control = function(config,
+setConfig) return panel end` draws its own control (the combination lock's per-dial code
+picker and named image list). Optional `visible = function(config)` hides a field until it
+applies. After any field changes, the setup fires `setupChanged` down every field row, so a
+custom control that depends on other fields rebuilds on that event (a `think` inside the
+setup popup does not tick). Every puzzle also gets a "Time limit" field from the framework.
 
 ## The context (`ctx`)
 
@@ -104,6 +113,53 @@ field until it applies. Every puzzle also gets a "Time limit" field from the fra
 - Text entry: Enter fires `submit` on a single-line `gui.Input` (not `confirm`). Give it a
   button too, as the terminal does.
 
+## Kept data: what survives a Reset
+
+`Puzzle.ReadKept(id)` returns a copy of the puzzle's kept table; `Puzzle.ChangeKept(id, fn,
+description)` edits it in place (`fn(kept)`, keyed tables only). Reset leaves it; setting
+the puzzle up again (`Puzzle.Create`, e.g. a type change) clears it. Use it for once-only
+records -- who has rolled a test, what it revealed -- so a Reset is not a free retry. The
+lock's Force it record (`kept.bypass`) and the combination lock's `kept.listen` /
+`kept.marks` live here.
+
+## Requests: players ask, the host decides
+
+For anything the table must not be able to do twice (a once-per-hero test, a bet), the
+player files a request and the host applies it:
+
+- `Puzzle.Request(id, { kind = "...", ... })` -- queued per player in the board, numbered,
+  applied once and in order.
+- `HandleRequest(id, state, req, userid, after)` on your type -- edit `state` (the board
+  copy) for the board; push functions into `after` for writes to other documents (chat,
+  kept data, status), which run once the board is saved. Return `false` to wait (that
+  player's later requests wait behind it).
+- Do the once-only check **in `after`**, against `Puzzle.ReadKept`: two requests arriving in
+  the same tick both see the saved kept data, but each `after` runs after the previous one
+  has written.
+- `Puzzle.RegisterRequestHandler(kind, fn)` -- a shared handler for every type (the lock's
+  `bypass`), tried before the type's own.
+
+## Heroes and tests
+
+- `Puzzle.MyHero()` -- the player's selected token, else their primary character.
+- `Puzzle.HeroById(tokenid)`.
+- `Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel)` -- the
+  montage's skill-aware test (Skilled chip, features), private to the roller; `skill` may be
+  `""`. `onDone(tier, natural)`; `onCancel` when the player closes the roll.
+- `Puzzle.TestOutcome(tier, natural, difficulty)` -- Draw Steel's test difficulty rows:
+  `"success"`, `"consequence"`, `"failure"`, `"failconsequence"`, plus `reward`.
+
+## Keyboard
+
+Panel `keybinds` do **not** override game keys: in the main window they fire alongside the
+game command on the same key (an arrow would turn your dial and move a token) and in every
+panel holding the key. To own keys, do what the PDF viewer does: bind them in a command
+context (`dmhub.SetCommandBinding(key, "mycmd", "mycontext")` once), push the context while
+your panel has the GUI focus (`gui.ChildHasFocus(panel)`; push straight away when you call
+`gui.SetFocus`, not only from a `think`), pop it when focus leaves or the panel is
+destroyed, and receive the keys as events via `commands = { "mycmd", ... }`. See
+`PuzzleCombination.lua` (`combolock`).
+
 ## Solving, failing, timers
 
 - Board puzzles: `IsSolved` reads the board, and the host re-checks it, so a client
@@ -120,7 +176,10 @@ field until it applies. Every puzzle also gets a "Time limit" field from the fra
 ## Map locks and effects
 
 A Puzzle Lock (Interactable component -> Puzzle Lock on any map object) shows your type
-with no extra work. What solving or failing does is chosen by the Director in the lock's
+with no extra work. A library object can preset the type: `puzzletype = "combination"` on
+the `PuzzleLockInteractive` makes each placed copy start as that puzzle the first time the
+Director uses it (the Combination lock object in the Puzzles folder; the Puzzle switch
+leaves it empty and asks). What solving or failing does is chosen by the Director in the lock's
 setup. To add your own effect (an alarm, lights, guards), register it:
 
 ```lua
@@ -134,8 +193,9 @@ PuzzleEffect.Register{
 
 ## Accessibility checklist
 
-The framework gives every type a Bypass, a Draw Steel bypass test on locks, a text
-banner and chat line, confirm-on-Reset and adjustable timers. Your type must still:
+The framework gives every type a Bypass, a Draw Steel "Force it" test on locks (once per
+hero, kept through Reset, result in chat), a text banner and chat line, confirm-on-Reset and
+adjustable timers. Your type must still:
 
 - [ ] offer a path with no drag (clicks or typing); `ctx:Pick` makes it easy;
 - [ ] never rely on hover alone, colour alone, or sound alone;

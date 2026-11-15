@@ -724,6 +724,11 @@ local function OnDamage(creature, info)
     end
 end
 
+--A Recovery heals first and spends second, both inside one click. The heal's line waits
+--here so the spend can join it as its cause, one row in place of two.
+local g_recoveryHeal = nil
+local RECOVERY_WINDOW_MS = 1000
+
 local function OnHeal(creature, regained, note, recovered)
     if not History.Enabled() then
         return
@@ -734,7 +739,10 @@ local function OnHeal(creature, regained, note, recovered)
     end
     local state = OpenCast(nil)
     if state == nil then
-        WriteLine(token, "heal", {healed = regained, recovered = recovered, causetext = Cause(note)})
+        local entry = WriteLine(token, "heal", {healed = regained, recovered = recovered, causetext = Cause(note)})
+        if note == "Use Recovery" then
+            g_recoveryHeal = {entry = entry, charid = token.charid, t = dmhub.serverTimeMilliseconds}
+        end
         return
     end
     local target = RowTarget(state, token)
@@ -996,6 +1004,19 @@ local function OnResource(creature, key, before, after, refreshType, note)
     local name, style = ResourceFacts(creature, key)
     local change = after - before
     local state = OpenCast(nil)
+    --the Recovery behind the heal just written: it becomes that row's cause (L3).
+    local healed = g_recoveryHeal
+    g_recoveryHeal = nil
+    if state == nil and key == CharacterResource.recoveryResourceId and change < 0 and healed ~= nil
+        and healed.charid == token.charid and dmhub.serverTimeMilliseconds - healed.t < RECOVERY_WINDOW_MS then
+        local entry = healed.entry
+        entry.causetext = "Used a Recovery"
+        entry.amount = change
+        entry.resourceid = key
+        entry.refreshtype = refreshType
+        History.Rewrite(entry)
+        return
+    end
     if state ~= nil and not state.automatic and change < 0 then
         AddCost(state, name, -change, style)
         return
@@ -1039,7 +1060,8 @@ local function OnTypedMessage(text)
     entry.messages[#entry.messages + 1] = text
 end
 
---- Puts a resource line back the way it was. Whoever controls the creature can do this.
+--- Puts a resource line, or a heal with its Recovery, back the way it was. Whoever controls
+--- the creature can do this.
 --- @param entry HistoryEntry
 function History.UndoResource(entry)
     local token = entry.who ~= nil and dmhub.GetCharacterById(entry.who.id) or nil
@@ -1049,6 +1071,11 @@ function History.UndoResource(entry)
     token:ModifyProperties{
         description = "Undo Resource",
         execute = function()
+            --a heal with its Recovery: the Stamina goes back too, set straight so no damage line follows.
+            if entry.family == "heal" then
+                local props = token.properties
+                props:SetCurrentHitpoints(props:CurrentHitpoints() - entry.healed, "Undo")
+            end
             if entry.amount > 0 then
                 token.properties:ConsumeResource(entry.resourceid, entry.refreshtype, entry.amount, "Undo")
             else

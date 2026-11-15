@@ -40,6 +40,8 @@ local ACTION_WORDS_WIDTH = 92
 
 --Room kept at the end of a line for its number, "120 to 135" at the longest.
 local LINE_NUMBER_WIDTH = 70
+--Room beside a line's number for its Undo button.
+local UNDO_WIDTH = 50
 
 local ACTION_WORDS = {
     main = "Main action",
@@ -1433,7 +1435,12 @@ local function LineNumber(entry)
     if entry.family == "damage" then
         return Amount(entry.taken, false, 14)
     elseif entry.family == "heal" then
-        return Amount(entry.healed, true, 14)
+        local number = Amount(entry.healed, true, 14)
+        if entry.undone then
+            number:SetClass("historyHealed", false)
+            number:SetClass("historyUndone", true)
+        end
+        return number
     elseif entry.family == "temporarystamina" or entry.family == "malice" or entry.family == "globalresource" then
         return gui.Label{
             classes = {"historyPlainNumber"},
@@ -1463,7 +1470,9 @@ local function BuildLine(item)
     --a line with no number can use the room kept for one.
     local number = LineNumber(entry)
     local leaveRoom = number ~= nil or entry.family == "resource"
-    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0)
+    --a heal with its Recovery keeps its number and has Undo beside it.
+    local both = number ~= nil and entry.resourceid ~= nil
+    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0) - cond(both, UNDO_WIDTH, 0)
     local textWidth = rowWidth - 26
     local tag = nil
     if entry.family == "ended" then
@@ -1551,11 +1560,12 @@ local function BuildLine(item)
     }
     if number ~= nil then
         number.selfStyle.halign = "right"
+        number.selfStyle.rmargin = cond(both, UNDO_WIDTH, 3)
         children[2] = number
     end
 
     --a resource line can be put back by whoever controls the creature (L42).
-    local undoable = entry.family == "resource" and not entry.undone and entry.who ~= nil
+    local undoable = entry.resourceid ~= nil and not entry.undone and entry.who ~= nil
     if undoable then
         local token = dmhub.GetCharacterById(entry.who.id)
         undoable = token ~= nil and token.canControl

@@ -41,10 +41,10 @@ local mod = dmhub.GetModLoading()
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource" or "moved".
 --- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
---- @field amount? number On a resource line: the change, negative when spent.
---- @field resourceid? string On a resource line: the resource, for Undo.
---- @field refreshtype? string On a resource line: how it refreshes, for Undo.
---- @field undone? boolean On a resource line: Undo was pressed.
+--- @field amount? number On a resource line (or a heal with its Recovery): the change, negative when spent.
+--- @field resourceid? string On a resource line or a Recovery heal: the resource, for Undo.
+--- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
+--- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
 --- @field costs? table<string, {amount: number, style: string}> On an action: resources it spent.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".

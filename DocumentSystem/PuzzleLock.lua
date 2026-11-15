@@ -63,6 +63,7 @@ local POINT_OUT_EVENT = "puzzleLockTargets"
 local function LockKey(floorid, objid)
     return Puzzle.SafeId(tostring(floorid) .. "_" .. tostring(objid))
 end
+Puzzle.LockKey = LockKey
 
 --------------------------------------------------------------------------------
 -- Targets: doors and objects on the lock's floor
@@ -732,7 +733,15 @@ local function OpenSetup(id, floorid, objid)
                 end
             end
             Rebuild()
-        end)
+        end, nil, {
+            own = nil,
+            ownText = "A new puzzle for this lock",
+            choose = function(otherId)
+                local newId = PuzzlePlace.MoveLock(id, floorid, objid, otherId)
+                window:DestroySelf()
+                OpenSetup(newId, floorid, objid)
+            end,
+        })
 
         children[#children + 1] = gui.Label{ classes = {"sizeM", "bold"}, width = "auto", height = "auto", tmargin = 10, text = "When solved:" }
         for _, row in ipairs(EffectSection("onSolve")) do
@@ -1218,15 +1227,15 @@ dmhub.RegisterEventHandler("lockedDoorClicked", function(info)
         return
     end
     local controllers = {}
-    for id, entry in pairs(Puzzle.Index()) do
-        if entry.kind == "lock" and not Puzzle.Status(id).solved then
+    for id in pairs(Puzzle.Index()) do
+        if Puzzle.Exists(id) and not Puzzle.Status(id).solved then
             for _, lock in pairs(Locks(id)) do
                 for _, effect in ipairs(lock.onSolve or {}) do
                     if effect.kind == "door" and effect.floorid == info.floorid
                         and math.abs((effect.x or 0) - (info.x or 0)) <= DOOR_MATCH_TILES
                         and math.abs((effect.y or 0) - (info.y or 0)) <= DOOR_MATCH_TILES then
                         local obj = game.LookupObject(lock.floorid, lock.objid)
-                        if obj ~= nil and obj.valid and not obj.inactive then
+                        if obj ~= nil and obj.valid and not obj.inactive and PuzzlePlace.HasLock(lock.floorid, lock.objid, id) then
                             controllers[#controllers + 1] = { floorid = lock.floorid, objid = lock.objid, x = obj.x, y = obj.y, kind = "object" }
                         end
                     end

@@ -401,7 +401,7 @@ end
 ---@param tag RichSliderPuzzle
 ---@param id string|nil
 local function Migrate(tag, id)
-    if id == nil or Puzzle.Exists(id) then
+    if id == nil or id ~= Puzzle.OwnJournalId(tag, ID_PREFIX) or Puzzle.Exists(id) then
         return
     end
     local n = GridSize(tag)
@@ -457,7 +457,7 @@ function RichSliderPuzzle.CreateEditor(self)
         return id
     end, function(id, typeid)
         Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
-    end, function(tag) self = tag end)
+    end, function(tag) self = tag end, Puzzle.JournalPick(function() return self end, ID_PREFIX))
 end
 
 MarkdownDocument.RegisterRichTag(RichSliderPuzzle)

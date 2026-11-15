@@ -297,13 +297,23 @@ function Puzzle.Exists(id)
     return Puzzle.GetType(id) ~= nil
 end
 
----@class PuzzleIndexEntry
----@field kind "lock"|"journal"|"standalone"|nil standalone: made in the Puzzles panel, lives only there
+--One place a puzzle lives. A puzzle can live in several (a lock and a page).
+---@class PuzzleHome
+---@field kind "lock"|"journal"
 ---@field floorid string|nil a lock's floor
 ---@field objid string|nil a lock's object
 ---@field docid string|nil a journal puzzle's page
+---@field tag string|nil a journal puzzle's tag key on its page ("puzzle:Vault")
+---@field placed "component"|"object"|nil what placing it added; removing the home takes that away too
 
---Where every puzzle lives: id -> entry.
+---@class PuzzleIndexEntry
+---@field kind "lock"|"journal"|"standalone"|nil standalone: made in the Puzzles panel. lock/journal: an old entry's one home
+---@field floorid string|nil an old entry's lock floor
+---@field objid string|nil an old entry's lock object
+---@field docid string|nil an old entry's page
+---@field homes table<string, PuzzleHome>|nil home key -> home
+
+--Every puzzle the index knows: id -> entry. Read homes with Puzzle.Homes.
 ---@return table<string, PuzzleIndexEntry>
 function Puzzle.Index()
     local result = {}
@@ -315,23 +325,69 @@ function Puzzle.Index()
     return result
 end
 
---Record a puzzle (and where it lives) in the index. Writes only when something
---is new, so surfaces can call it every time they show a puzzle.
----@param id string
----@param info PuzzleIndexEntry|nil
-function Puzzle.IndexPuzzle(id, info)
-    local current = mod:GetDocumentSnapshot(INDEX_DOC).data[id]
-    local changed = type(current) ~= "table"
-    if not changed and info ~= nil then
-        for k, v in pairs(info) do
-            if current[k] ~= v then
-                changed = true
+---@param home PuzzleHome|PuzzleIndexEntry
+---@return string|nil
+function Puzzle.HomeKey(home)
+    if home.kind == "lock" and home.floorid ~= nil and home.objid ~= nil then
+        return Puzzle.SafeId(string.format("lock_%s_%s", home.floorid, home.objid))
+    elseif home.kind == "journal" and home.docid ~= nil then
+        return Puzzle.SafeId(string.format("journal_%s_%s", home.docid, tostring(home.tag or "")))
+    end
+    return nil
+end
+
+--The key of a home already listed for the same lock or page. An old entry's
+--page home has no tag, so it matches any tag on that page.
+---@param homes table<string, PuzzleHome>
+---@param home PuzzleHome
+---@return string|nil
+local function SameHome(homes, home)
+    for key, h in pairs(homes) do
+        if h.kind == home.kind then
+            if home.kind == "lock" and h.floorid == home.floorid and h.objid == home.objid then
+                return key
+            elseif home.kind == "journal" and h.docid == home.docid and (h.tag == nil or home.tag == nil or h.tag == home.tag) then
+                return key
             end
         end
     end
-    if not changed then
-        return
+    return nil
+end
+
+---@param entry PuzzleIndexEntry
+---@return PuzzleHome|nil
+local function LegacyHome(entry)
+    if entry.kind ~= "lock" and entry.kind ~= "journal" then
+        return nil
     end
+    return { kind = entry.kind, floorid = entry.floorid, objid = entry.objid, docid = entry.docid }
+end
+
+--Every place a puzzle lives: home key -> home.
+---@param id string
+---@return table<string, PuzzleHome>
+function Puzzle.Homes(id)
+    local entry = mod:GetDocumentSnapshot(INDEX_DOC).data[id]
+    local result = {}
+    if type(entry) ~= "table" then
+        return result
+    end
+    for key, home in pairs(entry.homes or {}) do
+        if type(home) == "table" then
+            result[key] = home
+        end
+    end
+    local legacy = LegacyHome(entry)
+    local key = legacy ~= nil and Puzzle.HomeKey(legacy) or nil
+    if key ~= nil and SameHome(result, legacy --[[@as PuzzleHome]]) == nil then
+        result[key] = legacy
+    end
+    return result
+end
+
+---@param id string
+---@param fn fun(entry: PuzzleIndexEntry)
+local function WriteIndex(id, fn)
     local doc = mod:GetDocumentSnapshot(INDEX_DOC)
     doc:BeginChange()
     local entry = doc.data[id]
@@ -339,10 +395,77 @@ function Puzzle.IndexPuzzle(id, info)
         entry = {}
         doc.data[id] = entry
     end
-    for k, v in pairs(info or {}) do
-        entry[k] = v
+    --an old entry's one home moves into homes, so homes is the only list.
+    local legacy = LegacyHome(entry)
+    if legacy ~= nil then
+        entry.homes = entry.homes or {}
+        local key = Puzzle.HomeKey(legacy)
+        if key ~= nil and SameHome(entry.homes, legacy) == nil then
+            entry.homes[key] = legacy
+        end
+        entry.kind, entry.floorid, entry.objid, entry.docid = nil, nil, nil, nil
     end
+    fn(entry)
     doc:CompleteChange("Index puzzle", {undoable = false})
+end
+
+--Record a puzzle in the index, and one more place it lives when info is a
+--lock or a page. Writes only when something is new, so surfaces can call it
+--every time they show a puzzle. A page home recorded without its tag gains it.
+---@param id string
+---@param info PuzzleHome|{kind: "standalone"}|nil
+function Puzzle.IndexPuzzle(id, info)
+    local current = mod:GetDocumentSnapshot(INDEX_DOC).data[id]
+    local home = nil
+    if info ~= nil and (info.kind == "lock" or info.kind == "journal") then
+        home = info --[[@as PuzzleHome]]
+    end
+    local standalone = info ~= nil and info.kind == "standalone"
+    if type(current) == "table" then
+        if home == nil then
+            if not standalone or current.kind ~= nil then
+                return
+            end
+        else
+            local homes = Puzzle.Homes(id)
+            local key = SameHome(homes, home)
+            if key ~= nil and (home.tag == nil or homes[key].tag == home.tag) then
+                return
+            end
+        end
+    end
+    WriteIndex(id, function(entry)
+        if home == nil then
+            if standalone and entry.kind == nil then
+                entry.kind = "standalone"
+            end
+            return
+        end
+        entry.homes = entry.homes or {}
+        local old = SameHome(entry.homes, home)
+        if old ~= nil then
+            entry.homes[old] = nil
+        end
+        local copy = {}
+        for k, v in pairs(home) do
+            copy[k] = v
+        end
+        entry.homes[Puzzle.HomeKey(home) or Puzzle.SafeId(dmhub.GenerateGuid())] = copy
+    end)
+end
+
+--Take one place out of a puzzle's homes. The puzzle itself stays.
+---@param id string
+---@param key string
+function Puzzle.RemoveHome(id, key)
+    if Puzzle.Homes(id)[key] == nil then
+        return
+    end
+    WriteIndex(id, function(entry)
+        if entry.homes ~= nil then
+            entry.homes[key] = nil
+        end
+    end)
 end
 
 --Forget a puzzle whose lock or page is gone: clear its board, status, presence

@@ -17,18 +17,62 @@ function RichPuzzle.Create()
     return RichPuzzle.new{}
 end
 
---The id of the puzzle a journal tag shows: owning page + tag name, so two pages
---never share a puzzle. Nil while the page is unsaved (it has no id yet).
+--Tag keyword -> the prefix of the puzzle id it makes, for every journal tag
+--that shows a puzzle.
+---@type table<string, string>
+Puzzle.JOURNAL_TAGS = { puzzle = "j_", sliderpuzzle = "s_", tornpuzzle = "t_" }
+
+--The page's own puzzle for a tag: owning page + tag name, so two pages never
+--share one by accident. Nil while the page is unsaved (it has no id yet).
 ---@param tag RichTag
 ---@param prefix string keeps legacy tags apart from [[puzzle:]] tags of the same name
 ---@return string|nil
-function Puzzle.JournalId(tag, prefix)
+function Puzzle.OwnJournalId(tag, prefix)
     local doc = tag:GetDocument()
     local docid = doc ~= nil and doc:try_get("id") or nil
     if docid == nil then
         return nil
     end
     return Puzzle.SafeId(string.format("%s%s_%s", prefix, tostring(docid), tostring(tag.identifier or "default")))
+end
+
+--The id of the puzzle a journal tag shows: the puzzle it names (one placed
+--from the Puzzles panel or chosen with "Use an existing puzzle"), else the
+--page's own.
+---@param tag RichTag
+---@param prefix string
+---@return string|nil
+function Puzzle.JournalId(tag, prefix)
+    local named = tag:try_get("puzzleid")
+    if type(named) == "string" and named ~= "" then
+        return named
+    end
+    return Puzzle.OwnJournalId(tag, prefix)
+end
+
+---@param tag RichTag
+---@return string
+function Puzzle.TagKey(tag)
+    return string.format("%s:%s", tostring(tag.tag), tostring(tag.identifier or "default"))
+end
+
+--The tags on a page that show a puzzle: tag key -> tag.
+---@param doc any
+---@param id string
+---@return table<string, RichTag>
+function Puzzle.PageTags(doc, id)
+    local result = {}
+    local annotations = doc ~= nil and doc:try_get("annotations") or nil
+    for key, tag in pairs(annotations or {}) do
+        local prefix = type(tag) == "table" and Puzzle.JOURNAL_TAGS[tostring(tag.tag)] or nil
+        if prefix ~= nil then
+            tag._tmp_document = doc
+            if Puzzle.JournalId(tag, prefix) == id then
+                result[key] = tag
+            end
+        end
+    end
+    return result
 end
 
 --Record a journal tag's puzzle (and its page) in the puzzle index.
@@ -41,7 +85,49 @@ function Puzzle.IndexJournal(tag, id)
     local doc = tag:GetDocument()
     local docid = doc ~= nil and doc:try_get("id") or nil
     if docid ~= nil then
-        Puzzle.IndexPuzzle(id, { kind = "journal", docid = tostring(docid) })
+        Puzzle.IndexPuzzle(id, { kind = "journal", docid = tostring(docid), tag = Puzzle.TagKey(tag) })
+    end
+end
+
+--Point a journal tag at another puzzle, or back at the page's own (nil). The
+--puzzle it showed loses this page as a home.
+---@param tag RichTag
+---@param prefix string
+---@param id string|nil
+function Puzzle.SetJournalPuzzle(tag, prefix, id)
+    local old = Puzzle.JournalId(tag, prefix)
+    local doc = tag:GetDocument()
+    local docid = doc ~= nil and doc:try_get("id") or nil
+    if old ~= nil and docid ~= nil then
+        local key = Puzzle.HomeKey({ kind = "journal", docid = tostring(docid), tag = Puzzle.TagKey(tag) })
+        for homeKey, home in pairs(Puzzle.Homes(old)) do
+            if home.kind == "journal" and home.docid == tostring(docid) and (home.tag == nil or homeKey == key) then
+                Puzzle.RemoveHome(old, homeKey)
+            end
+        end
+    end
+    (tag --[[@as table]]).puzzleid = id or ""
+    tag:UploadDocument()
+    Puzzle.IndexJournal(tag, Puzzle.JournalId(tag, prefix))
+end
+
+--"Use an existing puzzle" for a journal tag's setup.
+---@param getTag fun(): RichTag
+---@param prefix string
+---@return fun(): PuzzlePick|nil
+function Puzzle.JournalPick(getTag, prefix)
+    return function()
+        local own = Puzzle.OwnJournalId(getTag(), prefix)
+        if own == nil then
+            return nil
+        end
+        return {
+            own = own,
+            ownText = "This page's own puzzle",
+            choose = function(id)
+                Puzzle.SetJournalPuzzle(getTag(), prefix, id)
+            end,
+        }
     end
 end
 
@@ -588,15 +674,71 @@ local function FieldControl(field, config, setConfig)
     return nil
 end
 
+--"Use an existing puzzle" for a place (a lock, a page tag): its own puzzle, or
+--any set-up puzzle in the index.
+---@class PuzzlePick
+---@field own string|nil the puzzle this place has on its own
+---@field ownText string
+---@field choose fun(id: string|nil) nil: back to its own puzzle
+
+---@param id string
+---@param pick PuzzlePick
+---@return Panel[]
+local function PickRows(id, pick)
+    local others = {}
+    for otherId in pairs(Puzzle.Index()) do
+        if otherId ~= pick.own and Puzzle.Exists(otherId) then
+            local def = Puzzle.GetType(otherId)
+            others[#others + 1] = { id = otherId, text = string.format("%s (%s)", Puzzle.Title(otherId), def ~= nil and def.name or "") }
+        end
+    end
+    if #others == 0 then
+        return {}
+    end
+    table.sort(others, function(a, b) return a.text < b.text end)
+    local options = { { id = "own", text = pick.ownText } }
+    for _, o in ipairs(others) do
+        options[#options + 1] = o
+    end
+    return {
+        gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", text = "Use an existing puzzle:" },
+        gui.Dropdown{
+            options = options,
+            idChosen = cond(id == pick.own or not Puzzle.Exists(id), "own", id),
+            change = function(dropdown)
+                ---@cast dropdown Dropdown
+                local chosen = tostring(dropdown.idChosen)
+                local target = cond(chosen == "own", nil, chosen)
+                if target == nil and not Puzzle.Exists(id) then
+                    return
+                end
+                if (target or pick.own) ~= id then
+                    pick.choose(target)
+                end
+            end,
+        },
+    }
+end
+
 --The settings popup's contents: type picker, the type's fields, time limit.
 ---@param id string
 ---@param onTypeChosen fun(typeid: string)
 ---@param skipImages boolean|nil true where the image field is already shown beside the setup (the annotations strip)
+---@param pick PuzzlePick|nil offers "Use an existing puzzle" first
 ---@return Panel
-function Puzzle.SetupPanel(id, onTypeChosen, skipImages)
+function Puzzle.SetupPanel(id, onTypeChosen, skipImages, pick)
     local def = Puzzle.GetType(id)
     local config = Puzzle.ReadConfig(id)
     local rows = {}
+
+    if pick ~= nil then
+        for _, row in ipairs(PickRows(id, pick)) do
+            rows[#rows + 1] = row
+        end
+        if #rows > 0 then
+            rows[#rows].selfStyle.bmargin = 6
+        end
+    end
 
     local function SetConfig(changes)
         for k, v in pairs(changes) do
@@ -683,8 +825,9 @@ end
 ---@param getId fun(): string|nil
 ---@param onTypeChosen fun(id: string, typeid: string)
 ---@param setTag fun(tag: any)|nil receives the tag object each refreshEditor hands over
+---@param getPick (fun(): PuzzlePick|nil)|nil offers "Use an existing puzzle" in the setup
 ---@return Panel
-function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
+function Puzzle.CreateEditor(getId, onTypeChosen, setTag, getPick)
     local tile
     local resultPanel
 
@@ -746,12 +889,22 @@ function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
                     return
                 end
                 element.popupsInheritStyles = true
+                local pick = getPick ~= nil and getPick() or nil
+                if pick ~= nil then
+                    local choose = pick.choose
+                    pick.choose = function(otherId)
+                        choose(otherId)
+                        element.popup = nil
+                        resultPanel.data.builtFor = nil
+                        resultPanel:FireEvent("refreshEditor")
+                    end
+                end
                 element.popup = Puzzle.SetupPanel(id, function(typeid)
                     onTypeChosen(id, typeid)
                     element.popup = nil
                     resultPanel.data.builtFor = nil
                     resultPanel:FireEvent("refreshEditor")
-                end, true)
+                end, true, pick)
             end,
         },
         tile,
@@ -1016,7 +1169,7 @@ end
 function RichPuzzle.CreateEditor(self)
     return Puzzle.CreateEditor(function() return Puzzle.JournalId(self, ID_PREFIX) end, function(id, typeid)
         Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
-    end, function(tag) self = tag end)
+    end, function(tag) self = tag end, Puzzle.JournalPick(function() return self end, ID_PREFIX))
 end
 
 MarkdownDocument.RegisterRichTag(RichPuzzle)

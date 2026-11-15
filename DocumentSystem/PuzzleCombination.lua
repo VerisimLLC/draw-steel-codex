@@ -23,19 +23,6 @@ local FACE_BORDER = "#8a6d42ff"
 local FACE_BORDER_CURSOR = "#f2c96bff"
 local SYMBOL_COLOR = "#ead9b0ff"
 
-local RUNES = {
-    { name = "Flame", icon = "phosphor/flame-fill.png" },
-    { name = "Eye", icon = "phosphor/eye-fill.png" },
-    { name = "Key", icon = "phosphor/key-fill.png" },
-    { name = "Moon", icon = "phosphor/moon-fill.png" },
-    { name = "Sun", icon = "phosphor/sun-fill.png" },
-    { name = "Skull", icon = "phosphor/skull-fill.png" },
-    { name = "Star", icon = "phosphor/star-fill.png" },
-    { name = "Sword", icon = "phosphor/sword-fill.png" },
-    { name = "Crown", icon = "phosphor/crown-simple-fill.png" },
-    { name = "Hourglass", icon = "phosphor/hourglass-fill.png" },
-}
-
 ---@class ComboSymbol
 ---@field name string
 ---@field text string|nil drawn as text (digits, letters)
@@ -79,7 +66,7 @@ local function Symbols(config)
             result[#result + 1] = { name = c, text = c }
         end
     elseif set == "runes" then
-        for _, r in ipairs(RUNES) do
+        for _, r in ipairs(PuzzleRunes.list) do
             result[#result + 1] = { name = r.name, icon = r.icon }
         end
     elseif set == "images" then

@@ -301,6 +301,9 @@ local function SortedIds(rules)
 end
 local THREAD_RULE_IDS = SortedIds(THREAD_RULES)
 
+--Thread rules that need a Lexicon page (the warden's colour).
+local LEXICON_RULES = { wardenTwice = true, wardenNone = true }
+
 --A rule is usable when its named target exists and it resolves whenever it holds.
 local function ThreadRuleOk(rule, ward, th)
     local def = THREAD_RULES[rule.id]
@@ -317,14 +320,17 @@ end
 ---@param random WardRandom
 ---@param ward table
 ---@param depth integer
-local function MakeThreadsModule(random, ward, depth, perPage)
+--lexicon: below chained depth, put exactly one rule on the page that needs the warden's
+--colour from the Lexicon, so a spare reader holding that page is needed.
+local function MakeThreadsModule(random, ward, depth, perPage, lexicon)
     local th = {}
     for i = 1, Between(random, 3, 6) do
         th[i] = { colour = random(COLOUR_COUNT), pattern = random(PATTERN_COUNT) }
     end
+    lexicon = lexicon and depth < 3
     local pool = {}
     for _, id in ipairs(THREAD_RULE_IDS) do
-        if THREAD_RULES[id].depth <= depth then
+        if THREAD_RULES[id].depth <= depth or (lexicon and LEXICON_RULES[id]) then
             pool[#pool + 1] = id
         end
     end
@@ -335,6 +341,7 @@ local function MakeThreadsModule(random, ward, depth, perPage)
         local rules = {}
         local seen = {}
         local deepest = 0
+        local lexCount = 0
         local tries = 0
         while #rules < perPage and tries < 50 do
             tries = tries + 1
@@ -343,16 +350,21 @@ local function MakeThreadsModule(random, ward, depth, perPage)
             rule.id = id
             --one rule per condition: a repeated condition could never decide.
             local condition = THREAD_RULES[id].text(rule):match("^(.-), cut")
-            if not seen[condition] and ThreadRuleOk(rule, ward, th) then
+            local isLex = lexicon and LEXICON_RULES[id] == true
+            if not seen[condition] and not (isLex and lexCount > 0) and ThreadRuleOk(rule, ward, th) then
                 seen[condition] = true
                 rules[#rules + 1] = rule
-                deepest = math.max(deepest, THREAD_RULES[id].depth)
+                if isLex then
+                    lexCount = lexCount + 1
+                else
+                    deepest = math.max(deepest, THREAD_RULES[id].depth)
+                end
             end
         end
         local oid = THREAD_OTHERWISE_IDS[random(#THREAD_OTHERWISE_IDS)]
         local otherwise = THREAD_OTHERWISE[oid].make(random, th)
         otherwise.id = oid
-        if #rules == perPage and deepest == depth then
+        if #rules == perPage and deepest == depth and (not lexicon or lexCount == 1) then
             local decides = perPage + 1
             for i, rule in ipairs(rules) do
                 if THREAD_RULES[rule.id].cond(rule, ward, th) then
@@ -506,9 +518,10 @@ end
 --------------------------------------------------------------------------------
 
 --Generate a ward. opts.modules: list of kinds in order ("threads", "glyphs", "dial");
---opts.depth: "plain" | "conditional" | "chained".
+--opts.depth: "plain" | "conditional" | "chained"; opts.lexicon: below chained depth, give
+--each Threads page one rule that needs the Lexicon (for spare readers).
 ---@param random WardRandom
----@param opts {modules: string[], depth: string}
+---@param opts {modules: string[], depth: string, lexicon: boolean|nil}
 ---@return table
 function PuzzleWardGen.Generate(random, opts)
     local depthName = opts.depth or "plain"
@@ -527,7 +540,7 @@ function PuzzleWardGen.Generate(random, opts)
     for i, kind in ipairs(opts.modules) do
         local m
         if kind == "threads" then
-            m = MakeThreadsModule(random, ward, depth, perPage)
+            m = MakeThreadsModule(random, ward, depth, perPage, opts.lexicon == true)
         elseif kind == "glyphs" then
             m = MakeGlyphsModule(random, ward, depth)
         else
@@ -671,6 +684,21 @@ function PuzzleWardGen.PageText(ward, i)
         end
     end
     return { title = "Sigil dial", intro = intro, lines = lines }
+end
+
+--Which Lexicon pages (1-3) the ward's pages refer to.
+---@param ward table
+---@return table<integer, boolean>
+function PuzzleWardGen.LexiconRefs(ward)
+    local refs = {}
+    for i in ipairs(ward.modules) do
+        for _, line in ipairs(PuzzleWardGen.PageText(ward, i).lines) do
+            if line:find("warden's colour", 1, true) then refs[1] = true end
+            if line:find("warden's rune", 1, true) then refs[2] = true end
+            if line:find("Lexicon's ring", 1, true) then refs[3] = true end
+        end
+    end
+    return refs
 end
 
 --The Lexicon's three pages.

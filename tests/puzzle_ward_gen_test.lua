@@ -125,6 +125,8 @@ local setups = {
     { name = "vault-threads", depth = "conditional", modules = { "threads" } },
     { name = "archmage", depth = "chained", modules = { "threads", "glyphs", "dial", "threads" } },
     { name = "archmage-no-glyphs", depth = "chained", modules = { "threads", "dial" } },
+    { name = "simple-lexicon", depth = "plain", modules = { "threads" }, lexicon = true },
+    { name = "vault-lexicon", depth = "conditional", modules = { "threads", "glyphs", "dial" }, lexicon = true },
 }
 
 for _, setup in ipairs(setups) do
@@ -133,12 +135,16 @@ for _, setup in ipairs(setups) do
     local started = os.clock()
     for s = 1, SEEDS do
         local seed = setup.name .. ":" .. s
-        local ok, ward = pcall(PuzzleWardGen.Generate, SeededRandom(seed), { depth = setup.depth, modules = setup.modules })
+        local opts = { depth = setup.depth, modules = setup.modules, lexicon = setup.lexicon }
+        local ok, ward = pcall(PuzzleWardGen.Generate, SeededRandom(seed), opts)
         if not ok then
             Fail("%s seed %d: Generate errored: %s", setup.name, s, tostring(ward))
         else
             --deterministic from the seed
-            local again = PuzzleWardGen.Generate(SeededRandom(seed), { depth = setup.depth, modules = setup.modules })
+            local again = PuzzleWardGen.Generate(SeededRandom(seed), opts)
+            if setup.lexicon and not PuzzleWardGen.LexiconRefs(ward)[1] then
+                Fail("%s seed %d: Lexicon option but no page refers to the warden's colour", setup.name, s)
+            end
             if Serialize(ward) ~= Serialize(again) then
                 Fail("%s seed %d: not deterministic", setup.name, s)
             end
@@ -187,6 +193,15 @@ for _, setup in ipairs(setups) do
                     end
                     if answer == nil or answer < 1 or answer > #m.threads then
                         Fail("%s seed %d: answer %s out of range", setup.name, s, tostring(answer))
+                    end
+                    if setup.lexicon then
+                        local lex = 0
+                        for _, line in ipairs(page.lines) do
+                            if line:find("warden's colour", 1, true) then lex = lex + 1 end
+                        end
+                        if lex ~= 1 then
+                            Fail("%s seed %d: %d warden's-colour rules, want 1", setup.name, s, lex)
+                        end
                     end
                     if setup.depth == "chained" then
                         local chained = false

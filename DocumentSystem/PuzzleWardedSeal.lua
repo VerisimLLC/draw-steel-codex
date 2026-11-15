@@ -28,6 +28,22 @@ local PRESETS = {
 
 local KIND_NAMES = { threads = "Threads", glyphs = "Glyphs", dial = "Sigil dial" }
 
+--Which part a player would rather have in split puzzles; each window reports it at the
+--gathering, since account settings are not visible to other players.
+local g_partPreference = setting{
+    id = "splitpuzzlepart",
+    description = "In split puzzles I'd rather",
+    storage = "account",
+    default = "either",
+    editor = "dropdown",
+    section = "Game",
+    enum = {
+        { value = "either", text = "Either part" },
+        { value = "hands", text = "Be the hands" },
+        { value = "read", text = "Read" },
+    },
+}
+
 ---@param config table
 ---@return {count: integer, depth: string, strikes: integer, kinds: string}
 local function Effective(config)
@@ -133,14 +149,15 @@ local function ModuleSealed(state, i)
 end
 
 ---@param ward table
----@return string[] page keys: "m1".."mN", plus "L1".."L3" when the rules refer to the Lexicon
+---@return string[] page keys: "m1".."mN", plus "L1".."L3" for the Lexicon pages the rules use
 local function PageKeys(ward)
     local keys = {}
     for i in ipairs(ward.modules) do
         keys[#keys + 1] = "m" .. i
     end
-    if ward.depth == "chained" then
-        for k = 1, 3 do
+    local refs = PuzzleWardGen.LexiconRefs(ward)
+    for k = 1, 3 do
+        if refs[k] then
             keys[#keys + 1] = "L" .. k
         end
     end
@@ -230,11 +247,117 @@ local function Log(state, text)
     state.log[dmhub.GenerateGuid()] = { at = dmhub.serverTime, seq = state.logSeq, text = text }
 end
 
+---@param parts table
+---@param userid string
+---@return string[]
+local function PagesOf(parts, userid)
+    local list = {}
+    for key in string.gmatch(tostring((parts.readers or {})[userid] or ""), "[^,]+") do
+        list[#list + 1] = key
+    end
+    return list
+end
+
+--The page the fewest readers hold; on a tie a Lexicon page before a module page.
+---@param ward table
+---@param parts table
+---@return string
+local function LeastCovered(ward, parts)
+    local counts = {}
+    local keys = PageKeys(ward)
+    for _, key in ipairs(keys) do
+        counts[key] = 0
+    end
+    for _, pages in pairs(parts.readers or {}) do
+        for key in string.gmatch(tostring(pages), "[^,]+") do
+            if counts[key] ~= nil then
+                counts[key] = counts[key] + 1
+            end
+        end
+    end
+    local best, bestCount = keys[1], math.huge
+    for _, prefix in ipairs({ "L", "m" }) do
+        for _, key in ipairs(keys) do
+            if key:sub(1, 1) == prefix and counts[key] < bestCount then
+                best, bestCount = key, counts[key]
+            end
+        end
+    end
+    return best
+end
+
+--Pages round-robin to the readers; readers left without one get the least-covered page.
+---@param ward table
+---@param parts table
+---@param readers string[]
+local function DealPages(ward, parts, readers)
+    parts.readers = {}
+    if #readers == 0 then
+        return
+    end
+    local held = {}
+    for _, r in ipairs(readers) do
+        held[r] = {}
+    end
+    for k, key in ipairs(PageKeys(ward)) do
+        local r = readers[(k - 1) % #readers + 1]
+        held[r][#held[r] + 1] = key
+    end
+    for _, r in ipairs(readers) do
+        if #held[r] > 0 then
+            parts.readers[r] = table.concat(held[r], ",")
+        end
+    end
+    for _, r in ipairs(readers) do
+        if #held[r] == 0 then
+            parts.readers[r] = LeastCovered(ward, parts)
+        end
+    end
+end
+
+--The hands: a Director's pin, else someone who would rather be the hands, else "either".
+---@param players string[]
+---@param state table
+---@param config table
+---@param random fun(k: integer): integer
+---@return string
+local function ChooseHands(players, state, config, random)
+    local pins = type(config.roles) == "table" and config.roles or {}
+    for _, userid in ipairs(players) do
+        if pins[userid] == "hands" then
+            return userid
+        end
+    end
+    local prefs = type(state.prefs) == "table" and state.prefs or {}
+    for _, want in ipairs({ "hands", "either" }) do
+        local pool = {}
+        for _, userid in ipairs(players) do
+            if (prefs[userid] or "either") == want then
+                pool[#pool + 1] = userid
+            end
+        end
+        if #pool > 0 then
+            return pool[random(#pool)]
+        end
+    end
+    return players[random(#players)]
+end
+
+---@param ward table
+---@param key string
+---@return string
+local function PageTitle(ward, key)
+    local page = PageFor(ward, key)
+    return page ~= nil and page.title or key
+end
+
+--Deal the parts among the players at the seal. keepWard: re-deal the same ward.
 ---@param id string
 ---@param state table
 ---@param config table
 ---@param requester string
-local function Deal(id, state, config, requester)
+---@param keepWard boolean|nil
+local function Deal(id, state, config, requester, keepWard)
     local players = PlayersAtSeal(id)
     table.sort(players)
     --nobody but the presser (a Director testing alone): they play solo.
@@ -242,44 +365,232 @@ local function Deal(id, state, config, requester)
         players = { requester }
     end
     local random = Puzzle.SeededRandom(dmhub.GenerateGuid())
-    local eff = Effective(config)
-    local ward = PuzzleWardGen.Generate(random, { modules = ModuleKinds(eff, random), depth = eff.depth })
-    for i = #players, 2, -1 do
+    local ward = state.ward
+    if not keepWard or ward == nil then
+        local eff = Effective(config)
+        local kinds = ModuleKinds(eff, random)
+        local hasThreads = false
+        for _, kind in ipairs(kinds) do
+            hasThreads = hasThreads or kind == "threads"
+        end
+        --more readers than modules: rules that need the Lexicon give the spare readers a page.
+        local lexicon = hasThreads and eff.depth ~= "chained" and #players - 1 > #kinds
+        ward = PuzzleWardGen.Generate(random, { modules = kinds, depth = eff.depth, lexicon = lexicon })
+    end
+    local hands = ChooseHands(players, state, config, random)
+    local readers = {}
+    for _, userid in ipairs(players) do
+        if userid ~= hands then
+            readers[#readers + 1] = userid
+        end
+    end
+    for i = #readers, 2, -1 do
         local j = random(i)
-        players[i], players[j] = players[j], players[i]
+        readers[i], readers[j] = readers[j], readers[i]
     end
-    local parts = { hands = players[1], solo = #players == 1, readers = {} }
-    if #players > 1 then
-        local keys = PageKeys(ward)
-        local held = {}
-        local readers = {}
-        for k = 2, #players do
-            readers[#readers + 1] = players[k]
-            held[players[k]] = {}
-        end
-        for k, key in ipairs(keys) do
-            local reader = readers[(k - 1) % #readers + 1]
-            held[reader][#held[reader] + 1] = key
-        end
-        --more readers than pages: the extra readers get copies, spread round the pages.
-        for k = #keys + 1, #readers do
-            local reader = readers[k]
-            held[reader][#held[reader] + 1] = keys[(k - 1) % #keys + 1]
-        end
-        for reader, pages in pairs(held) do
-            parts.readers[reader] = table.concat(pages, ",")
-        end
-    end
-    state.phase = "playing"
-    state.ward = ward
+    local parts = { hands = hands, solo = #players == 1, readers = {} }
+    DealPages(ward, parts, readers)
     state.parts = parts
-    state.act = {}
-    state.strikes = 0
+    state.former = {}
+    state.offers = {}
+    state.away = nil
+    if not keepWard then
+        state.phase = "playing"
+        state.ward = ward
+        state.act = {}
+        state.strikes = 0
+    end
     if parts.solo then
         Log(state, string.format("%s faces the ward alone.", Puzzle.UserName(parts.hands)))
     else
         Log(state, string.format("%s has the ward in hand; the others hold the codex.", Puzzle.UserName(parts.hands)))
     end
+end
+
+---@param parts table
+---@param userid string
+---@return boolean
+local function Dealt(parts, userid)
+    return parts.hands == userid or (parts.readers or {})[userid] ~= nil
+end
+
+---@param parts table
+---@param a string
+---@param b string
+local function SwapParts(parts, a, b)
+    local pa = parts.hands == a and "H" or parts.readers[a]
+    local pb = parts.hands == b and "H" or parts.readers[b]
+    parts.readers[a] = nil
+    parts.readers[b] = nil
+    for _, pair in ipairs({ { a, pb }, { b, pa } }) do
+        if pair[2] == "H" then
+            parts.hands = pair[1]
+        elseif pair[2] ~= nil then
+            parts.readers[pair[1]] = pair[2]
+        end
+    end
+end
+
+---@param state table
+---@return boolean
+local function Started(state)
+    return (state.strikes or 0) > 0 or next(state.act or {}) ~= nil
+end
+
+--The Director, or the host of a game with no Director (the host runs this code).
+---@param userid string
+---@return boolean
+local function CanReferee(userid)
+    return IsDirectorUser(userid) or userid == dmhub.userid
+end
+
+local AWAY_SECONDS = 5
+local GONE_SECONDS = 60
+local OFFER_SECONDS = 120
+
+--Host-only: when each player was last seen at each seal. Not synced; a new host starts fresh.
+---@type table<string, table<string, number>>
+local g_lastSeen = {}
+
+--Host: the hands stepping away, being replaced, a former hands coming back, stale offers.
+---@param id string
+---@param state table
+---@return boolean changed
+local function Presence(id, state)
+    if state.phase ~= "playing" or type(state.parts) ~= "table" then
+        return false
+    end
+    local parts = state.parts
+    parts.readers = parts.readers or {}
+    local now = dmhub.serverTime
+    local seen = g_lastSeen[id] or {}
+    g_lastSeen[id] = seen
+    local present = {}
+    for _, userid in ipairs(Puzzle.PresentUsers(id)) do
+        present[userid] = true
+        seen[userid] = now
+    end
+    local changed = false
+    local hands = parts.hands
+    if hands ~= nil and not parts.solo then
+        if present[hands] then
+            if state.away then
+                state.away = nil
+                changed = true
+            end
+        else
+            seen[hands] = seen[hands] or now
+            local gone = now - seen[hands]
+            if gone >= AWAY_SECONDS and not state.away then
+                state.away = true
+                Log(state, string.format("%s, the hands, is away.", Puzzle.UserName(hands)))
+                changed = true
+            end
+            if gone >= GONE_SECONDS then
+                local prefs = state.prefs or {}
+                local pick = nil
+                for _, want in ipairs({ "hands", "either", "read" }) do
+                    for userid in pairs(parts.readers) do
+                        if pick == nil and present[userid] and (prefs[userid] or "either") == want then
+                            pick = userid
+                        end
+                    end
+                end
+                if pick ~= nil then
+                    local pages = PagesOf(parts, pick)
+                    parts.readers[pick] = nil
+                    parts.hands = pick
+                    state.former = state.former or {}
+                    state.former[hands] = true
+                    local others = {}
+                    for userid in pairs(parts.readers) do
+                        if present[userid] then
+                            others[#others + 1] = userid
+                        end
+                    end
+                    table.sort(others)
+                    if #others == 0 then
+                        parts.solo = true
+                    end
+                    --the new hands' pages go round the readers still here.
+                    for k, key in ipairs(pages) do
+                        local r = others[(k - 1) % math.max(1, #others) + 1]
+                        if r ~= nil then
+                            local held = PagesOf(parts, r)
+                            local has = false
+                            for _, h in ipairs(held) do
+                                has = has or h == key
+                            end
+                            if not has then
+                                held[#held + 1] = key
+                            end
+                            parts.readers[r] = table.concat(held, ",")
+                        end
+                    end
+                    state.away = nil
+                    Log(state, string.format("%s has gone; %s takes the hands.", Puzzle.UserName(hands), Puzzle.UserName(pick)))
+                    changed = true
+                end
+            end
+        end
+    end
+    --a former hands back at the seal reads again.
+    for userid in pairs(state.former or {}) do
+        if present[userid] and not Dealt(parts, userid) then
+            local key = LeastCovered(state.ward, parts)
+            parts.readers[userid] = key
+            parts.solo = false
+            state.former[userid] = nil
+            Log(state, string.format("%s is back and reads the %s page.", Puzzle.UserName(userid), PageTitle(state.ward, key)))
+            changed = true
+        end
+    end
+    --every page needs a reader: a page left with nobody (its reader took the hands, or
+    --left with no one to pass it to) goes to whoever holds the fewest pages.
+    if not parts.solo and next(parts.readers) ~= nil then
+        local counts = {}
+        for _, key in ipairs(PageKeys(state.ward)) do
+            counts[key] = 0
+        end
+        for _, pages in pairs(parts.readers) do
+            for key in string.gmatch(tostring(pages), "[^,]+") do
+                if counts[key] ~= nil then
+                    counts[key] = counts[key] + 1
+                end
+            end
+        end
+        for _, key in ipairs(PageKeys(state.ward)) do
+            if counts[key] == 0 then
+                local best, bestCount = nil, math.huge
+                local readers = {}
+                for userid in pairs(parts.readers) do
+                    readers[#readers + 1] = userid
+                end
+                table.sort(readers)
+                for _, userid in ipairs(readers) do
+                    local n = #PagesOf(parts, userid) + (present[userid] and 0 or 100)
+                    if n < bestCount then
+                        best, bestCount = userid, n
+                    end
+                end
+                if best ~= nil then
+                    local held = PagesOf(parts, best)
+                    held[#held + 1] = key
+                    parts.readers[best] = table.concat(held, ",")
+                    counts[key] = 1
+                    Log(state, string.format("%s now also holds the %s page.", Puzzle.UserName(best), PageTitle(state.ward, key)))
+                    changed = true
+                end
+            end
+        end
+    end
+    for guid, offer in pairs(state.offers or {}) do
+        if type(offer) ~= "table" or now - (tonumber(offer.at) or 0) > OFFER_SECONDS then
+            state.offers[guid] = nil
+            changed = true
+        end
+    end
+    return changed
 end
 
 ---@param state table
@@ -309,6 +620,98 @@ local function HandleRequest(id, state, req, userid, after)
         return
     end
     local parts = state.parts or {}
+    parts.readers = parts.readers or {}
+    state.offers = state.offers or {}
+    if req.kind == "join" then
+        if not Dealt(parts, userid) and not IsDirectorUser(userid) then
+            local key = LeastCovered(state.ward, parts)
+            parts.readers[userid] = key
+            parts.solo = false
+            Log(state, string.format("%s joins and reads the %s page.", Puzzle.UserName(userid), PageTitle(state.ward, key)))
+        end
+        return
+    elseif req.kind == "offer" then
+        local to = req.to
+        local offerKind = req.offerKind
+        if not Dealt(parts, userid) or type(to) ~= "string" or to == userid or not Dealt(parts, to) then
+            return
+        end
+        if offerKind == "pass" and parts.hands ~= userid then
+            return
+        elseif offerKind == "take" and parts.hands ~= to then
+            return
+        elseif offerKind ~= "pass" and offerKind ~= "take" and offerKind ~= "swap" then
+            return
+        end
+        for guid, offer in pairs(state.offers) do
+            if type(offer) == "table" and offer.from == userid then
+                state.offers[guid] = nil
+            end
+        end
+        --swapping once the work has started needs the Director's (or host's) OK.
+        state.offers[dmhub.GenerateGuid()] = { kind = offerKind, from = userid, to = to, at = dmhub.serverTime,
+            approved = offerKind ~= "swap" or not Started(state) }
+        return
+    elseif req.kind == "answer" or req.kind == "approve" then
+        local guid = req.offer
+        local offer = type(guid) == "string" and state.offers[guid] or nil
+        if type(offer) ~= "table" then
+            return
+        end
+        if req.kind == "answer" and req.accept ~= true then
+            if userid == offer.to or userid == offer.from or CanReferee(userid) then
+                state.offers[guid] = nil
+            end
+            return
+        end
+        if req.kind == "answer" and (userid == offer.to or (offer.kind == "take" and CanReferee(userid))) then
+            offer.accepted = true
+            if offer.kind == "take" and CanReferee(userid) then
+                offer.approved = true
+            end
+        elseif req.kind == "approve" and CanReferee(userid) then
+            offer.approved = true
+            if offer.kind == "take" then
+                offer.accepted = true
+            end
+        end
+        if offer.accepted and offer.approved then
+            state.offers[guid] = nil
+            if Dealt(parts, offer.from) and Dealt(parts, offer.to) then
+                SwapParts(parts, offer.from, offer.to)
+                if offer.kind == "swap" then
+                    Log(state, string.format("%s and %s swap parts.", Puzzle.UserName(offer.from), Puzzle.UserName(offer.to)))
+                else
+                    Log(state, string.format("%s now has the hands.", Puzzle.UserName(parts.hands)))
+                end
+            end
+        end
+        return
+    elseif req.kind == "makehands" then
+        local target = req.target
+        if not CanReferee(userid) or type(target) ~= "string" or target == parts.hands then
+            return
+        end
+        if Dealt(parts, target) then
+            SwapParts(parts, parts.hands, target)
+        else
+            local old = parts.hands
+            parts.hands = target
+            parts.readers[target] = nil
+            if old ~= nil then
+                parts.readers[old] = LeastCovered(state.ward, parts)
+            end
+            parts.solo = false
+        end
+        state.away = nil
+        Log(state, string.format("%s now has the hands.", Puzzle.UserName(target)))
+        return
+    elseif req.kind == "redeal" then
+        if CanReferee(userid) then
+            Deal(id, state, config, userid, true)
+        end
+        return
+    end
     if parts.hands ~= userid then
         return
     end
@@ -382,7 +785,9 @@ local function HostTick(id)
     end
     local after = {}
     Puzzle.Change(id, function(state)
-        if not Puzzle.ProcessRequests(id, state, HandleRequest, after) then
+        local changed = Puzzle.ProcessRequests(id, state, HandleRequest, after)
+        changed = Presence(id, state) or changed
+        if not changed then
             return false
         end
     end, "Warded seal")
@@ -457,6 +862,43 @@ local function Render(ctx)
         children[#children + 1] = Label("Waiting for the others. Anyone can begin; the parts are dealt then.", {"sizeS", "fgMuted"})
         if m_ctx.isDirector then
             children[#children + 1] = Label("Directors are not dealt a part.", {"sizeS", "fgMuted"})
+        else
+            children[#children + 1] = gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto", tmargin = 6,
+                Label("I'd rather:", {"sizeS"}, { valign = "center", hmargin = 4 }),
+                gui.Dropdown{
+                    width = 180,
+                    options = { { id = "either", text = "Either part" }, { id = "hands", text = "Be the hands" }, { id = "read", text = "Read" } },
+                    idChosen = g_partPreference:Get(),
+                    change = function(dropdown)
+                        ---@cast dropdown Dropdown
+                        g_partPreference:Set(dropdown.idChosen)
+                    end,
+                },
+            }
+        end
+        --the Director (or the host with no Director) can say who will be the hands.
+        if IsDMOrPlayerHost() and #players > 1 then
+            local pins = type(m_ctx.config.roles) == "table" and m_ctx.config.roles or {}
+            for _, userid in ipairs(players) do
+                local uid = userid
+                local pinned = pins[uid] == "hands"
+                children[#children + 1] = gui.Panel{
+                    flow = "horizontal", width = "auto", height = "auto", vmargin = 1,
+                    Label(Puzzle.UserName(uid) .. (pinned and " (will be the hands)" or ""), {"sizeS"}, { width = 240, valign = "center" }),
+                    gui.Button{
+                        classes = {"sizeXs"}, text = pinned and "Let the deal decide" or "Make the hands",
+                        width = 140, height = 22, valign = "center",
+                        click = function()
+                            local roles = {}
+                            if not pinned then
+                                roles[uid] = "hands"
+                            end
+                            Puzzle.SetConfig(m_ctx.id, { roles = roles })
+                        end,
+                    },
+                }
+            end
         end
         if m_confirmSolo then
             children[#children + 1] = Label("You alone will see the ward and its codex. Begin?", {"sizeM"}, { tmargin = 6 })
@@ -689,6 +1131,149 @@ local function Render(ctx)
         return table.concat(lines, "\n")
     end
 
+    --Changing parts: offers to and from this player, Join in, and the referee's controls.
+    ---@param role string
+    ---@return Panel[]
+    local function PartsRows(role)
+        local state = State()
+        local parts = state.parts or {}
+        local me = m_ctx.userid
+        local rows = {}
+        local offers = {}
+        for guid, offer in pairs(state.offers or {}) do
+            if type(offer) == "table" then
+                offers[#offers + 1] = { guid = guid, offer = offer }
+            end
+        end
+        table.sort(offers, function(a, b) return (tonumber(a.offer.at) or 0) < (tonumber(b.offer.at) or 0) end)
+
+        local function Buttons(...)
+            return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 1, children = { ... } }
+        end
+        local function Small(text, fn)
+            return gui.Button{ classes = {"sizeXs"}, text = text, width = "auto", minWidth = 70, hpad = 6, height = 22, hmargin = 3, valign = "center", click = fn }
+        end
+
+        if role == "watching" and not m_ctx.readonly then
+            rows[#rows + 1] = Buttons(
+                Label("The seal is being worked. Join in to read a page.", {"sizeS"}, { valign = "center" }),
+                Small("Join in", function() Request({ kind = "join" }) end))
+        end
+
+        local dealt = role == "hands" or role == "reader"
+        for _, entry in ipairs(offers) do
+            local o, guid = entry.offer, entry.guid
+            local from, to = Puzzle.UserName(o.from), Puzzle.UserName(o.to)
+            if o.to == me and not o.accepted then
+                local text
+                if o.kind == "swap" then
+                    text = string.format("%s offers to swap parts with you.", from)
+                elseif o.kind == "pass" then
+                    text = string.format("%s offers you the hands.", from)
+                else
+                    text = string.format("%s asks to take the hands.", from)
+                end
+                rows[#rows + 1] = Buttons(Label(text, {"sizeS"}, { valign = "center" }),
+                    Small("Accept", function() Request({ kind = "answer", offer = guid, accept = true }) end),
+                    Small("Decline", function() Request({ kind = "answer", offer = guid, accept = false }) end))
+            elseif o.from == me then
+                local text = string.format("Waiting for %s%s.", cond(o.accepted, "", to), cond(o.approved, "", cond(o.accepted, "the Director's OK", " and the Director's OK")))
+                rows[#rows + 1] = Buttons(Label(text, {"sizeS", "fgMuted"}, { valign = "center" }),
+                    Small("Cancel", function() Request({ kind = "answer", offer = guid, accept = false }) end))
+            end
+            if IsDMOrPlayerHost() and not o.approved then
+                local text
+                if o.kind == "take" then
+                    text = string.format("%s asks to take the hands from %s.", from, to)
+                else
+                    text = string.format("%s and %s want to swap parts.", from, to)
+                end
+                rows[#rows + 1] = Buttons(Label(text, {"sizeS"}, { valign = "center" }),
+                    Small("Approve", function() Request({ kind = "approve", offer = guid }) end))
+            end
+        end
+
+        if dealt and not parts.solo and not m_ctx.readonly then
+            local others = {}
+            if parts.hands ~= nil and parts.hands ~= me then
+                others[#others + 1] = parts.hands
+            end
+            for userid in pairs(parts.readers or {}) do
+                if userid ~= me then
+                    others[#others + 1] = userid
+                end
+            end
+            table.sort(others)
+            local options = {}
+            for _, userid in ipairs(others) do
+                options[#options + 1] = { id = userid, text = Puzzle.UserName(userid) }
+            end
+            if #options > 0 then
+                local verb = cond(role == "hands", "Pass the hands to...", "Swap parts with...")
+                local controls = {
+                    gui.Dropdown{
+                        width = 200, hmargin = 3,
+                        options = options,
+                        textDefault = verb,
+                        change = function(dropdown)
+                            ---@cast dropdown Dropdown
+                            Request({ kind = "offer", offerKind = cond(role == "hands", "pass", "swap"), to = dropdown.idChosen })
+                        end,
+                    },
+                }
+                if role == "reader" and parts.hands ~= nil then
+                    controls[#controls + 1] = Small("Take the hands", function()
+                        Request({ kind = "offer", offerKind = "take", to = parts.hands })
+                    end)
+                end
+                rows[#rows + 1] = gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 2, children = controls }
+            end
+        end
+
+        --the referee: who holds what, make anyone the hands, deal again.
+        if IsDMOrPlayerHost() and not m_ctx.readonly then
+            local players = {}
+            local seen = {}
+            if parts.hands ~= nil then
+                players[#players + 1] = parts.hands
+                seen[parts.hands] = true
+            end
+            for userid in pairs(parts.readers or {}) do
+                if not seen[userid] then
+                    players[#players + 1] = userid
+                    seen[userid] = true
+                end
+            end
+            for _, userid in ipairs(PlayersAtSeal(m_ctx.id)) do
+                if not seen[userid] then
+                    players[#players + 1] = userid
+                    seen[userid] = true
+                end
+            end
+            rows[#rows + 1] = Label("Parts", {"sizeS", "bold"}, { tmargin = 4 })
+            for _, userid in ipairs(players) do
+                local uid = userid
+                local held
+                if parts.hands == uid then
+                    held = "the hands"
+                elseif (parts.readers or {})[uid] ~= nil then
+                    local titles = {}
+                    for _, key in ipairs(PagesOf(parts, uid)) do
+                        titles[#titles + 1] = PageTitle(state.ward, key)
+                    end
+                    held = table.concat(titles, ", ")
+                else
+                    held = "watching"
+                end
+                rows[#rows + 1] = Buttons(
+                    Label(string.format("%s: %s", Puzzle.UserName(uid), held), {"sizeS"}, { width = 280, valign = "center" }),
+                    parts.hands ~= uid and Small("Make the hands", function() Request({ kind = "makehands", target = uid }) end) or nil)
+            end
+            rows[#rows + 1] = Buttons(Small("Deal again", function() Request({ kind = "redeal" }) end))
+        end
+        return rows
+    end
+
     local function Playing()
         local state = State()
         local role, pages = RoleOf(state, m_ctx.userid, m_ctx.isDirector)
@@ -712,6 +1297,13 @@ local function Render(ctx)
             card = "You are watching. The players hold the parts."
         end
         children[#children + 1] = Label(card, {"sizeM", "bold"})
+        if state.away and state.parts ~= nil then
+            children[#children + 1] = Label(string.format("%s, the hands, is away. If they are gone for a minute, a reader takes the hands.",
+                Puzzle.UserName(state.parts.hands)), {"sizeS", "warning"})
+        end
+        for _, row in ipairs(PartsRows(role)) do
+            children[#children + 1] = row
+        end
         children[#children + 1] = ModuleList()
         if role == "hands" or role == "solo" or role == "director" then
             children[#children + 1] = WardView(canAct)
@@ -765,6 +1357,16 @@ local function Render(ctx)
         thinkTime = 2,
         think = function(element)
             if State().phase ~= "playing" then
+                --tell the host which part this player would rather have.
+                local pref = g_partPreference:Get()
+                local prefs = State().prefs or {}
+                if not m_ctx.isDirector and prefs[m_ctx.userid] ~= pref then
+                    local uid = m_ctx.userid
+                    m_ctx:Change(function(st)
+                        st.prefs = st.prefs or {}
+                        st.prefs[uid] = pref
+                    end, "Part preference")
+                end
                 local key = table.concat(PlayersAtSeal(m_ctx.id), ",")
                 if key ~= m_gatherKey then
                     m_gatherKey = key

@@ -112,7 +112,9 @@ function PuzzlePlace.HomeLive(id, home)
         end
         return false
     elseif home.kind == "table" then
-        return Tabletop.HasDocItem(PuzzlePlace.EntryId(id))
+        --(a Tabletop.lua from before HasDocItem cannot tell: count it as there.)
+        local has = rawget(Tabletop, "HasDocItem")
+        return has == nil or has(PuzzlePlace.EntryId(id)) == true
     elseif home.kind == "rail" then
         return IconRailKeySlot(PuzzlePlace.RailKey(id)) ~= nil
     end
@@ -447,7 +449,10 @@ function PuzzlePlace.RemoveHome(id, key)
     elseif home.kind == "journal" then
         PuzzlePlace.ClearPage(id, home)
     elseif home.kind == "table" then
-        Tabletop.RemoveDocItem(PuzzlePlace.EntryId(id))
+        local remove = rawget(Tabletop, "RemoveDocItem")
+        if remove ~= nil then
+            remove(PuzzlePlace.EntryId(id))
+        end
     elseif home.kind == "rail" then
         IconRailKeyPurge(PuzzlePlace.RailKey(id))
     end

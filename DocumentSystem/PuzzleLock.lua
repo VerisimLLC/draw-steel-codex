@@ -444,6 +444,32 @@ local function Toast(text)
     gui.ShowDialog(mod, toast)
 end
 
+--Heroes who have rolled this puzzle's bypass test (tokenid -> record).
+---@param id string
+---@return table<string, table>
+local function BypassTries(id)
+    local tries = Puzzle.ReadKept(id).bypass
+    if type(tries) ~= "table" then
+        return {}
+    end
+    return tries
+end
+
+---@param tokenid string|nil
+---@param userid string|nil
+---@return string
+local function HeroName(tokenid, userid)
+    local tok = Puzzle.HeroById(tokenid)
+    local name = nil
+    if tok ~= nil then
+        pcall(function() name = tok.name end)
+    end
+    if type(name) ~= "string" or name == "" then
+        return Puzzle.UserName(userid)
+    end
+    return name
+end
+
 --------------------------------------------------------------------------------
 -- Director setup window
 --------------------------------------------------------------------------------
@@ -743,6 +769,38 @@ local function OpenSetup(id, floorid, objid)
                 WriteLock(current)
             end,
         }
+        local tries = {}
+        for tokenid, rec in pairs(BypassTries(id)) do
+            tries[#tries + 1] = { tokenid = tokenid, name = HeroName(tokenid, type(rec) == "table" and rec.user or nil) }
+        end
+        table.sort(tries, function(a, b) return a.name < b.name end)
+        if #tries > 0 then
+            children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Already tried to force it:" }
+            for _, t in ipairs(tries) do
+                local tokenid = t.tokenid
+                children[#children + 1] = gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    vmargin = 1,
+                    gui.Label{ classes = {"sizeS"}, width = 200, height = "auto", valign = "center", text = t.name },
+                    gui.Button{
+                        classes = {"sizeXs"},
+                        text = "Let them try again",
+                        width = 140,
+                        height = 22,
+                        click = function(element)
+                            Puzzle.ChangeKept(id, function(kept)
+                                if type(kept.bypass) == "table" then
+                                    kept.bypass[tokenid] = nil
+                                end
+                            end, "Allow another bypass test")
+                            Rebuild()
+                        end,
+                    },
+                }
+            end
+        end
         children[#children + 1] = gui.Check{
             classes = {"sizeS"},
             width = "auto",
@@ -818,7 +876,12 @@ local function OpenSetup(id, floorid, objid)
         monitorGame = Puzzle.MonitorPaths(id),
         data = { signature = nil },
         refreshGame = function(element)
-            local signature = tostring(Puzzle.GetTypeId(id)) .. "|" .. LockSignature(Locks(id)[lockKey])
+            local tried = {}
+            for tokenid in pairs(BypassTries(id)) do
+                tried[#tried + 1] = tokenid
+            end
+            table.sort(tried)
+            local signature = tostring(Puzzle.GetTypeId(id)) .. "|" .. LockSignature(Locks(id)[lockKey]) .. "|" .. table.concat(tried, ",")
             if element.data.signature ~= nil and element.data.signature ~= signature then
                 element.data.signature = signature
                 Rebuild()
@@ -874,29 +937,67 @@ local function TokenInRange(obj, range)
     return nil
 end
 
---Roll the lock's bypass test with token and act on the tier.
+--The bypass test ("Force it"): each hero tries once per puzzle, recorded in the
+--puzzle's kept data so a Reset doesn't hand out new tries. The roller files a
+--request; the host checks and records it, then acts on the tier.
+Puzzle.RegisterRequestHandler("bypass", function(id, state, req, userid, after)
+    local tokenid = req.tokenid
+    if type(tokenid) ~= "string" then
+        return
+    end
+    local tier = math.tointeger(tonumber(req.tier)) or 1
+    after[#after + 1] = function()
+        --checked here, not in the handler: two requests in one tick both see
+        --the saved kept data, but the first record is written before the second runs.
+        local status = Puzzle.Status(id)
+        if status.solved or status.failed or BypassTries(id)[tokenid] ~= nil then
+            return
+        end
+        Puzzle.ChangeKept(id, function(kept)
+            kept.bypass = kept.bypass or {}
+            kept.bypass[tokenid] = { tier = tier, user = userid, at = dmhub.serverTime }
+        end, "Bypass test")
+        local who = HeroName(tokenid, userid)
+        local title = Puzzle.Title(id)
+        if tier >= 3 then
+            chat.Send(string.format("%s forced %s open.", who, title))
+            Puzzle.Bypass(id)
+        elseif tier == 2 then
+            chat.Send(string.format("%s forced %s open, at a cost.", who, title))
+            Puzzle.Bypass(id, { withFail = true })
+        else
+            chat.Send(string.format("%s tried to force %s. It holds.", who, title))
+        end
+    end
+end)
+
+--Rolls sent but not yet recorded by the host, so a double click can't send two.
+---@type table<string, boolean>
+local g_bypassPending = {}
+
+local BYPASS_TIERS = { "It holds.", "It gives, at a cost.", "It gives." }
+
 ---@param id string
 ---@param attrid string
 ---@param token CharacterToken
 local function RollBypass(id, attrid, token)
-    local props = token.properties
-    if props == nil then
+    local tokenid = token.charid
+    if token.properties == nil or tokenid == nil then
         return
     end
-    props:ShowCharacteristicRollDialog(attrid, {
-        onComplete = function(tier)
-            if Puzzle.Status(id).solved then
-                return
-            end
-            if tier >= 3 then
-                Puzzle.Bypass(id)
-            elseif tier == 2 then
-                Puzzle.Bypass(id, { withFail = true })
-            else
-                Toast("It holds.")
-            end
-        end,
-    })
+    local key = id .. ":" .. tokenid
+    if g_bypassPending[key] then
+        return
+    end
+    g_bypassPending[key] = true
+    local function StillWanted()
+        return not Puzzle.Status(id).solved and BypassTries(id)[tokenid] == nil
+    end
+    Puzzle.RollTest(token, attrid, "", "Force it", BYPASS_TIERS, StillWanted, function(tier)
+        Puzzle.Request(id, { kind = "bypass", tokenid = tokenid, tier = tier })
+    end, function()
+        g_bypassPending[key] = nil
+    end)
 end
 
 ---@param floorid string
@@ -909,29 +1010,61 @@ local function BypassButton(id, floorid, objid)
     if info == nil then
         return nil
     end
-    return gui.Button{
+    local label = string.format("Force it (%s)", info.description)
+
+    ---@return CharacterToken|nil
+    local function Hero()
+        local obj = game.LookupObject(floorid, objid)
+        local range = tonumber(lock.range) or DEFAULT_RANGE
+        local token = obj ~= nil and TokenInRange(obj, range) or nil
+        if token == nil and IsDMOrPlayerHost() then
+            token = Puzzle.MyHero()
+        end
+        return token
+    end
+
+    local button = gui.Button{
         classes = {"sizeXs"},
-        text = string.format("Try %s", info.description),
-        width = 100,
+        text = label,
+        width = "auto",
+        minWidth = 100,
+        hpad = 6,
         height = 22,
         hmargin = 2,
-        thinkTime = 0.5,
-        think = function(element)
-            element:SetClass("collapsed", Puzzle.Status(id).solved == true)
-        end,
         click = function(element)
-            local obj = game.LookupObject(floorid, objid)
-            local range = tonumber(lock.range) or DEFAULT_RANGE
-            local token = obj ~= nil and TokenInRange(obj, range) or nil
-            if token == nil and IsDMOrPlayerHost() then
-                token = (dmhub.selectedOrPrimaryTokens or {})[1]
-            end
+            local token = Hero()
             if token == nil then
                 Toast("Too far away. Move closer.")
                 return
             end
+            if token.charid ~= nil and BypassTries(id)[token.charid] ~= nil then
+                return
+            end
             RollBypass(id, attrid --[[@as string]], token)
         end,
+    }
+    --the think lives on a wrapper: a collapsed panel stops thinking, so the
+    --button could never come back after a Reset.
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        thinkTime = 0.5,
+        think = function(element)
+            button:SetClass("collapsed", Puzzle.Status(id).solved == true)
+            local tok = Hero()
+            local tokenid = tok ~= nil and tok.charid or nil
+            local tried = tokenid ~= nil and BypassTries(id)[tokenid] ~= nil
+            if tried then
+                g_bypassPending[id .. ":" .. tokenid] = nil
+            end
+            local text = cond(tried, string.format("%s tried to force it", HeroName(tokenid, dmhub.userid)), label)
+            if button.text ~= text then
+                button.text = text
+            end
+            button:SetClass("disabled", tried)
+        end,
+        button,
     }
 end
 

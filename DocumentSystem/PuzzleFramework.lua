@@ -1231,8 +1231,9 @@ end
 
 --A player's test: the montage's skill-aware roll (characteristic, the Skilled
 --chip, the hero's features), private to the roller; without Encounter of the
---Week, the characteristic alone. tiers are the three result lines the roll
---dialog shows. onDone(tier, natural).
+--Week, the characteristic alone. skill may be "" for none. tiers are the three
+--result lines the roll dialog shows. onDone(tier, natural); onCancel when the
+--player closes the roll without rolling (montage roll only).
 ---@param tok CharacterToken
 ---@param attrid string
 ---@param skill string
@@ -1240,10 +1241,14 @@ end
 ---@param tiers string[]
 ---@param stillWanted fun(): boolean
 ---@param onDone fun(tier: integer, natural: number|nil)
-function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone)
+---@param onCancel fun()|nil
+function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, onCancel)
     local info = (creature.attributesInfo or {})[attrid]
     local attrName = info ~= nil and info.description or "Intuition"
-    local attr = string.format("%s, %s", attrName, skill)
+    local attr = attrName
+    if skill ~= nil and skill ~= "" then
+        attr = string.format("%s, %s", attrName, skill)
+    end
     local montage = rawget(_G, "EncounterMontage")
     if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
         local parts = montage.BuildTestRoll(tok, attr, name, nil)
@@ -1263,6 +1268,8 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone)
             send = function(kind, req)
                 if kind == "rolled" and stillWanted() then
                     onDone(math.tointeger(tonumber(req.tier)) or 1, tonumber(req.natural))
+                elseif kind == "cancel" and onCancel ~= nil then
+                    onCancel()
                 end
                 return true
             end,

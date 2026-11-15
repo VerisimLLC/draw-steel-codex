@@ -16,6 +16,7 @@ local mod = dmhub.GetModLoading()
 ---@field log string|nil a line for the game log
 ---@field chat string|nil a line for the chat
 ---@field round "win"|"lose"|nil this challenge decided a round
+---@field final boolean|nil with round: it also decides the game (every gambler out of dice)
 ---@field bettor {user: string, tokenid: string}|nil who the stake belongs to (the champion)
 
 ---@class ChanceTurnsView
@@ -36,9 +37,10 @@ local mod = dmhub.GetModLoading()
 ---@field presets table<string, table> preset id -> setup values
 ---@field presetOptions {id: string, text: string}[] the setup's first choice
 ---@field fields? PuzzleField[] the game's own setup, shown under Customize
----@field startLabel string the button that starts a challenge
+---@field startLabel fun(g: table): string the button that starts a challenge
+---@field CanStart? fun(g: table, eff: table, req: table, userid: string): boolean may this request start a challenge?
 ---@field NewGame fun(eff: table, random: (fun(k: integer): integer)): table public data for a new game
----@field Start fun(g: table, eff: table, random: (fun(k: integer): integer), secret: table, events: ChanceTurnsEvent[]) begin a challenge
+---@field Start fun(g: table, eff: table, random: (fun(k: integer): integer), secret: table, events: ChanceTurnsEvent[], req: table, userid: string) begin a challenge
 ---@field Move fun(g: table, eff: table, secret: table, req: table, userid: string, random: (fun(k: integer): integer), events: ChanceTurnsEvent[]): boolean apply a player's move; true if anything changed
 ---@field HostStep fun(g: table, eff: table, secret: table, now: number, random: (fun(k: integer): integer), events: ChanceTurnsEvent[]): boolean run turns that are due; true if anything changed
 ---@field Status fun(g: table, eff: table, phase: string, viewer: string): string the step line
@@ -183,6 +185,14 @@ local function ApplyEvents(state, eff, events, effects)
         end
         if e.round ~= nil and state.phase == "playing" then
             state.round = (state.round or 0) + 1
+            if e.final then
+                --this round settles the game whatever the count.
+                if e.round == "win" then
+                    state.wins = math.max(state.wins or 0, eff.wins - 1)
+                else
+                    state.losses = math.max(state.losses or 0, eff.losses - 1)
+                end
+            end
             S.FinishRound(state, eff, e.round, e.bettor, effects)
         end
     end
@@ -212,9 +222,10 @@ local function HostTick(game, id)
                 return true
             end
             if kind == "start" then
-                if state.phase == "ready" or state.phase == "revealed" then
+                if (state.phase == "ready" or state.phase == "revealed")
+                    and (game.CanStart == nil or game.CanStart(state.g, eff, req, userid)) then
                     state.phase = "playing"
-                    game.Start(state.g, eff, random, secret, events)
+                    game.Start(state.g, eff, random, secret, events, req, userid)
                     changed = true
                 end
             elseif kind == "move" then
@@ -359,6 +370,7 @@ local function Render(game, ctx)
         logLabel.text = LogTail(state.log, 8)
         logLabel:SetClass("collapsed", logLabel.text == "")
 
+        startButton.text = game.startLabel(state.g or {})
         startButton:SetClass("collapsed", readonly or not (phase == "ready" or phase == "revealed"))
         againButton:SetClass("collapsed", readonly or not (phase == "over" and state.result ~= "won" and eff.onLoss == "again"))
     end
@@ -382,7 +394,10 @@ local function Render(game, ctx)
     stepLabel = gui.Label{ classes = {"sizeM", "bold"}, width = 700, height = "auto", halign = "left", tmargin = 4, text = "" }
     scoreLabel = gui.Label{ classes = {"sizeS"}, width = 700, height = "auto", halign = "left", text = "" }
     logLabel = gui.Label{ classes = {"sizeS", "collapsed"}, width = 700, height = "auto", halign = "left", tmargin = 4, text = "" }
-    startButton = Button(game.startLabel, function() Request({ kind = "start" }) end)
+    startButton = Button("", function()
+        local tok = Puzzle.MyHero()
+        Request({ kind = "start", tokenid = tok ~= nil and tok.charid or nil })
+    end)
     againButton = Button("Play again", function() Request({ kind = "playagain" }) end)
 
     resultPanel = gui.Panel{

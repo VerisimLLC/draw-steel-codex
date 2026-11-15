@@ -1325,6 +1325,7 @@ function RichTornPuzzle.CreateDisplay(self)
     local m_token = nil
     local panel = Puzzle.CreatePanel(nil, {
         editing = function() return m_token ~= nil and m_token.editor == true end,
+        where = function() return Puzzle.OnPageText(self) end,
     })
     return gui.Panel{
         flow = "vertical",

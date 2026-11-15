@@ -993,16 +993,46 @@ end
 ---@field editing boolean the page holding the puzzle is in edit mode
 ---@field solved boolean
 ---@field failed boolean
----@field readonly boolean solved, failed or editing: the board takes no moves
+---@field readonly boolean solved, failed, editing or away: the board takes no moves
+---@field away boolean a player opened it away from its lock, and it is solved only there
 ---@field role string|nil the role id the Director gave this player
 ---@field panel Panel|nil the panel Render returned, once built
 PuzzleContext = {}
 PuzzleContext.__index = PuzzleContext
 
---Build a context for a puzzle. opts.seed seeds ctx.random; opts.editing marks a
---page in edit mode.
+--True when a puzzle with a lock can only be solved at the lock (players who
+--open it anywhere else see it but cannot move), unless the Director allowed
+--solving from anywhere in the lock's setup.
 ---@param id string
----@param opts {seed: string|nil, config: table|nil, editing: boolean|nil}|nil
+---@return boolean
+function Puzzle.SolveOnlyAtLock(id)
+    local config = Puzzle.ReadConfig(id)
+    if config.solveAnywhere == true or type(config.locks) ~= "table" then
+        return false
+    end
+    return next(config.locks) ~= nil
+end
+
+--The name of the first of a puzzle's lock objects still on the map, or nil.
+---@param id string
+---@return string|nil
+function Puzzle.LockObjectName(id)
+    local locks = Puzzle.ReadConfig(id).locks
+    for _, lock in pairs(type(locks) == "table" and locks or {}) do
+        if type(lock) == "table" and lock.floorid ~= nil and lock.objid ~= nil then
+            local obj = game.LookupObject(lock.floorid, lock.objid)
+            if obj ~= nil and obj.valid and type(obj.description) == "string" and obj.description ~= "" then
+                return obj.description
+            end
+        end
+    end
+    return nil
+end
+
+--Build a context for a puzzle. opts.seed seeds ctx.random; opts.editing marks a
+--page in edit mode; opts.away marks a player who opened it away from its lock.
+---@param id string
+---@param opts {seed: string|nil, config: table|nil, editing: boolean|nil, away: boolean|nil}|nil
 ---@return PuzzleContext
 function Puzzle.Context(id, opts)
     opts = opts or {}
@@ -1024,10 +1054,11 @@ function Puzzle.Context(id, opts)
         solved = status.solved == true,
         failed = status.failed == true,
         readonly = false,
+        away = opts.away == true,
         role = roles[dmhub.userid],
         panel = nil,
     }, PuzzleContext)
-    ctx.readonly = ctx.solved or ctx.failed or ctx.editing
+    ctx.readonly = ctx.solved or ctx.failed or ctx.editing or ctx.away
     return ctx
 end
 
@@ -1118,11 +1149,13 @@ local function PresenceEntry(id)
     return entry
 end
 
---Record (or clear) that this player has the puzzle open. Windows call this as a
---heartbeat; a client that drops simply stops renewing and goes stale.
+--Record (or clear) that this player has the puzzle open, and where from ("at
+--the Chest", "from chat"). Windows call this as a heartbeat; a client that drops
+--simply stops renewing and goes stale.
 ---@param id string
 ---@param present boolean
-function Puzzle.MarkPresent(id, present)
+---@param where string|nil
+function Puzzle.MarkPresent(id, present, where)
     local doc = mod:GetDocumentSnapshot(PRESENCE_DOC)
     doc:BeginChange()
     local entry = doc.data[id]
@@ -1134,7 +1167,35 @@ function Puzzle.MarkPresent(id, present)
         entry.users = {}
     end
     entry.users[dmhub.userid] = cond(present, dmhub.serverTime, nil)
+    if type(entry.where) ~= "table" then
+        entry.where = {}
+    end
+    entry.where[dmhub.userid] = cond(present, where, nil)
     doc:CompleteChange("Puzzle presence", {undoable = false})
+end
+
+--Where a present player has the puzzle open from ("at the Chest"), or nil.
+---@param id string
+---@param userid string
+---@return string|nil
+function Puzzle.PresentWhere(id, userid)
+    local where = PresenceEntry(id).where
+    if type(where) == "table" and type(where[userid]) == "string" then
+        return where[userid]
+    end
+    return nil
+end
+
+--A player's name with where they are, for presence lines: "Ana (at the Chest)".
+---@param id string
+---@param userid string
+---@return string
+function Puzzle.UserNameWhere(id, userid)
+    local where = Puzzle.PresentWhere(id, userid)
+    if where ~= nil then
+        return string.format("%s (%s)", Puzzle.UserName(userid), where)
+    end
+    return Puzzle.UserName(userid)
 end
 
 --Userids with the puzzle open right now, this player included.

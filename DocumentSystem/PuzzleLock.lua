@@ -774,6 +774,19 @@ local function OpenSetup(id, floorid, objid)
             children[#children + 1] = row
         end
 
+        children[#children + 1] = gui.Check{
+            classes = {"sizeS"},
+            width = "auto",
+            height = 22,
+            halign = "left",
+            tmargin = 10,
+            text = "Can be solved from anywhere",
+            value = Puzzle.ReadConfig(id).solveAnywhere == true,
+            change = function(element)
+                Puzzle.SetConfig(id, { solveAnywhere = element.value == true })
+            end,
+            hover = gui.Tooltip("Off: players who open it from a page, the table or chat can look but must come to the lock to solve it."),
+        }
         children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 10, text = "Players can use it from (squares):" }
         children[#children + 1] = gui.Slider{
             width = 200,
@@ -1167,12 +1180,40 @@ local function DirectorHeader(floorid, objid)
     end
 end
 
+--Where a player at this lock is, for presence lines: "at the Chest".
+---@param floorid string
+---@param objid string
+---@return string|nil
+local function AtObjectText(floorid, objid)
+    local obj = game.LookupObject(floorid, objid)
+    local name = obj ~= nil and obj.valid and obj.description or nil
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return "at the " .. name
+end
+
+--What a puzzle's locks do on solve ("onSolve") or fail, as lines, for the
+--confirms that name them.
+---@param id string
+---@param listName "onSolve"|"onFail"
+---@return string[]
+function Puzzle.LockEffectLines(id, listName)
+    local lines = {}
+    for _, lock in pairs(Locks(id)) do
+        for _, effect in ipairs(type(lock) == "table" and lock[listName] or {}) do
+            lines[#lines + 1] = DescribeEffect(effect)
+        end
+    end
+    return lines
+end
+
 --Open a lock's puzzle with its title-bar buttons (the Director's puzzle list).
 ---@param id string
 ---@param floorid string
 ---@param objid string
 function Puzzle.OpenLockWindow(id, floorid, objid)
-    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
 end
 
 Puzzle.OpenForJoin = function(id)
@@ -1230,7 +1271,7 @@ function PuzzleLockInteractive:Interact(controller, token)
             return nil
         end
         Puzzle.IndexPuzzle(id, { kind = "lock", floorid = floorid, objid = objid })
-        Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+        Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
         return nil
     end
 
@@ -1246,7 +1287,7 @@ function PuzzleLockInteractive:Interact(controller, token)
         Toast("Too far away. Move closer.")
         return nil
     end
-    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
     return nil
 end
 

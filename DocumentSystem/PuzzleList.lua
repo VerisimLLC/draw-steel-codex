@@ -99,7 +99,7 @@ local function BuildRow(id, entry)
     end
 
     for _, userid in ipairs(Puzzle.PresentUsers(id)) do
-        row.people[#row.people + 1] = Puzzle.UserName(userid)
+        row.people[#row.people + 1] = Puzzle.UserNameWhere(id, userid)
     end
     if #row.people > 0 and row.rank == 2 then
         row.rank = 1
@@ -176,7 +176,9 @@ ShowSetup = function(button, id)
     end
     button.popupsInheritStyles = true
     button.popup = Puzzle.SetupPanel(id, function(typeid)
-        Puzzle.Create(id, typeid, nil, Puzzle.Title(id))
+        --a lock's targets stay with the puzzle through a type change.
+        local locks = Puzzle.Exists(id) and Puzzle.ReadConfig(id).locks or nil
+        Puzzle.Create(id, typeid, cond(type(locks) == "table", { locks = locks }, nil), Puzzle.Title(id))
         button.popup = nil
         ShowSetup(button, id)
     end)
@@ -342,13 +344,11 @@ local function RowPanel(row)
         }
     end)
     buttons[#buttons + 1] = placeButton
-    if row.entry.kind == "standalone" then
-        local setupButton
-        setupButton = RowButton("Setup", function()
-            ShowSetup(setupButton, id)
-        end)
-        buttons[#buttons + 1] = setupButton
-    end
+    local setupButton
+    setupButton = RowButton("Setup", function()
+        ShowSetup(setupButton, id)
+    end)
+    buttons[#buttons + 1] = setupButton
 
     local removeButtons = {}
     if #liveNames > 0 then

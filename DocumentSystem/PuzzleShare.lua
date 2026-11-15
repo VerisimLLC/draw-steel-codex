@@ -50,7 +50,8 @@ local function PuzzleEntry(id)
         kindName = "Puzzle: " .. word,
         icon = icon,
         open = function()
-            Puzzle.OpenWindow(id)
+            local fromChat = rawget(ChatItemLinks, "openingFromChat") == true
+            Puzzle.OpenWindow(id, { where = cond(fromChat, "from chat", nil) })
         end,
         --the hover preview's body.
         DisplayPanel = function(self, args)

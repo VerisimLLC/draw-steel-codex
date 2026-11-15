@@ -75,6 +75,18 @@ function Puzzle.PageTags(doc, id)
     return result
 end
 
+--Where a player reading a tag's page is, for presence lines: "on Handout 3".
+---@param tag RichTag
+---@return string|nil
+function Puzzle.OnPageText(tag)
+    local doc = tag:GetDocument()
+    local name = doc ~= nil and doc:try_get("description") or nil
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return "on " .. name
+end
+
 --Record a journal tag's puzzle (and its page) in the puzzle index.
 ---@param tag RichTag
 ---@param id string|nil
@@ -161,29 +173,94 @@ local function FormatTime(seconds)
     return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+--The places a puzzle lives, by name, that are still there (PuzzlePlace).
+---@param id string
+---@return string[]
+local function LiveHomeNames(id)
+    local names = {}
+    for _, home in pairs(Puzzle.Homes(id)) do
+        if PuzzlePlace.HomeLive(id, home) then
+            names[#names + 1] = PuzzlePlace.HomeName(home)
+        end
+    end
+    table.sort(names)
+    return names
+end
+
+--A puzzle-wide action (Reset, Solve, Bypass, a type change) on a puzzle that
+--lives in more than one place asks first, naming every place, who is in it and
+--what its locks will do. With one place it runs at once, unless always is set
+--(Reset always asks). effects: the lock effects the action runs or undoes.
+---@param id string
 ---@param title string
----@param message string
+---@param lines string[] what the action does
 ---@param confirmText string
 ---@param onConfirm fun()
-local function Confirm(title, message, confirmText, onConfirm)
+---@param opts {always: boolean|nil, effects: "onSolve"|"onFail"|nil, effectsVerb: string|nil, onCancel: (fun())|nil}|nil
+function Puzzle.ConfirmWide(id, title, lines, confirmText, onConfirm, opts)
+    opts = opts or {}
+    local names = LiveHomeNames(id)
+    if #names <= 1 and not opts.always then
+        onConfirm()
+        return
+    end
+    local all = {}
+    for _, line in ipairs(lines) do
+        all[#all + 1] = line
+    end
+    if #names > 1 then
+        all[#all + 1] = "It applies in every place: " .. table.concat(names, ", ") .. "."
+    end
+    local people = {}
+    for _, userid in ipairs(Puzzle.PresentUsers(id)) do
+        if userid ~= dmhub.userid then
+            people[#people + 1] = Puzzle.UserNameWhere(id, userid)
+        end
+    end
+    if #people > 0 then
+        all[#all + 1] = "In it now: " .. table.concat(people, ", ") .. "."
+    end
+    if opts.effects ~= nil then
+        local effects = Puzzle.LockEffectLines(id, opts.effects)
+        if #effects > 0 then
+            all[#all + 1] = (opts.effectsVerb or "Its locks will") .. ": " .. table.concat(effects, "; ") .. "."
+        end
+    end
+    local labels = {}
+    for _, line in ipairs(all) do
+        labels[#labels + 1] = gui.Label{
+            classes = {"modalMessage"},
+            width = "100%",
+            height = "auto",
+            vmargin = 2,
+            text = line,
+        }
+    end
+    local cancelled = true
     GameHud.instance:ModalDialog{
         title = title,
-        width = 640,
-        height = 280,
+        width = 720,
+        height = 200 + 40 * #all,
         buttonsHalign = "center",
         buttons = {
             { text = "Cancel", escapeActivates = true, click = function() end },
-            { text = confirmText, click = onConfirm },
+            { text = confirmText, click = function()
+                cancelled = false
+                onConfirm()
+            end },
         },
+        destroy = function(element)
+            if cancelled and opts.onCancel ~= nil then
+                opts.onCancel()
+            end
+        end,
         gui.Panel{
-            width = 520,
-            height = 80,
+            flow = "vertical",
+            width = 640,
+            height = "auto",
             halign = "center",
             valign = "center",
-            gui.Label{
-                classes = {"modalMessage"},
-                text = message,
-            },
+            children = labels,
         },
     }
 end
@@ -204,9 +281,11 @@ local function SmallButton(text, press)
 end
 
 --Build the frame for one puzzle. opts.editing() reports whether the page is in
---edit mode (no moves then); opts.width is the frame's width.
+--edit mode (no moves then); opts.atLock marks a window opened at the puzzle's
+--lock; opts.where (a string, or a function returning one) says where this
+--player has it open, for other players' presence lines.
 ---@param id string|nil nil shows the "save the page first" message
----@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil}|nil
+---@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil, atLock: boolean|nil, where: string|(fun(): string|nil)|nil}|nil
 ---@return Panel
 function Puzzle.CreatePanel(id, opts)
     opts = opts or {}
@@ -230,11 +309,28 @@ function Puzzle.CreatePanel(id, opts)
         return opts.editing ~= nil and opts.editing() == true
     end
 
+    ---@return string|nil
+    local function Where()
+        local where = opts.where
+        if type(where) == "function" then
+            return where()
+        end
+        return where
+    end
+
     --the Director, or the host of a game with no Director (who otherwise has no
     --way to reset a puzzle the table has lost).
     local function IsDirector()
         return dmhub.isDMOrPlayerHost == true
     end
+
+    --a player who opened a lock's puzzle anywhere but the lock: they can look.
+    local function Away()
+        return m_id ~= nil and not opts.atLock and not IsDirector() and Puzzle.SolveOnlyAtLock(m_id --[[@as string]])
+    end
+    local m_builtAway = false
+    local awayLabel
+    local presenceLabel
 
     local function BuildAssists(def)
         local children = {}
@@ -319,15 +415,21 @@ function Puzzle.CreatePanel(id, opts)
     ---@param ctx PuzzleContext|nil
     local function BuildContent(def, ctx)
         local typeid = def ~= nil and def.id or nil
-        if typeid == m_builtType then
+        local away = ctx ~= nil and ctx.away == true
+        if typeid == m_builtType and away == m_builtAway then
             return
         end
         m_builtType = typeid
+        m_builtAway = away
         m_typePanel = nil
         if def ~= nil and ctx ~= nil then
             local ok, panel = pcall(def.Render, ctx)
             if ok and panel ~= nil then
                 m_typePanel = panel
+                --away from the lock: the board shows but takes no clicks.
+                if away then
+                    panel:MakeNonInteractiveRecursive()
+                end
             else
                 print("PUZZLE:: Render failed for type", typeid, panel)
             end
@@ -347,7 +449,7 @@ function Puzzle.CreatePanel(id, opts)
                 "Save the page to set up this puzzle.",
                 opts.placeholder or "Puzzle: choose a type in the annotations strip below.")
             placeholder:SetClass("collapsed", false)
-            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow}) do
+            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel}) do
                 panel:SetClass("collapsed", true)
             end
             return
@@ -355,7 +457,13 @@ function Puzzle.CreatePanel(id, opts)
         placeholder:SetClass("collapsed", true)
 
         local id = m_id --[[@as string]]
-        local ctx = Puzzle.Context(id, { editing = Editing() })
+        local away = Away()
+        local ctx = Puzzle.Context(id, { editing = Editing(), away = away })
+        if away then
+            local name = Puzzle.LockObjectName(id)
+            awayLabel.text = name ~= nil and string.format("Solve this at the %s.", name) or "Solve this at its lock."
+        end
+        awayLabel:SetClass("collapsed", not away)
         local state = Puzzle.ReadState(id)
         ctx.state = state
         BuildContent(def, ctx)
@@ -426,6 +534,23 @@ function Puzzle.CreatePanel(id, opts)
         height = "auto",
         halign = "left",
         vmargin = 2,
+        text = "",
+    }
+
+    awayLabel = gui.Label{
+        classes = {"collapsed", "sizeS", "warning"},
+        width = 360,
+        height = "auto",
+        halign = "left",
+        text = "",
+    }
+
+    --who else has it open, and where from.
+    presenceLabel = gui.Label{
+        classes = {"collapsed", "sizeS", "info"},
+        width = 360,
+        height = "auto",
+        halign = "left",
         text = "",
     }
 
@@ -502,18 +627,33 @@ function Puzzle.CreatePanel(id, opts)
         height = "auto",
         halign = "left",
         SmallButton("Reset", function()
-            Confirm("Reset the puzzle?", "The table's progress will be lost, and the timer and hint start over.", "Reset", function()
-                if mod.unloaded or m_id == nil then
-                    return
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "The table's progress will be lost, and the timer and hint start over." }, "Reset", function()
+                if not mod.unloaded then
+                    Puzzle.Reset(id)
                 end
-                Puzzle.Reset(m_id)
-            end)
+            end, { always = true, effects = "onSolve", effectsVerb = "What its locks did is undone" })
         end),
         SmallButton("Solve", function()
-            if m_id then Puzzle.Solve(m_id) end
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Solve the puzzle?", { "It is marked solved for everyone." }, "Solve", function()
+                Puzzle.Solve(id)
+            end, { effects = "onSolve" })
         end),
         SmallButton("Bypass", function()
-            if m_id then Puzzle.Bypass(m_id) end
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved, marked as bypassed." }, "Bypass", function()
+                Puzzle.Bypass(id)
+            end, { effects = "onSolve" })
         end),
         hintButton,
         rolesButton,
@@ -559,7 +699,21 @@ function Puzzle.CreatePanel(id, opts)
             --does: the host waits for this player's view of a game's deal.
             element.data.ticks = (element.data.ticks or 0) + 1
             if m_id ~= nil and element.data.ticks % FRAME_HEARTBEAT_TICKS == 1 and not Editing() and Puzzle.Exists(m_id) then
-                Puzzle.MarkPresent(m_id, true)
+                Puzzle.MarkPresent(m_id, true, Where())
+            end
+            --who else is in it; players do not see the Director.
+            if m_id ~= nil and element.data.ticks % 4 == 1 then
+                local names = {}
+                for _, userid in ipairs(Puzzle.PresentUsers(m_id)) do
+                    if userid ~= dmhub.userid and (dmhub.isDM or not dmhub.IsUserDM(userid)) then
+                        names[#names + 1] = Puzzle.UserNameWhere(m_id, userid)
+                    end
+                end
+                local text = #names > 0 and ("Also in it: " .. table.concat(names, ", ") .. ".") or ""
+                if presenceLabel.text ~= text then
+                    presenceLabel.text = text
+                    presenceLabel:SetClass("collapsed", text == "")
+                end
             end
         end,
         destroy = function(element)
@@ -573,6 +727,7 @@ function Puzzle.CreatePanel(id, opts)
 
         content,
         placeholder,
+        awayLabel,
         banner,
         hintLabel,
         gui.Panel{
@@ -585,6 +740,7 @@ function Puzzle.CreatePanel(id, opts)
             timerLabel,
         },
         assistRow,
+        presenceLabel,
         directorRow,
     }
 
@@ -740,6 +896,17 @@ function Puzzle.SetupPanel(id, onTypeChosen, skipImages, pick)
         end
     end
 
+    local places = LiveHomeNames(id)
+    if #places > 1 then
+        rows[#rows + 1] = gui.Label{
+            classes = {"sizeS", "info"},
+            width = 300,
+            height = "auto",
+            bmargin = 6,
+            text = "Changes here apply in every place: " .. table.concat(places, ", ") .. ".",
+        }
+    end
+
     local function SetConfig(changes)
         for k, v in pairs(changes) do
             config[k] = v
@@ -760,7 +927,15 @@ function Puzzle.SetupPanel(id, onTypeChosen, skipImages, pick)
             ---@cast dropdown Dropdown
             local typeid = tostring(dropdown.idChosen)
             if def == nil or def.id ~= typeid then
-                onTypeChosen(typeid)
+                Puzzle.ConfirmWide(id, "Change the puzzle type?", { "The puzzle starts over as the new type." }, "Change", function()
+                    onTypeChosen(typeid)
+                end, {
+                    onCancel = function()
+                        if dropdown.valid and def ~= nil then
+                            dropdown.idChosen = def.id
+                        end
+                    end,
+                })
             end
         end,
     }
@@ -938,15 +1113,20 @@ function Puzzle.IsWindowOpen(id)
 end
 
 --Open a puzzle in a floating window that does not block the map. One window per
---puzzle; opening it again leaves the existing one. opts.header(id) may return a
---panel for the title bar (the map lock adds the Director's setup button there).
+--puzzle; opening it again leaves the existing one, unless this opening is at
+--the lock and that one was not. opts.header(id) may return a panel for the
+--title bar (the map lock adds the Director's setup button there); opts.atLock
+--and opts.where go to the frame (Puzzle.CreatePanel).
 ---@param id string
----@param opts {header: (fun(id: string): Panel|nil)|nil}|nil
+---@param opts {header: (fun(id: string): Panel|nil)|nil, atLock: boolean|nil, where: string|nil}|nil
 ---@return Panel|nil
 function Puzzle.OpenWindow(id, opts)
     opts = opts or {}
     if Puzzle.IsWindowOpen(id) then
-        return g_windows[id]
+        if not opts.atLock or g_windows[id].data.atLock then
+            return g_windows[id]
+        end
+        g_windows[id]:DestroySelf()
     end
     local window
     local function Close()
@@ -974,9 +1154,10 @@ function Puzzle.OpenWindow(id, opts)
         escape = function(element)
             Close()
         end,
+        data = { atLock = opts.atLock == true },
         thinkTime = HEARTBEAT_SECONDS,
         think = function(element)
-            Puzzle.MarkPresent(id, true)
+            Puzzle.MarkPresent(id, true, opts.where)
         end,
         destroy = function(element)
             g_windows[id] = nil
@@ -1007,12 +1188,12 @@ function Puzzle.OpenWindow(id, opts)
                 end,
             },
         },
-        Puzzle.CreatePanel(id, {}),
+        Puzzle.CreatePanel(id, { atLock = opts.atLock, where = opts.where }),
     }
     gui.ShowDialog(mod, window)
     g_windows[id] = window
     g_noticed[id] = true
-    Puzzle.MarkPresent(id, true)
+    Puzzle.MarkPresent(id, true, opts.where)
     return window
 end
 
@@ -1028,6 +1209,17 @@ local function OpenFromNotice(id)
     else
         Puzzle.OpenWindow(id)
     end
+end
+
+---@param id string
+---@param userid string
+---@return string
+local function JoinText(id, userid)
+    local where = Puzzle.PresentWhere(id, userid)
+    if where ~= nil then
+        return string.format("%s is at %s, %s.", Puzzle.UserName(userid), Puzzle.Title(id), where)
+    end
+    return string.format("%s is at %s.", Puzzle.UserName(userid), Puzzle.Title(id))
 end
 
 --A small notice that someone else is working on a puzzle, with a Join button.
@@ -1060,7 +1252,7 @@ local function ShowJoinNotice(id, userid)
             height = "auto",
             valign = "center",
             hmargin = 6,
-            text = string.format("%s is at %s.", Puzzle.UserName(userid), Puzzle.Title(id)),
+            text = JoinText(id, userid),
         },
         gui.Button{
             classes = {"sizeS"},
@@ -1105,7 +1297,8 @@ local function PresenceTick()
         end
         if not g_noticed[id] and not Puzzle.IsShownLocally(id) and Puzzle.Exists(id) then
             for _, userid in ipairs(Puzzle.PresentUsers(id)) do
-                if userid ~= dmhub.userid then
+                --the Director having it open (preparing it) tells nobody.
+                if userid ~= dmhub.userid and not dmhub.IsUserDM(userid) then
                     g_noticed[id] = true
                     ShowJoinNotice(id, userid)
                     break
@@ -1140,6 +1333,7 @@ function RichPuzzle.CreateDisplay(self)
     local panel
     panel = Puzzle.CreatePanel(Puzzle.JournalId(self, ID_PREFIX), {
         editing = function() return m_token ~= nil and m_token.editor == true end,
+        where = function() return Puzzle.OnPageText(self) end,
     })
     local outer
     outer = gui.Panel{

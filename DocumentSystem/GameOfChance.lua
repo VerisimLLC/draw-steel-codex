@@ -723,6 +723,8 @@ local function HostTick(game, id)
                     fresh.log = state.log
                     fresh.done = state.done
                     fresh.req = state.req
+                    --every game's stake, so a Reset gives all of them back.
+                    fresh.paidAll = state.paidAll
                     for k in pairs(state) do
                         state[k] = nil
                     end
@@ -818,7 +820,10 @@ local function HostTick(game, id)
                 local paid = PayStake(tok, eff, effect.sign)
                 if paid ~= nil then
                     paid.tokenid = effect.pay
-                    Puzzle.Change(id, function(state) state.paid = paid end, "Game of chance stake")
+                    Puzzle.Change(id, function(state)
+                        state.paidAll = state.paidAll or {}
+                        state.paidAll["g" .. tostring(state.game or 1)] = paid
+                    end, "Game of chance stake")
                     local stake = StakeText(eff) or ""
                     chat.Send(string.format("%s %s %s.", HeroName(tok), cond(effect.sign > 0, "wins", "loses"), stake))
                 end
@@ -836,13 +841,24 @@ Puzzle.RegisterOutcomeHandler("gameofchance", {
             return
         end
         local state = Puzzle.ReadState(id)
-        local paid = state ~= nil and state.paid or nil
-        if type(paid) ~= "table" then
+        if state == nil then
             return
         end
-        local tok = HeroById(paid.tokenid)
-        if tok ~= nil then
-            UndoStake(tok, paid)
+        local records = {}
+        for _, paid in pairs(type(state.paidAll) == "table" and state.paidAll or {}) do
+            records[#records + 1] = paid
+        end
+        --a game paid before paidAll existed kept one record here.
+        if type(state.paid) == "table" then
+            records[#records + 1] = state.paid
+        end
+        for _, paid in ipairs(records) do
+            if type(paid) == "table" then
+                local tok = HeroById(paid.tokenid)
+                if tok ~= nil then
+                    UndoStake(tok, paid)
+                end
+            end
         end
     end,
 })

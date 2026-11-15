@@ -631,6 +631,9 @@ function Puzzle.SetupPanel(id, onTypeChosen, skipImages)
                     SetConfig(changes)
                     for _, row in ipairs(fieldRows) do
                         row:FireEvent("visibility")
+                        --custom controls that depend on other fields (a code built
+                        --from the chosen symbols) rebuild on this.
+                        row:FireEventTree("setupChanged")
                     end
                 end)
                 if control ~= nil then

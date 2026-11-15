@@ -721,6 +721,14 @@ local function OpenSetup(id, floorid, objid)
         children[#children + 1] = Puzzle.SetupPanel(id, function(typeid)
             --keep the locks (targets) when the Director changes the puzzle's type.
             Puzzle.Create(id, typeid, { locks = Locks(id) }, Puzzle.Exists(id) and Puzzle.Title(id) or nil)
+            --a combination lock can be forced (Might) unless the Director chose otherwise.
+            if typeid == "combination" then
+                local current = ReadLock()
+                if current.bypassAttr == nil then
+                    current.bypassAttr = "mgt"
+                    WriteLock(current)
+                end
+            end
             Rebuild()
         end)
 

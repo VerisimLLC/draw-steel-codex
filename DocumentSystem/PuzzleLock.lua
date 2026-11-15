@@ -64,6 +64,7 @@ local function LockKey(floorid, objid)
     return Puzzle.SafeId(tostring(floorid) .. "_" .. tostring(objid))
 end
 Puzzle.LockKey = LockKey
+Puzzle.DEFAULT_LOCK_RANGE = DEFAULT_RANGE
 
 --------------------------------------------------------------------------------
 -- Targets: doors and objects on the lock's floor
@@ -107,6 +108,27 @@ local function WhereText(fromX, fromY, x, y)
         return "right here"
     end
     return string.format("%d %s %s", squares, cond(squares == 1, "square", "squares"), dir)
+end
+
+--An "Unlock this door" effect for a lock at (fromX, fromY): a drawn door found
+--by its middle, or a door object.
+---@param floorid string
+---@param fromX number
+---@param fromY number
+---@param doorX number
+---@param doorY number
+---@param doorObjid string|nil
+---@return table
+function Puzzle.DoorEffect(floorid, fromX, fromY, doorX, doorY, doorObjid)
+    return {
+        kind = cond(doorObjid ~= nil, "doorobj", "door"),
+        floorid = floorid,
+        x = doorX,
+        y = doorY,
+        objid = doorObjid,
+        open = false,
+        label = "Door " .. WhereText(fromX, fromY, doorX, doorY),
+    }
 end
 
 ---@class PuzzleLockTarget
@@ -931,6 +953,18 @@ local function OpenSetup(id, floorid, objid)
     gui.ShowDialog(mod, window)
     g_setupWindows[lockKey] = window
     Rebuild()
+end
+
+Puzzle.OpenLockSetup = OpenSetup
+
+--Close a lock's setup window if it is open (an Undo took the lock away).
+---@param floorid string
+---@param objid string
+function Puzzle.CloseLockSetup(floorid, objid)
+    local window = g_setupWindows[LockKey(floorid, objid)]
+    if window ~= nil and window.valid then
+        window:DestroySelf()
+    end
 end
 
 --------------------------------------------------------------------------------

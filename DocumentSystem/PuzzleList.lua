@@ -327,6 +327,26 @@ local function RowPanel(row)
             Puzzle.PushToEveryone(id)
         end)
     end
+    local placeButton
+    placeButton = RowButton("Place", function()
+        if placeButton.popup ~= nil then
+            placeButton.popup = nil
+            return
+        end
+        placeButton.popup = gui.ContextMenu{
+            entries = {
+                { text = "Place on map", click = function()
+                    placeButton.popup = nil
+                    PuzzlePlace.StartPlacing(id)
+                end },
+                { text = "Lock the selected object", click = function()
+                    placeButton.popup = nil
+                    PuzzlePlace.LockSelected(id)
+                end },
+            },
+        }
+    end)
+    buttons[#buttons + 1] = placeButton
     if row.entry.kind == "standalone" then
         local setupButton
         setupButton = RowButton("Setup", function()
@@ -430,6 +450,17 @@ local function RowPanel(row)
         vmargin = 3,
         pad = 6,
         borderBox = true,
+        --dragged onto the map: lock an object, or place a lock object.
+        draggable = true,
+        dragging = function(element, target)
+            PuzzlePlace.RowDragging(id)
+        end,
+        drag = function(element, target)
+            PuzzlePlace.RowDropped(id)
+        end,
+        destroy = function(element)
+            PuzzlePlace.RowDragEnded()
+        end,
         children = children,
     }
 end
@@ -514,11 +545,50 @@ end
 local function CreatePuzzleList()
     local list
     local empty
+    local statusPanel
     local m_signature = nil
+    local m_status = nil
+
+    --The last placement and its Undo, until it goes stale.
+    local function RefreshStatus()
+        local status = PuzzlePlace.Status()
+        local key = status ~= nil and (status.text .. tostring(status.time)) or nil
+        if key == m_status then
+            return
+        end
+        m_status = key
+        if status == nil then
+            statusPanel.children = {}
+            statusPanel:SetClass("collapsed", true)
+            return
+        end
+        local children = {
+            gui.Label{
+                classes = {"sizeS"},
+                width = "100%-170",
+                height = "auto",
+                valign = "center",
+                text = status.text,
+            },
+        }
+        if status.undo ~= nil then
+            children[#children + 1] = RowButton("Undo", function()
+                PuzzlePlace.UndoLast()
+                RefreshStatus()
+            end)
+        end
+        children[#children + 1] = RowButton("Dismiss", function()
+            PuzzlePlace.ClearStatus()
+            RefreshStatus()
+        end)
+        statusPanel.children = children
+        statusPanel:SetClass("collapsed", false)
+    end
 
     --Rebuilds only when something shown changed, so buttons are not swapped out
     --under the mouse every second (a running timer still changes once a second).
     local function Refresh()
+        RefreshStatus()
         local rows = {}
         for id, entry in pairs(Puzzle.Index()) do
             rows[#rows + 1] = BuildRow(id, entry)
@@ -550,6 +620,16 @@ local function CreatePuzzleList()
         list.children = children
         empty:SetClass("collapsed", #rows > 0)
     end
+
+    statusPanel = gui.Panel{
+        classes = {"bordered", "collapsed"},
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        vmargin = 3,
+        pad = 6,
+        borderBox = true,
+    }
 
     empty = gui.Label{
         classes = {"sizeS", "fgMuted", "collapsed"},
@@ -599,6 +679,7 @@ local function CreatePuzzleList()
             Refresh()
         end,
         newButton,
+        statusPanel,
         empty,
         list,
     }

@@ -457,6 +457,18 @@ function EncounterMontage.GetState()
     return m
 end
 
+--Heroes can't take triggered actions during a montage: the montage screen has
+--no way to answer a trigger prompt. Only an unfinished montage blocks them; a
+--"/eotwmontage stop" leaves one unfinished until "/eotwmontage reset".
+local g_baseTriggeredActionsForbidden = creature.TriggeredActionsForbidden
+function creature:TriggeredActionsForbidden()
+    local montage = EncounterMontage.GetState()
+    if montage ~= nil and montage.phase ~= "done" then
+        return true
+    end
+    return g_baseTriggeredActionsForbidden(self)
+end
+
 --The items this hero has been granted so far this montage, in grant order:
 --{ { itemid, name, qty }, ... }.
 function EncounterMontage.GetItems(heroid)

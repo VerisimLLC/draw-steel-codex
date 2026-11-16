@@ -160,6 +160,25 @@ function GameHud.TokenMoving(self, token, path)
         --reading as near-zero distance.
         distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
+
+        --Lets the drop that follows be told apart from a scripted teleport (creature:IsTeleportMove).
+        creature.NoteTeleportDragPreview(token, path)
+
+        --A creature that can teleport is spending its own movement on this (see
+        --creature:HandleTeleportMove), so quote the cost the way a walking move does.
+        --A Director's Ctrl-drag is a free reposition, so it has no cost to quote.
+        local mover = token.properties
+        if mover ~= nil and mover:CanTeleport() and mover:IsOurTurn() and not dmhub.isDM then
+            local speed = mover:GetEffectiveSpeed(mover:CurrentMoveType())
+            local alreadyMoved = mover:DistanceMovedThisTurn()
+            text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(distance*dmhub.unitsPerSquare), mover.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(speed), string.lower(MeasurementSystem.UnitName()))
+            if alreadyMoved > 0 then
+                text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(alreadyMoved*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
+            end
+            if (alreadyMoved + distance)*dmhub.unitsPerSquare > speed then
+                statusText = statusText .. "\n<color=#ff0000>" .. UIText.T("movement.teleport_beyond_remaining") .. "</color>"
+            end
+        end
 	end
 
 	local floorDelta = nil

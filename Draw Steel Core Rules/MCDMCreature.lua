@@ -2844,15 +2844,12 @@ function creature:Stability()
     return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
---- If the creature can teleport.
+--- If the creature can teleport. The engine asks this when a token drag begins to decide
+--- whether holding Ctrl may turn the move into a teleport for a non-Director, so it must
+--- count teleport granted by features (Cinder Step, Translation) as well as an innate speed.
 --- @return boolean
 function creature:CanTeleport()
-    local movementSpeeds = self:try_get("movementSpeeds", {})
-    if movementSpeeds ~= nil then
-        return (movementSpeeds["teleport"] or 0) > 0
-    end
-
-    return false
+    return self:GetSpeed("teleport") > 0
 end
 
 --- Whether the creature can fly up or down under its own power. False for a creature

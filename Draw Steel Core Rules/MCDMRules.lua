@@ -1371,6 +1371,21 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
+--Fires when a creature teleports as its own movement (a Ctrl-drag by a creature that can
+--teleport, e.g. Cinder Step), and never for teleports made by abilities. Use it for rules
+--that care about teleporting "when you move", on top of the plain Teleport trigger.
+TriggeredAbility.RegisterTrigger{
+    id = "teleportmove",
+    text = UIText.T("trigger.teleportmove.name"),
+    symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = UIText.T("trigger.teleportmove.path"),
+        },
+    }
+}
+
 TriggeredAbility.RegisterTrigger{
     id = "leaveadjacent",
     text = "Creature Moved Away From",

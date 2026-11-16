@@ -3322,6 +3322,10 @@ function CharacterModifier:ShouldShowInPowerRollDialog(modContext, creature, rol
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     local shouldShow = typeInfo.shouldShowInPowerRollDialog
     if shouldShow ~= nil then
+        --An imbued weapon marked only Melee gives none of its bonuses to ranged abilities, and vice versa.
+        if DSImbuement.IsWeaponRangeMismatch(modContext, options) then
+            return false
+        end
         self:InstallSymbolsFromContext(modContext)
         self:InstallSymbolsFromContext(options)
         local result = shouldShow(self, creature, rollType, nil, options)

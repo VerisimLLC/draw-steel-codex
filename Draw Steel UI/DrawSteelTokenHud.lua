@@ -916,6 +916,13 @@ TokenHud.RegisterPanel{
                             return
                         end
 
+                        --A second press while the swords fade out (URCDUY77) must not start the
+                        --same turn again: that re-runs BeginTurn and every start-of-turn trigger.
+                        --HasHadTurn can't catch it, since the round only advances at turn end.
+                        if dmhub.initiativeQueue.currentTurn == initiativeid then
+                            return
+                        end
+
                         element.data.clickTime = dmhub.Time()
                         audio.FireSoundEvent("Mouse.Click")
                         element:SetClass("hidden", true)

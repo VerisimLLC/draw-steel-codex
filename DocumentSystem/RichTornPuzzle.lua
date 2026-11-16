@@ -1193,6 +1193,14 @@ end
 PuzzleType.Register{
     id = "torn",
     name = "Torn note",
+    howToPlay = [[
+The note has been torn into pieces. Put it back together.
+
+Drag a piece across the table, or click a piece and then click where it should go. When a piece lands beside one it belongs next to, the two are taped together and move as one from then on.
+
+Everyone works on the same pieces. A piece someone else is moving can't be picked up until they let go.
+
+When every piece is joined, the puzzle is solved.]],
     fields = {
         { id = "source", type = "choice", label = "Source", default = "image",
             options = { { id = "image", text = "Image" }, { id = "note", text = "Note" } } },
@@ -1294,7 +1302,7 @@ end
 ---@param tag RichTornPuzzle
 ---@param id string|nil
 local function Migrate(tag, id)
-    if id == nil or Puzzle.Exists(id) then
+    if id == nil or id ~= Puzzle.OwnJournalId(tag, ID_PREFIX) or Puzzle.Exists(id) then
         return
     end
     local config = {
@@ -1325,6 +1333,7 @@ function RichTornPuzzle.CreateDisplay(self)
     local m_token = nil
     local panel = Puzzle.CreatePanel(nil, {
         editing = function() return m_token ~= nil and m_token.editor == true end,
+        where = function() return Puzzle.OnPageText(self) end,
     })
     return gui.Panel{
         flow = "vertical",
@@ -1352,7 +1361,7 @@ function RichTornPuzzle.CreateEditor(self)
         return id
     end, function(id, typeid)
         Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
-    end, function(tag) self = tag end)
+    end, function(tag) self = tag end, Puzzle.JournalPick(function() return self end, ID_PREFIX))
 end
 
 MarkdownDocument.RegisterRichTag(RichTornPuzzle)

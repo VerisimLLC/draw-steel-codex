@@ -117,6 +117,7 @@ end
 --Load the text files with a recording stand-in for UIText.Define.
 
 local defs = {}       --id -> { text, where }
+local overrides = {}  --{ id, text, where, whiteLabel } from UIText.DefineOverrides
 local currentFile = nil
 
 ---@diagnostic disable-next-line: lowercase-global
@@ -150,6 +151,23 @@ UIText = {
             end
         end
     end,
+
+    --White-label rewordings: checked after every text file has loaded, so
+    --the entry they reword may come from any file in the list.
+    DefineOverrides = function(sourceName, whiteLabel)
+        return function(id, text)
+            local info = debug.getinfo(2, "l")
+            local where = currentFile .. ":" .. tostring(info and info.currentline or "?")
+            if type(id) ~= "string" or type(text) ~= "string" then
+                Err(where, "override(id, text) needs two strings")
+                return
+            end
+            if string.find(text, "[\128-\255]") then
+                Err(where, string.format("override of '%s' has a non-ASCII character", id))
+            end
+            overrides[#overrides + 1] = { id = id, text = text, where = where, whiteLabel = whiteLabel }
+        end
+    end,
 }
 
 for _, path in ipairs(textFiles) do
@@ -168,6 +186,33 @@ for _, path in ipairs(textFiles) do
             local ok, runErr = pcall(chunk)
             if not ok then
                 Err(path, "failed to run: " .. tostring(runErr))
+            end
+        end
+    end
+end
+
+--An override must reword an entry that exists, and may use only the
+--placeholders that entry has: the code passes values for those alone.
+do
+    local seen = {}
+    for _, o in ipairs(overrides) do
+        local key = tostring(o.whiteLabel) .. "|" .. o.id
+        if seen[key] ~= nil then
+            Err(o.where, string.format("'%s' is already overridden for %s at %s", o.id, tostring(o.whiteLabel), seen[key]))
+        end
+        seen[key] = o.where
+        if o.whiteLabel ~= "dmhub" and o.whiteLabel ~= "mcdm" then
+            Err(o.where, string.format("override of '%s' names white label '%s' (use \"dmhub\" or \"mcdm\")", o.id, tostring(o.whiteLabel)))
+        end
+        local base = defs[o.id]
+        if base == nil then
+            Err(o.where, string.format("override of '%s', which no text file defines", o.id))
+        else
+            local allowed = Placeholders(base.text)
+            for name in pairs(Placeholders(o.text)) do
+                if not allowed[name] then
+                    Err(o.where, string.format("override of '%s' uses {%s}, which the entry at %s does not have", o.id, name, base.where))
+                end
             end
         end
     end

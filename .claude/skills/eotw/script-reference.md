@@ -748,6 +748,17 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
     round 4). A section with no `Arrive:` or no island warns and never comes.
   - `/eotwreinforce` lists what the script will send and what has arrived;
     `/eotwreinforce arrive 1` brings section 1's next group in now.
+- **Reinforcement waves in the encounter builder** also work, with no script
+  lines: "Add Reinforcements" in the opening `[[encounter]]`'s combat builder
+  makes a wave (a name and Round 2-6 or Every round) and its groups. The EotW
+  host brings a wave in at the START of its round (they act that round) at
+  the groups' saved positions, scaled and levelled like the opening fight;
+  "Every round" sends the wave again at the start of every round from round
+  2. A group with no saved positions comes in beside the wave's (or the
+  fight's) first saved position. Waves have no `Enter:` zone, no `Shout:` and
+  no taking turns between groups -- use a `## Reinforcements:` section for
+  those. Until a wave arrives its monsters count toward the encounter's own
+  victory condition (as monsters still to defeat).
 
 ## Series: several encounters, one after another
 

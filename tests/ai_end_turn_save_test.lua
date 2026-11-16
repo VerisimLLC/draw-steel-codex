@@ -282,7 +282,9 @@ ElevateToHostPermissions = noop
 creature = {SetAIActivityInProgress = noop, ClearAIControl = noop}
 FindPendingPlayerSave = findPending
 GameHud = {BetweenTurnTransitionInProgress = function(...) return false end,
-    instance = {initiativeInterface = {}}, GetTokensForInitiativeId = function(...) return {} end}
+    instance = {initiativeInterface = {}},
+    --The hero is still in the fight, so the "no heroes left" hold stays off.
+    GetTokensForInitiativeId = function(_, _, id) if id == "hero" then return {hero} end return {} end}
 local turns = 0
 local process = {}
 MonsterAI.ClearWaiting = noop
@@ -290,14 +292,17 @@ MonsterAI.SetWaiting = noop
 --The AI profiler is a no-op here.
 MonsterAI.ProfBegin, MonsterAI.ProfEnd, MonsterAI.ProfPhaseBegin, MonsterAI.ProfPhaseEnd = noop, noop, noop, noop
 MonsterAI.new = function(...)
-    return {LogDecision = noop, RunYieldingFunction = function(_, fn) return pcall(fn) end,
+    return typed{LogDecision = noop, RunYieldingFunction = function(_, fn) return pcall(fn) end,
         PlayTurnSafely = function() turns = turns + 1; process.stopRequested = true end}
 end
+queue.try_get = try_get
 queue.IsPlayersTurn = function() return false end
 queue.CurrentInitiativeId = function() return "monster" end
 queue.EntriesUnmoved = function() return {} end
 queue.IsEntryPlayer = function(_, id) return id == "hero" end
 dmhub.initiativeQueue = queue
+assert(load(section("Monster AI/MonsterAIPanel.lua",
+    "function MonsterAI.PlayersSideGone", "--Runs as a DockablePanel background process")))()
 local runThread = assert(load(section("Monster AI/MonsterAIPanel.lua",
     "local function MonsterAIThread(process)", "--Programmatic start/stop") .. "\nreturn MonsterAIThread"))()
 props.pendingAIActivityReactions.remote = {activityId = "end-turn-save", state = "resolving"}

@@ -1408,8 +1408,14 @@ end
 
 --How many minion squads this group is placed as. Fewer than 8 minions make one
 --squad; 8 or more are split into squads of the group's squad size.
-function Encounter.GroupMinionSquadCount(group)
+--Pass numHeroes for a raw (uncloned) group: each quantity is then adjusted for
+--that party size the way CloneForNumberOfHeroes would. Omit it for a group
+--that came out of CloneForNumberOfHeroes, whose quantities are already final.
+function Encounter.GroupMinionSquadCount(group, numHeroes)
     for monsterid, quantity in pairs(group.monsters or {}) do
+        if numHeroes ~= nil and quantity ~= nil then
+            quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+        end
         local monster = assets.monsters[monsterid]
         if monster ~= nil and monster.properties.minion and quantity ~= nil and quantity > 0 then
             if quantity >= 8 then
@@ -4780,21 +4786,28 @@ end
 -- If org is given (a lowercase organization keyword such as "leader"), only pending
 -- non-minion monsters of that organization are counted; org "*" counts every
 -- pending non-minion and no minion squads.
+--Runs every host tick (CheckVictory), so it reads self.groups in place and
+--applies the same gates CloneForNumberOfHeroes does (group minHeroes, then
+--Encounter.AdjustedMonsterQuantity per monster) instead of cloning the whole
+--live encounter, which cost 18-49 ms a call in a playtest.
 function LiveEncounter:CountPendingReinforcements(numHeroes, org)
-    numHeroes = numHeroes or dmhub.GetSettingValue("numheroes")
-    local clone = self:CloneForNumberOfHeroes(numHeroes)
+    numHeroes = numHeroes or dmhub.GetSettingValue("numheroes") or g_numHeroesSetting:Get()
     local count = 0
-    for _, group in ipairs(clone.groups) do
-        if group.wave ~= nil and not self:IsWaveDeployed(group.wave) then
-            for monsterid, quantity in pairs(group.monsters) do
+    for _, group in ipairs(self.groups or {}) do
+        if group.wave ~= nil and not (group.minHeroes ~= nil and group.minHeroes > numHeroes)
+            and not self:IsWaveDeployed(group.wave) then
+            for monsterid, baseQuantity in pairs(group.monsters or {}) do
                 local monster = assets.monsters[monsterid]
                 if monster ~= nil and not monster.properties.minion and
                     (org == nil or org == "*" or OrganizationKeyword(monster.properties) == org) then
-                    count = count + quantity
+                    local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, baseQuantity, numHeroes)
+                    if quantity > 0 then
+                        count = count + quantity
+                    end
                 end
             end
             if org == nil then
-                count = count + Encounter.GroupMinionSquadCount(group)
+                count = count + Encounter.GroupMinionSquadCount(group, numHeroes)
             end
         end
     end

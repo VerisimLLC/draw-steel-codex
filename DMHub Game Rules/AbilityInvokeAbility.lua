@@ -153,6 +153,8 @@ ActivatedAbilityInvokeAbilityBehavior.promptText = ''
 --invoked ability because the "may hide" helper abilities are shared by content
 --whose rules differ -- some grant the hide with no cover needed at all.
 ActivatedAbilityInvokeAbilityBehavior.hideSightlines = false
+--When true (standard abilities, applyto targets): post a red "!" prompt card on each target instead of casting.
+ActivatedAbilityInvokeAbilityBehavior.promptCard = false
 
 --if true we will invoke on the caster token.
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
@@ -1039,6 +1041,21 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --squad is only set up around the local cast further down.
                 if skipInvoke then
                     print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
+                elseif self:try_get("promptCard", false) and self.abilityType == "standard" and target.token ~= nil and target.token.valid then
+                    --Posts a red "!" card on the target so its controller chooses when to resolve the
+                    --standard ability on themselves (e.g. Swooping Torment: take damage or fall prone).
+                    AbilityInvocation.PromptStandardAbility{
+                        token = target.token,
+                        invoker = casterToken,
+                        standardAbility = self.standardAbility,
+                        params = self:try_get("standardAbilityParams"),
+                        targeting = "self",
+                        hostile = true,
+                        prompt = self:try_get("promptCardTitle", ability.name),
+                        rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
+                        activateText = tr("Choose"),
+                        castPrompt = self:try_get("castPromptText", self.promptText),
+                    }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
                     --Clean out the ability so we don't copy too much, and make the
@@ -2976,6 +2993,9 @@ function AbilityInvocation.PromptStandardAbility(args)
         noDeduplicate = true,
         free = args.free ~= false,
         hostile = args.hostile == true,
+        --A hostile prompt is something the invoker does to us (Swooping Torment), so its
+        --hover arrow runs from the invoker (the card's only target) to the card's owner.
+        arrowFromTarget = args.hostile == true and #cardTargets > 0,
         invocation = invocation,
     }
 

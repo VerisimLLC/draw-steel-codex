@@ -4613,6 +4613,32 @@ local function CurrentConsequenceKeys(m)
     return keys
 end
 
+--Every "Edge on <option>" the party has earned on a test still to come, under
+--the round heading. The round summary only shows the LAST result, so without
+--this an edge earned earlier in the round vanished from view.
+local function StandingModChildren(m, beat)
+    local children = {}
+    local seen = {}
+    for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
+        local finished = (m.taken or {})[entry.id] == true or (m.vanquished or {})[entry.id] == true
+        if not finished and not EncounterMontage.EntryRemoved(m, entry) and not EncounterMontage.EntryExpired(m, entry) then
+            for _, option in ipairs(entry.options or {}) do
+                local key = EncounterScript.MatchKey(option.name)
+                if not seen[key] then
+                    seen[key] = true
+                    for _, g in ipairs(EncounterMontage.OptionTestMods(m, option)) do
+                        if #children == 0 then
+                            children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.round.standing_mods") }
+                        end
+                        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = EncounterScript.DescribeTestMod(g.effect, option.name) }
+                    end
+                end
+            end
+        end
+    end
+    return children
+end
+
 --`consequenceStart(key)` gives when that consequence started playing on this
 --stage, or nil to show it settled (CreateStage's m_consequencesPlayed).
 --- @param consequenceStart nil|fun(key: string): number|nil
@@ -4705,6 +4731,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         Add(gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.round.title", { round = m.round or 1 }) })
         Add(YourMoveLabel())
         for _, child in ipairs(TeamLeaderChildren(m)) do
+            Add(child)
+        end
+        for _, child in ipairs(StandingModChildren(m, beat)) do
             Add(child)
         end
         --a "(Temporary)" threat that ran out pays its consequence at the

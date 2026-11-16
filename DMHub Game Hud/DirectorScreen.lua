@@ -151,7 +151,8 @@ local COVERS = {
     {id = "plain"},
     {id = "vasloria", image = "e83e6ea1-6212-4baf-8f26-a11bf7b85c6e", width = 2000, height = 633, left = 0, tint = "#ffffffff", veil = "#16171bf2"},
 }
-local COVER_ID = "vasloria"
+--Vasloria is MCDM art in the Codex's cloud; other white labels show the plain band.
+local COVER_ID = dmhub.whiteLabel == "mcdm" and "vasloria" or "plain"
 
 --- @return DirectorScreenCover
 local function CurrentCover()
@@ -754,7 +755,7 @@ local function BuildBand()
                     },
                     gui.Label{
                         classes = {"directorScreenCaption"},
-                        text = "Director's Screen",
+                        text = UIText.Term("director") .. "'s Screen",
                         valign = "center",
                         interactable = false,
                     },

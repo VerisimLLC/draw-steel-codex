@@ -1163,6 +1163,10 @@ text("author.validator.problems.option_problem", [[{where}: option '{option}' --
 text("author.validator.problems.setup_not_understood", [[{where}: setup instruction '{text}' is not understood]])
 --{behavior} is the name the line gave, {known} the Monster AI's behavior names.
 text("author.validator.problems.unknown_ai_behavior", [[{where}: '{behavior}' is not a Monster AI behavior (known: {known})]])
+--A "## Reinforcements:" island that brings nobody. {name} is the section's
+--name, {island} which of its [[encounter]] islands (1, 2, ...).
+text("author.validator.problems.reinforcement_island_no_encounter", [=[{where}: reinforcements '{name}' island {island} has no encounter behind its [[encounter]] tag; nothing arrives from it]=])
+text("author.validator.problems.reinforcement_island_no_monsters", [=[{where}: reinforcements '{name}' island {island} has an encounter with no monsters; nothing arrives from it. Add groups in the encounter builder]=])
 
 --The Names section: every item, monster, object and zone the script names,
 --and whether the game can find it. {name} is the name as written.

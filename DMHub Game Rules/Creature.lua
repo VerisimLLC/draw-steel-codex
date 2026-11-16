@@ -6506,7 +6506,11 @@ function creature:FillEquipmentModifiers(result)
 			local features = item:try_get("features")
 			if features then
 				--consumeItemId: a trigger from a consumable spends the item (TriggerPayCost).
-				local params = cond(EquipmentCategory.IsConsumable(item), {consumeItemId = itemid}, nil)
+				--sourceItemId: lets game systems check the item a modifier came from.
+				local params = {sourceItemId = itemid}
+				if EquipmentCategory.IsConsumable(item) then
+					params.consumeItemId = itemid
+				end
 				for i,feature in ipairs(features) do
                     feature:FillModifiers(self, result, params)
 				end

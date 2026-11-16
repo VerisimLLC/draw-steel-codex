@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The object a map import places for each light: an object with a Light
+--component, in each white label's own cloud ("light" in the Codex's, "Light"
+--in DMHub's).
+local DEFAULT_LIGHT_OBJECT_ID = cond(dmhub.whiteLabel == "mcdm", "2339211c-c35a-4e0a-a5fa-79d2e446bd3b", "5fd062ac-d67e-40b6-a59c-044c352defca")
+
 local function ComponentTypeMatches(value, componentType)
     if value == nil then
         return false
@@ -3362,7 +3367,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         doorObjectId = "-MfWx0b2IlyApLQwasYg",
         windowObjectId = "-MDd3Knydcq2WsjStef2",
         secretDoorObjectId = "-MfWx0b2IlyApLQwasYg",
-        lightObjectId = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b",
+        lightObjectId = DEFAULT_LIGHT_OBJECT_ID,
         structuralWallMode = "wall",
         objectWallMode = "wall",
         terrainWallMode = "wall",
@@ -4105,7 +4110,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         end
     end
 
-    local lightnode = lightnodeChoice or "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
+    local lightnode = lightnodeChoice or DEFAULT_LIGHT_OBJECT_ID
     if lightMode == "asset" and type(data.lights) == "table" and ObjectNodeHasComponent(lightnode, "Light") then
         local foundryGrid = gridSize(data)
         for _, light in ipairs(data.lights) do

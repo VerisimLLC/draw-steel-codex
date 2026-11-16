@@ -3599,10 +3599,17 @@ local function MakeGamePanel(gameIndex)
 
         refreshGames = function(element, orderedGames, baseIndex)
             local index = baseIndex + gameIndex
+            --a campaign still downloading shows loadingPanel instead.
+            local loading = CampaignRearrange.IsPlaceholder(orderedGames[index])
             m_game = orderedGames[index]
+            if loading then
+                --nil while the card is hidden, as its declaration says.
+                ---@diagnostic disable-next-line: cast-local-type
+                m_game = nil
+            end
             if m_game == nil then
                 element:SetClass("hidden", true)
-                addGameButton:SetClass("hidden", #lobby.games >= MaxGamesAllowed())
+                addGameButton:SetClass("hidden", loading or #lobby.games >= MaxGamesAllowed())
                 element:HaltEventPropagation()
                 return
             end
@@ -4097,12 +4104,40 @@ local function MakeGamePanel(gameIndex)
 
     }
 
+    --Holds the slot of a campaign whose summary is still downloading, so the
+    --pages keep their positions while the list fills in.
+    local loadingPanel = gui.Panel {
+        classes = { "hidden" },
+        bgimage = true,
+        bgcolor = "black",
+        opacity = 0.9,
+        width = "100%",
+        height = "100%",
+
+        refreshGames = function(element, orderedGames, baseIndex)
+            local entry = (orderedGames or {})[(baseIndex or 0) + gameIndex]
+            element:SetClass("hidden", not CampaignRearrange.IsPlaceholder(entry))
+        end,
+
+        gui.Label {
+            classes = { "fgMuted" },
+            text = "Loading...",
+            fontSize = 20,
+            fontFace = "newzald",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
     local resultPanel = gui.Panel {
         width = "100%",
         height = 176,
         bmargin = 10,
         gamePanel,
         addGameButton,
+        loadingPanel,
     }
 
     return resultPanel
@@ -9814,10 +9849,17 @@ function CreateTitlescreen(dialog, options)
                             local orderedGames = {}
                             local directorMode = DirectorMode()
 
-                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
-                            for _, game in ipairs(viewGames) do
-                                if m_currentSearch == nil or game:MatchesSearch(m_currentSearch) then
-                                    orderedGames[#orderedGames + 1] = game
+                            --campaigns still downloading keep their slot as a
+                            --placeholder; a search cannot match them yet.
+                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewEntries(directorMode), directorMode)
+                            for _, entry in ipairs(viewGames) do
+                                if m_currentSearch == nil then
+                                    orderedGames[#orderedGames + 1] = entry
+                                elseif not CampaignRearrange.IsPlaceholder(entry) then
+                                    local game = entry --[[@as LuaGameInfo]]
+                                    if game:MatchesSearch(m_currentSearch) then
+                                        orderedGames[#orderedGames + 1] = game
+                                    end
                                 end
                             end
 

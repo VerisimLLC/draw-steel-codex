@@ -68,6 +68,9 @@ over this fallback. If ordinary movement cannot advance it further, it casts
 `Use Move Action` in Advance mode for another speed's worth of movement, provided
 the main action is affordable and a route exists. Minions without a reachable
 signature target use the same fallback; squad target caps still take priority.
+A monster that made a ranged strike this turn does not advance ("keeps its
+distance"), unless its signature is melee-only (`MonsterAI.SignatureReach`), in
+which case it closes in so the signature reaches next turn.
 
 A monster that is Hidden at this point (it hid this turn: Hide in Concealment)
 never advances, because walking toward the enemy takes it out of cover and
@@ -182,6 +185,21 @@ the two initiative writes used to cross, leaving the claimant's entry current
 with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
 never plays a current entry that `IsEntryPlayer` says is the players' (it logs
 `TURN REFUSED` once and leaves it to its player).
+
+Two more holds keep the thread from spinning (2026-11-13 playtest, where it
+replayed one monster turn over a thousand times after an EotW defeat):
+
+- **No heroes left.** `MonsterAI.PlayersSideGone(queue)` is true when the queue
+  has players' entries but none of them has a live creature (all dead, or off
+  the map). The thread then plays no monster turns and logs `TURNS HELD` once.
+  A queue with no players' entries at all (monster versus monster) never counts.
+- **Turn did not advance.** After a turn that ran to its end (no
+  `_tmp_abortTurn`), the thread remembers `<entry>|<round>|<queue.turn>`. If that
+  same turn is still current next time, `NextInitiative` did nothing (it is a
+  silent no-op when the HUD has no `currentInitiativeId`), so the thread does not
+  replay it and logs `TURN NOT ADVANCED` once. A `TURN PAUSED` turn may still be
+  played again, and the memory clears whenever initiative is back to choosing
+  (so Revert Turn replays normally).
 
 Once the AI has picked a group, it also waits for that turn's start to play out
 before acting. It calls `creature:BeginTurn{aiActivityId, onComplete}` with a
@@ -322,6 +340,18 @@ host, a player, so `HandlePrompt` logs `PROMPT SKIPPED` and returns `"skip"`,
 and `ExecuteInvoke` ends the invoke unused, as a declined prompt does
 (R6ATBX7P: the host was asked to pick the Minotaur's retaliatory strike).
 
+Optional triggers follow the same rule. The AI thread's trigger poll
+(`MonsterAIPanel.lua`) offers each open trigger of a Director-run creature to
+`HandleAvailableTrigger`; one with no `MonsterAI:RegisterTrigger` handler used to
+stay as a prompt for the Director. In directorless play that prompt sat on the
+host forever (N5: the Iron Orb's Abyssal Aura lit up and nothing happened). Now
+`MonsterAI.DismissUnhandledDirectorlessTrigger` dismisses it and logs
+`TRIGGER SKIPPED`. A trigger that has a handler is left alone even when the
+handler returned no decision, and with a Director at the table nothing changes.
+Only the poll does this: the minion-death wait (`AnswerMinionTriggersDuringWait`)
+and the gnoll path still call `HandleAvailableTrigger` alone. Run
+`../dependencies/lua/bin/lua.exe tests/ai_directorless_trigger_test.lua`.
+
 ### "AI is running" status for every client
 
 The AI runs only on the hosting machine. So other clients can tell, `MonsterAI.lua`
@@ -394,7 +424,7 @@ A **move** is a scoreable, executable action the AI can take on its turn. Each m
 - Optionally lists `monsters` -- an array of `monster_type` strings. If present, the move only applies to those monsters. If omitted, the move is **generic** (applies to all monsters)
 - Has a `score(self, ai, token, ability1, ability2, ...)` function that returns `{score = N, loc = destLoc, ...}` or `nil`
 - Has an `execute(self, ai, token, scoringInfo, ability1, ability2, ...)` function that performs the move
-- Optionally declares `maxScore`, the highest score `score()` can return. Moves with a `maxScore` are scored after the others, and are not scored at all once the best move found already scores at least that much (a tie never replaces the best). The generic fallbacks `Charge and Free Strike` and `Ranged Free Strike` use it: they always score exactly 0.2
+- Optionally declares `maxScore`, the highest score `score()` can return. Moves with a `maxScore` are scored after the others, and are not scored at all once the best move found already scores at least that much (a tie never replaces the best). The generic fallbacks `Charge and Free Strike` and `Ranged Free Strike` use it: `maxScore` 0.2, and they score 0.2, except that the one that does not suit the monster's signature (`MonsterAI.SignatureReach`: a melee-only signature disfavours the ranged free strike, a ranged-only one the charge) scores 0.19, so the tie goes to the suitable one
 
 #### 2. Malice abilities (`MonsterAI:RegisterMaliceAbility{}`)
 
@@ -518,7 +548,7 @@ The handler receives `(ai, token, triggerInfo)` and returns one of:
 - `{activate = true, mode = N}` -- accept using the one-based ability mode.
 - `{activate = true, retargetid = charid}` -- for a power roll trigger that changes the strike's target (`changeTarget`), the creature it picks, as the trigger panel's picker would (the Bendrak's Warp Perceptions split).
 - `{dismiss = true}` -- dismiss the trigger.
-- `nil` -- leave the trigger for the Director.
+- `nil` -- leave the trigger for the Director. With no handler at all, a directorless game dismisses the trigger instead (see "Rolls of the monsters the AI plays").
 
 It can also return `expectedPrompt = {targets = ..., casterid = ..., sleep = ...}` to pre-seed one nested targeting prompt. Registered prompt handlers remain available while the out-of-turn triggered cast resolves.
 

@@ -58,7 +58,7 @@ function creature:MinionSquad()
     return nil
 end
 
---- Returns the subset of summonedMinions entries whose tokens still exist and whose creatures are alive.
+--- Returns the subset of summonedMinions entries whose tokens still exist and are living minions.
 --- Does not mutate the stored list; callers wanting to prune should compare the returned list to the stored one.
 --- @return table[] entries Array of { charid, squad, monsterType } entries.
 function creature:GetLiveSummonedEntries()
@@ -67,7 +67,9 @@ function creature:GetLiveSummonedEntries()
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Only minions count toward squads. Older casts also put non-minion
+            --summons (e.g. a Summoner's Dominion fixture) here, so skip those.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 live[#live+1] = entry
             end
         end
@@ -139,7 +141,9 @@ function creature:RegisterSummonedMinion(charid, squadName, monsterType)
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil and entry.charid ~= charid then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Summons that are not minions don't belong here. Older games may
+            --still have some (e.g. a Summoner's Dominion fixture), so drop them.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 pruned[#pruned+1] = entry
             end
         end
@@ -7159,6 +7163,43 @@ function creature:CostToMoveThroughToken(otherToken)
 
     --moving through a friend is fine.
     return true
+end
+
+--One direction of the share-space traits: may the creature `subjectProps` (whose token is
+--`subjectToken`) share a square with `otherToken`?
+local function SharesSpaceByTrait(subjectProps, subjectToken, otherToken)
+    if subjectProps:CalculateNamedCustomAttribute("Can Share Space With Any Creature") > 0 then
+        return true
+    end
+    if otherToken:IsFriend(subjectToken) and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Allies") > 0 then
+        return true
+    end
+    if otherToken.properties:HasCondition("da6867b1-01e3-4570-8d1b-1b94ea1ea343") and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Prone Creatures") > 0 then
+        return true
+    end
+    return false
+end
+
+--Draw Steel: a creature can't end its movement in another creature's space. This says
+--whether this creature may stop in a square `otherToken` occupies anyway. The engine calls
+--it when placing creatures (summons, teleports, find-a-free-space), and the movement
+--tooltip uses it to warn about an illegal stop. Either creature's trait is enough, so a
+--creature with "Can Share Space With Any Creature" also lets others into its square.
+--- @param otherToken CharacterToken
+--- @return boolean
+function creature:CanShareSpaceWith(otherToken)
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil or otherToken == nil or otherToken.properties == nil then
+        return false
+    end
+    if self:IsPassthrough() or otherToken.properties:IsPassthrough() then
+        return true
+    end
+    --creatures two or more sizes apart can share a space.
+    if math.abs(ourToken.creatureSizeNumber - otherToken.creatureSizeNumber) >= 2 then
+        return true
+    end
+    return SharesSpaceByTrait(self, ourToken, otherToken) or SharesSpaceByTrait(otherToken.properties, otherToken, ourToken)
 end
 
 --- @param flags {shifting: boolean} if true, the creature is shifting.

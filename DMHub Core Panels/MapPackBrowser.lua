@@ -767,7 +767,7 @@ local MAP_PACK_FEATURES = {
 	{key = "weather", one = "Weather"},
 	{key = "sheltered", one = "Sheltered areas"},
 	{key = "darkness", one = "1 area of magical darkness", many = "%d areas of magical darkness"},
-	{key = "notes", one = "1 Director note", many = "%d Director notes"},
+	{key = "notes", one = "1 " .. UIText.Term("director") .. " note", many = "%d " .. UIText.Term("director") .. " notes"},
 }
 
 --The lines listing what a Full Scene map comes with ("3 floors", "Weather"),

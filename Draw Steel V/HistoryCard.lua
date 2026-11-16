@@ -777,11 +777,11 @@ local function Header(entry, width, inTray, close)
         local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
         title = name .. History.DOT .. (entry.family == "test" and entry.name or "Dice")
         if roller ~= nil then
-            children[#children + 1] = History.Face(roller, 30)
+            children[#children + 1] = History.Face(roller, 30, true)
             titleWidth = titleWidth - 39
         end
     elseif entry.actor ~= nil then
-        children[#children + 1] = History.Face(entry.actor, 30)
+        children[#children + 1] = History.Face(entry.actor, 30, true)
         titleWidth = titleWidth - 39
         --the ability's name is bracketed and hovers to its card, as names do in the Why; only
         --when the card can be found, and not for a creature whose name players may not see.
@@ -1030,7 +1030,7 @@ local function StoryRow(row, width, mapid)
 
     local left = {}
     if row.who[1] ~= nil then
-        local face = History.Face(row.who[1], STORY_FACE)
+        local face = History.Face(row.who[1], STORY_FACE, mapid ~= nil)
         face.selfStyle.valign = "top"
         left[1] = face
         textWidth = textWidth - STORY_FACE - STORY_GAP
@@ -1300,7 +1300,7 @@ end
 local function SubHead(text, width, who)
     local children = {}
     if who ~= nil then
-        local face = History.Face(who, 18)
+        local face = History.Face(who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         children[1] = face
@@ -1440,7 +1440,7 @@ local function SourceLine(width, source, side, struck, remover)
         children[1] = Chevrons(side, math.min((side == "edge" and source.edges or source.banes) or 0, 2))
     end
     if source.who ~= nil and not source.hand then
-        local face = History.Face(source.who, 18)
+        local face = History.Face(source.who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         children[#children + 1] = face
@@ -1575,7 +1575,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         for _, value in ipairs(values) do
             local lead = nil
             if source.who ~= nil and not source.hand then
-                local face = History.Face(source.who, 18)
+                local face = History.Face(source.who, 20, true)
                 face.selfStyle.rmargin = 6
                 face.selfStyle.halign = "left"
                 lead = {face}
@@ -1628,7 +1628,7 @@ local function DamagePartLine(width, part)
     local lead = nil
     local text = ModifierLink(SpoilerName(part.name or ""), part.name or "", part.hover)
     if part.who ~= nil then
-        local face = History.Face(part.who, 18)
+        local face = History.Face(part.who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         lead = {face}
@@ -1896,7 +1896,7 @@ local function NumbersRows(entry, kids, width)
                 net = net - (who.taken or 0) + (who.healed or 0)
             end
             if net ~= 0 then
-                local face = History.Face(kid.actor, 18)
+                local face = History.Face(kid.actor, 20, true)
                 face.selfStyle.rmargin = 6
                 face.selfStyle.halign = "left"
                 triggered[#triggered + 1] = ReceiptLine(width, {
@@ -2824,7 +2824,7 @@ local function WhyRow(row, width)
     if row.lead ~= nil then
         local lead = {}
         if row.who ~= nil then
-            local face = History.Face(row.who, 18)
+            local face = History.Face(row.who, 20, true)
             face.selfStyle.rmargin = 6
             face.selfStyle.halign = "left"
             lead[1] = face

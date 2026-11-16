@@ -527,6 +527,13 @@ local function Styles()
             selectors = {"historyFoe"},
             borderColor = "@danger",
         },
+        --a "my hero" face beside search while its filter is the search: the amber of the
+        --names the search highlights (the default theme's accent is the hero ring's colour).
+        {
+            selectors = {"historyMyHeroOn"},
+            priority = 5,
+            borderColor = "@warning",
+        },
     }
 end
 
@@ -542,10 +549,108 @@ History.ShownName = ShownName
 History.DOT = DOT
 History.ACTION_WORDS = ACTION_WORDS
 
---A round portrait from a snapshot, with a ring that says which side it is on.
-local function Face(who, size)
+--The face under the pointer, if any. Only one tooltip shows at a time, so a row holds
+--back its own "Open the detail" while a face is showing its name.
+--- @type Panel|nil
+local g_faceHovered = nil
+
+--The creature's token, if it is on the map shown and this user can see it there. History
+--must not point at a creature the user could not find by looking.
+--- @param who HistoryCreature
+--- @return CharacterToken|nil
+local function TokenInSight(who)
+    local token = dmhub.GetTokenById(who.id)
+    if token ~= nil and token.valid and token.canSee then
+        return token
+    end
+    return nil
+end
+
+--The token wearing the "locate" ring for a hovered face, if any. One at a time.
+--- @type string|nil
+local g_ringedTokenId = nil
+
+--Puts the amber "locate" ring (styled in TokenUI.lua, shared with the action bar) on one
+--token, or takes it off with nil. The engine's own pulse is too brief to see.
+--- @param token CharacterToken|nil
+local function RingToken(token)
+    local tokenid = token ~= nil and token.charid or nil
+    if tokenid == g_ringedTokenId then
+        return
+    end
+    if g_ringedTokenId ~= nil then
+        local old = dmhub.GetTokenById(g_ringedTokenId)
+        if old ~= nil and old.valid and old.bottomsheet ~= nil and old.bottomsheet.valid then
+            old.bottomsheet:SetClassTree("locate", false)
+        end
+    end
+    g_ringedTokenId = nil
+    if token ~= nil and token.bottomsheet ~= nil and token.bottomsheet.valid then
+        token.bottomsheet:SetClassTree("locate", true)
+        g_ringedTokenId = tokenid
+    end
+end
+
+--A round portrait from a snapshot, with a ring that says which side it is on. Hovering
+--it names the creature at once (on fold lines and trigger results the face is all there
+--is) and rings its token on the map for as long as the pointer stays.
+--- @param who HistoryCreature
+--- @param size number
+--- @param centres boolean|nil A click centres the map on the creature (the detail card's
+--- faces; in the list a click belongs to the row, which opens its card).
+--- @param button {tip: (fun(): string), click: fun()}|nil Makes the face a button: tip is
+--- its hover text in place of the name (asked on each hover, so it can change), click its press.
+--- @return Panel
+local function Face(who, size, centres, button)
     local rect = who.rect
+    local name = gui.Tooltip{text = ShownName(who), fontSize = 13}
+    --- @param element Panel
+    local function ShowTip(element)
+        local tip = name
+        if button ~= nil then
+            tip = gui.Tooltip{text = button.tip(), fontSize = 13}
+        end
+        if tip ~= nil then
+            tip(element)
+        end
+    end
+    local click = nil
+    if button ~= nil then
+        --the press changes what the next press does, so say so without a re-hover.
+        click = function(element)
+            button.click()
+            if g_faceHovered == element and element.valid then
+                ShowTip(element)
+            end
+        end
+    elseif centres then
+        click = function(element)
+            local token = TokenInSight(who)
+            if token ~= nil then
+                dmhub.CenterOnToken(token.charid)
+            end
+        end
+    end
     return gui.Panel{
+        hover = function(element)
+            g_faceHovered = element
+            ShowTip(element)
+            RingToken(TokenInSight(who))
+        end,
+        click = click,
+        dehover = function(element)
+            if g_faceHovered == element then
+                g_faceHovered = nil
+                RingToken(nil)
+            end
+        end,
+        --a row rebuilt under the pointer is destroyed without a dehover.
+        destroy = function(element)
+            if g_faceHovered == element then
+                g_faceHovered = nil
+                RingToken(nil)
+            end
+        end,
         classes = {cond(who.hero, "historyHero", "historyFoe")},
         width = size,
         height = size,
@@ -554,7 +659,8 @@ local function Face(who, size)
         bgimage = who.img,
         bgcolor = "white",
         cornerRadius = size / 2,
-        borderWidth = 2,
+        --a 2 px ring takes a fifth of a small face, so those get 1 px.
+        borderWidth = size < 26 and 1 or 2,
         imageRect = rect ~= nil and {x1 = rect[1], y1 = rect[2], x2 = rect[3], y2 = rect[4]} or nil,
     }
 end
@@ -1002,7 +1108,12 @@ History.ResourceWords = ResourceWords
 --the pointer to rest, because it would otherwise cover the next row on every pass.
 local function OpensCard(item)
     return {
-        linger = gui.Tooltip{text = "Open the detail", fontSize = 13},
+        linger = function(element)
+            if g_faceHovered ~= nil and g_faceHovered.valid then
+                return
+            end
+            gui.Tooltip{text = "Open the detail", fontSize = 13}(element)
+        end,
         click = function(element)
             element.tooltip = nil
             if g_tray ~= nil then
@@ -1478,7 +1589,7 @@ local function BuildLine(item)
     --a heal with its Recovery keeps its number and has Undo beside it.
     local both = number ~= nil and entry.resourceid ~= nil
     local rowWidth = TRAY_WIDTH - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0) - cond(both, UNDO_WIDTH, 0)
-    local textWidth = rowWidth - 26
+    local textWidth = rowWidth - 28
     local tag = nil
     if entry.family == "ended" then
         tag = Tag("historyEndedTag", "Ended")
@@ -1541,7 +1652,7 @@ local function BuildLine(item)
 
     local row = {}
     if entry.who ~= nil then
-        row[1] = Face(entry.who, 18)
+        row[1] = Face(entry.who, 20)
     end
     row[#row + 1] = gui.Panel{
         flow = "vertical",
@@ -3036,6 +3147,34 @@ local function SearchX(tooltip, size, fn)
     }
 end
 
+--"My hero" faces beside search: one press filters History to a hero you control.
+local MY_HERO_SIZE = 22
+local MY_HERO_GAP = 4
+local MY_HERO_MAX = 3
+
+--The heroes this player controls on the map shown, in a steady order. A Director gets
+--none: every monster is theirs to run, and search already covers picking one.
+--- @return HistoryCreature[]
+local function MyHeroes()
+    local heroes = {}
+    if dmhub.isDM then
+        return heroes
+    end
+    for _, token in ipairs(dmhub.GetTokens{playerControlled = true}) do
+        local props = token.properties
+        if token.valid and token.canControlAsUser and props ~= nil and props:IsHero() then
+            heroes[#heroes + 1] = History.Creature(token)
+        end
+    end
+    table.sort(heroes, function(a, b)
+        return a.id < b.id
+    end)
+    while #heroes > MY_HERO_MAX do
+        heroes[#heroes] = nil
+    end
+    return heroes
+end
+
 local function CreateFace()
     local rowsWanted = ROWS_CHUNK
     local hasOlder = false
@@ -3590,6 +3729,7 @@ local function CreateFace()
     --Search (3.1): the field beside Latest, chips and the count on a row under it.
     local searchInput
     local chipRow
+    local heroRow
 
     --The suggestion rows the arrows walk, and the one they're on (0 = none yet).
     --- @type Panel[]
@@ -3608,6 +3748,7 @@ local function CreateFace()
         rowsWanted = ROWS_CHUNK
         chipRow:FireEvent("rebuild")
         chipRow:SetClass("collapsed", not Searching())
+        heroRow:FireEvent("searchChanged")
         list.selfStyle.height = ListHeight()
         Refresh()
         list:ScheduleEvent("toBottom", 0.05)
@@ -3853,6 +3994,86 @@ local function CreateFace()
     chipRow:FireEvent("rebuild")
     UpdateSearchKey()
 
+    --True while the search is exactly this hero's chip, which is what a face press sets.
+    --- @param who HistoryCreature
+    local function HeroFilterOn(who)
+        local chips = g_search.chips
+        return #chips == 1 and chips[1].kind == "creature" and chips[1].key == who.id and g_search.text == ""
+    end
+
+    --A face's ring width is set on the panel itself, so the on look thickens it there.
+    --- @param panel Panel
+    --- @param who HistoryCreature
+    local function MarkHero(panel, who)
+        local on = HeroFilterOn(who)
+        panel:SetClass("historyMyHeroOn", on)
+        panel.selfStyle.borderWidth = on and 2 or 1
+    end
+
+    --The "my hero" faces, between search and Latest. Rebuilt only when the heroes change;
+    --the search field gives up the width they take.
+    local heroSig = nil
+    --- @type HistoryCreature[]
+    local shownHeroes = {}
+    heroRow = gui.Panel{
+        --the accent ring follows the search: a chip removed by its x turns the face off.
+        searchChanged = function(element)
+            for i, child in ipairs(element.children) do
+                local who = shownHeroes[i]
+                if who ~= nil then
+                    MarkHero(child, who)
+                end
+            end
+        end,
+        flow = "horizontal",
+        width = "auto",
+        height = MY_HERO_SIZE,
+        halign = "right",
+        valign = "center",
+        rmargin = LATEST_WIDTH + SEARCH_GAP,
+        heroes = function(element)
+            local heroes = MyHeroes()
+            local sig = ""
+            for _, who in ipairs(heroes) do
+                sig = string.format("%s%s|%s|%s;", sig, who.id, tostring(who.name), tostring(who.img))
+            end
+            if sig == heroSig then
+                return
+            end
+            heroSig = sig
+            local children = {}
+            for _, who in ipairs(heroes) do
+                local heroFace = Face(who, MY_HERO_SIZE, false, {
+                    tip = function()
+                        if HeroFilterOn(who) then
+                            return "Show everything"
+                        end
+                        return string.format("Show only %s", ShownName(who))
+                    end,
+                    click = function()
+                        if HeroFilterOn(who) then
+                            g_search.chips = {}
+                        else
+                            g_search.chips = {{kind = "creature", key = who.id, name = ShownName(who), who = who}}
+                        end
+                        g_search.text = ""
+                        searchInput.textNoNotify = ""
+                        CloseSuggestions()
+                        ApplySearch()
+                    end,
+                })
+                heroFace.selfStyle.lmargin = MY_HERO_GAP
+                MarkHero(heroFace, who)
+                children[#children + 1] = heroFace
+            end
+            shownHeroes = heroes
+            element.children = children
+            searchInput.selfStyle.width = TRAY_WIDTH - 12 - 12 - SEARCH_GAP - LATEST_WIDTH
+                - #heroes * (MY_HERO_SIZE + MY_HERO_GAP)
+        end,
+    }
+    heroRow:FireEvent("heroes")
+
     --"{n} new below" (H2): floats over the list's foot while rows came in below the view.
     newBelowButton = gui.Label{
         classes = {"historyButton", "historyNewBelow", "hidden"},
@@ -3923,6 +4144,7 @@ local function CreateFace()
                 element.monitorGame = History.DocPath(mapid)
                 Refresh()
             end
+            heroRow:FireEvent("heroes")
             KeepCardPlaced()
             AlignCard()
         end,
@@ -3952,6 +4174,7 @@ local function CreateFace()
             rpad = 12,
             borderBox = true,
             searchInput,
+            heroRow,
             latestButton,
         },
         chipRow,

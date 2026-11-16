@@ -13,10 +13,8 @@ local mod = dmhub.GetModLoading()
 local TRAY_WIDTH = 410
 local EDGE_STRIP = 8
 
---The bar above the list that holds search and Latest.
+--The bar above the list that holds search and the "my hero" faces.
 local BAR_HEIGHT = 28
---Latest is a fixed width, anchored right, so the search field beside it can never run under it.
-local LATEST_WIDTH = 84
 local SEARCH_GAP = 8
 
 --Rows built at first; scrolling to the top adds this many more each time.
@@ -3181,7 +3179,6 @@ local function CreateFace()
     local loadingOlder = false
     local anchor = nil
     local anchorTries = 0
-    local latestButton = nil
     local face
     local list
     --true until the first build: History opens on "New since you last looked" when the
@@ -3208,17 +3205,23 @@ local function CreateFace()
     --- @type table<string, boolean>
     local seenKeys = {}
     local newBelow = 0
+    --True once the view has left the default (see UpdateLatest).
+    local away = false
     --- @type Panel|nil
     local newBelowButton = nil
     local rowsPanel
 
+    --One pill at the list's foot takes you to the newest row. It counts the rows that
+    --came in below the view, and reads "Latest" when there are none but the view is away.
     local function UpdateNewBelow()
         if newBelowButton == nil or not newBelowButton.valid then
             return
         end
-        newBelowButton:SetClass("hidden", newBelow == 0)
+        newBelowButton:SetClass("hidden", newBelow == 0 and not away)
         if newBelow > 0 then
             newBelowButton.text = string.format("%d new below", newBelow)
+        elseif away then
+            newBelowButton.text = "Latest"
         end
     end
 
@@ -3250,11 +3253,11 @@ local function CreateFace()
     --Latest shows only once the view has left the default: scrolled up, older rows
     --loaded, or a round or turn opened or closed by hand.
     local function UpdateLatest()
-        if latestButton == nil or not latestButton.valid or list == nil or not list.valid then
+        if list == nil or not list.valid then
             return
         end
-        local away = list.vscrollPosition > 0.02 or rowsWanted > ROWS_CHUNK or next(g_open) ~= nil
-        latestButton:SetClass("hidden", not away)
+        away = list.vscrollPosition > 0.02 or rowsWanted > ROWS_CHUNK or next(g_open) ~= nil
+        UpdateNewBelow()
     end
     local mapid = game.currentMapId
     --what was seen before this opening: kept by the rail's mark if that came first.
@@ -3878,7 +3881,7 @@ local function CreateFace()
     searchInput = gui.SearchInput{
         placeholderText = "Search creatures, abilities, conditions",
         text = g_search.text,
-        width = TRAY_WIDTH - 12 - 12 - SEARCH_GAP - LATEST_WIDTH,
+        width = TRAY_WIDTH - 12 - 12,
         --the theme's hpad 24 must sit inside the width, not on top of it.
         borderBox = true,
         height = 22,
@@ -4010,7 +4013,7 @@ local function CreateFace()
         panel.selfStyle.borderWidth = on and 2 or 1
     end
 
-    --The "my hero" faces, between search and Latest. Rebuilt only when the heroes change;
+    --The "my hero" faces, right of search. Rebuilt only when the heroes change;
     --the search field gives up the width they take.
     local heroSig = nil
     --- @type HistoryCreature[]
@@ -4030,7 +4033,6 @@ local function CreateFace()
         height = MY_HERO_SIZE,
         halign = "right",
         valign = "center",
-        rmargin = LATEST_WIDTH + SEARCH_GAP,
         heroes = function(element)
             local heroes = MyHeroes()
             local sig = ""
@@ -4068,13 +4070,16 @@ local function CreateFace()
             end
             shownHeroes = heroes
             element.children = children
-            searchInput.selfStyle.width = TRAY_WIDTH - 12 - 12 - SEARCH_GAP - LATEST_WIDTH
-                - #heroes * (MY_HERO_SIZE + MY_HERO_GAP)
+            local taken = #heroes * (MY_HERO_SIZE + MY_HERO_GAP)
+            if taken > 0 then
+                taken = taken + SEARCH_GAP - MY_HERO_GAP
+            end
+            searchInput.selfStyle.width = TRAY_WIDTH - 12 - 12 - taken
         end,
     }
     heroRow:FireEvent("heroes")
 
-    --"{n} new below" (H2): floats over the list's foot while rows came in below the view.
+    --"{n} new below" (H2) or "Latest": floats over the list's foot (see UpdateNewBelow).
     newBelowButton = gui.Label{
         classes = {"historyButton", "historyNewBelow", "hidden"},
         bgimage = "panels/square.png",
@@ -4091,27 +4096,16 @@ local function CreateFace()
         y = -10,
         textAlignment = "center",
         click = function(element)
-            list:FireEvent("toBottom")
-        end,
-    }
-
-    --Jump to latest: back to the default folds, scrolled to the newest row.
-    latestButton = gui.Label{
-        classes = {"historyButton", "hidden"},
-        bgimage = "panels/square.png",
-        text = "Latest",
-        width = LATEST_WIDTH,
-        height = 22,
-        hpad = 8,
-        borderBox = true,
-        borderWidth = 1,
-        cornerRadius = 4,
-        halign = "right",
-        valign = "center",
-        textAlignment = "center",
-        click = function(element)
+            if newBelow > 0 then
+                list:FireEvent("toBottom")
+                return
+            end
+            --Latest: back to the default folds, scrolled to the newest row.
             g_open = {}
             rowsWanted = ROWS_CHUNK
+            --at the bottom first: a rebuild while scrolled up holds the row at the top of
+            --the view in place, which would undo the jump.
+            list.vscrollPosition = 0
             Refresh()
             KeepCardPlaced()
             list:ScheduleEvent("toBottom", 0.05)
@@ -4165,7 +4159,7 @@ local function CreateFace()
             g_open = {}
         end,
 
-        --the window's own header names the panel, so this bar holds search and Latest.
+        --the window's own header names the panel, so this bar holds search and the faces.
         gui.Panel{
             flow = "none",
             width = TRAY_WIDTH,
@@ -4175,7 +4169,6 @@ local function CreateFace()
             borderBox = true,
             searchInput,
             heroRow,
-            latestButton,
         },
         chipRow,
         list,

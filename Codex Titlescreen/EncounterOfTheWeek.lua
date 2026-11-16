@@ -3961,6 +3961,11 @@ local Late = {}
 --lays out in the stage, the space left of it.
 local Rail = {}
 
+--Games whose city roster record the town still has to leave (see
+--CityLeaves.Leave in CreateScreen). File level so a pending leave outlives
+--the screen that queued it.
+local CityLeaves = { pending = {} }
+
 --Builds the full-screen EotW panel: overview text, the games list driven by
 --the lobby's /state/games roster, and the lobby chat + presence column.
 CreateScreen = function(args)
@@ -4514,6 +4519,52 @@ CreateScreen = function(args)
         }
     end
 
+    --Games whose city roster record we still have to leave. The town cleans
+    --up an abandoned or finished game as soon as it opens, usually before
+    --the city connection has authenticated, and a request sent then fails
+    --at once; left unsent, the record stays listed as under way (with the
+    --party "away from town") and our own town heartbeat keeps it alive.
+    --Sent again each time the connection comes up. The table is declared
+    --at file level: CreateScreen is at Lua's 200-local cap.
+
+    --Leave a game's city roster record (a host leaving drops the record and
+    --its game chat), now if connected, else when the connection comes up.
+    CityLeaves.Leave = function(gameid)
+        if m_conn == nil or not m_conn.connected then
+            CityLeaves.pending[gameid] = true
+            return
+        end
+        CityLeaves.pending[gameid] = nil
+        m_conn:Request{
+            action = "leave-game",
+            args = { gameid = gameid },
+            error = function(message)
+                --dropped before the server answered: try again on reconnect.
+                --Any other refusal (not registered, not a member) means
+                --there is nothing left to leave.
+                if m_conn == nil or not m_conn.connected then
+                    CityLeaves.pending[gameid] = true
+                else
+                    printf("EotW: leave-game %s: %s", gameid, tostring(message))
+                end
+            end,
+        }
+    end
+
+    CityLeaves.Flush = function()
+        if m_conn == nil or not m_conn.connected then
+            return
+        end
+        local ids = {}
+        for gameid,_ in pairs(CityLeaves.pending) do
+            ids[#ids+1] = gameid
+        end
+        for _,gameid in ipairs(ids) do
+            printf("EotW: leaving city roster record of %s", gameid)
+            CityLeaves.Leave(gameid)
+        end
+    end
+
     --Destroy/leave the EotW game we had before entering a new one, and
     --drop any lobby roster record we still hold for it.
     --opts.abandon: walking away from a game others may still be playing --
@@ -4528,14 +4579,7 @@ CreateScreen = function(args)
         pcall(EotwAnalytics.CloseRun, prevGameid, opts.how or cond(opts.abandon, "replaced", "cleanup"))
         m_resumeGameid = nil
         m_resumeInfo = nil
-        if m_conn ~= nil then
-            --host leaving drops the roster record and its game chat.
-            m_conn:Request{
-                action = "leave-game",
-                args = { gameid = prevGameid },
-                error = function() end,
-            }
-        end
+        CityLeaves.Leave(prevGameid)
         lobby:LookupGame(prevGameid, function(gameinfo)
             if gameinfo == nil then
                 --the lobby record is gone entirely; just clear the slot.
@@ -11621,6 +11665,7 @@ CreateScreen = function(args)
             if m_conn == nil or not m_conn.connected then
                 return
             end
+            CityLeaves.Flush()
             local games = m_conn:GetPath("/state/games")
             if games == nil then
                 return
@@ -12050,6 +12095,7 @@ CreateScreen = function(args)
             if status == "connected" then
                 --first, so a banned player is sent back before anything else opens.
                 EotwModeration.CheckArrival(m_conn)
+                CityLeaves.Flush()
                 RefreshAll()
                 EotwRoster.Refresh()
                 MaybeShowDebrief()

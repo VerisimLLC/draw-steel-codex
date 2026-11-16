@@ -5995,6 +5995,16 @@ offers a won game.
   or joining a new game -- go the same way. (Before, the owner deleted the
   game outright, from under anyone still playing.) Concluded games still
   delete as before (owner deletes, members leave).
+- **The city roster record is left once the town is connected
+  (2026-11-15).** That cleanup runs as the town opens, usually before the
+  city connection has authenticated, and its `leave-game` used to fail on
+  the spot and be dropped: the game was deleted but the town still listed
+  it as under way with the party away from town, and the town's own 30s
+  heartbeat kept that record alive. `CityLeaves.Leave` now holds a leave
+  made while disconnected and `CityLeaves.Flush` sends it when the
+  connection comes up (and on each heartbeat tick). The pending set lives
+  in memory only, so quitting within seconds of opening the town can still
+  drop it.
 - **How a non-owner's delete works.** Only the owner may write
   `/games/{id}`, so the function (admin rights) marks it `deleted` +
   `releaseStorage` and asks the game server to release the Durable Object;

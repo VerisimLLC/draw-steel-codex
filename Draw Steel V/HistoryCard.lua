@@ -874,7 +874,9 @@ end
 local SIDE_VIEW_ICON = "phosphor/arrow-elbow-right-down-bold.png"
 --The side view is drawn at most this wide, as the drag tooltip's.
 local SIDE_VIEW_MAX_WIDTH = 340
-local g_canDrawPaths = pcall(function() return dmhub.CreatePath ~= nil end)
+--pcall's first result only says the read did not raise; the second is the answer.
+local g_pathsRead, g_pathsFound = pcall(function() return dmhub.CreatePath ~= nil end)
+local g_canDrawPaths = g_pathsRead and g_pathsFound == true
 
 --- The squares a creature was moved through, start first, as dmhub.CreatePath takes them,
 --- or nil. History saves them as plain {x, y, floor, altitude} lists.

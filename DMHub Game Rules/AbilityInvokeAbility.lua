@@ -23,7 +23,7 @@ AbilityInvocation = RegisterGameType("AbilityInvocation")
 --- @field id string stored in the behavior's abilityType
 --- @field text string the editor's Type dropdown text
 --- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke, asked for once per cast; every target gets its own copy, so it may return a shared or cached ability; nil invokes nothing. Return the ability before the invoker's bonuses: the copy goes through the invoker's modifiers (its kit's included, where the keywords match) and then its PostProcessInvokedAbility
---- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing. The Monster AI plans with it and then casts what resolve returns, so return the same ability (name and behaviors) resolve will.
+--- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing. The Monster AI plans with it and then casts what resolve returns, so return the same ability (name and behaviors) resolve will. The card shows this ability without kit and companion bonuses: those are added only when it is cast.
 
 --Invoke target types a module added (RegisterTargetType), by id. Kept on the
 --global table so reloading only this file does not lose them.
@@ -51,7 +51,15 @@ end
 --- name or id: "Custom Ability" and every registered target type.
 --- @return boolean
 function ActivatedAbilityInvokeAbilityBehavior:CastsAsCustom()
-	return self.abilityType == "custom" or g_extraTargetTypes[self.abilityType] ~= nil
+	return self.abilityType == "custom" or self:UsesRegisteredType()
+end
+
+--- True when a module-registered target type supplies this invoke's ability. Code that
+--- adds kit or companion bonuses into nested abilities skips these: any customAbility
+--- left on them is never cast, and the ability they do cast gets those bonuses when it is cast.
+--- @return boolean
+function ActivatedAbilityInvokeAbilityBehavior:UsesRegisteredType()
+	return g_extraTargetTypes[self.abilityType] ~= nil
 end
 
 --- The ability this invoke holds, for code that reads it outside a cast (an ability

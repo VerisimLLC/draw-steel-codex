@@ -656,7 +656,8 @@ ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 foundBehaviors[#foundBehaviors + 1] = behavior
                 countAbility = true
-            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            --A registered type's ability gets these bonuses when it is cast; any customAbility it stores is never cast.
+            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and not behavior:UsesRegisteredType() then
                 local invokeAbility = behavior.customAbility
                 if invokeAbility ~= nil then
                     findAllPowerRollBehaviors(invokeAbility, foundBehaviors, foundAbilities)

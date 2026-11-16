@@ -2526,6 +2526,21 @@ function ActivatedAbility.ActingFromSignature()
 	return table.concat(parts, ",")
 end
 
+--- Every creature acting from another's space right now: caster charid -> the token
+--- whose space it acts from. Empty when none, which is almost always.
+--- @return table<string, CharacterToken>
+function ActivatedAbility.ActingFromAll()
+	local result = {}
+	--ActingFromToken drops casts that are over, which removes keys during the loop; Lua allows removing (not adding) keys inside pairs.
+	for charid,_ in pairs(g_actingFrom) do
+		local standIn = ActivatedAbility.ActingFromToken(charid)
+		if standIn ~= nil then
+			result[charid] = standIn
+		end
+	end
+	return result
+end
+
 --- The creature operating an object for this cast, when this ability is an
 --- object's ability being used by someone else (a Field Ballista fired by an
 --- adjacent hero). The object stays the caster -- range, rolls and usage limits

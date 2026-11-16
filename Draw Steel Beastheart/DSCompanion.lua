@@ -1284,7 +1284,8 @@ local function applyCompanionMeleeBonus(ability, bonuses)
                         end
                     end
                 end
-            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.customAbility ~= nil then
+            --A registered type's ability gets this bonus when it is cast; any customAbility it stores is never cast.
+            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and not behavior:UsesRegisteredType() and behavior:try_get("customAbility") ~= nil then
                 recurse(behavior.customAbility)
             end
         end
@@ -1362,7 +1363,8 @@ local function applyCompanionKitRange(kit, ability)
         for _, behavior in ipairs(currentAbility.behaviors or {}) do
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 hasRoll = true
-            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior:try_get("customAbility") ~= nil then
+            --A registered type's ability gets this bonus when it is cast; any customAbility it stores is never cast.
+            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and not behavior:UsesRegisteredType() and behavior:try_get("customAbility") ~= nil then
                 collect(behavior.customAbility)
             end
         end

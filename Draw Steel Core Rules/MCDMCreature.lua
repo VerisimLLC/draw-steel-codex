@@ -2357,13 +2357,13 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "flanked",
     lookup = function(c)
-        return #c:GetFlankingTokens() > 0
+        return c:IsFlankedByAnyone()
     end,
 
     help = {
         name = "Flanked",
         type = "boolean",
-        desc = "Returns true if this creature is currently being flanked, going by where creatures stand. To ask whether an ability's user flanks it (the user may be acting from another creature's space), use Flanked By.",
+        desc = "Returns true if this creature is currently being flanked, that is, Flanked By is true for at least one creature. A creature using an ability as if in another creature's space flanks from that space while the ability resolves.",
         seealso = {},
     },
 }
@@ -2700,6 +2700,39 @@ end
 --- @return CharacterToken
 function creature.FlankingStandIn(token)
     return ActivatedAbility.ActingFromToken(token.charid) or token
+end
+
+--- True when Flanked By is true for at least one creature, so the Flanked symbol always
+--- agrees with it. With no ability being used from another creature's space (the usual
+--- case) this is the plain flanking check.
+--- @return boolean
+function creature:IsFlankedByAnyone()
+    local standInByActor = ActivatedAbility.ActingFromAll()
+    if next(standInByActor) == nil then
+        return #self:GetFlankingTokens() > 0
+    end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return false
+    end
+    --A creature acting from another space may not be next to this one, so ask about it too.
+    local candidates = GetEnemiesAdjacentToToken(token)
+    for charid, _ in pairs(standInByActor) do
+        local actor = dmhub.GetTokenById(charid)
+        if actor ~= nil then
+            AddTokenOnce(candidates, actor)
+        end
+    end
+    local flanked = false
+    for _, candidate in ipairs(candidates) do
+        if self:FlankedBy(candidate) then
+            flanked = true
+            break
+        end
+    end
+    --Last on purpose: puts back the grantor marks for where creatures really stand, which the token HUD's flank arrows read.
+    self:GetFlankingTokens()
+    return flanked
 end
 
 --A creature's cached modifiers can depend on FlankedBy, which reads who is acting from

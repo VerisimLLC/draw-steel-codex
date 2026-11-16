@@ -633,3 +633,345 @@ if rawget(_G, "CharacterPanel") ~= nil and CharacterPanel.RegisterBestiaryExtens
         searchMatches = EotwMonsterAssessment.SearchMatches,
     }
 end
+
+--Monster AI tab ----------------------------------------------------------------
+--In an authoring game a monster's character sheet gets a "Monster AI" tab.
+--It sets "similar to" (the aiSimilarTo field, read by MonsterAI.AIMonsterType):
+--the AI then plays this monster with the hand-written AI of another monster
+--type, for every ability the two share by name. Below that it lists what the
+--AI will do with each part of the monster's kit, so the effect shows at once.
+
+--Monster types that some hand-written AI registration names.
+local function HandWrittenMonsterTypes()
+    local types = {}
+    local function AddLists(registry)
+        for _, registration in pairs(registry or {}) do
+            for _, name in ipairs(registration.monsters or {}) do
+                types[name] = true
+            end
+        end
+    end
+    AddLists(MonsterAI.moves)
+    AddLists(MonsterAI.villainActions)
+    AddLists(MonsterAI.maliceAbilities)
+    AddLists(MonsterAI.behaviors)
+    AddLists(MonsterAI.tactics)
+    --monster-qualified keys look like "Goblin Warrior:Ability Name".
+    for _, registry in ipairs({ MonsterAI.triggerHandlersByMonsterAbility, MonsterAI.triggerHandlersByMonsterText, MonsterAI.prompts }) do
+        for key, _ in pairs(registry or {}) do
+            local monsterType = string.match(key, "^(.-):")
+            if monsterType ~= nil and monsterType ~= "" then
+                types[monsterType] = true
+            end
+        end
+    end
+    return types
+end
+
+--Dropdown options: none, then every bestiary monster type except its own.
+--current is kept even when no bestiary entry has that type any more.
+--- @param ownType string
+--- @param current string|nil
+--- @return table[]
+local function SimilarToOptions(ownType, current)
+    local handWritten = HandWrittenMonsterTypes()
+    local seen = {}
+    local names = {}
+    local function Add(name)
+        if type(name) == "string" and name ~= "" and name ~= ownType and not seen[name] then
+            seen[name] = true
+            names[#names + 1] = name
+        end
+    end
+    for _, asset in pairs(assets.monsters) do
+        local monsterType = nil
+        pcall(function() monsterType = asset.properties:try_get("monster_type") end)
+        Add(monsterType)
+    end
+    Add(current)
+    table.sort(names)
+
+    local options = { { id = "", text = "None (its own AI)" } }
+    for _, name in ipairs(names) do
+        local text = name
+        if handWritten[name] then
+            text = name .. "  (hand-written AI)"
+        end
+        options[#options + 1] = { id = name, text = text }
+    end
+    return options
+end
+
+local g_weightKindText = {
+    tailored = "Hand-written AI",
+    generic = "Shared AI move",
+    synthesized = "Generic AI",
+    malice = "Band Malice",
+    stale = "No longer applies",
+}
+
+--One row of the score weights list: the move, what kind of AI it is, and a
+--slider for its weight. Changes are written to the sheet's monster at once.
+--- @param move MonsterAIWeightableMove
+--- @param weight number
+--- @return Panel
+local function ScoreWeightRow(move, weight)
+    local detail = g_weightKindText[move.status] or move.status
+    if move.disabled then
+        detail = detail .. " (switched off in the Monster AI panel)"
+    end
+    if #move.abilities > 0 and not (#move.abilities == 1 and move.abilities[1] == move.name) then
+        detail = detail .. " - uses " .. table.concat(move.abilities, ", ")
+    end
+    if move.grantedBy ~= nil then
+        detail = detail .. " - only with " .. move.grantedBy
+    end
+
+    local tooltip = move.description
+    if move.status == "synthesized" then
+        tooltip = string.format("%s\nWeighted as \"%s\".", tooltip, move.id)
+    elseif move.status == "malice" then
+        tooltip = tooltip .. "\n\nThe band shares its Malice: this weight applies when this monster is the one spending it."
+    end
+
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        tmargin = 4,
+
+        gui.Label {
+            width = "100%-330",
+            height = "auto",
+            fontSize = 14,
+            textWrap = true,
+            valign = "center",
+            text = string.format("<b>%s</b>\n<size=80%%>%s</size>", move.name, detail),
+            hover = function(element)
+                if tooltip ~= "" then
+                    gui.Tooltip { text = tooltip, width = 420, halign = "right", valign = "center" }(element)
+                end
+            end,
+        },
+        gui.Slider {
+            width = 260,
+            height = 24,
+            sliderWidth = 200,
+            labelWidth = 50,
+            valign = "center",
+            minValue = 0,
+            maxValue = 3,
+            unclamped = true,
+            value = weight,
+            --shows "150%"; typing 150 into the label sets 1.5.
+            labelFormat = "rawpercent",
+            change = function(element)
+                local info = CharacterSheet.instance.data.info
+                if info == nil or info.token == nil or info.token.properties == nil then
+                    return
+                end
+                --whole percentages, never below zero.
+                local value = math.max(0, math.floor(element.value * 100 + 0.5) / 100)
+                MonsterAI.SetScoreWeight(info.token.properties, move.id, value)
+            end,
+            confirm = function(element)
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        },
+        gui.Button {
+            text = "Reset",
+            width = "auto",
+            height = 24,
+            fontSize = 13,
+            hpad = 8,
+            borderBox = true,
+            valign = "center",
+            lmargin = 6,
+            classes = weight == 1 and { "hidden" } or {},
+            click = function(element)
+                local info = CharacterSheet.instance.data.info
+                if info == nil or info.token == nil or info.token.properties == nil then
+                    return
+                end
+                MonsterAI.SetScoreWeight(info.token.properties, move.id, 1)
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        },
+    }
+end
+
+local function CreateMonsterAITab()
+    --the kit list is only rebuilt while the tab is showing: assessing the
+    --monster is too slow to repeat on every sheet refresh behind other tabs.
+    local active = false
+    local props = nil
+
+    local summaryLabel = BodyLabel("", { tmargin = 6 })
+    local kitPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+    local weightsPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    local function RefreshWeights()
+        local monster = props --[[@as creature]]
+        local ok, moves = pcall(MonsterAI.WeightableMoves, monster)
+        if not ok then
+            weightsPanel.children = { BodyLabel("The moves the AI scores for this monster could not be worked out.") }
+            return
+        end
+        local rows = {}
+        --a minion's turn is always a squad strike, so only its band's Malice
+        --can be weighted; say so rather than leave the list looking short.
+        if monster:try_get("minion", false) == true then
+            rows[#rows + 1] = BodyLabel("Minions only make squad strikes with their signature ability, which are not weighted.",
+                { classes = { "fgMuted" } })
+        elseif #moves == 0 then
+            rows[#rows + 1] = BodyLabel("The AI has no moves to weight for this monster.", { classes = { "fgMuted" } })
+        end
+        local weights = MonsterAI.ScoreWeights(monster)
+        for _, move in ipairs(moves) do
+            rows[#rows + 1] = ScoreWeightRow(move, weights[move.id] or 1)
+        end
+        weightsPanel.children = rows
+    end
+
+    local function RefreshKit()
+        if props == nil or not active then
+            return
+        end
+        local ok, support = pcall(MonsterAI.AssessSupport, props)
+        if not ok or support == nil then
+            summaryLabel.text = "The AI support for this monster could not be worked out."
+            kitPanel.children = {}
+            return
+        end
+        local summary = string.format("AI support: <b>%s</b> (%d%% of its kit).",
+            support.level, math.floor(support.coverage * 100 + 0.5))
+        if support.similarTo ~= nil then
+            summary = string.format("%s It plays like a <b>%s</b>.", summary, support.similarTo)
+        end
+        summaryLabel.text = summary
+
+        local rows = {}
+        for _, entry in ipairs(support.entries) do
+            rows[#rows + 1] = KitRow(entry)
+        end
+        kitPanel.children = rows
+        RefreshWeights()
+    end
+
+    local dropdown = gui.Dropdown {
+        classes = { "form" },
+        width = 420,
+        hasSearch = true,
+        options = { { id = "", text = "None (its own AI)" } },
+        idChosen = "",
+        change = function(element)
+            ---@cast element Dropdown
+            local info = CharacterSheet.instance.data.info
+            if info == nil or info.token == nil or info.token.properties == nil then
+                return
+            end
+            local chosen = element.idChosen
+            if chosen == "" then
+                info.token.properties.aiSimilarTo = nil
+            else
+                info.token.properties.aiSimilarTo = chosen
+            end
+            --the bestiary badges remember assessments for a minute.
+            MonsterAI.InvalidateSupport()
+            CharacterSheet.instance:FireEvent("refreshAll")
+        end,
+    }
+
+    return gui.Panel {
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        styles = ThemeEngine.GetStyles(),
+
+        refreshToken = function(element, info)
+            props = info.token.properties
+            local isMonster = false
+            pcall(function() isMonster = props:IsMonster() end)
+            if not isMonster then
+                return
+            end
+            local ownType = props:try_get("monster_type", "")
+            local current = MonsterAI.SimilarMonsterType(props)
+            dropdown.options = SimilarToOptions(ownType, current)
+            dropdown.idChosen = current or ""
+            RefreshKit()
+        end,
+
+        charsheetActivate = function(element, shown)
+            active = shown
+            RefreshKit()
+        end,
+
+        gui.Panel {
+            width = 1000,
+            height = "100%-60",
+            halign = "center",
+            valign = "top",
+            tmargin = 60,
+            flow = "vertical",
+            vscroll = true,
+
+            gui.Label {
+                classes = { "fgStrong" },
+                width = "100%",
+                height = "auto",
+                fontSize = 26,
+                bold = true,
+                text = "Monster AI",
+            },
+
+            BodyLabel("Pick a monster this one is similar to, and the AI plays it with that monster's hand-written AI: every move, trigger and villain action written for that monster applies to the abilities the two share by name. Use it for a reskinned or homebrew monster built from a book stat block.",
+                { tmargin = 6, bmargin = 10 }),
+
+            gui.Panel {
+                classes = { "formRow" },
+                height = "auto",
+                gui.Label {
+                    classes = { "form" },
+                    text = "Similar to",
+                },
+                dropdown,
+            },
+
+            SectionTitle("What the AI will do"),
+            summaryLabel,
+            kitPanel,
+
+            SectionTitle("Score weights"),
+            BodyLabel("On its turn the AI scores every move it can make and uses the best, and at the start of a turn it spends Malice when an ability scores well enough. Each score is multiplied by its weight here: raise a weight to make this monster favor that move, lower it to make the move rarer, or set 0% so it is never used.",
+                { classes = { "fgMuted" }, bmargin = 4 }),
+            weightsPanel,
+        },
+    }
+end
+
+if rawget(_G, "CharSheet") ~= nil then
+    CharSheet.RegisterTab {
+        id = "MonsterAI",
+        text = "Monster AI",
+        lazy = true,
+        visible = function(c)
+            if c == nil or not EotwMonsterAssessment.Active() then
+                return false
+            end
+            local isMonster = false
+            pcall(function() isMonster = c:IsMonster() end)
+            return isMonster
+        end,
+        panel = CreateMonsterAITab,
+    }
+    dmhub.RefreshCharacterSheet()
+end

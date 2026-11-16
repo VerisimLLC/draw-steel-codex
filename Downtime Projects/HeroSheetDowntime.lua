@@ -243,7 +243,7 @@ local function BaneLine(langIds, rollers)
     for _, id in ipairs(langIds) do
         local lang = langTable[id]
         if lang ~= nil then
-            langNames[#langNames+1] = lang.name
+            langNames[#langNames+1] = lang:DisplayName()
         end
     end
     if #langNames == 0 then
@@ -3305,9 +3305,9 @@ function HeroSheetDowntime.Create()
         end
         local langNames, langOptions = {}, {}
         for id, lang in pairs(langTable) do
-            langNames[id] = lang.name
+            langNames[id] = lang:DisplayName()
             if not langChosen[id] then
-                langOptions[#langOptions+1] = {id = id, text = lang.name}
+                langOptions[#langOptions+1] = {id = id, text = lang:DisplayNameWithDetail()}
             end
         end
         --a language the Hero does not know is marked, with a note after the chips.

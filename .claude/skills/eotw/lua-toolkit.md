@@ -199,8 +199,8 @@ group = {
   minHeroes = 5,                             -- the whole group only appears with 5+ heroes
   monsterMinHeroes = { [monsterid] = 6 },    -- one monster type only with 6+ heroes
   balancing = { [4] = { monsters = { [monsterid] = -1 } } },   -- per party size: count deltas
-  wave = nil,                                -- nil = arrives at the start (wave groups are
-                                             -- reinforcements, not spawned by EotW at start)
+  wave = nil,                                -- nil = arrives at the start; a wave id = arrives
+                                             -- with that wave (EncounterReinforcements WaveTick)
 }
 ```
 

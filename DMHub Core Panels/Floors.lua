@@ -76,6 +76,48 @@ Commands.RegisterMacro{
     end,
 }
 
+--Switch the current map to another look of its scene (SCENE_APPEARANCES_REFERENCE.md):
+--a full scene's looks (Day / Night ...) differ in lights, sounds, walls and settings, not
+--just one picture. The value is a look's name, its index (0 = the first) or "cycle".
+Commands.RegisterMacro{
+    name = "sceneappearance",
+    summary = "switch the map's scene look",
+    doc = "Usage: /sceneappearance <name|index|cycle>. Switches the current map to another look of its scene (Day, Night, ...), or cycles to the next one.",
+    command = function(str)
+        local value = string.match(str or "", "^%s*(.-)%s*$") or ""
+        local map = game.currentMap
+        local looks = map ~= nil and map.sceneAppearances or nil
+        if looks == nil then
+            dmhub.Log("sceneappearance: this map has no scene looks")
+            return
+        end
+        ---@cast map -nil
+        local target = nil
+        if value == "cycle" then
+            target = (map.sceneAppearance + 1) % #looks
+        else
+            for i, look in ipairs(looks) do
+                if string.lower(look.name) == string.lower(value) then
+                    target = i - 1
+                    break
+                end
+            end
+            local num = tonumber(value)
+            if target == nil and num ~= nil and num >= 0 and num < #looks then
+                target = math.floor(num)
+            end
+        end
+        if target == nil then
+            dmhub.Log(string.format("sceneappearance: no look named '%s'", value))
+            return
+        end
+        local err = map:SetSceneAppearance(target)
+        if err ~= nil then
+            dmhub.Log("sceneappearance: " .. err)
+        end
+    end,
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -666,7 +708,102 @@ local function ShowFloorSettings(floor, onHeightChanged)
 	local mapObj = FindMapObjectForFloor(floor)
 	local appearanceSection
 
-	if mapObj ~= nil then
+	--A full scene with several looks (SCENE_APPEARANCES_REFERENCE.md): a look is the
+	--whole scene -- art, lights, sounds, walls, notes, ambient light and weather -- on
+	--every floor at once, so the single-image gallery below would change one picture
+	--and leave the rest behind. Offer the scene's looks instead.
+	local currentMap = game.currentMap
+	local sceneLooks = currentMap ~= nil and currentMap.sceneAppearances or nil
+
+	if sceneLooks ~= nil then
+		---@cast currentMap -nil
+		local tilesPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			wrap = true,
+		}
+		local RefreshSceneTiles
+		RefreshSceneTiles = function()
+			if not tilesPanel.valid then
+				return
+			end
+			local current = currentMap.sceneAppearance
+			local children = {}
+			for i, look in ipairs(sceneLooks) do
+				local index = i - 1
+				local image = "panels/square.png"
+				if look.thumb ~= "" then
+					image = "md5:" .. look.thumb
+				end
+				children[#children + 1] = gui.Panel{
+					width = 112,
+					height = "auto",
+					halign = "left",
+					valign = "top",
+					flow = "vertical",
+					gui.Panel{
+						classes = {"mapAppearanceTile", "image", "hoverable", cond(index == current, "selected")},
+						width = 104,
+						height = 78,
+						halign = "center",
+						valign = "top",
+						bgimage = image,
+						cornerRadius = 6,
+						click = function()
+							if index == currentMap.sceneAppearance then
+								return
+							end
+							local err = currentMap:SetSceneAppearance(index)
+							if err ~= nil then
+								gui.ModalMessage{ title = "Could not change the map's look", message = err }
+								return
+							end
+							--the switch lands on the next frame; light the new tile then.
+							dmhub.Schedule(0.1, function()
+								if mod.unloaded then
+									return
+								end
+								RefreshSceneTiles()
+							end)
+						end,
+					},
+					gui.Label{
+						text = look.name,
+						width = 104,
+						height = 22,
+						halign = "center",
+						textAlignment = "center",
+						fontSize = 12,
+						vmargin = 2,
+					},
+				}
+			end
+			tilesPanel.children = children
+		end
+		RefreshSceneTiles()
+
+		appearanceSection = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 8,
+			children = {
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Scene Appearance",
+				},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Switches the whole scene: art, lights, sounds, walls and weather.",
+					fontSize = 12,
+					bold = false,
+					bmargin = 4,
+				},
+				tilesPanel,
+			},
+		}
+	elseif mapObj ~= nil then
 		--Dialog-local mirror of the Appearance component's swap state, kept index-aligned:
 		--  selected == 0       -> the map's own base image ("Default")
 		--  selected == i (>=1) -> swaps[i], displayed with name names[i]

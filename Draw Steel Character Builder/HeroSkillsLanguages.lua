@@ -201,6 +201,8 @@ end
 --- @field name string
 --- @field group nil|string a skill's group id ("crafting")
 --- @field speakers nil|string a language's speakers
+--- @field inWorld nil|string a language's in-world name, set only while Plain Language Names shows another name
+--- @field tooltip nil|string a language's hover text naming it in-world
 --- @field dead nil|boolean a dead language
 
 --- @class HeroSkillsMark
@@ -486,7 +488,7 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
                 ids[#ids+1] = id
             end
         end
-        table.sort(ids, function(left, right) return languages[left].name < languages[right].name end)
+        table.sort(ids, function(left, right) return languages[left]:DisplayName() < languages[right]:DisplayName() end)
         for _, id in ipairs(ids) do
             draft.handOrig[id] = id
             draft.hand[#draft.hand+1] = {
@@ -603,7 +605,11 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
             if type(speakers) ~= "string" or speakers == "" then
                 speakers = nil
             end
-            list[#list+1] = {id = id, name = item.name, speakers = speakers, dead = item:try_get("dead", false) == true}
+            local inWorld = nil
+            if item:DisplayName() ~= item.name then
+                inWorld = item.name
+            end
+            list[#list+1] = {id = id, name = item:DisplayName(), speakers = speakers, inWorld = inWorld, tooltip = item:DisplayTooltip(), dead = item:try_get("dead", false) == true}
         end
         table.sort(list, function(left, right) return left.name < right.name end)
         draft.entries = list
@@ -1226,7 +1232,7 @@ end
 --- The Languages card's rows: each language the Hero knows with where it
 --- comes from (Everyone, Ancestry, Career, Added by hand...), by name.
 --- @param hero character
---- @return {label: string, value: string}[]
+--- @return {label: string, value: string, inWorld: nil|string}[]
 function HeroSkillsLanguages.LanguageSources(hero)
     local draft = HeroSkillsLanguages.Read(hero, "language")
     local source = {}
@@ -1246,7 +1252,7 @@ function HeroSkillsLanguages.LanguageSources(hero)
     local rows = {}
     for _, entry in ipairs(draft.entries) do
         if source[entry.id] ~= nil then
-            rows[#rows+1] = {label = entry.name, value = KindWord(source[entry.id])}
+            rows[#rows+1] = {label = entry.name, value = KindWord(source[entry.id]), inWorld = entry.inWorld}
         end
     end
     return rows
@@ -1854,8 +1860,12 @@ function HeroSkillsLanguages.Panel(args)
             labels[#labels+1] = label
             children[#children+1] = label
         end
-        --a known language reads "Caelian known", without its speakers.
-        if entry.speakers ~= nil and not known then
+        --a known language reads "Caelian known", without its speakers. With
+        --plain names the plain name already says who speaks it, so the small
+        --text gives the in-world name instead ("Goblin Szetch").
+        if entry.inWorld ~= nil and not known then
+            Small(entry.inWorld, "heroSklChipSpeakers", 5)
+        elseif entry.speakers ~= nil and not known then
             Small(entry.speakers, "heroSklChipSpeakers", 5)
         end
         if mark ~= nil and mark.suffix ~= nil then
@@ -1917,6 +1927,9 @@ function HeroSkillsLanguages.Panel(args)
             --the Hero (SetDraft) swaps them without building the chip again.
             hover = function(element)
                 local lines = {}
+                if view.entry.tooltip ~= nil then
+                    lines[#lines+1] = view.entry.tooltip
+                end
                 if view.tip ~= nil then
                     lines[#lines+1] = view.tip
                 end
@@ -2103,7 +2116,7 @@ function HeroSkillsLanguages.Panel(args)
             end
             return string.find(string.lower(text), string.lower(query), 1, true) ~= nil
         end
-        local hit = Test(entry.name) or Test(entry.speakers)
+        local hit = Test(entry.name) or Test(entry.speakers) or Test(entry.inWorld)
         if negative then
             return not hit
         end
@@ -2236,7 +2249,8 @@ function HeroSkillsLanguages.Panel(args)
         for i, newEntry in ipairs(new) do
             local oldEntry = old[i]
             if oldEntry.id ~= newEntry.id or oldEntry.name ~= newEntry.name or oldEntry.group ~= newEntry.group
-                or oldEntry.speakers ~= newEntry.speakers or (oldEntry.dead == true) ~= (newEntry.dead == true) then
+                or oldEntry.speakers ~= newEntry.speakers or oldEntry.inWorld ~= newEntry.inWorld
+                or (oldEntry.dead == true) ~= (newEntry.dead == true) then
                 return false
             end
         end

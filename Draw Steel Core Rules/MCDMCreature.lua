@@ -58,7 +58,7 @@ function creature:MinionSquad()
     return nil
 end
 
---- Returns the subset of summonedMinions entries whose tokens still exist and whose creatures are alive.
+--- Returns the subset of summonedMinions entries whose tokens still exist and are living minions.
 --- Does not mutate the stored list; callers wanting to prune should compare the returned list to the stored one.
 --- @return table[] entries Array of { charid, squad, monsterType } entries.
 function creature:GetLiveSummonedEntries()
@@ -67,7 +67,9 @@ function creature:GetLiveSummonedEntries()
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Only minions count toward squads. Older casts also put non-minion
+            --summons (e.g. a Summoner's Dominion fixture) here, so skip those.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 live[#live+1] = entry
             end
         end
@@ -139,7 +141,9 @@ function creature:RegisterSummonedMinion(charid, squadName, monsterType)
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil and entry.charid ~= charid then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Summons that are not minions don't belong here. Older games may
+            --still have some (e.g. a Summoner's Dominion fixture), so drop them.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 pruned[#pruned+1] = entry
             end
         end
@@ -2900,6 +2904,15 @@ function creature:CanTeleport()
     return false
 end
 
+--- Whether the creature can fly up or down under its own power. False for a creature
+--- that may only fly horizontally (the "Horizontal Flight Only" attribute, set by
+--- the levitation from the Ghost's Spirited Away). Effects that lift or drop it
+--- (rising each turn, falling when the effect ends) don't ask this.
+--- @return boolean
+function creature:CanFlyVertically()
+    return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
 creature.stability = 0
 creature.reach = 1
 creature.range = 0
@@ -4544,7 +4557,7 @@ end
 
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
---- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
 --- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
@@ -4626,6 +4639,13 @@ function creature:InflictCondition(conditionid, args)
         entry.stacks = 1
         entry.sourceDescription = args.sourceDescription
         entry.duration = args.duration
+        --fullNextTurn: an EoT imposed on the target's own turn survives this turn's
+        --end and expires at the end of their next one. The End Turn Effects rule
+        --(MCDMAbilitySaveBehavior) clears the flag instead of purging, once.
+        entry.skipTurnEnd = nil
+        if args.fullNextTurn and args.duration == "eot" and self:IsOurTurn() then
+            entry.skipTurnEnd = true
+        end
         entry.casterInfo = args.casterInfo
         if entry.casterInfo ~= nil then
             entry.casterInfo.timestamp = ServerTimestamp()
@@ -5323,9 +5343,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
     end)
 end
 
-function creature:ShowCharacteristicRollDialog(attrid)
+--options (optional): onComplete(tier) is called with 1-3 when the roll lands,
+--for callers that act on the result (a puzzle lock's bypass test).
+---@param attrid string
+---@param options {onComplete: fun(tier: integer)|nil}|nil
+function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
+    local onComplete = options ~= nil and options.onComplete or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5392,6 +5417,9 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 end
 
                 local tier = RollUtils.DiceResultToTier(rollInfo)
+                if onComplete ~= nil then
+                    pcall(onComplete, tier)
+                end
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,
@@ -6104,10 +6132,9 @@ end
 
 creature.minionDamageTime = 0
 
---Module-local map tracking the largest damage instance any single strike has applied to a given
---minion squad's shared Stamina pool. Outer key is the ActivatedAbilityCast object (weak key so it is
---collected when the strike finishes); inner key is the squad name, value is the largest damage amount
---applied to that squad's pool this cast.
+--Largest damage each strike has dealt to a minion squad's shared pool:
+--g_summonerSquadCastDamage[cast][ability][squadName] = amount. One cast covers a whole activation,
+--including abilities it invokes, so the ability splits a repeated or free strike from the one that triggered it.
 local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
 
 --Batching and confirmation gating for the "squadminiondeaths" trigger.
@@ -6460,17 +6487,24 @@ function creature.TakeDamage(self, amount, note, info)
             --the shared Stamina pool only takes the largest single instance.
             local squadName = self:MinionSquad()
             if squadName ~= nil then
-                local castMap = g_summonerSquadCastDamage[info.cast]
-                if castMap == nil then
-                    castMap = {}
-                    g_summonerSquadCastDamage[info.cast] = castMap
+                local strikesInCast = g_summonerSquadCastDamage[info.cast]
+                if strikesInCast == nil then
+                    strikesInCast = {}
+                    g_summonerSquadCastDamage[info.cast] = strikesInCast
                 end
-                local prev = castMap[squadName] or 0
+                --Damage paths that pass no ability fall back to one entry for the whole cast.
+                local strikeKey = info.ability or info.cast
+                local strikeDamageBySquad = strikesInCast[strikeKey]
+                if strikeDamageBySquad == nil then
+                    strikeDamageBySquad = {}
+                    strikesInCast[strikeKey] = strikeDamageBySquad
+                end
+                local prev = strikeDamageBySquad[squadName] or 0
                 local preClampAmount = amount
                 if amount <= prev then
                     amount = 0
                 else
-                    castMap[squadName] = amount
+                    strikeDamageBySquad[squadName] = amount
                     amount = amount - prev
                 end
                 if amount < preClampAmount then
@@ -7222,6 +7256,43 @@ function creature:CostToMoveThroughToken(otherToken)
     return true
 end
 
+--One direction of the share-space traits: may the creature `subjectProps` (whose token is
+--`subjectToken`) share a square with `otherToken`?
+local function SharesSpaceByTrait(subjectProps, subjectToken, otherToken)
+    if subjectProps:CalculateNamedCustomAttribute("Can Share Space With Any Creature") > 0 then
+        return true
+    end
+    if otherToken:IsFriend(subjectToken) and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Allies") > 0 then
+        return true
+    end
+    if otherToken.properties:HasCondition("da6867b1-01e3-4570-8d1b-1b94ea1ea343") and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Prone Creatures") > 0 then
+        return true
+    end
+    return false
+end
+
+--Draw Steel: a creature can't end its movement in another creature's space. This says
+--whether this creature may stop in a square `otherToken` occupies anyway. The engine calls
+--it when placing creatures (summons, teleports, find-a-free-space), and the movement
+--tooltip uses it to warn about an illegal stop. Either creature's trait is enough, so a
+--creature with "Can Share Space With Any Creature" also lets others into its square.
+--- @param otherToken CharacterToken
+--- @return boolean
+function creature:CanShareSpaceWith(otherToken)
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil or otherToken == nil or otherToken.properties == nil then
+        return false
+    end
+    if self:IsPassthrough() or otherToken.properties:IsPassthrough() then
+        return true
+    end
+    --creatures two or more sizes apart can share a space.
+    if math.abs(ourToken.creatureSizeNumber - otherToken.creatureSizeNumber) >= 2 then
+        return true
+    end
+    return SharesSpaceByTrait(self, ourToken, otherToken) or SharesSpaceByTrait(otherToken.properties, otherToken, ourToken)
+end
+
 --- @param flags {shifting: boolean} if true, the creature is shifting.
 --- @return boolean true if the creature can navigate difficult terrain, false if it cannot.
 function creature:CanNavigateDifficultTerrain(flags)
@@ -7630,17 +7701,25 @@ function creature:EndPersistentAbilityById(guid)
         local targetToken = dmhub.GetTokenById(targetid)
         if targetToken ~= nil then
             local target = targetToken.properties
-            local ongoingEffects = target:try_get("ongoingEffects", {})
-            for i, effect in ipairs(ongoingEffects) do
-                if effect and effect.casterInfo and effect.casterInfo.persistenceId == guid then
-                    targetToken:ModifyProperties {
-                        description = "End Persistent Ability Target",
-                        undoable = false,
-                        execute = function()
-                            target:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
-                        end,
-                    }
+            --collect first: removing while looping would skip effects.
+            --try_get, since not every effect has casterInfo.
+            local removeIds = {}
+            for _, effect in ipairs(target:try_get("ongoingEffects", {})) do
+                local casterInfo = effect and effect:try_get("casterInfo")
+                if casterInfo ~= nil and casterInfo.persistenceId == guid then
+                    removeIds[#removeIds + 1] = effect.ongoingEffectid
                 end
+            end
+            if #removeIds > 0 then
+                targetToken:ModifyProperties {
+                    description = "End Persistent Ability Target",
+                    undoable = false,
+                    execute = function()
+                        for _, effectid in ipairs(removeIds) do
+                            target:RemoveOngoingEffect(effectid)
+                        end
+                    end,
+                }
             end
         end
     end
@@ -8761,6 +8840,57 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--The objects with each keyword, found once per frame: a target filter asks
+--for every square in range, and each search walks every token on the map.
+local g_objectsWithKeywordFrame = nil
+local g_objectsWithKeyword = {}
+
+local function ObjectsWithKeyword(keyword)
+    local frame = dmhub.FrameCount()
+    if frame ~= g_objectsWithKeywordFrame then
+        g_objectsWithKeywordFrame = frame
+        g_objectsWithKeyword = {}
+    end
+    local list = g_objectsWithKeyword[keyword]
+    if list == nil then
+        --GetTargetableObjectsWithKeyword only returns objects on the current map
+        --(object tokens report hasTokenOnThisMap = false, so it can't be used here).
+        list = Encounter.GetTargetableObjectsWithKeyword(keyword)
+        g_objectsWithKeyword[keyword] = list
+    end
+    return list
+end
+
+--Distance in squares to the nearest live Targetable object with this object
+--keyword on the same actual floor, from a token (fromToken, which never
+--counts itself) or from a square (fromLoc). 999 if there is none.
+local function DistanceToObjectWithKeyword(fromToken, fromLoc, actualFloor, keyword)
+    if keyword == nil or keyword == "" then
+        return 999
+    end
+    local best = 999
+    for _,other in ipairs(ObjectsWithKeyword(string.lower(tostring(keyword)))) do
+        if (fromToken == nil or other.charid ~= fromToken.charid) and GetTokenActualFloor(other) == actualFloor then
+            local alive = true
+            pcall(function()
+                alive = other.properties:CurrentHitpoints() > 0
+            end)
+            if alive then
+                local distance
+                if fromToken ~= nil then
+                    distance = tonumber(fromToken:Distance(other)) or 999
+                else
+                    distance = tonumber(other:Distance(fromLoc)) or 999
+                end
+                if distance < best then
+                    best = distance
+                end
+            end
+        end
+    end
+    return best
+end
+
 --Distance in squares from this creature to the nearest live Targetable object whose
 --object keywords include the given keyword, on the same actual floor. Footprint to
 --footprint, like token:Distance. 999 when there is no such object, so a "within N"
@@ -8770,29 +8900,10 @@ creature.RegisterSymbol {
     lookup = function(c)
         return function(keyword)
             local token = GetDeployedCreatureToken(c)
-            if token == nil or keyword == nil or keyword == "" then
+            if token == nil then
                 return 999
             end
-
-            local actualFloor = GetTokenActualFloor(token)
-            local best = 999
-            --GetTargetableObjectsWithKeyword only returns objects on the current map
-            --(object tokens report hasTokenOnThisMap = false, so it can't be used here).
-            for _,other in ipairs(Encounter.GetTargetableObjectsWithKeyword(string.lower(tostring(keyword)))) do
-                if other.charid ~= token.charid and GetTokenActualFloor(other) == actualFloor then
-                    local alive = true
-                    pcall(function()
-                        alive = other.properties:CurrentHitpoints() > 0
-                    end)
-                    if alive then
-                        local distance = tonumber(token:Distance(other)) or 999
-                        if distance < best then
-                            best = distance
-                        end
-                    end
-                end
-            end
-            return best
+            return DistanceToObjectWithKeyword(token, nil, GetTokenActualFloor(token), keyword)
         end
     end,
     help = {
@@ -8801,6 +8912,29 @@ creature.RegisterSymbol {
         desc = "Given an object keyword, the distance in squares to the nearest live targetable object with that keyword on this creature's floor. 999 if there is none.",
         examples = { 'DistanceToObjectWithKeyword("topaz spike") <= 2' },
     },
+}
+
+--The same for a square, so a teleport or placement target filter can keep
+--its destination near an object: target.DistanceToObjectWithKeyword("phylactery") <= 1.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "DistanceToObjectWithKeyword",
+    type = "function",
+    desc = "Given an object keyword, the distance in squares from this location to the nearest live targetable object with that keyword on the same floor. 999 if there is none.",
+    examples = { 'target.DistanceToObjectWithKeyword("phylactery") <= 1' },
+    calculate = function(c)
+        return function(keyword)
+            local engineLoc = rawget(c, "_tmp_loc")
+            if engineLoc == nil or game.currentMap == nil then
+                return 999
+            end
+            local floor = game.currentMap:GetFloorFromLoc(engineLoc)
+            if floor == nil or not floor.valid then
+                return 999
+            end
+            return DistanceToObjectWithKeyword(nil, engineLoc, floor.actualFloor, keyword)
+        end
+    end,
 }
 
 

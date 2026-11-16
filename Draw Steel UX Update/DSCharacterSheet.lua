@@ -2036,7 +2036,7 @@ function CharSheet.CharacterHitpointsPanel()
 						events = {
 							change = function(element)
 								local creature = CharacterSheet.instance.data.info.token.properties
-								creature:SetCurrentHitpoints(element.text)
+								creature:SetStaminaDirect(element.text)
 								element.data.previous_value = nil --don't flash green/red on an edit.
 								CharacterSheet.instance:FireEvent('refreshAll')
 							end,

@@ -2,7 +2,12 @@ local mod = dmhub.GetModLoading()
 
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 function GameHud.TokenMoving(self, token, path)
-	
+
+	--The token being drag-moved (cleared by FinishTokenMoving), for the
+	--flight wheel input hint. Not a forced (alt) or teleport (ctrl) drag:
+	--those use the wheel for their own altitude.
+	GameHud.dragMovingToken = cond(path.forced or path.teleport, nil, token)
+
 	local diagonals = dmhub.GetSettingValue("truediagonals") and math.floor(path.numDiagonals/2) or 0
 
 	local distance = path.numSteps + diagonals
@@ -327,6 +332,33 @@ function GameHud.TokenMoving(self, token, path)
 
         if #damagingNames > 0 then
             text = string.format(tr("%s\n<color=#ff0000>Moving into damaging terrain (%s)!</color>"), text, table.concat(damagingNames, ", "))
+        end
+    end
+
+    --Illegal stop: Draw Steel forbids ending a move in another creature's space unless
+    --creature:CanShareSpaceWith allows it. The drag still lands (the engine doesn't block
+    --player moves); this only warns. Creatures above or below the mover's height don't count.
+    if creature ~= nil and not path.forced and not path.mount then
+        local destBottom = path.destination.altitude
+        local destTop = destBottom + math.max(1, token.tileSize) - 1
+        local blockedBy = nil
+        for _,loc in ipairs(token:LocsOccupyingWhenAt(path.destination)) do
+            for _,other in ipairs(game.GetTokensAtLoc(loc) or {}) do
+                if other.charid ~= token.charid and other.properties ~= nil then
+                    local otherBottom = other.loc.altitude
+                    local otherTop = otherBottom + math.max(1, other.tileSize) - 1
+                    if otherBottom <= destTop and otherTop >= destBottom and not creature:CanShareSpaceWith(other) then
+                        blockedBy = other
+                        break
+                    end
+                end
+            end
+            if blockedBy ~= nil then
+                break
+            end
+        end
+        if blockedBy ~= nil then
+            statusText = statusText .. "\n" .. tr("<color=#ff0000>Can't end a move in another creature's space.</color>")
         end
     end
 

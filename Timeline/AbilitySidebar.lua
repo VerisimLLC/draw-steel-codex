@@ -827,12 +827,13 @@ local function CreateReadOnlyRollInfo(shareData)
         for i = 1, #ds.tierTexts do
             local tierText = FormatReadOnlyTierText(ds.tierTexts[i])
 
-            tierRows[#tierRows+1] = gui.TableRow{
-                width = "100%",
-                height = "auto",
-                bgimage = true,
-
-                gui.Label{
+            --the glyph font has no Critical glyph: a 4th tier reads "Critical",
+            --as on the roller's own power table.
+            local tierIcon
+            if i == 4 then
+                tierIcon = gui.Label{ hpad = 0, textAlignment = "left", text = "Critical", width = "16%", fontSize = 14, height = 20, valign = "center" }
+            else
+                tierIcon = gui.Label{
                     hpad = 0,
                     textAlignment = "left",
                     fontFace = "DrawSteelGlyphs",
@@ -841,7 +842,15 @@ local function CreateReadOnlyRollInfo(shareData)
                     fontSize = 34,
                     height = 20,
                     valign = "center",
-                },
+                }
+            end
+
+            tierRows[#tierRows+1] = gui.TableRow{
+                width = "100%",
+                height = "auto",
+                bgimage = true,
+
+                tierIcon,
 
                 gui.Panel{
                     width = "84%",

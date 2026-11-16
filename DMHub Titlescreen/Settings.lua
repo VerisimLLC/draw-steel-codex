@@ -35,16 +35,16 @@ setting{
     default = true,
 }
 
---Gates the in-development Discord features on the titlescreen: the Discord
---card in the Infernal Contract dialog and the Discord friends button. Off by
---default; no editor field, so it never appears in the settings menus. Turn it
---on with /set discordsocial true (restart the titlescreen to see the button).
---Not "discord": that id is the engine's Discord Integration checkbox.
+--Gates the Discord social features: the Discord card in the Infernal Contract
+--dialog, the Discord friends button, and Discord friends in the EotW town rail.
+--On by default since 0.0.879; no editor field, so it never appears in the
+--settings menus. Turn it off with /set discordsocial false (restart the
+--titlescreen). Not "discord": that id is the engine's Discord Integration checkbox.
 setting{
     id = "discordsocial",
     description = "Show the Discord features.",
     storage = "preference",
-    default = false,
+    default = true,
 }
 
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier
@@ -2000,11 +2000,17 @@ setting{
 	-- Only relevant for the Ruler and Cross Section when snapping to the grid,
 	-- since the choice only affects how diagonal grid steps are counted (both
 	-- report tile-stepping distances). Without snapping they already report the
-	-- straight-line (Euclidean) length.
-	monitorVisible = {'measure:shape', 'measure:snap'},
+	-- straight-line (Euclidean) length. Hidden on hex maps: hexes have no
+	-- diagonals, so the engine always counts whole hexes there.
+	monitorVisible = {'measure:shape', 'measure:snap', 'maplayout:tiletype', 'maplayout:stagger'},
 	visible = function()
 		local shape = dmhub.GetSettingValue('measure:shape')
-		return (shape == "ruler" or shape == "crosssection") and dmhub.GetSettingValue('measure:snap') ~= "none"
+		if (shape ~= "ruler" and shape ~= "crosssection") or dmhub.GetSettingValue('measure:snap') == "none" then
+			return false
+		end
+		--This file loads before DMHub Game Rules (at the title screen), so look it up at call time.
+		local measurement = rawget(_G, "MeasurementSystem")
+		return measurement == nil or not measurement.IsHexMap()
 	end,
 
 	enum = {

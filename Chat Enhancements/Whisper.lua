@@ -447,7 +447,8 @@ Commands.RegisterMacro{
     doc = "Usage: /w <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
-        local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
+        local gm = "the " .. UIText.Term("director")
+        local result = {{text = "dm", summary = gm}, {text = "gm", summary = gm}, {text = "director", summary = gm}}
         for _, userId in ipairs(dmhub.users) do
             local si = dmhub.GetSessionInfo(userId)
             if si ~= nil and si.displayName ~= nil and si.displayName ~= "" then
@@ -467,7 +468,8 @@ Commands.RegisterMacro{
     doc = "Usage: /whisper <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
-        local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
+        local gm = "the " .. UIText.Term("director")
+        local result = {{text = "dm", summary = gm}, {text = "gm", summary = gm}, {text = "director", summary = gm}}
         for _, userId in ipairs(dmhub.users) do
             local si = dmhub.GetSessionInfo(userId)
             if si ~= nil and si.displayName ~= nil and si.displayName ~= "" then

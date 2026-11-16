@@ -50,7 +50,7 @@ local mod = dmhub.GetModLoading()
 --- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
 --- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
 --- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
---- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement": GoblinScript ability filter.
+--- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement", "castingorigin": GoblinScript ability filter.
 --- @field targetFilter? string "powertabletrigger": GoblinScript target filter.
 --- @field additionalModifier? CharacterModifier "powertableadditional": the "power" modifier it adds.
 --- @field original? string "powertableadditional": original text.
@@ -4323,6 +4323,16 @@ function CharacterModifier:FillConditionImmunities(modContext, creature, result)
 	local fn = typeInfo.fillConditionImmunities
 	if fn ~= nil then
 		self:InstallSymbolsFromContext(modContext)
+		--A conditional immunity (e.g. Tenacious Hunter) only applies while its filter holds.
+		--An erroring formula (such as ConditionCaster on a condition the creature lacks) counts as
+		--"no immunity", so default to 0 rather than using PassesFilter, whose error default is 1.
+		local filter = self:try_get("filterCondition", "")
+		if filter ~= "" then
+			local passes = ExecuteGoblinScript(filter, creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0, string.format("Should apply immunity %s", self.name))
+			if passes == 0 then
+				return
+			end
+		end
 		fn(self, result)
 	end
 end

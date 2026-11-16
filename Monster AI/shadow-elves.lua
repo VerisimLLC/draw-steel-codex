@@ -1002,7 +1002,7 @@ MonsterAI:RegisterMove{
             local function CountShadowAllies(area)
                 local count = 0
                 for _,tok in pairs(dmhub.tokenInfo.TokensInShape(area)) do
-                    local monsterType = tok.properties ~= nil and tok.properties:try_get("monster_type", "") or ""
+                    local monsterType = tok.properties ~= nil and MonsterAI.AIMonsterType(tok.properties) or ""
                     if tok.valid and tok:IsFriend(token) and string.starts_with(monsterType, "Shadow Elf ") then
                         count = count + 1
                     end

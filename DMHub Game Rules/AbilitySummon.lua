@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilitySummonBehavior : ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilitySummonBehavior
+--- @field ignoreSummonerLimits boolean If true, summons ignore the caster's MaximumMinions / MaxMinionSquads, even under strict:resources.
 ActivatedAbilitySummonBehavior = RegisterGameType("ActivatedAbilitySummonBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
@@ -24,6 +25,10 @@ ActivatedAbilitySummonBehavior.monsterType = "custom"
 ActivatedAbilitySummonBehavior.hasReplaceCaster = true --display 'replace caster' in menu.
 ActivatedAbilitySummonBehavior.replaceCaster = false
 ActivatedAbilitySummonBehavior.casterControls = true
+--In a trigger on an ongoing effect, the creature that applied the effect is the
+--summoner, not the creature with the effect. If it is gone, the summons have no
+--summoner and join the Director's side.
+ActivatedAbilitySummonBehavior.effectCasterSummons = false
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
@@ -37,6 +42,9 @@ ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
 --the caster is not a rules-level Summoner. This does not enable Summoner
 --limits or roster bookkeeping.
 ActivatedAbilitySummonBehavior.chooseSquad = false
+--Summon past the caster's MaximumMinions / MaxMinionSquads, even under
+--strict:resources (e.g. Explosive Parade: "regardless of your minion maximum").
+ActivatedAbilitySummonBehavior.ignoreSummonerLimits = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
@@ -105,6 +113,34 @@ ActivatedAbilitySummonBehavior.copyResistances = false
 ActivatedAbilitySummonBehavior.copyAbilities = false
 ActivatedAbilitySummonBehavior.copyTriggers = false
 ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
+
+--Summon hooks: functions run on every creature a summon creates, once it is
+--set up and before its first upload (so a hook writes token.properties
+--directly, no ModifyProperties). A game mode registers one to adjust summons:
+--Encounter of the Week levels the heroes' enemies' summons for the party's
+--Level. Keyed by id, so a reload replaces rather than duplicates. Not run for
+--duplicates (duplicate mode copies its source instead).
+---@type table<string, fun(casterToken: CharacterToken, token: CharacterToken)>
+local g_summonHooks = {}
+
+--- Register (or with fn nil, remove) a summon hook under `id`.
+--- @param id string
+--- @param fn nil|fun(casterToken: CharacterToken, token: CharacterToken)
+function ActivatedAbilitySummonBehavior.RegisterSummonHook(id, fn)
+    g_summonHooks[id] = fn
+end
+
+--- Run every summon hook on a freshly spawned, not yet uploaded summon.
+--- @param casterToken CharacterToken
+--- @param token CharacterToken
+function ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
+    for id, fn in pairs(g_summonHooks) do
+        local ok, err = pcall(fn, casterToken, token)
+        if not ok then
+            printf("Summon hook '%s' failed: %s", tostring(id), tostring(err))
+        end
+    end
+end
 
 --Custom looks for the creatures a caster summons. Keyed by monster_type
 --(several bestiary entries can share one monster_type; monsters without one
@@ -1577,6 +1613,18 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
+--- Floats a red "limit reached" label over the Summoner. The chat line alone was
+--- easy to miss, which made a capped summon look like a lost click.
+--- @param casterToken CharacterToken
+--- @param summonsCapped table { what = "minions"|"minion squads" } from the strict limit check.
+local function FloatSummonLimitReached(casterToken, summonsCapped)
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+    local label = summonsCapped.what == "minions" and "Minion limit reached" or "Minion squad limit reached"
+    casterToken.properties:FloatLabel(label, "#ff0000")
+end
+
 --- Prompts the user to place summons. When squadCtx is provided, also renders an
 --- inline squad chip bar.
 --- @param casterToken CharacterToken
@@ -2361,6 +2409,29 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         return
     end
 
+    local modContext = args.modContext
+    local effect = modContext ~= nil and modContext.ongoingEffect or nil
+    --Not from an ongoing effect, or set with Replace Caster: summon as usual.
+    if (not self.effectCasterSummons) or self.replaceCaster or effect == nil then
+        self:CastSummons(ability, casterToken, targets, args, false)
+        return
+    end
+
+    --Summon as the creature that applied the effect. If it is gone, the
+    --summons have no summoner and join the Director's side.
+    local casterInfo = effect:try_get("casterInfo")
+    local effectCaster = casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) or nil
+    if effectCaster ~= nil and effectCaster.valid and effectCaster.properties ~= nil then
+        self:CastSummons(ability, effectCaster, targets, args, false)
+    else
+        self:CastSummons(ability, casterToken, targets, args, true)
+    end
+end
+
+--- Summons the creatures for Cast, once it knows who the caster is.
+--- @param detached boolean True when the summons have no summoner.
+function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, targets, args, detached)
+
     --After the cast, hide the ability card unless another cast's roll is still open on it.
     args.OnFinishCastHandlers = args.OnFinishCastHandlers or {}
     args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
@@ -2426,9 +2497,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     local freshSquadSpawns = {}
 
     local initiativeGrouping = nil
-    if self.groupInitiativeWithCaster then
+    if self.groupInitiativeWithCaster and not detached then
         initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
-    elseif self.newInitiativeGroup then
+    elseif self.newInitiativeGroup or detached then
         initiativeGrouping = dmhub.GenerateGuid()
     end
 
@@ -2438,7 +2509,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             break
         end
         local newOwner = ""
-        if self.casterControls then
+        if self.casterControls and not detached then
             newOwner = casterToken.ownerId
         end
 
@@ -2446,6 +2517,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         --asking for placement, so we can expose the chosen creature as a symbol
         local choices = {}
         if self.monsterType == "custom" then
+            --The filter can read the creature this summon is for as `target`
+            --(e.g. Abyssal Evolution: "a horde demon of the target's level").
+            local previousTarget = args.symbols.target
+            if target.token ~= nil and target.token.properties ~= nil then
+                args.symbols.target = GenerateSymbols(target.token.properties)
+            end
             for k,monster in pairs(assets.monsters) do
                 --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
                 local node = assets:GetMonsterNode(k)
@@ -2456,6 +2533,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             end
+            args.symbols.target = previousTarget
         else
             local monster = assets.monsters[self.monsterType]
             if monster ~= nil then
@@ -2593,10 +2671,23 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         local summonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
-        local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        --With no summoner, a Summoner hero must not be asked to pick squads for these summons.
+        local isSummoner = (not detached) and (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        if self:try_get("ignoreSummonerLimits", false) then
+            --Runs after isSummoner on purpose, so the caster still picks squads.
+            --A limit of 0 means "no limit" below: no strict cap, no over-limit warnings.
+            summonerMaxMinions = 0
+            summonerMaxSquads = 0
+        end
         local chooseSquad = self:try_get("chooseSquad", false)
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
+
+        --A Summoner only picks squads for minions, so a Summoner's Dominion fixture
+        --uses no squad slot. Other casters still pick for anyone: captains join squads.
+        local function ChoosesSquadFor(option)
+            return usesSquadChooser and ((not isSummoner) or option.properties:try_get("minion", false))
+        end
 
         --When a summoned creature turns into another one, such as an Elemental
         --Mote, the new creature belongs to whoever summoned the old one. It used
@@ -2620,6 +2711,17 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         --reported. summonsCapped records which limit stopped the summons, and when.
         local strictSummonLimits = isSummoner and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") == true
         local summonsCapped = nil
+
+        --True when one more minion would go over the Summoner's limit. The
+        --caster's minion list only updates when the cast ends, so minions
+        --placed earlier in this cast (summonerEntries) are counted as well.
+        local function MinionLimitReached()
+            if summonerMaxMinions <= 0 then
+                return false
+            end
+            local minionsAfter = #casterToken.properties:GetLiveSummonedEntries() + #summonerEntries + 1
+            return minionsAfter > summonerMaxMinions
+        end
 
         --set when the placement UI is torn down externally mid-cast: the
         --remaining summons auto-place near the target/caster instead of
@@ -2661,11 +2763,18 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 end
             end
 
+            --Strict rules: stop before asking the player to place a minion that
+            --the limit would refuse, so they never click a square for nothing.
+            if strictSummonLimits and chosenOption.properties:try_get("minion", false) and MinionLimitReached() then
+                summonsCapped = { count = j - 1, limit = summonerMaxMinions, what = "minions" }
+                break
+            end
+
             local squadNameForSpawn = nil
 
             local loc
             if self.replaceCaster then
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -2689,7 +2798,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 loc = casterToken.loc
             elseif manualPlacement then
                 local squadCtxArg = nil
-                if usesSquadChooser then
+                --The player can change creature inside the placement picker, so offer
+                --squads even while the current pick is not a minion.
+                if ChoosesSquadFor(chosenOption) or (usesSquadChooser and creatureChoiceInline) then
                     if placementSquadCtx == nil then
                         local encounterSquadsByType = nil
                         local encounterAllSquads = nil
@@ -2774,6 +2885,10 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     chosenOption = pickedCreature
                     args.symbols.summon = GenerateSymbols(chosenOption.properties)
                 end
+                if squadResult ~= nil and not ChoosesSquadFor(chosenOption) then
+                    --the creature finally placed is not a minion: it takes no squad.
+                    squadResult = nil
+                end
                 if squadResult ~= nil then
                     --PromptPlacementLoc only returns a squad result when given squadCtxArg, which is placementSquadCtx.
                     ---@cast placementSquadCtx -nil
@@ -2788,7 +2903,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             else
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -2836,10 +2951,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             end
 
             --Strict rules: a Summoner summons up to their minion and squad limits
-            --and no further. Their list of minions only updates when the cast
-            --ends, so summons placed earlier in this same cast are counted too.
+            --and no further. Squads opened earlier in this cast are counted as well.
             if strictSummonLimits and chosenOption.properties:try_get("minion", false) then
-                local minionsAfter = #casterToken.properties:GetLiveSummonedEntries() + #summonerEntries + 1
                 local squadNames = {}
                 for name, _ in pairs(casterToken.properties:GetSummonedSquadsByType(nil)) do
                     squadNames[name] = true
@@ -2853,7 +2966,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     squadNames[squadNameForSpawn] = true
                 end
                 local squadsAfter = #table.keys(squadNames)
-                if summonerMaxMinions > 0 and minionsAfter > summonerMaxMinions then
+                --Still checked here: an inline creature pick in the placement
+                --picker can switch to a minion after the check above the prompt.
+                if MinionLimitReached() then
                     summonsCapped = { count = j - 1, limit = summonerMaxMinions, what = "minions" }
                     break
                 elseif summonerMaxSquads > 0 and squadsAfter > summonerMaxSquads then
@@ -2878,7 +2993,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             if inheritedSummonerToken ~= nil then
                 token.summonerid = inheritedSummonerToken.charid
-            else
+            elseif not detached then
                 token.summonerid = casterToken.charid
             end
 
@@ -2971,7 +3086,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
 
-            if self.casterControls then
+            if self.casterControls and not detached then
                 local lookKey = ActivatedAbilitySummonBehavior.SummonLookKey(chosenOption, chosenOption.id)
 
                 ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
@@ -2997,6 +3112,20 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 token.properties.summonEmergeHide = true
                 token.properties.summonEmergeDuration = emergeDuration
             end
+
+            --a monster-side summon (Abyssal Evolution, a monster calling help) is
+            --named like an encounter spawn ("Demon Ruinant 3"); the spawn skips
+            --OnCreateFromBestiary, so it would otherwise have no name. Hero
+            --summons keep their old unnamed behavior.
+            if not casterToken.playerControlled and (token.name or "") == "" then
+                pcall(function()
+                    if token.properties:IsMonster() then
+                        monster.AssignGeneratedName(token.properties --[[@as monster]], token)
+                    end
+                end)
+            end
+
+            ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
 
             token:UploadToken("Summon Creature")
             game.UpdateCharacterTokens()
@@ -3106,6 +3235,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             end
 
             if summonsCapped ~= nil then
+                FloatSummonLimitReached(casterToken, summonsCapped)
                 chat.Send(string.format("%s has reached their limit of %d %s; only %d of %d summons arrived.",
                     casterToken.description, summonsCapped.limit, summonsCapped.what, summonsCapped.count, numSummons))
             elseif not strictSummonLimits then
@@ -3131,7 +3261,20 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end,
                 }
             end
+        elseif summonsCapped ~= nil then
+            --The limit was hit before the first summon. Tell the player, or the
+            --ability looks like it did nothing.
+            FloatSummonLimitReached(casterToken, summonsCapped)
+            chat.Send(string.format("%s has reached their limit of %d %s; none of the %d summons arrived.",
+                casterToken.description, summonsCapped.limit, summonsCapped.what, numSummons))
         end
+    end
+
+    --If nothing was summoned, end the cast here. The target list still holds the
+    --original targets (the caster, for a self-targeted ability), and later steps
+    --such as Remove Creature would act on them instead.
+    if #allSummonedTokens == 0 then
+        args.stopProcessing = true
     end
 
     --seed each fresh squad's shared stamina pool with its summons' initial
@@ -3170,9 +3313,13 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     --give the fresh group its entry, on the caster's side (hero or director),
     --mirroring the add_to_initiative ability mode.
     local q = dmhub.initiativeQueue
-    if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
+    --Summons with no summoner (the effect's caster is gone) join the Director's side, not the hero's.
+    local freshGroup = detached or (self.newInitiativeGroup and not self.groupInitiativeWithCaster)
+    if freshGroup and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
         local entry = q:SetInitiative(initiativeGrouping, 0, 0)
-        if casterToken.valid and casterToken.properties ~= nil then
+        if detached then
+            entry.player = false
+        elseif casterToken.valid and casterToken.properties ~= nil then
             entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
         end
         dmhub:UploadInitiativeQueue()
@@ -3427,7 +3574,7 @@ function ActivatedAbilitySummonBehavior:EditorItems(parentPanel)
 			end,
 		}
 	else
-		self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true})
+		self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true, effectCasterSummons = true})
 	end
 
 	return result
@@ -3825,6 +3972,29 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
             minWidth = 300,
             change = function(element)
                 self.replaceCaster = element.value
+                if element.value and self:try_get("effectCasterSummons", false) then
+                    self.effectCasterSummons = false
+                    parentPanel:FireEvent("refreshBehavior")
+                end
+            end,
+        }
+    end
+
+    --Only a trigger can come from an ongoing effect. Ticking this turns Replace
+    --Caster off, and the other way round: the two don't work together.
+    local parentAbility = parentPanel.data.parentAbility
+    if options.effectCasterSummons and parentAbility ~= nil and parentAbility.typeName == "TriggeredAbility" then
+        list[#list+1] = gui.Check{
+            text = "Effect's Caster Summons",
+            hover = gui.Tooltip("In a trigger on an ongoing effect, the creature that applied the effect is the summoner, not the creature with the effect."),
+            value = self:try_get("effectCasterSummons", false),
+            minWidth = 300,
+            change = function(element)
+                self.effectCasterSummons = element.value
+                if element.value and self:try_get("replaceCaster", false) then
+                    self.replaceCaster = false
+                    parentPanel:FireEvent("refreshBehavior")
+                end
             end,
         }
     end
@@ -3864,6 +4034,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		minWidth = 300,
 		change = function(element)
 			self.chooseSquad = element.value
+		end,
+	}
+
+	list[#list+1] = gui.Check{
+		text = "Ignore summoner minion/squad limits",
+		value = self:try_get("ignoreSummonerLimits", false),
+		minWidth = 300,
+		change = function(element)
+			self.ignoreSummonerLimits = element.value
 		end,
 	}
 

@@ -18,6 +18,7 @@ local DEFAULT_TEXT = {
     "Codex Titlescreen/EotwTextTown.lua",
     "Codex Titlescreen/EotwTextHeroes.lua",
     "Codex Titlescreen/EotwTextTrainingGrounds.lua",
+    "Codex Titlescreen/EotwTextGreatForge.lua",
     "EncounterOfTheWeek/EncounterText.lua",
     "EncounterOfTheWeek/EncounterAuthoringText.lua",
     --the main game's Hero Builder, which EotW runs too.
@@ -26,6 +27,7 @@ local DEFAULT_TEXT = {
 
 local DEFAULT_CODE = {
     "Codex Titlescreen/EncounterOfTheWeek.lua",
+    "Codex Titlescreen/EotwAbout.lua",
     "Codex Titlescreen/EotwAnalytics.lua",
     "Codex Titlescreen/EotwBuild.lua",
     "Codex Titlescreen/EotwBuilder.lua",
@@ -37,6 +39,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwMarket.lua",
     "Codex Titlescreen/EotwModeration.lua",
     "Codex Titlescreen/EotwRoster.lua",
+    "Codex Titlescreen/EotwSocialRail.lua",
     "Codex Titlescreen/EotwTownHall.lua",
     "Codex Titlescreen/EotwTrainingGrounds.lua",
     --EotW's build engine, shared with the main game's Builder.
@@ -44,6 +47,7 @@ local DEFAULT_CODE = {
     --the main game's Hero Builder and its Skills & Languages, which EotW runs too.
     "Draw Steel Character Builder/HeroBuilder.lua",
     "Draw Steel Character Builder/HeroSkillsLanguages.lua",
+    "EncounterOfTheWeek/EncounterGauntlet.lua",
     "EncounterOfTheWeek/EncounterMontage.lua",
     "EncounterOfTheWeek/EncounterMontageBuilder.lua",
     "EncounterOfTheWeek/EncounterMontageStage.lua",
@@ -113,6 +117,7 @@ end
 --Load the text files with a recording stand-in for UIText.Define.
 
 local defs = {}       --id -> { text, where }
+local overrides = {}  --{ id, text, where, whiteLabel } from UIText.DefineOverrides
 local currentFile = nil
 
 ---@diagnostic disable-next-line: lowercase-global
@@ -146,6 +151,23 @@ UIText = {
             end
         end
     end,
+
+    --White-label rewordings: checked after every text file has loaded, so
+    --the entry they reword may come from any file in the list.
+    DefineOverrides = function(sourceName, whiteLabel)
+        return function(id, text)
+            local info = debug.getinfo(2, "l")
+            local where = currentFile .. ":" .. tostring(info and info.currentline or "?")
+            if type(id) ~= "string" or type(text) ~= "string" then
+                Err(where, "override(id, text) needs two strings")
+                return
+            end
+            if string.find(text, "[\128-\255]") then
+                Err(where, string.format("override of '%s' has a non-ASCII character", id))
+            end
+            overrides[#overrides + 1] = { id = id, text = text, where = where, whiteLabel = whiteLabel }
+        end
+    end,
 }
 
 for _, path in ipairs(textFiles) do
@@ -164,6 +186,33 @@ for _, path in ipairs(textFiles) do
             local ok, runErr = pcall(chunk)
             if not ok then
                 Err(path, "failed to run: " .. tostring(runErr))
+            end
+        end
+    end
+end
+
+--An override must reword an entry that exists, and may use only the
+--placeholders that entry has: the code passes values for those alone.
+do
+    local seen = {}
+    for _, o in ipairs(overrides) do
+        local key = tostring(o.whiteLabel) .. "|" .. o.id
+        if seen[key] ~= nil then
+            Err(o.where, string.format("'%s' is already overridden for %s at %s", o.id, tostring(o.whiteLabel), seen[key]))
+        end
+        seen[key] = o.where
+        if o.whiteLabel ~= "dmhub" and o.whiteLabel ~= "mcdm" then
+            Err(o.where, string.format("override of '%s' names white label '%s' (use \"dmhub\" or \"mcdm\")", o.id, tostring(o.whiteLabel)))
+        end
+        local base = defs[o.id]
+        if base == nil then
+            Err(o.where, string.format("override of '%s', which no text file defines", o.id))
+        else
+            local allowed = Placeholders(base.text)
+            for name in pairs(Placeholders(o.text)) do
+                if not allowed[name] then
+                    Err(o.where, string.format("override of '%s' uses {%s}, which the entry at %s does not have", o.id, name, base.where))
+                end
             end
         end
     end

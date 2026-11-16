@@ -6607,7 +6607,7 @@ local function DSCharSheet()
 
                                     change = function(element)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        creature:SetCurrentHitpoints(element.text)
+                                        creature:SetStaminaDirect(element.text)
                                         element.data.previous_value = nil --don't flash green/red on an edit.
                                         CharacterSheet.instance:FireEvent('refreshAll')
                                     end,
@@ -7340,7 +7340,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                         width = "80%",
                         height = 20,
                         flow = "horizontal",
-                        text = lang.name,
+                        text = lang:DisplayName(),
+                        hover = Language.TooltipHover(lang),
                         textAlignment = "left",
                         halign = "center",
 
@@ -7382,7 +7383,7 @@ local function CharacterSheetEditLanguagesPopup(element)
                 if innateLanguages[k] == nil then
                     options[#options + 1] = {
                         id = k,
-                        text = string.format("%s (%s)", v.name, v.speakers),
+                        text = v:DisplayNameWithDetail(),
                     }
                 end
             end
@@ -7499,12 +7500,7 @@ function CharSheet.LanguagesPanel()
                     for langid, _ in pairs(creature:LanguagesKnown()) do
                         local lang = languagesTable[langid]
                         if lang ~= nil then
-                            local text = lang.name
-                            if trim(lang.speakers) ~= "" then
-                                text = text .. " (" .. lang.speakers .. ")"
-                            end
-
-                            languages[#languages + 1] = text
+                            languages[#languages + 1] = lang:DisplayNameWithDetail()
                         end
                     end
 

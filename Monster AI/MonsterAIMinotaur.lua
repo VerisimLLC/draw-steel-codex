@@ -434,22 +434,35 @@ local function RetaliationTargetId(token)
 end
 
 --Where the retaliatory charge lands. An attacker already within reach is a
---charge of zero squares, landing where the minotaur stands.
+--charge of zero squares, landing where the minotaur stands. The second result
+--is what the check saw, for the AI log.
 local function RetaliationCharge(ai, token, target)
     local speed = token.properties:CurrentMovementSpeed() or 0
     local reach = StrikeReach(token)
-    if MonsterAI.TargetDistance(token, target) > speed + reach then
-        return nil
-    end
+    local distance = MonsterAI.TargetDistance(token, target)
     local mover = ai:GetMovementToken(token)
-    if MonsterAI.TargetDistance(token, target) <= reach then
-        return {dest = mover.loc, chargeDist = 0}
+    local check = {
+        target = MonsterAI.TokenLogName(target),
+        distance = distance,
+        speed = speed,
+        reach = reach,
+        from = mover.loc ~= nil and string.format("(%s,%s)", tostring(mover.loc.x), tostring(mover.loc.y)) or "none",
+    }
+    if distance > speed + reach then
+        check.result = "beyond speed plus reach"
+        return nil, check
+    end
+    if distance <= reach then
+        check.result = "in reach"
+        return {dest = mover.loc, chargeDist = 0}, check
     end
     local probe = ai:ChargeProbe(mover, target, speed, reach)
     if probe == nil or probe.chargeDist <= 0 then
-        return nil
+        check.result = probe == nil and "no charge route" or "charge route has no length"
+        return nil, check
     end
-    return probe
+    check.result = string.format("charge %s squares", tostring(probe.chargeDist))
+    return probe, check
 end
 
 MonsterAI:RegisterTrigger{
@@ -461,10 +474,13 @@ MonsterAI:RegisterTrigger{
         SetRetaliationTarget(token, nil)
         for _,charid in ipairs(triggerInfo.targets or {}) do
             local attacker = dmhub.GetTokenById(charid)
-            if attacker ~= nil and LiveCreature(attacker) and IsHostile(token, attacker)
-                and RetaliationCharge(ai, token, attacker) ~= nil then
-                SetRetaliationTarget(token, attacker)
-                return {activate = true}
+            if attacker ~= nil and LiveCreature(attacker) and IsHostile(token, attacker) then
+                local probe, check = RetaliationCharge(ai, token, attacker)
+                ai:LogDecision("RETALIATION CHECK", check)
+                if probe ~= nil then
+                    SetRetaliationTarget(token, attacker)
+                    return {activate = true}
+                end
             end
         end
         return {dismiss = true}
@@ -491,10 +507,22 @@ MonsterAI:RegisterPrompt{
             return nil
         end
         local target = dmhub.GetTokenById(targetid)
-        local probe = LiveCreature(target) and RetaliationCharge(ai, casterToken, target) or nil
+        local probe = nil
+        if LiveCreature(target) then
+            local check
+            probe, check = RetaliationCharge(ai, casterToken, target)
+            if probe == nil then
+                ai:LogDecision("RETALIATION CHECK", check)
+            end
+        end
         if probe == nil then
-            SetRetaliationTarget(casterToken, nil)
-            return {targets = {}}
+            --The trigger was accepted because a charge reached the attacker,
+            --and now one does not (R6ATBX7P). Declining here does not cancel
+            --the chooser: Charge is cast anyway, and its strike prompt then
+            --found no target and went to the host. So charge zero squares and
+            --keep the target. The strike prompt hits the attacker if they are
+            --in reach and skips the strike if not.
+            probe = {dest = ai:GetMovementToken(casterToken).loc, chargeDist = 0}
         end
         return {abilityOverride = charge, targets = {{loc = probe.dest}}}
     end,
@@ -527,8 +555,9 @@ MonsterAI:RegisterPrompt{
             and GoringHornsWorthIt(target, true) then
             chosen = byName["Goring Horns"]
         end
+        --A retaliation is under way, so never hand the choice to a person.
         if chosen == nil then
-            return nil
+            return {targets = {}}
         end
 
         if MonsterAI.TargetDistance(chosen:GetRangeSource(casterToken), target) > chosen:GetRange(casterToken.properties)

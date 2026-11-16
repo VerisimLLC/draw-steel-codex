@@ -1,0 +1,28 @@
+# ============================================================
+#  Line endings -- the project standard (same in dmhub,
+#  draw-steel-codex and draw-steel-codex/data):
+#    * every text file is committed with LF, whatever the
+#      committer's OS, editor or core.autocrlf;
+#    * Windows-only scripts (.bat/.cmd/.ps1) are CRLF.
+#  The working copy may hold CRLF on Windows; git converts it to
+#  LF on `git add`, so it never reaches the repository.
+# ============================================================
+* text=auto eol=lf
+
+*.sh       text eol=lf
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf
+
+*.lua      text
+*.md       text
+*.json     text
+*.yaml     text
+*.yml      text
+
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.webp     binary
+*.ttf      binary
+*.otf      binary

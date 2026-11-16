@@ -1411,6 +1411,21 @@ local function buildSetupSection(ability, refreshSection, fireChange, editorOpti
         end,
     }
 
+    -- Wait for other casts. Off makes the trigger wait only for casts by or
+    -- targeting its creature (e.g. Monster Death after a skull click). Hidden
+    -- for triggers that may prompt: a prompt could cover another cast's card.
+    if not ability:MayBePrompted() then
+        children[#children + 1] = gui.Check{
+            text = "Wait for other casts to finish",
+            hover = gui.Tooltip("Off: wait only for casts by or targeting this creature. Turn off only for triggers with no rolls, like Monster Death."),
+            value = ability.waitForOtherCasts,
+            vmargin = 6,
+            change = function(element)
+                ability.waitForOtherCasts = element.value
+            end,
+        }
+    end
+
     -- Targeting block (Target Type + Range + numTargets + AOE shape +
     -- proximity + Affects + Can Target Self + Object ID + Target Filter +
     -- Range Text + Target Text + "More options" -> Ability Filters /

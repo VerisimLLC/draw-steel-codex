@@ -1313,7 +1313,7 @@ local function CultureDetail(item)
     local languageid = item:try_get("languageid")
     local language = type(languageid) == "string" and (dmhub.GetTableVisible(Language.tableName) or {})[languageid] or nil
     if language ~= nil then
-        lines[#lines+1] = T("herobuilder.culture.detail_language", {language = language.name})
+        lines[#lines+1] = T("herobuilder.culture.detail_language", {language = language:DisplayNameWithDetail()})
     end
     return {title = item.name, text = table.concat(lines, "\n")}
 end
@@ -1871,7 +1871,8 @@ end
 --- (a subclass's features, a kit's signature ability, a complication's
 --- features), tagged with the pick, then outright skills and languages. The
 --- features are read with no picks applied, so a choice's picks never show
---- here (they are the pane's other blocks).
+--- here (they are the pane's other blocks). A feature whose prerequisites the
+--- Hero does not meet (such as a domain they did not pick) is left out.
 --- @param token CharacterToken
 --- @param stepid string
 --- @return HeroBuilderPaneLine[]
@@ -1888,7 +1889,7 @@ local function StepGains(token, stepid)
             --features list in FeatureStack shows one instead).
             local isChoice = true
             pcall(function() isChoice = feature.IsDerivedFrom("CharacterChoice") end)
-            if feature ~= nil and not isChoice then
+            if feature ~= nil and not isChoice and Engine().hero.PrerequisitesMet(hero, feature) then
                 found[#found+1] = {feature = feature, tag = tag, shown = Engine().FeatureShown(feature), level = tonumber((entry.levels or {})[1]) or 1}
             end
         end
@@ -1966,8 +1967,12 @@ local function StepGains(token, stepid)
                         elseif subtype == "language" and languages[id] ~= nil then
                             seen[id] = true
                             local language = languages[id]
-                            profLines[#profLines+1] = {name = language.name, tag = T("herobuilder.gain.tag_language"), kind = "language", level = item.level, detail = function()
-                                return {kicker = T("herobuilder.detail.language"), title = language.name, facts = {{label = T("herobuilder.detail.spoken_by"), value = language:try_get("speakers") or "-"}}}
+                            profLines[#profLines+1] = {name = language:DisplayName(), tag = T("herobuilder.gain.tag_language"), kind = "language", level = item.level, detail = function()
+                                local facts = {{label = T("herobuilder.detail.spoken_by"), value = language:try_get("speakers") or "-"}}
+                                if language:DisplayName() ~= language.name then
+                                    table.insert(facts, 1, {label = T("herobuilder.detail.in_world_name"), value = language.name})
+                                end
+                                return {kicker = T("herobuilder.detail.language"), title = language:DisplayName(), facts = facts}
                             end}
                         end
                     end
@@ -2157,7 +2162,11 @@ local function GainRows(gains, pools)
                 entry = languages[id]
             end
             if entry ~= nil then
-                names[#names+1] = entry.name
+                if pool.kind == "skill" then
+                    names[#names+1] = entry.name
+                else
+                    names[#names+1] = entry:DisplayName()
+                end
             end
         end
         rows[#rows+1] = {

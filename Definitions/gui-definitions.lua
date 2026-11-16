@@ -106,7 +106,7 @@
 DockablePanel = {}
 
 --- Register a dockable panel.
---- @param args {name: string, icon: nil|string, minHeight: nil|number, vscroll: nil|boolean, dmonly: nil|boolean, content: (fun(): Panel)}
+--- @param args {name: string, icon: nil|string, minHeight: nil|number, vscroll: nil|boolean, dmonly: nil|boolean, hostonly: nil|boolean, content: (fun(): Panel)}
 function DockablePanel.Register(args)
 end
 
@@ -115,7 +115,7 @@ end
 function DockablePanel.Deregister(name)
 end
 
---- May the local user have this panel at all (devonly needs dev mode, dmonly the Director UI,
+--- May the local user have this panel at all (devonly needs dev mode, dmonly the Director UI, hostonly the Director UI or the host of a game with no Director,
 --- and a custom interface may suppress it)? A nil registration returns true.
 --- @param registration table|nil A registration from GetRegistration.
 --- @return boolean

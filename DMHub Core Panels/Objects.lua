@@ -1,5 +1,62 @@
 local mod = dmhub.GetModLoading()
 
+--Files node into the folder targetNode (id targetId) at targetOrd, shifting
+--later siblings down. targetOrd nil = append after the folder's last child.
+--Shared with CharacterPanel.lua (the bestiary); defined here so the Objects
+--panel works in a mod set whose CharacterPanel lives in another mod.
+mod.shared.MoveNodeInto = function(node, targetId, targetNode, targetOrd, refreshType)
+    if targetOrd == nil then
+        local maxOrd = 0
+        for i, v in ipairs(targetNode.children) do
+            if v ~= node and v.ord > maxOrd then
+                maxOrd = v.ord
+            end
+        end
+
+        targetOrd = maxOrd + 1
+    end
+
+    for i, v in ipairs(targetNode.children) do
+        local newOrd = v.ord
+        if newOrd >= targetOrd then
+            newOrd = newOrd + 1
+        end
+
+        if v ~= node and v.ord ~= newOrd then
+            v.ord = newOrd
+            v:Upload()
+        end
+    end
+
+    node.parentNode = targetId
+    node.ord = targetOrd
+    node:Upload()
+    assets:RefreshAssets(refreshType)
+end
+
+--function which is used when we drag monsters around the bestiary, and
+--objects around the Objects panel.
+mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshType)
+    return function(element, target)
+        if target ~= nil then
+            if target:HasClass("ignoreDrag") then
+                return
+            end
+            target:FireEvent('monsterDraggedOnto', node)
+        end
+        if target == nil or target.data.nodeid == nil then
+            return
+        end
+
+        local targetNode = getNodeFunction(target.data.nodeid)
+        if targetNode == nil then
+            return
+        end
+
+        mod.shared.MoveNodeInto(node, target.data.nodeid, targetNode, target.data.ord, refreshType)
+    end
+end
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -508,7 +565,8 @@ local ShowObjectTooltip = function(element)
 					children = {
 						gridPanel,
 						gui.Panel{
-							bgimageStreamed = node.thumbnailId,
+							--the 512 px preview; the grid's thumbnail shows until it is made.
+							bgimageStreamed = node.previewId,
 							selfStyle = {
 								width = imageDim,
 								height = imageDim,
@@ -522,9 +580,6 @@ local ShowObjectTooltip = function(element)
 								imageDimensions = function(element, info)
 									--node.components above already errors on a nil node.
 									---@cast node -nil
-									if element.bgsprite == nil then
-										dmhub.Debug('NO BG SPRITE')
-									end
 									local maxDim = max(info.width, info.height)*node.scale
 									local xratio = (info.width*node.scale)/maxDim
 									local yratio = (info.height*node.scale)/maxDim
@@ -619,7 +674,8 @@ local ShowObjectTooltip = function(element)
 		}
 	)
 
-    gui.GetImageDimensionsCallback(node.image, function(info)
+    --the size alone: GetImageDimensionsCallback would load the full image to measure it.
+    gui.GetImageSizeCallback(node.image, function(info)
         tooltip:FireEventTree("imageDimensions", info)
     end)
 
@@ -1176,9 +1232,8 @@ local function CreateObjectEntry(nodeid, parentElement, options)
                 element.data.nhighlights = nhighlights
 			end,
 
-			--Defer the tooltip preview until the user dwells on the entry, since each tooltip
-			--can load a multi-megapixel thumbnail texture and a fast scan of the palette would
-			--otherwise exhaust GPU memory.
+			--Defer the tooltip until the user dwells on the entry: each one builds a 512 px
+			--preview, decoding (or downloading) the full image the first time.
 			linger = function(element)
 				ShowObjectTooltip(element)
 			end,

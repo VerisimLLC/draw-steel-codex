@@ -712,6 +712,11 @@ local m_quitConfirmDialog = nil
 --interface (Encounter of the Week) is showing its own confirmation, which
 --quits with dmhub.ForceQuitApplication if the user goes ahead.
 function OnQuitRequested()
+    --the Encounter of the Week town (a titlescreen screen) asks first.
+    local eotw = rawget(_G, "EncounterOfTheWeek")
+    if eotw ~= nil and eotw.ConfirmQuit ~= nil and eotw.ConfirmQuit(function() dmhub.ForceQuitApplication() end) then
+        return true
+    end
     if (not dmhub.inGame) or dmhub.isLobbyGame then
         return false
     end
@@ -724,6 +729,11 @@ end
 
 local function ConfirmCloseWindow()
     if (not dmhub.inGame) or dmhub.isLobbyGame then
+        --the EotW town's confirmation, asked here too so it shows even
+        --where CloseWindow does not route through the quit hook.
+        if OnQuitRequested() then
+            return
+        end
         dmhub.CloseWindow()
         return
     end
@@ -1221,10 +1231,13 @@ local function ClassifyUserStatus(info)
     return "online"
 end
 
---All the character ids this player controls directly (ownerId ==
---userid). Party-shared tokens (ownerId == 'PARTY') are deliberately
---not counted as anyone's.
-local function CharacterIdsOwnedBy(userid)
+--The character ids each player controls directly (ownerId == userid),
+--as userid -> list of ids, in party order. Party-shared tokens
+--(ownerId == 'PARTY') are deliberately not counted as anyone's.
+--One pass over the parties for all users: scanning them once per user
+--cost ~10 ms per refresh in a game with 18 users and 177 party
+--characters, and the refresh runs every 5 s.
+local function CharacterIdsByOwner()
     local result = {}
     local partyType = rawget(_G, "Party")
     if partyType == nil then
@@ -1234,13 +1247,21 @@ local function CharacterIdsOwnedBy(userid)
     for partyid, _ in unhidden_pairs(parties) do
         for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
             local tok = dmhub.GetCharacterById(charid)
-            if tok ~= nil and tok.ownerId == userid then
-                result[#result + 1] = charid
+            local owner = tok ~= nil and tok.ownerId or nil
+            if owner ~= nil then
+                local list = result[owner]
+                if list == nil then
+                    list = {}
+                    result[owner] = list
+                end
+                list[#list + 1] = charid
             end
         end
     end
     return result
 end
+
+local g_noCharacterIds = {}
 
 --One player's entry: their main character's portrait (grouping card
 --behind it when they control more than one), a connectivity dot in the
@@ -1408,6 +1429,9 @@ end
 
 --the zero-size panel beneath the players row that the column hangs from.
 local g_playersToastAnchor = nil
+--In a game the column lives in the game hud's popup layer instead (see
+--RebuildPlayersToasts): this is it while it shows.
+local g_playersToastHudColumn = nil
 --the players panel itself, so CodexTitleBar.OpenPlayersPopout can click it.
 local g_connectivityPanel = nil
 
@@ -1636,10 +1660,14 @@ local function CreateConnectivityPanel()
             --session still says dm), so they get a portrait too.
             local directorless = false
             pcall(function() directorless = dmhub.directorlessGame == true end)
+            local idsByOwner = nil
             for _, userid in ipairs(dmhub.users or {}) do
                 local info = dmhub.GetSessionInfo(userid)
                 if info ~= nil and (directorless or not info.dm) then
-                    local owned = CharacterIdsOwnedBy(userid)
+                    if idsByOwner == nil then
+                        idsByOwner = CharacterIdsByOwner()
+                    end
+                    local owned = idsByOwner[userid] or g_noCharacterIds
                     local mainid = info.primaryCharacter or owned[1]
                     local extraCount = 0
                     for _, cid in ipairs(owned) do
@@ -1972,12 +2000,39 @@ RebuildPlayersToasts = function()
         return
     end
     anchor.popup = nil
+    if g_playersToastHudColumn ~= nil then
+        if g_playersToastHudColumn.valid then
+            g_playersToastHudColumn:DestroySelf()
+        end
+        g_playersToastHudColumn = nil
+    end
     if #g_playersToasts == 0 then
         return
     end
     local panels = {}
     for _, t in ipairs(g_playersToasts) do
         panels[#panels + 1] = BuildPlayersToast(t)
+    end
+    --In a game, the column goes in the game hud's popup layer, top right,
+    --just under a maximized map window's strip (30px, Tabletop's
+    --TITLE_HEIGHT). A popup of the title bar draws over the hud but loses
+    --the mouse to it: a notice's buttons could not be clicked over a map
+    --window or an Encounter of the Week stage.
+    local hud = rawget(_G, "gamehud")
+    local layer = hud ~= nil and hud.popupPanel or nil
+    if dmhub.inGame and not dmhub.isLobbyGame and layer ~= nil and layer.valid then
+        g_playersToastHudColumn = gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            y = 32,
+            rmargin = 8,
+            children = panels,
+        }
+        layer:AddChild(g_playersToastHudColumn)
+        return
     end
     --the title bar's below-bar popup recipe (see ShowOverlayMenu): a
     --sizeless shim placed against the whole players plate, and the column
@@ -2002,9 +2057,18 @@ RebuildPlayersToasts = function()
     }
 end
 
+--Are the notices up? A title-bar popup closes on a click elsewhere, taking
+--them all; the in-game column (RebuildPlayersToasts) does not.
+local function PlayersToastsShowing()
+    if g_playersToastHudColumn ~= nil and g_playersToastHudColumn.valid then
+        return true
+    end
+    return g_playersToastAnchor ~= nil and g_playersToastAnchor.valid and g_playersToastAnchor.popup ~= nil
+end
+
 --Is the notice with this id (ShowPlayersToast's args.id) still showing?
 function CodexTitleBar.HasPlayersToast(id)
-    if g_playersToastAnchor == nil or not g_playersToastAnchor.valid or g_playersToastAnchor.popup == nil then
+    if not PlayersToastsShowing() then
         return false
     end
     for _, t in ipairs(g_playersToasts) do
@@ -2033,14 +2097,15 @@ end
 --  args.duration  seconds before it goes (default 8; 0 = stays until an
 --                 action or its close button)
 --  args.id        optional: a notice with the same id replaces this one
---Clicking elsewhere closes the notices, as it does any popup.
+--Outside a game, clicking elsewhere closes the notices, as it does any popup;
+--in a game they stay until closed, answered or timed out.
 function CodexTitleBar.ShowPlayersToast(args)
     args = args or {}
     if g_playersToastAnchor == nil or not g_playersToastAnchor.valid then
         return
     end
     --a click away closed the popup: those notices are gone.
-    if g_playersToastAnchor.popup == nil then
+    if not PlayersToastsShowing() then
         g_playersToasts = {}
     end
     if args.id ~= nil then

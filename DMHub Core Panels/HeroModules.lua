@@ -455,7 +455,7 @@ local function InstallForPlayer(fullid, callback)
 end
 
 --- On the game owner's client: installs the Hero modules other players ask
---- for (see AskOwnerToInstall), one at a time, for as long as this client is
+--- for (see AskOwnerToInstall), all at once, for as long as this client is
 --- in this game. Asks made while the owner was away are served when this
 --- starts. Runs for the owner of every game from game entry (see the
 --- EnterGame handler below). onInstalled(fullid), if given, runs after each
@@ -477,9 +477,12 @@ function HeroModules.ServeOwnerRequests(onInstalled)
 	g_serving = serving
 
 	dmhub.Coroutine(function()
-		local busy = false
+		--modules being added now, by fullid. Every unanswered ask starts at
+		--once (the party's reveal waits on the slowest member's modules).
+		--- @type table<string, boolean>
+		local inFlight = {}
 		while not mod.unloaded and dmhub.gameid == gameid do
-			if not busy then
+			do
 				local data = mod:GetDocumentSnapshot(OWNER_REQUESTS_DOC_ID).data
 				local results = type(data.results) == "table" and data.results or {}
 
@@ -502,11 +505,11 @@ function HeroModules.ServeOwnerRequests(onInstalled)
 				for fullid, askedAt in pairs(asks) do
 					local result = results[fullid]
 					local answered = type(result) == "table" and (tonumber(result.time) or 0) >= askedAt
-					if not answered then
-						busy = true
+					if not answered and not inFlight[fullid] then
+						inFlight[fullid] = true
 						print(string.format("HeroModules: adding %s for a player who asked", fullid))
 						InstallForPlayer(fullid, function(ok, message)
-							busy = false
+							inFlight[fullid] = nil
 							if mod.unloaded or dmhub.gameid ~= gameid then
 								return
 							end
@@ -527,11 +530,10 @@ function HeroModules.ServeOwnerRequests(onInstalled)
 								end
 							end
 						end)
-						break
 					end
 				end
 			end
-			coroutine.yield(0.5)
+			coroutine.yield(0.25)
 		end
 		if g_serving == serving then
 			g_serving = nil
@@ -720,32 +722,37 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds, options)
 			end)
 		end
 
-		local index = 0
-		local RunNext
-		RunNext = function()
-			--do not stop on `finished`: a timeout only releases the hero, and
-			--abandoning the queue would leave later modules (and their heroes'
-			--classes) missing from this game for good.
+		--every install starts at once: each one is a handful of network round
+		--trips (its code review, its snapshot, the game patch and its echo), so
+		--one after another cost ~0.35 s per module on the arriving hero's
+		--critical path (8+ s for players with many modules). A timeout only
+		--releases the hero; installs still running carry on.
+		local pending = #wanted
+		local function OneDone()
+			pending = pending - 1
+			if pending > 0 then
+				return
+			end
 			if mod.unloaded then
 				Finish()
-				return
+			elseif #forOwner > 0 then
+				AskOwnerToInstall(forOwner)
+				FinishWhenOwnerAnswers()
+			else
+				Finish()
 			end
-			index = index + 1
-			local info = wanted[index]
-			if info == nil then
-				if #forOwner > 0 then
-					AskOwnerToInstall(forOwner)
-					FinishWhenOwnerAnswers()
-				else
-					Finish()
-				end
-				return
-			end
+		end
+		if pending == 0 then
+			pending = 1
+			OneDone()
+			return
+		end
+		for _, info in ipairs(wanted) do
 			local fullid = info.fullid
 			info:InstallAsHeroModule{
 				success = function()
 					g_lastErrors[fullid] = nil
-					RunNext()
+					OneDone()
 				end,
 				error = function(message)
 					g_lastErrors[fullid] = message
@@ -755,11 +762,10 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds, options)
 					else
 						SetGameProblem(info, message)
 					end
-					RunNext()
+					OneDone()
 				end,
 			}
 		end
-		RunNext()
 	end)
 end
 

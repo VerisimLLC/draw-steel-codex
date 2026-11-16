@@ -9,7 +9,7 @@
 --- @field currentFloorId string Gets the ID string of the current active floor.
 --- @field coverart string Gets the cover art image ID for the current game.
 --- @field rootMapFolder MapFolderLua Gets the root map folder.
---- @field maps MapManifestLua[] Gets a list of all map manifests in the current game.
+--- @field maps MapManifestLua[] Gets a list of all map manifests in the current game. Map Previews (map.preview) are left out: they are temporary and belong to no list; game.GetMap still finds them.
 --- @field mapFolders MapFolderLua[] Gets a list of all map folders in the current game.
 game = {}
 
@@ -124,6 +124,11 @@ function game.SpawnBestiaryOnMap(monsterids, mapid, x, y, floor) end
 --- @return {id: string, x: number, y: number, tiles: integer}[]
 function game.PlanTokensOnMap(ids, mapid, x, y, floor) end
 
+--- The most open standing spot in the main play area of floor index floor of the current map, for putting creatures down where no one has said where (Map Preview places its test tokens there). The play area is the largest set of standable tiles (on the map, not blocked, on ground, not water) a walker can reach from one another: walls, closed doors and height changes of more than one tile cut it, so a sealed or raised part of the map is never chosen. In it, the tile farthest from anything a walker cannot step onto wins, the one nearest the map's centre breaking ties. Returns the world point at that tile's centre, its clearance (steps to the nearest such obstacle; 1 = beside one) and the play area's size in tiles, or nil when the floor has nowhere to stand. Tokens are ignored. Reads every tile of the map once, so call it for one-off placement, not every frame.
+--- @param floor integer
+--- @return nil|{x: number, y: number, clearance: integer, tiles: integer}
+function game.FindOpenArea(floor) end
+
 --- Removes the specified tokens from the game with an unsummon animation.
 --- @param tokenidList string[] A table of token ID strings to unsummon.
 function game.UnsummonTokens(tokenidList) end
@@ -151,7 +156,7 @@ function game.CreateMapFolder() end
 --- @return string
 function game.CreateMap(options) end
 
---- Asynchronously duplicates a map and calls the callback when complete.
+--- Asynchronously duplicates a map and calls the callback when complete. A Map Preview cannot be duplicated: the callback is called with nothing done.
 --- @param mapid string The ID of the map to duplicate.
 --- @param oncomplete function Called when duplication is complete.
 function game.DuplicateMap(mapid, oncomplete) end

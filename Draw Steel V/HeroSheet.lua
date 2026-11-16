@@ -940,13 +940,13 @@ local function BuildContent()
 
     --The Treasures block fills the column under the card and the kit, never
     --shorter than its floor; a shorter column scrolls instead. Sizes are
-    --measured after layout, so this runs a moment later.
+    --measured after layout, so this runs once layout is done.
     local treasuresFitGen = 0
     local function FitTreasures()
         treasuresFitGen = treasuresFitGen + 1
         local gen = treasuresFitGen
-        dmhub.Schedule(0.05, function()
-            if mod.unloaded or gen ~= treasuresFitGen or left == nil or not left.valid or not treasures.valid then
+        HeroSheetWindow.AfterLayout(function()
+            if gen ~= treasuresFitGen or left == nil or not left.valid or not treasures.valid then
                 return
             end
             --at Narrow, Treasures sits in the Gear pane, which scrolls: its floor

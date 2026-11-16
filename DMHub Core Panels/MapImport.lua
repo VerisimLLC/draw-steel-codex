@@ -1805,6 +1805,82 @@ local function IsUVTTPath(path)
     return PathHasExtension(path, UVTT_EXTENSIONS)
 end
 
+--Why these files can't be imported together as Universal VTT floors, or nil.
+--- @param paths string[]
+--- @return nil|string
+local function UVTTPathsError(paths)
+    if #paths > 12 then
+        return "Cannot import more than 12 layers."
+    end
+    for _, path in ipairs(paths) do
+        if not IsUVTTPath(path) then
+            return "Cannot import layers of mixed file types."
+        end
+    end
+    return nil
+end
+
+--Universal VTT files become one map, a floor each. The engine reads and uploads
+--them off the main thread, so the app keeps running meanwhile; options.finish(info)
+--gets the result. options.progress(stage, fraction), when given, follows it
+--("reading", then "uploading" 0 to 1); otherwise a row in the network status
+--list does. options.failed(message), when given, reports a failure instead of
+--the error dialog.
+--- @param paths string[]
+--- @param options {finish: nil|fun(info: table), progress: nil|fun(stage: string, fraction: number), failed: nil|fun(message: string)}
+local function ImportUVTTFiles(paths, options)
+    local operation = nil
+    if options.progress == nil then
+        operation = dmhub.CreateNetworkOperation()
+        operation.description = "Importing Map"
+        operation.status = "Reading files..."
+        operation.progress = 0.0
+        operation:Update()
+    end
+    local function EndOperation()
+        if operation ~= nil then
+            operation.progress = 1
+            operation:Update()
+            operation = nil
+        end
+    end
+
+    --walls, doors and lights come from the stock assets
+    --(ImportMapToFloorCo); lighting is tuned afterwards in
+    --Map Settings > UVTT Import Settings, which opens by itself.
+    assets:ImportUniversalVTT(paths, function(info)
+        EndOperation()
+        if options.finish ~= nil then
+            options.finish(info)
+        end
+    end,
+    function(message)
+        EndOperation()
+        if options.failed ~= nil then
+            options.failed(message)
+            return
+        end
+        gui.ModalMessage{
+            title = "Error Importing",
+            message = message,
+        }
+    end,
+    function(stage, fraction)
+        if options.progress ~= nil then
+            options.progress(stage, fraction)
+        end
+        if operation ~= nil then
+            if stage == "uploading" then
+                operation.status = string.format("Uploading %d%%", math.floor(fraction * 100))
+                operation.progress = math.min(0.99, fraction)
+            else
+                operation.status = "Reading files..."
+            end
+            operation:Update()
+        end
+    end)
+end
+
 local function ImportMapWizard(options)
 
     local imagesOnly = cond(options.imagesOnly, true, false)
@@ -1830,30 +1906,18 @@ local function ImportMapWizard(options)
                 end
 
                 if allowUVTT and IsUVTTPath(paths[1]) then
-                    for _,path in ipairs(paths) do
-                        if not IsUVTTPath(path) then
-                            gui.ModalMessage{
-                                title = "Error Importing",
-                                message = "Cannot import layers of mixed file types.",
-                            }
-                            return
-                        end
-                    end
-                    --walls, doors and lights come from the stock assets
-                    --(ImportMapToFloorCo); lighting is tuned afterwards in
-                    --Map Settings > UVTT Import Settings, which opens by itself.
-                    assets:ImportUniversalVTT(paths, function(info)
-                        if options.finish ~= nil then
-                            options.finish(info)
-                            gui.CloseModal()
-                        end
-                    end,
-                    function(error)
+                    local pathsError = UVTTPathsError(paths)
+                    if pathsError ~= nil then
                         gui.ModalMessage{
                             title = "Error Importing",
-                            message = error,
+                            message = pathsError,
                         }
-                    end)
+                        return
+                    end
+                    --the import runs in the background with its own progress,
+                    --so the wizard has nothing left to do.
+                    gui.CloseModal()
+                    ImportUVTTFiles(paths, options)
                 else
 
                     for _,path in ipairs(paths) do
@@ -1992,5 +2056,24 @@ local function ImportMapWizard(options)
 end
 
 mod.shared.ImportMap = function(options)
+    --Universal VTT files carry their own grid, walls and lights, so they need
+    --no wizard: they import in the background straight away.
+    local paths = options.paths
+    if paths ~= nil and #paths > 0 and not options.imagesOnly and IsUVTTPath(paths[1]) then
+        local pathsError = UVTTPathsError(paths)
+        if pathsError ~= nil then
+            if options.failed ~= nil then
+                options.failed(pathsError)
+            else
+                gui.ModalMessage{
+                    title = "Error Importing",
+                    message = pathsError,
+                }
+            end
+            return
+        end
+        ImportUVTTFiles(paths, options)
+        return
+    end
 	ImportMapWizard(options)
 end

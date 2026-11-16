@@ -29,6 +29,8 @@ local mod = dmhub.GetModLoading()
 ---@field fields? PuzzleField[] the game's own setup, shown under Customize
 ---@field perception? string characteristic id that slows a player's view (nil: none)
 ---@field test? ChanceTest the game's own test, rolled once per player per round
+---@field flow? string "bet" (this file's flow, the default) or "turns" (GameOfChanceTurns.lua)
+---@field howToPlay? string|fun(config: table): string the puzzle frame's "?" text (PuzzleTypeDef.howToPlay)
 ---@field cheatText string what the dealer's cheat was, e.g. "the dealer palmed the pea"
 ---@field DealRound fun(config: table, random: (fun(k: integer): integer), difficulty: string): table public round data (plain, no lists)
 ---@field Duration fun(data: table): number seconds the deal takes at normal speed
@@ -77,7 +79,8 @@ local g_largeSetting = setting{
     default = false,
 }
 
----@type table<string, ChanceGameDef>
+--every registered game of chance, either flow (a Reset refunds stakes for these).
+---@type table<string, ChanceGameDef|ChanceTurnsGameDef>
 local g_games = {}
 
 --------------------------------------------------------------------------------
@@ -166,13 +169,14 @@ end
 --The setup in force: a preset's values, or the Director's own under Customize.
 --Crooked with no tests is refused (nothing could ever win), so it reads as shady.
 ---@param config table
+---@param presets table|nil a game's own presets (the shell game's when nil)
 ---@return table
-local function Effective(config)
+local function Effective(config, presets)
     local result = {}
     for k, v in pairs(config) do
         result[k] = v
     end
-    local preset = PRESETS[config.preset or "tavern"]
+    local preset = (presets or PRESETS)[config.preset or "tavern"]
     if preset ~= nil then
         for k, v in pairs(preset) do
             result[k] = v
@@ -225,29 +229,8 @@ end
 -- Heroes, stakes
 --------------------------------------------------------------------------------
 
---The hero a player acts as: their selected token, else their primary character.
----@return CharacterToken|nil
-local function MyHero()
-    local tokens = dmhub.selectedOrPrimaryTokens or {}
-    local tok = tokens[1]
-    if tok ~= nil and tok.valid and tok.properties ~= nil then
-        return tok
-    end
-    return nil
-end
-
----@param tokenid string|nil
----@return CharacterToken|nil
-local function HeroById(tokenid)
-    if tokenid == nil then
-        return nil
-    end
-    local tok = dmhub.GetCharacterById(tokenid)
-    if tok ~= nil and tok.valid then
-        return tok
-    end
-    return nil
-end
+local MyHero = Puzzle.MyHero
+local HeroById = Puzzle.HeroById
 
 --A token's name, or fallback (the player's name in log lines) when it has none.
 ---@param tok CharacterToken
@@ -466,40 +449,7 @@ local function UndoStake(tok, paid)
     end
 end
 
---------------------------------------------------------------------------------
--- Test outcomes: Draw Steel's test difficulty rows
---------------------------------------------------------------------------------
-
---"success", "consequence" (success with a consequence), "failure" or
---"failconsequence"; reward is true for a natural 19-20 or an easy tier 3.
----@param tier integer
----@param natural number|nil
----@param difficulty string
----@return string outcome, boolean reward
-local function Outcome(tier, natural, difficulty)
-    local reward = natural ~= nil and natural >= 19
-    if difficulty == "easy" then
-        if tier >= 3 then
-            return "success", true
-        elseif tier == 2 then
-            return "success", reward
-        end
-        return "consequence", reward
-    elseif difficulty == "hard" then
-        if tier >= 3 then
-            return "success", reward
-        elseif tier == 2 then
-            return "failure", reward
-        end
-        return "failconsequence", reward
-    end
-    if tier >= 3 then
-        return "success", reward
-    elseif tier == 2 then
-        return "consequence", reward
-    end
-    return "failure", reward
-end
+local Outcome = Puzzle.TestOutcome
 
 --------------------------------------------------------------------------------
 -- State
@@ -537,34 +487,7 @@ local function Round(state)
     return state.r
 end
 
---File a request for the host: a small queue per player, numbered so the host
---applies each once and in order.
----@param id string
----@param args table
-local function SendRequest(id, args)
-    Puzzle.Change(id, function(state)
-        state.req = state.req or {}
-        local queue = state.req[dmhub.userid]
-        if type(queue) ~= "table" or queue.seq ~= nil then
-            queue = {}
-            state.req[dmhub.userid] = queue
-        end
-        local seq = tonumber((state.done or {})[dmhub.userid]) or 0
-        for _, queued in pairs(queue) do
-            if type(queued) == "table" then
-                seq = math.max(seq, tonumber(queued.seq) or 0)
-            end
-        end
-        seq = seq + 1
-        local req = { seq = seq }
-        for k, v in pairs(args) do
-            req[k] = v
-        end
-        --keyed, not a list, and one entry per request: a second request sent
-        --before the host's next tick must not replace the first.
-        queue["s" .. seq] = req
-    end, "Game of chance request")
-end
+local SendRequest = Puzzle.Request
 
 --How much slower this player sees the deal: their own "slowly" setting or the
 --table's, times their hero's perception.
@@ -744,6 +667,8 @@ local function FinishRound(state, eff, result, bettor, effects)
     end
 end
 
+local RunEffects
+
 ---@param game ChanceGameDef
 ---@param id string
 local function HostTick(game, id)
@@ -752,6 +677,7 @@ local function HostTick(game, id)
         return
     end
     local effects = {}
+    local after = {}
     Puzzle.Change(id, function(state, config)
         local eff = Effective(config)
         local now = dmhub.serverTime
@@ -775,140 +701,127 @@ local function HostTick(game, id)
             changed = true
         end
 
-        state.req = state.req or {}
-        state.done = state.done or {}
-        for userid, queue in pairs(state.req) do
-            if type(queue) == "table" and queue.seq ~= nil then
-                --a request in the old one-slot form: drop it.
-                state.req[userid] = {}
-                changed = true
-            elseif type(queue) == "table" then
-                local pending = {}
-                for key, queued in pairs(queue) do
-                    if type(queued) == "table" then
-                        pending[#pending + 1] = { key = key, req = queued }
+        local function Handle(_, _, req, userid, _)
+            local kind = req.kind
+            local inRound = req.round == state.round and req.game == state.game
+            local name = Puzzle.UserName(userid)
+
+            local finished = true
+            if kind == "deal" then
+                if req.game == state.game and (state.phase == "ready" or state.phase == "revealed")
+                    and (eff.dealer ~= "director" or req.director == true) then
+                    state.round = (state.round or 0) + 1
+                    local seed = dmhub.GenerateGuid()
+                    local nr = NewRound()
+                    nr.seed = seed
+                    nr.data = game.DealRound(eff, Puzzle.SeededRandom(seed), eff.difficulty or "medium")
+                    nr.dealAt = now
+                    nr.start = now + COUNTDOWN_SECONDS
+                    state.r = nr
+                    r = nr
+                    state.phase = "dealing"
+                    effects[#effects + 1] = { push = true }
+                end
+            elseif kind == "playagain" then
+                if state.phase == "over" and req.game == state.game and state.result ~= "won" and eff.onLoss == "again" then
+                    local fresh = NewGameState()
+                    fresh.game = (state.game or 1) + 1
+                    fresh.log = state.log
+                    fresh.done = state.done
+                    fresh.req = state.req
+                    --every game's stake, so a Reset gives all of them back.
+                    fresh.paidAll = state.paidAll
+                    for k in pairs(state) do
+                        state[k] = nil
+                    end
+                    for k, v in pairs(fresh) do
+                        state[k] = v
+                    end
+                    r = Round(state)
+                    AppendLog(state, string.format("%s plays again.", name))
+                end
+            elseif kind == "test" and inRound and state.phase == "dealing" and r.bet == nil then
+                local testid = req.test
+                local tier = math.tointeger(tonumber(req.tier)) or 1
+                if testid == "follow" and game.test ~= nil and r.follow[userid] == nil then
+                    local outcome, reward = Outcome(tier, tonumber(req.natural), eff.difficulty or "medium")
+                    r.follow[userid] = { outcome = outcome, reward = reward or nil }
+                    r.watched[userid] = true
+                    if outcome == "consequence" or outcome == "failconsequence" then
+                        state.noticedRound = state.noticedRound or state.round
+                    end
+                elseif testid == "dealer" and state.dealerWatched[userid] == nil then
+                    local cheat = DecideCheat(id, state, eff)
+                    if cheat == nil then
+                        finished = false
+                    else
+                        state.dealerWatched[userid] = tier
+                        r.dealer[userid] = tier
                     end
                 end
-                table.sort(pending, function(a, b) return (tonumber(a.req.seq) or 0) < (tonumber(b.req.seq) or 0) end)
-                for _, item in ipairs(pending) do
-                    local req = item.req
-                    local doneSeq = tonumber(state.done[userid]) or 0
-                    if (tonumber(req.seq) or 0) <= doneSeq then
-                        queue[item.key] = nil
-                        changed = true
+            elseif kind == "call" and inRound and state.phase == "dealing" and r.bet == nil
+                and r.dealer[userid] == 3 and r.cheat == true then
+                r.bet = { user = userid, tokenid = req.tokenid, called = true }
+                r.reveal = { option = nil, cheated = true, pick = nil }
+                local caller = HeroById(req.tokenid)
+                AppendLog(state, string.format("Round %d: %s called out the dealer -- won.", state.round, caller ~= nil and HeroName(caller, name) or name))
+                effects[#effects + 1] = { chat = DealerLine(eff, "lineCaught") }
+                FinishRound(state, eff, "win", r.bet, effects)
+            elseif kind == "pull" and inRound and state.phase == "dealing" and r.bet == nil
+                and (r.dealer[userid] or 0) >= 2 then
+                state.phase = "over"
+                state.result = "pulled"
+                local puller = HeroById(req.tokenid)
+                local who = puller ~= nil and HeroName(puller, name) or name
+                AppendLog(state, string.format("Round %d: %s pulled the stake. The dealer packs up.", state.round, who))
+                effects[#effects + 1] = { chat = string.format("%s pulled the stake at %s. The dealer packs up.", who, Puzzle.Title(id)) }
+            elseif kind == "bet" and inRound and state.phase == "dealing" and r.bet == nil
+                and r.openAt ~= nil and now >= r.openAt - 0.5 then
+                local options = game.Options(r.data or {})
+                local option = math.tointeger(tonumber(req.option))
+                local tok = HeroById(req.tokenid)
+                if option ~= nil and option >= 1 and option <= #options and (eff.stake == "none" or (tok ~= nil and CanCover(tok, eff))) then
+                    local cheat = DecideCheat(id, state, eff)
+                    if cheat == nil then
+                        finished = false
                     else
-                        local finished = true
-                        local kind = req.kind
-                        local inRound = req.round == state.round and req.game == state.game
-                        local name = Puzzle.UserName(userid)
-
-                        if kind == "deal" then
-                            if req.game == state.game and (state.phase == "ready" or state.phase == "revealed")
-                                and (eff.dealer ~= "director" or req.director == true) then
-                                state.round = (state.round or 0) + 1
-                                local seed = dmhub.GenerateGuid()
-                                local nr = NewRound()
-                                nr.seed = seed
-                                nr.data = game.DealRound(eff, Puzzle.SeededRandom(seed), eff.difficulty or "medium")
-                                nr.dealAt = now
-                                nr.start = now + COUNTDOWN_SECONDS
-                                state.r = nr
-                                r = nr
-                                state.phase = "dealing"
-                                effects[#effects + 1] = { push = true }
-                            end
-                        elseif kind == "playagain" then
-                            if state.phase == "over" and req.game == state.game and state.result ~= "won" and eff.onLoss == "again" then
-                                local fresh = NewGameState()
-                                fresh.game = (state.game or 1) + 1
-                                fresh.log = state.log
-                                fresh.done = state.done
-                                fresh.req = state.req
-                                for k in pairs(state) do
-                                    state[k] = nil
-                                end
-                                for k, v in pairs(fresh) do
-                                    state[k] = v
-                                end
-                                r = Round(state)
-                                AppendLog(state, string.format("%s plays again.", name))
-                            end
-                        elseif kind == "test" and inRound and state.phase == "dealing" and r.bet == nil then
-                            local testid = req.test
-                            local tier = math.tointeger(tonumber(req.tier)) or 1
-                            if testid == "follow" and game.test ~= nil and r.follow[userid] == nil then
-                                local outcome, reward = Outcome(tier, tonumber(req.natural), eff.difficulty or "medium")
-                                r.follow[userid] = { outcome = outcome, reward = reward or nil }
-                                r.watched[userid] = true
-                                if outcome == "consequence" or outcome == "failconsequence" then
-                                    state.noticedRound = state.noticedRound or state.round
-                                end
-                            elseif testid == "dealer" and state.dealerWatched[userid] == nil then
-                                local cheat = DecideCheat(id, state, eff)
-                                if cheat == nil then
-                                    finished = false
-                                else
-                                    state.dealerWatched[userid] = tier
-                                    r.dealer[userid] = tier
-                                end
-                            end
-                        elseif kind == "call" and inRound and state.phase == "dealing" and r.bet == nil
-                            and r.dealer[userid] == 3 and r.cheat == true then
-                            r.bet = { user = userid, tokenid = req.tokenid, called = true }
-                            r.reveal = { option = nil, cheated = true, pick = nil }
-                            local caller = HeroById(req.tokenid)
-                            AppendLog(state, string.format("Round %d: %s called out the dealer -- won.", state.round, caller ~= nil and HeroName(caller, name) or name))
-                            effects[#effects + 1] = { chat = DealerLine(eff, "lineCaught") }
-                            FinishRound(state, eff, "win", r.bet, effects)
-                        elseif kind == "pull" and inRound and state.phase == "dealing" and r.bet == nil
-                            and (r.dealer[userid] or 0) >= 2 then
-                            state.phase = "over"
-                            state.result = "pulled"
-                            local puller = HeroById(req.tokenid)
-                            local who = puller ~= nil and HeroName(puller, name) or name
-                            AppendLog(state, string.format("Round %d: %s pulled the stake. The dealer packs up.", state.round, who))
-                            effects[#effects + 1] = { chat = string.format("%s pulled the stake at %s. The dealer packs up.", who, Puzzle.Title(id)) }
-                        elseif kind == "bet" and inRound and state.phase == "dealing" and r.bet == nil
-                            and r.openAt ~= nil and now >= r.openAt - 0.5 then
-                            local options = game.Options(r.data or {})
-                            local option = math.tointeger(tonumber(req.option))
-                            local tok = HeroById(req.tokenid)
-                            if option ~= nil and option >= 1 and option <= #options and (eff.stake == "none" or (tok ~= nil and CanCover(tok, eff))) then
-                                local cheat = DecideCheat(id, state, eff)
-                                if cheat == nil then
-                                    finished = false
-                                else
-                                    local result = game.Judge(r.data or {}, option, cheat)
-                                    r.bet = { user = userid, tokenid = req.tokenid, option = option }
-                                    r.reveal = { option = nil, cheated = cheat, pick = option }
-                                    local words = { win = "won", lose = "lost", push = "a draw" }
-                                    AppendLog(state, string.format("Round %d: %s bet on %s -- %s%s.", state.round,
-                                        tok ~= nil and HeroName(tok, name) or name, options[option], words[result] or result,
-                                        cond(cheat and result == "lose", " (" .. game.cheatText .. ")", "")))
-                                    FinishRound(state, eff, result, r.bet, effects)
-                                end
-                            end
-                        end
-
-
-                        if finished then
-                            state.done[userid] = req.seq
-                            queue[item.key] = nil
-                            changed = true
-                        else
-                            --waiting on something (the Director's cheat answer):
-                            --later requests wait behind it.
-                            break
-                        end
+                        local result = game.Judge(r.data or {}, option, cheat)
+                        r.bet = { user = userid, tokenid = req.tokenid, option = option }
+                        r.reveal = { option = nil, cheated = cheat, pick = option }
+                        local words = { win = "won", lose = "lost", push = "a draw" }
+                        AppendLog(state, string.format("Round %d: %s bet on %s -- %s%s.", state.round,
+                            tok ~= nil and HeroName(tok, name) or name, options[option], words[result] or result,
+                            cond(cheat and result == "lose", " (" .. game.cheatText .. ")", "")))
+                        FinishRound(state, eff, result, r.bet, effects)
                     end
                 end
             end
+
+            return finished
+        end
+        if Puzzle.ProcessRequests(id, state, Handle, after) then
+            changed = true
         end
         if not changed then
             return false
         end
     end, "Game of chance")
 
+    for _, fn in ipairs(after) do
+        local ok, err = pcall(fn)
+        if not ok then
+            print("PUZZLE:: request follow-up failed for", id, err)
+        end
+    end
+    RunEffects(id, effects, nil)
+end
+
+--Side effects a host tick queued, run once its write is saved: chat lines, pushing the
+--game to everyone, and paying the stake (recorded per game so a Reset can undo it).
+---@param id string
+---@param effects table[]
+---@param presets table|nil the game's presets, for the stake in force
+function RunEffects(id, effects, presets)
     for _, effect in ipairs(effects) do
         if effect.chat ~= nil then
             chat.Send(effect.chat)
@@ -917,12 +830,15 @@ local function HostTick(game, id)
         elseif effect.pay ~= nil then
             local tok = HeroById(effect.pay)
             local config = Puzzle.ReadConfig(id)
-            local eff = Effective(config)
+            local eff = Effective(config, presets)
             if tok ~= nil then
                 local paid = PayStake(tok, eff, effect.sign)
                 if paid ~= nil then
                     paid.tokenid = effect.pay
-                    Puzzle.Change(id, function(state) state.paid = paid end, "Game of chance stake")
+                    Puzzle.Change(id, function(state)
+                        state.paidAll = state.paidAll or {}
+                        state.paidAll["g" .. tostring(state.game or 1)] = paid
+                    end, "Game of chance stake")
                     local stake = StakeText(eff) or ""
                     chat.Send(string.format("%s %s %s.", HeroName(tok), cond(effect.sign > 0, "wins", "loses"), stake))
                 end
@@ -940,13 +856,24 @@ Puzzle.RegisterOutcomeHandler("gameofchance", {
             return
         end
         local state = Puzzle.ReadState(id)
-        local paid = state ~= nil and state.paid or nil
-        if type(paid) ~= "table" then
+        if state == nil then
             return
         end
-        local tok = HeroById(paid.tokenid)
-        if tok ~= nil then
-            UndoStake(tok, paid)
+        local records = {}
+        for _, paid in pairs(type(state.paidAll) == "table" and state.paidAll or {}) do
+            records[#records + 1] = paid
+        end
+        --a game paid before paidAll existed kept one record here.
+        if type(state.paid) == "table" then
+            records[#records + 1] = state.paid
+        end
+        for _, paid in ipairs(records) do
+            if type(paid) == "table" then
+                local tok = HeroById(paid.tokenid)
+                if tok ~= nil then
+                    UndoStake(tok, paid)
+                end
+            end
         end
     end,
 })
@@ -955,8 +882,8 @@ Puzzle.RegisterOutcomeHandler("gameofchance", {
 -- Rolls
 --------------------------------------------------------------------------------
 
---A player's test: the montage's skill-aware roll (characteristic, the Skilled
---chip, the hero's features), private to the roller. onDone(tier, natural).
+local WATCH_TIERS = { "You see nothing useful.", "You see something.", "You see it clearly." }
+
 ---@param tok CharacterToken
 ---@param attrid string
 ---@param skill string
@@ -964,48 +891,7 @@ Puzzle.RegisterOutcomeHandler("gameofchance", {
 ---@param stillWanted fun(): boolean
 ---@param onDone fun(tier: integer, natural: number|nil)
 local function RollTest(tok, attrid, skill, name, stillWanted, onDone)
-    local info = (creature.attributesInfo or {})[attrid]
-    local attrName = info ~= nil and info.description or "Intuition"
-    local attr = string.format("%s, %s", attrName, skill)
-    local montage = rawget(_G, "EncounterMontage")
-    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
-        local parts = montage.BuildTestRoll(tok, attr, name, nil)
-        montage.ShowTestRoll{
-            creature = tok.properties,
-            heroToken = tok,
-            title = parts.title,
-            rollType = parts.rollType,
-            roll = parts.roll,
-            modifiers = parts.modifiers,
-            tiers = { "You see nothing useful.", "You see something.", "You see it clearly." },
-            rollSeq = 1,
-            share = false,
-            completeKind = "rolled",
-            cancelKind = "cancel",
-            stillWanted = stillWanted,
-            send = function(kind, req)
-                if kind == "rolled" and stillWanted() then
-                    onDone(math.tointeger(tonumber(req.tier)) or 1, tonumber(req.natural))
-                end
-                return true
-            end,
-        }
-        return
-    end
-    --without Encounter of the Week: the characteristic alone.
-    local bonus = 0
-    pcall(function() bonus = tok.properties:GetAttribute(attrid):Modifier() end)
-    dmhub.Roll{
-        roll = string.format("2d10 + %d", bonus),
-        description = string.format("%s: %s", name, attr),
-        complete = function(rollInfo)
-            local tier = 1
-            pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
-            if stillWanted() then
-                onDone(tier, rollInfo.naturalRoll)
-            end
-        end,
-    }
+    Puzzle.RollTest(tok, attrid, skill, name, WATCH_TIERS, stillWanted, onDone)
 end
 
 --------------------------------------------------------------------------------
@@ -1573,16 +1459,43 @@ end
 -- Registration
 --------------------------------------------------------------------------------
 
---Register a game of chance. It becomes a puzzle type with the same id.
----@param game ChanceGameDef
+--What the "turns" flow (GameOfChanceTurns.lua) shares with this one. Internal to the
+--games-of-chance files; a game itself never needs it.
+GameOfChance.Shared = {
+    IsCustom = IsCustom,
+    CHARACTERISTIC_OPTIONS = CHARACTERISTIC_OPTIONS,
+    Effective = Effective,
+    StakeText = StakeText,
+    CanCover = CanCover,
+    FinishRound = FinishRound,
+    AppendLog = AppendLog,
+    RunEffects = RunEffects,
+    HeroName = HeroName,
+    RollTest = RollTest,
+    Outcome = Outcome,
+    slowSetting = g_slowSetting,
+    skipSetting = g_skipSetting,
+    largeSetting = g_largeSetting,
+}
+
+--Register a game of chance. It becomes a puzzle type with the same id. A game with
+--flow = "turns" (Liar's dice) is played in turns, not dealt and bet on.
+---@param game ChanceGameDef|ChanceTurnsGameDef
 function GameOfChance.Register(game)
     assert(type(game.id) == "string" and game.id ~= "", "GameOfChance.Register: id required")
     g_games[game.id] = game
+    if game.flow == "turns" then
+        ---@cast game ChanceTurnsGameDef
+        GameOfChanceTurns.Register(game)
+        return
+    end
+    ---@cast game ChanceGameDef
     PuzzleType.Register{
         id = game.id,
         name = game.name,
         fields = LayerFields(game),
         noTimeLimit = true,
+        howToPlay = game.howToPlay,
         NewState = function(config, ctx)
             return NewGameState()
         end,

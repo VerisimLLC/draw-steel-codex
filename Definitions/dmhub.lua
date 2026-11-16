@@ -26,6 +26,7 @@
 --- @field loadingScreenHeld boolean (Read-only) True while a Lua hold keeps the game loading screen up. See HoldLoadingScreen.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
+--- @field gameSystem nil|string The game system id of the current game (an entry of dmhub.availableGameSystems, e.g. 'dmhub-legacy', 'dmhub-dnd2024'), with an empty record read as the white label's default ('mcdm-drawsteel' or 'dmhub-legacy'). Readable while code mods load, so rules code can branch on it at load time. nil when no game is loaded.
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.

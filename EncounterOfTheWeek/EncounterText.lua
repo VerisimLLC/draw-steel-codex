@@ -227,6 +227,8 @@ text("stage.round.summary_tier", [[{hero}: {entry} ({option}, {tier})]])
 text("stage.round.summary_no_reward", [[No reward from this result.]])
 --A small line under the summary: the hero used a knack. {knack} says which.
 text("stage.round.summary_knack", [[Knack: {knack}]])
+--Heading over the edges and banes the party has earned on tests still to come.
+text("stage.round.standing_mods", [[Edges and banes earned:]])
 --A temporary Threat that ran out at the end of the round. {threat} is its
 --name; the second entry stands in when it has none.
 text("stage.round.threat_expired", [[{threat} was left unresolved.]])

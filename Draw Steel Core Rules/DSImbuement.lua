@@ -30,6 +30,151 @@ DSImbuement.WeaponGuids = {
 
 DSImbuement.imbueReplacesPrereq = false
 
+--- Returns a shared key for an imbued weapon/implement core damage bonus, or nil
+--- for any other modifier. Every imbuement makes its own copy of the core bonus,
+--- so roll dialogs use this key to show it once (treasure damage bonuses don't stack).
+--- @param modifier CharacterModifier
+--- @return nil|string
+function DSImbuement.CoreDamageBonusKey(modifier)
+    local sourceGuid = modifier:try_get("sourceguid")
+    if sourceGuid == nil then
+        return nil
+    end
+    for _, guid in pairs(DSImbuement.WeaponGuids) do
+        if guid == sourceGuid then
+            return "imbued-weapon-core"
+        end
+    end
+    for _, guid in pairs(DSImbuement.ImplementGuids) do
+        if guid == sourceGuid then
+            return "imbued-implement-core"
+        end
+    end
+    return nil
+end
+
+--- Shared check: true if modContext came from an imbued weapon marked only Melee
+--- (or only Ranged) and the ability in use lacks that keyword. A weapon with both
+--- or neither keyword never mismatches.
+--- @param modContext any The active-modifier entry; sourceItemId is set for equipped items.
+--- @param hasKeyword fun(keyword: string): boolean|nil Tests the ability being used; nil means it can't tell.
+--- @return boolean
+local function WeaponItemRangeMismatch(modContext, hasKeyword)
+    if type(modContext) ~= "table" then
+        return false
+    end
+
+    --modContext is usually a plain entry table, but some callers pass a game
+    --type, which raises on unknown fields.
+    local itemId = nil
+    pcall(function() itemId = modContext.sourceItemId end)
+    if itemId == nil then
+        return false
+    end
+
+    local item = GetTableCached(equipment.tableName)[itemId]
+    if item == nil or item:try_get("imbueTarget") ~= "weapon" then
+        return false
+    end
+
+    local keywords = item:try_get("keywords", {})
+    local isMelee = keywords.Melee == true
+    local isRanged = keywords.Ranged == true
+    if isMelee == isRanged then
+        return false
+    end
+
+    --Only a definite "no" counts; when the check can't tell, the bonus still applies.
+    return hasKeyword(cond(isMelee, "Melee", "Ranged")) == false
+end
+
+--- True if this power-roll modifier comes from an imbued weapon whose Melee or
+--- Ranged keyword the ability lacks (e.g. Chilling I or the Imbued Weapon +1 on a
+--- melee weapon, used with a bow ability).
+--- @param modContext any The active-modifier entry.
+--- @param options nil|table Power roll options; options.ability is the ability being rolled.
+--- @return boolean
+function DSImbuement.IsWeaponRangeMismatch(modContext, options)
+    local ability = options and options.ability
+    if ability == nil then
+        return false
+    end
+    return WeaponItemRangeMismatch(modContext, function(keyword) return ability:HasKeyword(keyword) end)
+end
+
+--- True if this triggered enhancement (e.g. Wingbane) is on an imbued weapon whose
+--- Melee or Ranged keyword the triggering ability lacks. Only triggers whose
+--- condition checks the Weapon keyword count as "using this weapon"; others
+--- (e.g. Vengeance, which fires when an enemy hits you) are never gated.
+--- @param trigger TriggeredAbility
+--- @param symbols nil|table The event's symbols; keywords and ability describe the ability used.
+--- @param modContext any The active-modifier entry.
+--- @return boolean
+function DSImbuement.IsTriggerWeaponRangeMismatch(trigger, symbols, modContext)
+    if symbols == nil or not string.find(string.lower(trigger:try_get("conditionFormula", "")), "weapon", 1, true) then
+        return false
+    end
+
+    if symbols.keywords == nil and symbols.ability == nil then
+        return false
+    end
+
+    --Damage events carry the ability's keywords as a StringSet; some carry the ability
+    --instead. Other events may shape these differently, so an error means "can't tell".
+    local hasKeyword = function(keyword)
+        local ok, found = pcall(function()
+            if symbols.keywords ~= nil then
+                return symbols.keywords:Has(keyword)
+            end
+            return symbols.ability:HasKeyword(keyword)
+        end)
+        if ok then
+            return found
+        end
+        return nil
+    end
+    return WeaponItemRangeMismatch(modContext, hasKeyword)
+end
+
+--Skips weapon triggers like Wingbane when the ability doesn't match the weapon's Melee/Ranged keyword.
+local g_baseTriggerUnguarded = TriggeredAbility.TriggerUnguarded
+--- @param characterModifier CharacterModifier
+--- @param creature Creature
+--- @param symbols table
+--- @param auraControllerToken nil|CharacterToken
+--- @param modContext table
+--- @param argOptions TriggeredAbilityTriggerOptions
+--- @return nil
+function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    --Remote execution was already gated on the dispatching machine.
+    local remote = argOptions ~= nil and argOptions.remoteExecution ~= nil
+    if (not remote) and DSImbuement.IsTriggerWeaponRangeMismatch(self, symbols, modContext) then
+        if argOptions ~= nil and argOptions.debugLog then
+            argOptions.debugLog[#argOptions.debugLog+1] = {
+                name = self.name,
+                success = false,
+                reason = "Weapon does not match the ability's Melee/Ranged keyword",
+            }
+        end
+        return
+    end
+    return g_baseTriggerUnguarded(self, characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+end
+
+--- True if roll-dialog entry `candidate` should replace `existing` for the same
+--- core bonus: an active entry beats an inactive one, then the bigger bonus wins.
+--- @param existing table {modifier, hint}
+--- @param candidate table {modifier, hint}
+--- @return boolean
+function DSImbuement.CoreDamageBonusIsBetter(existing, candidate)
+    local existingActive = existing.hint ~= nil and existing.hint.result == true
+    local candidateActive = candidate.hint ~= nil and candidate.hint.result == true
+    if existingActive ~= candidateActive then
+        return candidateActive
+    end
+    return (candidate.modifier:try_get("damageModifier", 0) or 0) > (existing.modifier:try_get("damageModifier", 0) or 0)
+end
+
 --- Create a unique mundane item to be imbued
 --- @param itemType "armor"|"implement"|"weapon"
 --- @return equipment|nil

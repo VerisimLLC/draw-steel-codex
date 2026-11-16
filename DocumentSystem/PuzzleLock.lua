@@ -32,10 +32,12 @@ end
 ---@class PuzzleLockInteractive: Interactive
 --- @field new fun(o?: table): PuzzleLockInteractive
 --- @field puzzleid string
+--- @field puzzletype string a library object's preset type ("combination"), or "" to ask
 PuzzleLockInteractive = RegisterGameType("PuzzleLockInteractive", "Interactive")
 PuzzleLockInteractive.id = "PuzzleLock"
 PuzzleLockInteractive.text = "Puzzle Lock"
 PuzzleLockInteractive.puzzleid = ""
+PuzzleLockInteractive.puzzletype = ""
 --The lock keeps its own range and lock state; the component's versions would
 --only confuse (see InteractiveContainer.FieldHidden).
 PuzzleLockInteractive.hiddenFields = { locked = true, distance = true }
@@ -61,6 +63,8 @@ local POINT_OUT_EVENT = "puzzleLockTargets"
 local function LockKey(floorid, objid)
     return Puzzle.SafeId(tostring(floorid) .. "_" .. tostring(objid))
 end
+Puzzle.LockKey = LockKey
+Puzzle.DEFAULT_LOCK_RANGE = DEFAULT_RANGE
 
 --------------------------------------------------------------------------------
 -- Targets: doors and objects on the lock's floor
@@ -104,6 +108,27 @@ local function WhereText(fromX, fromY, x, y)
         return "right here"
     end
     return string.format("%d %s %s", squares, cond(squares == 1, "square", "squares"), dir)
+end
+
+--An "Unlock this door" effect for a lock at (fromX, fromY): a drawn door found
+--by its middle, or a door object.
+---@param floorid string
+---@param fromX number
+---@param fromY number
+---@param doorX number
+---@param doorY number
+---@param doorObjid string|nil
+---@return table
+function Puzzle.DoorEffect(floorid, fromX, fromY, doorX, doorY, doorObjid)
+    return {
+        kind = cond(doorObjid ~= nil, "doorobj", "door"),
+        floorid = floorid,
+        x = doorX,
+        y = doorY,
+        objid = doorObjid,
+        open = false,
+        label = "Door " .. WhereText(fromX, fromY, doorX, doorY),
+    }
 end
 
 ---@class PuzzleLockTarget
@@ -444,6 +469,32 @@ local function Toast(text)
     gui.ShowDialog(mod, toast)
 end
 
+--Heroes who have rolled this puzzle's bypass test (tokenid -> record).
+---@param id string
+---@return table<string, table>
+local function BypassTries(id)
+    local tries = Puzzle.ReadKept(id).bypass
+    if type(tries) ~= "table" then
+        return {}
+    end
+    return tries
+end
+
+---@param tokenid string|nil
+---@param userid string|nil
+---@return string
+local function HeroName(tokenid, userid)
+    local tok = Puzzle.HeroById(tokenid)
+    local name = nil
+    if tok ~= nil then
+        pcall(function() name = tok.name end)
+    end
+    if type(name) ~= "string" or name == "" then
+        return Puzzle.UserName(userid)
+    end
+    return name
+end
+
 --------------------------------------------------------------------------------
 -- Director setup window
 --------------------------------------------------------------------------------
@@ -575,7 +626,24 @@ local function OpenSetup(id, floorid, objid)
             flow = "horizontal",
             width = "auto",
             height = "auto",
+            tmargin = 2,
         }
+        --the second step sits under the kind dropdown (side by side is wider than
+        --the window), with an X that abandons the half-made effect.
+        local function SetTarget(control)
+            targetRow.children = {
+                control,
+                gui.DeleteItemButton{
+                    width = 16,
+                    height = 16,
+                    valign = "center",
+                    lmargin = 6,
+                    click = function(element)
+                        Rebuild()
+                    end,
+                },
+            }
+        end
         local function AddEffect(effect)
             local current = ReadLock()
             table.insert(current[listName], effect)
@@ -583,7 +651,7 @@ local function OpenSetup(id, floorid, objid)
             Rebuild()
         end
         rows[#rows + 1] = gui.Panel{
-            flow = "horizontal",
+            flow = "vertical",
             width = "auto",
             height = "auto",
             vmargin = 2,
@@ -599,24 +667,22 @@ local function OpenSetup(id, floorid, objid)
                         return
                     end
                     if kind == "chat" then
-                        targetRow.children = {
-                            gui.Input{
-                                width = 260,
-                                height = 26,
-                                bgimage = "panels/square.png",
-                                bgcolor = "#00000059",
-                                border = 1,
-                                borderColor = "#ffffff47",
-                                hpad = 6,
-                                borderBox = true,
-                                placeholderText = "Message...",
-                                change = function(input)
-                                    if input.text ~= "" then
-                                        AddEffect({ kind = "chat", text = input.text })
-                                    end
-                                end,
-                            },
-                        }
+                        SetTarget(gui.Input{
+                            width = 260,
+                            height = 26,
+                            bgimage = "panels/square.png",
+                            bgcolor = "#00000059",
+                            border = 1,
+                            borderColor = "#ffffff47",
+                            hpad = 6,
+                            borderBox = true,
+                            placeholderText = "Message...",
+                            change = function(input)
+                                if input.text ~= "" then
+                                    AddEffect({ kind = "chat", text = input.text })
+                                end
+                            end,
+                        })
                         return
                     end
                     local doors, objects = ListTargets(floorid, fromX, fromY, objid)
@@ -626,39 +692,35 @@ local function OpenSetup(id, floorid, objid)
                         options[#options + 1] = { id = tostring(i), text = t.label }
                     end
                     if #options == 0 then
-                        targetRow.children = {
-                            gui.Label{
-                                classes = {"sizeS", "warning"},
-                                width = "auto",
-                                height = "auto",
-                                valign = "center",
-                                text = cond(kind == "unlock" or kind == "open", "No doors on this floor.", "No other objects on this floor."),
-                            },
-                        }
+                        SetTarget(gui.Label{
+                            classes = {"sizeS", "warning"},
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            text = cond(kind == "unlock" or kind == "open", "No doors on this floor.", "No other objects on this floor."),
+                        })
                         return
                     end
-                    targetRow.children = {
-                        gui.Dropdown{
-                            width = 260,
-                            options = options,
-                            textDefault = "Choose...",
-                            change = function(d)
-                                ---@cast d Dropdown
-                                local t = list[math.tointeger(tonumber(d.idChosen)) or 0]
-                                if t == nil then
-                                    return
-                                end
-                                local effect = { floorid = floorid, x = t.x, y = t.y, objid = t.objid, label = t.label }
-                                if kind == "unlock" or kind == "open" then
-                                    effect.kind = cond(t.kind == "doorobj", "doorobj", "door")
-                                    effect.open = kind == "open"
-                                else
-                                    effect.kind = kind
-                                end
-                                AddEffect(effect)
-                            end,
-                        },
-                    }
+                    SetTarget(gui.Dropdown{
+                        width = 260,
+                        options = options,
+                        textDefault = "Choose...",
+                        change = function(d)
+                            ---@cast d Dropdown
+                            local t = list[math.tointeger(tonumber(d.idChosen)) or 0]
+                            if t == nil then
+                                return
+                            end
+                            local effect = { floorid = floorid, x = t.x, y = t.y, objid = t.objid, label = t.label }
+                            if kind == "unlock" or kind == "open" then
+                                effect.kind = cond(t.kind == "doorobj", "doorobj", "door")
+                                effect.open = kind == "open"
+                            else
+                                effect.kind = kind
+                            end
+                            AddEffect(effect)
+                        end,
+                    })
                 end,
             },
             targetRow,
@@ -695,8 +757,24 @@ local function OpenSetup(id, floorid, objid)
         children[#children + 1] = Puzzle.SetupPanel(id, function(typeid)
             --keep the locks (targets) when the Director changes the puzzle's type.
             Puzzle.Create(id, typeid, { locks = Locks(id) }, Puzzle.Exists(id) and Puzzle.Title(id) or nil)
+            --a combination lock can be forced (Might) unless the Director chose otherwise.
+            if typeid == "combination" then
+                local current = ReadLock()
+                if current.bypassAttr == nil then
+                    current.bypassAttr = "mgt"
+                    WriteLock(current)
+                end
+            end
             Rebuild()
-        end)
+        end, nil, {
+            own = nil,
+            ownText = "A new puzzle for this lock",
+            choose = function(otherId)
+                local newId = PuzzlePlace.MoveLock(id, floorid, objid, otherId)
+                window:DestroySelf()
+                OpenSetup(newId, floorid, objid)
+            end,
+        })
 
         children[#children + 1] = gui.Label{ classes = {"sizeM", "bold"}, width = "auto", height = "auto", tmargin = 10, text = "When solved:" }
         for _, row in ipairs(EffectSection("onSolve")) do
@@ -707,6 +785,20 @@ local function OpenSetup(id, floorid, objid)
             children[#children + 1] = row
         end
 
+        children[#children + 1] = gui.Check{
+            classes = {"sizeS"},
+            width = "auto",
+            height = 22,
+            fontSize = 14,
+            halign = "left",
+            tmargin = 10,
+            text = "Can be solved from anywhere",
+            value = Puzzle.ReadConfig(id).solveAnywhere == true,
+            change = function(element)
+                Puzzle.SetConfig(id, { solveAnywhere = element.value == true })
+            end,
+            hover = gui.Tooltip("Off: players who open it from a page, the table or chat can look but must come to the lock to solve it."),
+        }
         children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 10, text = "Players can use it from (squares):" }
         children[#children + 1] = gui.Slider{
             width = 200,
@@ -743,10 +835,43 @@ local function OpenSetup(id, floorid, objid)
                 WriteLock(current)
             end,
         }
+        local tries = {}
+        for tokenid, rec in pairs(BypassTries(id)) do
+            tries[#tries + 1] = { tokenid = tokenid, name = HeroName(tokenid, type(rec) == "table" and rec.user or nil) }
+        end
+        table.sort(tries, function(a, b) return a.name < b.name end)
+        if #tries > 0 then
+            children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Already tried to force it:" }
+            for _, t in ipairs(tries) do
+                local tokenid = t.tokenid
+                children[#children + 1] = gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    vmargin = 1,
+                    gui.Label{ classes = {"sizeS"}, width = 200, height = "auto", valign = "center", text = t.name },
+                    gui.Button{
+                        classes = {"sizeXs"},
+                        text = "Let them try again",
+                        width = 140,
+                        height = 22,
+                        click = function(element)
+                            Puzzle.ChangeKept(id, function(kept)
+                                if type(kept.bypass) == "table" then
+                                    kept.bypass[tokenid] = nil
+                                end
+                            end, "Allow another bypass test")
+                            Rebuild()
+                        end,
+                    },
+                }
+            end
+        end
         children[#children + 1] = gui.Check{
             classes = {"sizeS"},
             width = "auto",
             height = 24,
+            fontSize = 14,
             text = "Hide this object when solved",
             value = lock.hideWhenSolved == true,
             change = function(element)
@@ -786,10 +911,13 @@ local function OpenSetup(id, floorid, objid)
         body.children = children
     end
 
+    --scrolls rather than growing the window off the screen.
     body = gui.Panel{
         flow = "vertical",
-        width = "auto",
+        width = "100%",
         height = "auto",
+        maxHeight = 820,
+        vscroll = true,
     }
 
     window = gui.Panel{
@@ -818,7 +946,12 @@ local function OpenSetup(id, floorid, objid)
         monitorGame = Puzzle.MonitorPaths(id),
         data = { signature = nil },
         refreshGame = function(element)
-            local signature = tostring(Puzzle.GetTypeId(id)) .. "|" .. LockSignature(Locks(id)[lockKey])
+            local tried = {}
+            for tokenid in pairs(BypassTries(id)) do
+                tried[#tried + 1] = tokenid
+            end
+            table.sort(tried)
+            local signature = tostring(Puzzle.GetTypeId(id)) .. "|" .. LockSignature(Locks(id)[lockKey]) .. "|" .. table.concat(tried, ",")
             if element.data.signature ~= nil and element.data.signature ~= signature then
                 element.data.signature = signature
                 Rebuild()
@@ -851,6 +984,18 @@ local function OpenSetup(id, floorid, objid)
     Rebuild()
 end
 
+Puzzle.OpenLockSetup = OpenSetup
+
+--Close a lock's setup window if it is open (an Undo took the lock away).
+---@param floorid string
+---@param objid string
+function Puzzle.CloseLockSetup(floorid, objid)
+    local window = g_setupWindows[LockKey(floorid, objid)]
+    if window ~= nil and window.valid then
+        window:DestroySelf()
+    end
+end
+
 --------------------------------------------------------------------------------
 -- Interact
 --------------------------------------------------------------------------------
@@ -874,29 +1019,67 @@ local function TokenInRange(obj, range)
     return nil
 end
 
---Roll the lock's bypass test with token and act on the tier.
+--The bypass test ("Force it"): each hero tries once per puzzle, recorded in the
+--puzzle's kept data so a Reset doesn't hand out new tries. The roller files a
+--request; the host checks and records it, then acts on the tier.
+Puzzle.RegisterRequestHandler("bypass", function(id, state, req, userid, after)
+    local tokenid = req.tokenid
+    if type(tokenid) ~= "string" then
+        return
+    end
+    local tier = math.tointeger(tonumber(req.tier)) or 1
+    after[#after + 1] = function()
+        --checked here, not in the handler: two requests in one tick both see
+        --the saved kept data, but the first record is written before the second runs.
+        local status = Puzzle.Status(id)
+        if status.solved or status.failed or BypassTries(id)[tokenid] ~= nil then
+            return
+        end
+        Puzzle.ChangeKept(id, function(kept)
+            kept.bypass = kept.bypass or {}
+            kept.bypass[tokenid] = { tier = tier, user = userid, at = dmhub.serverTime }
+        end, "Bypass test")
+        local who = HeroName(tokenid, userid)
+        local title = Puzzle.Title(id)
+        if tier >= 3 then
+            chat.Send(string.format("%s forced %s open.", who, title))
+            Puzzle.Bypass(id)
+        elseif tier == 2 then
+            chat.Send(string.format("%s forced %s open, at a cost.", who, title))
+            Puzzle.Bypass(id, { withFail = true })
+        else
+            chat.Send(string.format("%s tried to force %s. It holds.", who, title))
+        end
+    end
+end)
+
+--Rolls sent but not yet recorded by the host, so a double click can't send two.
+---@type table<string, boolean>
+local g_bypassPending = {}
+
+local BYPASS_TIERS = { "It holds.", "It gives, at a cost.", "It gives." }
+
 ---@param id string
 ---@param attrid string
 ---@param token CharacterToken
 local function RollBypass(id, attrid, token)
-    local props = token.properties
-    if props == nil then
+    local tokenid = token.charid
+    if token.properties == nil or tokenid == nil then
         return
     end
-    props:ShowCharacteristicRollDialog(attrid, {
-        onComplete = function(tier)
-            if Puzzle.Status(id).solved then
-                return
-            end
-            if tier >= 3 then
-                Puzzle.Bypass(id)
-            elseif tier == 2 then
-                Puzzle.Bypass(id, { withFail = true })
-            else
-                Toast("It holds.")
-            end
-        end,
-    })
+    local key = id .. ":" .. tokenid
+    if g_bypassPending[key] then
+        return
+    end
+    g_bypassPending[key] = true
+    local function StillWanted()
+        return not Puzzle.Status(id).solved and BypassTries(id)[tokenid] == nil
+    end
+    Puzzle.RollTest(token, attrid, "", "Force it", BYPASS_TIERS, StillWanted, function(tier)
+        Puzzle.Request(id, { kind = "bypass", tokenid = tokenid, tier = tier })
+    end, function()
+        g_bypassPending[key] = nil
+    end)
 end
 
 ---@param floorid string
@@ -909,29 +1092,61 @@ local function BypassButton(id, floorid, objid)
     if info == nil then
         return nil
     end
-    return gui.Button{
+    local label = string.format("Force it (%s)", info.description)
+
+    ---@return CharacterToken|nil
+    local function Hero()
+        local obj = game.LookupObject(floorid, objid)
+        local range = tonumber(lock.range) or DEFAULT_RANGE
+        local token = obj ~= nil and TokenInRange(obj, range) or nil
+        if token == nil and IsDMOrPlayerHost() then
+            token = Puzzle.MyHero()
+        end
+        return token
+    end
+
+    local button = gui.Button{
         classes = {"sizeXs"},
-        text = string.format("Try %s", info.description),
-        width = 100,
+        text = label,
+        width = "auto",
+        minWidth = 100,
+        hpad = 6,
         height = 22,
         hmargin = 2,
-        thinkTime = 0.5,
-        think = function(element)
-            element:SetClass("collapsed", Puzzle.Status(id).solved == true)
-        end,
         click = function(element)
-            local obj = game.LookupObject(floorid, objid)
-            local range = tonumber(lock.range) or DEFAULT_RANGE
-            local token = obj ~= nil and TokenInRange(obj, range) or nil
-            if token == nil and IsDMOrPlayerHost() then
-                token = (dmhub.selectedOrPrimaryTokens or {})[1]
-            end
+            local token = Hero()
             if token == nil then
                 Toast("Too far away. Move closer.")
                 return
             end
+            if token.charid ~= nil and BypassTries(id)[token.charid] ~= nil then
+                return
+            end
             RollBypass(id, attrid --[[@as string]], token)
         end,
+    }
+    --the think lives on a wrapper: a collapsed panel stops thinking, so the
+    --button could never come back after a Reset.
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        thinkTime = 0.5,
+        think = function(element)
+            button:SetClass("collapsed", Puzzle.Status(id).solved == true)
+            local tok = Hero()
+            local tokenid = tok ~= nil and tok.charid or nil
+            local tried = tokenid ~= nil and BypassTries(id)[tokenid] ~= nil
+            if tried then
+                g_bypassPending[id .. ":" .. tokenid] = nil
+            end
+            local text = cond(tried, string.format("%s tried to force it", HeroName(tokenid, dmhub.userid)), label)
+            if button.text ~= text then
+                button.text = text
+            end
+            button:SetClass("disabled", tried)
+        end,
+        button,
     }
 end
 
@@ -981,18 +1196,64 @@ local function DirectorHeader(floorid, objid)
     end
 end
 
+--Where a player at this lock is, for presence lines: "at the Chest".
+---@param floorid string
+---@param objid string
+---@return string|nil
+local function AtObjectText(floorid, objid)
+    local obj = game.LookupObject(floorid, objid)
+    local name = obj ~= nil and obj.valid and obj.description or nil
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return "at the " .. name
+end
+
+--What a puzzle's locks do on solve ("onSolve") or fail, as lines, for the
+--confirms that name them.
+---@param id string
+---@param listName "onSolve"|"onFail"
+---@return string[]
+function Puzzle.LockEffectLines(id, listName)
+    local lines = {}
+    for _, lock in pairs(Locks(id)) do
+        for _, effect in ipairs(type(lock) == "table" and lock[listName] or {}) do
+            lines[#lines + 1] = DescribeEffect(effect)
+        end
+    end
+    return lines
+end
+
 --Open a lock's puzzle with its title-bar buttons (the Director's puzzle list).
 ---@param id string
 ---@param floorid string
 ---@param objid string
 function Puzzle.OpenLockWindow(id, floorid, objid)
-    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
 end
 
 Puzzle.OpenForJoin = function(id)
     Puzzle.OpenWindow(id, { header = DirectorHeader(nil, nil) })
 end
 
+
+--A library object that names its type (the Combination lock object) starts as
+--that puzzle; a combination lock can be forced with Might.
+---@param lockObject PuzzleLockInteractive
+---@param floorid string
+---@param objid string
+local function CreatePresetPuzzle(lockObject, floorid, objid)
+    local id = lockObject.puzzleid
+    local typeid = lockObject.puzzletype
+    if id == "" or typeid == nil or typeid == "" or Puzzle.Exists(id) or PuzzleType.Get(typeid) == nil then
+        return
+    end
+    local lock = { floorid = floorid, objid = objid, range = DEFAULT_RANGE, onSolve = {}, onFail = {} }
+    if typeid == "combination" then
+        lock.bypassAttr = "mgt"
+    end
+    Puzzle.Create(id, typeid, { locks = { [LockKey(floorid, objid)] = lock } }, nil)
+end
 
 --The Director's Edit command on the object: straight to the lock setup.
 function PuzzleLockInteractive:Edit(controller)
@@ -1002,6 +1263,7 @@ function PuzzleLockInteractive:Edit(controller)
         controller:CompleteChanges("Set up puzzle lock")
         pcall(function() controller:SetAndUploadProperties{ distance = ENGINE_DISTANCE } end)
     end
+    CreatePresetPuzzle(self, controller.floorid, controller.objid)
     OpenSetup(self.puzzleid, controller.floorid, controller.objid)
     return nil
 end
@@ -1020,11 +1282,12 @@ function PuzzleLockInteractive:Interact(controller, token)
         end
         local id = self.puzzleid
         if not Puzzle.Exists(id) then
+            CreatePresetPuzzle(self, floorid, objid)
             OpenSetup(id, floorid, objid)
             return nil
         end
         Puzzle.IndexPuzzle(id, { kind = "lock", floorid = floorid, objid = objid })
-        Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+        Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
         return nil
     end
 
@@ -1040,7 +1303,7 @@ function PuzzleLockInteractive:Interact(controller, token)
         Toast("Too far away. Move closer.")
         return nil
     end
-    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid), atLock = true, where = AtObjectText(floorid, objid) })
     return nil
 end
 
@@ -1055,15 +1318,15 @@ dmhub.RegisterEventHandler("lockedDoorClicked", function(info)
         return
     end
     local controllers = {}
-    for id, entry in pairs(Puzzle.Index()) do
-        if entry.kind == "lock" and not Puzzle.Status(id).solved then
+    for id in pairs(Puzzle.Index()) do
+        if Puzzle.Exists(id) and not Puzzle.Status(id).solved then
             for _, lock in pairs(Locks(id)) do
                 for _, effect in ipairs(lock.onSolve or {}) do
                     if effect.kind == "door" and effect.floorid == info.floorid
                         and math.abs((effect.x or 0) - (info.x or 0)) <= DOOR_MATCH_TILES
                         and math.abs((effect.y or 0) - (info.y or 0)) <= DOOR_MATCH_TILES then
                         local obj = game.LookupObject(lock.floorid, lock.objid)
-                        if obj ~= nil and obj.valid and not obj.inactive then
+                        if obj ~= nil and obj.valid and not obj.inactive and PuzzlePlace.HasLock(lock.floorid, lock.objid, id) then
                             controllers[#controllers + 1] = { floorid = lock.floorid, objid = lock.objid, x = obj.x, y = obj.y, kind = "object" }
                         end
                     end

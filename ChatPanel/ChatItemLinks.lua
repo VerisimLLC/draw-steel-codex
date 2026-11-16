@@ -364,7 +364,13 @@ function ChatItemLinks.Open(item)
             Unavailable("That journal entry no longer exists.")
             return
         end
-        CustomDocument.OpenContent(entry)
+        --what it opens can tell it came from chat (a puzzle says "from chat").
+        ChatItemLinks.openingFromChat = true
+        local ok, err = pcall(CustomDocument.OpenContent, entry)
+        ChatItemLinks.openingFromChat = false
+        if not ok then
+            error(err)
+        end
     elseif kind == "character" then
         local token = dmhub.GetCharacterById(id)
         if token == nil then

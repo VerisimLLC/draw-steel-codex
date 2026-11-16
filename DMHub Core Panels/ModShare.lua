@@ -2148,7 +2148,7 @@ local g_moduleTypes = {
 		--(see HeroModuleReviewAfterPublish below).
 		id = "hero",
 		text = "Hero Module",
-		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. Directors can still install it into a game like any module.",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. " .. UIText.Term("directors") .. " can still install it into a game like any module.",
 		validate = function(ctx)
 			local errors = {}
 			local warnings = {}
@@ -2202,7 +2202,7 @@ local g_moduleTypes = {
 				errors[#errors+1] = string.format("A Hero module's characters must be heroes, which become pregens: %s", table.concat(nonHeroes, ", "))
 			end
 			if hasCode and not dmhub.isAdminAccount then
-				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. Directors can install it into a game straight away."
+				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. " .. UIText.Term("directors") .. " can install it into a game straight away."
 			end
 			return errors, warnings
 		end,
@@ -2252,7 +2252,7 @@ local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeMod
 				report("Its code was approved for an earlier version, so players can use it as a Hero module now.")
 				return
 			end
-			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")
+			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; " .. UIText.Term("directors") .. " can install it now.")
 		end,
 		error = function(msg)
 			report(string.format("Sending it for review failed: %s", msg))

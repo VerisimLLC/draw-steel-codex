@@ -3515,16 +3515,52 @@ function EncounterScript.GauntletNext(beat, section, option, tierTarget, partySi
     return GauntletLanding(beat, target, partySize)
 end
 
+--The entry ids of a montage beat that some "Edge on <option>" result points
+--at, as { [entryId] = true }. Party-size scaling and difficulty notches
+--never remove these, so an earned edge or bane always has its test to use.
+function EncounterScript.EdgeTargetEntries(beat)
+    local targets = {}
+    for _, e in ipairs(EncounterScript.MontageEntries(beat)) do
+        local lists = {}
+        for _, o in ipairs(e.options or {}) do
+            for _, list in ipairs(EncounterScript.OptionEffectLists(o, true, true)) do
+                lists[#lists + 1] = list
+            end
+        end
+        if e.consequence ~= nil then
+            lists[#lists + 1] = e.consequence.effects or {}
+        end
+        for _, list in ipairs(lists) do
+            for _, effect in ipairs(list) do
+                if effect.kind == "testmod" then
+                    targets[effect.key or EncounterScript.MatchKey(effect.name)] = true
+                end
+            end
+        end
+    end
+    local result = {}
+    for _, e in ipairs(EncounterScript.MontageEntries(beat)) do
+        for _, o in ipairs(e.options or {}) do
+            if targets[EncounterScript.MatchKey(o.name)] then
+                result[e.id] = true
+            end
+        end
+    end
+    return result
+end
+
 --The entry ids a montage beat removes for a party of `partySize`, as
 --{ [entryId] = true }. Candidates are only the entries the directive's own
 --round INTRODUCES -- never one carried over from an earlier round -- and
---never one whose heading said "(Required)". A round that asks for more than
---it has drops everything it can.
+--never one whose heading said "(Required)" or that an "Edge on <option>"
+--points at (EdgeTargetEntries). A round that asks for more than it has
+--drops everything it can.
 --`rand(n)` returns an integer in 1..n; math.random by default (the tests
 --pass a deterministic one).
 function EncounterScript.ChooseRemovedEntries(beat, partySize, rand)
     rand = rand or function(n) return math.random(n) end
     local removed = {}
+    local edgeTargets = EncounterScript.EdgeTargetEntries(beat)
     for _, r in ipairs((beat and beat.rounds) or {}) do
         local removals = EncounterScript.ScalingRemovals(r, partySize)
         for _, kind in ipairs({ "opportunity", "threat" }) do
@@ -3532,7 +3568,7 @@ function EncounterScript.ChooseRemovedEntries(beat, partySize, rand)
             if count > 0 then
                 local pool = {}
                 for _, e in ipairs(r.entries) do
-                    if e.kind == kind and not e.required and not e.locked then
+                    if e.kind == kind and not e.required and not e.locked and not edgeTargets[e.id] then
                         pool[#pool + 1] = e.id
                     end
                 end
@@ -3599,6 +3635,7 @@ function EncounterScript.ChooseNotchThreats(beat, removed, notches, rand)
         result.removed[id] = on
     end
     notches = math.floor(tonumber(notches) or 0)
+    local edgeTargets = EncounterScript.EdgeTargetEntries(beat)
     for _ = 1, math.max(0, notches) do
         local pick = EncounterScript.ChooseChallengeThreat(beat, result.removed, rand, result.times)
         if pick == nil then
@@ -3622,7 +3659,7 @@ function EncounterScript.ChooseNotchThreats(beat, removed, notches, rand)
             end
             if #left >= 2 then
                 for _, e in ipairs(left) do
-                    if not e.required and not e.locked then
+                    if not e.required and not e.locked and not edgeTargets[e.id] then
                         pool[#pool + 1] = e.id
                     end
                 end
@@ -6213,12 +6250,13 @@ function EncounterScript.Parse(text)
             if #b.rounds == 0 then
                 Warn(b.line, "%s", T("author.script.montage.empty"))
             end
+            local edgeTargets = EncounterScript.EdgeTargetEntries(b)
             for _, r in ipairs(b.rounds) do
                 for _, d in ipairs(r.scaling or {}) do
                     for kind, n in pairs(d.removals) do
                         local pool = 0
                         for _, e in ipairs(r.entries) do
-                            if e.kind == kind and not e.required and not e.locked then
+                            if e.kind == kind and not e.required and not e.locked and not edgeTargets[e.id] then
                                 pool = pool + 1
                             end
                         end

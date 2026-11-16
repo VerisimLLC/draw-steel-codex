@@ -7753,7 +7753,8 @@ CreateEncounterPanel = function()
     end
 
     --A drop point between two cards (beforeid = the card below it), or after
-    --the last card in a list (beforeid = nil).
+    --the last card in a list (beforeid = nil). It is the whole space between
+    --the cards so the mouse can land on it; the bar inside lights up on hover.
     --- @param folderid string
     --- @param beforeid string|nil
     --- @return Panel
@@ -7762,6 +7763,10 @@ CreateEncounterPanel = function()
             classes = { "encounterDropGap" },
             dragTarget = true,
             data = { folderid = folderid, beforeid = beforeid },
+            gui.Panel {
+                classes = { "encounterDropBar" },
+                interactable = false,
+            },
         }
     end
 
@@ -7791,20 +7796,32 @@ CreateEncounterPanel = function()
                 borderWidth = 2,
                 cornerRadius = 4,
             },
-            --drop gaps between cards: a hairline that grows into an accent
-            --bar under a dragged card, showing where it will land.
+            --drop gaps between cards: the gap itself stays clear (overriding
+            --the default drag-target fills, hence the priority) and its bar
+            --becomes an accent line where a dragged card will land.
             {
                 selectors = { "encounterDropGap" },
                 bgimage = true,
                 bgcolor = "clear",
+                borderWidth = 0,
                 width = "90%",
                 halign = "left",
-                height = 2,
+                height = 16,
+                priority = 10,
             },
             {
-                selectors = { "encounterDropGap", "drag-target-hover" },
-                height = 10,
+                selectors = { "encounterDropBar" },
+                bgimage = true,
+                bgcolor = "clear",
+                width = "100%",
+                height = 4,
+                valign = "center",
+                cornerRadius = 2,
+            },
+            {
+                selectors = { "encounterDropBar", "parent:drag-target-hover" },
                 bgcolor = "@accent",
+                priority = 10,
             },
         })
     end
@@ -7929,6 +7946,12 @@ CreateEncounterPanel = function()
 
                     --boss/headmonster code over
 
+                    --a card filed in a folder shows there, even a book one;
+                    --otherwise book encounters go under Delves.
+                    local folderid = EncounterFolderId(encounter, encounterfolders)
+                    local book = encounter:GetBookInfo()
+                    local inDelves = folderid == "" and book ~= nil
+
                     local card = gui.Panel {
 
                         classes = { "featureCard" },
@@ -7937,17 +7960,26 @@ CreateEncounterPanel = function()
                         halign = "left",
                         flow = "vertical",
                         pad = 1,
-                        vmargin = 8,
+                        --in a folder or the top-level list the drop gaps
+                        --between cards are the spacing.
+                        vmargin = cond(inDelves, 8, 0),
                         draggable = true,
 
                         --in the list it drops on a folder header (files it there)
-                        --or a gap between cards (puts it there); see
-                        --DragIsOffPanel for why nothing counts over the board.
+                        --or a gap between cards (puts it there). Only the one
+                        --under the mouse counts: the engine offers every target
+                        --the dragged card's rectangle overlaps, and a card is
+                        --tall enough to overlap several. See DragIsOffPanel for
+                        --why nothing counts over the board.
                         canDragOnto = function(self, target)
-                            if DragIsOffPanel() then
+                            if DragIsOffPanel() or target == nil then
                                 return false
                             end
-                            return target ~= nil and (target:HasClass("encounterFolderDrop") or target:HasClass("encounterDropGap"))
+                            if not (target:HasClass("encounterFolderDrop") or target:HasClass("encounterDropGap")) then
+                                return false
+                            end
+                            local under = dmhub.panelDropPanel
+                            return under ~= nil and (under == target or under:IsDescendantOf(target))
                         end,
 
                         --over the bare table the card turns into the encounter's
@@ -8222,10 +8254,6 @@ CreateEncounterPanel = function()
 
                     }
 
-                    --a card filed in a folder shows there, even a book one;
-                    --otherwise book encounters go under Delves.
-                    local folderid = EncounterFolderId(encounter, encounterfolders)
-                    local book = encounter:GetBookInfo()
                     if folderid ~= "" then
                         local list = folderCards[folderid]
                         if list == nil then

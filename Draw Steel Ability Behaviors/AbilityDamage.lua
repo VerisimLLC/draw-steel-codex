@@ -52,13 +52,25 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
 	local targetGroups = {}
 
+    --Optional logActorCondition (a condition id): when the creature making this damage
+    --roll (the caster) has that condition, show whoever inflicted it as the actor on the
+    --action log card (e.g. the grabber, when a grabbed creature takes the damage).
+    local logActorId = casterToken.charid
+    local logActorCondition = self:try_get("logActorCondition", "")
+    if logActorCondition ~= "" then
+        local entry = casterToken.properties:try_get("inflictedConditions", {})[logActorCondition]
+        if entry ~= nil and entry.casterInfo ~= nil and entry.casterInfo.tokenid ~= nil then
+            logActorId = entry.casterInfo.tokenid
+        end
+    end
+
     local logMessage = nil
     if string.trim(self.chatMessage) ~= "" then
         logMessage = ActivatedAbilityDamageChatMessage.new{
             amount = 0,
             damageType = self:EffectiveDamageType(ability, options),
             chatMessage = self.chatMessage,
-            casterid = casterToken.charid,
+            casterid = logActorId,
             targetids = tokenids,
         }
     end

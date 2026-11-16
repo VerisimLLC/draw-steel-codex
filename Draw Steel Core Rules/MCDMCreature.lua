@@ -2324,6 +2324,53 @@ creature.RegisterSymbol {
     }
 }
 
+local g_creatureText = UIText.Define("MCDMCreature")
+g_creatureText("symbol.endableeffects.desc", [[Does this creature have a save ends or end of turn condition or effect that is not a buff?]])
+
+--True if the creature has a save-ends or end-of-turn condition/effect that is not a buff.
+--Used to stop Reorder prompting when there is nothing worth ending.
+local function HasEndableEffects(c)
+    if c:has_key("inflictedConditions") then
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, cond in pairs(c.inflictedConditions) do
+            if cond.duration == "save" or cond.duration == "eot" then
+                local info = conditionsTable[condid]
+                if info == nil or info.buffType ~= "buff" then
+                    return true
+                end
+            end
+        end
+    end
+
+    local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+    for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+        if effectInstance.removeOnSave or effectInstance.removeAtNextTurnEnd then
+            local info = effectsTable[effectInstance.ongoingEffectid]
+            if info == nil or info.buffType ~= "buff" then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "endableeffects",
+    lookup = HasEndableEffects,
+    help = {
+        name = "Endable Effects",
+        type = "boolean",
+        desc = UIText.T("symbol.endableeffects.desc"),
+    }
+}
+
+--Lets Count Nearby Creatures(range, "ally", "endable effects") filter on the same state.
+creature.RegisterMatchString {
+    name = "endable effects",
+    match = HasEndableEffects,
+}
+
 creature.RegisterSymbol {
     symbol = "leader",
     lookup = function(c)

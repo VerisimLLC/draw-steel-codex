@@ -13429,7 +13429,7 @@ CreateAbilityController = function()
             --instead of waiting for a manual press of the cast button.
             --A choice of several abilities (Melee or Ranged Free Strike) waits for the player
             --to pick: casting the choice itself does nothing and ends the invoke as cancelled.
-            --Only the option buttons get the targets, or having them would cast the choice.
+            --So the choice gets no targets (with targets it would cast at once); the option buttons still do.
             local awaitsChoice = false
             if options.instantCast then
                 local choices = ability:SynthesizeAbilities(casterToken.properties)

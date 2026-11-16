@@ -353,7 +353,9 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, patrondamage = entry.patrondamage})
+								--abilitydamagecastid: Collision damage credits the ability that did the forced move
+								--(see ForcedMovementCastId in AbilityRelocateCreature.lua); nil otherwise.
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, abilitydamagecastid = options.symbols.forcedmovementcastid, patrondamage = entry.patrondamage})
 								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage, entry.patrondamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end

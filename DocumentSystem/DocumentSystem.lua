@@ -17331,10 +17331,12 @@ end
 --- Shows rows in a panel's bubble beside its rail button, building the bubble if needed.
 --- Nothing shows when the panel is already in front or has no rail button of its own
 --- (grouped away, or parked in the overflow).
---- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[]}
+--- evenInFront: show although the panel is in front, for rows the panel itself does not
+--- hold (audio captions beside Chat).
+--- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[], evenInFront: boolean|nil}
 --- @return boolean shown
 function PanelDocument.ShowRailBubble(args)
-    if #args.rows == 0 or PanelDocument.PanelInFront(args.key, args.panelName) then
+    if #args.rows == 0 or (not args.evenInFront and PanelDocument.PanelInFront(args.key, args.panelName)) then
         return false
     end
     local side, slot, button = PanelDocument.FindRailButton(args.key)

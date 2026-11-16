@@ -1307,6 +1307,7 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
 
     --caster's modifiers.
     local modifiersOnCaster = self:GetActiveModifiers()
+    local indexByCoreKey = {}
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
         if m ~= nil then
@@ -1315,7 +1316,16 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                result[#result+1] = m
+                --Two imbued weapons each carry their own core bonus; list only the best one.
+                local coreKey = DSImbuement.CoreDamageBonusKey(m.modifier)
+                if coreKey == nil then
+                    result[#result+1] = m
+                elseif indexByCoreKey[coreKey] == nil then
+                    result[#result+1] = m
+                    indexByCoreKey[coreKey] = #result
+                elseif DSImbuement.CoreDamageBonusIsBetter(result[indexByCoreKey[coreKey]], m) then
+                    result[indexByCoreKey[coreKey]] = m
+                end
             end
         end
     end
@@ -1622,7 +1632,16 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         })
                         if m.hint ~= nil then
                             local guid = m.modifier:try_get("guid")
-                            if guid == nil then
+                            --Two imbued weapons each carry their own core bonus; show only the best one.
+                            local coreKey = DSImbuement.CoreDamageBonusKey(m.modifier)
+                            if coreKey ~= nil then
+                                if indexByGuid[coreKey] == nil then
+                                    candidateModifiers[#candidateModifiers+1] = m
+                                    indexByGuid[coreKey] = #candidateModifiers
+                                elseif DSImbuement.CoreDamageBonusIsBetter(candidateModifiers[indexByGuid[coreKey]], m) then
+                                    candidateModifiers[indexByGuid[coreKey]] = m
+                                end
+                            elseif guid == nil then
                                 candidateModifiers[#candidateModifiers+1] = m
                             elseif indexByGuid[guid] == nil then
                                 candidateModifiers[#candidateModifiers+1] = m

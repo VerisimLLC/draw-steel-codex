@@ -39,6 +39,28 @@ local g_seenOutcome = {}
 --Timers that Pause all timers stopped, so Resume all restarts only those.
 ---@type table<string, boolean>
 local g_pausedByAll = {}
+--When each puzzle came into play as this client saw it: a stall is timed
+--from here when nobody has moved yet.
+---@type table<string, number>
+local g_playSince = {}
+--The stall the Director has seen on each puzzle (its start), for the badge.
+---@type table<string, number>
+local g_seenStall = {}
+
+local g_stallSetting = setting{
+    id = "puzzlestall",
+    description = "Puzzles count as stalled after",
+    storage = "game",
+    default = "5",
+    editor = "dropdown",
+    section = "Game",
+    enum = {
+        { value = "3", text = "3 minutes" },
+        { value = "5", text = "5 minutes" },
+        { value = "10", text = "10 minutes" },
+        { value = "off", text = "Off" },
+    },
+}
 
 --Which map a floor belongs to, by scanning the game's maps.
 ---@param floorid string
@@ -75,6 +97,32 @@ local function OtherPresent(id)
     return result
 end
 
+--When an in-play puzzle stalled (its last move, or when it came into play),
+--or nil while it is not stalled. A paused timer never stalls: the table is
+--taking a break.
+---@param id string
+---@return number|nil
+local function StallStart(id)
+    local status = Puzzle.Status(id)
+    local inPlay = Puzzle.Exists(id) and not status.solved and not status.failed
+        and (#OtherPresent(id) > 0 or Puzzle.TimeLeft(id) ~= nil)
+    if not inPlay then
+        g_playSince[id] = nil
+        return nil
+    end
+    local now = dmhub.serverTime
+    g_playSince[id] = g_playSince[id] or now
+    local mode = g_stallSetting:Get()
+    if mode == "off" or Puzzle.TimerPaused(id) then
+        return nil
+    end
+    local start = math.max(Puzzle.LastMove(id) or 0, g_playSince[id])
+    if now - start < (tonumber(mode) or 5) * 60 then
+        return nil
+    end
+    return start
+end
+
 ---@class PuzzleListHome
 ---@field key string
 ---@field home PuzzleHome
@@ -87,7 +135,7 @@ end
 ---@field entry PuzzleIndexEntry
 ---@field title string
 ---@field typeName string
----@field group "needs"|"play"|"ready"|"setup"|"done"
+---@field group "needs"|"play"|"half"|"ready"|"setup"|"done"
 ---@field exists boolean
 ---@field people string[] names, not this client
 ---@field placesText string
@@ -96,6 +144,7 @@ end
 ---@field message string|nil the Needs-you line
 ---@field timed boolean the puzzle has a time limit
 ---@field hinted boolean its type has a hint
+---@field movedAt number|nil serverTime of the last player move
 
 ---@param id string
 ---@param key string
@@ -159,6 +208,7 @@ local function BuildRow(id, entry)
         message = nil,
         timed = false,
         hinted = def ~= nil and def.Hint ~= nil,
+        movedAt = Puzzle.LastMove(id),
     }
     if def ~= nil then
         row.timed = Puzzle.EffectiveLimit(Puzzle.ReadConfig(id)) > 0
@@ -183,6 +233,8 @@ local function BuildRow(id, entry)
             row.group = "play"
         elseif g_lastInPlay[id] ~= nil and now - g_lastInPlay[id] < LEAVE_PLAY_SECONDS then
             row.group = "play"
+        elseif row.movedAt ~= nil then
+            row.group = "half"
         end
     end
 
@@ -253,7 +305,17 @@ local function StateView(row)
     local text = table.concat(parts, "  ")
     if urgent then
         return { icon = "phosphor/warning-fill.png", text = text, class = "warning", kind = "urgent" }
-    elseif #people > 0 then
+    end
+    local stall = row.group == "play" and StallStart(id) or nil
+    if stall ~= nil then
+        --the names move to the tooltip; the stall and the timer stay.
+        local stalled = string.format("Stalled %d min", math.floor((dmhub.serverTime - stall) / 60))
+        if left ~= nil then
+            stalled = stalled .. "  " .. parts[#parts]
+        end
+        return { icon = "phosphor/warning-fill.png", text = stalled, class = "warning", kind = "stalled" }
+    end
+    if #people > 0 then
         return { icon = "phosphor/user-fill.png", text = text, class = nil, kind = "people" }
     elseif text ~= "" then
         return { icon = "phosphor/hourglass.png", text = text, class = "fgMuted", kind = "timer" }
@@ -642,6 +704,23 @@ local function HomeLine(ctx, row, h)
     }
 end
 
+--Type, places and, while it is being played or was left half-done, how long
+--since the last move.
+---@param row PuzzleListRow
+---@return string
+local function Line2Text(row)
+    local text = string.format("%s - %s", row.typeName, row.placesText)
+    if row.movedAt ~= nil and (row.group == "play" or row.group == "half") then
+        local minutes = math.floor((dmhub.serverTime - row.movedAt) / 60)
+        if minutes < 1 then
+            text = text .. " - moved just now"
+        else
+            text = string.format("%s - moved %d min ago", text, minutes)
+        end
+    end
+    return text
+end
+
 --The widest the state may get; longer text ends in "...", and the names
 --are in its tooltip.
 local STATE_MAX_WIDTH = 170
@@ -725,7 +804,9 @@ local function UnseenOutcomes()
     end
     local count = 0
     for id in pairs(Puzzle.Index()) do
-        if Puzzle.NeedsDirector(id) and g_seenOutcome[id] ~= Puzzle.OutcomeKey(id) then
+        local stall = StallStart(id)
+        if (Puzzle.NeedsDirector(id) and g_seenOutcome[id] ~= Puzzle.OutcomeKey(id))
+            or (stall ~= nil and g_seenStall[id] ~= stall) then
             count = count + 1
         end
     end
@@ -740,7 +821,9 @@ local function UnseenOutcomesText()
     end
     local titles = {}
     for id in pairs(Puzzle.Index()) do
-        if Puzzle.NeedsDirector(id) and g_seenOutcome[id] ~= Puzzle.OutcomeKey(id) then
+        local stall = StallStart(id)
+        if (Puzzle.NeedsDirector(id) and g_seenOutcome[id] ~= Puzzle.OutcomeKey(id))
+            or (stall ~= nil and g_seenStall[id] ~= stall) then
             local title = Puzzle.Title(id)
             --one line beside the rail: long titles are cut short.
             if #title > 28 then
@@ -769,6 +852,10 @@ local function MarkOutcomesSeen()
         local key = Puzzle.OutcomeKey(id)
         if key ~= nil then
             g_seenOutcome[id] = key
+        end
+        local stall = StallStart(id)
+        if stall ~= nil then
+            g_seenStall[id] = stall
         end
     end
 end
@@ -919,7 +1006,21 @@ local function RowPanel(ctx, row, view)
 
     local line2 = {
         gui.Panel{ width = 24, height = 1, halign = "left" },
-        RowText(string.format("%s - %s", row.typeName, row.placesText), {"sizeS", "fgMuted"}),
+        gui.Label{
+            classes = {"sizeS", "fgMuted"},
+            width = string.format("100%%-%d", 56 + cond(row.gone > 0, 80, 0)),
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = false,
+            textOverflow = "ellipsis",
+            interactable = false,
+            text = Line2Text(row),
+            thinkTime = 1,
+            think = function(element)
+                element.text = Line2Text(row)
+            end,
+        },
     }
     if row.gone > 0 then
         line2[#line2 + 1] = gui.Panel{ width = 8, height = 1 }
@@ -1169,6 +1270,7 @@ end
 local GROUPS = {
     { key = "needs", text = "NEEDS YOU" },
     { key = "play", text = "IN PLAY" },
+    { key = "half", text = "LEFT HALF-DONE" },
     { key = "ready", text = "READY" },
     { key = "setup", text = "NOT SET UP" },
     { key = "done", text = "DONE" },

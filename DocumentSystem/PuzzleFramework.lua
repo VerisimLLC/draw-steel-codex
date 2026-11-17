@@ -292,6 +292,13 @@ function Puzzle.GetType(id)
     return PuzzleType.Get(Puzzle.GetTypeId(id))
 end
 
+--serverTime of the last player move since the puzzle was set up or reset, or nil.
+---@param id string
+---@return number|nil
+function Puzzle.LastMove(id)
+    return tonumber(BoardData(id).movedAt)
+end
+
 --True once a puzzle has a type, i.e. it has been set up.
 ---@param id string
 ---@return boolean
@@ -513,6 +520,7 @@ function Puzzle.Create(id, typeid, config, title)
         data.stateKey = nil
         data.holds = nil
         data.kept = nil
+        data.movedAt = nil
         if title ~= nil then
             data.title = title
         end
@@ -658,6 +666,11 @@ function Puzzle.Change(id, fn, description)
     WriteBoardDoc(id, function(data)
         data.state = state
         data.stateKey = key
+        --the last player move, for the Director's puzzle list (stalled,
+        --left half-done). The Director trying a puzzle does not count.
+        if not dmhub.isDM then
+            data.movedAt = dmhub.serverTime
+        end
     end, description or "Puzzle move")
     CheckOutcome(id, def, state, config)
 end
@@ -735,6 +748,7 @@ function Puzzle.Reset(id)
         data.state = state
         data.stateKey = key
         data.holds = nil
+        data.movedAt = nil
     end, "Reset puzzle")
     WriteStatus(id, function(status)
         for k in pairs(status) do

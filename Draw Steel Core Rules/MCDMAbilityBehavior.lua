@@ -18,7 +18,7 @@ function ActivatedAbility.OppositeSquareOccupied(casterToken, targetToken)
     --Tokens anchored a few squares away can still cover the square, so scan the
     --neighbourhood and compare every square each token occupies.
     for _, tok in ipairs(targetToken:GetNearbyTokens(5) or {}) do
-        if tok.id ~= targetToken.id and tok.id ~= casterToken.id then
+        if tok.charid ~= targetToken.charid and tok.charid ~= casterToken.charid then
             for _, loc in ipairs(tok.locsOccupying) do
                 if loc.x == oppositeLoc.x and loc.y == oppositeLoc.y and loc.floor == oppositeLoc.floor then
                     return true

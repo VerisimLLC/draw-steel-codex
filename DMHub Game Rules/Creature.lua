@@ -12165,6 +12165,55 @@ function creature:DispatchEvent(eventName, info)
 		return
 	end
 
+	--A trigger set to "Fire after other abilities finish" waits for abilities running
+	--where it is evaluated, and the controller's machine cannot see ones running here, so
+	--hold the whole relay (its other triggers wait too), unless something waits on the event.
+	local holdRelay = false
+	if type(info) ~= "table" or rawget(info, "eventwaitid") == nil then
+		for _,entry in ipairs(mods) do
+			if entry.mod:HasTriggeredEvent(self, eventName, targetsOther, "skipLocal") then
+				local ability = entry.mod.triggeredAbility
+				if ability.triggerAfterCasts and ability:MayBePrompted() then
+					holdRelay = true
+					break
+				end
+			end
+		end
+	end
+
+	if holdRelay then
+		--Other code can still change the event's table, so relay it as it is now.
+		local infoAtFire = info ~= nil and table.shallow_copy_with_meta(info) or nil
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not token.valid or token.despawned or token.properties == nil then
+				return
+			end
+			--Who controls the creature may have changed while waiting.
+			local controller = TokenPromptControllerId(token)
+			if controller == nil then
+				token.properties:TriggerEvent(eventName, infoAtFire, triggeredOnOthers, "skipLocal")
+			else
+				token.properties:RelayEventToController(eventName, infoAtFire, controller, abilityNames)
+			end
+		end, {casterid = token.charid})
+		return
+	end
+
+	self:RelayEventToController(eventName, info, activecontroller, abilityNames)
+end
+
+--Sends an event to the machine of the user who answers this creature's prompts;
+--that machine evaluates the creature's triggers for it.
+--- @param eventName string
+--- @param info nil|table The event's details; tokens and creatures in it are sent as charid references.
+--- @param activecontroller string The userid of the machine that should evaluate the triggers.
+--- @param abilityNames string[] Names of the triggers being relayed, for the log.
+function creature:RelayEventToController(eventName, info, activecontroller, abilityNames)
+	local token = dmhub.LookupToken(self)
+	if token == nil then
+		return
+	end
 
     if info ~= nil then
         local serializedInfo = {}

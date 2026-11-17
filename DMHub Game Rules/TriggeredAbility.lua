@@ -9,6 +9,7 @@ local mod = dmhub.GetModLoading()
 --- @field despawnBehavior string What to do when a targeted token despawns: "remove" or "corpse".
 --- @field mandatory boolean|string If true, fires automatically; if false, prompts the player; if a string, uses that setting id.
 --- @field waitForOtherCasts boolean If false, waits only for casts by or targeting its creature, not every cast.
+--- @field triggerAfterCasts boolean If true, a prompted trigger waits until the abilities resolving when its event fired have finished, then checks its subject and trigger condition, picks targets and prompts. Its cost, action use and on/off switch are still checked when the event fires.
 --- @field trigger string The event id that triggers this ability.
 --- @field triggerFilter nil|string GoblinScript formula that must be truthy for the trigger to fire.
 --- @field characterConditionRequired? string Condition id the subject must have for the trigger to fire ("none"/nil for no requirement); read with try_get.
@@ -980,6 +981,10 @@ TriggeredAbility.hostile = false
 --(and the cast it fired in), not every cast on this machine. Only for
 --mandatory triggers that show nothing, such as the Monster Death rule.
 TriggeredAbility.waitForOtherCasts = true
+--If true, a prompted trigger runs once the abilities resolving when its event fired
+--are done, so its condition and targets see the board after them (e.g. after a killing
+--blow's push). A death trigger needs its creature kept on the map until then.
+TriggeredAbility.triggerAfterCasts = false
 
 function TriggeredAbility.OnDeserialize(self)
 	ActivatedAbility.OnDeserialize(self)
@@ -1215,6 +1220,7 @@ end
 --- @field alreadyPaid nil|boolean
 --- @field triggerDispatched nil|boolean Set by Trigger once a cast is started or scheduled; that cast answers complete.
 --- @field triggerPrompting nil|boolean Set by Trigger while a prompt is open; the prompt's end answers complete.
+--- @field evaluatingAfterCasts nil|boolean Set on the second run of a triggerAfterCasts trigger, so it does not wait again.
 
 --- The square at the centre of an area: the one of its squares nearest the mean of
 --- them all (the exact centre of an odd cube or burst). nil for an empty area.
@@ -1347,6 +1353,38 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 			creature:DispatchEvent("finishability", {usedability = self})
 		end
 
+		return
+	end
+
+	--"Fire after other abilities finish": wait for the abilities resolving now, then run
+	--this trigger from the top so its checks and targets see the board after them. Not when
+	--something waits on its answer (a held roll, an AI turn, a turn start): it would stall.
+	local aiWaitsOnAnswer = casterToken.playerControlled and symbols ~= nil
+		and type(symbols.aiActivityId) == "string" and symbols.aiActivityId ~= ""
+	if self.triggerAfterCasts and self:MayBePrompted() and not argOptions.evaluatingAfterCasts
+		and argOptions.complete == nil and not aiWaitsOnAnswer
+		and (type(symbols) ~= "table" or rawget(symbols, "eventwaitid") == nil) then
+		if argOptions.debugLog then
+			argOptions.debugLog[#argOptions.debugLog+1] = {
+				name = self.name,
+				success = true,
+				reason = "Waiting for other abilities to finish",
+			}
+		end
+
+		--The event's symbols table is shared with the other triggers on this event,
+		--which can still change it, so keep a copy of it as it is now.
+		local symbolsAtFire = table.shallow_copy_with_meta(symbols or {})
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not casterToken.valid or casterToken.despawned or casterToken.properties == nil then
+				return
+			end
+			local laterOptions = table.shallow_copy(argOptions)
+			laterOptions.evaluatingAfterCasts = true
+			laterOptions.debugLog = nil
+			self:TriggerUnguarded(characterModifier, casterToken.properties, symbolsAtFire, auraControllerToken, modContext, laterOptions)
+		end, {casterid = casterToken.charid})
 		return
 	end
 

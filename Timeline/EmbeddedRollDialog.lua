@@ -4454,7 +4454,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         --exception: only the roller can say whether it applies.
                         --So is an opt-in option the roller can afford (hint.optIn, e.g.
                         --To the Uttermost End's extra Ferocity, Barbed Tail's once per
-                        --round): paying or spending the use is their choice.
+                        --round, or an option of the ability itself like Blood for Blood!):
+                        --paying or taking the option is their choice.
                         local rollerChoice = mod.rollerDecides == true
                         if not rollerChoice and mod.hint ~= nil and mod.hint.optIn == true and creature ~= nil then
                             local maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)

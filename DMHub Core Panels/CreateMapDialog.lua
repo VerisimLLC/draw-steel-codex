@@ -2117,14 +2117,14 @@ mod.shared.ShowCreateMapDialog = function(options)
     }
     --a creator logo in place of the glyph and the name: its own aspect
     --within the row's height, untinted so a wide wordmark reads, and
-    --centered in the row since it stands alone (the count stays right).
+    --left-aligned with the other rows' glyphs (the count stays right).
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavIcon", "cmNavLogo"},
         width = "auto",
         height = "auto",
         maxWidth = 160,
         maxHeight = 36,
-        halign = "center",
+        halign = "left",
         rmargin = 0,
         autosizeimage = true,
         bgcolor = "white",
@@ -2427,7 +2427,7 @@ mod.shared.ShowCreateMapDialog = function(options)
         end
         --one row per creator, named once the creator's record lands.
         --A creator with a wide logo (a wordmark) shows the logo alone,
-        --centered: the name would only repeat what the wordmark says. A
+        --left-aligned: the name would only repeat what the wordmark says. A
         --squarer logo is an emblem with no name in it (Tom Cartos), so it
         --takes the glyph's place beside the name instead.
         for _, creator in ipairs(creatorOrder) do

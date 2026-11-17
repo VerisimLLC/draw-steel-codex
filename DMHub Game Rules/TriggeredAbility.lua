@@ -1221,6 +1221,7 @@ end
 --- @field triggerDispatched nil|boolean Set by Trigger once a cast is started or scheduled; that cast answers complete.
 --- @field triggerPrompting nil|boolean Set by Trigger while a prompt is open; the prompt's end answers complete.
 --- @field evaluatingAfterCasts nil|boolean Set on the second run of a triggerAfterCasts trigger, so it does not wait again.
+--- @field gatedByModifier nil|boolean Set by CharacterModifier:TriggerEvent, whose TriggerGatesPass a triggerAfterCasts trigger runs again after waiting.
 
 --- The square at the centre of an area: the one of its squares nearest the mean of
 --- them all (the exact centre of an odd cube or burst). nil for an empty area.
@@ -1356,38 +1357,6 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 		return
 	end
 
-	--"Fire after other abilities finish": wait for the abilities resolving now, then run
-	--this trigger from the top so its checks and targets see the board after them. Not when
-	--something waits on its answer (a held roll, an AI turn, a turn start): it would stall.
-	local aiWaitsOnAnswer = casterToken.playerControlled and symbols ~= nil
-		and type(symbols.aiActivityId) == "string" and symbols.aiActivityId ~= ""
-	if self.triggerAfterCasts and self:MayBePrompted() and not argOptions.evaluatingAfterCasts
-		and argOptions.complete == nil and not aiWaitsOnAnswer
-		and (type(symbols) ~= "table" or rawget(symbols, "eventwaitid") == nil) then
-		if argOptions.debugLog then
-			argOptions.debugLog[#argOptions.debugLog+1] = {
-				name = self.name,
-				success = true,
-				reason = "Waiting for other abilities to finish",
-			}
-		end
-
-		--The event's symbols table is shared with the other triggers on this event,
-		--which can still change it, so keep a copy of it as it is now.
-		local symbolsAtFire = table.shallow_copy_with_meta(symbols or {})
-		ActivatedAbility.RunWhenCastsComplete(function()
-			--The creature may have died and left the map while waiting; then nothing fires.
-			if mod.unloaded or not casterToken.valid or casterToken.despawned or casterToken.properties == nil then
-				return
-			end
-			local laterOptions = table.shallow_copy(argOptions)
-			laterOptions.evaluatingAfterCasts = true
-			laterOptions.debugLog = nil
-			self:TriggerUnguarded(characterModifier, casterToken.properties, symbolsAtFire, auraControllerToken, modContext, laterOptions)
-		end, {casterid = casterToken.charid})
-		return
-	end
-
     local subjectTarget = self:try_get("subject", "self")
     ---@type creature|nil
     local subject = symbols and symbols.subject
@@ -1514,6 +1483,8 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 
 
 	modContext = modContext or {}
+	--The event's own table, kept for a triggerAfterCasts rerun (see below).
+	local eventSymbols = symbols
 	symbols = table.shallow_copy(symbols or {})
     symbols.mode = symbols.mode or 1
 
@@ -1766,6 +1737,44 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 				token = casterToken,
 			},
 		}
+	end
+
+	--"Fire after other abilities finish": it passed every check now, so wait for the
+	--abilities resolving now, then run it again from the top: it must still pass every
+	--check, and picks its targets, on the board they leave. Not when something waits on
+	--its answer (a held roll, an AI turn, a turn start): waiting would stall that.
+	local aiWaitsOnAnswer = casterToken.playerControlled
+		and type(symbols.aiActivityId) == "string" and symbols.aiActivityId ~= ""
+	if self.triggerAfterCasts and self:MayBePrompted() and not argOptions.evaluatingAfterCasts
+		and argOptions.complete == nil and not aiWaitsOnAnswer
+		and rawget(symbols, "eventwaitid") == nil then
+		if argOptions.debugLog then
+			argOptions.debugLog[#argOptions.debugLog+1] = {
+				name = self.name,
+				success = true,
+				reason = "Waiting for other abilities to finish",
+			}
+		end
+
+		--The event's table is shared with the other triggers on this event, which can
+		--still change it, so keep a copy of it as it is now.
+		local symbolsAtFire = table.shallow_copy_with_meta(eventSymbols or {})
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not casterToken.valid or casterToken.despawned or casterToken.properties == nil then
+				return
+			end
+			--Fired from a modifier's event: its checks (resources, triggered actions
+			--allowed, switched on, in combat) must still pass too.
+			if argOptions.gatedByModifier and not characterModifier:TriggerGatesPass(casterToken.properties, nil) then
+				return
+			end
+			local laterOptions = table.shallow_copy(argOptions)
+			laterOptions.evaluatingAfterCasts = true
+			laterOptions.debugLog = nil
+			self:TriggerUnguarded(characterModifier, casterToken.properties, symbolsAtFire, auraControllerToken, modContext, laterOptions)
+		end, {casterid = casterToken.charid})
+		return
 	end
 
     --Past every gate: this trigger fires or prompts. See TriggeredAbility.FiredCount.

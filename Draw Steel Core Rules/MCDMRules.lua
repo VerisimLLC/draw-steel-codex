@@ -787,12 +787,16 @@ GameSystem.RegisterGoblinScriptField{
                 return 0
             end
 
+            --A creature using an ability from another's space flanks from that space, so
+            --the creature standing there can't also be its partner.
+            local ourFlanker = creature.FlankingStandIn(ourToken)
+            local actors = {[ourFlanker.charid] = ourToken}
             local count = 0
             for _,tok in ipairs(dmhub.allTokens) do
-                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                if tok.charid ~= ourToken.charid and tok.charid ~= ourFlanker.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
                    and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
                    and targetCreature:FlankedBy(ourToken) and targetCreature:FlankedBy(tok)
-                   and #targetCreature:GetFlankingTokens({ ourToken, tok }) >= 2 then
+                   and #targetCreature:GetFlankingTokens({ ourFlanker, tok }, actors) >= 2 then
                     count = count + 1
                 end
             end

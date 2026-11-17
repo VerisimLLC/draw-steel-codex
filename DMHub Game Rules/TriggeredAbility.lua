@@ -1077,11 +1077,21 @@ local g_departureTriggers = {
     teleport = true,
 }
 
+--Events dispatched on the creature using an ability (most carry it as usedability).
+local g_abilityUserTriggers = {
+    useability = true,
+    targetwithability = true,
+    finishability = true,
+    dealdamage = true,
+    attack = true,
+    rollpower = true,
+}
+
 --Distance for a subjectRange gate. On a departure trigger the subject's token
 --may already sit at its destination -- the observer's client applies the moved
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
---live token.
+--live token, unless the subject used the ability from another creature's space (below).
 --How tall a token is for range purposes, in squares. Objects count as one square
 --tall, as targeting has always treated them.
 local function RangeHeightInTiles(tok)
@@ -1107,6 +1117,35 @@ end
 local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
     local subjectHeight = RangeHeightInTiles(subjectToken)
     local casterHeight = RangeHeightInTiles(casterToken)
+
+    --A subject using an ability as if it stood in another creature's space is measured
+    --from that space. Only for events whose subject is the ability's user: a damage
+    --event on the victim carries the ability too.
+    if g_abilityUserTriggers[triggerName] then
+        --power-roll events carry the ability as "ability" rather than "usedability".
+        local usedAbility = symbols and (symbols.usedability or symbols.ability) or nil
+        local actingFromId = nil
+        local isAbility = false
+        if type(usedAbility) == "table" then
+            actingFromId = rawget(usedAbility, "actingFromTokenId")
+            --pcall: some events pass a plain symbol table, which has no IsDerivedFrom.
+            pcall(function() isAbility = usedAbility.IsDerivedFrom("ActivatedAbility") == true end)
+        end
+        local actingFromToken = nil
+        if actingFromId ~= nil then
+            actingFromToken = dmhub.GetTokenById(actingFromId)
+        elseif not isAbility then
+            --A strike event passes the ability as a symbol table with no actingFromTokenId, so
+            --ask the open cast instead (known only on the casting client). A real ability without
+            --actingFromTokenId, such as a trigger firing mid-cast, is measured from the subject.
+            actingFromToken = ActivatedAbility.ActingFromToken(subjectToken.charid)
+        end
+        if actingFromToken ~= nil then
+            local actingFromHeight = RangeHeightInTiles(actingFromToken)
+            local gap = VerticalGapInTiles(actingFromToken.altitude, actingFromHeight, casterToken.altitude, casterHeight)
+            return WithVerticalGap(actingFromToken:Distance(casterToken), gap)
+        end
+    end
 
     if not g_departureTriggers[triggerName] then
         local gap = VerticalGapInTiles(subjectToken.altitude, subjectHeight, casterToken.altitude, casterHeight)

@@ -140,7 +140,7 @@ text("great_forge.giddlebrick.title", [[Tinkerer's Guild]])
 
 text("great_forge.intro.line1_npc", [[Well hello there! I'm Giddlebrick Thundlestrom head of the Blackbottom Chapter of the Tinkerer's Guild. You must be here to help with construction of the Forge.]])
 text("great_forge.intro.line2_hero", [[Why yes, yes I am. How shall we get started?]])
-text("great_forge.intro.line3_npc", [[Eager to get into it, nice to see it! Now, you must understand that we are the Tinkerer's Guild have chosen this location specifically for the Forge. The most powerful treasures infused with power will be constructed here my friend!]])
+text("great_forge.intro.line3_npc", [[Eager to get into it, nice to see it! Now, you must understand that we are the Tinkerer's Guild have chosen this location specifically for the Forge. The most powerful treasures in all the land will be forged here, my friend!]])
 text("great_forge.intro.line4_hero", [[Oh, why is that? What's so special about this place?]])
 text("great_forge.intro.line5_npc", [[Oh this is a magical place my friend. Right here we are standing on a spot where planes converge. Took a lot of measuring and the right amount of divination to determine that, let me tell you! But here, the planes come together, and magical energy from other realms seeps into our own. All the better to craft the best treasures with!]])
 --The hero's answer: a Fury, Tactician or Beastheart...

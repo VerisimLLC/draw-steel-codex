@@ -1,6 +1,7 @@
 --Encounter of the Week: reinforcements and the clear-the-map victory.
 --
---Two features of the "# Encounter" beat, both parsed by EncounterScript.lua:
+--Features of the "# Encounter" beat (the first and last parsed by
+--EncounterScript.lua):
 --
 --  * "## Reinforcements: <Name>" sections. Each has an "Arrive:" schedule
 --    (named rounds, or recurring), an "Enter:" zone type, optional "Shout:"
@@ -9,17 +10,31 @@
 --    (several islands take turns, one per arrival) in that zone, scaled to
 --    the party like the opening encounter, and puts them in the initiative
 --    so they act that round. One of them shouts a random "Shout:" line.
+--  * The encounter builder's own reinforcement waves ("Add Reinforcements"
+--    in the combat builder: Encounter.waves, each a name and a round, 2-6
+--    or "every"; a wave's groups carry group.wave). Outside EotW the
+--    Director deploys them from the initiative bar's Reinforcements strip;
+--    an EotW game has no Director (and the authoring test runs as a player
+--    host), so the host brings them in here: a numbered wave at the start
+--    of its round (or on the first tick after it, if one was missed),
+--    "every" at the start of every round from round 2. Spawned like a
+--    section's island and marked deployed on the live encounter, so the
+--    victory check stops counting them as still to come.
 --  * "Victory: every Dwarf on the map is defeated" (or "every enemy ..."):
 --    an extra way to win on top of the encounter's own condition. It counts
 --    only the enemies standing on the map, never the ones still to come.
 --
 --Document state (eotwscript document, next to zoneSetup):
 --  data.reinforcements = {
---    arrived = { ["<sectionId>-r<round>"] = { round, at, island, count } },
+--    arrived = { ["<sectionId>-r<round>"] = { round, at, island, count },
+--                ["wave-<waveid>-r<round>"] = { round, at, count, wave } },
 --    spawned = { charid, ... },  -- every token that arrived, for test resets
 --  }
 --An arrival is stamped BEFORE its monsters spawn, so a failed spawn is never
---retried into a double wave.
+--retried into a double wave. The stamp that decides whether a WAVE is due
+--lives on the live encounter instead (deployedWaves, and eotwWaveRounds for
+--"every"): that is made fresh for each combat, where the document's record
+--is only cleared by a test reset.
 
 local mod = dmhub.GetModLoading()
 
@@ -128,8 +143,8 @@ local function Arrive(script, section, ordinal, queue, live)
         return {}, index
     end
 
-    --Challenge Mode balances a wave like the opening fight (ChallengeBalance).
-    local numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
+    --difficulty notches balance a wave like the opening fight (DifficultyBalance).
+    local numHeroes, extraLevels = EncounterOfTheWeekGame.DifficultyBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
     local zoneLocs = section.zone ~= nil and ZoneLocs(section.zone) or {}
     if section.zone ~= nil and #zoneLocs == 0 then
         printf("EotW reinforcements: the map has no '%s' zone; '%s' arrive at their saved positions", tostring(section.zone), tostring(section.name))
@@ -175,7 +190,7 @@ local function Arrive(script, section, ordinal, queue, live)
     end
     --each wave is levelled on its own, like the opening fight.
     if #spawned > 0 then
-        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(levelUp), "reinforcements")
+        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(extraLevels), "reinforcements")
     end
     game.UpdateCharacterTokens()
 
@@ -246,13 +261,170 @@ local function DueArrivals(beat, round, arrived)
     return due
 end
 
+--- encounter-builder waves --------------------------------------------------
+
+--The last round an "every" wave arrived in, per wave id, on the live
+--encounter (copy-on-write, like deployedWaves). Rides the initiative queue,
+--so a new host after a handover sees it.
+LiveEncounter.eotwWaveRounds = {}
+
+--The waves of the live encounter due at the start of `round`.
+local function DueWaves(live, round)
+    local due = {}
+    local everyRounds = live:try_get("eotwWaveRounds", {})
+    for _, wave in ipairs(live:try_get("waves", {})) do
+        if live:WaveHasMonsters(wave.id) then
+            if wave.round == "every" then
+                if round >= 2 and everyRounds[wave.id] ~= round then
+                    due[#due + 1] = wave
+                end
+            elseif type(wave.round) == "number" and round >= wave.round and not live:IsWaveDeployed(wave.id) then
+                due[#due + 1] = wave
+            end
+        end
+    end
+    return due
+end
+
+--Where a wave group with no saved positions comes in: the first saved
+--position of its wave, else of any group in the encounter (the opening
+--fight's ground), else the host's camera. SpawnGroupForReal lays the
+--unplaced monsters out in a grid around it.
+local function WaveAnchor(live, group)
+    local own = (group.spawnlocs or {})[1]
+    if own ~= nil then
+        return own
+    end
+    local fallback = nil
+    for _, other in ipairs(live.groups or {}) do
+        local loc = (other.spawnlocs or {})[1]
+        if loc ~= nil then
+            if other.wave == group.wave then
+                return loc
+            end
+            fallback = fallback or loc
+        end
+    end
+    return fallback or dmhub.cameraPosition
+end
+
+--Spawn one wave's groups. Host, elevated by the caller. Returns the
+--spawned charids.
+local function ArriveWave(live, wave, queue)
+    local numHeroes, extraLevels = EncounterOfTheWeekGame.DifficultyBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
+    local spawned = {}
+    local mountEntries = {}
+    for groupIndex, group in ipairs(live.groups or {}) do
+        if group.wave == wave.id and Encounter.AdjustedGroupCount(group, numHeroes) > 0 then
+            --a copy, so the live encounter's group is never touched, and
+            --without the placement id: these are not the builder's staging.
+            local copy = DeepCopy(group)
+            copy.placementid = nil
+            local groupid, charids, mounts = Encounter.SpawnGroupForReal(copy, numHeroes, WaveAnchor(live, group))
+            for _, charid in ipairs(charids) do
+                spawned[#spawned + 1] = charid
+                local token = dmhub.GetTokenById(charid)
+                if token ~= nil then
+                    token:ModifyProperties{
+                        description = "Reinforcements",
+                        undoable = false,
+                        execute = function()
+                            token.properties.eotwReinforcement = "wave-" .. wave.id
+                        end,
+                    }
+                end
+            end
+            for _, m in ipairs(mounts or {}) do
+                mountEntries[#mountEntries + 1] = { group = groupIndex, slot = m.slot, token = m.token }
+            end
+            --they take their turns from this round on.
+            if #charids > 0 and queue ~= nil then
+                queue:SetInitiative(groupid, 0, 0)
+            end
+        end
+    end
+    --riders saved in the saddle, as the Director's deploy does.
+    if #mountEntries > 0 then
+        pcall(function() Encounter.RestoreMounts(live, mountEntries) end)
+    end
+    --each wave is levelled on its own, like the opening fight.
+    if #spawned > 0 then
+        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(extraLevels), "reinforcements")
+    end
+    game.UpdateCharacterTokens()
+    --their own card on the victory screen's Monsters tab.
+    if #spawned > 0 then
+        pcall(function() live:RecordOnsetMonsterGroups(spawned) end)
+    end
+    return spawned
+end
+
+--Host, from HostTick: bring in the live encounter's waves due this round.
+local function WaveTick(queue, live, round)
+    local due = DueWaves(live, round)
+    if #due == 0 then
+        return
+    end
+
+    --stamp first, on the live encounter (networked with the queue below):
+    --a spawn that throws must not come round again next tick. An "every"
+    --wave is marked deployed too, so it stops counting as still to come.
+    for _, wave in ipairs(due) do
+        live:MarkWaveDeployed(wave.id)
+        if wave.round == "every" then
+            live.eotwWaveRounds = DeepCopy(live:try_get("eotwWaveRounds", {}))
+            live.eotwWaveRounds[wave.id] = round
+        end
+    end
+
+    local results = {}
+    ElevateToHostPermissions()
+    for _, wave in ipairs(due) do
+        local ok, spawned = pcall(ArriveWave, live, wave, queue)
+        if not ok then
+            printf("EotW reinforcements: wave '%s' failed to arrive: %s", tostring(wave.name), tostring(spawned))
+            spawned = {}
+        else
+            printf("EotW reinforcements: round %d, wave '%s' (%s): %d monsters", round, tostring(wave.name), Encounter.WaveRoundText(wave), #spawned)
+        end
+        results[#results + 1] = { wave = wave, spawned = spawned }
+    end
+    pcall(function() dmhub:UploadInitiativeQueue() end)
+    DropHostPermissions()
+
+    --the document's record: for /eotwreinforce state and the test reset.
+    local doc = EncounterMontage.GetDoc()
+    doc:BeginChange()
+    doc.data.reinforcements = doc.data.reinforcements or {}
+    doc.data.reinforcements.arrived = doc.data.reinforcements.arrived or {}
+    local list = doc.data.reinforcements.spawned or {}
+    for _, r in ipairs(results) do
+        doc.data.reinforcements.arrived[string.format("wave-%s-r%d", r.wave.id, round)] = {
+            round = round, at = dmhub.serverTime, count = #r.spawned, wave = tostring(r.wave.name),
+        }
+        for _, charid in ipairs(r.spawned) do
+            list[#list + 1] = charid
+        end
+    end
+    doc.data.reinforcements.spawned = list
+    doc:CompleteChange("Encounter of the Week: reinforcement waves arrived", { undoable = false })
+end
+
 --Host, every tick while combat is live and no outcome is pending: bring in
---whatever the current round's schedule says. Idempotent per (section,
---round) through the document. `force` = {section index} brings that
---section's next arrival in now, whatever the round (the dev command).
+--whatever the current round's schedule says -- the script's sections and
+--the encounter builder's waves. Idempotent per (section, round) through the
+--document, per wave through the live encounter. `force` = {section index}
+--brings that section's next arrival in now, whatever the round (the dev
+--command).
 function EncounterReinforcements.HostTick(queue, live, force)
     if queue == nil or queue.hidden then
         return
+    end
+    if force == nil and live ~= nil then
+        local ok, err = pcall(WaveTick, queue, live, tonumber(queue.round) or 1)
+        if not ok then
+            printf("EotW reinforcements: wave tick failed: %s", tostring(err))
+        end
     end
     local beat, script = EncounterReinforcements.EncounterBeat()
     if beat == nil or #(beat.reinforcements or {}) == 0 then
@@ -327,6 +499,180 @@ function EncounterReinforcements.HostTick(queue, live, force)
     doc:CompleteChange("Encounter of the Week: reinforcements arrived", { undoable = false })
 end
 
+--- monsters that fled an earlier part ------------------------------------
+--The "Monsters Fled from Last Fight" Encounter Script (builtin:fled-monsters,
+--`stragglers = true`) on a series part's opening encounter: the monsters the
+--previous part's result lists as escaped through its Retreat Zone join this
+--part's opening fight, in the encounter's Stragglers Zone, less one for each
+--"one of the fleeing monsters is destroyed" clause (doc.data.retreatKills).
+--A part recorded with a count but no list (a test's Story so far) is filled
+--from that part's own opening fight.
+
+--The bestiary entry for one fled monster: the entry it was spawned from,
+--else the visible entry of its monster type.
+local function FledMonsterId(rec)
+    if rec.monsterid ~= nil and assets.monsters[rec.monsterid] ~= nil then
+        return rec.monsterid
+    end
+    local wanted = lower(rec.monsterType or rec.name)
+    local fallback = nil
+    for id, m in pairs(assets.monsters) do
+        local t, hidden = nil, false
+        pcall(function()
+            t = m.properties:try_get("monster_type")
+            hidden = m.hidden == true
+        end)
+        if t ~= nil and lower(t) == wanted then
+            if not hidden then
+                return id
+            end
+            fallback = fallback or id
+        end
+    end
+    return fallback
+end
+
+--The monsters of a series part's own opening fight, one bestiary id per
+--creature, non-minions first (who flees first when only a count is known).
+local function PartFightMonsters(part)
+    local ids = {}
+    pcall(function()
+        local found = EncounterMontage.ScriptForMap(game.currentMapId)
+        for _, script in ipairs(found.parts or {}) do
+            if script.parse.part ~= nil and script.parse.part.number == part and script.doc ~= nil then
+                local tag = (script.doc:try_get("annotations") or {})["encounter"]
+                local enc = tag ~= nil and tag:try_get("encounter") or nil
+                local minions = {}
+                for _, group in ipairs(enc ~= nil and enc.groups or {}) do
+                    if group.wave == nil then
+                        for id, count in pairs(group.monsters or {}) do
+                            local isMinion = false
+                            pcall(function() isMinion = assets.monsters[id].properties.minion == true end)
+                            for _ = 1, tonumber(count) or 0 do
+                                if isMinion then
+                                    minions[#minions + 1] = id
+                                else
+                                    ids[#ids + 1] = id
+                                end
+                            end
+                        end
+                    end
+                end
+                for _, id in ipairs(minions) do
+                    ids[#ids + 1] = id
+                end
+            end
+        end
+    end)
+    return ids
+end
+
+--Who the encounter's "Monsters Fled from Last Fight" script brings in:
+--{ part, monsters = { bestiary id, ... }, kills }, or nil when the encounter
+--has no such script or this is not a later part of a series.
+function EncounterReinforcements.RetreatedJoining(encounter)
+    if encounter == nil or not encounter:HasStragglersScript() then
+        return nil
+    end
+    local part = (tonumber(EncounterOfTheWeekGame.ActivePart()) or 1) - 1
+    if part < 1 then
+        return nil
+    end
+    local list = {}
+    local rec = EncounterMontage.Story().parts[part]
+    if type(rec) == "table" then
+        for _, r in ipairs(rec.retreated or {}) do
+            local id = FledMonsterId(r)
+            if id ~= nil then
+                list[#list + 1] = id
+            else
+                printf("EotW: no bestiary entry for '%s', which fled Part %d", tostring(r.monsterType or r.name), part)
+            end
+        end
+        local count = tonumber(rec.retreats) or #list
+        if #list < count then
+            local fight = PartFightMonsters(part)
+            for i = #list + 1, math.min(count, #fight) do
+                list[#list + 1] = fight[i]
+            end
+        end
+    end
+    local kills = tonumber(EncounterMontage.GetDoc().data.retreatKills) or 0
+    for _ = 1, kills do
+        if #list == 0 then
+            break
+        end
+        table.remove(list, math.random(#list))
+    end
+    return { part = part, monsters = list, kills = kills }
+end
+
+--The encounter's Stragglers Zone tiles on the current map, shuffled, the
+--free ones first.
+local function StragglerLocs(encounter)
+    local free, taken = {}, {}
+    for _, loc in ipairs(Encounter.StartLocsOnCurrentMap(encounter:GetStragglerLocs())) do
+        if game.GetTokensAtLoc(loc) == nil then
+            free[#free + 1] = loc
+        else
+            taken[#taken + 1] = loc
+        end
+    end
+    for _, list in ipairs({ free, taken }) do
+        for i = #list, 2, -1 do
+            local j = math.random(1, i)
+            list[i], list[j] = list[j], list[i]
+        end
+    end
+    for _, loc in ipairs(taken) do
+        free[#free + 1] = loc
+    end
+    return free
+end
+
+--Host, from the opening spawn (EncounterOfTheWeekGame.SpawnEncounterGroups):
+--spawn the monsters that fled the previous part, one initiative group per
+--monster type, in the encounter's Stragglers Zone (else around `anchor`).
+--Returns the spawned charids.
+function EncounterReinforcements.SpawnRetreatedJoining(encounter, numHeroes, anchor)
+    local joining = EncounterReinforcements.RetreatedJoining(encounter)
+    if joining == nil then
+        return {}
+    end
+    if #joining.monsters == 0 then
+        printf("EotW: no monsters that fled Part %d join the fight (%d destroyed on the way)", joining.part, joining.kills)
+        return {}
+    end
+    local counts, order = {}, {}
+    for _, id in ipairs(joining.monsters) do
+        if counts[id] == nil then
+            counts[id] = 0
+            order[#order + 1] = id
+        end
+        counts[id] = counts[id] + 1
+    end
+    local zoneLocs = StragglerLocs(encounter)
+    if #zoneLocs == 0 then
+        printf("EotW: the encounter has no Stragglers Zone; the monsters that fled Part %d arrive beside the fight", joining.part)
+    end
+    local used = { n = 0 }
+    local spawned = {}
+    for _, id in ipairs(order) do
+        local group = { monsters = { [id] = counts[id] } }
+        local at = anchor or dmhub.cameraPosition
+        if #zoneLocs > 0 then
+            group.spawnlocs = PickLocs(zoneLocs, counts[id], used)
+            at = group.spawnlocs[1]
+        end
+        local _, charids = Encounter.SpawnGroupForReal(group, numHeroes, at)
+        for _, charid in ipairs(charids) do
+            spawned[#spawned + 1] = charid
+        end
+    end
+    printf("EotW: %d monster(s) that fled Part %d join the fight in the Stragglers Zone (%d destroyed on the way)", #spawned, joining.part, joining.kills)
+    return spawned
+end
+
 --- the clear-the-map victory ----------------------------------------------
 
 --The beat's "Victory:" instruction, or nil.
@@ -360,12 +706,12 @@ local function IsKind(token, who)
     return match
 end
 
---The enemies still standing on the map: monsters nobody controls, not the
---script's bystanders, not dead. `who` narrows it (see IsKind).
+--The enemies still standing on the map: monsters not fighting for the heroes,
+--not the script's bystanders, not dead. `who` narrows it (see IsKind).
 function EncounterReinforcements.LivingEnemies(who)
     local result = {}
     for _, token in ipairs(dmhub.allTokens) do
-        if token.valid and token.properties ~= nil and not token.playerControlled then
+        if token.valid and token.properties ~= nil and not Encounter.FightsForHeroes(token) then
             local isMonster, isHero, dead = false, false, false
             pcall(function()
                 isMonster = token.properties:IsMonster()
@@ -431,6 +777,16 @@ local function ReinforceCommand(str)
                 r.schedule ~= nil and EncounterScript.DescribeSchedule(r.schedule) or "NO SCHEDULE",
                 tostring(r.zone or "(saved positions)"), #r.islands, #r.shouts)
         end
+        --the encounter builder's waves, as the live combat holds them.
+        local q = dmhub.initiativeQueue
+        local live = q ~= nil and not q.hidden and q:try_get("liveEncounter") or nil
+        if type(live) == "table" then
+            for _, wave in ipairs(live:try_get("waves", {})) do
+                printf("wave %s: %s, %s%s", tostring(wave.name), Encounter.WaveRoundText(wave),
+                    cond(live:IsWaveDeployed(wave.id), "arrived", "to come"),
+                    cond(live:WaveHasMonsters(wave.id), "", " (NO MONSTERS)"))
+            end
+        end
         local ins = EncounterReinforcements.VictoryInstruction(beat)
         if ins ~= nil then
             printf("Victory: %s (%d standing now)", EncounterScript.DescribeVictory(ins), #EncounterReinforcements.LivingEnemies(ins.who))
@@ -461,7 +817,7 @@ pcall(function()
     Commands.RegisterMacro{
         name = "eotwreinforce",
         summary = "inspect or bring in Encounter of the Week reinforcements",
-        doc = "Usage: /eotwreinforce [state | arrive <n>]\nstate lists the current map script's reinforcement sections, the Victory: line and what has arrived; arrive <n> brings section n's next arrival in now (combat must be live).",
+        doc = "Usage: /eotwreinforce [state | arrive <n>]\nstate lists the current map script's reinforcement sections, the live combat's encounter-builder waves, the Victory: line and what has arrived; arrive <n> brings section n's next arrival in now (combat must be live).",
         command = ReinforceCommand,
     }
 end)

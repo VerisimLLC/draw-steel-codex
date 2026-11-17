@@ -9,7 +9,11 @@
 --- @field thumbnailImage string|nil Asset id of this map's thumbnail: a ~512px picture of its default floor, lit, with no tokens, usable as a bgimage. nil until the Director captures one. See MAP_THUMBNAILS.md. (Read-only)
 --- @field thumbnailStale boolean True when the map has been edited since its thumbnail was captured; the Director's next visit recaptures it. (Read-only)
 --- @field terrainLoaded boolean (Read-only) True once this map's terrain record (heightmap, terrain paint and effects) has reached this client, from its local cache or the server. Until then the map reads as flat ground at altitude 0, so Loc.withGroundAltitude and token pastes that stand on the ground get it wrong over raised or sunken terrain: wait for this before placing tokens on a map just entered. False for a map this client has not entered or prefetched.
+--- @field preview boolean True when this map is a Map Preview (mappacks.AddMapToGame with preview = true; MAP_PREVIEW_REFERENCE.md): a map-pack map added only to be looked at, hidden from game.maps, impossible to duplicate, copy from or export, and deleted by DiscardPreview.
+--- @field previewOwner nil|string The userid of whoever opened this Map Preview, or nil when the map is not a preview.
 --- @field packSource nil|{pack: string, mapid: string} The map pack this map was added from, or nil for a map that did not come from a map pack. pack is the pack's module fullid and mapid the map's id inside the pack. Maps added before provenance was recorded are recognised by their id when it is in the synced map pack index. (Read-only)
+--- @field sceneAppearances nil|{name: string, thumb: string}[] The looks of a full scene this map can switch between (Day, Night, ...; SCENE_APPEARANCES_REFERENCE.md), in order, or nil for an ordinary map. thumb is a content-addressed image URL to show as "md5:" .. thumb, or "" when the look has no preview. Index 0 is the first look; sceneAppearance says which is showing. (Read-only)
+--- @field sceneAppearance integer Index (from 0) of the scene look this map is showing; 0 for an ordinary map. See sceneAppearances. (Read-only)
 --- @field water nil|{floor: string, level: number, zone: string, visual: {mode: string, tilesheet: string, shallowColor: string, deepColor: string, minOpacity: number, maxOpacity: number, fullDepth: number, foam: boolean, depthLines: boolean, layers: number, artLevel: number|nil}} The map's water level (WATER_LEVEL_REFERENCE.md), or nil when the map has none. A table {floor = floor id ('' = the ground-level floor), level = surface altitude in tiles (a multiple of 0.5), visual = {mode = 'surface'|'none', tilesheet = terrain tilesheet id ('' = built-in Water), shallowColor, deepColor (html color strings), minOpacity, maxOpacity, fullDepth, foam, depthLines, layers (0-4), artLevel (nil, or the level the map art already shows)}}. Ground lower than the level by 1 or more is deep water (swimming; creatures float at the surface and may dive to the bed); by less than 1 is shallow water (difficult terrain, keyword 'Shallow Water', for creatures without a swim speed). zone = an environmental keyword (zone type) id, or '' -- when set, only squares inside zones of that type can be under water. Assigning a table replaces the record (fields it leaves out keep their current values) as one undoable change; assigning nil removes the water. Creatures move with a changed level automatically (MapWaterLevel.FloatTokensAfterLevelChange).
 --- @field defaultFloorId any
 --- @field groundLevel any
@@ -42,6 +46,15 @@ function MapManifestLua:FitDimensionsToMapImages(expandOnly) end
 --- Capture this map's thumbnail now, upload it and store it on the map (thumbnailImage). Only the current map can be captured, and only by the Director. The screen freezes for a moment while the map is rendered. Asynchronous: complete(assetid) when the thumbnail is stored, error(message) if it could not be made.
 --- @param options {complete: (fun(assetid: string): nil)|nil, error: (fun(message: string): nil)|nil}|nil
 function MapManifestLua:CaptureThumbnail(options) end
+
+--- Director (or player host) only. Deletes this Map Preview: its manifest, floors and terrain, every token on it (a hero on it is taken off the map, not deleted), the asset records only it brought into the game, and every undo and redo step that touched any of them. Not undoable. Travel off the map first. Returns false, doing nothing, when the map is not a preview.
+--- @return boolean
+function MapManifestLua:DiscardPreview() end
+
+--- Director only. Switches this map to another of its scene looks (index from 0, see sceneAppearances): the look's own lights, sounds, props, walls, notes and zones come in, the previous look's go out, map art follows, and the look's map settings (ambient light, weather) apply. One undoable change. Works on the current map only. Returns nil on success, else a message saying why it could not.
+--- @param index integer
+--- @return string|nil
+function MapManifestLua:SetSceneAppearance(index) end
 
 --- Sets this map's water level (a multiple of 0.5; other values are rounded), creating the water record with the default appearance if the map has none. nil removes the water level. options.floor picks the floor (default: the record's floor, else the ground-level floor). Creatures settle with the new level automatically.
 --- @param level number|nil
@@ -106,7 +119,7 @@ function MapManifestLua:GetSetting(id) end
 --- @return boolean
 function MapManifestLua:IsPlayerViewableFor(userid) end
 
---- Director only. Sets who this map is 'Player Viewable' for: all = true for every player (including players who join later), otherwise users = {userid = true} for just those players (nil or empty for nobody). Uploads at once, as one undoable change, and works on any map, not just the current one.
+--- Director only. Sets who this map is 'Player Viewable' for: all = true for every player (including players who join later), otherwise users = {userid = true} for just those players (nil or empty for nobody). Uploads at once, as one undoable change, and works on any map, not just the current one. Does nothing on a Map Preview.
 --- @param all boolean
 --- @param users nil|table<string, boolean>
 function MapManifestLua:SetPlayerViewable(all, users) end

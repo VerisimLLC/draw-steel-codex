@@ -3,8 +3,8 @@
 --- @class SheetContainer
 --- @field wrapper any
 --- @field sheet any
---- @field width any
---- @field height any
+--- @field width number
+--- @field height number
 --- @field isCreating boolean
 SheetContainer = {}
 

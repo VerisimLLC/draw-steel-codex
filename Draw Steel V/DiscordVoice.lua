@@ -1069,6 +1069,7 @@ function DiscordVoice.CreateMenu(close)
             flow = "horizontal",
             tmargin = 4,
             codeButton,
+            provisionalLinkButton,
         },
         deviceCodePanel,
 

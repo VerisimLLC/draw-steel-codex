@@ -2517,6 +2517,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         --asking for placement, so we can expose the chosen creature as a symbol
         local choices = {}
         if self.monsterType == "custom" then
+            --The filter can read the creature this summon is for as `target`
+            --(e.g. Abyssal Evolution: "a horde demon of the target's level").
+            local previousTarget = args.symbols.target
+            if target.token ~= nil and target.token.properties ~= nil then
+                args.symbols.target = GenerateSymbols(target.token.properties)
+            end
             for k,monster in pairs(assets.monsters) do
                 --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
                 local node = assets:GetMonsterNode(k)
@@ -2527,6 +2533,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end
                 end
             end
+            args.symbols.target = previousTarget
         else
             local monster = assets.monsters[self.monsterType]
             if monster ~= nil then
@@ -2676,6 +2683,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
 
+        --A Summoner only picks squads for minions, so a Summoner's Dominion fixture
+        --uses no squad slot. Other casters still pick for anyone: captains join squads.
+        local function ChoosesSquadFor(option)
+            return usesSquadChooser and ((not isSummoner) or option.properties:try_get("minion", false))
+        end
+
         --When a summoned creature turns into another one, such as an Elemental
         --Mote, the new creature belongs to whoever summoned the old one. It used
         --to belong to the old creature, which is removed right after.
@@ -2761,7 +2774,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
 
             local loc
             if self.replaceCaster then
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -2785,7 +2798,9 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 loc = casterToken.loc
             elseif manualPlacement then
                 local squadCtxArg = nil
-                if usesSquadChooser then
+                --The player can change creature inside the placement picker, so offer
+                --squads even while the current pick is not a minion.
+                if ChoosesSquadFor(chosenOption) or (usesSquadChooser and creatureChoiceInline) then
                     if placementSquadCtx == nil then
                         local encounterSquadsByType = nil
                         local encounterAllSquads = nil
@@ -2870,6 +2885,10 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     chosenOption = pickedCreature
                     args.symbols.summon = GenerateSymbols(chosenOption.properties)
                 end
+                if squadResult ~= nil and not ChoosesSquadFor(chosenOption) then
+                    --the creature finally placed is not a minion: it takes no squad.
+                    squadResult = nil
+                end
                 if squadResult ~= nil then
                     --PromptPlacementLoc only returns a squad result when given squadCtxArg, which is placementSquadCtx.
                     ---@cast placementSquadCtx -nil
@@ -2884,7 +2903,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end
                 end
             else
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -3092,6 +3111,18 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 token.teleportAnimation = SUMMON_EMERGE_STYLE
                 token.properties.summonEmergeHide = true
                 token.properties.summonEmergeDuration = emergeDuration
+            end
+
+            --a monster-side summon (Abyssal Evolution, a monster calling help) is
+            --named like an encounter spawn ("Demon Ruinant 3"); the spawn skips
+            --OnCreateFromBestiary, so it would otherwise have no name. Hero
+            --summons keep their old unnamed behavior.
+            if not casterToken.playerControlled and (token.name or "") == "" then
+                pcall(function()
+                    if token.properties:IsMonster() then
+                        monster.AssignGeneratedName(token.properties --[[@as monster]], token)
+                    end
+                end)
             end
 
             ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)

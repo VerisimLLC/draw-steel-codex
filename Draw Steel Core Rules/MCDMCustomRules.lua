@@ -196,11 +196,10 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 
 	local classFeatures = {}
 
+	--Class content ticked for the companion is left out: the hero does not have it.
 	for i,entry in ipairs(self:GetClassesAndSubClasses()) do
-		entry.class:FillFeatureDetailsForLevel(self:GetLevelChoices(), entry.level, self:ExtraLevelInfo(), i ~= 1, classFeatures)
+		entry.class:FillHeroFeatureDetailsForLevel(self:GetLevelChoices(), entry.level, self:ExtraLevelInfo(), i ~= 1, classFeatures)
 	end
-
-
 
 	for _,f in ipairs(classFeatures) do
 		result[#result+1] = f

@@ -223,8 +223,9 @@ local function AbilityStrikeGrant(ability, creature, depth)
             local inner = nil
             if abilityType == "standard" then
                 inner = MCDMUtils.GetStandardAbility(behavior:try_get("standardAbility", ""))
-            elseif abilityType == "custom" then
-                inner = behavior:try_get("customAbility")
+            elseif behavior:CastsAsCustom() then
+                --A custom ability, or what a module's registered invoke type previews.
+                inner = behavior:HeldAbility(creature)
             elseif abilityType == "named" then
                 inner = FindNamedAbility(creature, behavior:try_get("namedAbility", ""))
             end

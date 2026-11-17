@@ -121,6 +121,14 @@ A granted chip's caster is the creature it was granted to (`grantedToTokenId`, s
   players (`PeerUserObjectAimMessage`: best-effort UDP updates, reliable stop), and the
   saved facing is a normal object patch.
 
+**Mode selection:** `g_castModesPanel`'s `refreshModes` builds one `ModeButton` per mode;
+`SelectCastMode(modeIndex, castNow)` switches the cast. When `ability:UsesTargetFirstModes`
+(Heal: the setting, `multipleModes == true`, one target) the strip waits for a target, checks
+each mode with `ModeAvailableForTarget` against `g_targetsChosen[1]`, shows
+`targetUnavailableText` for failures, and a button press casts; the target click never does.
+Targeting marks a creature no mode passes invalid (`TargetFirstUnavailableReason`); if one is
+picked anyway, the strip offers "Choose another target", which deselects it.
+
 **Settings:**
 
 - `newactionbar` (bool, default true) -- "Use New Action Bar" preference toggle.

@@ -24,6 +24,10 @@ function gui.LayoutSettleDiagnostics(options) end
 --- @return Panel
 function gui.Panel(args) end
 
+--- Render a panel offscreen into an image, for use as a bgimage (or bgimageMask). The panel should be freshly built and not added anywhere: it is laid out at width x height UI units on a hidden canvas, rendered once (at scale pixels per unit, default 1) after its images load, then destroyed. complete receives an 'md5:' image id stored in the local image cache -- it is never uploaded, so every client renders its own copy -- plus the pixel width and height. transparent (default false) clears to transparent instead of black, for panels without an opaque background. Raises a Lua error for invalid arguments; rendering failures go to error.
+--- @param args {panel: Panel, width: number, height: number, scale: nil|number, transparent: nil|boolean, complete: fun(imageid: string, width: number, height: number), error: nil|fun(message: string)}
+function gui.RenderToImage(args) end
+
 --- Canvas
 --- @deprecated
 --- @param table? any

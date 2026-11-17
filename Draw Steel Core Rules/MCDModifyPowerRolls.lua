@@ -151,6 +151,30 @@ local function RollTypeMatches(modifier, rollType, options)
     return true
 end
 
+--- True when the modifier is one of the rolled ability's own options: it comes from a
+--- Modify Power Roll behavior on that ability (Blood for Blood!, Star Solo's sonic damage).
+--- The ability's own text offers these to whoever uses it, so they are the roller's choice.
+--- @param modifier CharacterModifier
+--- @param ability nil|ActivatedAbility the ability being rolled (options.ability).
+--- @return boolean
+local function IsOptionOfRolledAbility(modifier, ability)
+    if ability == nil then
+        return false
+    end
+    local guid = modifier:try_get("guid")
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" then
+            local option = behavior:try_get("modifier")
+            --Match by guid too: the ability being cast can be a copy of the one
+            --that supplied the modifier.
+            if option ~= nil and (option == modifier or (guid ~= nil and option:try_get("guid") == guid)) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 
 CharacterModifier.RegisterType('power', "Modify Power Rolls")
 
@@ -639,17 +663,21 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        --No activation formula: never ticked for the roller. If it is a paid spend or a
-        --limited-use option (Barbed Tail's once per round) that would otherwise apply to this
-        --roll (keywords, skills, affordable, uses left), flag it optIn so the roll dialog
-        --still lets the roller choose it under Strictly Enforce Rolls.
+        --No activation formula: never ticked for the roller. If it is a paid spend, a
+        --limited-use option (Barbed Tail's once per round) or an option of the ability being
+        --rolled (Blood for Blood!'s 1d6 for 1d6), and it would otherwise apply to this roll
+        --(keywords, skills, affordable, uses left), flag it optIn so the roll dialog still
+        --lets the roller choose it under Strictly Enforce Rolls. Other never-ticked modifiers
+        --(a feature's "edge on tests to notice threats") stay hidden there: the rules cannot
+        --tell whether they apply.
         if activationCondition == false or activationCondition == "" then
+            local rollerChoice = self:IsPaidSpend(creature) or self:IsUsageLimited() or IsOptionOfRolledAbility(self, options.ability)
             local probeOptions = shallow_copy_table(options)
             probeOptions.assumeActivated = true
             return {
                 result = false,
                 justification = {},
-                optIn = (self:IsPaidSpend(creature) or self:IsUsageLimited()) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
+                optIn = rollerChoice and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
             }
         end
 
@@ -2446,6 +2474,12 @@ CharacterModifier.TypeInfo.power = {
                                     id = "none",
                                     text = "No Effects",
                                 },
+                                --the original target keeps the strike and half its
+                                --damage; the new one takes the rest of the damage.
+                                {
+                                    id = "split",
+                                    text = "Split Damage",
+                                },
                             },
                             valign = "center",
                             idChosen = modifier:try_get("changeTargetEffect", "all"),
@@ -3316,6 +3350,10 @@ function CharacterModifier:ShouldShowInPowerRollDialog(modContext, creature, rol
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     local shouldShow = typeInfo.shouldShowInPowerRollDialog
     if shouldShow ~= nil then
+        --An imbued weapon marked only Melee gives none of its bonuses to ranged abilities, and vice versa.
+        if DSImbuement.IsWeaponRangeMismatch(modContext, options) then
+            return false
+        end
         self:InstallSymbolsFromContext(modContext)
         self:InstallSymbolsFromContext(options)
         local result = shouldShow(self, creature, rollType, nil, options)

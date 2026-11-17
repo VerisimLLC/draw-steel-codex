@@ -215,11 +215,11 @@ function CharacterFeatureList:FillChoice(choices, result)
             --Possibly store in _tmp_prerequisites or similar.
             local featureCopy = table.shallow_copy_with_meta(feature)
             featureCopy.prerequisites = parentPrereqs
-			featureCopy:FillChoice(choices, result)
+			Class.FillChildChoice(featureCopy, choices, result)
 		end
 	else
 		for i, feature in ipairs(self.features) do
-			feature:FillChoice(choices, result)
+			Class.FillChildChoice(feature, choices, result)
 		end
 	end
 end
@@ -231,16 +231,20 @@ function CharacterFeatureList:FillFeaturesRecursive(choices, result)
     
     if parentPrereqs and #parentPrereqs > 0 then
         for i, feature in ipairs(self.features) do
-            --The prerequisites are checked on return from this function, so we need to
-            --copy the feature. TODO: work out a more efficient way to do this, since it's not ideal.
-            --Possibly store in _tmp_prerequisites or similar.
-            local featureCopy = table.shallow_copy_with_meta(feature)
-            featureCopy.prerequisites = parentPrereqs
-            featureCopy:FillFeaturesRecursive(choices, result)
+            if not Class.SkipForHero(feature) then
+                --The prerequisites are checked on return from this function, so we need to
+                --copy the feature. TODO: work out a more efficient way to do this, since it's not ideal.
+                --Possibly store in _tmp_prerequisites or similar.
+                local featureCopy = table.shallow_copy_with_meta(feature)
+                featureCopy.prerequisites = parentPrereqs
+                featureCopy:FillFeaturesRecursive(choices, result)
+            end
         end
     else
         for i, feature in ipairs(self.features) do
-            feature:FillFeaturesRecursive(choices, result)
+            if not Class.SkipForHero(feature) then
+                feature:FillFeaturesRecursive(choices, result)
+            end
         end
     end
 end

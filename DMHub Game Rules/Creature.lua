@@ -6506,7 +6506,11 @@ function creature:FillEquipmentModifiers(result)
 			local features = item:try_get("features")
 			if features then
 				--consumeItemId: a trigger from a consumable spends the item (TriggerPayCost).
-				local params = cond(EquipmentCategory.IsConsumable(item), {consumeItemId = itemid}, nil)
+				--sourceItemId: lets game systems check the item a modifier came from.
+				local params = {sourceItemId = itemid}
+				if EquipmentCategory.IsConsumable(item) then
+					params.consumeItemId = itemid
+				end
 				for i,feature in ipairs(features) do
                     feature:FillModifiers(self, result, params)
 				end
@@ -6692,7 +6696,8 @@ function creature:FillBaseActiveModifiers(result)
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
-    local iscompanion = self.typeName == "AnimalCompanion"
+    --Asked of the creature, not its type name, so a companion subtype gets the companion rules too.
+    local iscompanion = self:IsCompanion()
 
 	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
 	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
@@ -10856,7 +10861,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -10878,6 +10895,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -10892,7 +10912,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -10958,7 +10978,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -12145,6 +12165,55 @@ function creature:DispatchEvent(eventName, info)
 		return
 	end
 
+	--A trigger set to "Fire after other abilities finish" waits for abilities running
+	--where it is evaluated, and the controller's machine cannot see ones running here, so
+	--hold the whole relay (its other triggers wait too), unless something waits on the event.
+	local holdRelay = false
+	if type(info) ~= "table" or rawget(info, "eventwaitid") == nil then
+		for _,entry in ipairs(mods) do
+			if entry.mod:HasTriggeredEvent(self, eventName, targetsOther, "skipLocal") then
+				local ability = entry.mod.triggeredAbility
+				if ability.triggerAfterCasts and ability:MayBePrompted() then
+					holdRelay = true
+					break
+				end
+			end
+		end
+	end
+
+	if holdRelay then
+		--Other code can still change the event's table, so relay it as it is now.
+		local infoAtFire = info ~= nil and table.shallow_copy_with_meta(info) or nil
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not token.valid or token.despawned or token.properties == nil then
+				return
+			end
+			--Who controls the creature may have changed while waiting.
+			local controller = TokenPromptControllerId(token)
+			if controller == nil then
+				token.properties:TriggerEvent(eventName, infoAtFire, triggeredOnOthers, "skipLocal")
+			else
+				token.properties:RelayEventToController(eventName, infoAtFire, controller, abilityNames)
+			end
+		end, {casterid = token.charid})
+		return
+	end
+
+	self:RelayEventToController(eventName, info, activecontroller, abilityNames)
+end
+
+--Sends an event to the machine of the user who answers this creature's prompts;
+--that machine evaluates the creature's triggers for it.
+--- @param eventName string
+--- @param info nil|table The event's details; tokens and creatures in it are sent as charid references.
+--- @param activecontroller string The userid of the machine that should evaluate the triggers.
+--- @param abilityNames string[] Names of the triggers being relayed, for the log.
+function creature:RelayEventToController(eventName, info, activecontroller, abilityNames)
+	local token = dmhub.LookupToken(self)
+	if token == nil then
+		return
+	end
 
     if info ~= nil then
         local serializedInfo = {}
@@ -15417,4 +15486,11 @@ end
 --- @return boolean
 function monster:IsMonster()
     return true
+end
+
+--- Returns false for most creatures; a hero's companion type (the Beastheart's
+--- AnimalCompanion and its subtypes) overrides it to true.
+--- @return boolean
+function creature:IsCompanion()
+    return false
 end

@@ -21,6 +21,8 @@ ActivatedAbility.RegisterType
 --symbols: A table of any symbols defined for the ability. Note the "cast" symbol which contains many useful fields and functions.mod
 --  In a power roll trigger's "Trigger Before" ability, symbols.parenttriggerid is the id of the trigger that started it:
 --  casterToken.properties:GetAvailableTriggers()[symbols.parenttriggerid]
+--options: a table shared by every behavior in this one use of the ability. Store values in it to
+--  pass them to a later script, and pass it to functions that ask for it, e.g. ability:CommitToPaying(casterToken, options).
 --
 --Remember you can print out fields using e.g. print("Token:", casterToken) and get more information about the field in the debug console.
             ]],
@@ -37,7 +39,8 @@ function ActivatedAbilityScriptBehavior:Cast(ability, casterToken, targets, opti
         ability = ability,
         casterToken = casterToken,
         targets = targets,
-        symbols = options.symbols
+        symbols = options.symbols,
+        options = options,
     }, {__index = _G})
     local f, err = load(self.code, "CustomAbilityScript", "t", env)
     if f == nil then
@@ -67,7 +70,7 @@ function ActivatedAbilityScriptBehavior:EditorItems(parentPanel)
                 return
             end
 
-            local f, err = load(self.code, "CustomAbilityScript", "t", {ability = false, casterToken = false, targets = false, symbols = false})
+            local f, err = load(self.code, "CustomAbilityScript", "t", {ability = false, casterToken = false, targets = false, symbols = false, options = false})
             if f ~= nil then
                 element.text = "Code compiled successfully"
             else
@@ -113,7 +116,8 @@ function ActivatedAbilityScriptBehavior:EditorItems(parentPanel)
             halign = "left",
             multiline = true,
             text = self.code,
-            characterLimit = 10000,
+            --Roomy so scripts can carry plain-language comments for novice readers.
+            characterLimit = 50000,
             textAlignment = "topleft",
             change = function(element)
                 self.code = element.text

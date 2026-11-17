@@ -14,7 +14,7 @@ function MapExportCameraLua:SetMapTourExport(options) end
 --- SetFullMapExport
 function MapExportCameraLua:SetFullMapExport() end
 
---- Record the current export (the full map, or the map tour set by SetMapTourExport) as an MP4. hz is the frame rate (default 60) and duration the length in seconds (default 50). progress(fraction) is called as frames are written and complete() when the video is done. Then the video is saved to path if one is given (an .mp4 file; its folder is created), otherwise a Save dialog asks where; error(message) is called if it cannot be saved.
+--- Record the current export (the full map, or the map tour set by SetMapTourExport) as an MP4. hz is the frame rate (default 60) and duration the length in seconds (default 50). progress(fraction) is called as frames are written and complete() when the video is done. Then the video is saved to path if one is given (an .mp4 file; its folder is created), otherwise a Save dialog asks where; error(message) is called if it cannot be saved, or at once when the current map is a Map Preview, which cannot be exported.
 --- @param options {hz: number|nil, duration: number|nil, path: string|nil, progress: (fun(fraction: number): nil)|nil, complete: (fun(): nil)|nil, error: (fun(message: string): nil)|nil}
 function MapExportCameraLua:ExportVideo(options) end
 

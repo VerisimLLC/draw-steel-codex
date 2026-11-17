@@ -26,6 +26,7 @@
 --- @field loadingScreenHeld boolean (Read-only) True while a Lua hold keeps the game loading screen up. See HoldLoadingScreen.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
+--- @field gameSystem nil|string The game system id of the current game (an entry of dmhub.availableGameSystems, e.g. 'dmhub-legacy', 'dmhub-dnd2024'), with an empty record read as the white label's default ('mcdm-drawsteel' or 'dmhub-legacy'). Readable while code mods load, so rules code can branch on it at load time. nil when no game is loaded.
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
@@ -311,6 +312,11 @@ function dmhub.SanitizeDatabaseKey(key) end
 --- @param instanceGuid? string
 function dmhub.UnloadMod(instanceGuid) end
 
+--- Sends tokens through a map teleporter to the destination the player picked: the second half of dmhub.ChooseTeleporterDestination. args.floorid and args.objid name the teleporter, args.tokens is a list of token ids, args.destination is the id of the chosen destination teleporter. Returns false if the teleporter or destination no longer exists.
+--- @param args {floorid: string, objid: string, tokens: string[], destination: string}
+--- @return boolean
+function dmhub.UseTeleporter(args) end
+
 --- Performs a polygon boolean operation (Clipper, even-odd fill -- the same library the floor editing pipeline uses). Each subject/clip polygon is either a flat {x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}} table; coordinates are in whatever space the caller uses (e.g. tile coordinates) and come back in the same space. operation defaults to 'difference' (subjects minus clips). Returns a list of structured {points, holes} polygons; islands nested inside holes come back as separate entries.
 --- @param args {subjects: (number[]|{points: number[], holes: number[][]})[], clips: (number[]|{points: number[], holes: number[][]})[], operation: nil|"difference"|"intersection"|"union"|"xor"}
 --- @return {points: number[], holes: number[][]}[]
@@ -388,11 +394,6 @@ function dmhub.RefreshMapAuras() end
 --- @param args {floorIndex: number, threshold: number, x1: number|nil, y1: number|nil, x2: number|nil, y2: number|nil, locs: number[]|nil, knownState: string|nil, levels: boolean|nil}
 --- @return nil|{state: string, locs: number[], levels: number[]|nil}
 function dmhub.GetDarkTiles(args) end
-
---- Sends tokens through a map teleporter to the destination the player picked: the second half of dmhub.ChooseTeleporterDestination. args.floorid and args.objid name the teleporter, args.tokens is a list of token ids, args.destination is the id of the chosen destination teleporter. Returns false if the teleporter or destination no longer exists.
---- @param args {floorid: string, objid: string, tokens: string[], destination: string}
---- @return boolean
-function dmhub.UseTeleporter(args) end
 
 --- Gets a UI container suitable for putting a UI into for the given floor. panelid is a unique id you can provide for your interface name.
 --- @param floorid string
@@ -546,7 +547,7 @@ function dmhub.FillTerrain(terrainid) end
 --- @return EventSourceLua
 function dmhub.SetMapTool(toolInfo) end
 
---- Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved.
+--- Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved, or if it is "#MapExport" while the current map is a Map Preview, which cannot be exported.
 --- @param options {texture: string, filename: string|nil, error: (fun(message: string): nil)|nil}
 function dmhub.SaveImageDialog(options) end
 
@@ -881,6 +882,20 @@ function dmhub.SetMovementCrossSection(args) end
 
 --- Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
 function dmhub.ClearMovementCrossSection() end
+
+--- Whether this player has muted the map with the given id (the speaker button in a map window's titlebar). Muting is personal and saved on this machine only: a muted map's Audio objects play nothing and its door sounds are not heard by this player.
+--- @param mapid string
+--- @return boolean
+function dmhub.IsMapMuted(mapid) end
+
+--- Mutes or unmutes the map with the given id for this player only (see dmhub.IsMapMuted). Saved on this machine; never sent to the game.
+--- @param mapid string
+--- @param muted boolean
+function dmhub.SetMapMuted(mapid, muted) end
+
+--- Tells the engine which map is live while no window shows it (its window closed or minimized), or nil when the live map is on screen. That map plays no sound for this player, as if muted (see dmhub.IsMapMuted), but this is not saved and IsMapMuted does not report it. Called by the tabletop window manager.
+--- @param mapid nil|string
+function dmhub.SetHiddenLiveMap(mapid) end
 
 --- Claims the mouse wheel over the map and returns the wheel notches turned there since the last call (positive = wheel up, 0 = none). While claimed the wheel does not zoom the camera; the claim lasts a quarter of a second, so call this every frame you want the wheel (e.g. from a think) and the camera zoom comes back on its own once you stop. Wheel turns over UI panels, outside the map, or with a modifier key held are not claimed.
 --- @return number
@@ -1447,15 +1462,6 @@ function dmhub.DebugGameServerDrop() end
 --- @param connect? string
 function dmhub.SimulateSteamJoin(connect) end
 
---- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
---- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
-function dmhub.GetSteamFriends() end
-
---- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
---- @param steamId string
---- @return boolean
-function dmhub.JoinSteamFriend(steamId) end
-
 --- True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @param orgid string The id of the creator organization.
 --- @return boolean
@@ -1521,6 +1527,17 @@ function dmhub.RunSteamHandoffDiagnostic(variant, onComplete) end
 --- @param nonce string A nonce returned from a successful RunSteamHandoffDiagnostic call.
 --- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete) end
+
+--- Reads a secret stored on this machine only with @see SetLocalSecret (Windows: DPAPI for this Windows user; macOS: the keychain). Returns nil when there is none. Keys are [a-z0-9_-], at most 64 characters.
+--- @param key string
+--- @return nil|string
+function dmhub.GetLocalSecret(key) end
+
+--- Stores a secret on this machine only, never in the cloud, logs or settings files: for credentials such as a partner's device token. nil or an empty string removes it. Returns false when it could not be stored.
+--- @param key string
+--- @param value nil|string
+--- @return boolean
+function dmhub.SetLocalSecret(key, value) end
 
 --- Open the given URL in a web browser. Only links to certain approved domains will be allowed for security reasons.
 --- @param url? string
@@ -2147,6 +2164,28 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
+--- Diagnostic: how the style cascade finds the rules of each ancestor's styles list that match a panel. 0 = test every rule (the original walk), 1 = test only the rules an index says the panel could match (default), 2 = verify: do both, keep the original result and count any difference. Pass -1 to leave the mode as it is; pass reset=true to zero the counters. Returns the counters. --style-index off|on|verify at startup sets the same switch.
+--- @param mode? integer
+--- @param reset? boolean
+--- @return string
+function dmhub.StyleIndexMode(mode, reset) end
+
+--- Diagnostic: how many plain panels and labels the widget pool is filled to at the title screen and behind the loading screen (before the game HUD is built), so building the HUD rents widgets instead of instantiating them. Pass -1 to leave a count as it is; 0, 0 turns prewarming off (--pool-prewarm off at startup does the same). Returns the settings and the current pool stock.
+--- @param panels? integer
+--- @param labels? integer
+--- @return string
+function dmhub.PoolPrewarm(panels, labels) end
+
+--- Diagnostic: whether panels that look the same share one material (default on; --panel-material-share off at startup turns it off). Sharing is what lets UGUI batch panel backgrounds: each panel's colour, size, brightness, opacity and border colour go in its vertices, not its material. mode: 1 = on, 0 = off, -1 (default) = leave as it is; reset=true zeroes the cache counters. Returns a census of the live panels: how many draw a background, through a shared material or one of their own (and why), how many distinct materials and material+texture pairs they use, and the cache counters.
+--- @param mode? integer
+--- @param reset? boolean
+--- @return string
+function dmhub.PanelMaterialSharing(mode, reset) end
+
+--- Diagnostic: the renderer's per-frame counters -- SetPass calls, draw calls, batches, vertices -- averaged over the frames recorded so far (up to the last 60). Recording starts on the first call, so call once, let a second pass, and call again.
+--- @return string
+function dmhub.RenderStats() end
+
 --- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
 --- @param enabled? boolean
 function dmhub.PanelNursery(enabled) end
@@ -2353,6 +2392,15 @@ function dmhub.DiscordSetOpenConversation(userId) end
 --- @return boolean
 function dmhub.DiscordOpenMessageInDiscord(messageId) end
 
+--- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
+--- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
+function dmhub.GetSteamFriends() end
+
+--- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
+--- @param steamId string
+--- @return boolean
+function dmhub.JoinSteamFriend(steamId) end
+
 --- Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
 --- @param merged? boolean
 function dmhub.SetMergedTitleBar(merged) end
@@ -2405,7 +2453,7 @@ function dmhub.CreateWorldAtmosphere(options) end
 --- @return WeatherShelterHandleLua|nil
 function dmhub.CreateWeatherShelter(options) end
 
---- Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. followToken (a token or its charid) makes the system ride that token, following its movement and floor, and stop when the token leaves the map; with worldSpace on, particles already emitted trail behind. rotation and rotationOverLifetime are in radians (rotationOverLifetime is radians per second). type = Additive blends additively (fire, sparks) and also glows into the lighting pass on dark maps. sortLayer names a map sorting layer (e.g. "EffectsAboveObjects", "EffectsAboveTokens") to draw in, with sortingOrder as an offset within it; a token-following system without sortLayer draws just above its token; otherwise sortingOrder is an absolute sorting order. followView = true makes the system cover whatever part of the map is on screen, on the floor being viewed, for map-wide effects such as rain: its producer becomes a rectangle the size of the view plus viewMargin tiles (default 2) on every side, and rate is particles per second per map-area unit, so the density on screen is the same at any zoom and does not depend on the size of the map. velocity is a constant drift across the map in tiles per second, added to the emission speed. aspect makes each particle that many times longer than it is wide, a streak whose long side follows rotation. onMapOnly = true keeps a Default-type system from drawing over the empty space around the map (Additive systems never do). shelterMask = true fades the particles out over sheltered tiles (dmhub.CreateWeatherShelter), for weather. fallHeight makes the particles fall: each is born that many tiles above the ground and reaches it at the end of its lifetime, shown through parallax, so it starts pushed out from the center of the view (and larger) and closes in on the spot where it lands. streak (seconds) draws a falling particle as a streak that long of its apparent movement; velocity is then the wind. With parallax turned off nothing can fall, and the system uses flatVelocity, rotation and aspect instead. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
+--- Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. followToken (a token or its charid) makes the system ride that token, following its movement and floor, and stop when the token leaves the map; with worldSpace on, particles already emitted trail behind. rotation and rotationOverLifetime are in radians (rotationOverLifetime is radians per second). type = Additive blends additively (fire, sparks) and also glows into the lighting pass on dark maps. sortLayer names a map sorting layer (e.g. "EffectsAboveObjects", "EffectsAboveTokens") to draw in, with sortingOrder as an offset within it; a token-following system without sortLayer draws just above its token; otherwise sortingOrder is an absolute sorting order. followView = true makes the system cover whatever part of the map is on screen, on the floor being viewed, for map-wide effects such as rain: its producer becomes a rectangle the size of the view plus viewMargin tiles (default 2) on every side, and rate is particles per second per map-area unit, so the density on screen is the same at any zoom and does not depend on the size of the map. velocity is a constant drift across the map in tiles per second, added to the emission speed. aspect makes each particle that many times longer than it is wide, a streak whose long side follows rotation. onMapOnly = true keeps a Default-type system from drawing over the empty space around the map (Additive systems never do). shelterMask = true fades the particles out over sheltered tiles (dmhub.CreateWeatherShelter), for weather. fallHeight makes the particles fall: each is born that many tiles above the ground and reaches it at the end of its lifetime, shown through parallax, so it starts pushed out from the center of the view (and larger) and closes in on the spot where it lands. streak (seconds) draws a falling particle as a streak that long of its apparent movement; velocity is then the wind. splash (seconds) makes a falling particle spend that last part of its lifetime on the ground where it landed, as a ring that spreads to splashSize tiles across and fades, its opacity multiplied by splashOpacity; the fall takes the rest of the lifetime. With parallax turned off nothing can fall, and the system uses flatVelocity, rotation and aspect instead. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
 --- @param options ParticleSystemOptions
 --- @return ParticleSystemHandleLua|nil
 function dmhub.CreateParticleSystem(options) end

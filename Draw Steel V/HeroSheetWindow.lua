@@ -1121,16 +1121,30 @@ function HeroSheetWindow.Create(args)
         dragMove = false,
     }
 
+    --A picture dropped on the window becomes the Hero's art: a file from the
+    --desktop, or a journal picture dragged from the table or the journal
+    --(item drags find their target as map token drags do, so the inside is
+    --a token drop target too).
+    local artDrop = HeroSheetAppearance.ArtDrop()
+
     inner = gui.Panel{
-        classes = {"heroSheetInner"},
+        classes = {"heroSheetInner", ChatItemLinks.ITEM_DROP_TARGET_CLASS},
         halign = "left",
         valign = "top",
         flow = "vertical",
         width = "100%",
         height = "100%",
+        tokenDropTarget = true,
+        dragAndDropExtensions = artDrop.extensions,
+        dragfilesenter = artDrop.filesEnter,
+        dragfilesleave = artDrop.leave,
+        dropfiles = artDrop.dropFiles,
+        itemLinkDragHover = artDrop.itemsHover,
+        itemLinkDrop = artDrop.dropItems,
         titleBar,
         holder,
         builderHost,
+        artDrop.outline,
     }
 
     window = gui.Panel{

@@ -58,7 +58,7 @@ function creature:MinionSquad()
     return nil
 end
 
---- Returns the subset of summonedMinions entries whose tokens still exist and whose creatures are alive.
+--- Returns the subset of summonedMinions entries whose tokens still exist and are living minions.
 --- Does not mutate the stored list; callers wanting to prune should compare the returned list to the stored one.
 --- @return table[] entries Array of { charid, squad, monsterType } entries.
 function creature:GetLiveSummonedEntries()
@@ -67,7 +67,9 @@ function creature:GetLiveSummonedEntries()
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Only minions count toward squads. Older casts also put non-minion
+            --summons (e.g. a Summoner's Dominion fixture) here, so skip those.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 live[#live+1] = entry
             end
         end
@@ -139,7 +141,9 @@ function creature:RegisterSummonedMinion(charid, squadName, monsterType)
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil and entry.charid ~= charid then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Summons that are not minions don't belong here. Older games may
+            --still have some (e.g. a Summoner's Dominion fixture), so drop them.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 pruned[#pruned+1] = entry
             end
         end
@@ -1500,12 +1504,42 @@ function creature:Moved(path)
     --self:TryClaimTurn()
 end
 
+--Above zero while ActivatedAbility:ConsumeResources pays for a triggered or
+--invoked cast. Such a cast reacts to something else (Metakinetic Mastery's
+--Knockback after Inertial Shield, N3/6BP3KFZ6), so its Action or Maneuver
+--must not start the hero's turn.
+local g_payingForReactionCast = 0
+
+--- @param ability ActivatedAbility
+--- @param options table|nil
+--- @return boolean
+local function IsTriggeredOrInvokedCast(ability, options)
+    if ability.typeName == "TriggeredAbility" or ability:try_get("invoker") ~= nil then
+        return true
+    end
+    local symbols = options ~= nil and options.symbols or nil
+    return type(symbols) == "table" and rawget(symbols, "invoker") ~= nil
+end
+
+local g_baseConsumeResources = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    if mod.unloaded or not IsTriggeredOrInvokedCast(self, options) then
+        return g_baseConsumeResources(self, casterToken, options)
+    end
+    g_payingForReactionCast = g_payingForReactionCast + 1
+    local ok, err = xpcall(g_baseConsumeResources, debug.traceback, self, casterToken, options)
+    g_payingForReactionCast = g_payingForReactionCast - 1
+    if not ok then
+        error(err, 0)
+    end
+end
+
 --when using an action or a maneuver we also are claiming the turn if
 local g_baseConsumeResource = creature.ConsumeResource
 function creature:ConsumeResource(key, refreshType, quantity, note)
     g_baseConsumeResource(self, key, refreshType, quantity, note)
 
-    if mod.unloaded then
+    if mod.unloaded or g_payingForReactionCast > 0 then
         return
     end
 
@@ -2328,7 +2362,12 @@ creature.RegisterSymbol {
                     return false
                 end
 
-                if #c:GetFlankingTokens({ tok, secondTok }) < 2 then
+                --A creature using an ability from another's space flanks from that space, so
+                --the creature standing there can't also be its partner.
+                local firstFlanker = creature.FlankingStandIn(tok)
+                local secondFlanker = creature.FlankingStandIn(secondTok)
+                local actors = {[firstFlanker.charid] = tok, [secondFlanker.charid] = secondTok}
+                if firstFlanker.charid == secondFlanker.charid or #c:GetFlankingTokens({ firstFlanker, secondFlanker }, actors) < 2 then
                     return false
                 end
             end
@@ -2348,13 +2387,13 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "flanked",
     lookup = function(c)
-        return #c:GetFlankingTokens() > 0
+        return c:IsFlankedByAnyone()
     end,
 
     help = {
         name = "Flanked",
         type = "boolean",
-        desc = "Returns true if this creature is currently being flanked.",
+        desc = "Returns true if this creature is currently being flanked, that is, Flanked By is true for at least one creature. A creature using an ability as if in another creature's space flanks from that space while the ability resolves.",
         seealso = {},
     },
 }
@@ -2524,7 +2563,12 @@ local function SetGrantsFlanking(props, value, writes)
     end
 end
 
-local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
+--actors: stand-in token charid -> the creature acting from its space. The stand-in's
+--position counts; whether it can flank (and how) is the acting creature's.
+local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, actors)
+    local function Actor(enemy)
+        return (actors ~= nil and actors[enemy.charid]) or enemy
+    end
     local token = dmhub.LookupToken(self)
     if token == nil or (not token.valid) then
         return {}
@@ -2547,8 +2591,9 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
 
     --remove any enemies that we don't have line of sight to or that can't grant flanking.
     for i = #adjacentEnemies, 1, -1 do
-        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls(), "basic")
-        if los <= 0 or not adjacentEnemies[i].properties:CanGrantFlanking() then
+        local actor = Actor(adjacentEnemies[i])
+        local los = adjacentEnemies[i]:GetLineOfSight(token, actor.properties:GetPierceWalls(), "basic")
+        if los <= 0 or not actor.properties:CanGrantFlanking() then
             table.remove(adjacentEnemies, i)
         end
     end
@@ -2558,7 +2603,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     end
 
     for _, enemy in ipairs(adjacentEnemies) do
-        local allflanking = enemy.properties:FlankFromAnyDirection()
+        local allflanking = Actor(enemy).properties:FlankFromAnyDirection()
         if allflanking then
             return adjacentEnemies
         end
@@ -2567,7 +2612,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     local granterIds = {}
     local numGranters = 0
     for _, enemy in ipairs(adjacentEnemies) do
-        if enemy.properties:GrantFlankingToAllies() then
+        if Actor(enemy).properties:GrantFlankingToAllies() then
             granterIds[enemy.charid] = true
             numGranters = numGranters + 1
         end
@@ -2585,9 +2630,9 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
         grantedFlanking = adjacentEnemies
         for _, enemy in ipairs(adjacentEnemies) do
             if numGranters == 1 and granterIds[enemy.charid] then
-                SetGrantsFlanking(enemy.properties, token.charid, writes)
+                SetGrantsFlanking(Actor(enemy).properties, token.charid, writes)
             else
-                SetGrantsFlanking(enemy.properties, nil, writes)
+                SetGrantsFlanking(Actor(enemy).properties, nil, writes)
             end
         end
     end
@@ -2614,7 +2659,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
         for _, tok in ipairs(result) do
             if tok.charid == enemy.charid then
                 found = true
-                SetGrantsFlanking(enemy.properties, nil, writes)
+                SetGrantsFlanking(Actor(enemy).properties, nil, writes)
                 break
             end
         end
@@ -2634,10 +2679,12 @@ end
 --immunity and who can grant flanking come from modifiers. A call made while a creature's
 --modifiers are being built always computes, so that build records the token reads it
 --depends on.
-function creature:GetFlankingTokens(tokensOverride)
+--- @param tokensOverride nil|CharacterToken[] the creatures to consider instead of every adjacent enemy
+--- @param actors nil|table<string, CharacterToken> a stand-in token's charid -> the creature acting from its space; needs tokensOverride
+function creature:GetFlankingTokens(tokensOverride, actors)
     local top = CreatureCache.stack[#CreatureCache.stack]
     if tokensOverride ~= nil or (top ~= nil and top.creature ~= false) then
-        return ComputeFlankingTokens(self, tokensOverride, nil, nil)
+        return ComputeFlankingTokens(self, tokensOverride, nil, nil, actors)
     end
 
     local cache = self:try_get("_tmp_flankingCache")
@@ -2676,13 +2723,82 @@ function creature:GetFlankingTokens(tokensOverride)
     return { table.unpack(result) }
 end
 
+--- The token whose square a creature flanks from right now: its own, or the creature
+--- whose space it is using an ability from. Pass the result to GetFlankingTokens with
+--- actors = {[standIn.charid] = token}, so the creature's own flanking rules still apply.
+--- @param token CharacterToken
+--- @return CharacterToken
+function creature.FlankingStandIn(token)
+    return ActivatedAbility.ActingFromToken(token.charid) or token
+end
+
+--- True when Flanked By is true for at least one creature, so the Flanked symbol always
+--- agrees with it. With no ability being used from another creature's space (the usual
+--- case) this is the plain flanking check.
+--- @return boolean
+function creature:IsFlankedByAnyone()
+    local standInByActor = ActivatedAbility.ActingFromAll()
+    if next(standInByActor) == nil then
+        return #self:GetFlankingTokens() > 0
+    end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return false
+    end
+    --A creature acting from another space may not be next to this one, so ask about it too.
+    local candidates = GetEnemiesAdjacentToToken(token)
+    for charid, _ in pairs(standInByActor) do
+        local actor = dmhub.GetTokenById(charid)
+        if actor ~= nil then
+            AddTokenOnce(candidates, actor)
+        end
+    end
+    local flanked = false
+    for _, candidate in ipairs(candidates) do
+        if self:FlankedBy(candidate) then
+            flanked = true
+            break
+        end
+    end
+    --Last on purpose: puts back the grantor marks for where creatures really stand, which the token HUD's flank arrows read.
+    self:GetFlankingTokens()
+    return flanked
+end
+
+--A creature's cached modifiers can depend on FlankedBy, which reads who is acting from
+--another creature's space. Making that part of every cache key rebuilds each creature
+--once when such a cast starts and once when it ends.
+CreatureCache.RegisterSignature("actingfrom", function(_token)
+    return ActivatedAbility.ActingFromSignature()
+end)
+
 function creature:FlankedBy(otherToken)
     local token = dmhub.LookupToken(self)
-    local flanking = self:GetFlankingTokens()
+    local flanking
+    --Whose square otherToken flanks from: its own, or the creature whose space it is using an ability from.
+    local flankSquare = otherToken
+    --A creature using an ability as if in another creature's space flanks from that
+    --space with its own flanking rules, and its own body is left out: it can't be its
+    --own flanking partner.
+    local actingFrom = ActivatedAbility.ActingFromToken(otherToken.charid)
+    if actingFrom ~= nil and token ~= nil then
+        local others = {}
+        for _, enemy in ipairs(GetEnemiesAdjacentToToken(token)) do
+            if enemy.charid ~= otherToken.charid then
+                others[#others+1] = enemy
+            end
+        end
+        flanking = self:GetFlankingTokens(others, {[actingFrom.charid] = otherToken})
+        flankSquare = actingFrom
+    else
+        flanking = self:GetFlankingTokens()
+    end
     for _, tok in ipairs(flanking) do
         --GetFlankingTokens returns {} when LookupToken(self) is nil, so this loop only runs with a token.
         ---@cast token -nil
-        if tok.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid and tok.charid == otherToken.charid then
+        --Read _tmp_grantsFlanking from otherToken, not tok, on purpose: otherToken holds it
+        --even when it flanks from another creature's space (then tok is that creature).
+        if tok.charid == flankSquare.charid and otherToken.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid then
             return true
         end
     end
@@ -3431,7 +3547,49 @@ end
 --
 --An important property is that innate abilities are not clones unless bindCaster is true. This allows the character sheet
 --and other parts of the app to modify the innate abilities to update the creature.
-local g_defaultExcludeKeywords = { "Companion" }
+--Kept on the global table so reloading only this file keeps the keywords modules added.
+g_companionExcludeKeywords = rawget(_G, "g_companionExcludeKeywords") or { "Companion" }
+local g_defaultExcludeKeywords = g_companionExcludeKeywords
+
+--- Reserve an ability keyword for a companion. Every creature drops abilities with
+--- it by default, as it does "Companion" ones; the companion type that uses them
+--- passes its own excludeKeywords, built with creature.OtherCompanionKeywords so it
+--- still drops the other kinds' keywords (see AnimalCompanion:GetActivatedAbilities).
+--- @param keyword string
+function creature.AddCompanionKeyword(keyword)
+    if not table.contains(g_defaultExcludeKeywords, keyword) then
+        g_defaultExcludeKeywords[#g_defaultExcludeKeywords + 1] = keyword
+    end
+end
+
+--- The reserved keywords a companion leaves out of the abilities it takes from its
+--- hero: every one except its own. A companion type passes this (plus any keywords
+--- of its own to drop) as excludeKeywords, so another kind's abilities don't reach it.
+--- @param ownKeywords string[] the reserved keywords this companion uses
+--- @return string[]
+function creature.OtherCompanionKeywords(ownKeywords)
+    local result = {}
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if not table.contains(ownKeywords, keyword) then
+            result[#result + 1] = keyword
+        end
+    end
+    return result
+end
+
+--- True when the ability carries any companion-reserved keyword (see creature.AddCompanionKeyword).
+--- @return boolean
+function ActivatedAbility:HasCompanionKeyword()
+    if not self:has_key("keywords") then
+        return false
+    end
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if self:HasKeyword(keyword) then
+            return true
+        end
+    end
+    return false
+end
 
 --Hook called by ActivatedAbilityInvokeAbilityBehavior on the invoker creature
 --right before a custom invoked ability is cast. Lets per-creature subclasses
@@ -5248,9 +5406,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
     end)
 end
 
-function creature:ShowCharacteristicRollDialog(attrid)
+--options (optional): onComplete(tier) is called with 1-3 when the roll lands,
+--for callers that act on the result (a puzzle lock's bypass test).
+---@param attrid string
+---@param options {onComplete: fun(tier: integer)|nil}|nil
+function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
+    local onComplete = options ~= nil and options.onComplete or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5317,6 +5480,9 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 end
 
                 local tier = RollUtils.DiceResultToTier(rollInfo)
+                if onComplete ~= nil then
+                    pcall(onComplete, tier)
+                end
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,
@@ -7151,6 +7317,43 @@ function creature:CostToMoveThroughToken(otherToken)
 
     --moving through a friend is fine.
     return true
+end
+
+--One direction of the share-space traits: may the creature `subjectProps` (whose token is
+--`subjectToken`) share a square with `otherToken`?
+local function SharesSpaceByTrait(subjectProps, subjectToken, otherToken)
+    if subjectProps:CalculateNamedCustomAttribute("Can Share Space With Any Creature") > 0 then
+        return true
+    end
+    if otherToken:IsFriend(subjectToken) and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Allies") > 0 then
+        return true
+    end
+    if otherToken.properties:HasCondition("da6867b1-01e3-4570-8d1b-1b94ea1ea343") and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Prone Creatures") > 0 then
+        return true
+    end
+    return false
+end
+
+--Draw Steel: a creature can't end its movement in another creature's space. This says
+--whether this creature may stop in a square `otherToken` occupies anyway. The engine calls
+--it when placing creatures (summons, teleports, find-a-free-space), and the movement
+--tooltip uses it to warn about an illegal stop. Either creature's trait is enough, so a
+--creature with "Can Share Space With Any Creature" also lets others into its square.
+--- @param otherToken CharacterToken
+--- @return boolean
+function creature:CanShareSpaceWith(otherToken)
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil or otherToken == nil or otherToken.properties == nil then
+        return false
+    end
+    if self:IsPassthrough() or otherToken.properties:IsPassthrough() then
+        return true
+    end
+    --creatures two or more sizes apart can share a space.
+    if math.abs(ourToken.creatureSizeNumber - otherToken.creatureSizeNumber) >= 2 then
+        return true
+    end
+    return SharesSpaceByTrait(self, ourToken, otherToken) or SharesSpaceByTrait(otherToken.properties, otherToken, ourToken)
 end
 
 --- @param flags {shifting: boolean} if true, the creature is shifting.

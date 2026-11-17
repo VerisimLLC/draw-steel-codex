@@ -5195,7 +5195,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetCurrentHitpoints(value)
+                        token.properties:SetStaminaDirect(value)
                     end,
                 }
             end
@@ -10835,9 +10835,13 @@ function TacPanel.ConditionsRow()
                 children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
             end
 
+            --One chip per aura name: several casters (e.g. each wyvern's Tenacious Hunter) would repeat it.
+            local seenAuraNames = {}
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then
+                local auraName = auraInfo.auraInstance.name
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then
+                    seenAuraNames[auraName] = true
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -11494,7 +11498,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetCurrentHitpoints(n)
+                                    token.properties:SetStaminaDirect(n)
                                 end,
                             }
                         end
@@ -13013,8 +13017,11 @@ function TacPanel.Conditions()
 
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
+            local seenAuraNames = {}
             for _, auraInfo in ipairs(aurasTouching) do
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then --we'll see our own auras because we emit them.
+                local auraName = auraInfo.auraInstance.name
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then --we'll see our own auras because we emit them.
+                    seenAuraNames[auraName] = true
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -13805,7 +13812,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 
                 refreshCharacter = function(element, token)
                     m_token = token
-                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and token.properties.typeName ~= "AnimalCompanion"))
+                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and not token.properties:IsCompanion()))
                 end,
 
                 gui.Label{

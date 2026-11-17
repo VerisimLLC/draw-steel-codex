@@ -4,10 +4,13 @@ local mod = dmhub.GetModLoading()
 --Director's table. What lies on it is the Director's alone: dragging an item
 --onto it stops sharing it.
 --
---Nothing is ever shared except by its share button (David, 2026-10-17): new
---items start unshared wherever they land, and dragging an item off the
---screen gives it back its share button without turning it on. On the screen
---an item is never shared and has no share button (a guarantee, David,
+--In Desktop - Private (the default), nothing is ever shared except by its
+--share button (David, 2026-10-17): new items start unshared wherever they
+--land, and dragging an item off the screen gives it back its share button
+--without turning it on. In Tabletop - Shared, what comes onto the table
+--(opened, dropped, or dragged off the screen) is shared with every player,
+--except maps; see "The table's sharing mode" below. On the screen an item is
+--never shared and has no share button in either mode (a guarantee, David,
 --2026-10-16).
 --
 --  - The items are the table items that can be shared: map windows (whose
@@ -92,6 +95,8 @@ DirectorScreen = {}
 --- @field onButtonLayer nil|boolean a minimized window's button or card, drawn over every window (KeepOnTop cannot put it under the screen)
 --- @field shrink nil|fun(x: number, y: number) shrinks a map or scene window (or its button) to a card at (x, y)
 --- @field grow nil|fun(x: number, y: number) grows a card back into its window at (x, y); nothing for anything else
+--- @field isMap nil|boolean a map window or its button: Tabletop - Shared never shares it by itself (its share is the map's Player Viewable)
+--- @field standsIn nil|boolean stands in for a minimized journal window or Hero sheet: minimizing is not putting it on the table, so Tabletop - Shared does not share it
 
 --Sizes in documents-layer units (the table is ~1048 high).
 local TAB_WIDTH = 14
@@ -151,7 +156,8 @@ local COVERS = {
     {id = "plain"},
     {id = "vasloria", image = "e83e6ea1-6212-4baf-8f26-a11bf7b85c6e", width = 2000, height = 633, left = 0, tint = "#ffffffff", veil = "#16171bf2"},
 }
-local COVER_ID = "vasloria"
+--Vasloria is MCDM art in the Codex's cloud; other white labels show the plain band.
+local COVER_ID = dmhub.whiteLabel == "mcdm" and "vasloria" or "plain"
 
 --- @return DirectorScreenCover
 local function CurrentCover()
@@ -224,7 +230,75 @@ local g = {
     hint = nil,
     hintLabel = nil,
     signature = nil,
+    --key -> true for the items the last look saw, so the next one can tell
+    --which are new (Tabletop - Shared shares those).
+    seen = {},
 }
+
+----------------------------------------------------------------------
+--The table's sharing mode (David, 2026-11-15): a game setting that only the
+--Director changes, from the title bar's mode readout.
+--  "private" (Desktop - Private): the table as it always was. Nothing is
+--    shared until its share button shares it.
+--  "shared" (Tabletop - Shared): what the Director puts on the table is
+--    shared with every player: an NPC card, journal item or scene that is
+--    opened or dropped there, or dragged off the screen onto it. Switching to
+--    it shares what already lies on the table (after asking). The screen
+--    still keeps what is on it private.
+--  Maps are the exception in both modes: a map's share is its Player
+--  Viewable setting (full vision), so nothing shares a map by itself. In
+--  Tabletop - Shared a map window says which players cannot see it, with a
+--  Share button (Tabletop's g_sharing.MapBanner).
+--  In Tabletop - Shared the grey frame marks what is not shared with every
+--  player (a map: what some online player cannot see); in Desktop - Private,
+--  what is not shared at all.
+
+local g_modeSetting = setting{
+    id = "tabletop:sharingmode",
+    description = "Table Sharing",
+    storage = "game",
+    default = "private",
+    onchange = function()
+        if mod.unloaded then
+            return
+        end
+        Tabletop.RefreshShareFrames()
+    end,
+}
+
+--- Whether the game's table is in Tabletop - Shared mode.
+--- @return boolean
+function DirectorScreen.SharedMode()
+    return g_modeSetting:Get() == "shared"
+end
+
+--- The mode's name, as the title bar shows it.
+--- @return string
+function DirectorScreen.SharingModeName()
+    if DirectorScreen.SharedMode() then
+        return "Tabletop - Shared"
+    end
+    return "Desktop - Private"
+end
+
+--Whether Tabletop - Shared shares this item when it comes onto the table.
+--- @param item DirectorScreenItem
+--- @return boolean
+local function SharesByMode(item)
+    return DirectorScreen.SharedMode() and not item.isMap and not item.standsIn
+end
+
+--Shares an item with every player if Tabletop - Shared says it should be.
+--- @param item DirectorScreenItem
+local function ShareByMode(item)
+    if not SharesByMode(item) or item.store.state() == "all" then
+        return
+    end
+    g.grace[item.key] = dmhub.Time() + GRACE_SECONDS
+    item.store.shareAll()
+    item.changed()
+    Tabletop.RefreshShareFrames()
+end
 
 local function Active()
     return dmhub.isDM and Tabletop.IsActive() and Tabletop.LayerReady()
@@ -754,7 +828,7 @@ local function BuildBand()
                     },
                     gui.Label{
                         classes = {"directorScreenCaption"},
-                        text = "Director's Screen",
+                        text = UIText.Term("director") .. "'s Screen",
                         valign = "center",
                         interactable = false,
                     },
@@ -1034,6 +1108,13 @@ local function UpdateDropHint()
             end
         end
     end
+    --off the screen in Tabletop - Shared: the drop shares it. Only the note:
+    --the band does not light, and the item does not darken.
+    local offText = nil
+    if text == nil and drag ~= nil and drag.sharesOff and Active() and Shown() and drag.centre < Edge()
+            and drag.key ~= nil and g.members[drag.key] == true and DirectorScreen.SharedMode() then
+        offText = "Release to share it with the players"
+    end
 
     --the dragged item itself shows its fate (not something new from a panel:
     --it has no item yet).
@@ -1053,6 +1134,7 @@ local function UpdateDropHint()
         end
     end
 
+    text = text or offText
     hint:SetClass("collapsed", text == nil)
     if text == nil then
         return
@@ -1188,7 +1270,7 @@ function DirectorScreen.ItemDragging(key, x, width, element)
     local drag = g.drag
     if drag == nil or drag.key ~= key then
         local item = FindItem(key)
-        drag = {key = key, shared = item ~= nil and item.store.state() ~= nil}
+        drag = {key = key, shared = item ~= nil and item.store.state() ~= nil, sharesOff = item ~= nil and SharesByMode(item)}
         g.drag = drag
     end
     drag.centre = x + width / 2
@@ -1293,6 +1375,10 @@ function DirectorScreen.ItemDropped(key)
         return
     end
     SetBehind(item, onScreen)
+    if not onScreen then
+        --off the screen: Tabletop - Shared shares it.
+        ShareByMode(item)
+    end
     ReshapeAndFlash(item, onScreen)
 end
 
@@ -1307,6 +1393,10 @@ local function SettlePlaced(item)
     end
     local onScreen = OnScreen(item.rect)
     SetBehind(item, onScreen)
+    if not onScreen then
+        --put on the table: Tabletop - Shared shares it.
+        ShareByMode(item)
+    end
     ReshapeAndFlash(item, onScreen)
 end
 
@@ -1545,8 +1635,15 @@ local function LookOverItems()
         local key = item.key
         present[key] = true
         --a drop's item, arrived: the drop's rule, not a new item's.
-        if g.placed[key] ~= nil then
+        local placed = g.placed[key] ~= nil
+        if placed then
             SettlePlaced(item)
+        end
+        --new on the table, opened some other way (Add Character, the Scenes
+        --panel...): Tabletop - Shared shares it. Not on the first look, which
+        --sees the table as it was saved, nor on the screen, where it joins it.
+        if not first and not placed and not g.seen[key] and not g.members[key] and not OnScreen(item.rect) then
+            ShareByMode(item)
         end
         --the first look after a load: an item on the screen goes back to where
         --the screen carried it (the table's load keeps windows on the table).
@@ -1577,6 +1674,7 @@ local function LookOverItems()
     for _, item in ipairs(items) do
         Present(item)
     end
+    g.seen = present
     for key, _ in pairs(g.members) do
         if not present[key] then
             g.members[key] = nil
@@ -1736,6 +1834,70 @@ function DirectorScreen.Sync()
     LookOverItems()
 end
 
+--The table items Tabletop - Shared would share that are not yet shared with
+--every player: not on the screen, not maps, not stand-ins.
+--- @return DirectorScreenItem[]
+local function UnsharedTableItems()
+    local result = {}
+    if not Active() then
+        return result
+    end
+    for _, item in ipairs(Tabletop.ScreenItems()) do
+        if not g.members[item.key] and not item.isMap and not item.standsIn and item.store.state() ~= "all" then
+            result[#result+1] = item
+        end
+    end
+    return result
+end
+
+--- The Director switches the table's sharing mode ("shared" or "private").
+--- Switching to Tabletop - Shared shares what lies on the table (not on the
+--- screen, not maps), so when there is any it asks first; Cancel keeps the
+--- mode as it was. Switching to Desktop - Private changes no share.
+--- @param mode "shared"|"private"
+function DirectorScreen.SetSharingMode(mode)
+    if not dmhub.isDM or (mode == "shared") == DirectorScreen.SharedMode() then
+        return
+    end
+    if mode ~= "shared" then
+        g_modeSetting:Set("private")
+        return
+    end
+    local pending = UnsharedTableItems()
+    if #pending == 0 then
+        g_modeSetting:Set("shared")
+        return
+    end
+    local message
+    if #pending == 1 then
+        message = "1 item on the table is not shared with every player. Switching to Tabletop - Shared shares it with all of them. Maps and what is behind the Director's Screen are not changed."
+    else
+        message = string.format("%d items on the table are not shared with every player. Switching to Tabletop - Shared shares them with all of them. Maps and what is behind the Director's Screen are not changed.", #pending)
+    end
+    gui.ModalMessage{
+        title = "Switch to Tabletop - Shared?",
+        message = message,
+        options = {
+            {text = "Cancel"},
+            {
+                text = "Share and Switch",
+                execute = function()
+                    if mod.unloaded then
+                        return
+                    end
+                    --looked at again: the table may have changed while asking.
+                    for _, item in ipairs(UnsharedTableItems()) do
+                        g.grace[item.key] = dmhub.Time() + GRACE_SECONDS
+                        item.store.shareAll()
+                        item.changed()
+                    end
+                    g_modeSetting:Set("shared")
+                end,
+            },
+        },
+    }
+end
+
 --- The screen's part of the saved table layout.
 --- @return table
 function DirectorScreen.Save()
@@ -1754,13 +1916,16 @@ function DirectorScreen.Load(saved)
     g.offsets = {}
     g.lastEdge = nil
     g.looked = false
+    g.seen = {}
     g.pushed = {}
     g.grace = {}
     g.placed = {}
     g.drag = nil
     g.resize = nil
     g.slide = nil
-    g.fraction = DEFAULT_FRACTION
+    --a game with no saved screen starts closed to its tab; the tab opens it to
+    --the default size. After that the per-game layout keeps whatever it was.
+    g.fraction = 0
     g.lastFraction = DEFAULT_FRACTION
     if type(saved) == "table" then
         g.fraction = math.max(0, math.min(MAX_FRACTION, tonumber(saved.fraction) or DEFAULT_FRACTION))

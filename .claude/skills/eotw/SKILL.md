@@ -215,7 +215,11 @@ Craft notes:
 - Every test needs a `###` option heading above it, exact skill names, and
   three tier lines. Make tier 1 meaningful, not just "nothing happens".
 - Use recognized clauses for anything mechanical (they light up green in the
-  validator); flavour prose is fine around them.
+  validator). A tier line is a short label plus effects only:
+  `|Shaken => {The threat is vanquished}. You lose 1d3 stamina`. The
+  narration goes in the test's `if tier1 then ... end` scene block, which
+  plays in the central montage box, never as a prose sentence in the tier
+  line (script-reference.md, "Options and tests").
 - Threats need a `Consequence:` line that bites; opportunities need rewards
   worth a hero's turn.
 - **Knacks are part of the job, not a polish pass.** Follow the standard in
@@ -245,7 +249,8 @@ documents" rules, keep the text's tag lines and the annotations in step (every
 
 Run the toolkit's "Full check" after every substantial edit and walk the author
 through what it reports:
-- parse warnings (unrecognized-effect warnings on pure flavour lines are fine;
+- parse warnings (unrecognized-effect warnings on prose in a `Consequence:`
+  line are fine; on a tier line, the prose belongs in the scene block;
   everything else should be fixed);
 - items and monsters named in clauses that do not resolve;
 - tests with no characteristic, or skill names that do not exist;

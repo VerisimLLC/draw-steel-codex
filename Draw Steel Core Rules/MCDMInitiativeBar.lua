@@ -6110,6 +6110,27 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					and cached.data ~= nil
 					and cached.data.isplayer == isplayer
 					and cached.data.container == desiredContainer
+
+				--Determine whether this entry has any token the local player can see.
+				--Entries with no visible tokens are excluded from the *Cards lists so
+				--FitCards and the underline bar ignore them for sizing.
+				local visible = false
+				local entryTokens = self:GetTokensForInitiativeId(info, k)
+				for _,tok in ipairs(entryTokens) do
+					if tok.canSee or tok.playerControlled then
+						visible = true
+						break
+					end
+				end
+
+				--No card yet and nothing to show: do not build one. A card would only
+				--collapse itself in its own refresh, and a queue can hold many entries
+				--with no token on this map (55 of 60 in one game, ~600 panels). This
+				--same refresh pass builds the card once a token becomes visible.
+				if not visible and not cacheHit then
+					return
+				end
+
 				if cacheHit then
 					newEntries[k] = cached
 				else
@@ -6158,20 +6179,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				panel.parent:SetClass("unmoved", unmoved)
 				panel.parent:SetClass("hadTurn", not unmoved)
 
-				--Determine whether this entry has any token the local player can see.
-				--Entries with no visible tokens still get added to children (their
-				--wrapper will be collapsed by the card's own refresh), but they are
-				--excluded from the *Cards lists so FitCards and the underline bar
-				--ignore them for sizing.
-				local visible = false
-				local entryTokens = self:GetTokensForInitiativeId(info, k)
-				for _,tok in ipairs(entryTokens) do
-					if tok.canSee or tok.playerControlled then
-						visible = true
-						break
-					end
-				end
-
+				--An existing card whose tokens went out of view stays in children; its
+				--own refresh collapses its wrapper.
 				if turn then
 					centerChildren[#centerChildren+1] = panel.parent
 					if visible then centerCards[#centerCards+1] = panel end

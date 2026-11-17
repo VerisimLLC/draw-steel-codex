@@ -318,7 +318,7 @@ local g_barFit = {
 --map cluster is represented by its two children (the name and the terrain
 --chip) rather than by the cluster itself.
 local BAR_FIT_LADDER = {
-    "mapName", "mapChip", "search",
+    "mapName", "mapChip", "search", "tableMode",
     "initiative", "devGame", "connectivity", "audio",
     "menus",
 }
@@ -712,6 +712,11 @@ local m_quitConfirmDialog = nil
 --interface (Encounter of the Week) is showing its own confirmation, which
 --quits with dmhub.ForceQuitApplication if the user goes ahead.
 function OnQuitRequested()
+    --the Encounter of the Week town (a titlescreen screen) asks first.
+    local eotw = rawget(_G, "EncounterOfTheWeek")
+    if eotw ~= nil and eotw.ConfirmQuit ~= nil and eotw.ConfirmQuit(function() dmhub.ForceQuitApplication() end) then
+        return true
+    end
     if (not dmhub.inGame) or dmhub.isLobbyGame then
         return false
     end
@@ -724,6 +729,11 @@ end
 
 local function ConfirmCloseWindow()
     if (not dmhub.inGame) or dmhub.isLobbyGame then
+        --the EotW town's confirmation, asked here too so it shows even
+        --where CloseWindow does not route through the quit hook.
+        if OnQuitRequested() then
+            return
+        end
         dmhub.CloseWindow()
         return
     end
@@ -1187,6 +1197,115 @@ local function CreatePresentationBar()
 end
 
 ----------------------------------------------------------------------
+-- Table sharing mode readout
+-- "Tabletop - Shared" or "Desktop - Private" (DirectorScreen.lua, in the
+-- DMHub Game Hud mod, owns the mode). Everyone sees it and its tooltip; only
+-- the Director can click it, to switch. Empty outside a real game. The outer
+-- panel never collapses so it keeps thinking; the plate inside it does.
+----------------------------------------------------------------------
+
+local function CreateTableModePanel()
+    --the DMHub Game Hud mod may not have loaded yet (or at all, at the title
+    --screen): globals are strict, so read it with rawget.
+    local function Screen()
+        local screen = rawget(_G, "DirectorScreen")
+        if screen == nil or screen.SharingModeName == nil then
+            return nil
+        end
+        return screen
+    end
+
+    local label = gui.Label{
+        classes = {"menuLabel"},
+        fontSize = 14,
+        minFontSize = 10,
+        width = "auto",
+        height = "100%",
+        hmargin = 0,
+        textWrap = false,
+        interactable = false,
+        text = "",
+    }
+
+    local plate
+    plate = gui.Panel{
+        classes = {"tableModePlate", "collapsed"},
+        styles = {
+            {
+                selectors = {"tableModePlate"},
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"tableModePlate", "director", "hover"},
+                bgcolor = "#ffffff1c",
+            },
+        },
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        hpad = 8,
+        borderBox = true,
+        rmargin = 6,
+        cornerRadius = 4,
+        bgimage = "panels/square.png",
+        children = {label},
+        linger = function(element)
+            local screen = Screen()
+            if screen == nil then
+                return
+            end
+            local text
+            if screen.SharedMode() then
+                text = "Tabletop - Shared: what the Director puts on the table is shared with every player. What is behind the Director's Screen stays private."
+                if dmhub.isDM then
+                    text = text .. "\nA grey outline marks what is not shared with everyone.\n\nClick to switch to Desktop - Private."
+                end
+            else
+                text = "Desktop - Private: what the Director puts on the table stays private until they share it."
+                if dmhub.isDM then
+                    text = text .. "\nA grey outline marks what is not shared.\n\nClick to switch to Tabletop - Shared."
+                end
+            end
+            gui.Tooltip(text)(element)
+        end,
+        click = function(element)
+            local screen = Screen()
+            if screen == nil or not dmhub.isDM then
+                return
+            end
+            element.tooltip = nil
+            screen.SetSharingMode(screen.SharedMode() and "private" or "shared")
+        end,
+    }
+
+    return gui.Panel{
+        width = "auto",
+        height = "100%",
+        thinkTime = 0.5,
+        think = function(element)
+            local screen = Screen()
+            local show = screen ~= nil and dmhub.inGame and not dmhub.isLobbyGame
+            if show then
+                --- @cast screen -nil
+                local text = screen.SharingModeName()
+                if label.text ~= text then
+                    label.text = text
+                end
+            end
+            if plate:HasClass("collapsed") == show then
+                plate:SetClass("collapsed", not show)
+            end
+            --dmhub.isDM raises while no game is loaded (startup), so only read it when shown.
+            local director = show and dmhub.isDM
+            if plate:HasClass("director") ~= director then
+                plate:SetClass("director", director)
+            end
+        end,
+        children = {plate},
+    }
+end
+
+----------------------------------------------------------------------
 -- Connectivity status panel
 -- Replaces the old "Synced seq:N" label and its "DO Message History"
 -- modal (retired 2026-08-08): a wifi glyph shows OUR connection to the
@@ -1221,10 +1340,13 @@ local function ClassifyUserStatus(info)
     return "online"
 end
 
---All the character ids this player controls directly (ownerId ==
---userid). Party-shared tokens (ownerId == 'PARTY') are deliberately
---not counted as anyone's.
-local function CharacterIdsOwnedBy(userid)
+--The character ids each player controls directly (ownerId == userid),
+--as userid -> list of ids, in party order. Party-shared tokens
+--(ownerId == 'PARTY') are deliberately not counted as anyone's.
+--One pass over the parties for all users: scanning them once per user
+--cost ~10 ms per refresh in a game with 18 users and 177 party
+--characters, and the refresh runs every 5 s.
+local function CharacterIdsByOwner()
     local result = {}
     local partyType = rawget(_G, "Party")
     if partyType == nil then
@@ -1234,13 +1356,21 @@ local function CharacterIdsOwnedBy(userid)
     for partyid, _ in unhidden_pairs(parties) do
         for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
             local tok = dmhub.GetCharacterById(charid)
-            if tok ~= nil and tok.ownerId == userid then
-                result[#result + 1] = charid
+            local owner = tok ~= nil and tok.ownerId or nil
+            if owner ~= nil then
+                local list = result[owner]
+                if list == nil then
+                    list = {}
+                    result[owner] = list
+                end
+                list[#list + 1] = charid
             end
         end
     end
     return result
 end
+
+local g_noCharacterIds = {}
 
 --One player's entry: their main character's portrait (grouping card
 --behind it when they control more than one), a connectivity dot in the
@@ -1639,10 +1769,14 @@ local function CreateConnectivityPanel()
             --session still says dm), so they get a portrait too.
             local directorless = false
             pcall(function() directorless = dmhub.directorlessGame == true end)
+            local idsByOwner = nil
             for _, userid in ipairs(dmhub.users or {}) do
                 local info = dmhub.GetSessionInfo(userid)
                 if info ~= nil and (directorless or not info.dm) then
-                    local owned = CharacterIdsOwnedBy(userid)
+                    if idsByOwner == nil then
+                        idsByOwner = CharacterIdsByOwner()
+                    end
+                    local owned = idsByOwner[userid] or g_noCharacterIds
                     local mainid = info.primaryCharacter or owned[1]
                     local extraCount = 0
                     for _, cid in ipairs(owned) do
@@ -3605,6 +3739,8 @@ local function CreateStatusBar()
                 end
             end,
         }),
+
+        BarFitRegister("tableMode", CreateTableModePanel()),
 
         BarFitRegister("connectivity", CreateConnectivityPanel()),
 
@@ -8400,6 +8536,17 @@ local function CreateTopBar()
                             end
                         end
                     end
+                end
+                --Step through every loading-screen quote on a copy of the
+                --loading screen (CodexTitlescreen.lua).
+                local quotesPreview = rawget(_G, "LoadingQuotesPreview")
+                if quotesPreview ~= nil then
+                    menuItems[#menuItems+1] = {
+                        text = "Loading Screen Quotes",
+                        click = function()
+                            quotesPreview.Show()
+                        end,
+                    }
                 end
                 --Encounter of the Week's situational rows (e.g. Skip to
                 --Combat during a montage). rawget: the EotW file may not load.

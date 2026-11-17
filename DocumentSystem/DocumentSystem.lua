@@ -2012,7 +2012,7 @@ do
         if playerView then
             return nil
         end
-        return setmetatable({ label = field.label .. " (Director only)" }, { __index = field })
+        return setmetatable({ label = field.label .. " (" .. UIText.Term("director") .. " only)" }, { __index = field })
     end
 
     --The fields that other pages in this page's folder show on every page of
@@ -2600,7 +2600,7 @@ do
                 },
                 gui.Check{
                     classes = { "sizeS" }, width = 120, height = 22, minWidth = 0, valign = "center", lmargin = 8,
-                    text = "Director only",
+                    text = UIText.Term("director") .. " only",
                     value = field.directorOnly == true,
                     linger = gui.Tooltip("Hidden from players who open the page."),
                     change = function(element)
@@ -26465,6 +26465,49 @@ function MapRail.CheckMerged()
     end)
 end
 
+--- The on-screen (zoomed) size a window opened from this map-rail button
+--- will have: its size remembered from a resize this session, else the
+--- panel default.
+--- @param button Panel
+--- @return number width, number height
+function MapRail.WindowSize(button)
+    local scale = WindowUIScale()
+    local width, height = nil, nil
+    local key = nil
+    pcall(function() key = button.data.key end)
+    if type(key) == "string" then
+        width, height = RailWindowSize(RailPanelDocument(PanelDocument.WindowOwner(string.lower(key))))
+    end
+    return (width or PanelDocument.DefaultWidth) * scale, (height or PanelDocument.DefaultHeight) * scale
+end
+
+--- The x for a window opened from the map window's rail so it sits just
+--- OUTSIDE the map window, on the rail's own side only. nil when that side
+--- has no room between the window and the screen edge; the caller then
+--- opens it inside the map window as before.
+--- @param side "left"|"right" the map-rail column the button is in
+--- @param width number the window's on-screen (zoomed) width
+--- @return number|nil
+function MapRail.BesideWindowX(side, width)
+    local tabletop = rawget(_G, "Tabletop")
+    if tabletop == nil or tabletop.LiveWindowRect == nil then
+        return nil
+    end
+    local rect = tabletop.LiveWindowRect()
+    if rect == nil then
+        return nil
+    end
+    local gap = 8
+    --it only has to fit on screen; covering the screen rails is fine.
+    local minX = 8
+    local maxX = IconRailUIWidth() - 8
+    local x = cond(side == "left", rect.x - gap - width, rect.x + rect.w + gap)
+    if x >= minX and x + width <= maxX then
+        return x
+    end
+    return nil
+end
+
 --- The live map window's rail columns (left: map panels, right: Map
 --- Settings and the map's own buttons), for Tabletop.lua to mount inside
 --- the window. Each needs setRailScale fired once attached. Empty when the
@@ -26488,15 +26531,16 @@ function PanelDocument.CreateMapRails()
                 fixed = true,
                 windowed = true,
                 inset = MapRail.WINDOW_INSET,
-                --beside the button, toward the middle of the screen.
+                --outside the map window on this rail's side when there is
+                --room, else inside it beside the button. Level with the
+                --button either way.
                 anchor = function(button, index)
-                    local scale = WindowUIScale()
-                    local placement = PanelDocument.PanelWindowPlacement(button,
-                        PanelDocument.DefaultWidth * scale, PanelDocument.DefaultHeight * scale)
+                    local w, h = MapRail.WindowSize(button)
+                    local placement = PanelDocument.PanelWindowPlacement(button, w, h)
                     if placement == nil then
                         return nil
                     end
-                    return placement.x, placement.y
+                    return MapRail.BesideWindowX(column.side, w) or placement.x, placement.y
                 end,
             })
         end
@@ -26943,7 +26987,7 @@ local g_viewBuiltins = {
     --rail entry of their own; RailLayout reads membership from `tabs`.
     {
         id = "builtin:director",
-        name = "Director",
+        name = UIText.Term("director"),
         version = 6,
         dmonly = true,
         --Floors & Layers, Measuring Tool, Map Markup and their folders
@@ -27433,7 +27477,7 @@ function ViewsEntryUnavailable(key)
         return { name = key, reason = "not in this game" }
     end
     if reg.dmonly and not dmhub.isDM then
-        return { name = reg.name, reason = "Director only" }
+        return { name = reg.name, reason = UIText.Term("director") .. " only" }
     end
     if reg.devonly then
         return { name = reg.name, reason = "dev only" }
@@ -27905,7 +27949,7 @@ function ViewsPostApplyNotices(id, skipped)
         for i, s in ipairs(skipped) do
             if i <= 4 then
                 local n = s.name
-                if s.reason == "Director only" or s.reason == "deleted" then
+                if s.reason == UIText.Term("director") .. " only" or s.reason == "deleted" then
                     n = string.format("%s (%s)", n, s.reason)
                 end
                 names[#names + 1] = n

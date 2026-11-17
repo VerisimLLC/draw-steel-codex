@@ -1134,6 +1134,102 @@ monster.RegisterSymbol{
     }
 }
 
+--Monster Organization: the first word of the monster's role, lowercase
+--("horde", "minion", "elite", "leader", "solo", "platoon"). Lets bestiary
+--filters ask for e.g. `beast.MonsterOrganization = "horde"`. Non-monsters
+--give "". (A symbol named plain "organization" cannot be used: GoblinScript
+--reads its leading "or" as the or operator.)
+monster.RegisterSymbol{
+    symbol = "monsterorganization",
+    lookup = function(c)
+        if c:IsMonster() then
+            local organization = nil
+            pcall(function() organization = c:Organization() end)
+            return organization or ""
+        end
+
+        return ""
+    end,
+    help = {
+        name = "MonsterOrganization",
+        type = "string",
+        desc = "The monster's organization, the first word of its role in lower case: horde, minion, elite, leader, solo or platoon. Write it without a space after a dot: beast.MonsterOrganization = \"horde\".",
+        seealso = {"Role"},
+    }
+}
+
+--Highest Level On Map(keyword): the highest level among the living creatures
+--on this creature's map that have the keyword, or 0 if there are none. The
+--Abyssal Rift's damage uses it: "the level of the highest-level demon".
+creature.RegisterSymbol{
+    symbol = "highestlevelonmap",
+    lookup = function(c)
+        return function(keyword)
+            if type(keyword) ~= "string" then
+                return 0
+            end
+            local best = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                local props = tok.properties
+                if tok.valid and props ~= nil and not tok.isObject and not props:IsDead() then
+                    local keywords = props:try_get("keywords")
+                    local matches = false
+                    if type(keywords) == "table" then
+                        for k,_ in pairs(keywords) do
+                            if string.lower(k) == string.lower(keyword) then
+                                matches = true
+                            end
+                        end
+                    end
+                    if matches then
+                        local level = tonumber(props:CharacterLevel()) or 0
+                        best = math.max(best, level)
+                    end
+                end
+            end
+            return best
+        end
+    end,
+    help = {
+        name = "Highest Level On Map",
+        type = "function",
+        desc = "A function given a keyword, such as \"Demon\". It gives the highest level among the living creatures on the map that have that keyword, or 0 when there are none.",
+        examples = {"Highest Level On Map(\"Demon\")"},
+        seealso = {"Count Nearby Creatures"},
+    }
+}
+
+--Creatures Here: the names of the creatures standing on a square (the
+--monster's name, else the token's name). A location filter can then ask for
+--a square inside a particular creature, e.g. the Abyssal Rift portal:
+--`target.Creatures Here has "Abyssal Rift"`.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "Creatures Here",
+    type = "set",
+    desc = "The names of the creatures that occupy this location.",
+    seealso = {},
+    examples = {"target.Creatures Here has \"Abyssal Rift\""},
+    calculate = function(c)
+        local names = {}
+        local engineLoc = rawget(c, "_tmp_loc")
+        if engineLoc ~= nil then
+            for _,tok in ipairs(dmhub.GetTokensAtLoc(engineLoc) or {}) do
+                if tok.valid and tok.properties ~= nil then
+                    local name = tok.properties:try_get("monster_type")
+                    if name == nil or name == "" then
+                        name = tok.name
+                    end
+                    if name ~= nil and name ~= "" then
+                        names[#names+1] = name
+                    end
+                end
+            end
+        end
+        return StringSet.new{ strings = names }
+    end,
+}
+
 --EV (encounter value). The raw value is stored in `monster.ev`; access it
 --through these accessors rather than the raw field so "Modify Attributes"
 --CharacterModifiers targeting the "ev" attribute are applied. Registered as

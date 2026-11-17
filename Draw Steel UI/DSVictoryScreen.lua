@@ -2758,6 +2758,16 @@ local function BuildMonsterCard(data)
         children = { survivorsFill, survivorsText },
     }
 
+    --minionLabel may be nil, so append rather than list it in a constructor. A
+    --group that earned no role gets no role labels at all (playtest N11: the
+    --empty pair drew stray glyph fragments under the "All Defeated" bar), and
+    --they are not even constructed then (playtest N5: unattached-panel warnings).
+    local children = { portraitPanel, nameLabel }
+    if minionLabel ~= nil then
+        children[#children + 1] = minionLabel
+    end
+    children[#children + 1] = survivorsBar
+    if data.role ~= nil then
     -- The role the group earned, with its fun-fact tooltip -- identical to the
     -- hero card's role treatment, except the title wraps: monster role names
     -- ("Never Stood a Chance") run longer than hero ones and overflow the card
@@ -2793,15 +2803,6 @@ local function BuildMonsterCard(data)
         fontSize = 13,
     }
 
-    --minionLabel may be nil, so append rather than list it in a constructor. A
-    --group that earned no role gets no role labels at all (playtest N11: the
-    --empty pair drew stray glyph fragments under the "All Defeated" bar).
-    local children = { portraitPanel, nameLabel }
-    if minionLabel ~= nil then
-        children[#children + 1] = minionLabel
-    end
-    children[#children + 1] = survivorsBar
-    if data.role ~= nil then
         children[#children + 1] = roleTitleLabel
         children[#children + 1] = roleTextLabel
     end

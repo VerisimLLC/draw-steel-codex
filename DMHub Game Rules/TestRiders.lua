@@ -1428,7 +1428,7 @@ function TestRiders.AppendModifiers(modifiers, verdict, rollType)
                 local m = CharacterModifier.new{
                     guid = dmhub.GenerateGuid(),
                     name = string.format("%s: %s", label, applied.why),
-                    description = string.format("%s on this test because %s.", label, applied.why),
+                    description = string.format("%s on this test because %s.", label, applied.detail or applied.why),
                     behavior = "power",
                     domains = {},
                 }

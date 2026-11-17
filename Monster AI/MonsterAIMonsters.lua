@@ -1,8 +1,29 @@
 local mod = dmhub.GetModLoading()
 
+--The usual target score: 1 per target, 0.1 per edge, plus the slight lean
+--toward targets with more Stamina left (MonsterAI.TargetStaminaBias), so
+--monsters spread their damage instead of always striking whoever comes first.
+local function StandardStrikeTargetScore(target, edges)
+    if target.isObject or target.properties == nil then
+        return 0.1
+    end
+    return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
+end
+
+--Finds the strike targets from loc, best first by StandardStrikeTargetScore.
+--ExecuteAbility keeps the first ones up to the ability's target count, so the
+--strike goes at the targets the plan scored rather than list order.
+local function FindRankedTargetsOfStrike(ai, token, ability, loc)
+    local targets = ai:FindValidTargetsOfStrike(token, ability, loc)
+    table.sort(targets, function(a, b)
+        return StandardStrikeTargetScore(a.token, a.edges) > StandardStrikeTargetScore(b.token, b.edges)
+    end)
+    return targets
+end
+
 local function GenerateStandardStrikeScoreFunction(score)
     return function(self, ai, token, ability)
-        local loc = ai:FindBestMoveToUseStrike(token, ability)
+        local loc = ai:FindBestMoveToUseStrike(token, ability, StandardStrikeTargetScore)
         if loc ~= nil then
             return {score = score, loc = loc}
         end
@@ -14,8 +35,30 @@ local function GenerateStandardStrikeExecuteFunction()
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
+    end
+end
+
+--The two generic free strikes score 0.2, so on a tie whichever was scored
+--first won, and a melee monster often plinked from range instead of charging.
+--The one that does not suit the signature's reach (MonsterAI.SignatureReach)
+--scores a little less, so the other wins the tie. Neither changes for a
+--monster whose signature is both melee and ranged, or that has none.
+local g_freeStrikeScore = 0.2
+local g_offReachFreeStrikeScore = 0.19
+
+local function FreeStrikeScoreFunction(reach)
+    local standard = GenerateStandardStrikeScoreFunction(g_freeStrikeScore)
+    return function(self, ai, token, ability)
+        local result = standard(self, ai, token, ability)
+        if result ~= nil then
+            local signatureReach = MonsterAI.SignatureReach(token)
+            if (signatureReach == "melee" or signatureReach == "ranged") and signatureReach ~= reach then
+                result.score = g_offReachFreeStrikeScore
+            end
+        end
+        return result
     end
 end
 
@@ -24,9 +67,9 @@ MonsterAI:RegisterMove{
     category = "Basic Strikes",
     description = "Move to melee range and use a free strike, charging if possible. This is a generic move that is used if no other good options are available.",
     abilities = {"Melee Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("melee"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -35,9 +78,9 @@ MonsterAI:RegisterMove{
     category = "Basic Strikes",
     description = "Move to ranged attack range and use a free strike. This is a generic move that is used if no other good options are available.",
     abilities = {"Ranged Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("ranged"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -81,7 +124,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Knockback!", "I'll give you a good shove"})
+        ai:Speech(token, ai:VoiceLines(token, "knockback", {"Knockback!", "I'll give you a good shove"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -129,7 +172,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"})
+        ai:Speech(token, ai:VoiceLines(token, "grab", {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -297,11 +340,42 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Aid Attack!", "Help me get them!"})
+        ai:Speech(token, ai:VoiceLines(token, "aidAttack", {"Aid Attack!", "Help me get them!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
+    end,
+}
+
+--Solo Action is the same 5 Malice "extra main action" in every solo monster's
+--group, so one rule covers them all. A band that registers its own Solo Action
+--(e.g. the Emerald Dragon, which keeps Malice back) is left to that rule.
+local g_soloActionName = "Solo Action"
+local g_soloActionId = "Generic Malice: Solo Action"
+
+local function HasBandSoloAction(ai, token)
+    for id, registration in pairs(ai.maliceAbilities) do
+        if id ~= g_soloActionId and (registration.abilities or {})[1] == g_soloActionName
+            and MonsterAI.MaliceAbilityMatchesMonster(token, registration, true) then
+            return true
+        end
+    end
+    return false
+end
+
+MonsterAI:RegisterMaliceAbility{
+    id = g_soloActionId,
+    abilities = {g_soloActionName},
+    description = "Spend 5 Malice for an extra main action while enemies remain. Monsters with their own Solo Action AI use that instead.",
+    score = function(self, ai, token, ability, context)
+        if HasBandSoloAction(ai, token) then
+            return nil, "this monster's own AI decides Solo Action"
+        end
+        if #(context.enemyTokens or {}) == 0 then
+            return nil, "no enemies"
+        end
+        return {score = 0.78}
     end,
 }
 
@@ -339,7 +413,7 @@ MonsterAI:RegisterMove{
         ai:Speech(token, {"Bury the Point!", "I'll bury this spear in you!"})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
     end
 }
@@ -492,7 +566,7 @@ MonsterAI:RegisterMove{
     score = GenerateStandardStrikeScoreFunction(1),
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai.Sleep(0.5)
         if #targets >= 2 then
             ai:Speech(token, {"Two arrows notched!", "Both of you at once!"})

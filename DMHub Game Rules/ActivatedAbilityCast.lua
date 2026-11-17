@@ -15,6 +15,7 @@ local mod = dmhub.GetModLoading()
 --- @field creaturelistsize number
 --- @field heroicresourcesgained number
 --- @field opportunityAttacksTriggered number
+--- @field lastCreaturePassedId string|false charid of the last creature a Relocate Creatures move with vicinity targeting passed, in path order.
 --- @field targets table
 --- @field memory table|false
 --- @field params table
@@ -47,6 +48,7 @@ ActivatedAbilityCast.numberofaddedcreatures = 0
 ActivatedAbilityCast.creaturelistsize = 0
 ActivatedAbilityCast.heroicresourcesgained = 0
 ActivatedAbilityCast.opportunityAttacksTriggered = 0
+ActivatedAbilityCast.lastCreaturePassedId = false
 ActivatedAbilityCast.targets = {}
 ActivatedAbilityCast.auraObject = false
 ActivatedAbilityCast.forcedMovementCollision = false
@@ -84,6 +86,13 @@ ActivatedAbilityCast.helpSymbols = {
         name = "OpportunityAttacksTriggered",
         type = "number",
         desc = "The number of opportunity attacks triggered while using this ability.",
+    },
+
+    lastcreaturepassed = {
+        name = "Last Creature Passed",
+        type = "creature",
+        desc = "The last creature, in path order, that this ability's movement passed. Set by a Relocate Creatures behavior that targets the creatures in its movement's vicinity.",
+        examples = {"Target = Cast.Last Creature Passed"},
     },
 
 	heroicresourcesgained = {
@@ -333,6 +342,13 @@ ActivatedAbilityCast.helpSymbols = {
         },
     },
 
+    anytargetcoverorconcealment = {
+        name = "Any Target Cover Or Concealment",
+        type = "boolean",
+        desc = "True if any target of this ability has concealment, or has cover from at least one enemy (the Concealed and Cover From Any Enemy creature symbols).",
+        examples = {"Cast.AnyTargetCoverOrConcealment"},
+    },
+
     targetsadjacent = {
         name = "Targets Adjacent",
         type = "boolean",
@@ -371,6 +387,16 @@ ActivatedAbilityCast.lookupSymbols = {
 
     opportunityattackstriggered = function(c)
         return c.opportunityAttacksTriggered
+    end,
+
+    lastcreaturepassed = function(c)
+        if c.lastCreaturePassedId == false then
+            return nil
+        end
+        local token = dmhub.GetTokenById(c.lastCreaturePassedId)
+        if token ~= nil then
+            return token.properties
+        end
     end,
 
 	heroicresourcesgained = function(c)
@@ -450,6 +476,19 @@ ActivatedAbilityCast.lookupSymbols = {
 
             return false
         end
+    end,
+
+    --True if any target has concealment or cover (gates Agonizing Stinger's Malice trigger).
+    anytargetcoverorconcealment = function(c)
+        for _, target in ipairs(c:try_get("targets", {})) do
+            if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
+                local props = target.token.properties
+                if props:IsConcealed() or props:CalculateCoverFromEnemies().any then
+                    return true
+                end
+            end
+        end
+        return false
     end,
 
     --Counts this cast's targets standing within `distance` squares of `creature`
@@ -916,6 +955,23 @@ function ActivatedAbilityCast:RedirectDamageTarget(targetToken)
             end
         end
     end
+end
+
+--- The creature that shares targetToken's damage from this cast (a "split"
+--- retarget, e.g. the Bendrak's Warp Perceptions), or nil. The original target
+--- keeps every other effect.
+--- @param targetToken CharacterToken
+--- @return CharacterToken|nil
+function ActivatedAbilityCast:SplitDamageTarget(targetToken)
+    for _,retarget in ipairs(self:try_get("retargets", {})) do
+        if retarget.retargetType == "split" and retarget.tokenid == targetToken.charid then
+            local newToken = dmhub.GetTokenById(retarget.retargetid)
+            if newToken ~= nil and newToken.valid and newToken.properties ~= nil then
+                return newToken
+            end
+        end
+    end
+    return nil
 end
 
 function ActivatedAbilityCast:RemapForceMoveTargetAndCaster(targetToken, casterToken)

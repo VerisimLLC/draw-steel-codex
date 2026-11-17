@@ -79,6 +79,50 @@ MonsterAI.RegisterBehaviorSource("test", function() return nil end)
 MonsterAI.behaviors["Everyone"].disabledForMonsters = {Goblin = true}
 check(MonsterAI.HasBehavior(gnoll, "Everyone") and not MonsterAI.HasBehavior(goblin, "Everyone"), "the panel switch turns one type off")
 
+--- band Malice for a monster "similar to" another ---------------------------
+assert(load(section("function MonsterAI.MoveMatchesMonster", "--Initiative choice")))()
+assert(load(section("local function GroupIsListed", "function MonsterAI:HandleMaliceAbilityStartOfTurn")))()
+--stub, not plain assignment: LuaLS would read an assignment as a new type for the real globals.
+local function stub(name, value) rawset(_G, name, value) end
+local now = 0
+stub("dmhub", {Time = function() return now end})
+local humanGroup = {name = "Human", id = "human-id"}
+local homebrewGroup = {name = "Homebrew", id = "homebrew-id"}
+local function GroupedProps(monsterType, group, similarTo)
+    return {MonsterGroup = function() return group end, try_get = function(_, k, default)
+        if k == "monster_type" then return monsterType end
+        if k == "aiSimilarTo" then return similarTo or default end
+        return default
+    end}
+end
+local bestiary = {blackguard = {properties = GroupedProps("Human Blackguard", humanGroup)}}
+stub("assets", {monsters = bestiary})
+local humanMalice = {id = "Human Malice: Exploit Opening", monsterGroups = {"Human"}, abilities = {"Exploit Opening"}}
+local function Grouped(monsterType, group, similarTo)
+    return {valid = true, properties = GroupedProps(monsterType, group, similarTo)}
+end
+
+check(MonsterAI.MaliceAbilityMatchesMonster(Grouped("Human Bandit", humanGroup), humanMalice), "own group matches")
+check(not MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup), humanMalice), "another group does not")
+check(MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup, "Human Blackguard"), humanMalice),
+    "a reskin in another group gets the similar monster's band Malice")
+check(MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup, "Missing Monster"), {monsterGroups = {"homebrew-id"}}),
+    "its own group still matches by id when it is similar to something else")
+check(not MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup, "Missing Monster"), humanMalice),
+    "a similar type with no bestiary entry adds nothing")
+humanMalice.disabledForMonsters = {["Dread Knight"] = true}
+check(not MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup, "Human Blackguard"), humanMalice)
+    and MonsterAI.MaliceAbilityMatchesMonster(Grouped("Dread Knight", homebrewGroup, "Human Blackguard"), humanMalice, true),
+    "the panel switch is still keyed by the reskin's own type")
+humanMalice.disabledForMonsters = nil
+
+--the lookup is remembered, then refreshed once the cache time passes.
+bestiary.blackguard.properties = GroupedProps("Human Blackguard", homebrewGroup)
+check(MonsterAI.SimilarMonsterGroup(GroupedProps("Dread Knight", nil, "Human Blackguard")) == humanGroup, "remembered within the cache time")
+now = MonsterAI.similarGroupCacheSeconds + 1
+check(MonsterAI.SimilarMonsterGroup(GroupedProps("Dread Knight", nil, "Human Blackguard")) == homebrewGroup, "looked up again after it")
+check(MonsterAI.SimilarMonsterGroup(GroupedProps("Dread Knight", nil, nil)) == nil, "no similar type, no group")
+
 --- Avoid Opportunity Attacks: the two-pass choice ---------------------------
 local here = {str = "here"}
 local away = {str = "away"}

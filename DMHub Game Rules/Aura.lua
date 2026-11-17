@@ -1886,7 +1886,11 @@ end
 
 --Whether aura-listing UI should skip this aura (see hideFromAuraLists).
 function AuraInstance:IsHiddenFromAuraLists()
-    return self:try_get("hideFromAuraLists", false) == true
+    if self:try_get("hideFromAuraLists", false) == true then
+        return true
+    end
+    --hideFromPlayers on the Aura definition: only the Director sees it in aura lists.
+    return (not dmhub.isDM) and self.aura:try_get("hideFromPlayers", false) == true
 end
 
 --- True when the aura's only effect is granting activated abilities to creatures in it

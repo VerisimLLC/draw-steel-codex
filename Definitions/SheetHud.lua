@@ -20,6 +20,14 @@ function SheetHud:PopSelectedTokenOverride() end
 --- @return number
 function SheetHud.GetTokenAbsoluteAltitude(token) end
 
+--- TokenAltitudeInShape
+--- @param description? any
+--- @param originAltitude? number
+--- @param altitudeRadius? number
+--- @param token? CharacterToken
+--- @return boolean
+function SheetHud.TokenAltitudeInShape(description, originAltitude, altitudeRadius, token) end
+
 --- HasVerticalLineOfSight
 --- @param originLoc? Loc
 --- @param originFloorIndex? number

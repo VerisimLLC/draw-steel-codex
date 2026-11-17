@@ -1152,7 +1152,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         prompt = self:try_get("promptCardTitle", ability.name),
                         rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
                         activateText = tr("Choose"),
-                        castPrompt = self:try_get("castPromptText", self.promptText),
+                        castPrompt = StringInterpolateGoblinScript(self:try_get("castPromptText", self.promptText), casterToken.properties:LookupSymbol{}),
                     }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 

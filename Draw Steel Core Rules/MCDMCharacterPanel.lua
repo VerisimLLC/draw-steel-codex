@@ -10839,9 +10839,9 @@ function TacPanel.ConditionsRow()
             local seenAuraNames = {}
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                local auraName = auraInfo.auraInstance.name
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then
-                    seenAuraNames[auraName] = true
+                local auraKey = AuraInstance.ChipDedupeKey(auraInfo.auraInstance)
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraNames[auraKey]) then
+                    if auraKey ~= nil then seenAuraNames[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -13019,9 +13019,9 @@ function TacPanel.Conditions()
             local aurasTouching = creature:GetAurasAffecting(token) or {}
             local seenAuraNames = {}
             for _, auraInfo in ipairs(aurasTouching) do
-                local auraName = auraInfo.auraInstance.name
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then --we'll see our own auras because we emit them.
-                    seenAuraNames[auraName] = true
+                local auraKey = AuraInstance.ChipDedupeKey(auraInfo.auraInstance)
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraNames[auraKey]) then --we'll see our own auras because we emit them.
+                    if auraKey ~= nil then seenAuraNames[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end

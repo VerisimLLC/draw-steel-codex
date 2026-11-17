@@ -6317,8 +6317,9 @@ function GameHud:CreateReactionBar(dialog, tokenInfo)
 			auras = {}
 			local seenAuraNames = {}
 			for _,aura in ipairs(aurasTouching) do
-				if not aura.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[aura.auraInstance.name] then
-					seenAuraNames[aura.auraInstance.name] = true
+				local auraKey = AuraInstance.ChipDedupeKey(aura.auraInstance)
+				if not aura.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraNames[auraKey]) then
+					if auraKey ~= nil then seenAuraNames[auraKey] = true end
 					auras[#auras+1] = aura.auraInstance
 				end
 			end

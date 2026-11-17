@@ -22764,13 +22764,27 @@ local function CreateIconRail(side, entries, opts)
                     return ScriptButtonHoverText(def, def.name or panelName or "Button")
                 end
             end
+            local text = string.upper(panelName)
             if docid == nil and charid == nil and toolkitid == nil then
                 local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
                 if bind ~= nil and bind ~= "" then
-                    return string.format("%s  (%s)", string.upper(panelName), bind)
+                    text = string.format("%s  (%s)", text, bind)
                 end
             end
-            return string.upper(panelName)
+            --a registration's newContentText() says what its lit alert is
+            --about (Puzzles: which puzzles need the Director).
+            if reg ~= nil and reg.newContentText ~= nil and reg.hasNewContent ~= nil then
+                local ok, extra = pcall(function()
+                    if reg.hasNewContent() then
+                        return reg.newContentText()
+                    end
+                    return nil
+                end)
+                if ok and type(extra) == "string" and extra ~= "" then
+                    text = string.format("%s  -  %s", text, extra)
+                end
+            end
+            return text
         end
 
         --The flyout itself: the members' own buttons in a strip beside the
@@ -23527,7 +23541,8 @@ local function CreateIconRail(side, entries, opts)
         --inside the marker as a badge; 1 stays a plain dot), and
         --markContentSeen() is called while the panel is on screen so the
         --registration can retire its "new" state (how Chat absorbs unread
-        --messages), and clearNewContent() retires it on demand -- the
+        --messages), newContentText() adds what the alert is about to the
+        --hover label, and clearNewContent() retires it on demand -- the
         --right-click "Clear Alerts" entry, for the panels whose alerts do
         --NOT retire by being looked at (novel module content clears only
         --per item, and only from the handful of rows wired to do it).

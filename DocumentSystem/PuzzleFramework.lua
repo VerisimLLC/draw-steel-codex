@@ -61,6 +61,7 @@ local mod = dmhub.GetModLoading()
 ---@field applied table<string, boolean>|nil effects claimed by the host, so none runs twice
 ---@field effectsDone boolean|nil the outcome handlers have run for this solve or failure
 ---@field bypassWithFail boolean|nil bypassed at a cost: run the fail effects as well
+---@field dismissed string|nil the outcome the Director has dismissed from the puzzle list (Puzzle.Dismiss)
 
 Puzzle = {}
 PuzzleType = {}
@@ -789,6 +790,48 @@ function Puzzle.Bypass(id, opts)
         status.solvedBy = "director"
         status.solvedAt = dmhub.serverTime
     end, "Bypass puzzle")
+end
+
+--A key for the puzzle's current outcome, or nil while it is still open. A new
+--solve gets a new key, so dismissing one never hides the next.
+---@param status PuzzleStatus
+---@return string|nil
+local function OutcomeKey(status)
+    if status.solved then
+        return "solved:" .. tostring(status.solvedAt)
+    elseif status.failed then
+        return "failed"
+    end
+    return nil
+end
+
+--A failure, or a solve by a player, the Director has not dismissed yet.
+--The Director's own Solve and Bypass never need them.
+---@param id string
+---@return boolean
+function Puzzle.NeedsDirector(id)
+    local status = Puzzle.Status(id)
+    local key = OutcomeKey(status)
+    if key == nil or status.dismissed == key then
+        return false
+    end
+    return not (status.solved and status.solvedBy == "director")
+end
+
+--The puzzle's current outcome key (see OutcomeKey), or nil while it is open.
+---@param id string
+---@return string|nil
+function Puzzle.OutcomeKey(id)
+    return OutcomeKey(Puzzle.Status(id))
+end
+
+---@param id string
+function Puzzle.Dismiss(id)
+    local key = OutcomeKey(Puzzle.Status(id))
+    if key == nil then
+        return
+    end
+    WriteStatus(id, function(status) status.dismissed = key end, "Dismiss puzzle outcome")
 end
 
 --Claim an effect before applying it: true at most once per key until a Reset,

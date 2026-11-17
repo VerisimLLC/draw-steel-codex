@@ -825,7 +825,13 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			moveOptions.maxCost = 30000
 			moveOptions.freeMovement = true
 			moveOptions.flightAltitude = options.symbols.flightAltitude
-			local path = casterToken:Move(EngineLoc(targets[#targets].loc), moveOptions)
+			--A rebounding push gets its force from the aimed distance, so keep the move within the push distance.
+			local moveLoc = targets[#targets].loc
+			if moveOptions.rebound and moveOptions.forced and moveOptions.straightline and moveLoc ~= nil
+				and not ActivatedAbility.IsVerticalForcedMovement(options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) then
+				moveLoc = ActivatedAbility.ClampForcedMoveLoc(casterToken.loc, moveLoc, moveOptions.forcedMovementDistance or 0)
+			end
+			local path = casterToken:Move(EngineLoc(moveLoc), moveOptions)
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total

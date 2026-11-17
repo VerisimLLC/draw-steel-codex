@@ -1591,7 +1591,7 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 		if targetToken.hiddenFromLocalViewer then
 			return false
 		end
-		-- Otherwise it is only a warning: the Director or a player can still pick it.
+		-- Otherwise it is only a warning: the action bar shows it but still lets the target be picked.
 		if ability:HasKeyword("Strike") then
 			hiddenReason = "Cannot target a hidden creature with a strike"
 		else

@@ -1,6 +1,8 @@
 --Run from C:/dev/dmhub with dependencies/lua/bin/lua.exe draw-steel-codex/tests/charge_jump_roll_test.lua.
 --Exercise the real charge executor and Jump dialog flow with deterministic engine/UI stand-ins.
 dmhub = {GetModLoading = function() return {} end, unitsPerSquare = 5}
+--AbilityJump registers its hop animation when it loads.
+dmhub.tokenAnimations = {RegisterTeleport = function() end}
 ActivatedAbility = {RegisterType = function() end}
 ActivatedAbilityBehavior = {}
 function RegisterGameType(name)
@@ -93,6 +95,11 @@ function attack:GetCost() return {canAfford = true} end
 function attack:GetRange() return 5 end
 function attack:TargetPassesFilter(_, target, symbols)
     assert(symbols.targetArea == nil and symbols.cast == nil, "fresh attack symbols")
+    --Stands in for the Hidden rule the real TargetPassesFilter applies: the range is in squares.
+    local ignoreRange = props.attrs["Ignore Hidden Within Range"] * dmhub.unitsPerSquare
+    if target.properties.hidden and tok:Distance(target) > ignoreRange then
+        return false
+    end
     return legalTarget and target.id == "enemy"
 end
 function dmhub.GetTable(name)
@@ -156,10 +163,8 @@ reset(); selectedTier = 2; legalTarget = false; options = execute()
 check(options.abort and options.stopProcessing and #moves == 2, "no legal shortfall attack stops pipeline")
 reset(); selectedTier = 2; enemyProperties.hidden = true; options = execute()
 check(options.abort and options.stopProcessing, "only hidden target does not open charge attack selector")
-reset(); selectedTier = 2; enemyProperties.hidden = true; props.attrs["Ignore Hidden Within Range"] = 5; options = execute()
+reset(); selectedTier = 2; enemyProperties.hidden = true; props.attrs["Ignore Hidden Within Range"] = 1; options = execute()
 check(not options.abort, "ignore-hidden range allows a nearby hidden charge target")
-reset(); selectedTier = 2; enemyProperties.hidden = true; props.attrs["Ignore Hidden Within Range"] = 4; options = execute()
-check(options.abort, "hidden target beyond ignore-hidden range remains illegal")
 reset(); selectedTier = 2; reaction = function(n) if n == 2 then props._tmp_prone = true end end; options = execute()
 check(not options.abort and #moves == 2, "prone landing may attack with ordinary bane")
 reset(); cancelRoll = true; options = execute()

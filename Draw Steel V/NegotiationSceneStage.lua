@@ -49,6 +49,9 @@ local HEADER_HEIGHT = 156
 local DEFAULT_HERO_ROW_HEIGHT = 250
 local FIGURE_AREA_HEIGHT = 300
 local SELECT_MODE = "negotiation"
+--The speaker's portrait on the right of an argument card (a hero card's 3:4).
+local CARD_PORTRAIT_WIDTH = 48
+local CARD_PORTRAIT_HEIGHT = 64
 --Spoken lines type on at this many characters a second (the EotW scenes' speed).
 local TYPE_CPS = 45
 --After the hero's line has typed out, the pause before the NPC answers.
@@ -71,10 +74,17 @@ local g_rules = {
     { selectors = {"nsCard", "knack", "actionable", "hover"}, borderColor = "#e2c6ffff" },
     { selectors = {"nsKnack"}, fontSize = 15, bold = true, color = "#d9b3ff", width = "100%", height = "auto", textAlignment = "left", textWrap = true, tmargin = 4 },
     { selectors = {"nsCard", "droppable"}, bgcolor = "#243018f2", borderColor = "#b8e04aff" },
+    --the argument a dragged hero is over (the engine sets drag-target-hover),
+    --in the selected hero's gold so it reads as "this one".
+    { selectors = {"nsCard", "droppable", "drag-target-hover"}, bgcolor = "#3a4a1cf8", borderColor = "#ffd66bff", border = 3, brightness = 1.25 },
     { selectors = {"nsCard", "disabledCard"}, opacity = 0.6 },
     --a knack argument the selected hero cannot make.
     { selectors = {"nsCard", "notTheirs"}, opacity = 0.4 },
     { selectors = {"nsCardNote"}, fontSize = 16, bold = true, color = "#8ee08e", width = "100%", height = "auto", textAlignment = "center" },
+    --a card's text, narrowed to make room for the speaker's portrait.
+    { selectors = {"nsCardText"}, width = "100%" },
+    { selectors = {"nsCardText", "withPortrait"}, width = string.format("100%%-%d", CARD_PORTRAIT_WIDTH + 8) },
+    { selectors = {"nsCardPortrait"}, bgcolor = "#00000000", border = 1, borderColor = "#ffffff60", cornerRadius = 4 },
     { selectors = {"nsCardName"}, fontSize = 18, bold = true, color = "#ffffff", width = "100%", height = "auto", textAlignment = "left", textWrap = true },
     { selectors = {"nsSpeaker"}, fontSize = 21, bold = true, color = "#ffd66b", width = "auto", height = "auto", textAlignment = "left" },
     { selectors = {"nsPrompt"}, fontSize = 17, italics = true, color = "#ffd66b", width = "100%", height = "auto", textAlignment = "center", textWrap = true, bmargin = 10 },
@@ -191,6 +201,8 @@ function NegotiationSceneStage.Create(args)
     local session = args.session
     local canActFn = args.canAct or DefaultCanAct
     local m_selectedHero = nil
+    --the argument card a dragged hero is over (its portrait previews them).
+    local m_previewTarget = nil
     local m_heroSignature = nil
     local m_cardSignature = nil
     local m_finished = false
@@ -227,7 +239,47 @@ function NegotiationSceneStage.Create(args)
         return heroid == nil or session:CanMakeArgument(heroid, argument)
     end
 
-    --A knack argument: `qualifiers` are the names of the heroes who may make it.
+    --A knack argument's line: what a hero needs to make it, then a small
+    --token for each hero here who has it (their name on hover).
+    local function KnackRow(argument, qualifiers)
+        local needs = {}
+        for _, rider in ipairs(argument.riders or {}) do
+            if rider.effect == "allow" then
+                needs[#needs + 1] = TestRiders.DisplayRequirementText(rider)
+            end
+        end
+        local tokens = {}
+        for _, hero in ipairs(qualifiers) do
+            local tok = dmhub.GetCharacterById(hero.charid)
+            if tok ~= nil and tok.valid then
+                tokens[#tokens + 1] = gui.CreateTokenImage(tok, {
+                    width = 28,
+                    height = 28,
+                    rmargin = 4,
+                    halign = "left",
+                    valign = "center",
+                    linger = gui.Tooltip(hero.name),
+                })
+            end
+        end
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Label{ classes = {"nsKnack"},
+                text = T("negscene.argument.knack_for", { requirement = table.concat(needs, "; ") }), interactable = false },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                tmargin = 4,
+                children = tokens,
+            },
+        }
+    end
+
+    --A knack argument: `qualifiers` are the heroes ({charid, name}) who may make it.
     local function ArgumentCard(beat, m, argument, qualifiers)
         local known = argument.traitId ~= nil and (m.learned or {})[argument.traitId] == true
         local said = (m.usedArguments or {})[argument.id] == true
@@ -247,26 +299,100 @@ function NegotiationSceneStage.Create(args)
             children[#children + 1] = gui.Label{ classes = {"nsDesc"}, text = note, interactable = false }
         end
         if qualifiers ~= nil then
-            children[#children + 1] = gui.Label{ classes = {"nsKnack"},
-                text = T("negscene.argument.knack_for", { heroes = table.concat(qualifiers, ", ") }), interactable = false }
+            children[#children + 1] = KnackRow(argument, qualifiers)
         end
-        local notTheirs = not SelectedMayMake(argument, m_selectedHero)
-        local verdict = m_selectedHero ~= nil and not notTheirs and session:Verdict(m_selectedHero, argument) or nil
-        if verdict ~= nil and (verdict.boons or 0) > 0 then
-            children[#children + 1] = gui.Label{ classes = {"nsCardNote"}, text = T("negscene.argument.edge"), interactable = false }
-        end
-        local classes = {"nsCard", cond(m.phase == "choosing" and not notTheirs, "actionable", "disabledCard")}
+        local edgeLabel = gui.Label{ classes = {"nsCardNote", "collapsed"}, text = "", interactable = false }
+        children[#children + 1] = edgeLabel
+        local classes = {"nsCard"}
         if qualifiers ~= nil then
             classes[#classes + 1] = "knack"
         end
-        if notTheirs then
-            classes[#classes + 1] = "notTheirs"
+
+        --Who is on this argument, shown as a portrait at the card's right: the
+        --hero making it now, else whoever made it last.
+        local speakerid = nil
+        if m.turn ~= nil and m.turn.kind == "argue" and m.turn.argumentId == argument.id then
+            speakerid = m.turn.heroid
+        else
+            for i = #(m.log or {}), 1, -1 do
+                if m.log[i].argumentId == argument.id then
+                    speakerid = m.log[i].heroid
+                    break
+                end
+            end
         end
+        local textColumn = gui.Panel{
+            classes = {"nsCardText"},
+            height = "auto",
+            flow = "vertical",
+            valign = "center",
+            children = children,
+        }
+        local portrait = gui.Panel{
+            classes = {"nsCardPortrait", "collapsed"},
+            width = CARD_PORTRAIT_WIDTH,
+            height = CARD_PORTRAIT_HEIGHT,
+            lmargin = 8,
+            valign = "center",
+            bgimage = "panels/square.png",
+            interactable = false,
+        }
+        --Show this hero's portrait (nil = none). Their art cropped as a hero
+        --card crops it, or their token when they have no art.
+        local m_portraitShown = false
+        local function ShowPortrait(charid)
+            local tok = charid ~= nil and dmhub.GetCharacterById(charid) or nil
+            local shown = tok ~= nil and tok.valid
+            if tok ~= nil and shown and charid ~= m_portraitShown then
+                portrait.bgimage = "panels/square.png"
+                portrait.selfStyle.bgcolor = "#00000000"
+                portrait.selfStyle.imageRect = nil
+                portrait.children = {}
+                local art = false
+                pcall(function() art = EotwHeroCard.ApplyPortrait(portrait, tok, CARD_PORTRAIT_WIDTH / CARD_PORTRAIT_HEIGHT) end)
+                if not art then
+                    portrait.children = { gui.CreateTokenImage(tok, {
+                        width = CARD_PORTRAIT_WIDTH,
+                        height = CARD_PORTRAIT_WIDTH,
+                        halign = "center",
+                        valign = "center",
+                    }) }
+                end
+            end
+            m_portraitShown = cond(shown, charid, false)
+            portrait:SetClass("collapsed", not shown)
+            textColumn:SetClass("withPortrait", shown)
+        end
+
+        --What depends on the selected hero is updated in place rather than by
+        --rebuilding the list: selecting is the first thing a drag does, and a
+        --rebuild mid-drag replaces the cards the engine took as drop targets.
+        local function ApplySelection(element, heroid, mode)
+            local notTheirs = not SelectedMayMake(argument, heroid)
+            local verdict = heroid ~= nil and not notTheirs and session:Verdict(heroid, argument) or nil
+            element:SetClass("notTheirs", notTheirs)
+            element:SetClass("actionable", m.phase == "choosing" and not notTheirs)
+            element:SetClass("disabledCard", m.phase ~= "choosing" or notTheirs)
+            element:SetClass("droppable", heroid ~= nil and (mode or "") == SELECT_MODE and not notTheirs)
+            --the edge says why: "Edge: your Wealth is 2+".
+            local whys = {}
+            for _, applied in ipairs(verdict ~= nil and (verdict.boons or 0) > 0 and verdict.applied or {}) do
+                if TestRiders.Boons(applied.rider.effect) > 0 and applied.why ~= nil then
+                    whys[#whys + 1] = applied.why
+                end
+            end
+            if #whys > 0 then
+                edgeLabel.text = T("negscene.argument.edge", { why = table.concat(whys, "; ") })
+            end
+            edgeLabel:SetClass("collapsed", #whys == 0)
+        end
+
         return gui.Panel{
             classes = classes,
             width = "100%",
             height = "auto",
-            flow = "vertical",
+            --the text, then the speaker's portrait at the right.
+            flow = "horizontal",
             pad = 8,
             borderBox = true,
             bmargin = 6,
@@ -274,7 +400,21 @@ function NegotiationSceneStage.Create(args)
             dragTarget = true,
             dragTargetPriority = 10,
             data = { argument = argument },
-            children = children,
+            textColumn,
+            portrait,
+            create = function(element)
+                ApplySelection(element, m_selectedHero, cond(m_selectedHero ~= nil, SELECT_MODE, nil))
+                ShowPortrait(speakerid)
+            end,
+            --a hero dragged over this card previews as its speaker; off it
+            --(or dropped), the card goes back to its own.
+            previewSpeaker = function(element, target, charid)
+                if target == element and charid ~= nil and SelectedMayMake(argument, charid) then
+                    ShowPortrait(charid)
+                else
+                    ShowPortrait(speakerid)
+                end
+            end,
             press = function(element)
                 Argue(argument, m_selectedHero)
             end,
@@ -282,7 +422,7 @@ function NegotiationSceneStage.Create(args)
                 element:SetClass("droppable", on == true and (mode or "") == SELECT_MODE and SelectedMayMake(argument, m_selectedHero))
             end,
             selectHero = function(element, heroid, mode)
-                element:SetClass("droppable", heroid ~= nil and (mode or "") == SELECT_MODE and SelectedMayMake(argument, heroid))
+                ApplySelection(element, heroid, mode)
             end,
         }
     end
@@ -312,12 +452,21 @@ function NegotiationSceneStage.Create(args)
                 SelectHero(charid, SELECT_MODE)
                 Broadcast("dragTargets", true, SELECT_MODE)
             end,
+            --every frame of the drag: the argument under it shows this hero.
+            dragging = function(element, target)
+                if target ~= m_previewTarget then
+                    m_previewTarget = target
+                    Broadcast("previewSpeaker", target, charid)
+                end
+            end,
             canDragOnto = function(element, target)
                 return target:HasClass("nsCard") and CanAct(charid)
             end,
             drag = function(element, target)
                 element:SetClass("dragging", false)
                 Broadcast("dragTargets", false)
+                m_previewTarget = nil
+                Broadcast("previewSpeaker", nil, nil)
                 if target ~= nil and target:HasClass("nsCard") then
                     Argue(target.data.argument, charid)
                 end
@@ -340,6 +489,9 @@ function NegotiationSceneStage.Create(args)
             }
         end
         card:SetClass("nsHeroCard", true)
+        --while dragged, the engine shows the dragged panel's cursor; without
+        --one it falls through to the map's, "forbidden" with no map loaded.
+        card.hoverCursor = "default"
         local spokeLabel = gui.Label{ classes = {"nsSpoke"}, text = "", halign = "center" }
         return gui.Panel{
             width = "auto",
@@ -696,13 +848,35 @@ function NegotiationSceneStage.Create(args)
         session:SendRequest("walkOut")
     end
 
+    --What taking the deal now gets: the same two lines as the offer box at the
+    --top ("On the table: Yes, but..." and the offer's line).
+    local function DealTooltip()
+        local m = session:GetState()
+        local beat = session:Beat()
+        if m == nil or beat == nil then
+            return ""
+        end
+        local lines = { T("negscene.on_the_table", { shape = NegotiationRules.offerLabels[m.interest] or "" }) }
+        local offer = beat.offers[m.interest + 1]
+        if offer ~= nil and offer.text ~= "" then
+            lines[#lines + 1] = offer.text
+        end
+        return table.concat(lines, "\n")
+    end
+
     local function Buttons(m)
         local buttons = {}
-        local function Add(text, fn)
-            buttons[#buttons + 1] = gui.Button{ width = 200, height = 44, lmargin = 8, text = text, click = fn }
+        local function Add(text, fn, tooltip)
+            buttons[#buttons + 1] = gui.Button{
+                width = 200, height = 44, lmargin = 8, text = text, click = fn,
+                --worked out on hover, so it always matches the bars.
+                linger = tooltip ~= nil and function(element)
+                    gui.Tooltip(tooltip())(element)
+                end or nil,
+            }
         end
         if m.phase == "choosing" and m.interest >= 1 then
-            Add(T("negscene.take_deal"), function() session:SendRequest("takeDeal") end)
+            Add(T("negscene.take_deal"), function() session:SendRequest("takeDeal") end, DealTooltip)
         elseif m.phase == "reply" or m.phase == "done" then
             Add(T("negscene.continue"), function() session:SendRequest("continue") end)
         elseif m.phase == "voting" then
@@ -861,8 +1035,9 @@ function NegotiationSceneStage.Create(args)
         end
 
         local heroes = session:Heroes()
-        local signature = string.format("%s|%s|%s|%d|%d|%d|%s", tostring(m.seq), tostring(m.phase),
-            tostring(m_selectedHero), #clues, #learned, #log, HeroSignature(heroes))
+        --not the selected hero: the cards follow it in place (ApplySelection).
+        local signature = string.format("%s|%s|%d|%d|%d|%s", tostring(m.seq), tostring(m.phase),
+            #clues, #learned, #log, HeroSignature(heroes))
         if signature ~= m_cardSignature then
             m_cardSignature = signature
             local cards = {}
@@ -878,7 +1053,7 @@ function NegotiationSceneStage.Create(args)
                     qualifiers = {}
                     for _, hero in ipairs(heroes) do
                         if session:CanMakeArgument(hero.charid, argument) then
-                            qualifiers[#qualifiers + 1] = hero.name
+                            qualifiers[#qualifiers + 1] = hero
                         end
                     end
                 end

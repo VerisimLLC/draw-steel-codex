@@ -90,9 +90,10 @@ text("forge.talk.stranger.leave_npc", [[Come back any time, friend, any time. Wh
 --KNACKS: arguments that suit particular heroes, written as in a montage
 --(KNACKS_REFERENCE.md in EncounterOfTheWeek has every requirement you can
 --write). They are the lines starting "|" after an argument's "|Test:".
---  |Allow: <requirement>   a knack argument: it shows, in purple and naming
---                          who can make it, only while a hero at home meets
---                          the requirement, and only they can make it.
+--  |Allow: <requirement>   a knack argument: it shows, in purple with the
+--                          requirement and a token for each hero who meets
+--                          it, only while a hero at home does, and only they
+--                          can make it.
 --  |Edge: <requirement>    anyone can make the argument; a hero who meets
 --                          the requirement rolls with an edge.
 --Requirements read like "you can make fire or you can deal fire damage",
@@ -277,6 +278,11 @@ text("great_forge.workshop.not_ready", [[This hero is still loading. Try again i
 text("great_forge.workshop.offline", [[Can't reach the town right now. Try again in a moment.]])
 --Named on the dice: {hero} and {item}.
 text("great_forge.workshop.roll_description", [[{hero} works on {item}]])
+--The crafting roll dialog, under the big number once the roll finishes the
+--treasure. {natural} is the number on the dice alone, {item} the treasure.
+text("great_forge.workshop.result_done", [[natural {natural} -- {item} is finished!]])
+--The same when the roll was a breakthrough: its extra roll comes back to {hero}.
+text("great_forge.workshop.result_done_refunded", [[natural {natural} -- {item} is finished! The breakthrough refunds a Downtime Activity to {hero}]])
 
 --The treasure picker. {hero} is who will craft it.
 text("great_forge.workshop.picker_title", [[A Treasure for {hero}]])

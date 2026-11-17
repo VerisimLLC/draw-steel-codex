@@ -59,10 +59,13 @@ text("negscene.argument.said", [[Already said]])
 --{trait} is a motivation or pitfall the heroes have learned.
 text("negscene.argument.avoid", [[Avoid: {trait}]])
 text("negscene.argument.appeal", [[Appeals to: {trait}]])
---On a knack argument (one only some heroes can make): {heroes} is who can.
-text("negscene.argument.knack_for", [[Knack: {heroes}]])
---Under an argument the selected hero has an edge on.
-text("negscene.argument.edge", [[You have an edge]])
+--On a knack argument (one only some heroes can make): {requirement} is what a
+--hero needs to make it ("you are skilled in Psionics"); the heroes who can
+--are shown as tokens under it.
+text("negscene.argument.knack_for", [[Knack: {requirement}]])
+--Under an argument the selected hero has an edge on. {why} is what earns it,
+--from the script's "|Edge:" line ("your Wealth is 2+"); several join with "; ".
+text("negscene.argument.edge", [[Edge: {why}]])
 
 --Under each hero's card: how often they have spoken.
 text("negscene.hero.quiet", [[Has not spoken]])

@@ -4204,6 +4204,10 @@ EotwDowntime.UI = {
     LoadMine = LoadMine,
     SaveMine = SaveMine,
     TOGGLE_STYLES = TOGGLE_STYLES,
+    --for the Great Forge's crafting roll dialog (EotwForge.ShowCraftDialog).
+    ProgressBar = ProgressBar,
+    HammerChip = HammerChip,
+    TrackDialog = TrackDialog,
 }
 
 --- dev commands ---------------------------------------------------------------

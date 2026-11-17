@@ -3271,10 +3271,17 @@ function EncounterOfTheWeek.ShowProjectsDialog()
             SetStatus(title .. " saved.")
             --resetting the Great Forge, or moving its points, re-arms the
             --first-visit moments this machine remembers: Giddlebrick's
-            --intro and the siege banner.
+            --intro and the siege banner. The city also forgets this account's
+            --talks with Giddlebrick at the built Forge (and its treasures),
+            --so his opening conversation plays again.
             if args.projectid == "build-great-forge" and (args.reset == true or args.points ~= nil) then
                 EotwLeads.ForgetGiddlebrick()
                 EotwDowntime.ForgetSiegeSeen()
+                EotwForge.DevReset(function(ok, result)
+                    if not ok then
+                        print("EotW town (dev): could not forget the Forge talks: " .. tostring(result))
+                    end
+                end)
             end
             pcall(EotwDowntime.RefreshProjects)
             Load()

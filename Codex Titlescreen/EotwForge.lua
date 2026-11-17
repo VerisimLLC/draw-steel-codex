@@ -214,75 +214,174 @@ local function Speakers()
     return result
 end
 
---A town test: 2d10 + the hero's best characteristic the argument names, +2
---when they are trained in one of its skills. Real 3D dice.
-local function ShowRoll(args)
+--The roll dialog's chips for the test's skills: "Skilled in Persuade",
+--forced on, when the hero is trained in one of them (as a montage test does).
+local function ApplySkilledModifier(c, modifiers, skillids)
+    for _, m in ipairs(modifiers) do
+        if m.modifier.name == "Skilled" then
+            local names = {}
+            for _, skillid in ipairs(skillids) do
+                local skillInfo = dmhub.GetTable(Skill.tableName)[skillid]
+                if skillInfo ~= nil and c:ProficientInSkill(skillInfo) then
+                    m.modifier = DeepCopy(m.modifier)
+                    m.modifier.name = string.format(tr("Skilled in %s"), skillInfo.name)
+                    m.modifier.description = string.format(tr("Skill in %s gives you +2 on this roll"), skillInfo.name)
+                    m.modifier.activationCondition = true
+                    m.hint.result = true
+                    return
+                elseif skillInfo ~= nil then
+                    names[#names + 1] = skillInfo.name
+                end
+            end
+            if #names > 0 then
+                m.modifier = DeepCopy(m.modifier)
+                m.modifier.description = string.format(tr("Not skilled in %s"), table.concat(names, " or "))
+            end
+        end
+    end
+end
+
+--A town test in the game's own roll dialog: 2d10 + the best characteristic
+--the argument names, the Skilled chip, the hero's features, and a chip for
+--each knack edge or bane saying why ("Edge: your Wealth is 2+"). The tier
+--table shows, and the player throws the dice. The card is made inside
+--`parent` (the negotiation overlay): the title screen has no ability sidebar.
+--dialogHolder.card is the card up now, if any.
+local function ShowRoll(args, parent, dialogHolder)
     local tok = dmhub.GetCharacterById(args.heroid)
-    if tok == nil then
+    if tok == nil or not tok.valid or tok.properties == nil or parent == nil or not parent.valid then
         args.send("rollCancelled", { rollSeq = args.rollSeq })
         return
     end
+    local c = tok.properties
     local characteristics, skills = NegotiationScene.ParseTest(args.attr)
-    local best, bestValue = nil, nil
-    for attrid, _ in pairs(characteristics) do
-        local value = EotwDowntime.UI.CharacteristicValue(tok, attrid)
-        if bestValue == nil or value > bestValue then
-            best, bestValue = attrid, value
+    local attrid, best = nil, nil
+    for id, _ in pairs(characteristics) do
+        local attr = c:GetAttribute(id)
+        if attr ~= nil and (best == nil or attr:Modifier() > best) then
+            attrid, best = id, attr:Modifier()
         end
     end
-    local bonus = bestValue or 0
-    local names = {}
+    local skillids = {}
     for _, skill in ipairs(skills) do
-        names[#names+1] = skill.name
+        skillids[#skillids + 1] = skill.id
     end
-    local trained = #names > 0 and EotwDowntime.UI.TrainedSkills(tok, { skills = names }) or {}
-    if #trained > 0 then
-        bonus = bonus + 2
+    local title = string.format("%s: %s", args.name or "", args.attr or "")
+    local rollType = "test_power_roll"
+    local roll = string.format("2d10 + %d", best or 0)
+    local modifiers = {}
+    if attrid ~= nil then
+        modifiers = c:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid, title = title, skills = skillids })
     end
-    --knack edges and banes: one net edge is +2, a net double edge is one
-    --tier better (and the reverse for banes), as the book's rule.
-    local verdict = args.verdict or {}
-    local net = math.max(-2, math.min(2, (verdict.boons or 0) - (verdict.banes or 0)))
-    if net == 1 then
-        bonus = bonus + 2
-    elseif net == -1 then
-        bonus = bonus - 2
+    ApplySkilledModifier(c, modifiers, skillids)
+    TestRiders.AppendModifiers(modifiers, args.verdict, rollType)
+
+    --the card: the test drawn as an ability, with the compact roll dialog
+    --embedded in it, as a montage test shows in the ability sidebar.
+    local old = dialogHolder.card
+    if old ~= nil and old.valid then
+        old:DestroySelf()
     end
-    dmhub.Roll{
-        roll = string.format("2d10%+d", bonus),
-        description = T("negscene.roll.description", { hero = args.heroName or tok.name or "", name = args.name or "" }),
-        complete = function(rollInfo)
-            if mod.unloaded or not args.stillWanted() then
-                return
-            end
-            local natural = math.floor(tonumber(rollInfo.naturalRoll) or 0)
-            local total = math.floor(tonumber(rollInfo.total) or 0)
-            local tier = NegotiationScene.TierFor(natural, total)
-            if net == 2 then
-                tier = math.min(3, tier + 1)
-            elseif net == -2 then
-                tier = math.max(1, tier - 1)
-            end
-            args.send("rolled", {
-                rollSeq = args.rollSeq,
-                tier = tier,
-                total = total,
-                natural = natural,
-            })
-        end,
+    local ability = ActivatedAbility.Create{ isTest = true, name = title }
+    local card = CreateAbilityTooltip(ability, { token = tok, width = 346, maxHeight = 900 })
+    if card == nil then
+        args.send("rollCancelled", { rollSeq = args.rollSeq })
+        return
+    end
+    --as the sidebar does: the card is a picture, except for the parts the
+    --embedded dialog turns back on (its close button).
+    card:MakeNonInteractiveRecursive()
+    local holder = gui.Panel{
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        rmargin = 40,
+        card,
     }
+    dialogHolder.card = holder
+    parent:AddChild(holder)
+    local function Close()
+        dmhub.Schedule(0.05, function()
+            if holder.valid then
+                holder:DestroySelf()
+            end
+        end)
+    end
+
+    local dialog = GameHud.CreateEmbeddedRollDialog()
+    card:FireEventTree("embedRollDialog", dialog)
+
+    local rollProperties = RollPropertiesPowerTable.new{ tiers = args.tiers, fullyImplemented = true }
+    local settled = false
+    --one frame for the embedded dialog to lay out first, as the montage does.
+    dmhub.Schedule(0.05, function()
+        if mod.unloaded or not dialog.valid then
+            return
+        end
+        dialog.data.ShowDialog{
+            title = title,
+            description = T("negscene.roll.description", { hero = args.heroName or tok.name or "", name = args.name or "" }),
+            creature = c,
+            ability = ability,
+            type = rollType,
+            roll = roll,
+            modifiers = modifiers,
+            --the single target (the roller) is what lets the edge/bane chips
+            --move the tier shown.
+            multitargets = { { token = tok, boons = 0, banes = 0, modifiers = modifiers, triggers = {} } },
+            targetCreature = c,
+            showDialogDuringRoll = true,
+            --gives the roll its Accept Result step.
+            amendable = true,
+            --once the dice are thrown the result stands.
+            noCancelOnceThrown = true,
+            rollProperties = rollProperties,
+            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+            completeRoll = function(rollInfo)
+                settled = true
+                Close()
+                if mod.unloaded or not args.stillWanted() then
+                    return
+                end
+                local tier = 1
+                pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+                args.send("rolled", {
+                    rollSeq = args.rollSeq,
+                    tier = tier,
+                    total = math.floor(tonumber(rollInfo.total) or 0),
+                    natural = math.floor(tonumber(rollInfo.naturalRoll) or 0),
+                })
+            end,
+            --closed before the dice were thrown: the hero picks again.
+            cancelRoll = function()
+                if settled or mod.unloaded then
+                    return
+                end
+                settled = true
+                Close()
+                args.send("rollCancelled", { rollSeq = args.rollSeq })
+            end,
+        }
+    end)
 end
 
 --Play the negotiation over the town. onDone(forge) once it is over and the
 --City has the result (forge = the new status, or nil if nothing was sent or
 --the City refused it).
+--opts.preview (dev): play it as this standing and tell the City nothing, so
+--the account's access, lock and crafts are untouched.
 ---@param host Panel
----@param opts {backdrop: string|nil}|nil
+---@param opts {backdrop: string|nil, preview: string|nil}|nil
 ---@param onDone fun(forge: table|nil)
 function EotwForge.ShowNegotiation(host, opts, onDone)
     opts = opts or {}
     local beat = EotwForge.Beat()
     local status = EotwForge.Status()
+    if opts.preview ~= nil then
+        status = { standing = opts.preview }
+    end
     if beat == nil or status == nil or #Speakers() == 0 then
         onDone(nil)
         return
@@ -293,13 +392,17 @@ function EotwForge.ShowNegotiation(host, opts, onDone)
     local overlay = nil
     --each hero's knack facts, read once per talk (the stage asks per card).
     local factsByHero = {}
+    --the roll card up now, if any (ShowRoll).
+    local rollDialog = { card = nil }
 
     local session = NegotiationScene.LocalSession{
         Beat = function()
             return beat
         end,
         Heroes = Speakers,
-        ShowRoll = ShowRoll,
+        ShowRoll = function(args)
+            ShowRoll(args, overlay, rollDialog)
+        end,
         --knack arguments ("|Allow:") and edges, by the same rules as a montage.
         Verdict = function(charid, argument)
             local facts = factsByHero[charid]
@@ -315,12 +418,20 @@ function EotwForge.ShowNegotiation(host, opts, onDone)
             return TestRiders.Evaluate(argument.riders, facts)
         end,
         Track = function(event, fields)
+            if opts.preview ~= nil then
+                return
+            end
             fields.standing = status.standing
             EotwAnalytics.Track("eotw_forge_" .. event, fields)
         end,
         --how it ended decides the Forge: leaving before anyone spoke changes
         --nothing; otherwise the interest reached is reported.
         Finish = function(m, outcome, offer, b)
+            if opts.preview ~= nil then
+                printf("EotW town (dev): preview over: %s, interest %s", tostring(outcome), tostring(m.interest))
+                reported = { sent = false }
+                return {}
+            end
             if outcome == "left" and #(m.log or {}) == 0 then
                 reported = { sent = false }
                 return {}
@@ -511,6 +622,31 @@ function EotwForge.Approach(host, opts, close)
             EotwForge.ShowNegotiation(host, opts, AfterTalk)
         else
             close()
+        end
+    end)
+end
+
+--Dev: the first visit as this standing (opening, then the negotiation if the
+--hero pushes), reporting nothing to the City.
+---@param host Panel
+---@param standing string
+function EotwForge.Preview(host, standing)
+    local heroes = EotwLeads.HeroesAtHome()
+    if #heroes == 0 then
+        print("EotW town (dev): no hero at home to speak")
+        return
+    end
+    local opts = { preview = standing }
+    local pick = heroes[math.random(#heroes)]
+    EotwLeads.PlayConversation(host, Opening(standing), pick.hero.heroid, function(result)
+        if mod.unloaded then
+            return
+        end
+        if result == "push" then
+            EotwForge.ShowNegotiation(host, opts, function()
+            end)
+        else
+            print("EotW town (dev): preview: the hero left")
         end
     end)
 end
@@ -846,6 +982,22 @@ local function Request(action, args, onDone)
     }
 end
 
+--Developer/admin only (the server refuses anyone else): forget this
+--account's Forge standing (Giddlebrick talks, access, lockout) and its
+--heroes' treasures, so the first visit plays again. onDone(ok, result),
+--result = {deleted, forge} or the refusal message.
+---@param onDone fun(ok: boolean, result: any)|nil
+function EotwForge.DevReset(onDone)
+    Request("dev-reset-forge", {}, function(ok, result)
+        if ok and type(result) == "table" then
+            SetStatus(result.forge)
+        end
+        if onDone ~= nil then
+            onDone(ok, result)
+        end
+    end)
+end
+
 --Start a hero on a treasure.
 function EotwForge.StartCraft(heroid, itemid, item, goal, onDone)
     Request("forge-start-craft", { heroid = heroid, itemid = itemid, itemName = tostring(item.name), goal = goal }, function(ok, result)
@@ -860,11 +1012,18 @@ end
 --One roll on a hero's treasure: a Downtime Activity, or a breakthrough's
 --free follow-up (breakthroughOf = its rollid). Kept until the City has it,
 --as every project roll is (EotwDowntime.ResumePending sends it on).
-function EotwForge.Roll(heroid, breakthroughOf, onDone)
+--args = {heroid, breakthroughOf?, previewPanel?, begin = function(rollInfo,
+--bonus)?, cancel?, rolled = function(natural, total)?, done = function(ok,
+--resultOrMessage)}. With previewPanel (a gui.DicePreview cage) the dice are
+--only armed: they rest there until the player clicks or throws them, as in
+--EotwDowntime.Roll. done runs once the City has answered and the Forge's
+--status has been fetched again.
+function EotwForge.Roll(args)
+    local heroid = args.heroid
     local tok = dmhub.GetCharacterById(heroid)
     local craft = EotwForge.Craft(heroid)
     if tok == nil or craft == nil then
-        onDone(false, T("great_forge.workshop.not_ready"))
+        args.done(false, T("great_forge.workshop.not_ready"))
         return
     end
     local item = (dmhub.GetTable("tbl_Gear") or {})[craft.itemid]
@@ -875,18 +1034,40 @@ function EotwForge.Roll(heroid, breakthroughOf, onDone)
         heroid = heroid,
         characteristic = attrid or "",
         skill = "",
-        breakthroughOf = breakthroughOf,
+        breakthroughOf = args.breakthroughOf,
     }
     dmhub.Roll{
         roll = string.format("2d10%+d", bonus),
         description = T("great_forge.workshop.roll_description", { hero = tok.name or "", item = craft.itemName or "" }),
+        preview = args.previewPanel ~= nil,
+        previewPanel = args.previewPanel,
+        --a throw too weak to roll: the dice go back to rest.
+        cancel = function()
+            if not mod.unloaded and args.cancel ~= nil then
+                args.cancel()
+            end
+        end,
+        begin = function(rollInfo)
+            if not mod.unloaded and args.begin ~= nil then
+                args.begin(rollInfo, bonus)
+            end
+        end,
         complete = function(rollInfo)
             if mod.unloaded then
                 return
             end
             roll.natural = math.floor(tonumber(rollInfo.naturalRoll) or 0)
             roll.total = math.floor(tonumber(rollInfo.total) or 0)
+            --dev: /eotwdowntime breakthrough makes this roll a natural 20 too.
+            if EotwDowntime.forceBreakthrough then
+                EotwDowntime.forceBreakthrough = false
+                roll.natural = 20
+                roll.total = 20 + bonus
+            end
             EotwDowntime.UI.SaveMine("eotw:pendingProjectRoll", roll)
+            if args.rolled ~= nil then
+                args.rolled(roll.natural, roll.total)
+            end
             Request("project-roll", roll, function(ok, result)
                 EotwDowntime.UI.SaveMine("eotw:pendingProjectRoll", nil)
                 if ok then
@@ -895,11 +1076,508 @@ function EotwForge.Roll(heroid, breakthroughOf, onDone)
                         total = roll.total, completed = result.completed, breakthrough = result.breakthrough })
                 end
                 EotwForge.Fetch(function()
-                    onDone(ok, result)
+                    if not mod.unloaded then
+                        args.done(ok, result)
+                    end
                 end)
             end)
         end,
     }
+end
+
+--The crafting roll dialog for one hero's treasure: the treasure, its
+--progress bar and the roll's formula over a cage of real dice the player
+--clicks or throws. Each roll's result shows in the middle and eases onto
+--the bar. It stays open while the hero can roll again (Downtime left, or a
+--breakthrough's free roll), then the dice give way to a Close button.
+function EotwForge.ShowCraftDialog(host, heroid)
+    if host == nil or not host.valid then
+        return
+    end
+    local UI = EotwDowntime.UI
+
+    local state = {
+        rolling = false,
+        resultText = "",
+        resultDetail = "",
+        breakthrough = false,
+        completed = false,
+        message = "",
+        natural = 0,
+        total = 0,
+    }
+
+    local dlg = nil
+    local body = nil
+    local hintLabel = nil
+    local finishButton = nil
+    local cage = nil
+    --what the dice are armed for ("free:<rollid>" or "downtime"), nil = not armed.
+    local armedSignature = nil
+
+    local bar, barCtl = UI.ProgressBar(26)
+    do
+        local craft = EotwForge.Craft(heroid)
+        barCtl.Set(craft ~= nil and tonumber(craft.points) or 0, craft ~= nil and tonumber(craft.goal) or 0)
+    end
+
+    local function HeroName()
+        local tok = dmhub.GetCharacterById(heroid)
+        return (tok ~= nil and tok.name) or T("great_forge.workshop.your_hero")
+    end
+
+    local Render
+
+    local function Disarm()
+        armedSignature = nil
+        if cage ~= nil and cage.valid then
+            pcall(function() cage:CancelDicePreviewRoll() end)
+        end
+    end
+
+    local function Close()
+        if state.rolling then
+            return
+        end
+        barCtl.StopDice()
+        Disarm()
+        if dlg ~= nil and dlg.valid then
+            dlg:DestroySelf()
+        end
+    end
+
+    local function ArmDice(signature, free)
+        Disarm()
+        if cage == nil or not cage.valid then
+            return
+        end
+        armedSignature = signature
+        local craft = EotwForge.Craft(heroid)
+        local itemName = craft ~= nil and craft.itemName or ""
+        local goalBefore = craft ~= nil and tonumber(craft.goal) or 0
+        EotwForge.Roll{
+            heroid = heroid,
+            breakthroughOf = free ~= nil and free.rollid or nil,
+            previewPanel = cage,
+            --the player threw the dice: the bar previews what they show as they tumble.
+            begin = function(rollInfo, bonus)
+                armedSignature = nil
+                state.rolling = true
+                state.message = ""
+                state.resultText = "..."
+                state.resultDetail = T("downtime.roll.dice_rolling")
+                state.breakthrough = false
+                if bar.valid then
+                    barCtl.WatchDice(rollInfo.rolls, bonus)
+                end
+                Render()
+            end,
+            cancel = function()
+                armedSignature = nil
+                Render()
+            end,
+            rolled = function(natural, total)
+                state.natural = natural
+                state.total = total
+                state.resultText = string.format("+%d", math.max(0, total))
+                state.resultDetail = T("downtime.roll.result_natural", { natural = natural })
+                state.breakthrough = natural >= EotwDowntime.BREAKTHROUGH_NATURAL
+                if bar.valid then
+                    barCtl.StopDice()
+                    barCtl.Preview(math.max(0, total))
+                end
+                Render()
+            end,
+            done = function(ok, result)
+                if not ok then
+                    state.rolling = false
+                    state.message = tostring(result)
+                    if bar.valid then
+                        barCtl.StopDice()
+                        barCtl.Preview(nil)
+                    end
+                    Render()
+                    return
+                end
+                local name = HeroName()
+                if result.completed then
+                    state.completed = true
+                    state.resultDetail = cond(result.refunded,
+                        T("great_forge.workshop.result_done_refunded", { natural = state.natural, item = itemName, hero = name }),
+                        T("great_forge.workshop.result_done", { natural = state.natural, item = itemName }))
+                end
+
+                --the banners wait for the gain to settle on the bar.
+                local function Announce()
+                    if mod.unloaded then
+                        return
+                    end
+                    if result.breakthrough and not result.completed then
+                        UI.ShowBanner(host, T("great_forge.workshop.breakthrough_banner"),
+                            T("great_forge.workshop.breakthrough_subtitle", { hero = name }))
+                    elseif result.completed then
+                        UI.ShowBanner(host, T("great_forge.workshop.done_banner", { item = itemName }),
+                            T("great_forge.workshop.done_subtitle", { hero = name }))
+                    end
+                end
+
+                if not bar.valid then
+                    state.rolling = false
+                    Announce()
+                    return
+                end
+                --a finished craft fills the bar and stays full.
+                local craftNow = EotwForge.Craft(heroid)
+                local target = goalBefore
+                if not result.completed then
+                    target = craftNow ~= nil and tonumber(craftNow.points) or goalBefore
+                end
+                barCtl.AnimateTo(target, function()
+                    state.rolling = false
+                    Announce()
+                    Render()
+                end)
+                Render()
+            end,
+        }
+    end
+
+    Render = function()
+        if body == nil or not body.valid then
+            return
+        end
+        local craft = EotwForge.Craft(heroid)
+        local tok = dmhub.GetCharacterById(heroid)
+        local downtime = EotwRoster.GetDowntime(heroid) or 0
+        local away = EotwRoster.AwayHeroes()[heroid] ~= nil
+        local free = craft ~= nil and (craft.open or {})[1] or nil
+
+        if craft ~= nil and not craft.completed and not state.rolling and not barCtl.Busy() then
+            barCtl.Update(tonumber(craft.points) or 0, tonumber(craft.goal) or 0)
+        end
+
+        local children = {}
+
+        --the hero, their Downtime and the roll's formula.
+        local heroRow = {
+            UI.Portrait(tok, 36, 48),
+            gui.Label{
+                text = HeroName(),
+                fontSize = 20,
+                bold = true,
+                color = TEXT,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                hmargin = 10,
+            },
+            UI.HammerChip(downtime),
+        }
+        if tok ~= nil and craft ~= nil then
+            local item = (dmhub.GetTable("tbl_Gear") or {})[craft.itemid]
+            local attrid = CraftCharacteristic(tok, item)
+            if attrid ~= nil then
+                local _, formula = EotwDowntime.RollBonus(tok, attrid, nil)
+                heroRow[#heroRow+1] = gui.Label{
+                    text = formula,
+                    fontSize = 18,
+                    color = TEXT,
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                }
+            end
+        end
+        children[#children+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 14,
+            children = heroRow,
+        }
+
+        --the result of the last roll.
+        children[#children+1] = gui.Panel{
+            width = "100%",
+            height = 110,
+            flow = "vertical",
+            tmargin = 14,
+            gui.Label{
+                classes = { cond(state.breakthrough, "visible", "collapsed") },
+                text = T("downtime.roll.breakthrough_label"),
+                fontFace = "display",
+                fontSize = 30,
+                color = AMBER,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+            },
+            gui.Label{
+                text = state.resultText,
+                fontSize = 40,
+                bold = true,
+                color = GOLD,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+            },
+            gui.Label{
+                text = state.resultDetail,
+                fontSize = 15,
+                color = DIM,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+            },
+        }
+
+        children[#children+1] = gui.Label{
+            text = state.message,
+            fontSize = 15,
+            color = RED,
+            width = "100%",
+            height = 22,
+            textAlignment = "center",
+        }
+
+        body.children = children
+
+        local canRoll = craft ~= nil and not craft.completed and tok ~= nil and not away and (free ~= nil or downtime > 0)
+        local finished = not state.rolling and not canRoll
+        if finishButton ~= nil and finishButton.valid then
+            finishButton:SetClass("collapsed", not finished)
+        end
+
+        local hint = ""
+        if state.rolling then
+            hint = ""
+        elseif canRoll and free ~= nil then
+            hint = T("downtime.roll.hint_free", { hero = HeroName() })
+        elseif canRoll then
+            hint = T("downtime.roll.hint_roll")
+        elseif state.completed or (craft ~= nil and craft.completed) then
+            hint = T("great_forge.workshop.done_subtitle", { hero = HeroName() })
+        elseif away then
+            hint = T("great_forge.workshop.away")
+        elseif tok == nil or craft == nil then
+            hint = T("great_forge.workshop.not_ready")
+        else
+            hint = T("great_forge.workshop.no_downtime")
+        end
+        if hintLabel ~= nil and hintLabel.valid then
+            hintLabel.text = hint
+        end
+
+        if not state.rolling then
+            if canRoll then
+                local signature = cond(free ~= nil, "free:" .. tostring(free ~= nil and free.rollid or ""), "downtime")
+                if signature ~= armedSignature then
+                    ArmDice(signature, free)
+                end
+            elseif armedSignature ~= nil then
+                Disarm()
+            end
+        end
+    end
+
+    local craftAtOpen = EotwForge.Craft(heroid)
+    local itemAtOpen = craftAtOpen ~= nil and (dmhub.GetTable("tbl_Gear") or {})[craftAtOpen.itemid] or nil
+
+    --A fixed size, as the project roll dialog: the top hangs from the top,
+    --the hint and the dice sit on the bottom.
+    dlg = gui.Panel{
+        floating = true,
+        width = 760,
+        height = 620,
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#14110dff",
+        borderWidth = 2,
+        borderColor = "#8c7a55",
+        cornerRadius = 10,
+        flow = "none",
+        pad = 24,
+        borderBox = true,
+        styles = { Styles.Default },
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            Close()
+        end,
+        data = { seen = -1 },
+        thinkTime = 0.5,
+        think = function(element)
+            local rev = EotwForge.revision + EotwRoster.revision * 100000
+            if element.data.seen ~= rev and not state.rolling then
+                element.data.seen = rev
+                Render()
+            end
+        end,
+
+        --the top: the treasure, its bar, then the hero and the result.
+        gui.Panel{
+            floating = true,
+            halign = "center",
+            valign = "top",
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                bmargin = 10,
+                gui.Panel{
+                    width = 50,
+                    height = 50,
+                    valign = "center",
+                    rmargin = 12,
+                    bgimage = "panels/square.png",
+                    bgcolor = "clear",
+                    linger = function(element)
+                        ItemTooltip(element, itemAtOpen, craftAtOpen ~= nil and craftAtOpen.itemName or "")
+                    end,
+                    ItemIcon(itemAtOpen, 50),
+                },
+                gui.Label{
+                    text = T("great_forge.workshop.crafting", { item = craftAtOpen ~= nil and craftAtOpen.itemName or "" }),
+                    fontSize = 28,
+                    bold = true,
+                    color = TEXT,
+                    width = "100%-100",
+                    height = "auto",
+                    valign = "center",
+                },
+            },
+            bar,
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                create = function(element)
+                    body = element
+                end,
+            },
+        },
+
+        --the bottom: how to roll (or why not) over the dice.
+        gui.Panel{
+            floating = true,
+            halign = "center",
+            valign = "bottom",
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Label{
+                text = "",
+                fontSize = 16,
+                italics = true,
+                color = AMBER,
+                width = "100%",
+                height = 46,
+                textAlignment = "center",
+                create = function(element)
+                    hintLabel = element
+                end,
+            },
+            --the dice rest here until clicked or thrown (built once: a rebuild
+            --would drop the armed roll).
+            gui.DicePreview{
+                width = "70%",
+                height = 120,
+                halign = "center",
+                bgimage = true,
+                bgcolor = "white",
+                styles = { gui.Style{ opacity = 0 } },
+                draggable = true,
+                dragMove = false,
+                create = function(element)
+                    ---@cast element DicePreview
+                    cage = element
+                    element:SetAsDicePreviewPanel(true)
+                    pcall(function() element.dicePreviewScreenBounds = true end)
+                    Render()
+                end,
+                destroy = function(element)
+                    ---@cast element DicePreview
+                    pcall(function() element:CancelDicePreviewRoll() end)
+                    element:SetAsDicePreviewPanel(false)
+                end,
+                hover = function(element)
+                    ---@cast element DicePreview
+                    pcall(function() element:DicePreviewMouseEnter() end)
+                end,
+                dehover = function(element)
+                    ---@cast element DicePreview
+                    pcall(function() element:DicePreviewMouseLeave() end)
+                end,
+                click = function(element)
+                    ---@cast element DicePreview
+                    if armedSignature ~= nil then
+                        pcall(function() element:DicePreviewClick() end)
+                    end
+                end,
+                dragging = function(element)
+                    ---@cast element DicePreview
+                    pcall(function() element:DicePreviewDragThink() end)
+                end,
+                drag = function(element)
+                    ---@cast element DicePreview
+                    pcall(function() element:DicePreviewDragEnd() end)
+                end,
+            },
+            --where the dice were, once there is nothing left to roll.
+            gui.Button{
+                classes = { "collapsed" },
+                floating = true,
+                halign = "center",
+                valign = "bottom",
+                bmargin = 34,
+                text = T("downtime.roll.close_button"),
+                fontSize = 24,
+                width = 260,
+                height = 54,
+                create = function(element)
+                    finishButton = element
+                    Render()
+                end,
+                click = function()
+                    Close()
+                end,
+            },
+        },
+
+        --close: an X in the top-right corner (not while dice are in the air).
+        gui.Panel{
+            floating = true,
+            halign = "right",
+            valign = "top",
+            x = 10,
+            y = -10,
+            width = 22,
+            height = 22,
+            bgimage = "phosphor/x-bold.png",
+            bgcolor = DIM,
+            linger = gui.Tooltip(T("downtime.roll.close_tooltip")),
+            press = function()
+                if state.rolling then
+                    return
+                end
+                audio.FireSoundEvent("UI.WindowClose")
+                Close()
+            end,
+        },
+    }
+    UI.TrackDialog(dlg, function()
+        barCtl.StopDice()
+        Disarm()
+        dlg:DestroySelf()
+    end, function()
+        return state.rolling
+    end)
+    host:AddChild(dlg)
 end
 
 --Collect a finished treasure: the City hands it over once, then it goes in
@@ -1057,20 +1735,9 @@ local function HeroRow(host, hero, busy, setBusy)
         if free == nil and downtime < 1 then
             blocked = blocked or T("great_forge.workshop.no_downtime")
         end
+        --the roll dialog: the player throws the dice and sees each result.
         action = function()
-            setBusy(true)
-            EotwForge.Roll(hero.heroid, free ~= nil and free.rollid or nil, function(ok, result)
-                setBusy(false)
-                if not ok then
-                    EotwDowntime.UI.ShowBanner(host, T("great_forge.workshop.error_banner"), tostring(result))
-                elseif result.completed then
-                    EotwDowntime.UI.ShowBanner(host, T("great_forge.workshop.done_banner", { item = craft.itemName }),
-                        T("great_forge.workshop.done_subtitle", { hero = name }))
-                elseif result.breakthrough then
-                    EotwDowntime.UI.ShowBanner(host, T("great_forge.workshop.breakthrough_banner"),
-                        T("great_forge.workshop.breakthrough_subtitle", { hero = name }))
-                end
-            end)
+            EotwForge.ShowCraftDialog(host, hero.heroid)
         end
     end
     if busy then
@@ -1287,6 +1954,10 @@ local DEV_USAGE = [[Usage: /eotwforge <command> (open the town first)
   state      print your standing, access, lock and crafts at the Great Forge
   reset      forget your Forge standing and crafts (city admins)
   talk       play the negotiation now (needs a hero at home; reports its result)
+  preview [defender|builder|stranger] [skip]
+             play the first visit (opening + negotiation) as that standing,
+             reporting nothing (default: your own standing); skip goes
+             straight to the negotiation
   parse      parse the negotiation script and print its warnings]]
 
 pcall(function()
@@ -1315,9 +1986,8 @@ pcall(function()
                     end
                 end)
             elseif verb == "reset" then
-                Request("dev-reset-forge", {}, function(ok, result)
+                EotwForge.DevReset(function(ok, result)
                     if ok then
-                        SetStatus(result.forge)
                         printf("EotW town (dev): Great Forge forgotten (%s rows)", tostring(result.deleted))
                     else
                         printf("EotW town (dev): reset refused: %s", tostring(result))
@@ -1336,6 +2006,30 @@ pcall(function()
                         end)
                     end
                 end)
+            elseif verb == "preview" then
+                local host = m_host
+                if host == nil or not host.valid then
+                    print("EotW town (dev): open the built Great Forge once first")
+                    return
+                end
+                local standing, skip = nil, false
+                for word in string.gmatch(string.lower(str or ""), "%S+") do
+                    if ATTITUDE_BY_STANDING[word] ~= nil then
+                        standing = word
+                    elseif word == "skip" then
+                        skip = true
+                    end
+                end
+                if standing == nil then
+                    local status = EotwForge.Status()
+                    standing = (status ~= nil and status.standing) or "stranger"
+                end
+                if skip then
+                    EotwForge.ShowNegotiation(host, { preview = standing }, function()
+                    end)
+                else
+                    EotwForge.Preview(host, standing)
+                end
             elseif verb == "parse" then
                 m_beat = nil
                 local beat = EotwForge.Beat()

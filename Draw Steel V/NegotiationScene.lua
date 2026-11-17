@@ -698,7 +698,9 @@ function Session:ResolveArgument(m, beat, argument, hero, tier, total, natural)
         patience = delta.patience,
     }
     m.log = m.log or {}
-    m.log[#m.log + 1] = { heroName = hero.name, text = argument.name, track = track, tier = tier }
+    --heroid / argumentId: the stage shows who made each argument on its card.
+    m.log[#m.log + 1] = { heroName = hero.name, text = argument.name, track = track, tier = tier,
+        heroid = hero.charid, argumentId = argument.id }
     self:AfterMeters(m)
 end
 

@@ -1504,12 +1504,42 @@ function creature:Moved(path)
     --self:TryClaimTurn()
 end
 
+--Above zero while ActivatedAbility:ConsumeResources pays for a triggered or
+--invoked cast. Such a cast reacts to something else (Metakinetic Mastery's
+--Knockback after Inertial Shield, N3/6BP3KFZ6), so its Action or Maneuver
+--must not start the hero's turn.
+local g_payingForReactionCast = 0
+
+--- @param ability ActivatedAbility
+--- @param options table|nil
+--- @return boolean
+local function IsTriggeredOrInvokedCast(ability, options)
+    if ability.typeName == "TriggeredAbility" or ability:try_get("invoker") ~= nil then
+        return true
+    end
+    local symbols = options ~= nil and options.symbols or nil
+    return type(symbols) == "table" and rawget(symbols, "invoker") ~= nil
+end
+
+local g_baseConsumeResources = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    if mod.unloaded or not IsTriggeredOrInvokedCast(self, options) then
+        return g_baseConsumeResources(self, casterToken, options)
+    end
+    g_payingForReactionCast = g_payingForReactionCast + 1
+    local ok, err = xpcall(g_baseConsumeResources, debug.traceback, self, casterToken, options)
+    g_payingForReactionCast = g_payingForReactionCast - 1
+    if not ok then
+        error(err, 0)
+    end
+end
+
 --when using an action or a maneuver we also are claiming the turn if
 local g_baseConsumeResource = creature.ConsumeResource
 function creature:ConsumeResource(key, refreshType, quantity, note)
     g_baseConsumeResource(self, key, refreshType, quantity, note)
 
-    if mod.unloaded then
+    if mod.unloaded or g_payingForReactionCast > 0 then
         return
     end
 

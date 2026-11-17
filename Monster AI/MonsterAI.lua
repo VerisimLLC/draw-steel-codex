@@ -3634,8 +3634,10 @@ end
 --Run several yielding actions side by side and return once all have finished,
 --starting each one `stagger` seconds after the one before. A minion squad uses
 --this to move together. An error in one action does not abandon the others,
---whose tokens may be mid-move; the first error is raised once all are done.
-function MonsterAI:RunConcurrently(fns, stagger)
+--whose tokens may be mid-move. With onError(i, message), each action's error
+--(with its traceback) is handed to it and RunConcurrently returns normally;
+--without it, the first error is raised once all are done.
+function MonsterAI:RunConcurrently(fns, stagger, onError)
     stagger = stagger or 0
     local threads, wakeAt = {}, {}
     local start = dmhub.Time()
@@ -3651,11 +3653,14 @@ function MonsterAI:RunConcurrently(fns, stagger)
             if coroutine.status(thread) ~= "dead" and now >= wakeAt[i] then
                 local ok, delay = coroutine.resume(thread)
                 if not ok then
-                    if firstError == nil then
-                        firstError = tostring(delay)
-                        pcall(function()
-                            firstError = debug.traceback(thread, tostring(delay))
-                        end)
+                    local message = tostring(delay)
+                    pcall(function()
+                        message = debug.traceback(thread, tostring(delay))
+                    end)
+                    if onError ~= nil then
+                        onError(i, message)
+                    elseif firstError == nil then
+                        firstError = message
                     end
                 elseif coroutine.status(thread) ~= "dead" then
                     wakeAt[i] = now + (type(delay) == "number" and delay or 0.1)
@@ -5415,6 +5420,12 @@ end
 -- segment destination. Never feed an absolute altitude to straight-line Move.
 function MonsterAI:ExecuteChargeMovement(token, dest, continueIfActorDies)
     local mover = self:GetMovementToken(token)
+    --The actor (or its mount) can die between planning the charge and making
+    --it: a squad-mate's move provokes an opportunity attack, say. That is a
+    --charge that did not survive, not a failed route.
+    if not self.TokenIsLiveCombatant(token) or mover == nil or not mover.valid or mover.loc == nil then
+        return false, false
+    end
     local key = mover.id .. "|" .. mover.loc.str .. "|" .. dest.str
     local distance = mover.properties:CurrentMovementSpeed()
     local previousFailure = self:try_get("_tmp_moveFailure")
@@ -6078,14 +6089,33 @@ function MonsterAI:ExecuteSquadStrike(ability)
         }
     end
 
+    --One member's move or charge failing (an error, often because the member
+    --died to a reaction while a squad-mate moved) drops only that member: the
+    --rest still confirm and strike. ConfirmPlan rejects a plan that did not survive.
+    local function DropFailedPlan(plan, phase, message)
+        plan.survived = false
+        pcall(function()
+            self:LogDecision("MINION MOVE ERROR", {
+                actor = self.TokenLogName(plan.token),
+                actorId = plan.token ~= nil and plan.token.charid or nil,
+                category = "Main Action",
+                move = "Minion Signature Ability",
+                ability = abilityName,
+                reason = phase .. " failed: " .. tostring(message),
+                result = "member dropped; continuing with surviving squad members",
+            })
+        end)
+    end
+
     --Every planned member moves together, each a beat after the last. Chargers
     --first move to where their charge starts, then all shout and charge together.
     local function MovePlans(plans)
-        local moves = {}
+        local moves, movers = {}, {}
         for _,plan in ipairs(plans) do
             --a member already in place (a sniper, or a charger starting where it
             --stands) has no move to make and would only delay the stagger.
             if not self:MovementTokenIsAtLoc(plan.token, plan.option.loc) then
+                movers[#moves+1] = plan
                 moves[#moves+1] = function()
                     local _, survived = self:MoveToken(plan.token, plan.option.loc,
                         {maxCost = 10000, ignoreFalling = false}, true)
@@ -6094,14 +6124,17 @@ function MonsterAI:ExecuteSquadStrike(ability)
             end
         end
         if #moves > 0 then
-            self:RunConcurrently(moves, self.squadMoveStagger)
+            self:RunConcurrently(moves, self.squadMoveStagger, function(i, message)
+                DropFailedPlan(movers[i], "move", message)
+            end)
             self.Sleep(0.4)
         end
 
-        local charges = {}
+        local charges, chargers = {}, {}
         for _,plan in ipairs(plans) do
             if plan.survived and plan.option.charge ~= nil and self.TokenIsLiveCombatant(plan.token) then
                 self:SpeakNow(plan.token, self:VoiceLines(plan.token, "charge", "Charge!"))
+                chargers[#charges+1] = plan
                 charges[#charges+1] = function()
                     --A Charge's movement is part of the ability, not the creature's
                     --move action, so it does not consume the remaining move budget.
@@ -6112,7 +6145,9 @@ function MonsterAI:ExecuteSquadStrike(ability)
         end
         if #charges > 0 then
             self.Sleep(0.3)
-            self:RunConcurrently(charges, self.squadMoveStagger)
+            self:RunConcurrently(charges, self.squadMoveStagger, function(i, message)
+                DropFailedPlan(chargers[i], "charge", message)
+            end)
             self.Sleep(0.6)
         end
     end

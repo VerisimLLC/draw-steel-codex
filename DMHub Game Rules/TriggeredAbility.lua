@@ -106,6 +106,19 @@ function TriggeredAbility:MayBePrompted()
     return true
 end
 
+--- True when one of the trigger's own behaviors invokes another ability. An
+--- invoke can open a prompt for the player even when the trigger itself is
+--- mandatory, so the Monster AI must wait for it (see Trigger).
+--- @return boolean
+function TriggeredAbility:HasInvokeBehavior()
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            return true
+        end
+    end
+    return false
+end
+
 ActivatedAbility.OnTypeRegistered = function()
 	TriggeredAbility.Types = {}
 
@@ -1217,6 +1230,8 @@ end
 --- @field remoteExecution nil|{targets: table, dismiss: boolean, alreadyPaid: boolean, aiActivityId: string|false|nil, aiReactionId: string|false|nil} An accepted trigger shipped to this client to execute.
 --- @field aiActivityId nil|string
 --- @field aiReactionId nil|string
+--- @field aiReactionForceComplete nil|boolean Completion writes the marker even when this client cannot see it (a mandatory trigger's marker; see Trigger).
+--- @field aiReactionAbility nil|string The ability name a force-completed marker records.
 --- @field alreadyPaid nil|boolean
 --- @field triggerDispatched nil|boolean Set by Trigger once a cast is started or scheduled; that cast answers complete.
 --- @field triggerPrompting nil|boolean Set by Trigger while a prompt is open; the prompt's end answers complete.
@@ -1841,6 +1856,22 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 		argOptions.aiActivityId = aiActivityId
 		argOptions.aiReactionId = aiReactionId
 		casterToken.properties:BeginPendingAIActivityReaction(aiActivityId, aiReactionId, self.name)
+	elseif isMandatory and casterToken.playerControlled and type(aiActivityId) == "string" and aiActivityId ~= ""
+			and argOptions.aiReactionId == nil and self:HasInvokeBehavior() then
+		--The exception to the above: a mandatory trigger whose invoke asks the
+		--player something (Metakinetic Mastery's Knockback after Inertial Shield,
+		--N3/6BP3KFZ6). Its cast is deferred until the provoking cast ends, so the
+		--provoking cast's marker completes first and the AI moved on while the
+		--prompt was open. Made now, inside that cast, so the AI never sees a gap.
+		--ExecuteTriggerCast takes it over and every exit completes it;
+		--aiReactionForceComplete covers the lost-marker race described above.
+		aiReactionId = dmhub.GenerateGuid()
+		argOptions.aiActivityId = aiActivityId
+		argOptions.aiReactionId = aiReactionId
+		argOptions.aiReactionForceComplete = true
+		argOptions.aiReactionAbility = self.name
+		casterToken.properties:BeginPendingAIActivityReaction(aiActivityId, aiReactionId, self.name, "resolving")
+		aiActivityId = nil
 	else
 		aiActivityId = nil
 	end
@@ -2347,8 +2378,26 @@ local function CompleteAIReactionFromOptions(casterToken, argOptions)
 	if casterToken ~= nil and casterToken.valid
 		and type(argOptions.aiActivityId) == "string"
 		and type(argOptions.aiReactionId) == "string" then
-		casterToken.properties:CompletePendingAIActivityReaction(
-			argOptions.aiActivityId, argOptions.aiReactionId)
+		--A mandatory trigger's marker (see Trigger) is written as completed even
+		--when this client cannot see it: a properties rebuild can hide the begin
+		--write before it flushes, and the server would then keep it open (WTUDE5S5).
+		local props = casterToken.properties
+		if argOptions.aiReactionForceComplete
+				and props:try_get("pendingAIActivityReactions", {})[argOptions.aiReactionId] == nil then
+			casterToken:ModifyProperties{
+				description = "Complete AI Reaction",
+				undoable = false,
+				combine = true,
+				execute = function()
+					props:get_or_add("pendingAIActivityReactions", {})[argOptions.aiReactionId] = {
+						activityId = argOptions.aiActivityId, timestamp = ServerTimestamp(),
+						state = "completed", ability = argOptions.aiReactionAbility,
+					}
+				end,
+			}
+			return
+		end
+		props:CompletePendingAIActivityReaction(argOptions.aiActivityId, argOptions.aiReactionId)
 	end
 end
 

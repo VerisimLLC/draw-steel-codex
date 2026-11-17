@@ -7644,6 +7644,13 @@ function EncounterMontage.ShowTestRoll(args)
     ShowMontageRoll(args)
 end
 
+--False once this mod is unloaded. The EncounterMontage table outlives it (a
+--game without Encounter of the Week, entered from the title screen, still
+--has it), and ShowTestRoll then does nothing.
+function EncounterMontage.IsLoaded()
+    return not mod.unloaded
+end
+
 --Show the roll dialog for the current turn's option: 2d10 + the best of
 --the listed characteristics, the Skilled chip for a listed skill, the tiers
 --from the script. Mirrors creature:RollCustomPowerTableTest (MCDMCreature.lua)

@@ -5297,7 +5297,17 @@ local g_pendingQueuedRoll = {}
 --entries for the roll dialog's modifier list, in the same shape
 --GetModifiersForPowerRoll returns ({ modifier, hint, context }). The
 --journal uses it for a power roll's rider chips (TestRiders).
+--onComplete(tier, naturalRoll) is called when the roll lands; onCancel when
+--it is cancelled or never shown (puzzle tests use both).
+---@param options {modifiers: table[]|nil, onComplete: fun(tier: integer, natural: number|nil)|nil, onCancel: fun()|nil}|nil
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers, options)
+    local onComplete = options ~= nil and options.onComplete or nil
+    local onCancel = options ~= nil and options.onCancel or nil
+    local function Cancelled()
+        if onCancel ~= nil then
+            pcall(onCancel)
+        end
+    end
     local attrid = nil
     local bestModifier = nil
     for id, _ in pairs(characteristics) do
@@ -5313,6 +5323,7 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
 
     if attrid == nil then
         printf("RollCustomPowerTableTest: no matching characteristic for '%s'", title)
+        Cancelled()
         return
     end
 
@@ -5355,13 +5366,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         modifiers[#modifiers + 1] = extra
     end
 
-    --Respect the global roll gate. This drives the singleton rollDialog
-    --directly, which only serializes against itself, so without this it would
-    --pop on top of an in-flight embedded/standalone roll (e.g. a start-of-turn
-    --damage or prayer roll). We cannot yield in this synchronous UI handler, so
-    --wait for every surface to clear inside a coroutine before showing. The
-    --pending registry stops repeated link clicks from stacking waiters.
+    --Respect the global roll gate: showing the card displaces whatever roll is
+    --embedded in the sidebar, so without this it would destroy an in-flight
+    --roll (e.g. a start-of-turn damage or prayer roll). We cannot yield in this
+    --synchronous UI handler, so wait for every surface to clear inside a
+    --coroutine before showing. The pending registry stops repeated link clicks
+    --from stacking waiters.
     if g_pendingQueuedRoll[self] then
+        Cancelled()
         return
     end
     g_pendingQueuedRoll[self] = true
@@ -5382,27 +5394,102 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         --roll still up (showing now would overlap). The click is dropped and the
         --user can retry; nothing stays queued.
         if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            Cancelled()
             return
         end
 
-        GameHud.instance.rollDialog.data.ShowDialog {
-            title = title,
-            description = title,
-            creature = self,
+        --Shown as ShowCharacteristicRollDialog shows a test: a synthetic test
+        --ability in the sidebar with the roll dialog embedded in its card, and
+        --the roller as the single target so post-roll edges/banes refresh the tier.
+        local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
+        local token = dmhub.LookupToken(self)
+        local multitargets = nil
+        local displaying = false
+        if token ~= nil then
+            multitargets = {
+                {
+                    token = token,
+                    boons = 0,
+                    banes = 0,
+                    modifiers = modifiers,
+                    triggers = {},
+                },
+            }
+            CharacterPanel.ForceUnlockDisplayAbility()
+            displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
+        end
 
-            type = rollType,
-            roll = roll,
-            modifiers = modifiers,
+        local function HideCard()
+            if displaying then
+                CharacterPanel.HideAbility(syntheticAbility)
+            end
+        end
 
-            rollProperties = rollProperties,
-            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+        local function ShowRollDialog(dialog)
+            if dialog == nil or not dialog.valid then
+                dialog = GameHud.instance.rollDialog
+            end
+            if not dialog.valid then
+                HideCard()
+                Cancelled()
+                return
+            end
 
-            completeRoll = function(rollInfo)
-            end,
+            local settled = false
+            dialog.data.ShowDialog {
+                title = title,
+                description = title,
+                creature = self,
+                ability = syntheticAbility,
 
-            cancelRoll = function()
-            end,
-        }
+                type = rollType,
+                roll = roll,
+                modifiers = modifiers,
+                multitargets = multitargets,
+                targetCreature = cond(multitargets ~= nil, self, nil),
+                showDialogDuringRoll = true,
+                amendable = true,
+                --once the dice are thrown the result stands: no close (X) or
+                --ESC back to the options, where a failed test could be retried.
+                noCancelOnceThrown = true,
+
+                rollProperties = rollProperties,
+                PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+                completeRoll = function(rollInfo)
+                    settled = true
+                    HideCard()
+                    if onComplete ~= nil then
+                        local tier = 1
+                        pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+                        pcall(onComplete, tier, rollInfo.naturalRoll)
+                    end
+                end,
+
+                cancelRoll = function()
+                    if settled then
+                        return
+                    end
+                    settled = true
+                    HideCard()
+                    Cancelled()
+                end,
+            }
+        end
+
+        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+        if embeddedDialog ~= nil then
+            dmhub.Schedule(0.05, function()
+                if mod.unloaded then
+                    HideCard()
+                    Cancelled()
+                    return
+                end
+                ShowRollDialog(embeddedDialog)
+            end)
+        else
+            ShowRollDialog(nil)
+        end
     end)
 end
 

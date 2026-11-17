@@ -1482,9 +1482,9 @@ end
 
 --A player's test: the montage's skill-aware roll (characteristic, the Skilled
 --chip, the hero's features), private to the roller; without Encounter of the
---Week, the characteristic alone. skill may be "" for none. tiers are the three
---result lines the roll dialog shows. onDone(tier, natural); onCancel when the
---player closes the roll without rolling (montage roll only).
+--Week, the core test dialog (creature:RollCustomPowerTableTest). skill may be ""
+--for none. tiers are the three result lines the roll dialog shows.
+--onDone(tier, natural); onCancel when the player closes the roll without rolling.
 ---@param tok CharacterToken
 ---@param attrid string
 ---@param skill string
@@ -1501,8 +1501,11 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
     if skill ~= nil and skill ~= "" then
         attr = string.format("%s, %s", attrName, skill)
     end
+    --a game without Encounter of the Week still has the title screen's
+    --EncounterMontage table, unloaded and dead: IsLoaded tells them apart.
     local montage = rawget(_G, "EncounterMontage")
-    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
+    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil
+        and montage.IsLoaded ~= nil and montage.IsLoaded() then
         --a bane rides in as a test rider, as the montage's own banes do.
         local verdict = nil
         if bane ~= nil then
@@ -1533,22 +1536,27 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
         }
         return
     end
-    local bonus = 0
-    pcall(function() bonus = tok.properties:GetAttribute(attrid):Modifier() end)
-    if bane ~= nil then
-        bonus = bonus - 2
+    local skills = {}
+    if skill ~= nil and skill ~= "" then
+        for _, option in ipairs(Skill.skillsDropdownOptions or {}) do
+            if string.lower(option.text) == string.lower(skill) then
+                skills[#skills + 1] = option.id
+            end
+        end
     end
-    dmhub.Roll{
-        roll = string.format("2d10 + %d", bonus),
-        description = string.format("%s: %s", name, attr),
-        complete = function(rollInfo)
-            local tier = 1
-            pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+    local verdict = nil
+    if bane ~= nil then
+        verdict = { applied = { { rider = { effect = "bane" }, why = bane } } }
+    end
+    tok.properties:RollCustomPowerTableTest(string.format("%s: %s", name, attr), { [attrid] = true }, skills, tiers, {
+        modifiers = TestRiders.AppendModifiers({}, verdict, "test_power_roll"),
+        onComplete = function(tier, natural)
             if stillWanted() then
-                onDone(tier, rollInfo.naturalRoll)
+                onDone(tier, natural)
             end
         end,
-    }
+        onCancel = onCancel,
+    })
 end
 
 --------------------------------------------------------------------------------

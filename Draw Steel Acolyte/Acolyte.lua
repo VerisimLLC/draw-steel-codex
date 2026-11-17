@@ -758,6 +758,14 @@ function ActivatedAbilityPatronGazeResolveBehavior:Cast(ability, casterToken, ta
     local resources = casterToken.properties:GetResources() or {}
     local gaze = tonumber(resources[pgId]) or 0
 
+    --The roll dialog embedded in the ability's sidebar card, queued behind any
+    --roll in progress. Its standard roll card is suppressed by the
+    --RollDialog.OnBeforeRoll hook in section 8b (keyed on this description).
+    local rollDialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+    if rollDialog == nil or not rollDialog.valid or rollDialog.data == nil then
+        return
+    end
+
     --Post the card in its "offered" state the instant the roll is presented.
     local msgGuid = chat.SendCustom(PatronsGazeChatMessage.new{
         tokenid = casterToken.charid,
@@ -767,14 +775,6 @@ function ActivatedAbilityPatronGazeResolveBehavior:Cast(ability, casterToken, ta
     local complete = false
     local cancelled = false
     local rollTotal = nil
-
-    --Open the normal roll dialog. Its standard roll card is suppressed by the
-    --RollDialog.OnBeforeRoll hook in section 8b (keyed on this description).
-    local rollDialog = GameHud.instance and GameHud.instance.rollDialog
-    --GameHud.instance starts as false, not nil, so test falsiness.
-    if not rollDialog or rollDialog.data == nil then
-        return
-    end
 
     rollDialog.data.ShowDialog{
         title = PATRONS_GAZE_ROLL_DESC,
@@ -880,7 +880,7 @@ end
 ----------------------------------------------------------------------
 -- 8b. Suppress the Patron's Gaze roll's standard Action Log card
 ----------------------------------------------------------------------
--- The roll above goes through the normal roll dialog, which would normally log
+-- The roll above goes through the embedded roll dialog, which would normally log
 -- a standard roll card -- but the bespoke PatronsGazeChatMessage card is meant
 -- to be the only entry. RollDialog.OnBeforeRoll lets a mod adjust a roll just
 -- before it is thrown; we flip `silent` on for our roll (identified by its

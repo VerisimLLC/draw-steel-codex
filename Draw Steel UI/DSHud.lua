@@ -21,6 +21,10 @@ function GameHud.TokenMoving(self, token, path)
 
     local statusText = ""
 
+    --Lets a drop be told apart from a scripted teleport (creature:IsTeleportMove): a teleport
+    --path records the preview, any other path clears it.
+    creature.NoteTeleportDragPreview(token, path)
+
     --How-to-use-the-Codex notes, drawn as boxed callouts under the tooltip text.
     local codexCallouts = {}
 
@@ -161,8 +165,6 @@ function GameHud.TokenMoving(self, token, path)
         distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
 
-        --Lets the drop that follows be told apart from a scripted teleport (creature:IsTeleportMove).
-        creature.NoteTeleportDragPreview(token, path)
 
         --A creature that can teleport is spending its own movement on this (see
         --creature:HandleTeleportMove), so quote the cost the way a walking move does.

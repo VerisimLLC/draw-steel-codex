@@ -7654,7 +7654,8 @@ end
 local g_teleportOrigins = {}
 
 --Ctrl-drag teleport previews keyed by charid: {dest = xyfloor str, time}. The movement
---tooltip records one each frame it shows a teleport path for the token being dragged.
+--tooltip updates it whenever the dragged token's path changes: a teleport path sets it,
+--any other path (Ctrl released) clears it, so it always describes the drag as it stands.
 local g_teleportDragPreviews = {}
 
 --Out of combat a departure point stays meaningful for this many seconds.
@@ -7685,12 +7686,17 @@ function creature:RecordTeleportOrigin(originLoc)
     end
 end
 
---- Called by the movement tooltip while it shows a Ctrl-drag teleport path for a token, so
---- the teleport that follows can be recognised as that drag (see creature:IsTeleportMove).
+--- Called by the movement tooltip each time a dragged token's path changes, so the teleport
+--- that follows can be recognised as that drag (see creature:IsTeleportMove). A path that is
+--- not a teleport (Ctrl released) clears the preview.
 --- @param token CharacterToken
 --- @param path LuaPath
 function creature.NoteTeleportDragPreview(token, path)
-    if token == nil or path == nil or path.destination == nil then
+    if token == nil then
+        return
+    end
+    if path == nil or not path.teleport or path.destination == nil then
+        g_teleportDragPreviews[token.charid] = nil
         return
     end
     g_teleportDragPreviews[token.charid] = {
@@ -7768,8 +7774,9 @@ function creature:DistanceToTeleportOrigin(other)
     return best
 end
 
---How long after the last drag preview a drop still counts as that drag.
-local g_dragPreviewWindow = 1.5
+--The engine updates the tooltip only when the path changes, so a player may hold still for
+--a while before dropping. This only stops a preview left over from an abandoned drag.
+local g_dragPreviewWindow = 120
 
 --- A teleport that is the creature's own movement: a relocate flagged "Teleport Counts as
 --- Movement", or a Ctrl-drag. The engine does not flag a Ctrl-drag commit, so a drag is

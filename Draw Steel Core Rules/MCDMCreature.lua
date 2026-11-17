@@ -5494,13 +5494,15 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
 end
 
 --options (optional): onComplete(tier) is called with 1-3 when the roll lands,
---for callers that act on the result (a puzzle lock's bypass test).
+--for callers that act on the result (a puzzle lock's bypass test). autoroll
+--throws the dice as soon as the card is up (a quick roll).
 ---@param attrid string
----@param options {onComplete: fun(tier: integer)|nil}|nil
+---@param options {onComplete: fun(tier: integer)|nil, autoroll: boolean|nil}|nil
 function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
     local onComplete = options ~= nil and options.onComplete or nil
+    local autoroll = options ~= nil and options.autoroll == true or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5543,6 +5545,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
             targetCreature = cond(multitargets ~= nil, self, nil),
             showDialogDuringRoll = true,
             amendable = true,
+            autoroll = autoroll,
 
             rollProperties = rollProperties,
             PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),

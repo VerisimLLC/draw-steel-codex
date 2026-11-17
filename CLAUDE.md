@@ -152,8 +152,7 @@ Every Draw Steel roll uses the new roll UI: the roll is a card in the timeline s
 - **A roll asked of a player by an action request:** `CharacterPanel.EmbedPromptRollDialog`.
 - **An ability's own roll:** `CharacterPanel.AcquireAbilityRollDialog`.
 - **A roll on a table:** pass `tableRef`; the roll dialog sends it to the embedded roller.
-
-Still on the old UI as of 2026-11-17: right-click quick rolls on a characteristic (`Draw Steel UX Update/DSCharacterSheet.lua`, the Crowdex panel).
+- **A quick roll (no options step):** pass `autoroll = true`, e.g. `creature:ShowCharacteristicRollDialog(attrid, { autoroll = true })`; the dice are thrown as soon as the card is up.
 
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.

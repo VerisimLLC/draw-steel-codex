@@ -1630,6 +1630,8 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
                 for _,entry in ipairs(props:try_get("classes", {})) do
                     entry.level = 1
                 end
+                --XP is a running total; kept, it would count as levels to take again.
+                props.xp = 0
                 --no items: the pack and every equipment slot.
                 props.inventory = {}
                 props.equipment = {}

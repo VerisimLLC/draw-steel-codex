@@ -1455,9 +1455,31 @@ function Encounter.IsHeroSideSummon(token)
     return summoner ~= nil and summoner.valid and summoner.properties ~= nil and not summoner.properties:IsMonster()
 end
 
+--True for a creature fighting on the heroes' side, which is never a monster
+--left to defeat: a hero-side summon, a player-controlled token, or a token in
+--the heroes' party or an allied party (the side combat setup puts it on in
+--DSInitiativeRoll). An EotW recruited ally used to block victory (9D9FUC6T).
+--- @param token CharacterToken
+--- @return boolean
+function Encounter.FightsForHeroes(token)
+    if token.playerControlled or Encounter.IsHeroSideSummon(token) then
+        return true
+    end
+    local partyid = token.partyId
+    if partyid == nil then
+        return false
+    end
+    local playerPartyId = GetDefaultPartyID()
+    if partyid == playerPartyId then
+        return true
+    end
+    local party = GetParty(playerPartyId)
+    return party ~= nil and party:GetAllyParties()[partyid] ~= nil
+end
+
 function Encounter.VictoryUnitKey(token)
     local props = token.properties
-    if props == nil or not props:IsMonster() or Encounter.IsHeroSideSummon(token) then
+    if props == nil or not props:IsMonster() or Encounter.FightsForHeroes(token) then
         return nil
     end
     if not props.minion then
@@ -5039,7 +5061,7 @@ function LiveEncounter:CountLiveNonMinions(org)
             if token ~= nil and not seen[token.charid] then
                 seen[token.charid] = true
                 local props = token.properties
-                if props ~= nil and props:IsMonster() and not props.minion and not Encounter.IsHeroSideSummon(token) and
+                if props ~= nil and props:IsMonster() and not props.minion and not Encounter.FightsForHeroes(token) and
                     (org == nil or OrganizationKeyword(props) == org) and props:CurrentHitpoints() > 0 then
                     count = count + 1
                 end

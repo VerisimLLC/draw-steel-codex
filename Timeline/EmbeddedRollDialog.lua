@@ -1138,6 +1138,10 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field banes number
     --- @field boonsOverride nil|number
     --- @field tiersDelta nil|number
+    --- @field autosuccess nil|boolean tier-forcing flags from this row's roll text, absolute rather than relative to the roll; a trigger used after the dice land only reaches the tier through these.
+    --- @field autofailure nil|boolean
+    --- @field nottierone nil|boolean
+    --- @field nottierthree nil|boolean
     --- @field text string
     --- @field surges nil|number
     --- @field modifiers EmbeddedRollModifierEntry[]
@@ -5881,6 +5885,13 @@ function GameHud.CreateEmbeddedRollDialog()
             m_multitargets[index].boons = (rollInfo.boons or 0)
             m_multitargets[index].banes = (rollInfo.banes or 0)
             m_multitargets[index].tiersDelta = (rollInfo.tiers or 0)
+            --Tier-forcing flags (Tier 1/2/3, Not Tier 1/3 roll mods). After the dice
+            --land the roll's own flags are fixed, so a trigger's only path to the
+            --tier is here (E8TWPX8B).
+            m_multitargets[index].autosuccess = rollInfo.autosuccess or nil
+            m_multitargets[index].autofailure = rollInfo.autofailure or nil
+            m_multitargets[index].nottierone = rollInfo.nottierone or nil
+            m_multitargets[index].nottierthree = rollInfo.nottierthree or nil
 
             -- Check roll requirements for triggers so they hide/show dynamically.
             -- If a trigger is already activated, skip the check -- its own effect

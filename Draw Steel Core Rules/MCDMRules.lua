@@ -331,6 +331,36 @@ GameSystem.RegisterApplyToTargets{
 	end,
 }
 
+--The creature that has the caster grabbed (Escape Grab's tier-2 free strike is
+--cast by the grabber, not the escapee). Uses the same lookup as the GoblinScript
+--ConditionCaster("Grabbed"), so formulas and this target list agree. Empty when
+--the caster is not grabbed or the grabber is no longer on the map.
+GameSystem.RegisterApplyToTargets{
+	id = "caster_grabber",
+	text = "Creature Grabbing the Caster",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+			return result
+		end
+
+		local grabber = nil
+		pcall(function()
+			grabber = creature.lookupSymbols.conditioncaster(casterToken.properties)("Grabbed")
+		end)
+		if grabber == nil then
+			return result
+		end
+
+		local grabberToken = dmhub.LookupToken(grabber)
+		if grabberToken ~= nil and grabberToken.valid and grabberToken.charid ~= casterToken.charid then
+			result[#result+1] = { token = grabberToken }
+		end
+
+		return result
+	end,
+}
+
 --The trigger subject, like "Trigger Subject". But if the subject is a minion
 --whose token is already gone (its death confirmed and the token removed), it
 --resolves to a living member of the same squad instead. Minions share one

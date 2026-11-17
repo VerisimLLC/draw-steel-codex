@@ -1505,6 +1505,24 @@ function ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverAltitude)
     return loc:WithAltitude(height)
 end
 
+--- A rebounding push takes its total force from how far along the line the aimed square is,
+--- so an aim past the push distance would bounce further than the rules allow. This pulls
+--- the aimed square back along the same line to at most maxDist squares from the mover.
+--- @param origin Loc the mover's square
+--- @param loc Loc the square the player aimed at
+--- @param maxDist number the push distance in squares
+--- @return Loc
+function ActivatedAbility.ClampForcedMoveLoc(origin, loc, maxDist)
+    local dx = loc.x - origin.x
+    local dy = loc.y - origin.y
+    local dist = math.max(math.abs(dx), math.abs(dy))
+    if maxDist <= 0 or dist <= maxDist then
+        return loc
+    end
+    local scale = maxDist / dist
+    return loc:dir(math.floor(dx * scale + 0.5) - dx, math.floor(dy * scale + 0.5) - dy)
+end
+
 --returns a predicate function saying if a target loc passes the filter.
 function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 

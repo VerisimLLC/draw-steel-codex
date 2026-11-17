@@ -714,7 +714,12 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				--reported as the push it is.
 				local isVerticalSlide = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
 					or ability.forcedMovementStraightUp
-				local movementInfo = casterToken:MarkMovementArrow(EngineLoc(targets[1].loc), {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
+				--A rebounding push gets its force from the aimed distance, so keep the aim within the push distance.
+				local aimLoc = targets[1].loc
+				if forcedPushOptions.rebound and aimLoc ~= nil and not isVerticalForcedMove then
+					aimLoc = ActivatedAbility.ClampForcedMoveLoc(casterToken.loc, aimLoc, abilityDistForArrow)
+				end
+				local movementInfo = casterToken:MarkMovementArrow(EngineLoc(aimLoc), {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc

@@ -13980,12 +13980,19 @@ CreateAbilityController = function()
                     --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
                     --captured from the identical engine computation that draws the radius).
                     local movementInfo = nil
+                    --True when the previewed push rebounds (read from the options sent to the engine).
+                    local reboundActive = false
                     if not MoveTargetLocRejected(targetingType, loc) then
                         local markOptions, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
+                        reboundActive = markOptions.rebound == true
                         --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
+                        local aimLoc = loc
+                        if reboundActive and targetingType == "straightline" then
+                            aimLoc = ActivatedAbility.ClampForcedMoveLoc(g_token.loc, loc, markOptions.forcedMovementDistance or 0)
+                        end
                         movementInfo = g_token:MarkMovementArrow(
                             cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
-                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc, g_token.loc.altitude), loc),
+                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc, g_token.loc.altitude), aimLoc),
                             markOptions)
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
@@ -14089,7 +14096,7 @@ CreateAbilityController = function()
 
                         --Rebound length comes from how far along the line the player points, so
                         --say how far the bounce goes. 0 means they pointed at the obstacle.
-                        if g_token.properties:GetForcedPushOptions().rebound and targetingType == "straightline" and path.hasCollision then
+                        if reboundActive and targetingType == "straightline" and path.hasCollision then
                             local bounceSteps = math.max(0, (path.numSteps or 0) - (path.freeMovementSteps or 0))
                             local reboundText = tr("No rebound")
                             if bounceSteps > 0 then

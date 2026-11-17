@@ -14089,7 +14089,7 @@ CreateAbilityController = function()
 
                         --Rebound length comes from how far along the line the player points, so
                         --say how far the bounce goes. 0 means they pointed at the obstacle.
-                        if reboundOptions.rebound and targetingType == "straightline" and path.hasCollision then
+                        if g_token.properties:GetForcedPushOptions().rebound and targetingType == "straightline" and path.hasCollision then
                             local bounceSteps = math.max(0, (path.numSteps or 0) - (path.freeMovementSteps or 0))
                             local reboundText = tr("No rebound")
                             if bounceSteps > 0 then
@@ -14103,7 +14103,7 @@ CreateAbilityController = function()
                                     local stepY = cond(loc.y > path.origin.y, 1, cond(loc.y < path.origin.y, -1, 0))
                                     local blocker = nil
                                     for _, tok in ipairs(game.GetTokensAtLoc(path.destination:dir(-stepX, -stepY)) or {}) do
-                                        if tok.valid and tok.id ~= g_token.id then
+                                        if tok.valid and tok.charid ~= g_token.charid then
                                             blocker = tok
                                             break
                                         end

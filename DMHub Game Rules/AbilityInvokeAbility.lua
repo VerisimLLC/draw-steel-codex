@@ -44,6 +44,16 @@ function ActivatedAbilityInvokeAbilityBehavior.RegisterTargetType(args)
 		dmhub.Error(string.format("Invoke Ability: %s is a built-in type; register under another id", args.id))
 		return
 	end
+	--The editor sorts the type list by text and every cast calls resolve, so a type
+	--missing either would break the editor or every cast of it.
+	if type(args.id) ~= "string" or type(args.text) ~= "string" or type(args.resolve) ~= "function" then
+		dmhub.Error(string.format("Invoke Ability: target type %s needs a string id and text and a resolve function", tostring(args.id)))
+		return
+	end
+	if args.preview ~= nil and type(args.preview) ~= "function" then
+		dmhub.Error(string.format("Invoke Ability: target type %s has a preview that is not a function", args.id))
+		return
+	end
 	g_extraTargetTypes[args.id] = args
 end
 

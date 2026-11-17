@@ -2526,10 +2526,18 @@ function ActivatedAbility.ActingFromSignature()
 	return table.concat(parts, ",")
 end
 
+--- @type table<string, CharacterToken>
+local g_noActingFrom = {}
+
 --- Every creature acting from another's space right now: caster charid -> the token
 --- whose space it acts from. Empty when none, which is almost always.
 --- @return table<string, CharacterToken>
 function ActivatedAbility.ActingFromAll()
+	--Read on every flanking check; nobody is acting from elsewhere almost always.
+	--The shared empty table is read-only: callers only iterate or index it.
+	if next(g_actingFrom) == nil then
+		return g_noActingFrom
+	end
 	local result = {}
 	--ActingFromToken drops casts that are over, which removes keys during the loop; Lua allows removing (not adding) keys inside pairs.
 	for charid,_ in pairs(g_actingFrom) do

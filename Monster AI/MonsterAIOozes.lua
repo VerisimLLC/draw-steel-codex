@@ -534,15 +534,27 @@ MonsterAI:RegisterPrompt{
 }
 
 -- Liquefy hides an ooze until its next turn, and the hiding ends when it uses an
--- ability. So it goes on a hurt ooze beside the caster that isn't about to act.
+-- ability. So it goes on a hurt ooze in range that has already had its turn.
 -- Only worth it when an enemy is close enough to reach that ooze next turn.
 local liquefyThreatDistance = 5
+
+-- True when the ooze's initiative entry has already had its turn this round.
+-- An ooze still to act loses the hiding at its own turn start (the AI reveals
+-- every hidden actor first), so the 3 Malice would buy nothing.
+local function HasActedThisRound(ooze)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false
+    end
+    local initiativeid = q.GetInitiativeId(ooze)
+    return initiativeid ~= nil and q:HasInitiative(initiativeid) and q:HasHadTurn(initiativeid) == true
+end
 
 MonsterAI:RegisterMaliceAbility{
     id = "Ooze Malice: Liquefy",
     monsterGroups = oozeGroups,
     abilities = {"Liquefy"},
-    description = "Spend 3 Malice to hide a winded ooze that enemies can reach and that is not acting this turn.",
+    description = "Spend 3 Malice to hide a winded ooze that enemies can reach and that has already acted this round.",
     score = function(self, ai, token, ability, context)
         local acting = {}
         for _,actor in ipairs(context.actingTokens or {}) do
@@ -551,6 +563,7 @@ MonsterAI:RegisterMaliceAbility{
         local best = nil
         for _,ooze in ipairs(dmhub.allTokens) do
             if IsOoze(ooze) and ooze:IsFriend(token) and not acting[ooze.charid]
+                and HasActedThisRound(ooze)
                 and not ooze.properties.minion
                 and ooze.properties:IsWinded()
                 and not HasOngoingEffect(ooze, liquefyEffectId)
@@ -563,7 +576,7 @@ MonsterAI:RegisterMaliceAbility{
             end
         end
         if best == nil then
-            return nil, "no winded ooze beside the caster needs hiding"
+            return nil, "no winded ooze that has already acted needs hiding"
         end
         -- Just over the lowest score at which the AI uses a Malice ability. A
         -- first Gush outscores this; once Gush has been used, its repeat
@@ -883,10 +896,20 @@ MonsterAI:RegisterMove{
 -- healthiest ooze.
 local ichorFlickerRange = 5
 
-local function IchorFlickerTarget(oz)
+-- The charids the strike already targets, from the roll dialog's trigger. A strike
+-- can never be redirected onto a creature it already hits (RemoveRetargetStrikeTargets).
+local function StruckIds(triggerInfo)
+    local struck = {}
+    for _,charid in ipairs(triggerInfo:try_get("strikeTargets") or triggerInfo:try_get("targets") or {}) do
+        struck[charid] = true
+    end
+    return struck
+end
+
+local function IchorFlickerTarget(oz, struck)
     local best = nil
     for _,ooze in ipairs(dmhub.allTokens) do
-        if IsOoze(ooze) and ooze.charid ~= oz.charid and ooze:IsFriend(oz)
+        if IsOoze(ooze) and ooze.charid ~= oz.charid and ooze:IsFriend(oz) and not struck[ooze.charid]
             and MonsterAI.TargetDistance(oz, ooze) <= ichorFlickerRange then
             local stamina = ooze.properties:CurrentHitpoints() / math.max(1, ooze.properties:MaxHitpoints())
             local value = (ooze.properties.minion and 2 or 0) + stamina
@@ -915,19 +938,25 @@ MonsterAI:RegisterTrigger{
     triggers = {ichorFlickerText},
     description = "Hand a strike aimed at Oz to an ally ooze within 5 squares, a minion first; pay 2 Malice only when the triggered action is spent.",
     handler = function(ai, token, triggerInfo)
+        local struck = StruckIds(triggerInfo)
         local cost = TriggerMaliceCost(triggerInfo)
         if cost > 0 then
             if (CharacterResource.GetMalice() or 0) < cost then
                 return {dismiss = true}
             end
+            -- Once a flicker has moved the strike off Oz, the roll dialog's target list
+            -- no longer holds her: a second, paid flicker would only waste Malice.
+            if triggerInfo:try_get("strikeTargets") ~= nil and not struck[token.charid] then
+                return {dismiss = true}
+            end
             for _,other in pairs(token.properties:GetAvailableTriggers() or {}) do
-                if other.id ~= triggerInfo.id and not other.dismissed
-                    and other:GetText() == ichorFlickerText and TriggerMaliceCost(other) == 0 then
+                if other.id ~= triggerInfo.id and other:GetText() == ichorFlickerText
+                    and (other.triggered or (not other.dismissed and TriggerMaliceCost(other) == 0)) then
                     return {dismiss = true}
                 end
             end
         end
-        local ooze = IchorFlickerTarget(token)
+        local ooze = IchorFlickerTarget(token, struck)
         if ooze == nil then
             return {dismiss = true}
         end
@@ -941,15 +970,35 @@ MonsterAI:RegisterTrigger{
 
 -- Where the copy can stand: its whole footprint (it is the ooze's size, 3x3 for
 -- a Sludgestorm) is free, touches the ooze, and is in the ooze's line of effect.
+local function SquareKey(loc)
+    return string.format("%d,%d", loc.x, loc.y)
+end
+
+-- Squares any token or object covers on this floor. GetLocsWithinRadius locs
+-- carry no floor, so GetTokensAtLoc misses what stands on them; footprints don't
+-- (the same approach as ActivatedAbilitySummonBehavior.NextAdjacentSpawnLoc).
+local function OccupiedSquares(floor)
+    local occupied = {}
+    for _,other in ipairs(dmhub.allTokensIncludingObjects or dmhub.allTokens) do
+        if other.valid and other.loc ~= nil and other.loc.floor == floor then
+            for _,square in ipairs(other:LocsOccupyingWhenAt(other.loc) or {}) do
+                occupied[SquareKey(square)] = true
+            end
+        end
+    end
+    return occupied
+end
+
 local function SplitLocations(token)
     local own = token:LocsOccupyingWhenAt(token.loc)
     local side = math.max(1, math.floor(math.sqrt(#own) + 0.5))
+    local occupied = OccupiedSquares(token.loc.floor)
     local result = {}
     for _,loc in ipairs(token:GetLocsWithinRadius(side)) do
         local fits = true
         local touches = false
         for _,square in ipairs(token:LocsOccupyingWhenAt(loc)) do
-            if not EmptyLoc(square) then
+            if occupied[SquareKey(square)] or not EmptyLoc(square) then
                 fits = false
                 break
             end

@@ -2265,6 +2265,10 @@ local function TokenPreview(size)
     return panel, Paint, Footprint
 end
 
+--- A token drawn as the map draws it, for use outside the sheet (the avatar
+--- drop card, TableDropDialog.ShowAvatarDropCard). See TokenPreview.
+HeroSheetAppearance.TokenPreview = TokenPreview
+
 --- @class HeroAppearanceGridArgs
 --- @field library string the image library to show
 --- @field height number the grid's height; it scrolls past that
@@ -4002,6 +4006,170 @@ local function ChooseUpload(popout, target, done)
         multiFiles = false,
         open = function(path)
             UploadArt(path, popout, target, done)
+        end,
+    }
+end
+
+----------------------------------------------------------------------
+--A picture dragged onto the sheet window (HeroSheetWindow wires these in):
+--a file from the desktop, or a journal picture dragged from the table or
+--the journal. Releasing uses it for the look in use, as Upload and Choose
+--art do. While it is over the sheet, the sheet is outlined and the avatar
+--card by the mouse shows the token with the picture.
+
+--- @class HeroArtDrop
+--- @field outline Panel a floating outline for the window's inside: shown while a picture is over it
+--- @field extensions string[] the files it takes (dragAndDropExtensions)
+--- @field filesEnter fun(element: Panel, paths: string[])
+--- @field leave fun(element: Panel)
+--- @field dropFiles fun(element: Panel, paths: string[])
+--- @field itemsHover fun(element: Panel, items: nil|ItemLinkDrop[])
+--- @field dropItems fun(element: Panel, items: ItemLinkDrop[])
+
+--- The sheet window's picture drop: an outline to add to the window's
+--- inside, and its handlers for the desktop file events (dragfilesenter,
+--- dragfilesleave, dropfiles) and the item drag events (itemLinkDragHover,
+--- itemLinkDrop; the panel needs tokenDropTarget and
+--- ChatItemLinks.ITEM_DROP_TARGET_CLASS for those).
+--- @return HeroArtDrop
+function HeroSheetAppearance.ArtDrop()
+    --- The first journal picture among dragged items, if any.
+    --- @param items nil|ItemLinkDrop[]
+    --- @return nil|{id: string, name: string, width: nil|number, height: nil|number}
+    local function DroppedPicture(items)
+        for _, item in ipairs(items or {}) do
+            if item.kind == "doc" then
+                ---@cast item ChatItemLink
+                local entry = CustomDocument.FindJournalEntry(item.id)
+                if entry ~= nil and entry.nodeType == "image" then
+                    local name = nil
+                    pcall(function() name = entry.description end)
+                    if type(name) ~= "string" or name == "" then
+                        name = "Picture"
+                    end
+                    return {id = entry.id, name = name, width = tonumber(entry.width), height = tonumber(entry.height)}
+                end
+            end
+        end
+        return nil
+    end
+
+    --- The first dragged file the sheet takes as art, if any.
+    --- @param paths nil|string[]
+    --- @return nil|string
+    local function DroppedArtFile(paths)
+        for _, path in ipairs(paths or {}) do
+            local ext = string.sub(FileDrops.Extension(path), 2)
+            for _, artExt in ipairs(ART_EXTENSIONS) do
+                if ext == artExt then
+                    return path
+                end
+            end
+        end
+        return nil
+    end
+
+    --- What releasing on the sheet does, for the card.
+    --- @param token CharacterToken
+    --- @return string
+    local function ArtDropAction(token)
+        local hero = "this Hero's"
+        if type(token.name) == "string" and token.name ~= "" then
+            hero = token.name .. "'s"
+        end
+        if math.max(1, token.numAppearanceVariations or 1) > 1 then
+            local look = LookName(LookNames(token), token.appearanceVariationIndex or 0)
+            return string.format("Release to use for %s look \"%s\"", hero, look)
+        end
+        return string.format("Release to use as %s art", hero)
+    end
+
+    --- @type nil|Panel
+    local card = nil
+    local outline = gui.Panel{
+        classes = {"collapsed"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        borderWidth = 3,
+        cornerRadius = 4,
+        floating = true,
+        interactable = false,
+        width = "100%",
+        height = "100%",
+    }
+
+    local function End()
+        local old = card
+        card = nil
+        if old ~= nil and old.valid then
+            old:DestroySelf()
+        end
+        if outline.valid then
+            outline:SetClass("collapsed", true)
+        end
+    end
+
+    --- @param picture {path: nil|string, image: nil|string, imageWidth: nil|number, imageHeight: nil|number, name: string}
+    local function Begin(picture)
+        End()
+        local token = Token()
+        if token == nil or not HeroSheetWrite.CanWrite() or not outline.valid then
+            return
+        end
+        outline.selfStyle.borderColor = HeroSheetTheme.Palette().accent
+        outline:SetClass("collapsed", false)
+        --drawn last, so it sits over the sheet's panels.
+        outline:SetAsLastSibling()
+        local mine
+        mine = TableDropDialog.ShowAvatarDropCard{
+            token = token,
+            path = picture.path,
+            image = picture.image,
+            imageWidth = picture.imageWidth,
+            imageHeight = picture.imageHeight,
+            name = picture.name,
+            action = ArtDropAction(token),
+            keepCrop = true,
+            isActive = function()
+                return card == mine and outline.valid
+            end,
+        }
+        card = mine
+    end
+
+    return {
+        outline = outline,
+        extensions = map(ART_EXTENSIONS, function(ext) return "." .. ext end),
+        filesEnter = function(element, paths)
+            local path = DroppedArtFile(paths)
+            if path ~= nil then
+                Begin{path = path, name = FileDrops.BaseName(path)}
+            end
+        end,
+        leave = function(element)
+            End()
+        end,
+        dropFiles = function(element, paths)
+            End()
+            local path = DroppedArtFile(paths)
+            if path ~= nil then
+                UploadArt(path, false, "token", nil)
+            end
+        end,
+        itemsHover = function(element, items)
+            local picture = DroppedPicture(items)
+            if picture == nil then
+                End()
+                return
+            end
+            Begin{image = picture.id, imageWidth = picture.width, imageHeight = picture.height, name = picture.name}
+        end,
+        dropItems = function(element, items)
+            End()
+            local picture = DroppedPicture(items)
+            if picture ~= nil then
+                UseArt(picture.id, "token")
+            end
         end,
     }
 end

@@ -318,7 +318,7 @@ local g_barFit = {
 --map cluster is represented by its two children (the name and the terrain
 --chip) rather than by the cluster itself.
 local BAR_FIT_LADDER = {
-    "mapName", "mapChip", "search",
+    "mapName", "mapChip", "search", "tableMode",
     "initiative", "devGame", "connectivity", "audio",
     "menus",
 }
@@ -1194,6 +1194,115 @@ local function CreatePresentationBar()
     }
 
     return resultPanel
+end
+
+----------------------------------------------------------------------
+-- Table sharing mode readout
+-- "Tabletop - Shared" or "Desktop - Private" (DirectorScreen.lua, in the
+-- DMHub Game Hud mod, owns the mode). Everyone sees it and its tooltip; only
+-- the Director can click it, to switch. Empty outside a real game. The outer
+-- panel never collapses so it keeps thinking; the plate inside it does.
+----------------------------------------------------------------------
+
+local function CreateTableModePanel()
+    --the DMHub Game Hud mod may not have loaded yet (or at all, at the title
+    --screen): globals are strict, so read it with rawget.
+    local function Screen()
+        local screen = rawget(_G, "DirectorScreen")
+        if screen == nil or screen.SharingModeName == nil then
+            return nil
+        end
+        return screen
+    end
+
+    local label = gui.Label{
+        classes = {"menuLabel"},
+        fontSize = 14,
+        minFontSize = 10,
+        width = "auto",
+        height = "100%",
+        hmargin = 0,
+        textWrap = false,
+        interactable = false,
+        text = "",
+    }
+
+    local plate
+    plate = gui.Panel{
+        classes = {"tableModePlate", "collapsed"},
+        styles = {
+            {
+                selectors = {"tableModePlate"},
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"tableModePlate", "director", "hover"},
+                bgcolor = "#ffffff1c",
+            },
+        },
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        hpad = 8,
+        borderBox = true,
+        rmargin = 6,
+        cornerRadius = 4,
+        bgimage = "panels/square.png",
+        children = {label},
+        linger = function(element)
+            local screen = Screen()
+            if screen == nil then
+                return
+            end
+            local text
+            if screen.SharedMode() then
+                text = "Tabletop - Shared: what the Director puts on the table is shared with every player. What is behind the Director's Screen stays private."
+                if dmhub.isDM then
+                    text = text .. "\nA grey outline marks what is not shared with everyone.\n\nClick to switch to Desktop - Private."
+                end
+            else
+                text = "Desktop - Private: what the Director puts on the table stays private until they share it."
+                if dmhub.isDM then
+                    text = text .. "\nA grey outline marks what is not shared.\n\nClick to switch to Tabletop - Shared."
+                end
+            end
+            gui.Tooltip(text)(element)
+        end,
+        click = function(element)
+            local screen = Screen()
+            if screen == nil or not dmhub.isDM then
+                return
+            end
+            element.tooltip = nil
+            screen.SetSharingMode(screen.SharedMode() and "private" or "shared")
+        end,
+    }
+
+    return gui.Panel{
+        width = "auto",
+        height = "100%",
+        thinkTime = 0.5,
+        think = function(element)
+            local screen = Screen()
+            local show = screen ~= nil and dmhub.inGame and not dmhub.isLobbyGame
+            if show then
+                --- @cast screen -nil
+                local text = screen.SharingModeName()
+                if label.text ~= text then
+                    label.text = text
+                end
+            end
+            if plate:HasClass("collapsed") == show then
+                plate:SetClass("collapsed", not show)
+            end
+            --dmhub.isDM raises while no game is loaded (startup), so only read it when shown.
+            local director = show and dmhub.isDM
+            if plate:HasClass("director") ~= director then
+                plate:SetClass("director", director)
+            end
+        end,
+        children = {plate},
+    }
 end
 
 ----------------------------------------------------------------------
@@ -3630,6 +3739,8 @@ local function CreateStatusBar()
                 end
             end,
         }),
+
+        BarFitRegister("tableMode", CreateTableModePanel()),
 
         BarFitRegister("connectivity", CreateConnectivityPanel()),
 
@@ -8425,6 +8536,17 @@ local function CreateTopBar()
                             end
                         end
                     end
+                end
+                --Step through every loading-screen quote on a copy of the
+                --loading screen (CodexTitlescreen.lua).
+                local quotesPreview = rawget(_G, "LoadingQuotesPreview")
+                if quotesPreview ~= nil then
+                    menuItems[#menuItems+1] = {
+                        text = "Loading Screen Quotes",
+                        click = function()
+                            quotesPreview.Show()
+                        end,
+                    }
                 end
                 --Encounter of the Week's situational rows (e.g. Skip to
                 --Combat during a montage). rawget: the EotW file may not load.

@@ -24,6 +24,10 @@ function code.GetCodeFromMD5(md5) end
 --- @param modid? string
 function code.GetMod(modid) end
 
+--- Downloads a code mod's record (and its dependencies') so code.GetMod can read it, without loading its code. For dev tooling that works on mods the current game does not run, e.g. copying resources from one mod set to another. Asynchronous: poll code.GetMod(modid).valid.
+--- @param modid? string
+function code.SyncMod(modid) end
+
 --- Launches an external diff tool to compare two code files identified by their MD5 hashes.
 --- @param md5a? string
 --- @param md5b? string
@@ -43,6 +47,11 @@ function code.CanDeleteMod(modid) end
 --- Removes the code mod with the given ID from the current game's mod list and persists the change.
 --- @param modid? string
 function code.DeleteMod(modid) end
+
+--- Creates a new, empty code mod record in the cloud, owned by the current user, and returns its guid. args: {name = string, description = string (optional)}. Unlike CreateMod it adds the mod to no game: use it to build a mod set whose root mods are chosen by the build or by launch arguments (--base-mod etc.). The upload finishes asynchronously; the mod is known locally once it has.
+--- @param args {name: string, description?: string}
+--- @return string
+function code.CreateModRecord(args) end
 
 --- Creates a new code mod with a unique name, uploads it, and adds it to the current game's mod list.
 function code.CreateMod() end

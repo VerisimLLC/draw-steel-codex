@@ -391,7 +391,7 @@ function CharacterToken:GetLineOfSightToSpace(loc, pierceSurfacesArg) end
 --- @return {cover: number, obstructionDist: number}
 function CharacterToken:GetLineOfSightToSpaceInfo(loc, pierceSurfacesArg) end
 
---- The distance in native units to a loc, path, or another token.
+--- The distance in native units to a loc, path, or another token. nil when either token no longer has a map token (deleted, or not built yet).
 --- @param otherTokenOrLoc CharacterToken|LuaPath|Loc
 --- @return number
 function CharacterToken:Distance(otherTokenOrLoc) end

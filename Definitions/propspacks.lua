@@ -72,8 +72,8 @@ function propspacks.GetPreview(objectid) end
 --- @return boolean
 function propspacks.LoadBundle(pack, bundle) end
 
---- Searches every synced pack's index, loaded bundles or not: each space-separated term must match the start of a word of the object's name or one of its keywords. matchScore sums 2 per whole-word match and 1 per prefix match. Results are in index order (default at most 200).
---- @param options {text: string, pack: nil|string, maxResults: nil|integer}
+--- Searches every synced pack's index, loaded bundles or not, locked or not: each space-separated term must match the start of a word of the object's name or one of its keywords. matchScore sums 2 per whole-word match and 1 per prefix match. pack and bundle (a bundle key) narrow it; with a bundle and no text it lists every object of that bundle (matchScore 0), which is how a locked bundle can be browsed. Results are in index order (default at most 200).
+--- @param options {text: nil|string, pack: nil|string, bundle: nil|string, maxResults: nil|integer}
 --- @return PropsPackSearchHit[]
 function propspacks.Search(options) end
 

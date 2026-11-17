@@ -127,6 +127,9 @@
 --                  -- "You cannot be surprised": the party is immune to the
 --                     Surprised condition in the next encounter (it still
 --                     loses the initiative if the montage says so).
+--  data.surprisedHeroes = nil | { [heroCharid] = { entryName, at } }
+--                  -- "PC is surprised": these heroes alone begin the
+--                     encounter Surprised. Cleared by a fair roll.
 --  data.startZones = nil | { [zone keyword, lower-cased] = { entryName, at } }
 --                  -- "the Start2 zone becomes a starting area": extra zone
 --                     types the heroes may stand in before combat (the
@@ -1920,6 +1923,9 @@ local function GrantedAsApplied(granted)
     return {
         rider = { effect = granted.effect, text = why, granted = true },
         why = why,
+        --the author's bracketed detail; the roll dialog's chip tooltip
+        --uses it instead of `why` (TestRiders.AppendModifiers).
+        detail = granted.detail,
     }
 end
 
@@ -2802,14 +2808,15 @@ end
 --Surprised" slider. Caller must already hold host permissions.
 --Allies spawned later, and the enemy side, are still handled at combat
 --start by StartEncounterCombat -- this is the hero half only.
-local function SetHeroesSurprised(on, description)
+--`heroes` (optional) limits it to those hero entries: "PC is surprised".
+local function SetHeroesSurprised(on, description, heroes)
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
     if surprisedCondition == nil then
         return
     end
-    for _, hero in ipairs(EncounterMontage.Heroes()) do
+    for _, hero in ipairs(heroes or EncounterMontage.Heroes()) do
         local token = hero.token
-        if token.valid then
+        if token ~= nil and token.valid then
             token:ModifyProperties{
                 description = description,
                 undoable = false,
@@ -3229,6 +3236,33 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --their own immunity read as the immunity having been
                 --forgotten (reported live 2026-09-20).
                 applied[#applied + 1] = EncounterScript.DescribeInitiativeOutcome(effect.outcome, surpriseImmune and effect.outcome == "surprised")
+            elseif effect.kind == "herosurprised" then
+                --only the acting hero(es). Recorded per hero at the top level
+                --of the document, like data.surprised, so the encounter beat
+                --can tell whether EVERY hero ended up surprised.
+                local surpriseImmune = ctx.doc ~= nil and ctx.doc.data.noSurprise ~= nil
+                local targets = Targets(effect)
+                local names = {}
+                for _, target in ipairs(targets) do
+                    names[#names + 1] = target.name
+                    if ctx.doc ~= nil then
+                        ctx.doc.data.surprisedHeroes = ctx.doc.data.surprisedHeroes or {}
+                        ctx.doc.data.surprisedHeroes[target.charid] = {
+                            entryName = ctx.entryName,
+                            at = dmhub.serverTime,
+                        }
+                    end
+                end
+                if not surpriseImmune then
+                    SetHeroesSurprised(true, "Montage: surprised", targets)
+                end
+                if #names > 0 then
+                    if surpriseImmune then
+                        applied[#applied + 1] = T("montage.effect.hero_surprised_immune", { names = TargetNames(names) })
+                    else
+                        applied[#applied + 1] = TP("montage.effect.hero_surprised", #names, { names = TargetNames(names) })
+                    end
+                end
             elseif effect.kind == "retreatkill" then
                 --one fewer of the monsters that fled an earlier part joins
                 --this part's fight (EncounterReinforcements.RetreatedJoining).
@@ -3264,6 +3298,7 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --the heroes still go first if they had already earned that
                 ---- and a "win" outcome is left standing.
                 if ctx.doc ~= nil then
+                    ctx.doc.data.surprisedHeroes = nil
                     local surprised = ctx.doc.data.surprised
                     if type(surprised) == "table" and surprised.party ~= nil then
                         if surprised.enemy ~= nil then
@@ -3373,6 +3408,9 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                         --the author's "...: the body is charred", shown
                         --instead of entryName when set.
                         reason = effect.reason,
+                        --"(you were distracted by the skeletons)": the
+                        --longer words, shown as a tooltip.
+                        detail = effect.detail,
                         at = dmhub.serverTime,
                     }
                     printf("EotW montage: %s on '%s'%s", tostring(effect.effect), tostring(effect.name),
@@ -3688,6 +3726,16 @@ function EncounterMontage.HasSurpriseImmunity()
     return false
 end
 
+--The heroes a "PC is surprised" clause surprised one by one, as
+--{ [charid] = { entryName, at } } (empty when none).
+function EncounterMontage.GetSurprisedHeroes()
+    local info = EncounterMontage.GetDoc().data.surprisedHeroes
+    if type(info) ~= "table" then
+        return {}
+    end
+    return info
+end
+
 --Which sides a montage clause marked Surprised for the coming encounter.
 --Returns two values: the party entry (or nil) and the enemy entry (or nil),
 --each { entryName, at }.
@@ -3947,8 +3995,26 @@ local function LastTurnResult(m)
         return nil
     end
     local lines = {}
-    for _, line in ipairs(last.applied or {}) do
-        lines[#lines + 1] = line
+    --a group test ("Everyone rolls:") logs one entry per hero; the summary
+    --must name what happened to all of them, not only the last to roll.
+    local first = #m.log
+    if last.group then
+        while first > 1 do
+            local prev = m.log[first - 1]
+            if not prev.group or prev.entryId ~= last.entryId then
+                break
+            end
+            first = first - 1
+        end
+    end
+    local seen = {}
+    for i = first, #m.log do
+        for _, line in ipairs(m.log[i].applied or {}) do
+            if not seen[line] then
+                seen[line] = true
+                lines[#lines + 1] = line
+            end
+        end
     end
     if #lines == 0 and type(last.tierText) == "string" and last.tierText ~= "" then
         lines[1] = last.tierText
@@ -7981,6 +8047,7 @@ function EncounterMontage.ResetTest(options)
     doc.data.foeResistances = nil
     doc.data.noSurprise = nil
     doc.data.surprised = nil
+    doc.data.surprisedHeroes = nil
     doc.data.retreatKills = nil
     doc.data.zoneSetup = nil
     doc.data.reinforcements = nil

@@ -972,17 +972,30 @@ end
 --its flash has run, and move on once its result has been read.
 local function TickVote(m, doc, beat, section, heroes)
     local vote = m.gauntlet.vote
+    local function Leave()
+        local option, effects = VoteRoute(section, vote)
+        MoveOn(m, doc, beat, heroes, section, option, effects)
+        --the last section's Proceed was already the party's "Draw
+        --Steel!" click (the stage labels it so): the end screen does
+        --not wait for a second one.
+        if m.phase == "done" and section.implicitOption then
+            m.doneAck = true
+        end
+    end
+    --A choice the party agreed on that changed nothing has no result worth
+    --showing: move on in the same tick, so no result screen flashes up
+    --between the click and the next section.
+    local function LeaveIfQuiet()
+        if vote.result ~= nil and VoteApplied(vote.result) == 0 then
+            Leave()
+        end
+    end
     if vote.result ~= nil then
+        --a split vote's tie-break, or a choice that did something: its
+        --result stays up long enough to read.
         local linger = cond(VoteApplied(vote.result) > 0, RESULT_LINGER_SECONDS, CHOICE_LINGER_QUIET)
         if Now() - (tonumber(vote.result.at) or 0) >= linger then
-            local option, effects = VoteRoute(section, vote)
-            MoveOn(m, doc, beat, heroes, section, option, effects)
-            --the last section's Proceed was already the party's "Draw
-            --Steel!" click (the stage labels it so): the end screen does
-            --not wait for a second one.
-            if m.phase == "done" and section.implicitOption then
-                m.doneAck = true
-            end
+            Leave()
         end
         return
     end
@@ -998,6 +1011,7 @@ local function TickVote(m, doc, beat, section, heroes)
     if section.implicitOption then
         if next(vote.choices or {}) ~= nil then
             ResolveVote(m, doc, section, heroes, 1, nil)
+            LeaveIfQuiet()
         end
         return
     end
@@ -1025,6 +1039,7 @@ local function TickVote(m, doc, beat, section, heroes)
         return
     end
     ResolveVote(m, doc, section, heroes, first or 1, nil)
+    LeaveIfQuiet()
 end
 
 --- group tests: "Everyone rolls:" (host) -------------------------------------------

@@ -124,7 +124,7 @@
 --                    "loserecovery"|"herotoken"|"intelligence"|"malice"|
 --                    "immunityboon" (damageType = "poison", ...)|
 --                    "ally"|"vanquish"|
---                    "initiative"|"nosurprise"|"fairinitiative"|
+--                    "initiative"|"nosurprise"|"herosurprised"|"fairinitiative"|
 --                    "knowstamina"|"revealzones"|"unlock"|"testmod"|
 --                    "retreatkill"|"narrative",
 --             target = "self"|"party", qty = n, name = "...", text = clause,
@@ -489,10 +489,10 @@ local function ParseClause(clause)
     --this montage, for whoever takes it. Matched FIRST because the generic
     --"you gain <qty> <item>" rule below would otherwise read "you gain an
     --edge on Capture Them" as one item called "edge on Capture Them".
-    local modEffect, modName, modReason = EncounterScript.ParseTestModClause(clause)
+    local modEffect, modName, modReason, modDetail = EncounterScript.ParseTestModClause(clause)
     if modEffect ~= nil then
         return { kind = "testmod", effect = modEffect, name = modName, reason = modReason,
-            key = EncounterScript.MatchKey(modName), text = clause }
+            detail = modDetail, key = EncounterScript.MatchKey(modName), text = clause }
     end
 
     --"roll twice on Tinkerer's Wares": roll the entry's own dice table that
@@ -731,6 +731,12 @@ local function ParseClause(clause)
         return { kind = "nosurprise", text = clause }
     end
 
+    --"PC is surprised": only the hero who rolled is Surprised. Checked before
+    --the initiative clauses, whose "you .*surprised" rule surprises the party.
+    if EncounterScript.ParseHeroSurprisedClause(lc) then
+        return { kind = "herosurprised", text = clause }
+    end
+
     --"one of the fleeing monsters is destroyed": one fewer of the monsters
     --that retreated in an earlier part joins this part's fight.
     if EncounterScript.ParseRetreatKillClause(lc) then
@@ -835,6 +841,9 @@ end
 --  "the party has a bane on investigate the corpse: the body is charred"
 --It is returned third (nil when there is none). The reason ends where the
 --clause does, so it cannot hold . , ; ! or ? (they split clauses).
+--A reason ending in brackets keeps the card short and puts the rest in a
+--tooltip: "...: Distracted (you were distracted by the skeletons)" shows
+--"Bane: Distracted". The bracketed part is returned fourth.
 function EncounterScript.ParseTestModClause(clause)
     local lc = lower(clause or "")
     local offset = 0
@@ -886,10 +895,18 @@ function EncounterScript.ParseTestModClause(clause)
             reason = nil
         end
     end
+    local detail = nil
+    if reason ~= nil then
+        local short, inside = string.match(reason, "^(.-)%s*%((.-)%)$")
+        if short ~= nil and trim(short) ~= "" and trim(inside) ~= "" then
+            reason = trim(short)
+            detail = trim(inside)
+        end
+    end
     if name == "" then
         return nil
     end
-    return effect, name, reason
+    return effect, name, reason, detail
 end
 
 --The player-facing line for a standing edge/bane: "The party has an edge
@@ -1912,6 +1929,16 @@ function EncounterScript.ParseSurpriseImmunityClause(lc)
         or rest == "is not surprised" or rest == "are not surprised"
 end
 
+--"PC is surprised" and its spellings: the Surprised condition on the acting
+--hero alone (in an "Everyone rolls" test, each hero who lands it), not the
+--party. Initiative is still rolled, unless every hero ends up surprised.
+--  "pc is surprised" / "the hero is surprised" / "you alone are surprised"
+function EncounterScript.ParseHeroSurprisedClause(lc)
+    lc = trim(lc)
+    return lc == "pc is surprised" or lc == "the hero is surprised"
+        or lc == "you alone are surprised" or lc == "only you are surprised"
+end
+
 --"One of the fleeing monsters is destroyed" and its spellings: one fewer of
 --the monsters that retreated in an earlier part of a series joins this
 --part's fight (the "Monsters Fled from Last Fight" Encounter Script).
@@ -2630,6 +2657,10 @@ function EncounterScript.NegotiationProblems(beat, parse)
     for _, argument in ipairs(beat.arguments) do
         if argument.traitId ~= nil then
             argued[argument.traitId] = true
+        end
+        --the hero speaks every argument on the stage, so each needs its words.
+        if (argument.say or "") == "" then
+            problems[#problems + 1] = T("author.validator.negotiation.no_pc", { argument = argument.name })
         end
     end
     for _, trait in ipairs(beat.traits) do
@@ -3730,7 +3761,7 @@ end
 local SCENE_ENTER_VERBS = { enters = true, appears = true, arrives = true }
 local SCENE_EXIT_VERBS = { exits = true, leaves = true, departs = true }
 --Emotes a character can show ("Witch is alarmed", "Goblin (scared): ...").
-EncounterScript.SCENE_EMOTES = { alert = true, scared = true, alarmed = true, angry = true }
+EncounterScript.SCENE_EMOTES = { alert = true, scared = true, alarmed = true, angry = true, pleased = true }
 
 --The named sections of a "# Delve: <Name>" (lowered heading -> key), besides
 --its "## Obstacle: ..." entries: the chest (scene + dice table), the scene
@@ -7431,6 +7462,8 @@ function EncounterScript.DescribeEffect(effect)
         return EncounterScript.DescribeInitiativeOutcome(effect.outcome)
     elseif effect.kind == "nosurprise" then
         return EncounterScript.DescribeSurpriseImmunity()
+    elseif effect.kind == "herosurprised" then
+        return T("script.effect.hero_surprised")
     elseif effect.kind == "retreatkill" then
         return T("script.effect.retreat_kill")
     elseif effect.kind == "fairinitiative" then
@@ -7569,6 +7602,7 @@ EncounterScript.CLAUSES = {
     { kind = "malice", group = T("author.script.clause_group.cost"), label = T("author.script.clause.malice"), params = { "qty" }, defaults = { qty = 1 } },
     { kind = "initiative", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.initiative"), params = { "outcome" }, defaults = { outcome = "win" } },
     { kind = "nosurprise", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.nosurprise"), params = {}, defaults = {} },
+    { kind = "herosurprised", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.herosurprised"), params = {}, defaults = {} },
     { kind = "retreatkill", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.retreatkill"), params = {}, defaults = {} },
     { kind = "fairinitiative", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.fairinitiative"), params = {}, defaults = {} },
     { kind = "knowstamina", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.knowstamina"), params = { "keyword" }, defaults = { keyword = "goblin" } },
@@ -7671,6 +7705,8 @@ function EncounterScript.ClauseText(e)
         return INITIATIVE_CLAUSES[e.outcome or "win"] or INITIATIVE_CLAUSES.win
     elseif kind == "nosurprise" then
         return "You cannot be surprised"
+    elseif kind == "herosurprised" then
+        return "PC is surprised"
     elseif kind == "retreatkill" then
         return "One of the fleeing monsters is destroyed"
     elseif kind == "fairinitiative" then
@@ -7691,6 +7727,9 @@ function EncounterScript.ClauseText(e)
         local because = ""
         if e.reason ~= nil and trim(e.reason) ~= "" then
             because = ": " .. trim(e.reason)
+            if e.detail ~= nil and trim(e.detail) ~= "" then
+                because = string.format("%s (%s)", because, trim(e.detail))
+            end
         end
         return string.format("The party has %s on %s%s", TEST_EFFECT_WORDS[e.effect or "edge"] or TEST_EFFECT_WORDS.edge, trim(e.name or ""), because)
     elseif kind == "rolltable" then

@@ -1,8 +1,12 @@
---Encounter of the Week: the negotiation runtime.
+--Encounter of the Week: the negotiation beat.
 --
 --Runs a "# Negotiation: <NPC>" beat of the map's script (EncounterScript.lua)
---with no Director. Heroes pick authored arguments, each secretly tagged to a
---motivation, a pitfall or nothing; NegotiationRules applies the book's rules.
+--with no Director. The rules -- arguments, reads, votes, the book's numbers --
+--are the shared negotiation session (Draw Steel V/NegotiationScene.lua), which
+--the town of Blackbottom plays too. This file is its EotW HOST: where the
+--state lives, who the heroes and voters are, riders, the language bonus,
+--Intelligence hints, the montage roll dialog and what a deal applies. The
+--screen is NegotiationSceneStage, mounted by EncounterMontageStage.lua.
 --
 --Design: NEGOTIATION_SCRIPTED_PLAN.md in the dmhub repo.
 --
@@ -12,26 +16,9 @@
 --acting player's client rolls (ClientTick) and reports the tier as a request.
 --
 --The shared document is the montage's ("eotwscript"), under its own key:
---  data.negotiation = {
---    beatIndex, seq,
---    phase = "arriving"|"choosing"|"rolling"|"reply"|"voting"|"final"|"done",
---    interest, patience,
---    learned = { [traitId] = true },     -- what the party knows
---    usedTraits = { [traitId] = true },  -- motivations already appealed to
---    usedArguments = { [argumentId] = true },
---    spoke = { [charid] = n },
---    canRead,                            -- false after a read, until an argument
---    turn = nil | { kind = "argue"|"read", argumentId, heroid, heroName, userid,
---                   rollSeq, noDice, wants },
---    last = nil | { kind, argumentId, heroName, tier, total, track, reply, cue,
---                   interest, patience, found },
---    replyAt, afterReply = nil|"final"|"nodeal",
---    votes = { [voterKey] = { choice, userid } }, voteOptions = { "deal", ... },
---    result = nil | { outcome = "deal"|"refused"|"nodeal", interest, applied },
---    requests = { [userid] = { seq, kind, ... } }, handled = { [userid] = seq },
---    log = { { heroName, text }, ... },
---    startedAt, doneAt,
---  }
+--data.negotiation is the session's state (its fields are listed at the top of
+--NegotiationScene.lua), plus beatIndex, the script beat it belongs to.
+--A hint bought with Intelligence leaves last = { kind = "clue", found }.
 
 local mod = dmhub.GetModLoading()
 
@@ -41,14 +28,8 @@ EncounterNegotiation = rawget(_G, "EncounterNegotiation") or {}
 
 local DOC_ID = "eotwscript"
 
---how long an NPC's reply stays up if nobody presses on.
-local REPLY_SECONDS = 12
---and how long the finished negotiation holds before the script moves on.
-local DONE_LINGER_SECONDS = 6
 --what a hint costs, before the first argument (see SpendClue).
 local CLUE_COST = 1
---the book's discovery test: any of the three, whichever suits the hero.
-local READ_ATTR = "Reason, Intuition or Presence"
 
 --- the document ------------------------------------------------------------
 
@@ -83,233 +64,22 @@ function EncounterNegotiation.CurrentBeat()
     return beat, script
 end
 
-local function FindById(list, id)
-    for _, item in ipairs(list or {}) do
-        if item.id == id then
-            return item
-        end
-    end
-    return nil
-end
-
 function EncounterNegotiation.Argument(beat, id)
-    return FindById(beat.arguments, id)
+    return NegotiationScene.Argument(beat, id)
 end
 
 function EncounterNegotiation.Trait(beat, id)
-    return FindById(beat.traits, id)
+    return NegotiationScene.Trait(beat, id)
 end
 
---- facts ---------------------------------------------------------------------
+--- the host -------------------------------------------------------------------
 
---The rider verdict for a hero on an argument: its edges, and whether a secret
---argument is theirs to make.
-function EncounterNegotiation.Verdict(charid, argument)
-    if #(argument.riders or {}) == 0 then
-        return nil
-    end
-    local verdict = nil
-    local ok, err = pcall(function()
-        verdict = EncounterScript.EvaluateRiders(argument.riders, EncounterMontage.HeroFacts(charid))
-    end)
-    if not ok then
-        printf("EotW negotiation: rider verdict failed: %s", tostring(err))
-    end
-    return verdict
-end
-
---May this hero make this argument? A secret one is hidden from everyone else.
-function EncounterNegotiation.CanMakeArgument(charid, argument)
-    local verdict = EncounterNegotiation.Verdict(charid, argument)
-    return verdict == nil or verdict.allowed ~= false
-end
-
---The book's language rule: one speaker of the NPC's native language adds 1
---patience at the start, three or more add 2, to a maximum of 5. Caelian, the
---common tongue, never counts.
-local function LanguageBonus(beat, heroes)
-    if beat.language == "" or string.lower(beat.language) == "caelian" then
-        return 0
-    end
-    local requirement = EncounterScript.ParseRequirement("you speak " .. beat.language)
-    local speakers = 0
-    for _, hero in ipairs(heroes) do
-        local met = false
-        pcall(function()
-            met = EncounterScript.RequirementMet(requirement, EncounterMontage.HeroFacts(hero.charid)) and true or false
-        end)
-        if met then
-            speakers = speakers + 1
-        end
-    end
-    if speakers >= 3 then
-        return 2
-    end
-    return speakers >= 1 and 1 or 0
-end
-
---- requests (player side) ---------------------------------------------------
-
---Stamp a request for the host: {seq, kind, ...args}. One slot per user; a
---newer request replaces an unhandled older one.
-function EncounterNegotiation.SendRequest(kind, args)
-    local userid = dmhub.loginUserid
-    local doc = EncounterNegotiation.GetDoc()
-    if doc.data.negotiation == nil then
-        return false
-    end
-    doc:BeginChange()
-    local m = doc.data.negotiation
-    m.requests = m.requests or {}
-    local prev = m.requests[userid]
-    local req = { seq = ((prev ~= nil and prev.seq) or 0) + 1, kind = kind, time = dmhub.serverTime }
-    for k, v in pairs(args or {}) do
-        req[k] = v
-    end
-    m.requests[userid] = req
-    doc:CompleteChange("Negotiation request: " .. tostring(kind), { undoable = false })
-    return true
-end
-
---- host: the rules -----------------------------------------------------------
+--The document a Mutate is changing, so the host hooks that run inside one
+--(a deal's effects, an Intelligence hint) write to that same change.
+local m_changingDoc = nil
 
 local function UserControlsHero(userid, hero)
     return hero ~= nil and (hero.ownerId == userid or hero.ownerId == "PARTY")
-end
-
-local function FindHero(heroes, charid)
-    for _, hero in ipairs(heroes) do
-        if hero.charid == charid then
-            return hero
-        end
-    end
-    return nil
-end
-
-local function Bump(m)
-    m.seq = (tonumber(m.seq) or 0) + 1
-end
-
---An argument's reply: the author's line for how it went, else the book's stock
---response for a rise, a fall or impatience.
-local function ReplyFor(argument, delta, track, repeated)
-    if track == "pitfall" then
-        return argument.backfires ~= "" and argument.backfires or T("negotiation.reply.negative")
-    end
-    if delta.interest > 0 then
-        return argument.lands ~= "" and argument.lands or T("negotiation.reply.positive")
-    end
-    if delta.interest < 0 then
-        return argument.backfires ~= "" and argument.backfires or T("negotiation.reply.negative")
-    end
-    if repeated then
-        return T("negotiation.reply.impatient")
-    end
-    return argument.fallsShort ~= "" and argument.fallsShort or T("negotiation.reply.impatient")
-end
-
---Move on from an argument or a read: show the reply, and note whether the
---talking has ended (NegotiationRules decides that).
-local function AfterMeters(m)
-    local terminal = NegotiationRules.Terminal(m.interest, m.patience)
-    m.afterReply = nil
-    if terminal == "nodeal" then
-        m.afterReply = "nodeal"
-    elseif terminal == "final" then
-        m.afterReply = "final"
-    end
-    m.turn = nil
-    m.phase = "reply"
-    m.replyAt = dmhub.serverTime
-    Bump(m)
-end
-
---Apply an argument under the book's rules. A pitfall fails whatever is
---rolled, so it reaches here with no tier.
-local function ResolveArgument(m, beat, argument, hero, tier, total, natural)
-    local track = "nomotivation"
-    local repeated = false
-    if argument.kind == "pitfall" then
-        track = "pitfall"
-    elseif argument.kind == "motivation" then
-        track = "appeal"
-        repeated = (m.usedTraits or {})[argument.traitId] == true
-    else
-        repeated = (m.usedArguments or {})[argument.id] == true
-    end
-
-    local delta = NegotiationRules.Resolve{
-        track = track,
-        tier = tier or 1,
-        repeated = repeated,
-        natHigh = natural ~= nil and natural >= 19,
-    }
-    m.interest, m.patience = NegotiationRules.ApplyDelta(m.interest, m.patience, delta)
-
-    m.usedArguments = m.usedArguments or {}
-    m.usedArguments[argument.id] = true
-    m.learned = m.learned or {}
-    if argument.traitId ~= nil then
-        m.learned[argument.traitId] = true
-        if track == "appeal" then
-            m.usedTraits = m.usedTraits or {}
-            m.usedTraits[argument.traitId] = true
-        end
-    end
-    m.spoke = m.spoke or {}
-    m.spoke[hero.charid] = (tonumber(m.spoke[hero.charid]) or 0) + 1
-    m.canRead = true
-    m.split = nil
-
-    m.last = {
-        kind = "argue",
-        argumentId = argument.id,
-        heroName = hero.name,
-        tier = tier,
-        total = total,
-        track = track,
-        reply = ReplyFor(argument, delta, track, repeated),
-        interest = delta.interest,
-        patience = delta.patience,
-    }
-    m.log = m.log or {}
-    m.log[#m.log + 1] = { heroName = hero.name, text = argument.name, track = track, tier = tier }
-    AfterMeters(m)
-end
-
---Read the NPC, under the book's discovery test: tier 1 costs patience, tier 3
---reveals one motivation or pitfall of the hero's choice of kind.
-local function ResolveRead(m, beat, hero, tier, total, wants)
-    local found = nil
-    if tier >= 3 then
-        local kinds = wants == "pitfall" and { "pitfall", "motivation" } or { "motivation", "pitfall" }
-        for _, kind in ipairs(kinds) do
-            for _, trait in ipairs(beat.traits) do
-                if found == nil and trait.kind == kind and not (m.learned or {})[trait.id] then
-                    found = trait
-                end
-            end
-        end
-    end
-    if found ~= nil then
-        m.learned = m.learned or {}
-        m.learned[found.id] = true
-    end
-    if tier <= 1 then
-        m.patience = math.max(0, m.patience - 1)
-    end
-    m.spoke = m.spoke or {}
-    m.spoke[hero.charid] = (tonumber(m.spoke[hero.charid]) or 0) + 1
-    m.canRead = false
-    m.split = nil
-    m.last = {
-        kind = "read",
-        heroName = hero.name,
-        tier = tier,
-        total = total,
-        found = found ~= nil and found.id or nil,
-    }
-    AfterMeters(m)
 end
 
 --A copy of an offer's effects aimed at the whole party: a deal is the party's,
@@ -329,142 +99,33 @@ local function PartyScoped(effects)
     return result
 end
 
---End the negotiation. A refused offer applies nothing; a deal, or the
+--What a deal does: a refused offer applies nothing; a deal, or the
 --"No, and..." of interest 0, applies its offer's rules.
-local function Finish(m, doc, beat, outcome)
+local function Finish(m, outcome, offer, beat)
+    if outcome == "refused" or outcome == "left" or offer == nil then
+        return {}
+    end
+    local doc = m_changingDoc or EncounterNegotiation.GetDoc()
     local heroes = EncounterMontage.Heroes()
     local anchor = heroes[1]
-    local offer = beat.offers[m.interest + 1]
-    local applied = {}
-    if outcome ~= "refused" and offer ~= nil and not m.rehearsal then
-        local newAllies = nil
-        applied, newAllies = EncounterMontage.ApplyEffects(PartyScoped(offer.effects), {
-            heroEntry = anchor,
-            userid = anchor ~= nil and anchor.ownerId or nil,
-            entryName = beat.name,
-            source = T("negotiation.effect_source"),
-            splitIntelligence = true,
-            doc = doc,
-        })
-        for _, charid in ipairs(newAllies or {}) do
-            EncounterMontage.RecordAlly(doc, anchor.charid, charid)
-        end
-    end
-    m.result = { outcome = outcome, interest = m.interest, applied = applied }
-    m.turn = nil
-    m.votes = nil
-    m.voteOptions = nil
-    m.phase = "done"
-    m.doneAt = dmhub.serverTime
-    Bump(m)
-    printf("EotW negotiation: over (%s at interest %d)", tostring(outcome), m.interest)
-    EotwAnalytics.Track("eotw_negotiation_end", {
-        npc = beat.name,
-        outcome = outcome,
-        interest = m.interest,
-        patience = m.patience,
-        arguments = #(m.log or {}),
+    local applied, newAllies = EncounterMontage.ApplyEffects(PartyScoped(offer.effects), {
+        heroEntry = anchor,
+        userid = anchor ~= nil and anchor.ownerId or nil,
+        entryName = beat.name,
+        source = T("negotiation.effect_source"),
+        splitIntelligence = true,
+        doc = doc,
     })
-end
-
-local function OpenVote(m, phase, options)
-    m.phase = phase
-    m.votes = {}
-    m.voteOptions = options
-    Bump(m)
-end
-
---Everyone has voted: an agreed choice stands, and a split one is settled by a
---random player, as a split narrative choice is.
-local function SettleVote(m, doc, beat, heroes)
-    local voters = EncounterNarrative.Voters(nil, heroes)
-    local picks = {}
-    local agreed = true
-    for _, voter in ipairs(voters) do
-        local vote = (m.votes or {})[voter.key]
-        if vote == nil then
-            return
-        end
-        agreed = agreed and (#picks == 0 or picks[1].choice == vote.choice)
-        picks[#picks + 1] = { choice = vote.choice, name = voter.name }
+    for _, charid in ipairs(newAllies or {}) do
+        EncounterMontage.RecordAlly(doc, anchor.charid, charid)
     end
-    if #picks == 0 then
-        return
-    end
-    local pick = picks[math.random(#picks)]
-    local choice = pick.choice
-    m.split = cond(agreed, nil, pick.name)
-    if choice == "talk" then
-        m.phase = "choosing"
-        m.votes = nil
-        m.voteOptions = nil
-        Bump(m)
-    else
-        Finish(m, doc, beat, choice == "deal" and "deal" or "refused")
-    end
-end
-
---The players a vote is still waiting for, as display names.
-function EncounterNegotiation.PendingVoters(m)
-    local pending = {}
-    for _, voter in ipairs(EncounterNarrative.Voters(nil, EncounterMontage.Heroes())) do
-        if (m.votes or {})[voter.key] == nil then
-            pending[#pending + 1] = voter.name
-        end
-    end
-    return pending
-end
-
---Host only. Heroes changed hands: as EncounterMontage.SyncTurnToOwners, a roll
---out stays with its roller unless that player is in `away`, and the hero's new
---controller then rolls it afresh. Returns true when the turn changed.
-function EncounterNegotiation.SyncTurnToOwners(away)
-    away = away or {}
-    local doc = EncounterNegotiation.GetDoc()
-    local m = doc.data.negotiation
-    if type(m) ~= "table" or type(m.turn) ~= "table" or not away[m.turn.userid] then
-        return false
-    end
-    local tok = dmhub.GetCharacterById(m.turn.heroid)
-    local owner = tok ~= nil and tok.ownerId or nil
-    if owner == nil or owner == "PARTY" or owner == m.turn.userid then
-        return false
-    end
-    doc:BeginChange()
-    m = doc.data.negotiation
-    printf("EotW negotiation: %s's roll passes from %s to %s", tostring(m.turn.heroName), tostring(m.turn.userid), owner)
-    m.turn.userid = owner
-    Bump(m)
-    doc:CompleteChange("Negotiation: the roll changes hands", { undoable = false })
-    return true
-end
-
---- host: requests -------------------------------------------------------------
-
---The next trait the party has not learned, motivations first.
-function EncounterNegotiation.NextHiddenTrait(m, beat)
-    for _, kind in ipairs({ "motivation", "pitfall" }) do
-        for _, trait in ipairs(beat.traits) do
-            if trait.kind == kind and not (m.learned or {})[trait.id] then
-                return trait
-            end
-        end
-    end
-    return nil
-end
-
---May Intelligence buy a hint now? Before the first argument only: this is the
---book's research ahead of the talk, not a way out of a bad one.
-function EncounterNegotiation.CanSpendClue(m, beat)
-    return m.phase == "choosing" and #(m.log or {}) == 0 and EncounterMontage.FeatureUnlocked("intelligence")
-        and EncounterNegotiation.NextHiddenTrait(m, beat) ~= nil
+    return applied
 end
 
 --Spend the player's Intelligence on what the party found out on the way here.
-local function SpendClue(m, doc, userid, beat, heroes)
-    if not EncounterNegotiation.CanSpendClue(m, beat) then
-        return nil
-    end
+--The session has already checked CanSpendClue.
+local function SpendClue(m, userid, beat, heroes)
+    local doc = m_changingDoc or EncounterNegotiation.GetDoc()
     local heroids, names = {}, {}
     for _, hero in ipairs(heroes) do
         names[hero.charid] = hero.name
@@ -476,7 +137,7 @@ local function SpendClue(m, doc, userid, beat, heroes)
     if not ok then
         return string.format("%s spent Intelligence they do not have", tostring(userid))
     end
-    local trait = EncounterNegotiation.NextHiddenTrait(m, beat)
+    local trait = NegotiationScene.NextHiddenTrait(m, beat)
     ---@cast trait -nil
     m.learned = m.learned or {}
     m.learned[trait.id] = true
@@ -490,294 +151,19 @@ local function SpendClue(m, doc, userid, beat, heroes)
     }
     doc.data.intelligenceLog = log
     m.last = { kind = "clue", found = trait.id }
-    Bump(m)
+    m.seq = (tonumber(m.seq) or 0) + 1
     return string.format("Intelligence revealed %s", trait.name)
 end
 
-local function HandleRequest(m, doc, userid, req, beat, heroes)
-    local kind = req.kind
-
-    if kind == "spendClue" then
-        return SpendClue(m, doc, userid, beat, heroes)
-    end
-
-    if kind == "argue" or kind == "read" then
-        if m.phase ~= "choosing" then
-            return nil
-        end
-        local hero = FindHero(heroes, req.heroid)
-        if not UserControlsHero(userid, hero) then
-            return string.format("%s does not control hero %s", tostring(userid), tostring(req.heroid))
-        end
-        ---@cast hero -nil
-        if kind == "read" then
-            if not m.canRead then
-                return string.format("%s cannot read the NPC again before an argument", hero.name)
-            end
-            m.phase = "rolling"
-            Bump(m)
-            m.turn = { kind = "read", heroid = hero.charid, heroName = hero.name, userid = userid,
-                rollSeq = m.seq, noDice = req.noDice, wants = req.wants }
-            return string.format("%s reads the NPC", hero.name)
-        end
-        local argument = EncounterNegotiation.Argument(beat, req.argumentId)
-        if argument == nil then
-            return string.format("no argument '%s'", tostring(req.argumentId))
-        end
-        if not EncounterNegotiation.CanMakeArgument(hero.charid, argument) then
-            return string.format("%s may not make '%s'", hero.name, argument.name)
-        end
-        if argument.kind == "pitfall" then
-            ResolveArgument(m, beat, argument, hero, nil, nil, nil)
-            return string.format("%s hit a pitfall with '%s'", hero.name, argument.name)
-        end
-        m.phase = "rolling"
-        Bump(m)
-        m.turn = { kind = "argue", argumentId = argument.id, heroid = hero.charid, heroName = hero.name,
-            userid = userid, rollSeq = m.seq, noDice = req.noDice }
-        return string.format("%s argues '%s'", hero.name, argument.name)
-    end
-
-    if kind == "rolled" or kind == "rollCancelled" then
-        local t = m.turn
-        if m.phase ~= "rolling" or t == nil or t.userid ~= userid or t.rollSeq ~= req.rollSeq then
-            return nil
-        end
-        if kind == "rollCancelled" then
-            m.turn = nil
-            m.phase = "choosing"
-            Bump(m)
-            return "the roll was cancelled"
-        end
-        local hero = FindHero(heroes, t.heroid)
-        local tier = math.max(1, math.min(3, tonumber(req.tier) or 1))
-        if hero == nil then
-            m.turn = nil
-            m.phase = "choosing"
-            return "the rolling hero has gone"
-        end
-        if t.kind == "read" then
-            ResolveRead(m, beat, hero, tier, req.total, t.wants)
-        else
-            ResolveArgument(m, beat, EncounterNegotiation.Argument(beat, t.argumentId), hero, tier, req.total, req.natural)
-        end
-        return string.format("%s rolled tier %d", hero.name, tier)
-    end
-
-    if kind == "continue" then
-        if m.phase == "reply" then
-            m.replyAt = 0
-        elseif m.phase == "done" then
-            m.doneAt = 0
-        end
-        return nil
-    end
-
-    --stopping is the party's choice: anyone may propose taking the deal on the
-    --table, and every player then answers.
-    if kind == "takeDeal" then
-        if m.phase ~= "choosing" or m.interest < 1 then
-            return nil
-        end
-        OpenVote(m, "voting", { "deal", "talk" })
-    end
-
-    if kind == "takeDeal" or kind == "vote" then
-        if m.phase ~= "voting" and m.phase ~= "final" then
-            return nil
-        end
-        local key = EncounterNarrative.VoterKeyForUser(userid, heroes)
-        if key == nil then
-            return string.format("%s controls no hero and cannot vote", tostring(userid))
-        end
-        local choice = kind == "takeDeal" and "deal" or req.choice
-        local known = false
-        for _, option in ipairs(m.voteOptions or {}) do
-            known = known or option == choice
-        end
-        if not known then
-            return string.format("'%s' is not on the vote", tostring(choice))
-        end
-        m.votes = m.votes or {}
-        m.votes[key] = { choice = choice, userid = userid }
-        Bump(m)
-        return nil
-    end
-
-    return nil
-end
-
---- host: the beat -------------------------------------------------------------
-
---Seed the state for a negotiation beat. The beat opens in "arriving": nobody
---can act until the host tick, which runs once every player is in. A rehearsal
---plays the same but its deal applies nothing.
-function EncounterNegotiation.Begin(script, beat, beatIndex, rehearsal)
-    local attitude = NegotiationRules.AttitudeById(beat.attitude)
-    local heroes = EncounterMontage.Heroes()
-    local patience = math.min(NegotiationRules.MAX, attitude.patience + LanguageBonus(beat, heroes))
-    local doc = EncounterNegotiation.GetDoc()
-    local clues = doc.data.negotiationClues or {}
-    local learned = {}
-    for _, trait in ipairs(beat.traits) do
-        if trait.start == "known" or (trait.start == "unlock" and clues[EncounterScript.MatchKey(trait.unlock)]) then
-            learned[trait.id] = true
-        end
-    end
-    doc:BeginChange()
-    doc.data.negotiation = {
-        beatIndex = beatIndex,
-        phase = "arriving",
-        rehearsal = rehearsal,
-        interest = attitude.interest,
-        patience = patience,
-        startPatience = attitude.patience,
-        learned = learned,
-        usedTraits = {},
-        usedArguments = {},
-        spoke = {},
-        canRead = true,
-        requests = {},
-        handled = {},
-        log = {},
-        startedAt = dmhub.serverTime,
-        seq = 0,
-    }
-    doc.data.stageDismissAt = nil
-    doc:CompleteChange("Negotiation started", { undoable = false })
-    printf("EotW negotiation: beat %d started with %s (interest %d, patience %d)", beatIndex, tostring(beat.name), attitude.interest, patience)
-    EncounterMontage.Present(beatIndex)
-end
-
---Run the negotiation beat from the host tick. Returns "running" while it plays
---and "done" once it is over.
-function EncounterNegotiation.HostTick(script, beat, beatIndex)
-    local doc = EncounterNegotiation.GetDoc()
-    local m = doc.data.negotiation
-    if type(m) ~= "table" or m.beatIndex ~= beatIndex then
-        EncounterNegotiation.Begin(script, beat, beatIndex)
-        return "running"
-    end
-
-    if not EncounterMontage.IsPresented() then
-        EncounterMontage.Present(beatIndex)
-    end
-
-    local heroes = EncounterMontage.Heroes()
-
-    local pending = {}
-    for userid, req in pairs(m.requests or {}) do
-        if type(req) == "table" and (tonumber(req.seq) or 0) > (tonumber((m.handled or {})[userid]) or 0) then
-            pending[#pending + 1] = { userid = userid, req = req }
-        end
-    end
-    table.sort(pending, function(a, b)
-        local ta, tb = tonumber(a.req.time) or 0, tonumber(b.req.time) or 0
-        if ta ~= tb then
-            return ta < tb
-        end
-        return a.userid < b.userid
-    end)
-
-    local resetRequested = false
-    doc:BeginChange()
-    m = doc.data.negotiation
-    if m.phase == "arriving" then
-        m.phase = "choosing"
-        m.startedAt = dmhub.serverTime
-        Bump(m)
-    end
-    for _, p in ipairs(pending) do
-        m.handled = m.handled or {}
-        m.handled[p.userid] = p.req.seq
-        if p.req.kind == "reset" then
-            resetRequested = true
-        else
-            local ok, result = pcall(HandleRequest, m, doc, p.userid, p.req, beat, heroes)
-            if not ok then
-                printf("EotW negotiation: request %s from %s failed: %s", tostring(p.req.kind), tostring(p.userid), tostring(result))
-            elseif result ~= nil then
-                printf("EotW negotiation: %s", tostring(result))
-            end
-        end
-    end
-
-    --every tick, not only on a vote: a player who leaves stops being a voter
-    --when the host takes their heroes, and that can complete the vote.
-    if m.phase == "voting" or m.phase == "final" then
-        SettleVote(m, doc, beat, heroes)
-    end
-
-    --the reply has been read: back to the table, or on to how it ended.
-    if m.phase == "reply" then
-        local age = dmhub.serverTime - (tonumber(m.replyAt) or 0)
-        if age >= REPLY_SECONDS then
-            if m.afterReply == "nodeal" then
-                Finish(m, doc, beat, "nodeal")
-            elseif m.afterReply == "final" then
-                OpenVote(m, "final", { "deal", "refuse" })
-            else
-                m.phase = "choosing"
-                Bump(m)
-            end
-        end
-    end
-
-    if resetRequested then
-        doc.data.negotiation = nil
-    end
-    doc:CompleteChange("Negotiation tick", { undoable = false })
-
-    if resetRequested then
-        return "running"
-    end
-    m = doc.data.negotiation
-    if m ~= nil and m.phase == "done" then
-        local age = dmhub.serverTime - (tonumber(m.doneAt) or 0)
-        if age >= DONE_LINGER_SECONDS then
-            return "done"
-        end
-    end
-    return "running"
-end
-
---- client: the roll -----------------------------------------------------------
-
-local m_launchedRollSeq = nil
-
---The acting player's client shows the roll: the same dialog as a montage test,
---with the argument's skills and the hero's edges.
-function EncounterNegotiation.ClientTick()
-    local m = EncounterNegotiation.GetState()
-    if m == nil or m.turn == nil or m.phase ~= "rolling" then
-        m_launchedRollSeq = nil
+--The acting player's test: the same dialog as a montage test, with the
+--argument's skills and the hero's edges.
+local function ShowRoll(args)
+    local heroToken = dmhub.GetCharacterById(args.heroid)
+    if heroToken == nil or not heroToken.valid then
+        args.onNotShown()
         return
     end
-    local t = m.turn
-    if t.noDice or t.userid ~= dmhub.loginUserid or m_launchedRollSeq == t.rollSeq then
-        return
-    end
-    local beat = EncounterNegotiation.CurrentBeat()
-    local heroToken = dmhub.GetCharacterById(t.heroid)
-    if beat == nil or heroToken == nil or not heroToken.valid then
-        return
-    end
-    m_launchedRollSeq = t.rollSeq
-
-    local attr = READ_ATTR
-    local name = T("negotiation.roll.read_name")
-    local verdict = nil
-    if t.kind == "argue" then
-        local argument = EncounterNegotiation.Argument(beat, t.argumentId)
-        if argument == nil or argument.roll == nil then
-            return
-        end
-        attr = argument.roll.attr
-        name = argument.name
-        verdict = EncounterNegotiation.Verdict(t.heroid, argument)
-    end
-    local rollSeq = t.rollSeq
-    local parts = EncounterMontage.BuildTestRoll(heroToken, attr, name, verdict)
+    local parts = EncounterMontage.BuildTestRoll(heroToken, args.attr, args.name, args.verdict)
     EncounterMontage.ShowTestRoll{
         creature = heroToken.properties,
         heroToken = heroToken,
@@ -785,19 +171,165 @@ function EncounterNegotiation.ClientTick()
         rollType = parts.rollType,
         roll = parts.roll,
         modifiers = parts.modifiers,
-        tiers = { T("negotiation.roll.tier1"), T("negotiation.roll.tier2"), T("negotiation.roll.tier3") },
-        rollSeq = rollSeq,
+        tiers = args.tiers,
+        rollSeq = args.rollSeq,
         completeKind = "rolled",
         cancelKind = "rollCancelled",
-        stillWanted = function()
-            local live = EncounterNegotiation.GetState()
-            return live ~= nil and live.turn ~= nil and live.phase == "rolling" and live.turn.rollSeq == rollSeq
-        end,
-        send = EncounterNegotiation.SendRequest,
-        onNotShown = function()
-            m_launchedRollSeq = nil
-        end,
+        stillWanted = args.stillWanted,
+        send = args.send,
+        onNotShown = args.onNotShown,
     }
+end
+
+local function Host()
+    return {
+        Load = EncounterNegotiation.GetState,
+        Mutate = function(description, fn)
+            local doc = EncounterNegotiation.GetDoc()
+            if type(doc.data.negotiation) ~= "table" then
+                return
+            end
+            doc:BeginChange()
+            m_changingDoc = doc
+            local ok, err = pcall(fn, doc.data.negotiation)
+            m_changingDoc = nil
+            doc:CompleteChange(description, { undoable = false })
+            if not ok then
+                error(err)
+            end
+        end,
+        Replace = function(m, description)
+            local doc = EncounterNegotiation.GetDoc()
+            doc:BeginChange()
+            doc.data.negotiation = m
+            if m ~= nil then
+                doc.data.stageDismissAt = nil
+            end
+            doc:CompleteChange(description, { undoable = false })
+        end,
+        Beat = function()
+            return (EncounterNegotiation.CurrentBeat())
+        end,
+        Heroes = function()
+            return EncounterMontage.Heroes()
+        end,
+        --one vote per player; party-owned heroes share one voter.
+        Voters = function(heroes)
+            return EncounterNarrative.Voters(nil, heroes)
+        end,
+        VoterKey = function(userid, heroes)
+            return EncounterNarrative.VoterKeyForUser(userid, heroes)
+        end,
+        --an argument's riders: its edges, and whether a secret one is theirs.
+        Verdict = function(charid, argument)
+            return EncounterScript.EvaluateRiders(argument.riders, EncounterMontage.HeroFacts(charid))
+        end,
+        Speaks = function(charid, language)
+            local requirement = EncounterScript.ParseRequirement("you speak " .. language)
+            return EncounterScript.RequirementMet(requirement, EncounterMontage.HeroFacts(charid)) and true or false
+        end,
+        Finish = Finish,
+        --before the first argument only (the session checks that): this is
+        --the book's research ahead of the talk, not a way out of a bad one.
+        CanSpendClue = function(m, beat)
+            return EncounterMontage.FeatureUnlocked("intelligence") and NegotiationScene.NextHiddenTrait(m, beat) ~= nil
+        end,
+        SpendClue = SpendClue,
+        ShowRoll = ShowRoll,
+        Track = function(event, fields)
+            EotwAnalytics.Track("eotw_" .. event, fields)
+        end,
+        --there is no Leave here: the party refuses the final offer instead.
+        noWalkOut = true,
+    }
+end
+
+--The one session for this client, made on first use so the load order of the
+--two mods does not matter.
+local m_session = nil
+
+---@return NegotiationSceneSession
+function EncounterNegotiation.Session()
+    if m_session == nil then
+        m_session = NegotiationScene.Session(Host())
+    end
+    return m_session
+end
+
+--- facts ---------------------------------------------------------------------
+
+function EncounterNegotiation.Verdict(charid, argument)
+    return EncounterNegotiation.Session():Verdict(charid, argument)
+end
+
+function EncounterNegotiation.CanMakeArgument(charid, argument)
+    return EncounterNegotiation.Session():CanMakeArgument(charid, argument)
+end
+
+function EncounterNegotiation.NextHiddenTrait(m, beat)
+    return NegotiationScene.NextHiddenTrait(m, beat)
+end
+
+function EncounterNegotiation.CanSpendClue(m, beat)
+    return EncounterNegotiation.Session():CanSpendClue(m, beat)
+end
+
+--The players a vote is still waiting for, as display names.
+function EncounterNegotiation.PendingVoters(m)
+    return EncounterNegotiation.Session():PendingVoters(m)
+end
+
+--- requests (player side) ---------------------------------------------------
+
+--Stamp a request for the host: {seq, kind, ...args}. One slot per user.
+function EncounterNegotiation.SendRequest(kind, args)
+    return EncounterNegotiation.Session():SendRequest(kind, args)
+end
+
+--- host: the beat -------------------------------------------------------------
+
+--Host only. Heroes changed hands: a roll out stays with its roller unless that
+--player is in `away`, and the hero's new controller then rolls it afresh (as
+--EncounterMontage.SyncTurnToOwners). Returns true when the turn changed.
+function EncounterNegotiation.SyncTurnToOwners(away)
+    return EncounterNegotiation.Session():SyncTurnToOwners(away, function(charid)
+        local tok = dmhub.GetCharacterById(charid)
+        return tok ~= nil and tok.ownerId or nil
+    end)
+end
+
+--Seed the state for a negotiation beat. The beat opens in "arriving": nobody
+--can act until the host tick, which runs once every player is in. A rehearsal
+--plays the same but its deal applies nothing.
+function EncounterNegotiation.Begin(script, beat, beatIndex, rehearsal)
+    local doc = EncounterNegotiation.GetDoc()
+    EncounterNegotiation.Session():Begin{
+        beat = beat,
+        rehearsal = rehearsal,
+        clues = doc.data.negotiationClues or {},
+        extra = { beatIndex = beatIndex },
+    }
+    EncounterMontage.Present(beatIndex)
+end
+
+--Run the negotiation beat from the host tick. Returns "running" while it plays
+--and "done" once it is over.
+function EncounterNegotiation.HostTick(script, beat, beatIndex)
+    local m = EncounterNegotiation.GetState()
+    if m == nil or m.beatIndex ~= beatIndex then
+        EncounterNegotiation.Begin(script, beat, beatIndex)
+        return "running"
+    end
+    if not EncounterMontage.IsPresented() then
+        EncounterMontage.Present(beatIndex)
+    end
+    return EncounterNegotiation.Session():Tick(beat) or "running"
+end
+
+--- client: the roll -----------------------------------------------------------
+
+function EncounterNegotiation.ClientTick()
+    EncounterNegotiation.Session():ClientTick()
 end
 
 --- dev driver ----------------------------------------------------------------
@@ -916,8 +448,26 @@ Lands: Heh. Nobody has ever sung about me.
 Falls short: The dead do not hear songs.
 Backfires: Save it for a tavern, poet.
 
+## Argument: Slide a heavy purse across the table
+Appeals: Greed
+PC: Call it a down payment on a friendship.
+|Allow: your Wealth is 1 or higher
+|Test: Presence (Persuade)
+Lands: Now you are speaking my language.
+Falls short: That is a start. It is not the toll.
+
+## Argument: Let him hear who he is dealing with
+Appeals: Nothing
+PC: You have heard of us. Then you know what we can do for a man in your position.
+|Allow: your Renown is 1 or higher
+|Test: Presence (Brag)
+Lands: Heard of you? Aye. All right, I am listening.
+Falls short: Names do not pay tolls.
+Backfires: Heroes. Wonderful. The last ones cost me a cart.
+
 ## Argument: Swear on the old road
 Appeals: Protection
+PC: By the old road and the ones who walked it, your people come to no harm through us.
 |Allow: you speak Zaliac
 |Test: Intuition (Persuade)
 Lands: I have not heard that oath since my father died. You mean it.

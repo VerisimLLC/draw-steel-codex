@@ -1055,8 +1055,8 @@ graveyard.
   it stays hidden until an admin presses Show in Codex menu -> Community
   Projects... (stored per server in `shownProjects`); showing it on staging
   leaves release hidden. Raised with the
-  Tinkerer's Guild, a cabal of Gnome tinkerers. What the built Forge does is
-  NOT designed yet (David: the project first, then its function).
+  Tinkerer's Guild, a cabal of Gnome tinkerers. Built, it is a crafting
+  workshop guarded by Giddlebrick (see "The workshop" below).
   - **Construction** (David 2026-11-10): the fourth community project,
     `build-great-forge` (**10000** points, one completion, `autoStart`;
     effect `greatForge` -> `unlocks.greatForge`, `greatForgeBuilt()`) in
@@ -1071,7 +1071,9 @@ graveyard.
   - **Two stages:** Planning (0-4999): Presence or Reason; Lead,
     Architecture, Magic. Building (5000-10000): Might or Agility; Alchemy,
     Magic, Blacksmithing, Mechanics ("Stonework" from the brief is not a
-    Draw Steel skill).
+    Draw Steel skill). Since the siege (below), nobody rolls in the Building
+    stage: its banner is now the siege's, and its characteristics and skills
+    are unused while the siege rule stands.
   - **Art:** Czepeku "Alchemy Dungeon" (Original Day HD) 30s 1080p video over
     its first frame, for both the site and the built Forge (core image
     assets uploaded 2026-11-10: video `df4a22af-6369-4fa9-a0d2-efe2a0f43f3c`,
@@ -1090,6 +1092,253 @@ graveyard.
     opens on the video, the card reads Stage 1 of 2 with 0 / 10000 and the
     right characteristics and skills; `ProjectStageAt` switches to Building
     at 50%. No roll made (it would spend a staging hero's Downtime).
+  - **Giddlebrick's welcome** (David 2026-11-15). The FIRST time a player
+    opens the building site while it is under 50%, Giddlebrick Thundlestrom
+    (head of the Blackbottom Chapter of the Tinkerer's Guild) greets them in
+    the inn's lead-conversation dialog, and a **random hero at home**
+    answers (David's choice). Seven lines, David's words; the hero's sixth
+    line has three versions: a Fury, Tactician or Beastheart ("I'll just have
+    to take your word for it"), else a hero trained in Magic or an
+    Elementalist ("I sense something special"), else the plain one. Then the
+    site is as before. Code: `EotwLeads.GIDDLEBRICK`,
+    `EotwLeads.ShowGiddlebrickIntro`, `EotwLeads.MetGiddlebrick` (preference
+    `eotw:metGiddlebrick`, per account on this machine, set when the
+    conversation starts, so Escape skips it for good), called from
+    `OpenLocation("greatforge")`. Not shown if the project has not been
+    listed yet or no hero is at home (it then waits for the next visit).
+    `EotwLeads.ShowConversation` is now a wrapper over the general
+    `EotwLeads.PlayConversation(host, spec, heroid, onDone)`, and an NPC
+    figure may have a looping video (`npc.video`, `npc.videoAspect`, cropped
+    to fill, played with `bgimageStreamed` + `###LOOP` over its still).
+    Giddlebrick's art: David's `Gnome.webm` (720x1080, 4 s, VP8, no alpha;
+    provenance not recorded here) as core image assets uploaded 2026-11-15:
+    video `842f40ac-1fd6-4a74-a630-bc0f5e729d64`, first frame
+    `0234d797-a71f-4170-bd30-8fc4118af5ac`; source
+    `C:/dev/eotw/art/great-forge-giddlebrick-gnome.webm`.
+  - **The siege** (David 2026-11-15). When the Forge reaches 50% a portal to
+    another plane opens (the magic of building it, near where the planes
+    converge) and demons attack. From then until it is built:
+    - **Rolls stop** (David: "No, fight only"). The City refuses
+      `project-roll` ("under siege"); the card keeps its progress bar but
+      shows the reason in place of the work button
+      (`project.rollsClosed(state)`, a new optional project field). The roll
+      that crosses 50% is still allowed; it records its hero
+      (`EotwDowntime.siegeOpenedBy`, the stage's `opensSiege`) to lead the
+      siege's first moment, below.
+    - **The scene** becomes Czepeku "Alchemy Dungeon" (Summoning) still,
+      3840x2160, core image `419cb47b-e2df-41df-bf03-f9fc65be67f7` (source
+      `C:/dev/eotw/art/great-forge-siege-alchemy-dungeon-summoning.jpeg`),
+      `GREAT_FORGE_SCENES.siege`, tagline David's "While building the forge
+      a portal has opened to another realm and demons are attacking
+      Blackbottom!".
+    - **The siege's first moment** (David 2026-11-15), once per player
+      (preference `eotw:siegeSeen`, set as it starts; Escape skips it):
+      `EotwLeads.PlaySiegeEvent`, driven by `EncounterOfTheWeek.PlayForgeSiege`.
+      Over the building site's look, the player's leading hero (the hero whose
+      roll opened the portal, else the first hero at home) speaks; the siege
+      art fades in over the site's, the malice sound plays
+      (`Notify.Malice_Use`) and the hero turns Alarmed (SceneElements'
+      emote); a Ruinant walks on (right; its bestiary portrait
+      `239a2c0a-...`) with "Mortals, die!"; Giddlebrick steps in beside the
+      hero ("Demons? We must have delved too close..."); the hero answers
+      "The Forge and Blackbottom must be defended!". Then the location
+      reopens as the siege (title, board) and the siege banner shows (David:
+      keep both). A player who **arrives** first hears their hero start
+      "Let's work on building this for..."; a player **already at the Forge**
+      when it turns (a second `BuildingReveal` for `greatforge`, with an
+      `atLocation` hook) has every project dialog closed first
+      (`EotwDowntime.CloseDialogs`, waiting out a roll in progress via
+      `DialogBusy`) and starts at the portal opening. Lines in
+      EotwTextGreatForge.lua (`great_forge.siege_event.*`, David's words; the
+      Ruinant's name plate a draft). The conversation player gained a cast
+      (extra speakers who walk on at their first line, more than one per
+      side), per-line `delay`/`onShow`, held emotes and `dim`. If no hero is
+      at home it falls back to the old swap and banner.
+    - **Building sites need a hero at home** (David 2026-11-15): the
+      Construction, the Town Hall's, the Training Grounds' and the Great
+      Forge's sites are locked while the player has no hero, or every hero is
+      away with a party (`EncounterOfTheWeek.SiteLockedReason`,
+      `EotwRoster.HeroAtHome`). Exception (not yet confirmed with David): the
+      Forge under siege stays open once its moment has been seen, since a
+      hero in a forming siege party counts as away and the board is there.
+    - **The fight** is a third party board, `"forge"` (David: "Form a Party
+      at Forge"): `PARTY_MODES`, `PartyMode` (siege encounter -> forge),
+      `BoardChildren("forge")`, `EncounterOfTheWeek.PARTY_LOCATIONS` (forge ->
+      the `greatforge` location, for the rail and invites). The board is
+      built with the siege scene (not kept like the Gate's), and the project
+      card + Tribute sit on the scene's left
+      (`EotwDowntime.GreatForgeSiegeSide`), hidden while a party view's wide
+      card is up. The board lists three difficulty rows -- Normal 20,
+      Challenge 50, Deadly 100 Project Points -- each with Form a Party once
+      unlocked (Challenge after a Normal win, Deadly after a Challenge win;
+      read ONLY from the City's `siege.earned`, this siege's own wins -- not
+      older wins of the encounter in the account's completions, so a project
+      reset locks them again; David 2026-11-15),
+      then the parties forming and underway. Only the host's unlocks gate a
+      party; joiners need none. The siege's 5000 points need at least 30
+      accounts winning all three (170 each) or 250 on Normal alone; David
+      kept 20/50/100 knowing this (2026-11-15).
+    - **The encounter** is `Encounter: Demon Portal`
+      (`GREAT_FORGE_SIEGE_ENCOUNTER` in city-core.ts; the town reads it from
+      the project listing's `siege.encounter`, falling back to
+      `EncounterOfTheWeek.SIEGE_ENCOUNTER_DEFAULT`). Combat only (David: "We
+      just want the combat"): the party record makes the arrival
+      `combatOnly`, and the game side starts at the first encounter beat
+      (`EncounterOfTheWeekGame.StartAtCombat`) and skips the after-encounter
+      beat and outcome story. The siege is never a Proving Pits encounter
+      (`IsDangerRoomEncounter` says no), and the Gate never offers it.
+      **Full stakes** (David): wounds, death, XP, Victories, treasure and the
+      Hall of Heroes as at the Gate (`hall-record` accepts the siege
+      encounter though it is not scheduled).
+    - **Deadly Mode** = Challenge Mode applied twice: two difficulty notches
+      (`Notches()`), twice Challenge's Victories. Its party record carries
+      `challenge` and `deadly` (`deadlyOf` in lobby-core.ts; the horn says
+      "(Deadly Mode)"), and a win is its own completion `key!deadly` (plus
+      `key!challenge` and the plain key). The create dialog takes the
+      difficulty from the board (`ShowCreateDialog(key, false, difficulty)`:
+      no Challenge box, the difficulty named under the title, no backstory).
+    - **Points:** a victory on the siege encounter, recorded by
+      `record-outcome` while the siege is active, credits the account once
+      per difficulty (table `city_siege_wins`, key projectid + userid +
+      difficulty): two players winning Normal together give 40, one player
+      winning Normal five times gives 20. A win counts even if that
+      player's hero fell. Points past the goal are lost, as a roll's are; a
+      win that reaches 10000 completes the Forge and ends the siege.
+  - **Credits** (David 2026-11-15): `list-project-builders` also returns
+    `defenders` (best difficulty first, then points; each with its wins).
+    The Tribute shows "Victors on Deadly" at the very top, then the
+    cornerstone and capstone (a siege win can be the capstone: "The victory
+    that finished it"), then The Defenders, then The Builders.
+  - **Build status (2026-11-15):** server (`city-core.ts`, `city.ts`,
+    `lobby-core.ts`, 8 new tests, 469 pass) **deployed to STAGING** (version
+    ee0729e8); codex town (`EncounterOfTheWeek.lua`, `EotwDowntime.lua`,
+    `EotwLeads.lua`, `EotwTextGreatForge.lua`, `EotwTextTown.lua`) and game
+    side (`EncounterOfTheWeek/EncounterOfTheWeek.lua`) written; luac and the
+    LuaLS check clean. **Nothing committed.** To test on staging: Codex
+    menu -> Community Projects... (or `admin-set-project`) to Show the Forge
+    and set 0 points (Giddlebrick; clear `eotw:metGiddlebrick` to replay),
+    then 5000 (the siege scene, banner, board, create dialog per
+    difficulty); a won Normal game should add 20 and unlock Challenge.
+  - **Live-tested on the staging town (2026-11-15):** the Forge is now
+    **Shown on staging at 5000 points (siege active)**. Giddlebrick played
+    all seven lines at 0 points with a Fury at home (Orikk), who got the
+    martial line 6; the page was the normal site after. Setting 5000 swapped
+    the open page to the siege scene about 4 s later (the BuildingReveal),
+    with the siege marked seen; the board lists Normal (Form a Party) and
+    Challenge / Deadly locked with their unlock lines; the left card reads
+    5000 / 10000 with the rolls-closed line and the Tribute button, no Work
+    button; the create dialog names "Demon Portal" and "Normal" with no
+    Challenge box and no backstory. A private Normal siege game (Denivarius,
+    four heroes, official module v41) loaded the Demon Portal map from the
+    module and opened straight on the Draw Steel banner (no story, no
+    montage); a forced win (every monster killed) sent the heroes home, took
+    the Forge from 5000 to 5020, marked Normal earned ("You have earned these
+    points") and unlocked Challenge Mode's Form a Party; the Tribute lists
+    Denivarius under The Defenders (Normal, 20). **Not yet tested:** Challenge
+    / Deadly games and the Tribute's Deadly box. Under siege (David
+    2026-11-15) the town map labels the site "Great Forge -- Under Siege!",
+    the project card's latest-rolls line reads "Brave heroes must battle the
+    Demons", and the Tribute's summary gives the fight its own line ("N brave
+    heroes have battled the Demons yielding P", N = accounts with a siege
+    win) above the builders' line (shown only when someone rolled), from
+    list-project-builders' new `defenderCount`, `siegePoints` and
+    `builderPoints` (server on staging 4139f789; an older server falls back
+    to the capped defenders list). All three seen on staging.
+  - **Demon Portal is in the official module (David 2026-11-15).** It is
+    Erek Gita's community module `erekgita-demonportal` (owner
+    Swv0hvtLZZPdgM9gNcGMMWnuhwt1, type eotw, Private, so never in the pool
+    index). It was installed (v11) into the official authoring game
+    e96656f3 and `mcdm-encounteroftheweek` **v41** was published from the
+    app's publish dialog (Commands.sharecontent, as v33-v40 were; the
+    headless `publish_eotw.py` would ship a different set from today's
+    authoring game, see below) with the map "Encounter: Demon Portal"
+    ticked. Its script document, The Iron Orb, the Psychic Damage keyword
+    and the map-image objects stay Erek Gita's: v41 **depends on
+    erekgita-demonportal v11** (dependency ord 6), the way it depends on
+    venla-deliantomb. v41's **Minimum Engine Version is 0.0.882** (that
+    module version needs 0.0.882; older clients keep v40). Town Gate text is
+    still only Goblin Ambush's. A later Erek Gita update reaches the official
+    module only by installing the new version into e96656f3 and republishing
+    (the playtest's Iron Orb fix needs that: the module carries its own orb).
+    The siege key stays the bare `Encounter: Demon Portal`.
+  - **Headless publisher (2026-11-15):** `tools/eotw_publish/gamesource.py`
+    now subscribes to the game store after auth (the local server stopped
+    pushing it on auth). Run against e96656f3 today it refuses: six test
+    copies of pregens stand on Goblin Ambush (25a3d1c7, 64ca1e36, 7841380c,
+    8a4c15c3, cd40f734, cf654824); with them excluded it would add five
+    characters, the DelianTomb codemod, 11 languages + relations, a deity and
+    two streamed tables over v40. Use the app dialog for this module until
+    that is reconciled.
+  - **The workshop** (David 2026-11-15). The built Forge crafts treasures:
+    one at a time per hero, every Downtime Activity spent on it a project
+    roll (2d10 + the best characteristic the item lists; no skill bonus,
+    item prerequisites and project sources ignored for now). The list is the
+    echelon 1 treasures at Gold implementation or better with a numeric
+    `projectGoal`, imbuements left out (21 today), in a picker with a search
+    box and the standard item tooltip on hover. A project's "yields" (1d3
+    potions) is ignored: one item. Collect claims on the server
+    (`forge-claim`) then gives the item and pushes the hero.
+    - **Giddlebrick decides who may use it.** The first visit plays a
+      conversation (`EotwLeads.PlayConversation`, which now supports a
+      `{who = "choice", options}` line: the hero says the option, its own
+      lines follow, `onDone(result)`). Three openings by standing, David's
+      lines: **defender** (any credited siege win), **builder** (100+ points
+      summed across the account's heroes; my default, unconfirmed),
+      **stranger**. Each ends in a choice: push
+      (the negotiation) or leave (Giddlebrick answers; the greeting plays
+      again next time). After a lockout ends the player goes straight to the
+      negotiation.
+    - **The negotiation** is Lisa's in-game negotiation, ported to run in
+      town: `Draw Steel V/NegotiationScene.lua` (parser + session; a
+      `LocalSession` keeps the state on this client), `NegotiationSceneStage.lua`
+      (the stage) and `NegotiationSceneText.lua` (`negscene.*`). Motivations
+      Greed and Discovery, pitfalls Brag and Flirt; starting attitude Open /
+      Neutral / Suspicious by standing (David). The players may take the offer
+      on the table at any time; there is no Refuse in town. Interest 4 gives a
+      station; 5 a station plus 100 points on the first craft any of the
+      account's heroes starts (David: the first only); 3 locks the
+      Forge for 1 h, 2 for 4 h, 1 or 0 for 24 h. Leaving before anyone argued
+      reports nothing; leaving after reports the interest reached. The report
+      (`forge-negotiated`, idempotent per negotiation guid) is saved locally
+      first (`eotw:pendingForgeTalk`) and resent on the next status fetch.
+      The script is markdown in `EotwTextForgeNegotiation.lua`
+      (`forge.negotiation.script`, same format as an EotW negotiation beat).
+      That file holds ALL the built Forge's text (greetings, negotiation,
+      workshop `great_forge.workshop.*`) for David to edit; Claude's drafts
+      are marked DRAFT (2026-11-15). `tests/uitext_check.lua` covers it,
+      `NegotiationSceneText.lua` and the code, and now reads an id built
+      with `..` as a prefix.
+    - **Locked map locations** (new, generic): a location with
+      `lockedUntil(ctx)` (a `dmhub.Time()` value) shows a clock and a
+      countdown under its label, refuses clicks, and its tooltip reads
+      `eotw.locations.locked_for`.
+    - **Code:** `Codex Titlescreen/EotwForge.lua` (status, talk, picker,
+      crafting, the panel; dev `/eotwforge state|reset|talk|parse`), the
+      `greatforge` built branch of `OpenLocation`. Server: `city-core.ts`
+      `forge-status`, `forge-negotiated`, `forge-start-craft`, `forge-claim`,
+      admin `dev-reset-forge`; the hero's craft is a `forge-craft` project.
+      **Server deployed to STAGING** (246f8e35). **Nothing committed.**
+    - **Live-tested on the staging town (2026-11-15)**, as a defender: the
+      greeting and choice; the stage over the Forge art with Giddlebrick's
+      video, argument cards, clues and hero cards; an argument rolled real
+      dice and moved interest 3 -> 4 (Greed learned); Take the deal gave a
+      station (banner, hero rows); the picker, tooltip and Start; Work on It
+      spent a Downtime Activity (10/45); a Brag pitfall took interest to 2
+      and Leave locked the Forge 4 h with the map countdown and tooltip; a
+      "Yes, and" (sent directly) gave the 100-point bonus, which finished a
+      Healing Potion at once, and Collect put it in the hero's inventory
+      (removed again after). **Not tested:** the builder and stranger
+      openings, a lockout running out, Read them, the breakthrough Free Roll,
+      the leave branch's lines. Staging was restored afterwards (Forge reset
+      for David's account, build-great-forge 5020 / 0 completions).
+  - **Open:**
+    - Balance: the second 5000 points need about 30 accounts winning all
+      three difficulties (170 each).
+    - The name is spelled "Gibblebrick" once in the brief; the code uses
+      Giddlebrick.
+    - The in-game negotiation now runs on `NegotiationScene` too (see
+      "Negotiation beats"); the two parsers (`EncounterScript`'s and
+      `NegotiationScene.Parse`) are still separate.
 
 ## Locations on the map
 
@@ -1108,7 +1357,7 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | **Blue Fish Inn** | the canal-side building west of the Guild (0.235, 0.455); moved 2026-10-11 (user direction) from the "Drunken Fool" tavern (0.335, 0.575), which the hero cards along the bottom covered | BUILT 2026-10-10 (Downtime); hidden until heroes first come home, then revealed once (2026-10-11, see "The inn's reveal") |
 | **Arcane Market** | the shop the "Front and Back" label points at (0.695, 0.18) | BUILT 2026-10-10; since 2026-10-11 hidden until the player finds it (see "Leads") |
 | **Training Grounds** | the open square in the east district (0.905, 0.44) | BUILT 2026-11-04 (6000-point two-stage build, then Level up; server on staging only) |
-| **Great Forge** | placeholder (0.5, 0.62), south of the Guild | project BUILT 2026-11-10 (10000-point two-stage build; server on staging only); spot not checked against the art |
+| **Great Forge** | placeholder (0.5, 0.62), south of the Guild | project BUILT 2026-11-10 (10000-point two-stage build; server on staging only); Giddlebrick welcome + 50% demon siege fight built 2026-11-15, Normal tested; built Forge = the workshop (Giddlebrick negotiation, treasure crafting, locked countdown) built + staging-tested 2026-11-15; spot not checked against the art |
 | later | the Docks, Bora's Wagon Yard, the Cathedral, the Safe House | |
 
 ## Decisions taken (2026-10-01, with the user)
@@ -2417,7 +2666,7 @@ Events (fields beyond the run fields):
 | `eotw_party_create` / `_join` / `_launch` / `_leave` | client | `runid` (create: from 2026-10-28, sent once the game exists), `encounter`, `board`, `public`; `members`, `slotsFilled`/`slotsTotal`; leave `how` leave / disband |
 | `eotw_enter_game` | client | `resume`, `members`, `slotsFilled`, `myHeroes`, `host`, `fastLaunch` |
 | `eotw_run_start` / `_resume` | client | `host`, `sittings`, `players`, `partyHeroes`, `heroCount`, `heroClasses`/`heroAncestries`/`heroLevels` (comma lists), `combatStarted`, `lastPhase` (resume) |
-| `eotw_run_end` | client | `outcome`, `how`, `lastPhase`, `lastPhaseSeconds`, `minutes`/`seconds` (this machine's play time, all sittings), `heroesDied`/`heroesSurvived`, `victoriesEarned`, `treasuresEarned`, `rounds`, `combatStarted` |
+| `eotw_run_end` | client | `outcome`, `how`, `lastPhase`, `lastPhaseSeconds`, `minutes`/`seconds` (this machine's play time in this run, all sittings: for a series part played on in the same game, that part alone, timed from its `eotw_run_start`; before 2026-11-16 a later part reported the whole game), `gameMinutes`/`gameSeconds` (the whole game, every part played in it), `heroesDied`/`heroesSurvived`, `victoriesEarned`, `treasuresEarned`, `rounds`, `combatStarted` |
 | `eotw_phase` | host | above, plus `title`, `round`, `livingHeroes` |
 | `eotw_montage_test` | host | `beat`, `round`, `entry`, `entryKind`, `option`, `attr`, `rolled`, `tier`, `total`, `natural`, `knack`, `heroClass`, `owner`, `effects` |
 | `eotw_montage_end` | host | `rounds`, `tests`, `tier1..3`, `unrolled`, `knacks`, `delves`, `vanquished`, `taken`, `consequences` |
@@ -6805,6 +7054,7 @@ coloured.
 | `you surprise the enemy` | heroes first; every monster Surprised at combat start |
 | `you win initiative` / `you lose initiative` | forced initiative, no die |
 | `you cannot be surprised` | Surprised withheld from heroes and allies (and lifted if already applied); a later `surprised` still loses the initiative and is announced as "lose initiative, but cannot be surprised" |
+| `PC is surprised` / `the hero is surprised` / `you alone are surprised` | (`herosurprised`, 2026-11-14) Surprised on the acting hero(es) only, recorded in `doc.data.surprisedHeroes[charid]`; no initiative outcome. `StartEncounterCombat` passes those tokens as `surprisedTokens`, and when every player-side token is among them (and no side flag says otherwise) the monsters go first. Withheld under `noSurprise`; a fair roll clears the record |
 | `the encounter begins with a fair roll` (many spellings) | takes back only what went *against* the party: drops the party's Surprised and a lose/surprised outcome; leaves a win or a surprised enemy |
 | `you know the stamina of <keyword>` | exact stamina for every monster with that stat-block keyword, for the campaign |
 | `reveal <zone>s [during the next combat]` | that zone type becomes player-visible at the encounter beat |
@@ -6885,11 +7135,27 @@ Director, as a montage does, to fix the empty feeling of the journal stage. The
 plan and its decisions are `NEGOTIATION_SCRIPTED_PLAN.md` at the dmhub repo root;
 the grammar is in `.claude/skills/eotw/script-reference.md`.
 
-- `EncounterNegotiation.lua` is the runtime, on the montage's authority model:
-  host-written `data.negotiation`, player requests, and the acting player's
-  client rolls. The book's numbers stay in `NegotiationRules`, which it calls.
+- **One runtime and one stage, shared with the town (2026-11-15, UNCOMMITTED;
+  `/eotwnegotiation preview` played in the app: argument, read, an
+  Intelligence hint (stubbed unlock), Take the deal; the town's stage setup
+  played with an argument and Leave. Not yet: a negotiation from a real
+  journal script, a two-player vote):** the rules are the session in
+  `Draw Steel V/NegotiationScene.lua` and the screen is
+  `Draw Steel V/NegotiationSceneStage.lua` (words: `negscene.*` in
+  `NegotiationSceneText.lua`). `EncounterNegotiation.lua` is now only the EotW
+  host (`EncounterNegotiation.Session()`): state in `eotwscript`
+  `data.negotiation` (+ `beatIndex`), voters from `EncounterNarrative`, riders,
+  the language bonus, Intelligence hints, the montage roll dialog, deal effects
+  and `eotw_negotiation_end` analytics, with `noWalkOut`. Its public functions
+  are unchanged. The montage's authority model holds: host-written state,
+  player requests, the acting player's client rolls. The book's numbers stay in
+  `NegotiationRules`.
 - The body is `CreateNegotiationStage` in `EncounterMontageStage.lua`, swapped in
-  by the script stage like the narrative and prep bodies.
+  by the script stage like the narrative and prep bodies; it is now a wrapper
+  that passes the bestiary portrait, the stat hero cards (374 px row), the
+  stage's hero card styles and the Intelligence check to the shared stage.
+  Waiting-for-votes and the "Talk it over" prompt show only with more than one
+  voter (so the town reads as before).
 - A roll reuses the montage's dialog through `EncounterMontage.BuildTestRoll` and
   `ShowTestRoll`. Edge-style perks apply; the perks that rescue a failed test do
   not.

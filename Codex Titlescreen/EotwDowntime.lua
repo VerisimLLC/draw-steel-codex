@@ -439,8 +439,13 @@ EotwDowntime.PROJECTS = {
     --The fourth COMMUNITY project, raised with the Tinkerer's Guild (10000
     --points, in city-core.ts); completing it opens the Great Forge. Two
     --STAGES like the Training Grounds: planning (Presence or Reason), then
-    --building (Might or Agility). No rollLines yet: a roll shows no hero line
-    --until they are written (EotwTextGreatForge.lua).
+    --building (Might or Agility). Roll lines (EotwTextGreatForge.lua) cover
+    --the planning half only: past it the siege stops rolls.
+    --At half way a portal opens and demons attack (the SIEGE, city-core.ts
+    --`siege`): rolls stop, and the rest is earned only by winning the siege
+    --fight at the Forge (Normal 20, Challenge 50, Deadly 100 points, once each
+    --per account). So the building stage is never rolled for while the
+    --siege rule stands; its banner is the siege's.
     ["build-great-forge"] = {
         id = "build-great-forge",
         scope = "community",
@@ -464,15 +469,27 @@ EotwDowntime.PROJECTS = {
                 blurb = T("downtime.projects.build_great_forge.stage_building_blurb"),
                 characteristics = { "mgt", "agl" },
                 skills = { "Alchemy", "Magic", "Blacksmithing", "Mechanics" },
-                --shown to the hero whose roll begins this stage.
-                banner = { text = T("downtime.projects.build_great_forge.stage_banner"), subtitle = T("downtime.projects.build_great_forge.stage_subtitle") },
+                --the roll that begins this stage opens the portal: its hero
+                --leads the siege's first moment (EotwLeads.PlaySiegeEvent),
+                --which ends with the siege banner.
+                opensSiege = true,
             },
         },
         benefit = T("downtime.projects.build_great_forge.benefit"),
         completeBanner = { text = T("downtime.projects.build_great_forge.complete_banner"), subtitle = T("downtime.projects.build_great_forge.complete_subtitle") },
+        --why the card offers no roll now (nil: rolls are open).
+        rollsClosed = function(state)
+            if state ~= nil and type(state.siege) == "table" and state.siege.active == true then
+                return T("downtime.projects.build_great_forge.siege_rolls_closed")
+            end
+            return nil
+        end,
         blurb = function(state)
             if state ~= nil and state.maxed then
                 return T("downtime.projects.build_great_forge.blurb_maxed")
+            end
+            if state ~= nil and type(state.siege) == "table" and state.siege.active == true then
+                return T("downtime.projects.build_great_forge.siege_blurb")
             end
             local stage = EotwDowntime.ProjectStage(EotwDowntime.PROJECTS["build-great-forge"], state)
             if stage ~= nil and stage.blurb ~= nil and stage.blurb ~= "" then
@@ -480,6 +497,48 @@ EotwDowntime.PROJECTS = {
             end
             return T("downtime.projects.build_great_forge.blurb")
         end,
+        --by progress: planning 0-25%, then 25-50%. Only the planning half is
+        --rolled for (the siege takes over at half way), and no roll can
+        --finish it, so there are no building or done lines.
+        rollLines = {
+            bands = {
+                {
+                    upTo = 0.25,
+                    hopeful = {
+                        T("downtime.lines.great_forge.planning_early_hopeful_1"),
+                        T("downtime.lines.great_forge.planning_early_hopeful_2"),
+                        T("downtime.lines.great_forge.planning_early_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.great_forge.planning_early_neutral_1"),
+                        T("downtime.lines.great_forge.planning_early_neutral_2"),
+                        T("downtime.lines.great_forge.planning_early_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.great_forge.planning_early_frustrated_1"),
+                        T("downtime.lines.great_forge.planning_early_frustrated_2"),
+                        T("downtime.lines.great_forge.planning_early_frustrated_3"),
+                    },
+                },
+                {
+                    hopeful = {
+                        T("downtime.lines.great_forge.planning_late_hopeful_1"),
+                        T("downtime.lines.great_forge.planning_late_hopeful_2"),
+                        T("downtime.lines.great_forge.planning_late_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.great_forge.planning_late_neutral_1"),
+                        T("downtime.lines.great_forge.planning_late_neutral_2"),
+                        T("downtime.lines.great_forge.planning_late_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.great_forge.planning_late_frustrated_1"),
+                        T("downtime.lines.great_forge.planning_late_frustrated_2"),
+                        T("downtime.lines.great_forge.planning_late_frustrated_3"),
+                    },
+                },
+            },
+        },
     },
 }
 
@@ -504,6 +563,25 @@ local m_listed = {}
 --A project's last known state, or nil before the first list.
 function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
+end
+
+--The Great Forge's siege as the City last listed it (city-core.ts
+--siegeView): {encounter, from, points = {normal, challenge, deadly}, active,
+--earned}, earned being the difficulties THIS account has already been
+--credited for. nil before the first listing, or for a project with no siege.
+function EotwDowntime.Siege(projectid)
+    local state = m_projects[projectid or "build-great-forge"]
+    if state == nil or type(state.siege) ~= "table" then
+        return nil
+    end
+    return state.siege
+end
+
+--Is the project under siege now (half built, not finished)? While it is,
+--rolls are closed and only winning its fight adds points.
+function EotwDowntime.SiegeActive(projectid)
+    local siege = EotwDowntime.Siege(projectid)
+    return siege ~= nil and siege.active == true
 end
 
 --Is this community project hidden from the town? The City leaves a hidden
@@ -791,6 +869,74 @@ local function SaveMine(settingid, value)
     all[dmhub.loginUserid] = value
     dmhub.SetSettingValue(settingid, dmhub.ToJson(all))
 end
+
+--Has this player seen the Great Forge's portal open (the siege banner)?
+--Kept on this machine per account.
+setting{
+    id = "eotw:siegeSeen",
+    default = "",
+    storage = "preference",
+}
+
+function EotwDowntime.SiegeSeen()
+    local _, seen = LoadMine("eotw:siegeSeen")
+    return seen == true
+end
+
+function EotwDowntime.MarkSiegeSeen()
+    SaveMine("eotw:siegeSeen", true)
+end
+
+--Testing: forget seeing it, so the siege banner shows again (the Projects
+--dialog calls this when it resets the Great Forge).
+function EotwDowntime.ForgetSiegeSeen()
+    SaveMine("eotw:siegeSeen", nil)
+end
+
+--The project dialogs open in town (roll, start, Tribute), so a moment that
+--takes the screen over (the Forge's siege beginning) can close them.
+--close(): shut it as its own close button does; busy(): true while it must
+--not be shut (dice in the air).
+local m_townDialogs = {}
+local function TrackDialog(dlg, close, busy)
+    local kept = {}
+    for _, d in ipairs(m_townDialogs) do
+        if d.dlg.valid then
+            kept[#kept+1] = d
+        end
+    end
+    kept[#kept+1] = { dlg = dlg, close = close, busy = busy }
+    m_townDialogs = kept
+end
+
+--Is a project dialog in the middle of something (a roll)?
+function EotwDowntime.DialogBusy()
+    for _, d in ipairs(m_townDialogs) do
+        if d.dlg.valid and d.busy ~= nil and d.busy() then
+            return true
+        end
+    end
+    return false
+end
+
+--Close every project dialog that is open.
+function EotwDowntime.CloseDialogs()
+    local open = m_townDialogs
+    m_townDialogs = {}
+    for _, d in ipairs(open) do
+        if d.dlg.valid then
+            if d.close ~= nil then
+                d.close()
+            else
+                d.dlg:DestroySelf()
+            end
+        end
+    end
+end
+
+--The hero whose roll just opened the Forge's portal (this player's own
+--roll), for the siege's first moment; nil otherwise.
+EotwDowntime.siegeOpenedBy = nil
 
 --A hero's Victories (0 if unreadable).
 local function Victories(tok)
@@ -1911,10 +2057,16 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                         local goalNow = tonumber(p.goal) or 0
                         local _, stageBefore = EotwDowntime.ProjectStageAt(project, progressBefore)
                         local stageNow, stageNowNumber = EotwDowntime.ProjectStageAt(project, cond(goalNow > 0, (tonumber(p.points) or 0) / math.max(1, goalNow), 0))
+                        if stageNow ~= nil and stageNowNumber ~= stageBefore and stageNow.opensSiege then
+                            EotwDowntime.siegeOpenedBy = state.heroid
+                        end
                         if stageNow ~= nil and stageNowNumber ~= stageBefore and stageNow.banner ~= nil then
                             dmhub.Schedule(cond(result.breakthrough, 4.5, 0), function()
                                 if not mod.unloaded then
-                                    ShowBanner(host, stageNow.banner.text, stageNow.banner.subtitle)
+                                    if stageNow.banner.marksSiegeSeen then
+                                        EotwDowntime.MarkSiegeSeen()
+                                    end
+                                    ShowBanner(host, stageNow.banner.text, stageNow.banner.subtitle, nil, nil, stageNow.banner.bannerType)
                                 end
                             end)
                         end
@@ -2590,6 +2742,13 @@ function EotwDowntime.ShowRollDialog(host, projectid)
             end,
         },
     }
+    TrackDialog(dlg, function()
+        barCtl.StopDice()
+        Disarm()
+        dlg:DestroySelf()
+    end, function()
+        return state.rolling
+    end)
     host:AddChild(dlg)
 end
 
@@ -2785,6 +2944,7 @@ function EotwDowntime.ShowStartProjectDialog(host, projectid)
             },
         },
     }
+    TrackDialog(dlg)
     host:AddChild(dlg)
 end
 
@@ -2846,6 +3006,16 @@ function EotwDowntime.ProjectCard(host, projectid)
         height = "auto",
         tmargin = 4,
     }
+    local closedLabel = gui.Label{
+        classes = { "collapsed" },
+        text = "",
+        fontSize = 15,
+        italics = true,
+        color = AMBER,
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+    }
     local workButton = gui.Button{
         text = T("downtime.card.work_button"),
         fontSize = 18,
@@ -2897,6 +3067,10 @@ function EotwDowntime.ProjectCard(host, projectid)
             parts[#parts+1] = text
         end
         recentLabel.text = cond(#parts > 0, T("downtime.card.latest", { rolls = table.concat(parts, "  -  ") }), T("downtime.card.no_rolls"))
+        --under siege no one rolls: only the fight adds points.
+        if EotwDowntime.SiegeActive(projectid) then
+            recentLabel.text = T("downtime.card.siege")
+        end
 
         --who can work on it now.
         local anyDowntime, anyBreakthrough = false, false
@@ -2909,11 +3083,20 @@ function EotwDowntime.ProjectCard(host, projectid)
             end
         end
         local reason = nil
+        local closed = project.rollsClosed ~= nil and project.rollsClosed(state) or nil
         if state == nil or state.active ~= true then
             reason = T("downtime.card.not_under_way")
+        elseif closed ~= nil then
+            reason = closed
         elseif not anyDowntime and not anyBreakthrough then
             reason = T("downtime.card.no_downtime")
         end
+        --closed to rolls (the Forge's siege): no button, the reason in its
+        --place, and no "needs" line for a roll nobody can make.
+        workButton:SetClass("collapsed", closed ~= nil)
+        closedLabel.text = closed or ""
+        closedLabel:SetClass("collapsed", closed == nil)
+        needsLabel:SetClass("collapsed", closed ~= nil)
         workButton.data.reason = reason
         workButton.selfStyle.opacity = cond(reason == nil, 1, 0.45)
         workButton.text = cond(anyBreakthrough, T("downtime.card.breakthrough_button"), T("downtime.card.work_button"))
@@ -2979,6 +3162,7 @@ function EotwDowntime.ProjectCard(host, projectid)
             height = "auto",
             flow = "horizontal",
             tmargin = 6,
+            closedLabel,
             workButton,
         },
     }
@@ -3100,6 +3284,82 @@ local function BuilderRow(rank, builder)
     }
 end
 
+--The siege difficulties (city-core.ts SiegeDifficulty), hardest first.
+local SIEGE_DIFFICULTIES = { "deadly", "challenge", "normal" }
+
+--A siege difficulty's name, as the Tribute and the Forge's board say it.
+function EotwDowntime.SiegeDifficultyName(difficulty)
+    return T("tribute.siege_difficulty." .. tostring(difficulty))
+end
+
+--One defender of a besieged project: name, the difficulties they won, and
+--the points those wins gave; hovering lists the heroes who fought.
+local function DefenderRow(defender)
+    local won = {}
+    for _, w in ipairs(defender.wins or {}) do
+        won[w.difficulty] = w
+    end
+    local names = {}
+    local lines = { T("tribute.defender_wins_heading") }
+    for _, difficulty in ipairs(SIEGE_DIFFICULTIES) do
+        local w = won[difficulty]
+        if w ~= nil then
+            names[#names+1] = EotwDowntime.SiegeDifficultyName(difficulty)
+            lines[#lines+1] = T("tribute.defender_win_line", { difficulty = EotwDowntime.SiegeDifficultyName(difficulty), hero = BuilderHeroName(w.heroName) })
+        end
+    end
+    local mine = defender.userid == dmhub.loginUserid
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = cond(mine, "#2a2418cc", "#ffffff0a"),
+        styles = {
+            { selectors = {"hover"}, bgcolor = cond(mine, "#3a3220dd", "#ffffff18") },
+        },
+        cornerRadius = 6,
+        hpad = 10,
+        vpad = 6,
+        borderBox = true,
+        vmargin = 2,
+        hover = gui.Tooltip(table.concat(lines, "\n")),
+        gui.Label{ text = BuilderName(defender.name), fontSize = 17, bold = mine, color = TEXT, width = "45%", height = "auto", valign = "center" },
+        gui.Label{ text = table.concat(names, ", "), fontSize = 15, italics = true, color = cond(defender.best == "deadly", RED, DIM), width = "55%-130", height = "auto", valign = "center" },
+        gui.Label{ text = TP("tribute.points", tonumber(defender.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
+    }
+end
+
+--The heading over a besieged project's Tribute: everyone who won its fight
+--on Deadly, by name, before anything else.
+local function DeadlyVictorsBox(defenders)
+    local names = {}
+    for _, d in ipairs(defenders) do
+        if d.best == "deadly" then
+            names[#names+1] = BuilderName(d.name)
+        end
+    end
+    if #names == 0 then
+        return nil
+    end
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#5a1a141c",
+        borderWidth = 1,
+        borderColor = "#ff886688",
+        cornerRadius = 8,
+        pad = 12,
+        borderBox = true,
+        bmargin = 10,
+        gui.Label{ text = T("tribute.deadly_heading"), fontSize = 22, bold = true, color = AMBER, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = T("tribute.deadly_subtitle"), fontSize = 14, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = table.concat(names, "  -  "), fontSize = 20, bold = true, color = TEXT, width = "100%", height = "auto", textAlignment = "center", textWrap = true, tmargin = 6 },
+    }
+end
+
 --The Tribute to the Builders for a project: its cornerstone (the first
 --roll), its capstone once complete (the roll that finished it), and every
 --builder ranked by Project Points. Read from the City's
@@ -3156,6 +3416,7 @@ function EotwDowntime.ShowTribute(host, projectid)
             end,
         },
     }
+    TrackDialog(dlg)
     host:AddChild(dlg)
 
     local conn = EotwRoster.Connection()
@@ -3171,7 +3432,9 @@ function EotwDowntime.ShowTribute(host, projectid)
                 return
             end
             local builders = result.builders or {}
-            if #builders == 0 then
+            --a besieged project's defenders (the Great Forge), best first.
+            local defenders = result.defenders or {}
+            if #builders == 0 and #defenders == 0 then
                 Show{ gui.Label{ text = T("tribute.empty"), fontSize = 18, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
                 return
             end
@@ -3181,10 +3444,19 @@ function EotwDowntime.ShowTribute(host, projectid)
                 stones[#stones+1] = StoneBox(T("tribute.cornerstone"), T("tribute.cornerstone_subtitle"), result.cornerstone)
             end
             if type(result.capstone) == "table" then
-                stones[#stones+1] = StoneBox(T("tribute.capstone"), T("tribute.capstone_subtitle"), result.capstone)
+                --finished by a siege win rather than a roll.
+                local subtitle = cond(result.capstone.siege ~= nil, T("tribute.capstone_siege_subtitle"), T("tribute.capstone_subtitle"))
+                stones[#stones+1] = StoneBox(T("tribute.capstone"), subtitle, result.capstone)
             end
             ---@type Panel[]
             local rows = {}
+            if #defenders > 0 then
+                rows[#rows+1] = gui.Label{ text = T("tribute.defenders_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 }
+                for _, defender in ipairs(defenders) do
+                    rows[#rows+1] = DefenderRow(defender)
+                end
+                rows[#rows+1] = gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", tmargin = 12, bmargin = 4 }
+            end
             for i, builder in ipairs(builders) do
                 rows[#rows+1] = BuilderRow(i, builder)
             end
@@ -3192,10 +3464,31 @@ function EotwDowntime.ShowTribute(host, projectid)
             if more > 0 then
                 rows[#rows+1] = gui.Label{ text = TP("tribute.more_builders", more), fontSize = 15, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 4 }
             end
+            --a besieged project counts its fight and its rolls apart. A
+            --server older than those fields: work them out from the lists.
+            local builderCount = tonumber(result.builderCount) or #builders
+            local defenderCount = tonumber(result.defenderCount) or #defenders
+            local siegePoints = tonumber(result.siegePoints)
+            if siegePoints == nil then
+                siegePoints = 0
+                for _, defender in ipairs(defenders) do
+                    siegePoints = siegePoints + (tonumber(defender.points) or 0)
+                end
+            end
+            local builderPoints = tonumber(result.builderPoints) or ((tonumber(result.totalPoints) or 0) - siegePoints)
+            local summaryLines = {}
+            if defenderCount > 0 then
+                summaryLines[#summaryLines+1] = TP("tribute.defenders_summary", defenderCount, { points = TP("tribute.points", siegePoints) })
+            end
+            if builderCount > 0 or defenderCount == 0 then
+                summaryLines[#summaryLines+1] = T("tribute.summary", { builders = TP("tribute.builder_count", builderCount), points = TP("tribute.points", builderPoints) })
+            end
             Show{
+                --(never nil in the list: a hole would cut it short.)
+                DeadlyVictorsBox(defenders) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
                 gui.Panel{ width = "100%", height = "auto", flow = "horizontal", halign = "center", children = stones },
                 gui.Label{
-                    text = T("tribute.summary", { builders = TP("tribute.builder_count", tonumber(result.builderCount) or #builders), points = TP("tribute.points", tonumber(result.totalPoints) or 0) }),
+                    text = table.concat(summaryLines, "\n"),
                     fontSize = 16,
                     color = TEXT,
                     width = "100%",
@@ -3203,7 +3496,8 @@ function EotwDowntime.ShowTribute(host, projectid)
                     textAlignment = "center",
                     vmargin = 10,
                 },
-                gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 },
+                --with defenders, the headings are in the list itself.
+                gui.Label{ classes = { cond(#defenders > 0, "collapsed", nil) }, text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 },
                 gui.Panel{
                     width = "100%",
                     height = "auto",
@@ -3356,6 +3650,21 @@ function EotwDowntime.GreatForgeConstructionPanel(host)
             height = "auto",
             bmargin = 16,
         },
+        EotwDowntime.ProjectCard(host, "build-great-forge"),
+        EotwDowntime.TributeButton(host, "build-great-forge"),
+    }
+end
+
+--During the Great Forge's siege the scene's card is the fight's party board
+--(EncounterOfTheWeek.lua), and the project moves to the free space on the
+--left: its progress, closed to rolls, and the Tribute. width in the
+--scene's units.
+function EotwDowntime.GreatForgeSiegeSide(host, width)
+    EotwDowntime.RefreshProjects()
+    return gui.Panel{
+        width = width,
+        height = "auto",
+        flow = "vertical",
         EotwDowntime.ProjectCard(host, "build-great-forge"),
         EotwDowntime.TributeButton(host, "build-great-forge"),
     }

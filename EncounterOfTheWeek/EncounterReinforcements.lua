@@ -706,12 +706,12 @@ local function IsKind(token, who)
     return match
 end
 
---The enemies still standing on the map: monsters nobody controls, not the
---script's bystanders, not dead. `who` narrows it (see IsKind).
+--The enemies still standing on the map: monsters not fighting for the heroes,
+--not the script's bystanders, not dead. `who` narrows it (see IsKind).
 function EncounterReinforcements.LivingEnemies(who)
     local result = {}
     for _, token in ipairs(dmhub.allTokens) do
-        if token.valid and token.properties ~= nil and not token.playerControlled then
+        if token.valid and token.properties ~= nil and not Encounter.FightsForHeroes(token) then
             local isMonster, isHero, dead = false, false, false
             pcall(function()
                 isMonster = token.properties:IsMonster()

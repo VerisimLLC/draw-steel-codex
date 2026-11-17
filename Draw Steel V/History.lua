@@ -63,6 +63,7 @@ local mod = dmhub.GetModLoading()
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
 --- @field hidden? table<string, boolean> On an ended line: names players may not see.
 --- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
+--- @field privacy? {hidden: boolean, tower: boolean|nil, userid: string|nil, cause: string|nil, revealed: boolean|nil} On a test or dice line: a roll not everyone saw (L79, L80). GM only reaches its roller and the Director; a Dice Tower roll's result only the Director. cause is the line under it without the result; the Director's eye sets revealed.
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field ref? string On a condition line: the ongoing effect's instance id (see History.IsActive).
@@ -376,6 +377,20 @@ local function ForPlayers(entry)
             end
         end
         entry.ended = kept
+    end
+    --a test or dice line rolled out of players' sight, as the chat shows it (L79).
+    local privacy = entry.privacy
+    if privacy ~= nil and privacy.hidden and not privacy.revealed then
+        if not privacy.tower and privacy.userid ~= dmhub.userid then
+            return nil
+        elseif privacy.tower then
+            entry.roll = nil
+            entry.dice = nil
+            entry.total = nil
+            entry.tier = nil
+            entry.secretroll = true
+            entry.causetext = privacy.cause
+        end
     end
     local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed
     if hiddenRoll then

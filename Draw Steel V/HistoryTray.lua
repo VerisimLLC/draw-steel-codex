@@ -1509,6 +1509,10 @@ local function LineWords(entry)
         if entry.who == nil and entry.roller ~= nil then
             name = string.format("<b>%s</b>", entry.roller)
         end
+        --a Dice Tower roll: players saw it happen, not what it came to (L79).
+        if entry.secretroll then
+            return string.format("%s rolled in secret", name)
+        end
         return string.format("%s rolled %d", name, entry.total)
     elseif family == "save" then
         return string.format("%s %s %s", name, cond(entry.passed, "saved against", "failed a save against"), entry.name)

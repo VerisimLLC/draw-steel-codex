@@ -1763,8 +1763,12 @@ end
 --- @return Panel
 local function SecretRollRow(entry, width)
     local children = {}
-    local roll = entry.roll
-    if roll ~= nil and roll.hidden then
+    --a test or dice line keeps who may see it in privacy; an action, on its roll.
+    local roll = entry.privacy or entry.roll
+    --the eye is the Director's: a player who rolled GM only sees their roll, not the eye.
+    --A Director looking through a token's eyes holds the entry as cut for players, and
+    --writing that back would lose the roll for everyone, so they get no eye either.
+    if roll ~= nil and roll.hidden and MonsterKnowledge.LocalUserSeesAll() then
         children[1] = gui.VisibilityPanel{
             visible = roll.revealed == true,
             width = 14,
@@ -1813,7 +1817,7 @@ local function NumbersRows(entry, kids, width)
 
     --a roll hidden from players: they get this line instead of its numbers (2.4); the
     --Director gets it above the numbers, with the eye that shows them to players.
-    if entry.secretroll or (entry.roll ~= nil and entry.roll.hidden) then
+    if entry.secretroll or (entry.roll ~= nil and entry.roll.hidden) or (entry.privacy ~= nil and entry.privacy.hidden) then
         rows[#rows + 1] = SecretRollRow(entry, width)
     end
 

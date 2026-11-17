@@ -1323,10 +1323,16 @@ local function OnTested(creature, info)
         local bonus = info.total - info.natural - edgeBonus - value
         roll.bonus = bonus ~= 0 and bonus or nil
     end
+    local privacy = info.privacy
+    if privacy ~= nil then
+        --what a player who may not see the result reads under the line (L79).
+        privacy.cause = info.name
+    end
     WriteLine(token, "test", {
         name = info.name,
         total = info.total,
         roll = roll,
+        privacy = privacy,
         causetext = string.format("%s%sTier %d", info.name, History.DOT, info.tier),
     })
 end
@@ -1362,6 +1368,12 @@ local function OnDiceRoll(rollInfo, kind)
         banes = rollInfo.banes,
         causetext = cause,
     }
+    --the Dice panel offers Visible or GM only, never the Dice Tower.
+    local privacy = RollUtils.RollPrivacy(rollInfo, nil)
+    if privacy ~= nil then
+        privacy.cause = text ~= "" and text or nil
+        entry.privacy = privacy
+    end
     if token ~= nil then
         entry.who = History.Creature(token)
     else

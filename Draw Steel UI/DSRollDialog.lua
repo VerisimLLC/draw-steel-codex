@@ -3977,7 +3977,8 @@ function GameHud.CreateRollDialog(self)
                     end
 
                     if completeRollFn ~= nil then
-                        completeRollFn(rollInfo)
+                        --the second argument is for a record of play (History); callers may ignore it.
+                        completeRollFn(rollInfo, {dicetower = dicetower})
                     end
                 end
 

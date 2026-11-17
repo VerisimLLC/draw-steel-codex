@@ -450,7 +450,7 @@ end
 --- @param props creature The creature that rolled.
 --- @param testName string What the test is called, e.g. "Might test".
 --- @param rollInfo table The finished roll.
---- @param details nil|{edgeSources: nil|table[]} The roll dialog's second completeRoll argument.
+--- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
 --- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
 function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic)
     local value = nil
@@ -477,7 +477,27 @@ function RollUtils.NotifyTested(props, testName, rollInfo, details, characterist
         banes = rollInfo.banes,
         characteristic = value ~= nil and {name = characteristic, value = value} or nil,
         sources = details ~= nil and details.edgeSources or nil,
+        privacy = RollUtils.RollPrivacy(rollInfo, details),
     })
+end
+
+--- Who may see a finished roll, for a record of play (History): nil when everyone may.
+--- A GM-only roll reaches only its roller and the Director; a Dice Tower roll is seen
+--- by everyone but its result only by the Director.
+--- @param rollInfo table The finished roll (a chat roll message).
+--- @param details nil|{dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @return nil|{hidden: boolean, tower: nil|boolean, userid: nil|string, cause: nil|string} cause is filled in by History.
+function RollUtils.RollPrivacy(rollInfo, details)
+    local gmonly, userid = false, nil
+    pcall(function()
+        gmonly = rollInfo.gmonly == true
+        userid = rollInfo.userid
+    end)
+    local tower = details ~= nil and details.dicetower == true
+    if not gmonly and not tower then
+        return nil
+    end
+    return {hidden = true, tower = tower or nil, userid = userid}
 end
 
 --- One target's effective roll: the roll as rolled, plus that target's post-roll

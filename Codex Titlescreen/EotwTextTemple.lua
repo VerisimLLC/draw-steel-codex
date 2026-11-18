@@ -114,13 +114,14 @@ text("temple.fallen.no_slot", [[You need a free hero slot to begin. Expand the G
 text("temple.fallen.fire", [[Fire destroyed this hero's body, so they will not awaken on their own.]])
 --A Hakaan who chose their death (doomed).
 text("temple.fallen.beyond", [[This hero met their doom. Nothing can bring them back.]])
---Undying heroes (Hakaan, Revenant, Vampire) come back at the Graveyard
---instead. {clock} is a time of day, like "9:40 PM".
+--Undying heroes (Hakaan, Revenant, Vampire, or Back From the Grave) can awaken
+--at the Graveyard for free, or be raised sooner by a rite at half the cost.
+--{clock} is a time of day, like "9:40 PM".
 text("temple.fallen.awaken_waiting", [[This hero will be ready to awaken at the Graveyard at {clock}.]])
 text("temple.fallen.awaken_ready", [[This hero can be awakened now: go to the Graveyard.]])
---The rite's cost. {goal} is points, {level} the hero's level, {rolls} about how
---many Downtime rolls it takes.
-text("temple.goal", [[Goal {goal} points (level {level}, about {rolls} rolls)]])
+text("temple.fallen.rite_halved", [[This hero does not stay dead, so a Rite of Return costs them half.]])
+--The rite's cost in project points. {goal} is points, {level} the hero's level.
+text("temple.goal", [[Goal {goal} points (level {level})]])
 text("temple.goal_doubled", [[Raised {count} time(s) before: the goal is doubled each time.]])
 --Rites Under Way: every rite in town.
 text("temple.rites.heading", [[Rites Under Way]])

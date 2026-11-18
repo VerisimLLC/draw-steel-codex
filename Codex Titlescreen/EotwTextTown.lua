@@ -919,7 +919,7 @@ text("graveyard.time_minutes", [[{minutes}m]])
 --The banner when a hero comes back from the grave (awakened, or raised by a
 --Rite of Return), the next time their player is in town.
 text("roster.returned.banner_title", [[{name} Returns!]])
-text("roster.returned.banner_subtitle", [[Back from the grave, and back in your Guild.]])
+text("roster.returned.banner_subtitle", [[Back from the grave, and waiting at the Guild.]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's

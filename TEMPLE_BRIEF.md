@@ -58,6 +58,7 @@ neither is automated.
 | 2026-11-12 | **R4. An awakened undying hero returns with Stamina equal to their recovery value**, Recoveries as stored. A rite returns the hero at full Stamina. | The rules text; dying is never better than a respite. |
 | 2026-11-12 | **R5. No death trigger** (supersedes E0's Lua Script). When the encounter ends, one shared function reports `killedByFire` (from a persisted `killingDamageType`) and `doomed` with each death. The server decides eligibility (ancestry or title, not doomed, not fire for Revenant and the title) and records `diedAt`. | The trigger could be sent to another client while Hero Death despawns the token. Outside EotW the stamp did nothing anyway (E1). |
 | 2026-11-12 | **R6. No rite floor and no contribution cap.** The goal stays 30 x level (doubled per earlier rite), and any account may fund any share. | The user's call, made knowing that early raises are cheap and alts can fund them. Revisit with live data. |
+| 2026-11-17 | **R7. An undying hero may also be raised by a rite, at half the goal** (rounded up, still doubled per earlier rite), instead of waiting to awaken. Awaken stays free. If the hero awakens while their rite is under way, the rite ends: its points go to Restore the Temple (if it still stands unbuilt) and its count of rites is kept. | The user's call, after playtesting: waiting 12 hours should not be the only choice, but paying should cost less than for a hero who stays dead. |
 | 2026-11-11 | **C2. Rites start at the Temple only.** The Temple lists your fallen heroes and every open rite in town. No button on the Graveyard. | One place, one path. |
 
 ## The design (as decided)
@@ -84,7 +85,7 @@ Everything here follows from the ledger and the accepted critique fixes. *(propo
 - The site uses the Construction still. The built scene is the user's chapel art (C5a). The node goes near the Graveyard (C8).
 
 ### 4. The Temple of Adûn (built panel)
-- **Your fallen:** each grave with its rite cost in plain terms ("Goal 300: level 5, about 11 rolls"; "Second rite: goal doubled"). Begin the Rite of Return asks for confirmation first. Undying heroes say "Can awaken at the Graveyard" instead, and doomed heroes say "Beyond return".
+- **Your fallen:** each grave with its rite cost in plain terms ("Goal 300 points (level 5)"; "Second rite: goal doubled"), in project points only. Begin the Rite of Return asks for confirmation first. Undying heroes also show when they can awaken at the Graveyard, and their rite costs half (R7). Doomed heroes say "Beyond return".
 - **Rites under way:** yours first, then closest to done. Each card shows portrait, name, owner and percent. "Show all" appears after 5.
 - **Empty states:** "None of your heroes lie in the Graveyard" and "No rites under way".
 
@@ -166,7 +167,7 @@ Three critics (UX/accessibility, Draw Steel rules plus economy, technical feasib
 - **Feedback and discoverability.** Each fallen hero gets a state line on the outcome screen and on the grave: will rise / can be raised at the Temple / restore the Temple to raise them (only when the project is visible) / beyond return / fire ended their undeath. Town entry plays a "returned from the grave" banner naming contributors, and the roster card gets a "Returned" badge until seen.
 - **States:** an empty Temple ("None of your heroes lie in the Graveyard", "No rites under way"); a rite whose goal is met but has no free slot closes to further rolls ("Complete: waiting for a free slot").
 - **Rites list:** yours first, then closest to done. Each card shows portrait, hero name, owner and percent. "Show all" appears after 5. Contributors are credited on the risen hero's sheet.
-- **Cost readability:** "Goal 300 (level 5, about 11 rolls)", "Second rite: goal doubled", and a confirmation before starting.
+- **Cost readability:** "Goal 300 points (level 5)" (project points only, no roll estimate), "Second rite: goal doubled", and a confirmation before starting.
 - **Accessibility:** a "Yours" text tag (not just a background colour), disabled reasons as visible text (not hover-only), state labels plus icons, and countdowns that also give an absolute time.
 - **Vocabulary:** players *raise* (a rite), heroes *rise*, and a grave reads "Rose on <date>". Category G drops "inert".
 - **Series:** the undying decision is made in the part where the hero died. A rise is not a respite and doesn't close a part.

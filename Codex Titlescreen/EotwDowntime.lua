@@ -1245,7 +1245,9 @@ local function SendProjectRoll(roll, onDone)
             pcall(function() tier = EotwDowntime.TestTier(roll.natural, roll.total) end)
             local project = type(result.project) == "table" and result.project or {}
             EotwAnalytics.Track("eotw_project_roll", {
-                projectid = roll.projectid,
+                --a Rite of Return has no project id; tag it so it can be counted.
+                projectid = roll.projectid or cond(type(roll.rite) == "table", "rite", nil),
+                riteHeroid = type(roll.rite) == "table" and roll.rite.heroid or nil,
                 heroid = roll.heroid,
                 natural = roll.natural,
                 total = roll.total,

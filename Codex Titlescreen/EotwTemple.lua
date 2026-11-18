@@ -4,9 +4,10 @@ local mod = dmhub.GetModLoading()
 --community project Restore the Temple, EotwDowntime.lua). Two lists:
 --
 --  * Your Fallen: this account's fallen heroes and how each can come back.
---    The owner begins a Rite of Return here (it needs a free roster slot);
---    undying heroes (Hakaan, Revenant, Vampire) awaken at the Graveyard
---    instead, and a doomed Hakaan is beyond return.
+--    The owner begins a Rite of Return here (it needs a free roster slot).
+--    Undying heroes (Hakaan, Revenant, Vampire, or Back From the Grave) may
+--    also awaken at the Graveyard for free, so their rite costs half; a doomed
+--    Hakaan is beyond return.
 --  * Rites Under Way: every rite in town. Any player's living hero may spend a
 --    Downtime Activity on one (2d10 + Presence or Reason, +2 if trained in
 --    Religion). At the goal the hero rises; if the owner's roster is full the
@@ -14,8 +15,8 @@ local mod = dmhub.GetModLoading()
 --
 --The City (cloudflare-game-server src/city-core.ts, "Rites of Return") keeps
 --the rites and checks every rule; this file only shows them. A rite's goal is
---30 x the fallen hero's level, doubled for each earlier rite. Words live in
---EotwTextTemple.lua. Design: TEMPLE_BRIEF.md.
+--30 x the fallen hero's level, doubled for each earlier rite, and halved for an
+--undying hero. Words live in EotwTextTemple.lua. Design: TEMPLE_BRIEF.md.
 
 EotwTemple = {}
 
@@ -28,8 +29,6 @@ local RED = "#ff8888"
 
 --How many rites show before "Show all".
 local RITES_SHOWN = 5
---An average Downtime roll (2d10 + 2 or so), for "about N rolls".
-local AVERAGE_ROLL = 13
 --The characteristics a rite is worked with, and the skill that adds +2.
 local RITE_CHARACTERISTICS = { "prs", "rea" }
 local RITE_SKILL = "Religion"
@@ -78,10 +77,9 @@ local function Heading(text)
     return Label(text, 22, GOLD, { bold = true, tmargin = 14, bmargin = 6 })
 end
 
---"Goal 300 (level 5, about 11 rolls)", plus a line when an earlier rite doubled it.
+--"Goal 300 points (level 5)", plus a line when an earlier rite doubled it.
 local function GoalText(goal, level, priorRites)
-    local rolls = math.max(1, math.ceil((tonumber(goal) or 0) / AVERAGE_ROLL))
-    local text = T("temple.goal", { goal = tostring(goal), level = tostring(level or 1), rolls = tostring(rolls) })
+    local text = T("temple.goal", { goal = tostring(goal), level = tostring(level or 1) })
     if (tonumber(priorRites) or 0) > 0 then
         text = text .. "\n" .. T("temple.goal_doubled", { count = tostring(priorRites) })
     end
@@ -218,12 +216,19 @@ function EotwTemple.Panel(host)
                     return
                 end
                 if type(result) == "table" and result.risen == true then
-                    EotwDowntime.ShowBanner(host, T("temple.banner.risen_title", { name = tostring(rite.name) }), T("temple.banner.risen_subtitle"))
+                    --The owner already gets the town's "Returns!" banner once the hero is
+                    --back on their roster; only a helper needs this one.
+                    if rite.owner ~= dmhub.loginUserid then
+                        EotwDowntime.ShowBanner(host, T("temple.banner.risen_title", { name = tostring(rite.name) }), T("temple.banner.risen_subtitle"))
+                    end
                 elseif type(result) == "table" and result.completed == true then
                     EotwDowntime.ShowBanner(host, T("temple.banner.complete_title", { name = tostring(rite.name) }), T("temple.banner.complete_subtitle"))
                 elseif type(result) == "table" and result.breakthrough == true and type(result.rollid) == "string" then
                     EotwDowntime.ShowBanner(host, T("downtime.roll.breakthrough_banner"), T("temple.banner.breakthrough_subtitle"))
+                    --Hold every roll button until the free roll starts, so another roll can't take its place.
+                    rolling = true
                     dmhub.Schedule(1.5, function()
+                        rolling = false
                         if not mod.unloaded then
                             RollOnRite(rite, helperid, result.rollid)
                         end
@@ -242,19 +247,23 @@ function EotwTemple.Panel(host)
         local name = tostring(summary.name or T("temple.hero_fallback"))
         local status
         local action = nil
-        if entry.grave == "waiting" then
-            status = T("temple.fallen.awaken_waiting", { clock = EotwRoster.ClockTime(entry.readyAt) })
-        elseif entry.grave == "ready" then
-            status = T("temple.fallen.awaken_ready")
-        elseif entry.grave == "beyond" then
+        if entry.grave == "beyond" then
             status = T("temple.fallen.beyond")
         elseif entry.riteActive then
             status = T("temple.fallen.rite_under_way")
         else
-            local goalText = GoalText(entry.riteGoal, summary.level, entry.priorRites)
+            local lines = {}
             if entry.grave == "fire" then
-                goalText = T("temple.fallen.fire") .. "\n" .. goalText
+                lines[#lines+1] = T("temple.fallen.fire")
+            elseif entry.grave == "waiting" or entry.grave == "ready" then
+                --An undying hero can still awaken for free, so the server already halved this goal; say why.
+                lines[#lines+1] = cond(entry.grave == "waiting",
+                    T("temple.fallen.awaken_waiting", { clock = EotwRoster.ClockTime(entry.readyAt) }),
+                    T("temple.fallen.awaken_ready"))
+                lines[#lines+1] = T("temple.fallen.rite_halved")
             end
+            lines[#lines+1] = GoalText(entry.riteGoal, summary.level, entry.priorRites)
+            local goalText = table.concat(lines, "\n")
             if slotFree then
                 status = goalText
                 action = gui.Button{

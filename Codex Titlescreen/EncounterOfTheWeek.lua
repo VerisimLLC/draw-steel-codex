@@ -359,13 +359,15 @@ local GREAT_FORGE_VIDEO = "df4a22af-6369-4fa9-a0d2-efe2a0f43f3c"
 local GREAT_FORGE_ART = "7bffe83d-058f-4c90-a211-8ee548550209" --the video's first frame, 1920x1080
 CreatorCredit.RegisterArt(GREAT_FORGE_VIDEO, "czepeku")
 CreatorCredit.RegisterArt(GREAT_FORGE_ART, "czepeku")
---The Temple's art. TEMPLE_ART is a stand-in (the Construction still) until
---Czepeku's chapel image is uploaded; swap in its id and keep the credit.
-local TEMPLE_ART = CONSTRUCTION_ART
+--The Temple's art, Czepeku's "Peaceful Village Church" interior (core image
+--assets): abandoned while the town rebuilds it, then by day once restored.
+local TEMPLE_SITE_ART = "e1b87a55-1479-4355-819b-778aa602c662"
+local TEMPLE_ART = "f8bb7eaf-f178-4ef8-af55-50470ab8aca7"
+CreatorCredit.RegisterArt(TEMPLE_SITE_ART, "czepeku")
 CreatorCredit.RegisterArt(TEMPLE_ART, "czepeku")
 local TEMPLE_SCENES = {
     site = {
-        art = CONSTRUCTION_ART,
+        art = TEMPLE_SITE_ART,
         aspect = 16 / 9,
         focusX = 0.5,
         title = T("eotw.locations.temple_site.title"),

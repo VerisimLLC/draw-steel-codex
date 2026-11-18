@@ -247,7 +247,10 @@ local function CollectTriggers(props)
                     fired[#fired + 1] = {
                         name = triggered.name,
                         guid = triggered:try_get("guid"),
-                        mandatory = mandatory == true or mandatory == "local",
+                        --Hostile prompts (Loyalty Collar) count as automatic:
+                        --the AI always accepts them.
+                        mandatory = mandatory == true or mandatory == "local"
+                            or triggered:try_get("hostile", false) == true,
                     }
                 end
             elseif behavior == "powertabletrigger" then

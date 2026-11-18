@@ -390,6 +390,27 @@ Only the poll does this: the minion-death wait (`AnswerMinionTriggersDuringWait`
 and the gnoll path still call `HandleAvailableTrigger` alone. Run
 `../dependencies/lua/bin/lua.exe tests/ai_directorless_trigger_test.lua`.
 
+Death triggers set to "Fire after other abilities finish" (every War Dog's
+Loyalty Collar) keep their creature on the map at 0 Stamina and prompt on it
+once the killing abilities finish. So the poll also checks creatures for which
+`MonsterAI.TokenIsDyingOnMap` holds, and `ai:ResolveDyingCreatureTriggers()`
+answers such prompts mid-turn: `ExecuteAbility` and `MoveToken` call it before
+returning, so the blast lands before the AI acts again. Both call it only when no
+AI cast is in progress (`creature.GetAIActivityInProgress()`), since a collar
+queued behind a running cast cannot go off until that cast ends; the outermost
+cast's own call picks it up. It returns at once when no dying creature has a
+prompt open or queued (`ActivatedAbility.HasDeferredCastFor`).
+`TokenIsDyingOnMap` is also true for bodies left on the map, so on those the
+AI answers only prompts younger than the prompt expiry age
+(`MonsterAI.IsRecentPrompt`), leaving old ones the Director ignored.
+The collar is `hostile`, which `HandleAvailableTrigger` always accepts, so it
+needs no `RegisterTrigger` handler, and `AssessSupport` counts it as automatic.
+
+Fodder Run's runners are moved by the ability's own Shift prompts. The AI puts
+each runner's square in `MonsterAI.plannedShiftDestinations[charid]` before the
+cast and clears it after; the generic `Shift` prompt (`MonsterAIPrompts.lua`)
+uses a planned square when one is set, so it works for any caster type.
+
 ### "AI is running" status for every client
 
 The AI runs only on the hosting machine. So other clients can tell, `MonsterAI.lua`

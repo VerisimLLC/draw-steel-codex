@@ -888,3 +888,55 @@ CodexQuotes.Register{
     id = "lore_055",
     quote = [["Humans," the dwarf said with a combination of exasperation and awe. "Their only virtue seems to be believing in impossible things."]],
 }
+
+CodexQuotes.Register{
+    id = "lore_056",
+    quote = [["When you walk, you do not think of walking. You simply walk. When you think about walking, you stumble. Thus it is with students of the void."]],
+    speaker = "A Mist Curls Around Dying Embers\nMistress of the Tower of Translation",
+}
+
+CodexQuotes.Register{
+    id = "lore_057",
+    quote = [[Every color is a shade of green.]],
+    speaker = "Motto of the Green",
+}
+
+CodexQuotes.Register{
+    id = "lore_058",
+    quote = [[Copper sat Bigcat down on the deck and she just flayed war dogs with her tentacles. I'm used to seeing her from a distance. Up close she is an unstoppable maelstrom of claws and teeth and death. So, a normal cat basically.]],
+    speaker = "King\nChronicler, the Chain of Acheron",
+}
+
+CodexQuotes.Register{
+    id = "lore_059",
+    quote = [[Beaten, diminished, outnumbered and outmatched they are forced to rely on dirty tricks and underhanded fighting. Situation normal for the Chain of Acheron.]],
+}
+
+CodexQuotes.Register{
+    id = "lore_060",
+    quote = [[I watched Red, I was right there next to him, when Commander Trip died at Morning. After Xorn gutted him. Red picked up the Commander's sword and that was it. He had the standard in one hand and the dead Commander's sword in the other and now he was the Commander and everyone knew it. Red was a natural.]],
+    speaker = "King\nChronicler, the Chain of Acheron",
+}
+
+CodexQuotes.Register{
+    id = "lore_061",
+    quote = [[Then it was just "get to the docks." I got to watch Commander Sweet just punch a city gate and the thing exploded. Then the streets choked off, demons everywhere, and Copper waved the standard and jumped into a sewer. When it comes to getting out of tight spaces, trust your goblin.]],
+    speaker = "King\nChronicler, the Chain of Acheron",
+}
+
+CodexQuotes.Register{
+    id = "lore_062",
+    quote = "\"We in any danger?\"\n\nCopper wolfed down a fish head with one gulp. \"'Course we fucking are,\" he said, licking his fingers. \"Chain of Acheron, innit? We're not in danger, we're not in business.\"\n\nCopper is, of course, a prophet.",
+    speaker = "King\nChronicler, the Chain of Acheron",
+}
+
+CodexQuotes.Register{
+    id = "lore_063",
+    quote = [[We've made an enemy of Ajax. It seems he's made our deaths personal. But for us, death is business.]],
+    speaker = "King\nChronicler, the Chain of Acheron",
+}
+
+CodexQuotes.Register{
+    id = "lore_064",
+    quote = [[Meanwhile the hardbitten officers of the Chain of Acheron take their pay and do what they must. Burying their doubts with their dead.]],
+}

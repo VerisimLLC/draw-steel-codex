@@ -1885,12 +1885,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local monsterAI = rawget(_G, "MonsterAI")
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
-                --A hero's ability can make a monster act: To the Death! has its
-                --target free strike the hero. The monster is then the caster, and
-                --its choice is the AI's, not the hero's player's (SASGFH6V).
-                aiPromptCallback = fallback(invokerToken)
-                    or (casterToken ~= nil and casterToken ~= invokerToken and fallback(casterToken))
-                    or false
+                aiPromptCallback = fallback(invokerToken) or false
+                --When a hero's ability acts on a monster, the monster is the caster here, but
+                --the hero's player still chooses (where to push it). Only prompts marked
+                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and monsterAI.PromptAnswersForCaster(abilityClone) then
+                    aiPromptCallback = fallback(casterToken) or false
+                end
             end
         end
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", creature.IsTokenAIControlled(invokerToken.charid), "promptCallback =", aiPromptCallback, "for", abilityClone.name, coroutine.running())

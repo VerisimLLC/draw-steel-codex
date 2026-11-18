@@ -379,13 +379,28 @@ local function CountRoll(m, charid)
     m.gauntlet.rolls[charid] = (tonumber(m.gauntlet.rolls[charid]) or 0) + 1
 end
 
+--Is the option's "When <condition>:" story gate shut? Then nobody is
+--offered it: not on a board, not in a vote.
+function EncounterGauntlet.OptionGated(option)
+    return option ~= nil and option.gate ~= nil
+        and not EncounterScript.EvalStoryCondition(option.gate.cond, EncounterMontage.Story())
+end
+
 --Who can take an option, for the stage and the host. Returns
 --  { secret = bool,          -- an Allow rider gates it
+--    gated = bool,           -- its "When <condition>:" story gate is shut
 --    allowed = { hero, ... },-- heroes who may claim it (all, if not secret)
 --    knack = { hero, ... } } -- heroes who would take a better version
 --`heroes` is EncounterMontage.Heroes().
 function EncounterGauntlet.OptionHeroes(option, heroes)
     local result = { secret = EncounterScript.OptionIsSecret(option), allowed = {}, knack = {} }
+    --"When Part 2 had 1 or more retreats:" under the option: a series'
+    --story decides whether it is offered at all. Shut, nobody sees it.
+    if EncounterGauntlet.OptionGated(option) then
+        result.secret = true
+        result.gated = true
+        return result
+    end
     for _, hero in ipairs(heroes or {}) do
         local verdict = EncounterMontage.RiderVerdict(hero.charid, option, nil)
         if verdict == nil or verdict.allowed then
@@ -957,17 +972,30 @@ end
 --its flash has run, and move on once its result has been read.
 local function TickVote(m, doc, beat, section, heroes)
     local vote = m.gauntlet.vote
+    local function Leave()
+        local option, effects = VoteRoute(section, vote)
+        MoveOn(m, doc, beat, heroes, section, option, effects)
+        --the last section's Proceed was already the party's "Draw
+        --Steel!" click (the stage labels it so): the end screen does
+        --not wait for a second one.
+        if m.phase == "done" and section.implicitOption then
+            m.doneAck = true
+        end
+    end
+    --A choice the party agreed on that changed nothing has no result worth
+    --showing: move on in the same tick, so no result screen flashes up
+    --between the click and the next section.
+    local function LeaveIfQuiet()
+        if vote.result ~= nil and VoteApplied(vote.result) == 0 then
+            Leave()
+        end
+    end
     if vote.result ~= nil then
+        --a split vote's tie-break, or a choice that did something: its
+        --result stays up long enough to read.
         local linger = cond(VoteApplied(vote.result) > 0, RESULT_LINGER_SECONDS, CHOICE_LINGER_QUIET)
         if Now() - (tonumber(vote.result.at) or 0) >= linger then
-            local option, effects = VoteRoute(section, vote)
-            MoveOn(m, doc, beat, heroes, section, option, effects)
-            --the last section's Proceed was already the party's "Draw
-            --Steel!" click (the stage labels it so): the end screen does
-            --not wait for a second one.
-            if m.phase == "done" and section.implicitOption then
-                m.doneAck = true
-            end
+            Leave()
         end
         return
     end
@@ -983,6 +1011,7 @@ local function TickVote(m, doc, beat, section, heroes)
     if section.implicitOption then
         if next(vote.choices or {}) ~= nil then
             ResolveVote(m, doc, section, heroes, 1, nil)
+            LeaveIfQuiet()
         end
         return
     end
@@ -1010,6 +1039,7 @@ local function TickVote(m, doc, beat, section, heroes)
         return
     end
     ResolveVote(m, doc, section, heroes, first or 1, nil)
+    LeaveIfQuiet()
 end
 
 --- group tests: "Everyone rolls:" (host) -------------------------------------------
@@ -1065,7 +1095,9 @@ local function LandGroupRoll(m, doc, section, heroes, charid, tier, total, natur
     local tierIndex = M().TierIndexForRoll(version.roll, tier, natural)
     local hero = M().HeroByCharid(heroes, charid)
     local applied = {}
-    if hero ~= nil then
+    --"Party result: median": nothing applies per hero; the party's one
+    --result lands once everyone has rolled (ApplyPartyResult).
+    if hero ~= nil and section.partyResult == nil then
         local newAllies
         applied, newAllies = EncounterMontage.ApplyEffects(EncounterMontage.VersionEffects(version, tierIndex), {
             heroEntry = hero,
@@ -1146,6 +1178,69 @@ local function AutoRollFor(m, doc, section, heroes, charid)
     LandGroupRoll(m, doc, section, heroes, charid, tier, total, natural, true)
 end
 
+--Host: an "Everyone rolls:" section with "Party result: median", once every
+--hero has rolled. The middle tier of the rolls (the lower middle for an
+--even party) applies once, as the hero who rolled the highest total.
+--Returns { tier, heroid, heroName, applied, tierText }, or nil.
+function EncounterGauntlet.ApplyPartyResult(m, doc, section, heroes, group)
+    local tiers = {}
+    local best, bestTotal = nil, nil
+    for _, charid in ipairs(group.order or {}) do
+        local rec = group.heroes[charid]
+        if rec ~= nil and rec.status == "done" and rec.tier ~= nil then
+            tiers[#tiers + 1] = rec.tier
+            local total = tonumber(rec.total) or 0
+            if best == nil or total > bestTotal then
+                best, bestTotal = charid, total
+            end
+        end
+    end
+    if #tiers == 0 or best == nil then
+        return nil
+    end
+    table.sort(tiers)
+    local tierIndex = tiers[math.floor((#tiers + 1) / 2)]
+    local version, option = GroupVersion(section, best)
+    local rec = group.heroes[best]
+    local hero = M().HeroByCharid(heroes, best)
+    local applied = {}
+    if hero ~= nil and version ~= nil and version.roll ~= nil then
+        local newAllies
+        applied, newAllies = EncounterMontage.ApplyEffects(EncounterMontage.VersionEffects(version, tierIndex), {
+            heroEntry = hero,
+            userid = rec.userid,
+            entryName = section.name,
+            entryId = section.id,
+            entry = section,
+            montage = m,
+            doc = doc,
+        })
+        for _, allyid in ipairs(newAllies or {}) do
+            EncounterMontage.RecordAlly(doc, best, allyid)
+        end
+    end
+    local tierText = ""
+    if version ~= nil and version.roll ~= nil then
+        tierText = EncounterScript.SubstitutePC(EncounterScript.VisibleText(version.roll.tiers[tierIndex] or ""), rec.heroName, EncounterMontage.HeroPronouns(best))
+    end
+    m.log = m.log or {}
+    m.log[#m.log + 1] = {
+        round = 1,
+        group = true,
+        party = true,
+        heroid = best,
+        heroName = rec.heroName,
+        entryId = section.id,
+        entryName = section.name,
+        optionName = option ~= nil and option.name or nil,
+        tier = tierIndex,
+        tierText = tierText,
+        applied = applied,
+    }
+    printf("EotW narrative: the party's result at '%s' is tier %d (%d rolls); %s takes it", tostring(section.name), tierIndex, #tiers, tostring(rec.heroName))
+    return { tier = tierIndex, heroid = best, heroName = rec.heroName, applied = applied, tierText = tierText }
+end
+
 --Host, every tick while a group test is on the board.
 local function TickGroup(m, doc, beat, section, heroes)
     local g = m.gauntlet
@@ -1181,7 +1276,12 @@ local function TickGroup(m, doc, beat, section, heroes)
     for _, rec in pairs(group.heroes) do
         applied = applied + #(rec.applied or {})
     end
-    group.result = { at = Now(), applied = applied }
+    local party = nil
+    if section.partyResult == "median" then
+        party = EncounterGauntlet.ApplyPartyResult(m, doc, section, heroes, group)
+        applied = applied + #((party or {}).applied or {})
+    end
+    group.result = { at = Now(), applied = applied, party = party }
 end
 
 --- the host tick ------------------------------------------------------------------
@@ -1455,6 +1555,9 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
         local index = tonumber(req.optionIndex)
         if index == nil or section.options[index] == nil then
             return true, "ignored vote: no such option"
+        end
+        if EncounterGauntlet.OptionGated(section.options[index]) then
+            return true, "ignored vote: the story has not offered that option"
         end
         vote.choices[key] = { optionIndex = index, userid = userid, heroid = req.heroid, at = Now() }
         return true, string.format("%s chose '%s'", tostring(key), section.options[index].name)
@@ -1879,6 +1982,15 @@ function EncounterGauntlet.ForceResolve()
         local chosen = nil
         for _, choice in pairs(g.vote.choices or {}) do
             chosen = chosen or tonumber(choice.optionIndex)
+        end
+        --nobody chose: the first option the story offers.
+        if chosen == nil then
+            for i, option in ipairs(section.options) do
+                if not EncounterGauntlet.OptionGated(option) then
+                    chosen = i
+                    break
+                end
+            end
         end
         g.vote.decision = nil
         ResolveVote(m, doc, section, heroes, chosen or 1, nil)

@@ -6075,15 +6075,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
             halign = "center",
             valign = "bottom",
             customActionBar = function(element)
-                print("ActionBar:: Creating...")
                 if g_customActionBarFunction ~= nil then
                     element.children = {
                         g_customActionBarFunction()
                     }
-                print("ActionBar:: Added panel...")
                 else
                     element.children = {}
-                print("ActionBar:: Deleted panel...")
                 end
 
                 element.parent:SetClass("customActionBar", g_customActionBarFunction ~= nil)
@@ -6318,8 +6315,10 @@ function GameHud:CreateReactionBar(dialog, tokenInfo)
 			local aurasTouching = token.properties:GetAurasAffecting(token) or {}
 
 			auras = {}
+			local seenAuraNames = {}
 			for _,aura in ipairs(aurasTouching) do
-				if not aura.auraInstance:IsHiddenFromAuraLists() then
+				if not aura.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[aura.auraInstance.name] then
+					seenAuraNames[aura.auraInstance.name] = true
 					auras[#auras+1] = aura.auraInstance
 				end
 			end

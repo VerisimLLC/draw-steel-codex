@@ -1222,9 +1222,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     elseif member.nodeType == "pdffragment" then
                                         chat.ShareData(member)
                                     elseif type(member) == "table" and member.IsDerivedFrom("CustomDocument") then
-                                        chat.ShareData(CustomDocumentRef.new {
-                                            docid = k
-                                        })
+                                        --the same card a puzzle or a drop on chat posts
+                                        ChatItemLinks.Send({ ChatItemLinks.DocItem(k) })
                                     else
                                         local imageWrapper = ImageDocument.new {
                                             imageid = k,

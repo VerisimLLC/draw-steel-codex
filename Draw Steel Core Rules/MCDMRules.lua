@@ -331,6 +331,36 @@ GameSystem.RegisterApplyToTargets{
 	end,
 }
 
+--The creature that has the caster grabbed (Escape Grab's tier-2 free strike is
+--cast by the grabber, not the escapee). Uses the same lookup as the GoblinScript
+--ConditionCaster("Grabbed"), so formulas and this target list agree. Empty when
+--the caster is not grabbed or the grabber is no longer on the map.
+GameSystem.RegisterApplyToTargets{
+	id = "caster_grabber",
+	text = "Creature Grabbing the Caster",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+			return result
+		end
+
+		local grabber = nil
+		pcall(function()
+			grabber = creature.lookupSymbols.conditioncaster(casterToken.properties)("Grabbed")
+		end)
+		if grabber == nil then
+			return result
+		end
+
+		local grabberToken = dmhub.LookupToken(grabber)
+		if grabberToken ~= nil and grabberToken.valid and grabberToken.charid ~= casterToken.charid then
+			result[#result+1] = { token = grabberToken }
+		end
+
+		return result
+	end,
+}
+
 --The trigger subject, like "Trigger Subject". But if the subject is a minion
 --whose token is already gone (its death confirmed and the token removed), it
 --resolves to a living member of the same squad instead. Minions share one
@@ -787,12 +817,16 @@ GameSystem.RegisterGoblinScriptField{
                 return 0
             end
 
+            --A creature using an ability from another's space flanks from that space, so
+            --the creature standing there can't also be its partner.
+            local ourFlanker = creature.FlankingStandIn(ourToken)
+            local actors = {[ourFlanker.charid] = ourToken}
             local count = 0
             for _,tok in ipairs(dmhub.allTokens) do
-                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                if tok.charid ~= ourToken.charid and tok.charid ~= ourFlanker.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
                    and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
                    and targetCreature:FlankedBy(ourToken) and targetCreature:FlankedBy(tok)
-                   and #targetCreature:GetFlankingTokens({ ourToken, tok }) >= 2 then
+                   and #targetCreature:GetFlankingTokens({ ourFlanker, tok }, actors) >= 2 then
                     count = count + 1
                 end
             end

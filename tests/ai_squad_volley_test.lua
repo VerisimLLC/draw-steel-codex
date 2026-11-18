@@ -49,6 +49,8 @@ MonsterAI = {
     TargetsLogName = function() return "targets" end,
     AbilityActionLogName = function() return "Main Action" end,
     LogDecision = noop, LogMove = noop, RefreshCombatants = noop,
+    --no creature voices here: every bark is the default line.
+    VoiceLines = function(_, _, _, default) return default end,
     Sleep = function(seconds) if seconds > 0 then coroutine.yield(seconds) end end,
 }
 --Plan previews (Continue to go on) are off in these tests.
@@ -99,6 +101,21 @@ do
     end)
     check(not ok and tostring(err):find("boom", 1, true) ~= nil, "an action's error is raised")
     check(finished, "an error in one action does not abandon the others mid-move")
+
+    --With onError, each failure is reported by index and nothing is raised.
+    clock = 0
+    finished = false
+    local reported = {}
+    drive(function()
+        MonsterAI:RunConcurrently({
+            function() coroutine.yield(0.5); finished = true end,
+            function() coroutine.yield(0.1); error("bang") end,
+            function() error("pow") end,
+        }, 0, function(i, message) reported[i] = message end)
+    end)
+    check(finished and reported[1] == nil, "the action that did not fail finishes and is not reported")
+    check(tostring(reported[2]):find("bang", 1, true) ~= nil and tostring(reported[3]):find("pow", 1, true) ~= nil,
+        "every failed action is reported with its own index")
 end
 
 --Squad reservations.
@@ -131,7 +148,10 @@ do
 end
 
 --The volley: plan everyone, call the attack, move together, then strike once.
-local function fixture(starts, enemyLoc, charges)
+--hooks.move / hooks.charge(t, tokens), when set, run as a member's move or
+--charge begins (to kill a squad-mate, or to fail the way a real error would).
+local function fixture(starts, enemyLoc, charges, hooks)
+    hooks = hooks or {}
     clock = 0
     local events, tokens, members = {}, {}, {}
     local function record(kind, t, extra)
@@ -203,6 +223,7 @@ local function fixture(starts, enemyLoc, charges)
     end
     function ai:MoveToken(t, loc)
         record("moveStart", t)
+        if hooks.move then hooks.move(t, tokens) end
         coroutine.yield(0.5)
         t.loc = loc
         record("moveEnd", t)
@@ -210,6 +231,7 @@ local function fixture(starts, enemyLoc, charges)
     end
     function ai:ExecuteChargeMovement(t, dest)
         record("chargeStart", t)
+        if hooks.charge then hooks.charge(t, tokens) end
         coroutine.yield(0.3)
         t.loc = dest
         record("chargeEnd", t)
@@ -296,6 +318,47 @@ do
     check(tokens["1"].loc.str == "4,4", "the first charger keeps its charge")
     check(tokens["2"].loc.str == "4,2" and #all(events, "chargeStart") == 1,
         "a charge through a squad-mate's landing square is not planned")
+end
+
+--2026-11-16 playtest N2: a squad-mate's movement drew an opportunity attack that
+--killed a charger before its own charge ran; the charge errored on the dead
+--token and the error abandoned the whole squad's strike after everyone moved.
+do
+    math.randomseed(11)
+    local errors = {}
+    local logDecision = MonsterAI.LogDecision
+    MonsterAI.LogDecision = function(_, event, info)
+        if event == "MINION MOVE ERROR" then errors[#errors+1] = info end
+    end
+    local events, tokens, executed = fixture({L(0, 4), L(0, 6)}, L(5, 5), {["1"] = L(4, 4), ["2"] = L(4, 6)}, {
+        charge = function(t, all)
+            if t.charid == "1" then
+                all["2"].valid, all["2"].loc = false, nil
+            else
+                --what a charge on a token with no loc did before the guard.
+                local _ = t.loc.str
+            end
+        end,
+    })
+    MonsterAI.LogDecision = logDecision
+    local casts = all(events, "cast")
+    check(executed and #casts == 1 and #casts[1].extra == 1 and casts[1].extra[1].a == "1",
+        "the surviving charger still strikes when a squad-mate's charge fails")
+    check(tokens["1"].loc.str == "4,4", "the surviving charger lands")
+    check(#errors == 1 and errors[1].actorId == "2", "the failed member is logged and dropped")
+end
+
+do
+    math.randomseed(7)
+    --One member's approach move fails: the other two still move and strike.
+    local events, _, executed = fixture({L(0, 4), L(0, 5), L(0, 6)}, L(5, 5), nil, {
+        move = function(t) if t.charid == "2" then error("move exploded") end end,
+    })
+    local casts = all(events, "cast")
+    check(executed and #casts == 1, "the squad still strikes when one member's move fails")
+    local strikers = {}
+    for _,pair in ipairs(casts[1].extra) do strikers[pair.a] = true end
+    check(strikers["1"] and strikers["3"], "the members whose moves succeeded join the volley")
 end
 
 print(string.format("PASS: %d squad volley checks", checks))

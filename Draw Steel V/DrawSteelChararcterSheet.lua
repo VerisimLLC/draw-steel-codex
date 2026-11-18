@@ -719,10 +719,11 @@ local function CreateTriggeredAbilityPanel()
     return resultPanel
 end
 
--- Called after an ability is added to a hero from the sheet. A Companion-keyword
--- ability is used by the companion, not the hero, so say so and point to where it is listed.
+-- Called after an ability is added to a hero from the sheet. An ability with a
+-- companion keyword ("Companion", or one a module's companion reserves) is used by
+-- the companion, not the hero, so say so and point to where it is listed.
 local function WarnIfCompanionAbility(creature, ability)
-    if not ability:has_key("keywords") or not ability:HasKeyword("Companion") then
+    if not ability:HasCompanionKeyword() then
         return
     end
 
@@ -736,7 +737,7 @@ local function WarnIfCompanionAbility(creature, ability)
 
     gui.ModalMessage {
         title = "Companion Ability",
-        message = string.format("%s has the Companion keyword. It does not appear with your own abilities - you can find it, edit it or delete it under Companion Abilities.", ability.name),
+        message = string.format("%s has a companion keyword. It does not appear with your own abilities - you can find it, edit it or delete it under Companion Abilities.", ability.name),
     }
 end
 
@@ -1041,7 +1042,7 @@ local function CreateAbilityListPanel()
                 showAbilities[g_villainActionId] = true
             end
 
-            -- Companion abilities: the Companion-keyword ones the default
+            -- Companion abilities: the companion-keyword ones the default
             -- query dropped. Some characters already list them normally (the
             -- usecompanionabilities attribute), so skip any already shown.
             local shownGuids = {}
@@ -1050,8 +1051,7 @@ local function CreateAbilityListPanel()
             end
             local companionAbilities = {}
             for _, ability in ipairs(c:GetActivatedAbilities { excludeKeywords = {} }) do
-                if ability:has_key("keywords") and ability:HasKeyword("Companion")
-                    and not shownGuids[ability:try_get("guid", "")] then
+                if ability:HasCompanionKeyword() and not shownGuids[ability:try_get("guid", "")] then
                     companionAbilities[#companionAbilities + 1] = ability
                 end
             end

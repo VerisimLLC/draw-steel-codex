@@ -2614,6 +2614,37 @@ Nobody crosses tonight.
     check(writ.kind == "pitfall" and writ.roll == nil and writ.backfires ~= "", "a pitfall argument needs no test")
     check(drink.kind == "neutral" and drink.traitId == nil and drink.backfires ~= "", "a neutral argument")
     check(oath.riders[1].effect == "allow", "a secret argument")
+    local oathKnackEdge = false
+    for _, r in ipairs(oath.riders) do
+        if r.effect == "edge" and r.text == oath.riders[1].text then
+            oathKnackEdge = true
+        end
+    end
+    check(not oathKnackEdge, "a knack argument gets no automatic edge")
+
+    local knacks = EncounterScript.Parse([==[
+# Negotiation: Hask
+
+## Argument: Bribe
+Appeals: Nothing
+|Allow: your Wealth is 3 or higher
+|Test: Presence (Persuade)
+
+## Argument: Boast
+Appeals: Nothing
+|Allow: your Renown is 2 or higher
+|Edge: your Renown is 2 or higher
+|Test: Presence (Brag)
+]==])
+    local bribe, boast = knacks.beats[1].arguments[1], knacks.beats[1].arguments[2]
+    check(#bribe.riders == 1, "an Allow alone adds no edge")
+    local boastEdges = 0
+    for _, r in ipairs(boast.riders) do
+        if r.effect == "edge" then
+            boastEdges = boastEdges + 1
+        end
+    end
+    check(boastEdges == 1, "a written edge on a knack is kept")
     check(b.offers[4].text ~= "" and #b.offers[4].effects == 1 and b.offers[4].effects[1].kind == "malice", "an offer and its rules")
     check(b.offers[2].text == "Nobody crosses tonight." and b.offers[1] == nil, "offers sit at interest + 1")
 
@@ -2674,6 +2705,7 @@ Appeals: Nothing
     check(string.find(said, "at least two motivations", 1, true) ~= nil, "too few motivations")
     check(string.find(said, "no 'Opening:' line", 1, true) ~= nil, "no opening")
     check(string.find(said, "'## Offer: yes, but'", 1, true) ~= nil, "a missing offer")
+    check(string.find(said, "argument 'Cut' has no 'PC:' line", 1, true) ~= nil, "an argument the hero has no words for")
 
     local uncover = EncounterScript.ParseEffects("You uncover the ledger")[1]
     check(uncover.kind == "uncover" and uncover.name == "the ledger", "the uncover clause")
@@ -3308,6 +3340,66 @@ end)()
     check(script.beats[1].setup[1].kind == "herolevel" and EncounterScript.FindHeroLevel(script) == 4, "Hero Level: 4 on the encounter beat")
     local bad = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Level: very hard" .. NL .. NL .. "[[encounter]]" .. NL)
     check(#bad.warnings > 0 and bad.beats[1].setup[1].kind == "unknown" and EncounterScript.FindHeroLevel(bad) == 1, "a Level line with no Level warns and leaves Level 1")
+end)()
+
+--- the validator: a reinforcement island that brings nobody.
+;(function()
+    --the validator registers its panel when loaded; give it a sink. stub():
+    --a plain global assignment here would retype DockablePanel codex-wide.
+    local function stub(name, value)
+        if rawget(_G, name) == nil then
+            rawset(_G, name, value)
+        end
+    end
+    stub("DockablePanel", { Register = function() end })
+    dofile("EncounterOfTheWeek/EncounterScriptValidator.lua")
+
+    local script = { parse = EncounterScript.Parse([==[
+# Encounter
+
+[[encounter]]
+
+## Reinforcements: The Portal Spews
+
+Arrive: every round from round 2
+Enter: the Reinforcements zone
+
+[[encounter:empty]]
+
+[[encounter:missing]]
+
+[[encounter:full]]
+
+## Reinforcements: The Choir
+
+Arrive: round 3
+
+[[encounter:full]]
+]==]) }
+    local byTag = {
+        ["encounter:empty"] = { groups = {} },
+        ["encounter:full"] = { groups = { { monsters = { goblin = 2 } }, { monsters = {} } } },
+    }
+    local function resolve(_, island)
+        return byTag[island.tag]
+    end
+    local problems = EncounterScriptValidator.ReinforcementProblems(script, resolve)
+    check(#problems == 2, "two islands bring nobody: " .. table.concat(problems, " | "))
+    check(string.find(problems[1], "The Portal Spews", 1, true) ~= nil and string.find(problems[1], "island 1", 1, true) ~= nil
+        and string.find(problems[1], "no monsters", 1, true) ~= nil, "an encounter with zero groups is reported: " .. tostring(problems[1]))
+    check(string.find(problems[2], "island 2", 1, true) ~= nil and string.find(problems[2], "no encounter", 1, true) ~= nil,
+        "an island with no encounter is reported: " .. tostring(problems[2]))
+    check(string.find(problems[1], "^line %d+:") ~= nil, "a problem says where: " .. tostring(problems[1]))
+
+    --groups whose rosters are all zero still bring nobody.
+    byTag["encounter:empty"] = { groups = { { monsters = { goblin = 0 } } } }
+    byTag["encounter:missing"] = byTag["encounter:full"]
+    problems = EncounterScriptValidator.ReinforcementProblems(script, resolve)
+    check(#problems == 1 and string.find(problems[1], "no monsters", 1, true) ~= nil, "zero-quantity groups count as empty")
+
+    byTag["encounter:empty"] = byTag["encounter:full"]
+    check(#EncounterScriptValidator.ReinforcementProblems(script, resolve) == 0, "every island with monsters: no problems")
+    check(#EncounterScriptValidator.ReinforcementProblems(nil, resolve) == 0, "no script: no problems")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

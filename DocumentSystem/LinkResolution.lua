@@ -786,6 +786,14 @@ end
 
 
 
+--A journal entry another module provides (CustomDocument.JournalEntryProviders).
+--- @param entry any
+--- @return boolean
+local function IsVirtualEntry(entry)
+    return type(entry) == "table" and rawget(entry, "virtual") == true
+end
+
+
 function CustomDocument.OpenContent(node)
     if node == nil then
         return
@@ -811,6 +819,8 @@ function CustomDocument.OpenContent(node)
 
             GameHud.instance:ViewCompendiumEntryModal(imageWrapper)
         end
+    elseif IsVirtualEntry(node) then
+        node.open()
     elseif node.IsDerivedFrom("CustomDocument") then
         node:ShowDocument()
     elseif MarkdownRender.IsRenderable(node) then
@@ -862,8 +872,22 @@ function CustomDocument.FindJournalEntry(id)
     if fragment ~= nil and not fragment.hidden then
         return fragment
     end
+    local prefix, rest = string.match(id, "^(%a+):(.+)$")
+    local provider = prefix ~= nil and CustomDocument.JournalEntryProviders[prefix] or nil
+    if provider ~= nil then
+        return provider(rest)
+    end
     return nil
 end
+
+--- Entries that are not in the journal but go where journal entries go --
+--- the table, the icon rail, chat links: prefix -> find(rest of the id),
+--- for ids "<prefix>:<rest>" ("puzzle:<id>", PuzzleShare.lua). find returns
+--- nil or a plain table marked virtual = true with id, nodeType,
+--- description, kindName, icon, open() and optionally DisplayPanel(self,
+--- args) for the hover preview.
+--- @type table<string, fun(id: string): table|nil>
+CustomDocument.JournalEntryProviders = rawget(CustomDocument, "JournalEntryProviders") or {}
 
 local g_journalKindNames = {
     custom = "Journal Document",
@@ -877,6 +901,9 @@ local g_journalKindNames = {
 --- @param entry any a CustomDocument.FindJournalEntry result
 --- @return string
 function CustomDocument.JournalEntryKindName(entry)
+    if IsVirtualEntry(entry) then
+        return entry.kindName
+    end
     return g_journalKindNames[entry.nodeType] or "Journal Entry"
 end
 
@@ -884,6 +911,9 @@ end
 --- @param entry any a CustomDocument.FindJournalEntry result
 --- @return string
 function CustomDocument.JournalEntryIcon(entry)
+    if IsVirtualEntry(entry) then
+        return entry.icon
+    end
     local nodeType = entry.nodeType
     if nodeType == "pdf" then
         return "phosphor/file-pdf.png"

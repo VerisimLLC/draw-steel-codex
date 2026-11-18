@@ -335,6 +335,33 @@ function GameHud.TokenMoving(self, token, path)
         end
     end
 
+    --Illegal stop: Draw Steel forbids ending a move in another creature's space unless
+    --creature:CanShareSpaceWith allows it. The drag still lands (the engine doesn't block
+    --player moves); this only warns. Creatures above or below the mover's height don't count.
+    if creature ~= nil and not path.forced and not path.mount then
+        local destBottom = path.destination.altitude
+        local destTop = destBottom + math.max(1, token.tileSize) - 1
+        local blockedBy = nil
+        for _,loc in ipairs(token:LocsOccupyingWhenAt(path.destination)) do
+            for _,other in ipairs(game.GetTokensAtLoc(loc) or {}) do
+                if other.charid ~= token.charid and other.properties ~= nil then
+                    local otherBottom = other.loc.altitude
+                    local otherTop = otherBottom + math.max(1, other.tileSize) - 1
+                    if otherBottom <= destTop and otherTop >= destBottom and not creature:CanShareSpaceWith(other) then
+                        blockedBy = other
+                        break
+                    end
+                end
+            end
+            if blockedBy ~= nil then
+                break
+            end
+        end
+        if blockedBy ~= nil then
+            statusText = statusText .. "\n" .. tr("<color=#ff0000>Can't end a move in another creature's space.</color>")
+        end
+    end
+
 	if noPath and dmhub.isDM then
 		text = string.format('%s\nNo path found, move through walls or hold control to teleport.', text)
 	end

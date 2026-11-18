@@ -233,6 +233,8 @@ text("stage.round.summary_tier", [[{hero}: {entry} ({option}, {tier})]])
 text("stage.round.summary_no_reward", [[No reward from this result.]])
 --A small line under the summary: the hero used a knack. {knack} says which.
 text("stage.round.summary_knack", [[Knack: {knack}]])
+--Heading over the edges and banes the party has earned on tests still to come.
+text("stage.round.standing_mods", [[Edges and banes earned:]])
 --A temporary Threat that ran out at the end of the round. {threat} is its
 --name; the second entry stands in when it has none.
 text("stage.round.threat_expired", [[{threat} was left unresolved.]])
@@ -724,6 +726,14 @@ text("montage.effect.ally.unknown", [[Unknown monster '{monster}']])
 text("montage.effect.ally.no_hero", [[{monster} cannot join: no hero]])
 text("montage.effect.ally.not_placed", [[{monster} could not be placed]])
 
+--Only these heroes are surprised ("PC is surprised"). {names} is one or
+--more hero names.
+text("montage.effect.hero_surprised.one", [[{names} will begin the encounter surprised]])
+text("montage.effect.hero_surprised.other", [[{names} will begin the encounter surprised]])
+--The same, when the party already cannot be surprised.
+text("montage.effect.hero_surprised_immune", [[{names} would be surprised, but the heroes cannot be surprised]])
+text("montage.effect.retreat_kill", [[One of the fleeing monsters is destroyed]])
+
 --A threat dealt with.
 text("montage.effect.vanquished", [[The threat is vanquished]])
 --Challenge Mode: a threat that must be vanquished more than once, after a
@@ -917,8 +927,6 @@ text("stage.gauntlet.better_for", [[Better for]])
 --A vote. {players} lists the players still to vote.
 text("stage.gauntlet.vote_how", [[Choose together: one vote per player.]])
 text("stage.gauntlet.individual_how", [[Choose individually: one choice per hero.]])
-text("stage.gauntlet.vote_button", [[Vote for this]])
-text("stage.gauntlet.your_vote_button", [[Your vote]])
 text("stage.gauntlet.waiting_on", [[Waiting on: {players}]])
 --The result. {hero}, {option}, {tier} ("tier 2", "critical"), {player}.
 text("stage.gauntlet.result_test", [[{hero} took on {option}: {tier}]])
@@ -959,6 +967,8 @@ text("stage.gauntlet.group_hint", [[Everyone makes this test.]])
 text("stage.gauntlet.group_waiting", [[Waiting on: {heroes}]])
 text("stage.gauntlet.group_landed", [[{hero}: {tier}]])
 text("stage.gauntlet.group_auto", [[(rolled for them)]])
+text("stage.gauntlet.group_party_hint", [[The party shares the middle result.]])
+text("stage.gauntlet.group_party_result", [[Party result: {tier}]])
 --The big word across the stage when an interrupted roll fades mid-throw.
 text("stage.gauntlet.interrupted_banner", [[Interrupted!]])
 
@@ -983,64 +993,15 @@ text("montage.foe.weakness_description", [[A montage result: {damage_type} weakn
 -- NARRATIVE SCENES: the party choosing together
 ----------------------------------------------------------------------------
 
+--Negotiation beats: the screen's own words are in Draw Steel V/NegotiationSceneText.lua
+--(negscene.*). Where a deal's effects came from, in a hero's history; and the
+--Intelligence history line for a hint bought before the talk.
+text("negotiation.effect_source", [[Negotiation]])
+text("negotiation.intelligence_log", [[Negotiation with {npc} ({heroes})]])
+
 --The name shown for the shared "party" voter in a scene the party decides
 --together, when the heroes belong to the whole table rather than to one
 --player.
-text("stage.negotiation.patience.none", [[{npc} is done listening.]])
-text("stage.negotiation.patience.one", [[One weak word could end this.]])
-text("stage.negotiation.patience.two", [[{npc}'s patience is thinning.]])
-text("stage.negotiation.patience.three", [[{npc} is hearing you out.]])
-text("stage.negotiation.patience.four", [[{npc} has time for you.]])
-text("stage.negotiation.patience.five", [[{npc} is in no hurry.]])
-text("stage.negotiation.argument.said", [[Already said]])
-text("stage.negotiation.argument.avoid", [[Avoid: {trait}]])
-text("stage.negotiation.argument.appeal", [[Appeals to: {trait}]])
-text("stage.negotiation.argument.knack", [[Your knack]])
-text("stage.negotiation.argument.edge", [[You have an edge]])
-text("stage.negotiation.hero.quiet", [[Has not spoken]])
-text("stage.negotiation.hero.spoke_once", [[Spoke once]])
-text("stage.negotiation.hero.spoke_many", [[Spoke {count} times]])
-text("stage.negotiation.read", [[Read them]])
-text("stage.negotiation.spend_clue", [[Spend 1 Intelligence for a hint]])
-text("stage.negotiation.clue_found", [[What you found out on the way here: {trait} matters.]])
-text("stage.negotiation.noticed", [[What you've noticed]])
-text("stage.negotiation.learned", [[What you've learned]])
-text("stage.negotiation.so_far", [[So far]])
-text("stage.negotiation.take_deal", [[Take the deal]])
-text("stage.negotiation.continue", [[Continue]])
-text("stage.negotiation.vote_deal", [[Take the deal]])
-text("stage.negotiation.vote_talk", [[Keep talking]])
-text("stage.negotiation.vote_refuse", [[Walk away]])
-text("stage.negotiation.on_the_table", [[On the table: {shape}]])
-text("stage.negotiation.read_found", [[{hero} sees it: {trait} matters here.]])
-text("stage.negotiation.read_pushed", [[{hero} stares too long, and {npc} notices.]])
-text("stage.negotiation.read_nothing", [[{hero} watches closely and learns nothing new.]])
-text("stage.negotiation.argued", [[{hero}: {argument}]])
-text("stage.negotiation.rolling", [[Choosing the words...]])
-text("stage.negotiation.final_offer", [[This is the final offer.]])
-text("stage.negotiation.voting", [[The party is deciding whether to take the deal.]])
-text("stage.negotiation.deal", [[The deal is struck.]])
-text("stage.negotiation.refused", [[The party walks away.]])
-text("stage.negotiation.no_deal", [[No deal.]])
-text("stage.negotiation.vote_yours", [[{text} You said: {choice}.]])
-text("stage.negotiation.vote_waiting", [[{text} Waiting for: {players}.]])
-text("stage.negotiation.split", [[The party was split, and {player} settled it. {text}]])
-text("stage.negotiation.prompt_wait", [[The table is waiting.]])
-text("stage.negotiation.prompt_vote", [[The party is deciding.]])
-text("stage.negotiation.prompt_argument", [[Choose an argument.]])
-text("stage.negotiation.prompt_hero", [[Talk it over, pick who speaks, then an argument.]])
-text("stage.negotiation.learned_motivation", [[+  Appeal to: {trait}]])
-text("stage.negotiation.learned_pitfall", [[x  Avoid: {trait}]])
-text("stage.negotiation.log", [[{hero}: {argument}]])
-text("negotiation.effect_source", [[Negotiation]])
-text("negotiation.reply.positive", [[That's a fair point.]])
-text("negotiation.reply.negative", [[I don't buy that.]])
-text("negotiation.reply.impatient", [[I've heard that before.]])
-text("negotiation.roll.read_name", [[Read Them]])
-text("negotiation.intelligence_log", [[Negotiation with {npc} ({heroes})]])
-text("negotiation.roll.tier1", [[It falls short.]])
-text("negotiation.roll.tier2", [[It lands.]])
-text("negotiation.roll.tier3", [[It lands well.]])
 text("narrative.party_name", [[The party]])
 --Where a scene's effects came from, in a hero's Stamina and resource
 --history. Shown as "Narrative: <the scene's name>". Short.
@@ -1319,6 +1280,8 @@ text("script.reveal_zones", [[The {zones} will be revealed during the next comba
 text("script.know_stamina", [[The party knows the Stamina of {monsters}]])
 text("script.fair_initiative", [[The encounter begins with a fair roll for initiative]])
 text("script.no_surprise", [[The heroes cannot be surprised]])
+text("script.effect.hero_surprised", [[this hero begins the encounter surprised]])
+text("script.effect.retreat_kill", [[one fewer of the monsters that fled joins the fight]])
 
 --What the coming encounter's initiative will be.
 --When the heroes are to be surprised but already cannot be surprised:

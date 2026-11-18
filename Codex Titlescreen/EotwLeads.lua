@@ -183,6 +183,8 @@ local function Carousers()
     end
     return result
 end
+--the Great Forge (EotwForge.lua) picks its speakers the same way.
+EotwLeads.HeroesAtHome = Carousers
 
 --- the conversation ----------------------------------------------------------------
 
@@ -193,10 +195,79 @@ local FIGURE_FADE = 0.15
 --Characters a second as a line types out.
 local TYPE_CPS = 45
 
+--A line's length as typed: its characters, not counting markup tags.
+local function VisibleLength(text)
+    local plain = string.gsub(text, "<[^>]*>", "")
+    return #plain
+end
+
+--`text` with only its first `count` characters showing. The rest is still
+--there, invisible, so every word wraps onto the line it will end up on from
+--its first letter (as the montage stage types).
+local function RevealText(text, count)
+    if count >= VisibleLength(text) then
+        return text
+    end
+    local out = {}
+    local shown = 0
+    local i = 1
+    while i <= #text and shown < count do
+        local close = nil
+        if string.sub(text, i, i) == "<" then
+            close = string.find(text, ">", i, true)
+        end
+        if close ~= nil then
+            out[#out+1] = string.sub(text, i, close)
+            i = close + 1
+        else
+            out[#out+1] = string.sub(text, i, i)
+            shown = shown + 1
+            i = i + 1
+        end
+    end
+    local rest = string.gsub(string.sub(text, i), "<[^>]*>", "")
+    out[#out+1] = "<color=#00000000>" .. rest .. "</color>"
+    return table.concat(out)
+end
+
 --A speaker's figure over the dialog box: an image id (the NPC) or a hero's
---off-token portrait, cropped to the figure's shape with a soft foot.
-local function Figure(image, tok, side)
+--off-token portrait, cropped to the figure's shape with a soft foot. An NPC
+--may also have a looping video (a core image asset) played over its still;
+--videoAspect is the video's width / height, so it can be cropped to fill.
+local function Figure(image, tok, side, video, videoAspect, imageRect)
+    local children = {}
+    local videoRect = nil
+    if type(video) == "string" and video ~= "" then
+        if type(videoAspect) == "number" and videoAspect > 0 then
+            --cover the figure: trim the video's long side, evenly.
+            local figureAspect = FIGURE_WIDTH / FIGURE_HEIGHT
+            if videoAspect < figureAspect then
+                local keep = videoAspect / figureAspect
+                videoRect = { x1 = 0, x2 = 1, y1 = (1 - keep) / 2, y2 = 1 - (1 - keep) / 2 }
+            else
+                local keep = figureAspect / videoAspect
+                videoRect = { x1 = (1 - keep) / 2, x2 = 1 - (1 - keep) / 2, y1 = 0, y2 = 1 }
+            end
+        end
+        children[1] = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgcolor = "white",
+            edgeFade = FIGURE_FADE,
+            interactable = false,
+            create = function(element)
+                if videoRect ~= nil then
+                    element.selfStyle.imageRect = videoRect
+                end
+                --streamed through its own looping player, as scene videos are
+                --(CreatorCredit.Backdrop).
+                element.bgimageStreamed = video .. "###LOOP" .. dmhub.GenerateGuid()
+            end,
+        }
+    end
     return gui.Panel{
+        children = children,
         classes = { "leadFigure" },
         width = FIGURE_WIDTH,
         height = FIGURE_HEIGHT,
@@ -218,6 +289,12 @@ local function Figure(image, tok, side)
             end
             element.bgimage = portrait
             element.selfStyle.bgcolor = "white"
+            if tok == nil and videoRect ~= nil then
+                element.selfStyle.imageRect = videoRect
+            elseif tok == nil and imageRect ~= nil then
+                --an NPC still with its own crop (art with room around it).
+                element.selfStyle.imageRect = imageRect
+            end
             if tok ~= nil then
                 local rect = nil
                 pcall(function() rect = CardPortraitRect(tok, FIGURE_WIDTH / FIGURE_HEIGHT * (1 - FIGURE_FADE), portrait) end)
@@ -230,30 +307,170 @@ local function Figure(image, tok, side)
         end,
     }
 end
+--the Great Forge's negotiation screen shows Giddlebrick with it.
+EotwLeads.Figure = Figure
 
 --Play a lead's conversation between its NPC and the hero who heard it, in
 --a dialog box like the montage's. A click finishes the line being typed,
 --then moves on; Escape skips to the end. onDone() when it is over.
 function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
     local lead = EotwLeads.LEADS[leadid]
-    local tok = dmhub.GetCharacterById(heroid)
     if lead == nil then
         if onDone ~= nil then
             onDone()
         end
         return
     end
+    EotwLeads.PlayConversation(host, lead, heroid, onDone)
+end
+
+--Emotes a conversation can play on a figure, held until it ends. The look
+--of the map cards' emotes (SceneElements.EMOTES, which the title screen does
+--not load). build(fx, w, h) adds its parts to fx, a panel the figure's size
+--laid over it; update(st, t, w, h) animates them t seconds in and returns
+--the figure's offset (a jolt).
+EotwLeads.EMOTES = {
+    --three yellow dashes burst out above the head; the figure jolts.
+    alarmed = {
+        build = function(fx, w, h)
+            local dashes = {}
+            for i, a in ipairs({-38, 0, 38}) do
+                local dw, dh = w * 0.06, w * 0.19
+                local r = w * 0.2
+                local cx = w / 2 + r * math.sin(math.rad(a))
+                local cy = -w * 0.05 - r * math.cos(math.rad(a))
+                local dash = gui.Panel{
+                    halign = "left",
+                    valign = "top",
+                    floating = true,
+                    x = cx - dw / 2,
+                    y = cy - dh / 2,
+                    width = dw,
+                    height = dh,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#ffd23a",
+                    cornerRadius = dw / 2,
+                    borderWidth = 2,
+                    borderColor = "#2a2116",
+                    rotate = -a,
+                    scale = 0.01,
+                    interactable = false,
+                }
+                fx:AddChild(dash)
+                dashes[i] = dash
+            end
+            return { dashes = dashes }
+        end,
+        update = function(st, t, w, h)
+            --grows to 1.25, settles to 1 by 0.22 s.
+            local k = 1
+            if t < 0.12 then
+                k = math.max(0.01, t / 0.12 * 1.25)
+            elseif t < 0.22 then
+                k = 1.25 - (t - 0.12) / 0.1 * 0.25
+            end
+            for _, dash in ipairs(st.dashes) do
+                dash.selfStyle.scale = k
+            end
+            if t < 0.18 then
+                return 0, -w * 0.05 * math.sin(t / 0.18 * math.pi)
+            end
+            return 0, 0
+        end,
+    },
+}
+
+--Play any conversation between an NPC and one hero, the way a lead's plays.
+--spec = { npc = {name, title, portrait, video?, videoAspect?},
+--conversation = function(heroName, tok) -> { line, ... } }, where a line is
+--  { who = "npc"|"hero", text }                     a line said, or
+--  { who = "choice", options = { option, ... } }    the hero picks what to say:
+--  option = { text, result?, lines = { line, ... }? }. The hero says the
+--  option's text, then its own lines play (they may hold choices too).
+--onDone(result) when it is over: result is the last picked option's result,
+--or nil when nothing was picked or the player pressed Escape.
+--
+--More speakers: spec.cast = { id = {name, title?, portrait, video?,
+--videoAspect?, imageRect?, side = "left"|"right"}, ... } (imageRect: the
+--part of a still portrait to show); a line with who = <id> is
+--theirs. A cast member is not on stage until their first line (or a line
+--listing them in `enter`), and walks on then. A second speaker on the
+--hero's side stands beside the hero. spec.npc may be left out.
+--A line may also carry
+--  delay = seconds      a pause before it starts typing (for an action), and
+--  onShow = function(ctl)  run as it starts; ctl.Emote(who, "alarmed") plays
+--                          an emote (EotwLeads.EMOTES) on a figure ("hero", "npc" or a
+--                          cast id), held until the conversation ends.
+function EotwLeads.PlayConversation(host, spec, heroid, onDone)
+    local lead = spec
+    local tok = dmhub.GetCharacterById(heroid)
     local heroName = (tok ~= nil and tok.name) or T("leads.hero_fallback")
-    local lines = lead.conversation(heroName)
+    local lines = lead.conversation(heroName, tok)
+    if #lines == 0 then
+        if onDone ~= nil then
+            onDone()
+        end
+        return
+    end
     local index = 1
     local typed = 0
     local lineStart = dmhub.Time()
     local closing = false
+    local result = nil
+    local escaped = false
+    local function LineText(line)
+        return line.text or ""
+    end
 
-    local npcFigure = Figure(lead.npc.portrait, nil, "left")
-    local heroFigure = Figure(nil, tok, "right")
+    --the hero always stands on the left, the NPC on the right.
+    local npcFigure = nil
+    if lead.npc ~= nil then
+        npcFigure = Figure(lead.npc.portrait, nil, "right", lead.npc.video, lead.npc.videoAspect)
+    end
+    local heroFigure = Figure(nil, tok, "left")
+    --figures[who] = {panel, name, title}; each side fills from its edge in.
+    local figures = { hero = { panel = heroFigure, name = heroName } }
+    if npcFigure ~= nil then
+        figures.npc = { panel = npcFigure, name = lead.npc.name, title = lead.npc.title }
+    end
+    local sideCount = { left = 1, right = cond(npcFigure ~= nil, 1, 0) }
+    for id, member in pairs(lead.cast or {}) do
+        local side = member.side or "right"
+        local panel = Figure(member.portrait, nil, side, member.video, member.videoAspect, member.imageRect)
+        --one figure's width plus a gap further in for each one already there.
+        local inward = sideCount[side] * (FIGURE_WIDTH + 10)
+        local x = cond(side == "left", inward, -inward)
+        panel.x = x
+        sideCount[side] = sideCount[side] + 1
+        --hidden outright until they walk on: the fade alone let them show
+        --faintly while the stage rose in.
+        panel:SetClassTree("leadAbsent", true)
+        panel:SetClass("collapsed", true)
+        figures[id] = { panel = panel, name = member.name, title = member.title, x = x }
+    end
+    local figurePanels = {}
+    for _, f in pairs(figures) do
+        figurePanels[#figurePanels+1] = f.panel
+    end
+
+    --emotes held on figures, played by a line's onShow (EotwLeads.EMOTES).
+    local emotes = {}
+    local function Emote(who, emoteid)
+        local f = figures[who]
+        local def = EotwLeads.EMOTES[emoteid]
+        if f == nil or def == nil then
+            return
+        end
+        local fx = gui.Panel{ floating = true, width = FIGURE_WIDTH, height = FIGURE_HEIGHT, halign = "left", valign = "top", interactable = false }
+        f.panel:AddChild(fx)
+        local st = def.build(fx, FIGURE_WIDTH, FIGURE_HEIGHT)
+        emotes[#emotes+1] = { def = def, st = st, start = dmhub.Time(), panel = f.panel, baseX = f.x or 0 }
+    end
+    local ctl = { Emote = Emote }
     local speakerLabel = gui.Label{ classes = { "leadSpeaker" }, text = "", interactable = false }
     local textLabel = gui.Label{ classes = { "leadText" }, text = "", interactable = false }
+    --a choice line's options, one row each, in place of the text.
+    local choiceList = gui.Panel{ classes = { "collapsed" }, width = "100%", height = "auto", flow = "vertical" }
     local prompt = gui.Panel{
         classes = { "leadPrompt", "collapsed" },
         floating = true,
@@ -270,20 +487,86 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
     }
 
     --show whose line it is: their name, their figure lit, the other dimmed.
-    local function ShowSpeaker()
-        local line = lines[index]
-        local npcSpeaks = line.who == "npc"
-        speakerLabel.text = cond(npcSpeaks, T("leads.conversation.npc_speaker", { name = lead.npc.name, title = lead.npc.title }), heroName)
-        npcFigure:SetClass("listening", not npcSpeaks)
-        heroFigure:SetClass("listening", npcSpeaks)
-        textLabel.text = ""
-        typed = 0
-        lineStart = dmhub.Time()
-        prompt:SetClass("collapsed", true)
-    end
-
     local overlay
     local stage
+    local Choose
+
+    local function ShowSpeaker()
+        local line = lines[index]
+        --a choice is the hero's to speak.
+        local who = cond(line.who == "choice", "hero", line.who)
+        local speaker = figures[who] or figures.hero
+        local delay = tonumber(line.delay) or 0
+        local lineIndex = index
+        --name the speaker; whoever speaks (or is told to enter) walks on,
+        --and stays. After the line's delay, if it has one.
+        local function Enter()
+            if closing or index ~= lineIndex then
+                return
+            end
+            if speaker.title ~= nil then
+                speakerLabel.text = T("leads.conversation.npc_speaker", { name = speaker.name, title = speaker.title })
+            else
+                speakerLabel.text = speaker.name
+            end
+            --un-collapse first (still at opacity 0), then fade in a moment later.
+            local function WalkOn(panel)
+                if not panel:HasClass("leadAbsent") then
+                    return
+                end
+                panel:SetClass("collapsed", false)
+                dmhub.Schedule(0.05, function()
+                    if mod.unloaded or not panel.valid then
+                        return
+                    end
+                    panel:SetClassTree("leadAbsent", false)
+                end)
+            end
+            WalkOn(speaker.panel)
+            for _, id in ipairs(line.enter or {}) do
+                if figures[id] ~= nil then
+                    WalkOn(figures[id].panel)
+                end
+            end
+            for _, f in pairs(figures) do
+                f.panel:SetClass("listening", f ~= speaker)
+            end
+        end
+        speakerLabel.text = ""
+        if delay > 0 then
+            dmhub.Schedule(delay, function()
+                if not mod.unloaded then
+                    Enter()
+                end
+            end)
+        else
+            Enter()
+        end
+        textLabel.text = ""
+        typed = 0
+        lineStart = dmhub.Time() + delay
+        if line.onShow ~= nil then
+            line.onShow(ctl)
+        end
+        prompt:SetClass("collapsed", true)
+        local choosing = line.who == "choice"
+        textLabel:SetClass("collapsed", choosing)
+        choiceList:SetClass("collapsed", not choosing)
+        local rows = {}
+        if choosing then
+            for _, option in ipairs(line.options or {}) do
+                rows[#rows+1] = gui.Label{
+                    classes = { "leadChoice" },
+                    text = option.text,
+                    bgimage = "panels/square.png",
+                    press = function(element)
+                        Choose(option)
+                    end,
+                }
+            end
+        end
+        choiceList.children = rows
+    end
 
     local function Close()
         if closing then
@@ -296,9 +579,32 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
                 overlay:DestroySelf()
             end
             if not mod.unloaded and onDone ~= nil then
-                onDone()
+                if escaped then
+                    onDone(nil)
+                else
+                    onDone(result)
+                end
             end
         end)
+    end
+
+    --the hero picks an option: they say it, then its lines follow.
+    Choose = function(option)
+        if closing then
+            return
+        end
+        audio.FireSoundEvent("Mouse.Click")
+        result = option.result
+        local follow = { { who = "hero", text = option.text } }
+        for _, line in ipairs(option.lines or {}) do
+            follow[#follow+1] = line
+        end
+        --the choice line is replaced by what the pick leads to.
+        table.remove(lines, index)
+        for i, line in ipairs(follow) do
+            table.insert(lines, index + i - 1, line)
+        end
+        ShowSpeaker()
     end
 
     local function Advance()
@@ -306,10 +612,18 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
             return
         end
         local line = lines[index]
-        if typed < #line.text then
+        if line.who == "choice" then
+            --only an option moves a choice on.
+            return
+        end
+        if dmhub.Time() < lineStart then
+            --the line's action is still playing out.
+            return
+        end
+        if typed < VisibleLength(LineText(line)) then
             --finish the line first.
-            typed = #line.text
-            textLabel.text = line.text
+            typed = VisibleLength(LineText(line))
+            textLabel.text = LineText(line)
             prompt:SetClass("collapsed", false)
             return
         end
@@ -337,8 +651,7 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
             height = FIGURE_HEIGHT,
             flow = "none",
             interactable = false,
-            npcFigure,
-            heroFigure,
+            children = figurePanels,
         },
         gui.Panel{
             classes = { "leadBox" },
@@ -351,6 +664,7 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
             interactable = false,
             speakerLabel,
             textLabel,
+            choiceList,
             prompt,
         },
     }
@@ -359,10 +673,18 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
         floating = true,
         width = "100%",
         height = "100%",
-        --dims the inn behind, and catches every click.
+        --dims the inn behind, and catches every click. spec.dim lightens it
+        --where the scene behind takes part.
         bgimage = "panels/square.png",
-        bgcolor = "#000000a0",
+        bgcolor = lead.dim or "#000000a0",
         styles = {
+            --a cast member not on stage yet (set on the figure's whole tree:
+            --an NPC's video is a child); walking on fades them in.
+            {
+                selectors = { "leadAbsent" },
+                opacity = 0,
+                transitionTime = 0.4,
+            },
             {
                 selectors = { "leadOff" },
                 opacity = 0,
@@ -409,6 +731,26 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
                 selectors = { "leadPrompt" },
                 bgcolor = "#ffd66b",
             },
+            --a choice's options: the hero's possible lines, one per row.
+            {
+                selectors = { "leadChoice" },
+                fontSize = 18,
+                color = "#ffffff",
+                width = "100%",
+                height = "auto",
+                textAlignment = "left",
+                textWrap = true,
+                pad = 6,
+                borderBox = true,
+                bmargin = 4,
+                bgcolor = "#ffffff10",
+                cornerRadius = 4,
+            },
+            {
+                selectors = { "leadChoice", "hover" },
+                color = "#ffd66b",
+                bgcolor = "#ffffff26",
+            },
             {
                 selectors = { "leadPrompt", "dimmed" },
                 opacity = 0.25,
@@ -417,6 +759,7 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         escape = function(element)
+            escaped = true
             Close()
         end,
         press = function(element)
@@ -427,11 +770,21 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
             if closing then
                 return
             end
+            --held emotes: each animates in, then stays up.
+            for _, e in ipairs(emotes) do
+                if e.panel.valid then
+                    local ox, oy = e.def.update(e.st, dmhub.Time() - e.start, FIGURE_WIDTH, FIGURE_HEIGHT)
+                    e.panel.x = e.baseX + (ox or 0)
+                    e.panel.y = oy or 0
+                end
+            end
             local line = lines[index]
-            if typed < #line.text then
-                typed = math.min(#line.text, math.floor((dmhub.Time() - lineStart) * TYPE_CPS))
-                textLabel.text = string.sub(line.text, 1, typed)
-                if typed >= #line.text then
+            local full = LineText(line)
+            local total = VisibleLength(full)
+            if line.who ~= "choice" and typed < total then
+                typed = math.max(0, math.min(total, math.floor((dmhub.Time() - lineStart) * TYPE_CPS)))
+                textLabel.text = RevealText(full, typed)
+                if typed >= total then
                     prompt:SetClass("collapsed", false)
                 end
             end
@@ -1361,3 +1714,236 @@ pcall(function()
         end,
     }
 end)
+
+--- the Great Forge's Giddlebrick ---------------------------------------------------
+
+--Giddlebrick Thundlestrom, head of the Blackbottom Chapter of the Tinkerer's
+--Guild: he greets a player the first time they visit the Great Forge's
+--building site while it is still being planned (under half built; see
+--EncounterOfTheWeek.lua OpenLocation). One of the player's heroes at home
+--answers him. His art is a looping video (core image asset, source
+--C:/dev/eotw/art/great-forge-giddlebrick-gnome.webm, 720x1080) over its
+--first frame. Design: EncounterOfTheWeek.md, "The Great Forge".
+EotwLeads.GIDDLEBRICK = {
+    npc = {
+        name = T("great_forge.giddlebrick.name"),
+        title = T("great_forge.giddlebrick.title"),
+        portrait = "0234d797-a71f-4170-bd30-8fc4118af5ac",
+        video = "842f40ac-1fd6-4a74-a630-bc0f5e729d64",
+        videoAspect = 720 / 1080,
+    },
+    conversation = function(heroName, tok)
+        --the hero's sixth line depends on who they are: a Fury, Tactician
+        --or Beastheart takes the magic on trust; a hero trained in Magic, or
+        --an Elementalist, feels it too.
+        local className = ""
+        if tok ~= nil then
+            className = string.lower(EotwRoster.HeroDetails(tok) or "")
+        end
+        local reply = T("great_forge.intro.line6_hero")
+        if className == "fury" or className == "tactician" or className == "beastheart" then
+            reply = T("great_forge.intro.line6_hero_martial")
+        elseif className == "elementalist" or (tok ~= nil and #EotwDowntime.UI.TrainedSkills(tok, { skills = { "Magic" } }) > 0) then
+            reply = T("great_forge.intro.line6_hero_magic")
+        end
+        return {
+            { who = "npc", text = T("great_forge.intro.line1_npc") },
+            { who = "hero", text = T("great_forge.intro.line2_hero") },
+            { who = "npc", text = T("great_forge.intro.line3_npc") },
+            { who = "hero", text = T("great_forge.intro.line4_hero") },
+            { who = "npc", text = T("great_forge.intro.line5_npc") },
+            { who = "hero", text = reply },
+            { who = "npc", text = T("great_forge.intro.line7_npc") },
+        }
+    end,
+}
+
+--Has this player met Giddlebrick? Kept on this machine per account, like the
+--inn's state.
+setting{
+    id = "eotw:metGiddlebrick",
+    default = "",
+    storage = "preference",
+}
+
+function EotwLeads.MetGiddlebrick()
+    local _, met = EotwDowntime.UI.LoadMine("eotw:metGiddlebrick")
+    return met == true
+end
+
+--Testing: forget meeting him, so the next visit to the site plays the intro
+--again (the Projects dialog calls this when it resets the Great Forge).
+function EotwLeads.ForgetGiddlebrick()
+    EotwDowntime.UI.SaveMine("eotw:metGiddlebrick", nil)
+end
+
+--Giddlebrick's welcome, with a random hero at home answering. Marks him met
+--when it starts (Escape skips it for good). Returns false, playing nothing,
+--when no hero is at home and loaded to answer.
+function EotwLeads.ShowGiddlebrickIntro(host, onDone)
+    local heroes = Carousers()
+    if #heroes == 0 then
+        return false
+    end
+    local pick = heroes[math.random(#heroes)]
+    EotwDowntime.UI.SaveMine("eotw:metGiddlebrick", true)
+    EotwAnalytics.Track("eotw_giddlebrick_intro", { heroid = pick.hero.heroid })
+    EotwLeads.PlayConversation(host, EotwLeads.GIDDLEBRICK, pick.hero.heroid, onDone)
+    return true
+end
+
+--- the Great Forge's siege beginning ------------------------------------------------
+
+--The demon that bursts out of the portal: the Demon Ruinant's portrait from
+--the bestiary (monster 279d55bc-aeed-4c02-8748-3cfaa9d7c061, as fought in
+--Encounter: Demon Portal).
+local SIEGE_DEMON_PORTRAIT = "239a2c0a-fdad-41ca-91ba-dff70f110bcb"
+--the part of it to show, at the figure's shape (2048x2048 art).
+local SIEGE_DEMON_RECT = { x1 = 0.25, x2 = 0.64, y1 = 0.29, y2 = 0.80 }
+
+--This player's leading hero for the siege's moment: the hero whose roll
+--opened the portal if they are home, else the first hero at home (loaded
+--first). nil when no hero is at home.
+local function SiegeLeadHero(preferred)
+    local away = EotwRoster.AwayHeroes()
+    if preferred ~= nil and away[preferred] == nil and EotwRoster.FindHero(preferred) ~= nil then
+        return preferred
+    end
+    local loaded = Carousers()
+    if #loaded > 0 then
+        return loaded[1].hero.heroid
+    end
+    for _, hero in ipairs(EotwRoster.GetHeroes() or {}) do
+        if away[hero.heroid] == nil then
+            return hero.heroid
+        end
+    end
+    return nil
+end
+
+--Has this player a hero at home to lead the siege's moment?
+function EotwLeads.CanPlaySiegeEvent()
+    return SiegeLeadHero(EotwDowntime.siegeOpenedBy) ~= nil
+end
+
+--The Forge's siege beginning, played once to each player over the Forge's
+--building site (EncounterOfTheWeek.lua opens it). opts:
+--  arriving   true for a player who has just walked in: their hero starts
+--             to speak before the demons interrupt. Otherwise the player
+--             was already here and it starts with the portal opening.
+--  backdrop   the scene's CreatorCredit.Backdrop: the siege art (`art`,
+--             width / height `artAspect`) fades in over its art as the
+--             portal opens.
+--  aspect     the backdrop's width / height (to crop the art to cover it).
+--  onDone()   when it is over (also on Escape): show the siege.
+--Marks the siege seen as it starts. Returns false, playing nothing, when
+--no hero is at home.
+function EotwLeads.PlaySiegeEvent(host, opts)
+    local heroid = SiegeLeadHero(EotwDowntime.siegeOpenedBy)
+    if heroid == nil then
+        return false
+    end
+    EotwDowntime.siegeOpenedBy = nil
+    EotwDowntime.MarkSiegeSeen()
+    EotwAnalytics.Track("eotw_siege_event", { heroid = heroid, arriving = opts.arriving == true })
+
+    --the portal opens: the siege art fades in over the site's, under the
+    --heading and card (after the art layers).
+    local function TurnScene()
+        local backdrop = opts.backdrop
+        if backdrop == nil or not backdrop.valid or opts.art == nil then
+            return
+        end
+        local art = opts.art
+        local artAspect = opts.artAspect or (16 / 9)
+        local box = opts.aspect or artAspect
+        local rect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+        if box > artAspect then
+            local keep = artAspect / box
+            rect = { x1 = 0, x2 = 1, y1 = (1 - keep) / 2, y2 = 1 - (1 - keep) / 2 }
+        elseif box < artAspect then
+            local keep = box / artAspect
+            rect = { x1 = (1 - keep) / 2, x2 = 1 - (1 - keep) / 2, y1 = 0, y2 = 1 }
+        end
+        local layer = gui.Panel{
+            classes = { "siegeTurnArt" },
+            floating = true,
+            width = "100%",
+            height = "100%",
+            interactable = false,
+            bgimage = art,
+            bgcolor = "white",
+            styles = {
+                { selectors = { "siegeTurnArt" }, opacity = 0 },
+                { selectors = { "siegeTurnArt", "shown" }, opacity = 1, transitionTime = 0.6 },
+            },
+            create = function(element)
+                element.selfStyle.imageRect = rect
+                element:ScheduleEvent("turnShow", 0.05)
+            end,
+            turnShow = function(element)
+                element:SetClass("shown", true)
+            end,
+        }
+        local kids = backdrop.children
+        local at = 1
+        for i, child in ipairs(kids) do
+            if child:HasClass("creatorBackdropArt") then
+                at = i + 1
+            end
+        end
+        table.insert(kids, at, layer)
+        backdrop.children = kids
+    end
+
+    local giddlebrick = EotwLeads.GIDDLEBRICK.npc
+    local spec = {
+        --light: the Forge behind takes part.
+        dim = "#00000040",
+        cast = {
+            demon = {
+                name = T("great_forge.siege_event.demon_name"),
+                title = T("great_forge.siege_event.demon_title"),
+                portrait = SIEGE_DEMON_PORTRAIT,
+                --the creature fills only the middle of its square token art.
+                imageRect = SIEGE_DEMON_RECT,
+                side = "right",
+            },
+            --Giddlebrick runs up to stand with the heroes.
+            giddlebrick = {
+                name = giddlebrick.name,
+                title = giddlebrick.title,
+                portrait = giddlebrick.portrait,
+                video = giddlebrick.video,
+                videoAspect = giddlebrick.videoAspect,
+                side = "left",
+            },
+        },
+        conversation = function(heroName, tok)
+            local lines = {}
+            if opts.arriving then
+                lines[#lines+1] = { who = "hero", text = T("great_forge.siege_event.hero_arrive") }
+            end
+            lines[#lines+1] = {
+                who = "demon",
+                text = T("great_forge.siege_event.demon"),
+                --the portal opens, the hero starts, then the demon is there.
+                delay = 1.4,
+                onShow = function(ctl)
+                    TurnScene()
+                    audio.FireSoundEvent("Notify.Malice_Use")
+                    ctl.Emote("hero", "alarmed")
+                end,
+            }
+            lines[#lines+1] = { who = "giddlebrick", text = T("great_forge.siege_event.giddlebrick") }
+            lines[#lines+1] = { who = "hero", text = T("great_forge.siege_event.hero_defend") }
+            return lines
+        end,
+    }
+    EotwLeads.PlayConversation(host, spec, heroid, function()
+        if opts.onDone ~= nil then
+            opts.onDone()
+        end
+    end)
+    return true
+end

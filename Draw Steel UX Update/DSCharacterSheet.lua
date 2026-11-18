@@ -1530,7 +1530,7 @@ function CharSheet.AttrPanel(attrid)
 					ChangeLabelValue(info, element, ModifierStr(info.token.properties:GetAttribute(attrid):Modifier()))
 				end,
 				press = function(element)
-					CharacterSheet.instance.data.info.token.properties:RollAttributeCheck(attrid)
+					CharacterSheet.instance.data.info.token.properties:ShowCharacteristicRollDialog(attrid, { autoroll = true })
 				end,
                 rightClick = function(element)
                     if CharacterSheet.instance.data.info.token.properties.typeName == "monster" then

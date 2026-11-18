@@ -19,8 +19,9 @@ local function loc(x, altitude)
         DistanceInTiles=function(self, other) return math.abs(self.x-other.x) end}
 end
 local origin, ground, relative = loc(0,2), loc(2,2), loc(2,0)
-local mover = {id="goblin", altitude=2, tileSize=1, loc=origin, creatureDimensions={x=1},
+local mover = {id="goblin", valid=true, altitude=2, tileSize=1, loc=origin, creatureDimensions={x=1},
     properties={CurrentMovementSpeed=function() return 6 end}}
+MonsterAI.TokenIsLiveCombatant = function(t) return t ~= nil and t.valid and not t.dead end
 local enemy = {id="enemy", altitude=2, tileSize=1, loc=loc(3,2), Distance=function(_, other) return math.abs(3-other.x) end}
 function enemy.loc:LocsInRadius() return {ground} end
 function mover:Distance(other) return math.abs(self.loc.x-other.loc.x) end
@@ -71,6 +72,21 @@ for _,failure in ipairs({"no path", "short"}) do
     mode="legal"
     assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "same route excluded even for another strike registration")
 end
+--2026-11-16 playtest N2: a squad minion killed by an opportunity attack while a
+--squad-mate moved, before its own charge ran. Its token had no loc any more.
+--A dead charger did not survive; it is not an error and not a failed route.
+mode="legal"; ai._tmp_failedChargePlans={}; ai._tmp_moveFailure=nil
+local liveLoc = mover.loc
+mover.valid, mover.loc = false, nil
+local reached, survived = ai:ExecuteChargeMovement(mover, ground, true)
+assert(reached == false and survived == false, "an invalid charger with no loc did not survive")
+mover.valid, mover.loc, mover.dead = true, liveLoc, true
+reached, survived = ai:ExecuteChargeMovement(mover, ground, true)
+assert(reached == false and survived == false, "a dead charger did not survive")
+assert(next(ai._tmp_failedChargePlans) == nil and ai._tmp_moveFailure == nil,
+    "a charger's death is not recorded as a failed charge route")
+mover.dead = nil
+
 mode="legal"; ai._tmp_failedChargePlans={}; ai:InvalidatePlanningMemo()
 enemy.altitude=7
 assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "ground charge cannot reach flying enemy")

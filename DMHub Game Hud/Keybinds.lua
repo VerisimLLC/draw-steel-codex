@@ -537,7 +537,7 @@ Keybinds.Register{
 
 Keybinds.Register{
     command = "toggle gmbroadcastmouse",
-    name = tr("Toggle Broadcast Director Mouse Cursor"),
+    name = tr("Toggle Broadcast " .. UIText.Term("director") .. " Mouse Cursor"),
     section = "system",
 }
 

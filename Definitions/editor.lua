@@ -25,3 +25,8 @@ function editor:SetMapTool(toolInfo) end
 --- Cancels a stroke the user is part-way through drawing with the multi-click 'shape' map tool (including one set through SetMapTool): the placed points are discarded and the tool stays active for a fresh stroke. Returns true if there was a stroke to cancel. The polygon tool normally does this itself on Escape, but a rail window's escape capture outranks it, so a panel that handles Escape itself calls this first.
 --- @return boolean
 function editor:CancelMapStroke() end
+
+--- Steps the object being placed from the object palette to its next (delta 1) or previous (delta -1) look: its base picture, then each Appearance image swap, wrapping around. Objects placed afterwards use that look. Returns true when an object is being placed, even one with a single look, so the caller can treat the key as handled; false when nothing is being placed or the markup object-editing filter owns placement.
+--- @param delta number
+--- @return boolean
+function editor:CycleObjectPlacementAppearance(delta) end

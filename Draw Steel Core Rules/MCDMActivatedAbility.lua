@@ -1630,8 +1630,9 @@ local function CardBookmarkTab(hide, buildArgs)
 end
 
 --- The power roll whose tier table the ability card shows. A top-level roll wins;
---- otherwise it is a roll inside an invoked custom ability, or inside a trigger of
---- an aura the ability places (e.g. Noxious Bubble's Might test when it bursts).
+--- otherwise it is a roll inside an invoked custom ability or a module invoke type's
+--- preview, or inside a trigger of an aura the ability places (e.g. Noxious Bubble's
+--- Might test when it bursts).
 --- @param ability ActivatedAbility
 --- @param token CharacterToken|nil
 --- @param params table
@@ -1643,14 +1644,14 @@ local function FindCardPowerTableBehavior(ability, token, params)
             --the modes didn't match, so just pass on this one.
         elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
             return behavior --[[@as ActivatedAbilityPowerRollBehavior]]
-        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
-            --if we invoke a power roll ability try to pull that out.
-            --customAbility has no class default and may be unset even when
-            --abilityType resolves to "custom" (the class default), so read it safely.
-            local customAbility = behavior:try_get("customAbility")
+        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            --if we invoke a power roll ability try to pull that out: a custom
+            --ability, or what a module's registered invoke type previews.
+            local invokeBehavior = behavior --[[@as ActivatedAbilityInvokeAbilityBehavior]]
+            local customAbility = invokeBehavior:HeldAbility(token ~= nil and token.properties or nil)
             for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                    result = subbehavior
+                    result = subbehavior --[[@as ActivatedAbilityPowerRollBehavior]]
                 end
             end
         elseif behavior.typeName == "ActivatedAbilityAuraBehavior" then
@@ -1929,7 +1930,14 @@ function ActivatedAbility:Render(options, params)
                     end
                 end
                 if #noteParts > 0 then
-                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    --An optional activationNote explains WHY the modifier applies, e.g.
+                    --"Ruthless Rage +3 damage: another wyvern is within 10 squares".
+                    local activationNote = modifier:try_get("activationNote", "")
+                    if activationNote ~= "" then
+                        notes[#notes+1] = string.format("%s %s: %s", modifier.name, table.concat(noteParts, ", "), activationNote)
+                    else
+                        notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    end
                 end
             end
         end
@@ -3437,7 +3445,7 @@ function ActivatedAbility:Render(options, params)
                     element:SetClass("collapsed", true)
                 end,
 
-                classes = { "abilitySection", cond(self:GetPowerRollDisplay() == "", "collapsed", nil) },
+                classes = { "abilitySection", cond(self:GetPowerRollDisplay(creatureProperties) == "", "collapsed", nil) },
                 width = "100%",
                 height = "auto",
                 tmargin = 2,
@@ -3459,7 +3467,7 @@ function ActivatedAbility:Render(options, params)
 
                 gui.Label {
 
-                    text = self:GetPowerRollDisplay(),
+                    text = self:GetPowerRollDisplay(creatureProperties),
                     fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",

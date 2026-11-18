@@ -127,6 +127,9 @@
 --                  -- "You cannot be surprised": the party is immune to the
 --                     Surprised condition in the next encounter (it still
 --                     loses the initiative if the montage says so).
+--  data.surprisedHeroes = nil | { [heroCharid] = { entryName, at } }
+--                  -- "PC is surprised": these heroes alone begin the
+--                     encounter Surprised. Cleared by a fair roll.
 --  data.startZones = nil | { [zone keyword, lower-cased] = { entryName, at } }
 --                  -- "the Start2 zone becomes a starting area": extra zone
 --                     types the heroes may stand in before combat (the
@@ -219,6 +222,32 @@ end
 
 --The story as the condition evaluator reads it (EncounterScript.EvalStoryAtom):
 --{ part, parts = { [k] = {...} }, tracks = { [track key] = value }, this }.
+--A clean copy of a part's `retreated` list (the monsters that escaped its
+--fight through a Retreat Zone): { { name, monsterType, monsterid, keywords,
+--minion }, ... }, empty when there is none.
+function EncounterMontage.CopyRetreated(list)
+    local result = {}
+    if type(list) ~= "table" then
+        return result
+    end
+    for _, rec in ipairs(list) do
+        if type(rec) == "table" then
+            local keywords = {}
+            for _, keyword in ipairs(type(rec.keywords) == "table" and rec.keywords or {}) do
+                keywords[#keywords + 1] = tostring(keyword)
+            end
+            result[#result + 1] = {
+                name = rec.name ~= nil and tostring(rec.name) or nil,
+                monsterType = rec.monsterType ~= nil and tostring(rec.monsterType) or nil,
+                monsterid = rec.monsterid ~= nil and tostring(rec.monsterid) or nil,
+                keywords = keywords,
+                minion = rec.minion == true,
+            }
+        end
+    end
+    return result
+end
+
 --`doc` defaults to the live document.
 function EncounterMontage.Story(doc)
     local result = { part = 1, parts = {}, tracks = {} }
@@ -230,7 +259,8 @@ function EncounterMontage.Story(doc)
             for k, v in pairs(story.parts or {}) do
                 local n = tonumber(string.match(tostring(k), "^p(%d+)$"))
                 if n ~= nil and type(v) == "table" then
-                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
+                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
                 end
             end
             for _, rec in pairs(story.tracks or {}) do
@@ -241,7 +271,8 @@ function EncounterMontage.Story(doc)
         end
         local r = doc.data.seriesResult
         if type(r) == "table" then
-            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds) }
+            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds), retreats = tonumber(r.retreats),
+                retreated = EncounterMontage.CopyRetreated(r.retreated) }
         end
     end)
     return result
@@ -288,7 +319,8 @@ function EncounterMontage.SeedStory(doc, part, carried)
             local n = tonumber(k) or tonumber(string.match(tostring(k), "^p(%d+)$"))
             if n ~= nil and n < part then
                 if type(v) == "table" then
-                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
+                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
                 else
                     story.parts["p" .. n] = "not recorded"
                 end
@@ -405,7 +437,25 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
     local perHero = totals.score / heroes
     local bars = (results ~= nil and results.bars) or EncounterScript.DEFAULT_OUTCOME_BARS
     local outcome = EncounterMontage.OutcomeFor(perHero, bars)
+    --the monsters that escaped through a Retreat zone (LiveEncounter:RecordRetreat).
+    local retreated = {}
+    pcall(function()
+        local q = dmhub.initiativeQueue
+        local live = q ~= nil and q:try_get("liveEncounter") or nil
+        if type(live) == "table" then
+            for _, rec in ipairs(live:GetRetreated()) do
+                local keywords = {}
+                for keyword in pairs(rec.keywords or {}) do
+                    keywords[#keywords + 1] = keyword
+                end
+                table.sort(keywords)
+                retreated[#retreated + 1] = { name = rec.name, monsterType = rec.monsterType, monsterid = rec.monsterid, keywords = keywords, minion = rec.minion }
+            end
+        end
+    end)
     local stamp = {
+        retreats = #retreated,
+        retreated = retreated,
         part = parse.part.number,
         outcome = outcome,
         score = totals.score,
@@ -442,8 +492,8 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
     end
     doc.data.seriesResult = stamp
     doc:CompleteChange("Encounter of the Week: series result", { undoable = false })
-    printf("EotW story: Part %d result: %s (score %d, %.2f per hero over %d heroes; %d successes, %d failures, %d threats left), won in round %s",
-        stamp.part, outcome, totals.score, perHero, heroes, totals.successes, totals.failures, totals.unvanquished, tostring(rounds))
+    printf("EotW story: Part %d result: %s (score %d, %.2f per hero over %d heroes; %d successes, %d failures, %d threats left), won in round %s, %d monster(s) retreated",
+        stamp.part, outcome, totals.score, perHero, heroes, totals.successes, totals.failures, totals.unvanquished, tostring(rounds), #retreated)
     return stamp
 end
 
@@ -455,6 +505,18 @@ function EncounterMontage.GetState()
         return nil
     end
     return m
+end
+
+--Heroes can't take triggered actions during a montage: the montage screen has
+--no way to answer a trigger prompt. Only an unfinished montage blocks them; a
+--"/eotwmontage stop" leaves one unfinished until "/eotwmontage reset".
+local g_baseTriggeredActionsForbidden = creature.TriggeredActionsForbidden
+function creature:TriggeredActionsForbidden()
+    local montage = EncounterMontage.GetState()
+    if montage ~= nil and montage.phase ~= "done" then
+        return true
+    end
+    return g_baseTriggeredActionsForbidden(self)
 end
 
 --The items this hero has been granted so far this montage, in grant order:
@@ -1240,10 +1302,49 @@ function EncounterMontage.AssassinSent(charid)
     return type(sent) == "table" and sent[charid] == true
 end
 
+--FindMapScript's list of which documents are filed under the map. Finding
+--them walks the whole journal (2-11 ms with a big one), and FindMapScript
+--runs several times a host tick, so the list is reused while
+--dmhub.tablesUpdateId (bumped by every local or cloud write to the documents
+--and folder tables) and the map are unchanged, for at most
+--CANDIDATE_CACHE_SECONDS as a backstop for any change that bumps neither.
+--Only membership is cached: each document is re-read from the table on use,
+--so the script signature still sees a text edit at once.
+local m_candidateCache = nil
+local CANDIDATE_CACHE_SECONDS = 5
+
+---@param mapid string
+---@param force boolean|nil
+local function CachedMapScriptCandidates(mapid, force)
+    local now = dmhub.Time()
+    local seq = dmhub.tablesUpdateId
+    local cache = m_candidateCache
+    if not force and cache ~= nil and cache.mapid == mapid and cache.seq == seq
+        and now - cache.time < CANDIDATE_CACHE_SECONDS then
+        --the same document objects, none hidden since: reuse the list as is.
+        --Any difference (a replaced, removed or hidden document) rescans.
+        local docsTable = dmhub.GetTable("documents") or {}
+        local same = true
+        for _, c in ipairs(cache.list) do
+            local doc = docsTable[c.docid]
+            if doc ~= c.doc or doc.hidden then
+                same = false
+                break
+            end
+        end
+        if same then
+            return cache.list
+        end
+    end
+    local list = MapScriptCandidates(mapid)
+    m_candidateCache = { mapid = mapid, seq = seq, time = now, list = list }
+    return list
+end
+
 function EncounterMontage.FindMapScript(force)
     local mapid = game.currentMapId
     local docsTable = dmhub.GetTable("documents") or {}
-    local candidates = MapScriptCandidates(mapid)
+    local candidates = CachedMapScriptCandidates(mapid, force)
     local part = ActivePart()
 
     if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid
@@ -1822,6 +1923,9 @@ local function GrantedAsApplied(granted)
     return {
         rider = { effect = granted.effect, text = why, granted = true },
         why = why,
+        --the author's bracketed detail; the roll dialog's chip tooltip
+        --uses it instead of `why` (TestRiders.AppendModifiers).
+        detail = granted.detail,
     }
 end
 
@@ -2704,14 +2808,15 @@ end
 --Surprised" slider. Caller must already hold host permissions.
 --Allies spawned later, and the enemy side, are still handled at combat
 --start by StartEncounterCombat -- this is the hero half only.
-local function SetHeroesSurprised(on, description)
+--`heroes` (optional) limits it to those hero entries: "PC is surprised".
+local function SetHeroesSurprised(on, description, heroes)
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
     if surprisedCondition == nil then
         return
     end
-    for _, hero in ipairs(EncounterMontage.Heroes()) do
+    for _, hero in ipairs(heroes or EncounterMontage.Heroes()) do
         local token = hero.token
-        if token.valid then
+        if token ~= nil and token.valid then
             token:ModifyProperties{
                 description = description,
                 undoable = false,
@@ -3131,6 +3236,41 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --their own immunity read as the immunity having been
                 --forgotten (reported live 2026-09-20).
                 applied[#applied + 1] = EncounterScript.DescribeInitiativeOutcome(effect.outcome, surpriseImmune and effect.outcome == "surprised")
+            elseif effect.kind == "herosurprised" then
+                --only the acting hero(es). Recorded per hero at the top level
+                --of the document, like data.surprised, so the encounter beat
+                --can tell whether EVERY hero ended up surprised.
+                local surpriseImmune = ctx.doc ~= nil and ctx.doc.data.noSurprise ~= nil
+                local targets = Targets(effect)
+                local names = {}
+                for _, target in ipairs(targets) do
+                    names[#names + 1] = target.name
+                    if ctx.doc ~= nil then
+                        ctx.doc.data.surprisedHeroes = ctx.doc.data.surprisedHeroes or {}
+                        ctx.doc.data.surprisedHeroes[target.charid] = {
+                            entryName = ctx.entryName,
+                            at = dmhub.serverTime,
+                        }
+                    end
+                end
+                if not surpriseImmune then
+                    SetHeroesSurprised(true, "Montage: surprised", targets)
+                end
+                if #names > 0 then
+                    if surpriseImmune then
+                        applied[#applied + 1] = T("montage.effect.hero_surprised_immune", { names = TargetNames(names) })
+                    else
+                        applied[#applied + 1] = TP("montage.effect.hero_surprised", #names, { names = TargetNames(names) })
+                    end
+                end
+            elseif effect.kind == "retreatkill" then
+                --one fewer of the monsters that fled an earlier part joins
+                --this part's fight (EncounterReinforcements.RetreatedJoining).
+                --At the TOP level of the document, like noSurprise.
+                if ctx.doc ~= nil then
+                    ctx.doc.data.retreatKills = (tonumber(ctx.doc.data.retreatKills) or 0) + 1
+                end
+                applied[#applied + 1] = T("montage.effect.retreat_kill")
             elseif effect.kind == "nosurprise" then
                 --party-wide and permanent for the run, whoever earned it.
                 --Like initiative it lives at the TOP level of the document
@@ -3158,6 +3298,7 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --the heroes still go first if they had already earned that
                 ---- and a "win" outcome is left standing.
                 if ctx.doc ~= nil then
+                    ctx.doc.data.surprisedHeroes = nil
                     local surprised = ctx.doc.data.surprised
                     if type(surprised) == "table" and surprised.party ~= nil then
                         if surprised.enemy ~= nil then
@@ -3267,6 +3408,9 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                         --the author's "...: the body is charred", shown
                         --instead of entryName when set.
                         reason = effect.reason,
+                        --"(you were distracted by the skeletons)": the
+                        --longer words, shown as a tooltip.
+                        detail = effect.detail,
                         at = dmhub.serverTime,
                     }
                     printf("EotW montage: %s on '%s'%s", tostring(effect.effect), tostring(effect.name),
@@ -3582,6 +3726,16 @@ function EncounterMontage.HasSurpriseImmunity()
     return false
 end
 
+--The heroes a "PC is surprised" clause surprised one by one, as
+--{ [charid] = { entryName, at } } (empty when none).
+function EncounterMontage.GetSurprisedHeroes()
+    local info = EncounterMontage.GetDoc().data.surprisedHeroes
+    if type(info) ~= "table" then
+        return {}
+    end
+    return info
+end
+
 --Which sides a montage clause marked Surprised for the coming encounter.
 --Returns two values: the party entry (or nil) and the enemy entry (or nil),
 --each { entryName, at }.
@@ -3841,8 +3995,26 @@ local function LastTurnResult(m)
         return nil
     end
     local lines = {}
-    for _, line in ipairs(last.applied or {}) do
-        lines[#lines + 1] = line
+    --a group test ("Everyone rolls:") logs one entry per hero; the summary
+    --must name what happened to all of them, not only the last to roll.
+    local first = #m.log
+    if last.group then
+        while first > 1 do
+            local prev = m.log[first - 1]
+            if not prev.group or prev.entryId ~= last.entryId then
+                break
+            end
+            first = first - 1
+        end
+    end
+    local seen = {}
+    for i = first, #m.log do
+        for _, line in ipairs(m.log[i].applied or {}) do
+            if not seen[line] then
+                seen[line] = true
+                lines[#lines + 1] = line
+            end
+        end
     end
     if #lines == 0 and type(last.tierText) == "string" and last.tierText ~= "" then
         lines[1] = last.tierText
@@ -7472,6 +7644,13 @@ function EncounterMontage.ShowTestRoll(args)
     ShowMontageRoll(args)
 end
 
+--False once this mod is unloaded. The EncounterMontage table outlives it (a
+--game without Encounter of the Week, entered from the title screen, still
+--has it), and ShowTestRoll then does nothing.
+function EncounterMontage.IsLoaded()
+    return not mod.unloaded
+end
+
 --Show the roll dialog for the current turn's option: 2d10 + the best of
 --the listed characteristics, the Skilled chip for a listed skill, the tiers
 --from the script. Mirrors creature:RollCustomPowerTableTest (MCDMCreature.lua)
@@ -7875,6 +8054,8 @@ function EncounterMontage.ResetTest(options)
     doc.data.foeResistances = nil
     doc.data.noSurprise = nil
     doc.data.surprised = nil
+    doc.data.surprisedHeroes = nil
+    doc.data.retreatKills = nil
     doc.data.zoneSetup = nil
     doc.data.reinforcements = nil
     doc.data.revealZones = nil

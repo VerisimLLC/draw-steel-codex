@@ -341,6 +341,10 @@ end
 PuzzleType.Register{
     id = "slider",
     name = "Slider puzzle",
+    howToPlay = [[
+The picture is cut into tiles with one missing. Slide the tiles back to make it whole.
+
+Tick Show tile numbers to see where each tile belongs: tile 1 goes top left, then along each row in order.]],
     fields = {
         { id = "image", type = "image", label = "Image", default = false },
         { id = "grid", type = "choice", label = "Grid", default = "3", options = gridOptions },
@@ -401,7 +405,7 @@ end
 ---@param tag RichSliderPuzzle
 ---@param id string|nil
 local function Migrate(tag, id)
-    if id == nil or Puzzle.Exists(id) then
+    if id == nil or id ~= Puzzle.OwnJournalId(tag, ID_PREFIX) or Puzzle.Exists(id) then
         return
     end
     local n = GridSize(tag)
@@ -430,6 +434,7 @@ function RichSliderPuzzle.CreateDisplay(self)
     local m_token = nil
     local panel = Puzzle.CreatePanel(nil, {
         editing = function() return m_token ~= nil and m_token.editor == true end,
+        where = function() return Puzzle.OnPageText(self) end,
     })
     return gui.Panel{
         flow = "vertical",
@@ -457,7 +462,7 @@ function RichSliderPuzzle.CreateEditor(self)
         return id
     end, function(id, typeid)
         Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
-    end, function(tag) self = tag end)
+    end, function(tag) self = tag end, Puzzle.JournalPick(function() return self end, ID_PREFIX))
 end
 
 MarkdownDocument.RegisterRichTag(RichSliderPuzzle)

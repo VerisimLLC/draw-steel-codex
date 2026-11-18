@@ -17,18 +17,74 @@ function RichPuzzle.Create()
     return RichPuzzle.new{}
 end
 
---The id of the puzzle a journal tag shows: owning page + tag name, so two pages
---never share a puzzle. Nil while the page is unsaved (it has no id yet).
+--Tag keyword -> the prefix of the puzzle id it makes, for every journal tag
+--that shows a puzzle.
+---@type table<string, string>
+Puzzle.JOURNAL_TAGS = { puzzle = "j_", sliderpuzzle = "s_", tornpuzzle = "t_" }
+
+--The page's own puzzle for a tag: owning page + tag name, so two pages never
+--share one by accident. Nil while the page is unsaved (it has no id yet).
 ---@param tag RichTag
 ---@param prefix string keeps legacy tags apart from [[puzzle:]] tags of the same name
 ---@return string|nil
-function Puzzle.JournalId(tag, prefix)
+function Puzzle.OwnJournalId(tag, prefix)
     local doc = tag:GetDocument()
     local docid = doc ~= nil and doc:try_get("id") or nil
     if docid == nil then
         return nil
     end
     return Puzzle.SafeId(string.format("%s%s_%s", prefix, tostring(docid), tostring(tag.identifier or "default")))
+end
+
+--The id of the puzzle a journal tag shows: the puzzle it names (one placed
+--from the Puzzles panel or chosen with "Use an existing puzzle"), else the
+--page's own.
+---@param tag RichTag
+---@param prefix string
+---@return string|nil
+function Puzzle.JournalId(tag, prefix)
+    local named = tag:try_get("puzzleid")
+    if type(named) == "string" and named ~= "" then
+        return named
+    end
+    return Puzzle.OwnJournalId(tag, prefix)
+end
+
+---@param tag RichTag
+---@return string
+function Puzzle.TagKey(tag)
+    return string.format("%s:%s", tostring(tag.tag), tostring(tag.identifier or "default"))
+end
+
+--The tags on a page that show a puzzle: tag key -> tag.
+---@param doc any
+---@param id string
+---@return table<string, RichTag>
+function Puzzle.PageTags(doc, id)
+    local result = {}
+    local annotations = doc ~= nil and doc:try_get("annotations") or nil
+    for key, tag in pairs(annotations or {}) do
+        local prefix = type(tag) == "table" and Puzzle.JOURNAL_TAGS[tostring(tag.tag)] or nil
+        if prefix ~= nil then
+            tag._tmp_document = doc
+            if Puzzle.JournalId(tag, prefix) == id then
+                result[key] = tag
+            end
+        end
+    end
+    return result
+end
+
+--Where a player reading a tag's page is, for presence lines: "on Handout 3".
+---@param tag RichTag
+---@return string|nil
+function Puzzle.OnPageText(tag)
+    local doc = tag:GetDocument()
+    local name = doc ~= nil and doc:try_get("description") or nil
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return "on " .. name
 end
 
 --Record a journal tag's puzzle (and its page) in the puzzle index.
@@ -41,7 +97,49 @@ function Puzzle.IndexJournal(tag, id)
     local doc = tag:GetDocument()
     local docid = doc ~= nil and doc:try_get("id") or nil
     if docid ~= nil then
-        Puzzle.IndexPuzzle(id, { kind = "journal", docid = tostring(docid) })
+        Puzzle.IndexPuzzle(id, { kind = "journal", docid = tostring(docid), tag = Puzzle.TagKey(tag) })
+    end
+end
+
+--Point a journal tag at another puzzle, or back at the page's own (nil). The
+--puzzle it showed loses this page as a home.
+---@param tag RichTag
+---@param prefix string
+---@param id string|nil
+function Puzzle.SetJournalPuzzle(tag, prefix, id)
+    local old = Puzzle.JournalId(tag, prefix)
+    local doc = tag:GetDocument()
+    local docid = doc ~= nil and doc:try_get("id") or nil
+    if old ~= nil and docid ~= nil then
+        local key = Puzzle.HomeKey({ kind = "journal", docid = tostring(docid), tag = Puzzle.TagKey(tag) })
+        for homeKey, home in pairs(Puzzle.Homes(old)) do
+            if home.kind == "journal" and home.docid == tostring(docid) and (home.tag == nil or homeKey == key) then
+                Puzzle.RemoveHome(old, homeKey)
+            end
+        end
+    end
+    (tag --[[@as table]]).puzzleid = id or ""
+    tag:UploadDocument()
+    Puzzle.IndexJournal(tag, Puzzle.JournalId(tag, prefix))
+end
+
+--"Use an existing puzzle" for a journal tag's setup.
+---@param getTag fun(): RichTag
+---@param prefix string
+---@return fun(): PuzzlePick|nil
+function Puzzle.JournalPick(getTag, prefix)
+    return function()
+        local own = Puzzle.OwnJournalId(getTag(), prefix)
+        if own == nil then
+            return nil
+        end
+        return {
+            own = own,
+            ownText = "This page's own puzzle",
+            choose = function(id)
+                Puzzle.SetJournalPuzzle(getTag(), prefix, id)
+            end,
+        }
     end
 end
 
@@ -75,29 +173,94 @@ local function FormatTime(seconds)
     return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+--The places a puzzle lives, by name, that are still there (PuzzlePlace).
+---@param id string
+---@return string[]
+local function LiveHomeNames(id)
+    local names = {}
+    for _, home in pairs(Puzzle.Homes(id)) do
+        if PuzzlePlace.HomeLive(id, home) then
+            names[#names + 1] = PuzzlePlace.HomeName(home)
+        end
+    end
+    table.sort(names)
+    return names
+end
+
+--A puzzle-wide action (Reset, Solve, Bypass, a type change) on a puzzle that
+--lives in more than one place asks first, naming every place, who is in it and
+--what its locks will do. With one place it runs at once, unless always is set
+--(Reset always asks). effects: the lock effects the action runs or undoes.
+---@param id string
 ---@param title string
----@param message string
+---@param lines string[] what the action does
 ---@param confirmText string
 ---@param onConfirm fun()
-local function Confirm(title, message, confirmText, onConfirm)
+---@param opts {always: boolean|nil, effects: "onSolve"|"onFail"|nil, effectsVerb: string|nil, onCancel: (fun())|nil}|nil
+function Puzzle.ConfirmWide(id, title, lines, confirmText, onConfirm, opts)
+    opts = opts or {}
+    local names = LiveHomeNames(id)
+    if #names <= 1 and not opts.always then
+        onConfirm()
+        return
+    end
+    local all = {}
+    for _, line in ipairs(lines) do
+        all[#all + 1] = line
+    end
+    if #names > 1 then
+        all[#all + 1] = "It applies in every place: " .. table.concat(names, ", ") .. "."
+    end
+    local people = {}
+    for _, userid in ipairs(Puzzle.PresentUsers(id)) do
+        if userid ~= dmhub.userid then
+            people[#people + 1] = Puzzle.UserNameWhere(id, userid)
+        end
+    end
+    if #people > 0 then
+        all[#all + 1] = "In it now: " .. table.concat(people, ", ") .. "."
+    end
+    if opts.effects ~= nil then
+        local effects = Puzzle.LockEffectLines(id, opts.effects)
+        if #effects > 0 then
+            all[#all + 1] = (opts.effectsVerb or "Its locks will") .. ": " .. table.concat(effects, "; ") .. "."
+        end
+    end
+    local labels = {}
+    for _, line in ipairs(all) do
+        labels[#labels + 1] = gui.Label{
+            classes = {"modalMessage"},
+            width = "100%",
+            height = "auto",
+            vmargin = 2,
+            text = line,
+        }
+    end
+    local cancelled = true
     GameHud.instance:ModalDialog{
         title = title,
-        width = 640,
-        height = 280,
+        width = 720,
+        height = 200 + 40 * #all,
         buttonsHalign = "center",
         buttons = {
             { text = "Cancel", escapeActivates = true, click = function() end },
-            { text = confirmText, click = onConfirm },
+            { text = confirmText, click = function()
+                cancelled = false
+                onConfirm()
+            end },
         },
+        destroy = function(element)
+            if cancelled and opts.onCancel ~= nil then
+                opts.onCancel()
+            end
+        end,
         gui.Panel{
-            width = 520,
-            height = 80,
+            flow = "vertical",
+            width = 640,
+            height = "auto",
             halign = "center",
             valign = "center",
-            gui.Label{
-                classes = {"modalMessage"},
-                text = message,
-            },
+            children = labels,
         },
     }
 end
@@ -118,9 +281,11 @@ local function SmallButton(text, press)
 end
 
 --Build the frame for one puzzle. opts.editing() reports whether the page is in
---edit mode (no moves then); opts.width is the frame's width.
+--edit mode (no moves then); opts.atLock marks a window opened at the puzzle's
+--lock; opts.where (a string, or a function returning one) says where this
+--player has it open, for other players' presence lines.
 ---@param id string|nil nil shows the "save the page first" message
----@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil}|nil
+---@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil, atLock: boolean|nil, where: string|(fun(): string|nil)|nil}|nil
 ---@return Panel
 function Puzzle.CreatePanel(id, opts)
     opts = opts or {}
@@ -138,10 +303,20 @@ function Puzzle.CreatePanel(id, opts)
     local assistRow
     local directorRow
     local timerButtons
+    local helpButton
     local Refresh
 
     local function Editing()
         return opts.editing ~= nil and opts.editing() == true
+    end
+
+    ---@return string|nil
+    local function Where()
+        local where = opts.where
+        if type(where) == "function" then
+            return where()
+        end
+        return where
     end
 
     --the Director, or the host of a game with no Director (who otherwise has no
@@ -149,6 +324,14 @@ function Puzzle.CreatePanel(id, opts)
     local function IsDirector()
         return dmhub.isDMOrPlayerHost == true
     end
+
+    --a player who opened a lock's puzzle anywhere but the lock: they can look.
+    local function Away()
+        return m_id ~= nil and not opts.atLock and not IsDirector() and Puzzle.SolveOnlyAtLock(m_id --[[@as string]])
+    end
+    local m_builtAway = false
+    local awayLabel
+    local presenceLabel
 
     local function BuildAssists(def)
         local children = {}
@@ -233,15 +416,21 @@ function Puzzle.CreatePanel(id, opts)
     ---@param ctx PuzzleContext|nil
     local function BuildContent(def, ctx)
         local typeid = def ~= nil and def.id or nil
-        if typeid == m_builtType then
+        local away = ctx ~= nil and ctx.away == true
+        if typeid == m_builtType and away == m_builtAway then
             return
         end
         m_builtType = typeid
+        m_builtAway = away
         m_typePanel = nil
         if def ~= nil and ctx ~= nil then
             local ok, panel = pcall(def.Render, ctx)
             if ok and panel ~= nil then
                 m_typePanel = panel
+                --away from the lock: the board shows but takes no clicks.
+                if away then
+                    panel:MakeNonInteractiveRecursive()
+                end
             else
                 print("PUZZLE:: Render failed for type", typeid, panel)
             end
@@ -261,7 +450,7 @@ function Puzzle.CreatePanel(id, opts)
                 "Save the page to set up this puzzle.",
                 opts.placeholder or "Puzzle: choose a type in the annotations strip below.")
             placeholder:SetClass("collapsed", false)
-            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow}) do
+            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel, helpButton}) do
                 panel:SetClass("collapsed", true)
             end
             return
@@ -269,7 +458,13 @@ function Puzzle.CreatePanel(id, opts)
         placeholder:SetClass("collapsed", true)
 
         local id = m_id --[[@as string]]
-        local ctx = Puzzle.Context(id, { editing = Editing() })
+        local away = Away()
+        local ctx = Puzzle.Context(id, { editing = Editing(), away = away })
+        if away then
+            local name = Puzzle.LockObjectName(id)
+            awayLabel.text = name ~= nil and string.format("Solve this at the %s.", name) or "Solve this at its lock."
+        end
+        awayLabel:SetClass("collapsed", not away)
         local state = Puzzle.ReadState(id)
         ctx.state = state
         BuildContent(def, ctx)
@@ -303,6 +498,7 @@ function Puzzle.CreatePanel(id, opts)
         end
         statusLabel.text = line or ""
         statusLabel:SetClass("collapsed", line == nil)
+        helpButton:SetClass("collapsed", def.howToPlay == nil)
 
         local left = Puzzle.TimeLeft(id)
         local limit = Puzzle.EffectiveLimit(ctx.config)
@@ -343,6 +539,23 @@ function Puzzle.CreatePanel(id, opts)
         text = "",
     }
 
+    awayLabel = gui.Label{
+        classes = {"collapsed", "sizeS", "warning"},
+        width = 360,
+        height = "auto",
+        halign = "left",
+        text = "",
+    }
+
+    --who else has it open, and where from.
+    presenceLabel = gui.Label{
+        classes = {"collapsed", "sizeS", "info"},
+        width = 360,
+        height = "auto",
+        halign = "left",
+        text = "",
+    }
+
     hintLabel = gui.Label{
         classes = {"collapsed", "sizeS", "info"},
         width = 360,
@@ -365,6 +578,60 @@ function Puzzle.CreatePanel(id, opts)
         height = "auto",
         halign = "left",
         text = "",
+    }
+
+    helpButton = gui.Button{
+        classes = {"collapsed", "sizeXs"},
+        text = "?",
+        width = 22,
+        height = 22,
+        hmargin = 4,
+        valign = "top",
+        hover = gui.Tooltip("How to play"),
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            local def = m_id ~= nil and Puzzle.GetType(m_id) or nil
+            local help = def ~= nil and def.howToPlay or nil
+            if type(help) == "function" then
+                help = help(Puzzle.ReadConfig(m_id --[[@as string]]))
+            end
+            if def == nil or type(help) ~= "string" or help == "" then
+                return
+            end
+            local children = {
+                gui.Label{
+                    classes = {"sizeM", "bold"},
+                    width = 420,
+                    height = "auto",
+                    vmargin = 2,
+                    text = string.format("How to play: %s", def.name),
+                },
+            }
+            for paragraph in string.gmatch(help .. "\n\n", "(.-)\n%s*\n") do
+                if paragraph:match("%S") then
+                    children[#children + 1] = gui.Label{
+                        classes = {"sizeS"},
+                        width = 420,
+                        height = "auto",
+                        vmargin = 3,
+                        text = paragraph,
+                    }
+                end
+            end
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                classes = {"bordered", "bg"},
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                pad = 10,
+                borderBox = true,
+                children = children,
+            }
+        end,
     }
 
     assistRow = gui.Panel{
@@ -416,18 +683,33 @@ function Puzzle.CreatePanel(id, opts)
         height = "auto",
         halign = "left",
         SmallButton("Reset", function()
-            Confirm("Reset the puzzle?", "The table's progress will be lost, and the timer and hint start over.", "Reset", function()
-                if mod.unloaded or m_id == nil then
-                    return
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "The table's progress will be lost, and the timer and hint start over." }, "Reset", function()
+                if not mod.unloaded then
+                    Puzzle.Reset(id)
                 end
-                Puzzle.Reset(m_id)
-            end)
+            end, { always = true, effects = "onSolve", effectsVerb = "What its locks did is undone" })
         end),
         SmallButton("Solve", function()
-            if m_id then Puzzle.Solve(m_id) end
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Solve the puzzle?", { "It is marked solved for everyone." }, "Solve", function()
+                Puzzle.Solve(id)
+            end, { effects = "onSolve" })
         end),
         SmallButton("Bypass", function()
-            if m_id then Puzzle.Bypass(m_id) end
+            if m_id == nil then
+                return
+            end
+            local id = m_id --[[@as string]]
+            Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved, marked as bypassed." }, "Bypass", function()
+                Puzzle.Bypass(id)
+            end, { effects = "onSolve" })
         end),
         hintButton,
         rolesButton,
@@ -473,7 +755,21 @@ function Puzzle.CreatePanel(id, opts)
             --does: the host waits for this player's view of a game's deal.
             element.data.ticks = (element.data.ticks or 0) + 1
             if m_id ~= nil and element.data.ticks % FRAME_HEARTBEAT_TICKS == 1 and not Editing() and Puzzle.Exists(m_id) then
-                Puzzle.MarkPresent(m_id, true)
+                Puzzle.MarkPresent(m_id, true, Where())
+            end
+            --who else is in it; players do not see the Director.
+            if m_id ~= nil and element.data.ticks % 4 == 1 then
+                local names = {}
+                for _, userid in ipairs(Puzzle.PresentUsers(m_id)) do
+                    if userid ~= dmhub.userid and (dmhub.isDM or not dmhub.IsUserDM(userid)) then
+                        names[#names + 1] = Puzzle.UserNameWhere(m_id, userid)
+                    end
+                end
+                local text = #names > 0 and ("Also in it: " .. table.concat(names, ", ") .. ".") or ""
+                if presenceLabel.text ~= text then
+                    presenceLabel.text = text
+                    presenceLabel:SetClass("collapsed", text == "")
+                end
             end
         end,
         destroy = function(element)
@@ -485,8 +781,17 @@ function Puzzle.CreatePanel(id, opts)
         end,
         data = {},
 
-        content,
+        --the "?" sits beside the board's top-right corner, never over the board.
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            content,
+            helpButton,
+        },
         placeholder,
+        awayLabel,
         banner,
         hintLabel,
         gui.Panel{
@@ -499,6 +804,7 @@ function Puzzle.CreatePanel(id, opts)
             timerLabel,
         },
         assistRow,
+        presenceLabel,
         directorRow,
     }
 
@@ -557,6 +863,9 @@ local function FieldControl(field, config, setConfig)
             classes = {"sizeS"},
             width = "auto",
             height = 22,
+            --sizeS does not reach the check's own label; without this a long
+            --label pushes the setup box past its window.
+            fontSize = 14,
             text = field.label,
             value = value == true,
             change = function(element)
@@ -582,18 +891,88 @@ local function FieldControl(field, config, setConfig)
                 setConfig({ [key] = element.value })
             end,
         }
+    elseif field.type == "custom" and field.Control ~= nil then
+        return field.Control(config, setConfig)
     end
     return nil
+end
+
+--"Use an existing puzzle" for a place (a lock, a page tag): its own puzzle, or
+--any set-up puzzle in the index.
+---@class PuzzlePick
+---@field own string|nil the puzzle this place has on its own
+---@field ownText string
+---@field choose fun(id: string|nil) nil: back to its own puzzle
+
+---@param id string
+---@param pick PuzzlePick
+---@return Panel[]
+local function PickRows(id, pick)
+    local others = {}
+    for otherId in pairs(Puzzle.Index()) do
+        if otherId ~= pick.own and Puzzle.Exists(otherId) then
+            local def = Puzzle.GetType(otherId)
+            others[#others + 1] = { id = otherId, text = string.format("%s (%s)", Puzzle.Title(otherId), def ~= nil and def.name or "") }
+        end
+    end
+    if #others == 0 then
+        return {}
+    end
+    table.sort(others, function(a, b) return a.text < b.text end)
+    local options = { { id = "own", text = pick.ownText } }
+    for _, o in ipairs(others) do
+        options[#options + 1] = o
+    end
+    return {
+        gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", text = "Use an existing puzzle:" },
+        gui.Dropdown{
+            options = options,
+            idChosen = cond(id == pick.own or not Puzzle.Exists(id), "own", id),
+            change = function(dropdown)
+                ---@cast dropdown Dropdown
+                local chosen = tostring(dropdown.idChosen)
+                local target = cond(chosen == "own", nil, chosen)
+                if target == nil and not Puzzle.Exists(id) then
+                    return
+                end
+                if (target or pick.own) ~= id then
+                    pick.choose(target)
+                end
+            end,
+        },
+    }
 end
 
 --The settings popup's contents: type picker, the type's fields, time limit.
 ---@param id string
 ---@param onTypeChosen fun(typeid: string)
+---@param skipImages boolean|nil true where the image field is already shown beside the setup (the annotations strip)
+---@param pick PuzzlePick|nil offers "Use an existing puzzle" first
 ---@return Panel
-function Puzzle.SetupPanel(id, onTypeChosen)
+function Puzzle.SetupPanel(id, onTypeChosen, skipImages, pick)
     local def = Puzzle.GetType(id)
     local config = Puzzle.ReadConfig(id)
     local rows = {}
+
+    if pick ~= nil then
+        for _, row in ipairs(PickRows(id, pick)) do
+            rows[#rows + 1] = row
+        end
+        if #rows > 0 then
+            rows[#rows].selfStyle.bmargin = 6
+        end
+    end
+
+    local places = LiveHomeNames(id)
+    if #places > 1 then
+        rows[#rows + 1] = gui.Label{
+            classes = {"sizeS", "info"},
+            width = 300,
+            height = "auto",
+            bmargin = 6,
+            text = "Changes here apply in every place: " .. table.concat(places, ", ") .. ".",
+        }
+    end
 
     local function SetConfig(changes)
         for k, v in pairs(changes) do
@@ -615,7 +994,15 @@ function Puzzle.SetupPanel(id, onTypeChosen)
             ---@cast dropdown Dropdown
             local typeid = tostring(dropdown.idChosen)
             if def == nil or def.id ~= typeid then
-                onTypeChosen(typeid)
+                Puzzle.ConfirmWide(id, "Change the puzzle type?", { "The puzzle starts over as the new type." }, "Change", function()
+                    onTypeChosen(typeid)
+                end, {
+                    onCancel = function()
+                        if dropdown.valid and def ~= nil then
+                            dropdown.idChosen = def.id
+                        end
+                    end,
+                })
             end
         end,
     }
@@ -623,11 +1010,14 @@ function Puzzle.SetupPanel(id, onTypeChosen)
     if def ~= nil then
         local fieldRows = {}
         for _, field in ipairs(def.fields) do
-            if field.type ~= "image" then
+            if field.type ~= "image" or not skipImages then
                 local control = FieldControl(field, config, function(changes)
                     SetConfig(changes)
                     for _, row in ipairs(fieldRows) do
                         row:FireEvent("visibility")
+                        --custom controls that depend on other fields (a code built
+                        --from the chosen symbols) rebuild on this.
+                        row:FireEventTree("setupChanged")
                     end
                 end)
                 if control ~= nil then
@@ -677,8 +1067,9 @@ end
 ---@param getId fun(): string|nil
 ---@param onTypeChosen fun(id: string, typeid: string)
 ---@param setTag fun(tag: any)|nil receives the tag object each refreshEditor hands over
+---@param getPick (fun(): PuzzlePick|nil)|nil offers "Use an existing puzzle" in the setup
 ---@return Panel
-function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
+function Puzzle.CreateEditor(getId, onTypeChosen, setTag, getPick)
     local tile
     local resultPanel
 
@@ -740,12 +1131,22 @@ function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
                     return
                 end
                 element.popupsInheritStyles = true
+                local pick = getPick ~= nil and getPick() or nil
+                if pick ~= nil then
+                    local choose = pick.choose
+                    pick.choose = function(otherId)
+                        choose(otherId)
+                        element.popup = nil
+                        resultPanel.data.builtFor = nil
+                        resultPanel:FireEvent("refreshEditor")
+                    end
+                end
                 element.popup = Puzzle.SetupPanel(id, function(typeid)
                     onTypeChosen(id, typeid)
                     element.popup = nil
                     resultPanel.data.builtFor = nil
                     resultPanel:FireEvent("refreshEditor")
-                end)
+                end, true, pick)
             end,
         },
         tile,
@@ -779,15 +1180,20 @@ function Puzzle.IsWindowOpen(id)
 end
 
 --Open a puzzle in a floating window that does not block the map. One window per
---puzzle; opening it again leaves the existing one. opts.header(id) may return a
---panel for the title bar (the map lock adds the Director's setup button there).
+--puzzle; opening it again leaves the existing one, unless this opening is at
+--the lock and that one was not. opts.header(id) may return a panel for the
+--title bar (the map lock adds the Director's setup button there); opts.atLock
+--and opts.where go to the frame (Puzzle.CreatePanel).
 ---@param id string
----@param opts {header: (fun(id: string): Panel|nil)|nil}|nil
+---@param opts {header: (fun(id: string): Panel|nil)|nil, atLock: boolean|nil, where: string|nil}|nil
 ---@return Panel|nil
 function Puzzle.OpenWindow(id, opts)
     opts = opts or {}
     if Puzzle.IsWindowOpen(id) then
-        return g_windows[id]
+        if not opts.atLock or g_windows[id].data.atLock then
+            return g_windows[id]
+        end
+        g_windows[id]:DestroySelf()
     end
     local window
     local function Close()
@@ -815,9 +1221,21 @@ function Puzzle.OpenWindow(id, opts)
         escape = function(element)
             Close()
         end,
+        data = { atLock = opts.atLock == true, existed = Puzzle.Exists(id) },
+        --deleting the puzzle (Puzzle.Forget) closes it on every client.
+        monitorGame = Puzzle.MonitorPaths(id),
+        refreshGame = function(element)
+            if Puzzle.Exists(id) then
+                element.data.existed = true
+            elseif element.data.existed then
+                Close()
+            end
+        end,
         thinkTime = HEARTBEAT_SECONDS,
         think = function(element)
-            Puzzle.MarkPresent(id, true)
+            if Puzzle.Exists(id) then
+                Puzzle.MarkPresent(id, true, opts.where)
+            end
         end,
         destroy = function(element)
             g_windows[id] = nil
@@ -848,12 +1266,12 @@ function Puzzle.OpenWindow(id, opts)
                 end,
             },
         },
-        Puzzle.CreatePanel(id, {}),
+        Puzzle.CreatePanel(id, { atLock = opts.atLock, where = opts.where }),
     }
     gui.ShowDialog(mod, window)
     g_windows[id] = window
     g_noticed[id] = true
-    Puzzle.MarkPresent(id, true)
+    Puzzle.MarkPresent(id, true, opts.where)
     return window
 end
 
@@ -869,6 +1287,17 @@ local function OpenFromNotice(id)
     else
         Puzzle.OpenWindow(id)
     end
+end
+
+---@param id string
+---@param userid string
+---@return string
+local function JoinText(id, userid)
+    local where = Puzzle.PresentWhere(id, userid)
+    if where ~= nil then
+        return string.format("%s is at %s, %s.", Puzzle.UserName(userid), Puzzle.Title(id), where)
+    end
+    return string.format("%s is at %s.", Puzzle.UserName(userid), Puzzle.Title(id))
 end
 
 --A small notice that someone else is working on a puzzle, with a Join button.
@@ -901,7 +1330,7 @@ local function ShowJoinNotice(id, userid)
             height = "auto",
             valign = "center",
             hmargin = 6,
-            text = string.format("%s is at %s.", Puzzle.UserName(userid), Puzzle.Title(id)),
+            text = JoinText(id, userid),
         },
         gui.Button{
             classes = {"sizeS"},
@@ -946,7 +1375,8 @@ local function PresenceTick()
         end
         if not g_noticed[id] and not Puzzle.IsShownLocally(id) and Puzzle.Exists(id) then
             for _, userid in ipairs(Puzzle.PresentUsers(id)) do
-                if userid ~= dmhub.userid then
+                --the Director having it open (preparing it) tells nobody.
+                if userid ~= dmhub.userid and not dmhub.IsUserDM(userid) then
                     g_noticed[id] = true
                     ShowJoinNotice(id, userid)
                     break
@@ -981,6 +1411,7 @@ function RichPuzzle.CreateDisplay(self)
     local panel
     panel = Puzzle.CreatePanel(Puzzle.JournalId(self, ID_PREFIX), {
         editing = function() return m_token ~= nil and m_token.editor == true end,
+        where = function() return Puzzle.OnPageText(self) end,
     })
     local outer
     outer = gui.Panel{
@@ -1010,7 +1441,7 @@ end
 function RichPuzzle.CreateEditor(self)
     return Puzzle.CreateEditor(function() return Puzzle.JournalId(self, ID_PREFIX) end, function(id, typeid)
         Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
-    end, function(tag) self = tag end)
+    end, function(tag) self = tag end, Puzzle.JournalPick(function() return self end, ID_PREFIX))
 end
 
 MarkdownDocument.RegisterRichTag(RichPuzzle)

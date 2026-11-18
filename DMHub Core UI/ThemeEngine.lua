@@ -485,6 +485,9 @@ function ThemeEngine.RegisterColorScheme(spec)
         gradients = spec.gradients or {},
         highContrast = spec.highContrast == true,
     }
+    --styles resolved before this scheme existed are stale (a GetStyles from a
+    --file that loads before DefaultStyles would otherwise cache an empty result).
+    _cache = {}
     return true
 end
 
@@ -558,6 +561,8 @@ function ThemeEngine.RegisterTheme(spec)
         fonts = spec.fonts or {},
         styles = spec.styles or {},
     }
+    --as for color schemes: drop styles resolved before this theme existed.
+    _cache = {}
     return true
 end
 

@@ -706,6 +706,21 @@ function EotwRoster.AwayHeroes()
     return result
 end
 
+--Is any of this account's heroes at home (not claimed by a party)? nil
+--while the roster has not been listed.
+function EotwRoster.HeroAtHome()
+    if m_heroes == nil then
+        return nil
+    end
+    local away = EotwRoster.AwayHeroes()
+    for _, hero in ipairs(m_heroes) do
+        if away[hero.heroid] == nil then
+            return true
+        end
+    end
+    return false
+end
+
 --Put a working copy in this lobby game's player party. A pregen arrives with
 --its module party and a city record with its uploader's lobby party, neither
 --of which exists here (the sheet shows "Controlled by: (Invalid)"). The

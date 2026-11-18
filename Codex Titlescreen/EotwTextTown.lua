@@ -94,6 +94,11 @@ text("eotw.town.plaque_counts", [[{town}. {away}]])
 --short), and most have a title (large, at the top of its full-screen scene)
 --and a tagline (the line under the title).
 
+--The tooltip on a location that is closed to you for a while (the Great Forge
+--after a talk with Giddlebrick that went badly). {time} is the time left, as
+--the clock under its name shows it (1:23:45).
+text("eotw.locations.locked_for", [[Closed to you for now. Come back in {time}.]])
+
 text("eotw.locations.guild.label", [[Hero's Guild]])
 text("eotw.locations.guild.title", [[The Hero's Guild]])
 text("eotw.locations.guild.tagline", [[A fire in the hearth, shields on the walls, and a ledger of every hero sworn to the guild. Create a hero or take on a recruit.]])
@@ -143,6 +148,11 @@ text("eotw.locations.locked.need_hero_venture", [[You need a hero before you can
 text("eotw.locations.locked.need_hero_rest", [[You need a hero before you can rest. Visit the Hero's Guild.]])
 --The Arcane Market, with no hero yet:
 text("eotw.locations.locked.need_hero_shop", [[You need a hero before you can shop. Visit the Hero's Guild.]])
+--A building site (the Construction, the Town Hall's, the Training Grounds',
+--the Great Forge's), with no hero yet (DRAFT):
+text("eotw.locations.locked.need_hero_build", [[You need a hero before you can help build. Visit the Hero's Guild.]])
+--A building site, with every hero away with a party (DRAFT):
+text("eotw.locations.locked.heroes_away", [[All your heroes are away with a party. Come back when one of them is in town.]])
 
 ----------------------------------------------------------------------------
 -- THE TOWN MAP: the active heroes along the bottom
@@ -292,6 +302,12 @@ text("eotw.series.part_locked", [[Win Part {part} to unlock this part.]])
 text("eotw.series.part_closed_by_respite", [[Your heroes have rested since you won Part {part}. Win it again to unlock this part.]])
 --The tooltip on a part already won.
 text("eotw.series.part_won_tooltip", [[Your party has won this part.]])
+--In the Proving Pits, the tooltip on a part of this week's (or a past)
+--Encounter of the Week that is played at the Town Gate, not here.
+text("eotw.series.part_at_gate", [[This part is played at the Town Gate.]])
+--At the Town Gate, the tooltip on a part that is only played in the Proving
+--Pits for now (shown only when the author gave no "Coming soon" text).
+text("eotw.series.part_in_pits", [[This part can only be played in the Proving Pits for now.]])
 
 ----------------------------------------------------------------------------
 -- THE PROVING PITS: the board
@@ -411,6 +427,9 @@ text("eotw.party.card_already_completed", [[Already Completed]])
 text("eotw.party.challenge_suffix", [[{encounter} (Challenge Mode)]])
 --Under the encounter's story in a Challenge Mode party.
 text("eotw.party.challenge_note", [[Challenge Mode: an especially lethal version of this encounter. A hero's first win in Challenge Mode is worth an extra Victory, and a hero who has never won this encounter earns both at once.]])
+--The same for a Deadly Mode party (only the Great Forge's siege has one).
+text("eotw.party.deadly_suffix", [[{encounter} (Deadly Mode)]])
+text("eotw.party.deadly_note", [[Deadly Mode: Challenge Mode applied twice. A hero's first win in Deadly Mode is worth two extra Victories.]])
 --Tooltips on the card's hover buttons.
 text("eotw.party.card_remove_tooltip", [[Remove from the lineup]])
 text("eotw.party.card_kick_tooltip", [[Kick {player} from the game (removes all their heroes)]])
@@ -542,6 +561,16 @@ text("eotw.feedback.entry", [[<b>{player}</b> ({vote}): {feedback}]])
 text("eotw.feedback.entry_no_text", [[<b>{player}</b> ({vote})]])
 --{message} is the reason the server gave.
 text("eotw.feedback.load_failed", [[Could not load the feedback: {message}]])
+--Withdraw: the author takes their module out of the Proving Pits (it becomes
+--Private). Short: a button. The confirm text replaces it after one click.
+text("eotw.feedback.withdraw_button", [[Withdraw]])
+text("eotw.feedback.withdraw_confirm", [[Click again to withdraw]])
+text("eotw.feedback.withdrawing", [[Withdrawing...]])
+text("eotw.feedback.withdrawn", [[Withdrawn]])
+--{module} is the module's name.
+text("eotw.feedback.withdraw_tooltip", [[Take {module} out of the Proving Pits. Every encounter in it is withdrawn, and the module becomes Private. To bring it back, publish it again as Public or Unlisted.]])
+--{message} is the reason the withdraw failed.
+text("eotw.feedback.withdraw_failed", [[Could not withdraw the module: {message}]])
 
 ----------------------------------------------------------------------------
 -- THE PROVING PITS DEBRIEF: back in town after a Proving Pits game
@@ -1170,6 +1199,8 @@ text("downtime.card.characteristic_separator", [[ or ]])
 --The latest rolls. {rolls} is a list of the rolls below.
 text("downtime.card.latest", [[Latest: {rolls}]])
 text("downtime.card.no_rolls", [[No one has worked on it yet.]])
+--In place of the latest rolls while a project is under siege (the Great Forge).
+text("downtime.card.siege", [[Brave heroes must battle the Demons]])
 --One roll: {hero} is who rolled, {total} the points it added.
 text("downtime.card.recent_roll", [[{hero} +{total}]])
 --The same for a breakthrough roll; {breakthrough} is the word below, in
@@ -1633,6 +1664,9 @@ text("tribute.capstone_subtitle", [[The hand that finished it]])
 text("tribute.stone_detail", [[with {hero}, {when}]])
 --Under the boxes. {builders} and {points} are the counts below.
 text("tribute.summary", [[{builders} have given {points}.]])
+--A besieged project's line for its fight: count is the players who won it.
+text("tribute.defenders_summary.one", [[{count} brave hero has battled the Demons yielding {points}.]])
+text("tribute.defenders_summary.other", [[{count} brave heroes have battled the Demons yielding {points}.]])
 text("tribute.builder_count.one", [[{count} builder]])
 text("tribute.builder_count.other", [[{count} builders]])
 text("tribute.points.one", [[{count} Project Point]])
@@ -1652,6 +1686,21 @@ text("tribute.unknown_player", [[A forgotten builder]])
 text("tribute.unknown_hero", [[a hero now gone]])
 --The dialog's button. Short: a button.
 text("tribute.close_button", [[Close]])
+--A project won by fighting as well as building (the Great Forge's siege).
+--The fight's three difficulties, as the Tribute and the Forge's board name them.
+text("tribute.siege_difficulty.normal", [[Normal]])
+text("tribute.siege_difficulty.challenge", [[Challenge Mode]])
+text("tribute.siege_difficulty.deadly", [[Deadly Mode]])
+--The box at the very top: everyone who won on Deadly.
+text("tribute.deadly_heading", [[Victors on Deadly]])
+text("tribute.deadly_subtitle", [[They drove back the demons at their deadliest]])
+--The list of everyone who won the fight, above the builders.
+text("tribute.defenders_heading", [[The Defenders]])
+--Hovering a defender: the heroes they won with.
+text("tribute.defender_wins_heading", [[Won with:]])
+text("tribute.defender_win_line", [[{difficulty}: {hero}]])
+--Under the capstone when a win in the fight, not a roll, finished it.
+text("tribute.capstone_siege_subtitle", [[The victory that finished it]])
 
 ----------------------------------------------------------------------------
 -- THE TOWN HALL: town votes and petitions (Codex Titlescreen/EotwTownHall.lua)

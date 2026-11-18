@@ -176,6 +176,20 @@ end
 PuzzleType.Register{
     id = "terminal",
     name = "Computer terminal",
+    howToPlay = function(config)
+        local attempts = math.tointeger(tonumber(config.attempts)) or 0
+        local lines = {
+            "Type the password and press Enter. Capital letters and spaces at either end don't matter.",
+            "The password is somewhere in the world: a note, a journal page, something a character said.",
+        }
+        if attempts > 0 then
+            lines[#lines + 1] = string.format("You have %d %s. Run out and the terminal locks for good.", attempts, attempts == 1 and "try" or "tries")
+        end
+        if tostring(config.codeSheet or "") ~= "" then
+            lines[#lines + 1] = "The Director can give someone the code sheet. Only they can see it, so ask them to talk you through it."
+        end
+        return table.concat(lines, "\n\n")
+    end,
     fields = {
         { id = "password", type = "text", label = "Password", default = "" },
         { id = "attempts", type = "number", label = "Attempts (0 for unlimited)", default = 3, min = 0, max = 10 },

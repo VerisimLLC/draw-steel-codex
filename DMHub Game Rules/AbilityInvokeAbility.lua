@@ -1894,8 +1894,12 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 --A hero's ability can make a monster act: To the Death! has its
                 --target free strike the hero. The monster is then the caster, and
                 --its choice is the AI's, not the hero's player's (SASGFH6V).
+                --A hero's Push!/Pull!/Slide! also has the moved monster as caster,
+                --but that destination is the hero's player's choice (SWJWEMWN).
+                local name = abilityClone.name
+                local forcedMove = name == "Push!" or name == "Pull!" or name == "Slide!"
                 aiPromptCallback = fallback(invokerToken)
-                    or (casterToken ~= nil and casterToken ~= invokerToken and fallback(casterToken))
+                    or (not forcedMove and casterToken ~= nil and casterToken ~= invokerToken and fallback(casterToken))
                     or false
             end
         end

@@ -3030,16 +3030,22 @@ end
 --thread is blocked in a wait, so its own trigger poll cannot run. The turn-start
 --wait uses this: a monster whose Before Start of Turn trigger is a prompt holds
 --its BeginTurn open until the prompt is answered. minionsOnly limits it to
---minions (the minion-death wait above). Each prompt is tried once per wait.
+--minions (the minion-death wait above); dyingOnly to creatures at 0 Stamina
+--still on the map (ResolveDyingCreatureTriggers). Each prompt is tried once per
+--wait. Returns how many prompts it tried this call.
 ---@param answered table<string, boolean> prompts already tried this wait
 ---@param minionsOnly? boolean
-function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
+---@param dyingOnly? boolean
+---@return integer
+function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly, dyingOnly)
     local work = {}
     for _,token in ipairs(dmhub.allTokens) do
         local props = token.valid and token.properties or nil
         local eligible = false
         if props ~= nil and not token.playerControlled then
-            if props.minion then
+            if dyingOnly then
+                eligible = MonsterAI.TokenIsDyingOnMap(token)
+            elseif props.minion then
                 eligible = not props.minionDead
             elseif not minionsOnly then
                 eligible = not props:IsDead()
@@ -3097,6 +3103,57 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
             end
         end
     end
+    return #work
+end
+
+--True while an AI-run creature at 0 Stamina has a death trigger still to come:
+--queued behind running casts, or a prompt not yet tried in this wait.
+---@param answered table<string, boolean>
+---@return boolean
+local function DyingCreatureTriggerPending(answered)
+    for _,token in ipairs(dmhub.allTokens) do
+        if not token.playerControlled and MonsterAI.TokenIsDyingOnMap(token) then
+            if ActivatedAbility.HasDeferredCastFor(token) then
+                return true
+            end
+            for _,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
+                local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
+                if not answered[key] and not trigger.triggered and not trigger.dismissed then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--Answers the prompts of AI-run creatures at 0 Stamina (a War Dog's Loyalty
+--Collar) so the blast lands before the AI acts again. These prompts only appear
+--once the killing ability has finished, and the AI's between-turns trigger
+--check does not run during a turn. Returns 0 at once when nothing is pending,
+--else how many prompts it answered.
+---@param timeout? number seconds, default 20
+---@return integer
+function MonsterAI:ResolveDyingCreatureTriggers(timeout)
+    local deadline = dmhub.Time() + (timeout or 20)
+    local answered = {}
+    local total = 0
+    while not mod.unloaded do
+        local count = self:AnswerAITriggersDuringWait(answered, false, true)
+        total = total + count
+        if count == 0 and not DyingCreatureTriggerPending(answered) then
+            return total
+        end
+        if dmhub.Time() >= deadline then
+            self:LogDecision("DEATH TRIGGER WAIT TIMEOUT", {
+                category = "Triggered Action",
+                result = "continuing with a dying creature's trigger still pending",
+            })
+            return total
+        end
+        coroutine.yield(0.1)
+    end
+    return total
 end
 
 function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
@@ -3294,6 +3351,9 @@ function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
             self._tmp_abortTurn = reason
             error(reason)
         end
+        --An opportunity attack may have killed the mover; its death trigger
+        --(Loyalty Collar) fires now, not after the turn.
+        self:ResolveDyingCreatureTriggers()
         if not self.TokenIsLiveCombatant(token) then
             if continueIfActorDies then
                 self:LogDecision("MOVEMENT ACTOR LOST", {
@@ -4418,6 +4478,25 @@ function MonsterAI.TokenIsLiveCombatant(token)
         and not token.properties:IsDead()
 end
 
+--- True for a creature at 0 Stamina that is still on the map. Death triggers
+--- set to "Fire after other abilities finish" (a War Dog's Loyalty Collar) keep
+--- their creature there and prompt on it, which live-combatant checks skip.
+--- A minion reads its squad's shared Stamina, so it often still looks alive
+--- here; its prompts are answered by the AI's wait for minion deaths and its
+--- between-turns trigger check instead.
+--- @param token CharacterToken|nil
+--- @return boolean
+function MonsterAI.TokenIsDyingOnMap(token)
+    if token == nil or not token.valid or token.despawned or token.properties == nil then
+        return false
+    end
+    local props = token.properties
+    if props.minion and props:try_get("minionDead", false) then
+        return false
+    end
+    return props:IsDead() or props:CurrentHitpoints() <= 0
+end
+
 function MonsterAI:RefreshCombatants(queue, referenceToken)
     self.enemyTokens = {}
     self.allyTokens = {}
@@ -5066,6 +5145,9 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
     local execute = registration.execute or function(_, ai, token, scoringInfo, ability, context)
         ai:ExecuteAbility(token, ability)
     end
+    --Read now: the ability may destroy its own caster (Fodder Run spends the
+    --minion that cast it), leaving caster.properties nil afterwards.
+    local casterType = caster.properties.monster_type
     local ok, err = self:RunWithTokenControl(caster, function()
         execute(registration, self, caster, bestCandidate.scoringInfo, bestCandidate.ability, bestCandidate.context)
     end)
@@ -5075,12 +5157,12 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
             ability = bestCandidate.ability.name,
             reason = "execution failed: " .. tostring(err),
         })
-        self:LogMove(caster.properties.monster_type, registration.id, "Execution failed: " .. tostring(err))
+        self:LogMove(casterType, registration.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
-    self:LogMove(caster.properties.monster_type, registration.id, "Executed at the start of the turn")
+    self:LogMove(casterType, registration.id, "Executed at the start of the turn")
     self:LogDecision("MALICE FINISHED", {
         ability = bestCandidate.ability.name,
         result = "executed",
@@ -10185,6 +10267,13 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         completed, reason = self:WaitForActivityReactions(activityId)
         --A hero's cast this one set off may still be resolving (C7YTDXC6).
         if completed then
+            completed, reason = self:WaitForHeroCasts()
+        end
+        --A monster this cast killed may now explode (Loyalty Collar), and that
+        --blast can set off heroes' reactions in turn. Only the outermost cast
+        --waits: a collar queued behind an outer cast cannot go off until that
+        --outer cast has ended.
+        if completed and previousInProgress == nil and self:ResolveDyingCreatureTriggers() > 0 then
             completed, reason = self:WaitForHeroCasts()
         end
     end)

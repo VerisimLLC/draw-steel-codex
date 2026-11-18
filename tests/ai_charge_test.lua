@@ -180,6 +180,7 @@ creature = {SetTokenAIActivity = function() return nil end}
 MonsterAI.TokenIsLiveCombatant = function() return true end
 function moveAi:MovementLocOverlapsCreature() return false end
 function moveAi:WaitForMovementActivity() return true end
+function moveAi:ResolveDyingCreatureTriggers() return 0 end
 local stopAt = at(0)
 function mino:Move() self.loc = stopAt; return {} end
 mino.loc = at(0)

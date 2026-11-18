@@ -384,6 +384,16 @@ Only the poll does this: the minion-death wait (`AnswerMinionTriggersDuringWait`
 and the gnoll path still call `HandleAvailableTrigger` alone. Run
 `../dependencies/lua/bin/lua.exe tests/ai_directorless_trigger_test.lua`.
 
+Death triggers set to "Fire after other abilities finish" (every War Dog's
+Loyalty Collar) keep their creature on the map at 0 Stamina and prompt on it
+once the killing abilities finish. So the poll also checks creatures for which
+`MonsterAI.TokenIsDyingOnMap` holds, and `ai:ResolveDyingCreatureTriggers()`
+answers such prompts mid-turn: `ExecuteAbility` and `MoveToken` call it before
+returning, so the blast lands before the AI acts again. It returns at once when
+no dying creature has a prompt open or queued (`ActivatedAbility.HasDeferredCastFor`).
+The collar is `hostile`, which `HandleAvailableTrigger` always accepts, so it
+needs no `RegisterTrigger` handler, and `AssessSupport` counts it as automatic.
+
 ### "AI is running" status for every client
 
 The AI runs only on the hosting machine. So other clients can tell, `MonsterAI.lua`

@@ -1602,7 +1602,10 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- and target no one in particular, so Hidden must not exempt a creature.
 	-- Exception: a creature melded against a wall (Shadowmeld's "Wall Meld Angle") can
 	-- still be seen, and so targeted, by creatures standing in front of that wall.
+	-- Triggered abilities have no keywords, so an area-shaped one (a War Dog's Loyalty
+	-- Collar bursting on each adjacent enemy) counts as Area by its shape.
 	local isAreaAbility = ability:HasKeyword("Area") or ability.targetType == "map"
+		or (ability.typeName == "TriggeredAbility" and ability:IsTargetTypeAOE())
 	if (not targetToken.isObject) and (not isAreaAbility)
 		and (not casterToken:IsFriend(targetToken))
 		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false

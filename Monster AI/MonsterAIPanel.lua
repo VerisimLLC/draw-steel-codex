@@ -348,7 +348,10 @@ local function MonsterAIThread(process)
         local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
-                if MonsterAI.TokenIsLiveCombatant(token) and not token.playerControlled then
+                --Dying creatures too: a death trigger (Loyalty Collar) prompts on
+                --a creature already at 0 Stamina.
+                if (MonsterAI.TokenIsLiveCombatant(token) or MonsterAI.TokenIsDyingOnMap(token))
+                    and not token.playerControlled then
                     local pollProf = MonsterAI.ProfBegin("thread: trigger poll")
                     local triggers = token.properties:GetAvailableTriggers()
                     MonsterAI.ProfEnd(pollProf)
@@ -368,7 +371,7 @@ local function MonsterAIThread(process)
                             if not ok then
                                 failedTriggers[triggerKey] = true
                                 pcall(function()
-                                    if MonsterAI.TokenIsLiveCombatant(token) then
+                                    if MonsterAI.TokenIsLiveCombatant(token) or MonsterAI.TokenIsDyingOnMap(token) then
                                         token:ModifyProperties{
                                             description = "AI Trigger Recovery",
                                             undoable = false,

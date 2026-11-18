@@ -325,7 +325,8 @@ local function WithMinionDeathResolver(ai, marks, fn)
 end
 
 --Casts something that reduces these war dogs to 0 Stamina, then waits for
---their loyalty collars to go off.
+--their loyalty collars to go off. A captain's collar can prompt after the
+--cast's own wait has ended, so answer collars once more before moving on.
 local function ExecuteDetonation(ai, detonator, victims, fn)
     local marks = {}
     for _,victim in ipairs(victims) do
@@ -333,6 +334,8 @@ local function ExecuteDetonation(ai, detonator, victims, fn)
     end
     WithMinionDeathResolver(ai, marks, function()
         fn()
+        ai:WaitForAbilityIdle(30)
+        ai:ResolveDyingCreatureTriggers()
         ai:WaitForAbilityIdle(30)
     end)
 end
@@ -2152,13 +2155,43 @@ MonsterAI:RegisterMaliceAbility{
     end,
 }
 
+--The square each Fodder Run runner shifts to, by charid. Filled just before
+--the AI casts Fodder Run and emptied right after.
+local g_fodderRunDestinations = {}
+
+--Answers Fodder Run's Shift prompts, one per runner: each runner shifts to the
+--square planned for it. The prompts arrive under the type of the war dog that
+--cast Fodder Run; any other Shift falls through to the generic handler.
+local fodderRunShiftPrompt = {
+    id = "War Dog Malice: Fodder Run shift",
+    prompts = {},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local loc = g_fodderRunDestinations[casterToken.charid]
+        if loc == nil then
+            return nil
+        end
+        g_fodderRunDestinations[casterToken.charid] = nil
+        --Already standing on its square: the shift moves nowhere.
+        if ai:MovementTokenIsAtLoc(casterToken, loc) then
+            return {targets = {}}
+        end
+        return {targets = {{loc = loc}}}
+    end,
+}
+for _,monsterType in ipairs(warDogMonsters) do
+    fodderRunShiftPrompt.prompts[#fodderRunShiftPrompt.prompts+1] = monsterType .. ":Shift"
+end
+MonsterAI:RegisterPrompt(fodderRunShiftPrompt)
+
 --Fodder Run: each minion that can get next to an enemy shifts there, makes a
 --free strike, and is reduced to 0 Stamina, so its collar goes off there too.
---Minions who cannot reach anyone simply stay out of it and live.
-local function PlanFodderRun(ai, token, context)
+--Minions who cannot reach anyone simply stay out of it and live. Only minions
+--the ability can target are planned (ExecuteAbility needs sight of each one).
+local function PlanFodderRun(ai, token, context, ability)
+    --A Hidden enemy is unseen: the runners neither head for it nor can strike it.
     local enemies = {}
     for _,enemy in ipairs(context.enemyTokens or {}) do
-        if LiveCreature(enemy) then
+        if LiveCreature(enemy) and not MonsterAI.ActorIsHidden(enemy) then
             enemies[#enemies+1] = enemy
         end
     end
@@ -2172,7 +2205,8 @@ local function PlanFodderRun(ai, token, context)
 
     local minions = {}
     for _,other in ipairs(FriendlyWarDogs(token)) do
-        if IsMinion(other) then
+        if IsMinion(other) and ability:TargetPassesFilter(token, other, {})
+            and (other.charid == token.charid or CanSee(token, other)) then
             local nearest = 999
             for _,enemy in ipairs(enemies) do
                 nearest = math.min(nearest, MonsterAI.TargetDistance(other, enemy))
@@ -2226,7 +2260,7 @@ MonsterAI:RegisterMaliceAbility{
     abilities = {"Fodder Run"},
     description = "Spend 7 Malice to send at least three minions who are worth more exploded than alive running at the enemy to strike and detonate.",
     score = function(self, ai, token, ability, context)
-        local plans, total = PlanFodderRun(ai, token, context)
+        local plans, total = PlanFodderRun(ai, token, context, ability)
         if plans == nil or #plans < fodderRunMinimumMinions or total < fodderRunMinimumGain then
             return nil, string.format("only %d minions gain %.1f by running", plans ~= nil and #plans or 0, total or 0)
         end
@@ -2237,60 +2271,37 @@ MonsterAI:RegisterMaliceAbility{
         }
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
-        local plans = PlanFodderRun(ai, token, context)
+        local plans = PlanFodderRun(ai, token, context, ability)
         if plans == nil or #plans == 0 then
             return
         end
         Speak(ai, token, "fodderRun")
-        --Pay for the feature, then drive each runner directly.
-        local area = dmhub.CalculateShape{
-            shape = "map",
-            token = token,
-        }
-        ActivateWithBehaviors(ai, token, ability, {}, {}, {
-            sleep = stationaryPause,
-            symbols = {targetArea = area},
-            targetArea = area,
-        })
-
+        --The ability itself shifts every runner, then free strikes with each, then
+        --destroys them all. Its Shift prompts read the planned squares below.
+        local targets = {}
+        local victims = {}
         for _,plan in ipairs(plans) do
-            local minion = plan.token
-            if LiveCreature(minion) then
-                local ok, err = ai:RunWithTokenControl(minion, function()
-                    ExecuteGrantedShift(ai, minion, plan.loc, minion.properties:CurrentMovementSpeed() or 0)
-                    if not LiveCreature(minion) then
-                        return
-                    end
-                    local strike = BestFreeStrikeFrom(ai, minion, minion.loc, FreeStrikeOptions(minion))
-                    if strike == nil then
-                        --Only a minion who strikes is spent.
-                        ai:LogDecision("FODDER RUN", {
-                            actor = ai.TokenLogName(minion),
-                            reason = "no free strike from where the run ended",
-                            result = "minion kept",
-                        })
-                        return
-                    end
-                    ExecuteFreeStrike(ai, minion, strike)
-                    if LiveCreature(minion) then
-                        --Reduced to 0 Stamina, which sets off its loyalty collar.
-                        local spend = ActivatedAbility.Create{
-                            name = "Fodder Run",
-                            iconid = ability.iconid,
-                            display = ability.display,
-                            targetType = "self",
-                            actionResourceId = "none",
-                            behaviors = {ActivatedAbilityDestroyBehavior.new{}},
-                        }
-                        ExecuteDetonation(ai, minion, {minion}, function()
-                            ai:ExecuteAbility(minion, spend, {{token = minion}}, {sleep = grantedActionPause})
-                        end)
-                    end
-                end)
-                if not ok then
-                    print(string.format("AI:: Fodder Run failed for %s: %s", minion.name or minion.charid, tostring(err)))
-                end
+            targets[#targets+1] = {token = plan.token}
+            victims[#victims+1] = plan.token
+            g_fodderRunDestinations[plan.token.charid] = plan.loc
+        end
+        --Any war dog in the band can cast it, not just the types listed in this
+        --file; without this its runners would shift to random squares.
+        for _,monsterType in ipairs(MonsterAI.AIMonsterTypes(token.properties)) do
+            local key = monsterType .. ":Shift"
+            if MonsterAI.prompts[key] == nil then
+                MonsterAI.prompts[key] = fodderRunShiftPrompt
             end
+        end
+        local ok, err = ai:RunYieldingFunction(function()
+            ExecuteDetonation(ai, token, victims, function()
+                ai:ExecuteAbility(token, ability, targets, {sleep = stationaryPause})
+            end)
+        end)
+        g_fodderRunDestinations = {}
+        if not ok then
+            error(err, 0)
         end
     end,
 }
+

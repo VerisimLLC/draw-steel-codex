@@ -1148,6 +1148,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 elseif self:try_get("promptCard", false) and self.abilityType == "standard" and target.token ~= nil and target.token.valid then
                     --Posts a red "!" card on the target so its controller chooses when to resolve the
                     --standard ability on themselves (e.g. Swooping Torment: take damage or fall prone).
+                    local casterSymbols = casterToken.properties:LookupSymbol{}
                     AbilityInvocation.PromptStandardAbility{
                         token = target.token,
                         invoker = casterToken,
@@ -1156,9 +1157,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         targeting = "self",
                         hostile = true,
                         prompt = self:try_get("promptCardTitle", ability.name),
-                        rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
+                        rules = StringInterpolateGoblinScript(self.promptText, casterSymbols),
                         activateText = tr("Choose"),
-                        castPrompt = self:try_get("castPromptText", self.promptText),
+                        castPrompt = StringInterpolateGoblinScript(self:try_get("castPromptText", self.promptText), casterSymbols),
                     }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 

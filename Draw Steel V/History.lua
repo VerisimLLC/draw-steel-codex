@@ -433,8 +433,8 @@ end
 --- @param key string
 --- @return HistoryEntry|nil
 function History.Entry(mapid, key)
-    --a Director looking through a token's eyes sees what a player would.
-    local forPlayers = not MonsterKnowledge.LocalUserSeesAll()
+    --the Codex's usual Director check: looking through a token's eyes changes nothing here.
+    local forPlayers = not dmhub.isDM
     if g_parsedForPlayers ~= forPlayers then
         g_parsed = {}
         g_parsedForPlayers = forPlayers

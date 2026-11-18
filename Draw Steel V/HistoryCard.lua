@@ -730,7 +730,7 @@ end
 --- @param name string
 --- @return boolean
 local function PlayersMaySeeAbility(actor, name)
-    if MonsterKnowledge.LocalUserSeesAll() then
+    if dmhub.isDM then
         return true
     end
     if actor.secret then
@@ -1766,9 +1766,9 @@ local function SecretRollRow(entry, width)
     --a test or dice line keeps who may see it in privacy; an action, on its roll.
     local roll = entry.privacy or entry.roll
     --the eye is the Director's: a player who rolled GM only sees their roll, not the eye.
-    --A Director looking through a token's eyes holds the entry as cut for players, and
-    --writing that back would lose the roll for everyone, so they get no eye either.
-    if roll ~= nil and roll.hidden and MonsterKnowledge.LocalUserSeesAll() then
+    --It writes the entry back, so it must share History.Entry's gate: a viewer holding
+    --the entry as cut for players would lose the roll for everyone.
+    if roll ~= nil and roll.hidden and dmhub.isDM then
         children[1] = gui.VisibilityPanel{
             visible = roll.revealed == true,
             width = 14,

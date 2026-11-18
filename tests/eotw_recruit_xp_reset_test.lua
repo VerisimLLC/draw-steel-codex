@@ -24,7 +24,9 @@ local function check(ok, msg)
     checks = checks + 1
 end
 
---stubs for the engine globals and the file locals the functions touch
+--stubs for the engine globals and the file locals the functions touch.
+--A plain table, so the type check allows stubs with only the fields used here.
+---@type table<string, any>
 local env = setmetatable({}, { __index = _G })
 env.EotwRoster = { CanAddHero = function() return true end }
 env.EotwHeroSheet = {}
@@ -36,6 +38,7 @@ env.GameSystem = { numLevels = 10 }
 local imported
 local sourceProps = obj{
     xp = 48, --level 4 worth of XP at 16 per level
+    victories = 5,
     levelOverride = 4,
     classes = { { classid = 'fury', level = 4 } },
     inventory = { a = 1 }, equipment = { b = 2 }, equipmentMeta = {},
@@ -50,6 +53,7 @@ local joined = false
 env.WhenCharacterExists = function(charid, fn)
     copyProps = obj{
         xp = sourceProps.xp,
+        victories = sourceProps.victories,
         levelOverride = sourceProps.levelOverride,
         classes = { { classid = 'fury', level = 4 } },
         inventory = {}, equipment = {}, equipmentMeta = {},
@@ -73,10 +77,17 @@ env.EotwRoster.RecruitTitlescreenHero(source, 'Copy', function() end)
 check(imported ~= nil and joined, 'recruit should import the copy and join the roster')
 check(copyProps.eotwSourceId == 'srcid', 'copy should remember its source')
 check(copyProps.levelOverride == 1 and copyProps.classes[1].level == 1, 'copy should be level 1')
-check(sourceProps.xp == 48, 'the titlescreen hero must not be touched')
+check(copyProps.victories == 0, 'copy should start with no Victories, got ' .. tostring(copyProps.victories))
+check(sourceProps.xp == 48 and sourceProps.victories == 5, 'the titlescreen hero must not be touched')
 
+--the level as CharacterLevel() works it out on the copy: the higher of
+--levelOverride and its class levels.
+local copyLevel = copyProps.levelOverride
+for _, entry in ipairs(copyProps.classes) do
+    copyLevel = math.max(copyLevel, entry.level)
+end
 local hero = obj{ xp = copyProps.xp }
-hero.CharacterLevel = function() return 1 end
+hero.CharacterLevel = function() return copyLevel end
 local state = env.EotwHeroSheet.XpProgress(hero)
 check(state.xp == 0, 'recruited copy should start with 0 XP, got ' .. tostring(state.xp))
 check(not state.readyToLevel, 'recruited level-1 copy must not be ready to level (xpIntoLevel=' .. tostring(state.xpIntoLevel) .. ')')

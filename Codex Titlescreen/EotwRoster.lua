@@ -1630,8 +1630,11 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
                 for _,entry in ipairs(props:try_get("classes", {})) do
                     entry.level = 1
                 end
-                --XP is a running total; kept, it would count as levels to take again.
+                --start at 0 XP too: XP is a running total, so the old hero's XP
+                --would let the copy level up again at the Training Grounds.
                 props.xp = 0
+                --and no Victories: the first respite would turn them into XP.
+                props.victories = 0
                 --no items: the pack and every equipment slot.
                 props.inventory = {}
                 props.equipment = {}

@@ -474,7 +474,7 @@ local function Deal(id, state, config, requester, keepWard)
     if parts.solo then
         Log(state, string.format("%s faces the ward alone.", Puzzle.UserName(parts.hands)))
     else
-        Log(state, string.format("%s has the ward in hand; the others hold the codex.", Puzzle.UserName(parts.hands)))
+        Log(state, string.format("%s has the ward in hand; the others hold the instructions.", Puzzle.UserName(parts.hands)))
     end
 end
 
@@ -1256,7 +1256,7 @@ local function Render(ctx)
             end
         end
         if m_confirmSolo then
-            children[#children + 1] = Label("You alone will see the ward and its codex. Begin?", {"sizeM"}, { tmargin = 6 })
+            children[#children + 1] = Label("You alone will see the ward and its instructions. Begin?", {"sizeM"}, { tmargin = 6 })
             children[#children + 1] = gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto",
                 gui.Button{ classes = Classes{"sizeS"}, text = "Begin alone", width = 120, hmargin = 4,
@@ -1947,7 +1947,7 @@ local function Render(ctx)
         if role == "hands" then
             card = "You are the hands. Only you can see the ward and act. Describe it; the others hold the rules."
         elseif role == "solo" then
-            card = "You alone hold the ward and its codex."
+            card = "You alone hold the ward and its instructions."
         elseif role == "reader" then
             local titles = {}
             for k, key in ipairs(pages) do
@@ -2199,17 +2199,17 @@ PuzzleType.Register{
     id = "wardedseal",
     name = "Warded seal",
     howToPlay = [[
-One player is the hands: only they can see the ward and act on it. Everyone else reads: each reader holds pages of the ward's codex, the rules for opening it, but can't see the ward. Talk to each other.
+One player is the hands: only they see the ward and can act on it. The others are readers, each holding pages of the instructions for opening it.
 
-Before you start, choose Be the hands, Read or Either part. Anyone can press Begin, and the parts are dealt then. If you begin alone, you see the ward and the codex both.
+Choose Be the hands, Read or Either part, then anyone can press Begin to deal the parts. Begin alone and you get both.
 
-Hands: describe what you see. A ward has up to four modules: threads to cut, glyphs to touch in the right order, and a sigil dial to turn and set. Click a part's name to quote it in the party chat.
+Hands: describe what you see. A ward has up to four parts: threads to cut, glyphs to touch in order and a sigil dial to set. Click a part's name to quote it in the party chat.
 
-Readers: find the rules on your pages that fit what the hands describe, and tell them what to do. On each page, the first rule that fits is the one that counts. Some rules need a Lexicon page, which another reader may hold. Ask puts a question from your page to the hands; Point tells them an action.
+Readers: find the rules that fit and tell the hands what to do. On each page, only the first rule that fits counts. Some rules need a Lexicon page, which another reader may hold. Ask sends the hands a question; Point tells them what to do.
 
-Every wrong action is a strike. Too many strikes and the seal bursts.
+Each wrong action is a strike. Too many and the seal bursts.
 
-Tests: the hands can Brace (Agility) once, so their next slip doesn't count. Each reader can Study (Reason) once to see through rules on their pages. If the ward is timed, anyone can ask for more time.]],
+Once each: the hands can Brace (Agility) so their next slip doesn't count, and each reader can Study (Reason) to see through rules on their pages. On a timed ward, anyone can ask for more time.]],
     fields = {
         { id = "preset", type = "choice", label = "Seal", default = "vault", options = {
             { id = "simple", text = "Simple ward (1-2 modules, plain rules)" },

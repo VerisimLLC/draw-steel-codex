@@ -1633,7 +1633,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
         data = { tip = "" },
         refreshBuilder = function(element)
             element.data.tip = string.format(
-                "Keep the encounter as it is for %d heroes and rebuild the balancing for every other party size (3-7) to match its difficulty: whole groups are removed from the highest lettered down for smaller parties, and new groups of the same monster types are added for larger ones.",
+                "Keep the encounter as it is for %d heroes and rebuild the balancing for every other party size (3-7) to match its difficulty: whole groups are removed from the highest lettered down for smaller parties, and new groups of the same monster types are added for larger ones. Reinforcement waves are scaled separately, in proportion to the party size, and always keep at least one group. Minion squads may then gain or lose up to two minions each to get closer.",
                 party.numHeroes)
         end,
         create = function(element)
@@ -1649,6 +1649,9 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                 local entry = summary[n]
                 if entry ~= nil then
                     lines[#lines + 1] = string.format("%d heroes: %d EV (target %d), %d groups", n, entry.ev, entry.target, entry.groups)
+                    for _, wave in ipairs(entry.waves or {}) do
+                        lines[#lines + 1] = string.format("    %s: %d EV (target %d), %d groups", wave.name, wave.ev, round(wave.target), wave.groups)
+                    end
                 end
             end
             print("Encounter rebalanced:\n" .. table.concat(lines, "\n"))
@@ -2793,8 +2796,10 @@ local function CreateGroupCard(args)
             end,
         }
 
-        --minions spawn in squads; once there are 8+ the DM can cycle the
-        --squad size (4/8/12/...) which wave deployment and spawn honor.
+        --minions spawn in squads (Encounter.MinionSquadCount); once there are
+        --8+ the DM can cycle the squad size (4/8/12/...) which wave
+        --deployment and spawn honor. Shown whenever there is more than one
+        --squad, since 6 or 7 minions now make two.
         local squadSizeLabel = nil
         if info.minion then
             squadSizeLabel = gui.Label {
@@ -2814,7 +2819,7 @@ local function CreateGroupCard(args)
                 end,
                 refreshBuilder = function(element)
                     local quantity = group.monsters[monsterid] or 0
-                    if quantity < 8 then
+                    if quantity < 8 and Encounter.MinionSquadCount(quantity, group.squadSize) < 2 then
                         element:SetClass("hidden", true)
                         return
                     end
@@ -5143,9 +5148,10 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
         local monsterAsset = assets.monsters[monsterid]
         if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
             minionName = monsterAsset.properties.monster_type
-            if quantity >= 8 then
-                nsquads = math.ceil(quantity / (group.squadSize or 4))
-            end
+            --count squads from the quantity actually spawned below (balancing
+            --deltas and party size applied), never fewer than one.
+            quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+            nsquads = math.max(1, Encounter.MinionSquadCount(quantity, group.squadSize))
             break
         end
     end

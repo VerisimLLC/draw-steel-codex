@@ -584,6 +584,7 @@ local function Render(ctx)
     local listenButton
     local listenReason
     local pickRow
+    local pickRollButton
     local pickLabel
     local directorRow
 
@@ -1139,6 +1140,7 @@ local function Render(ctx)
         listenReason.text = reason or ""
         listenReason:SetClass("collapsed", not canListen or reason == nil or m_picking ~= nil)
         pickRow:SetClass("collapsed", m_picking == nil)
+        pickRollButton:SetClass("disabled", m_picking == nil or #m_picking == 0)
         if m_picking ~= nil then
             if #m_picking == 0 then
                 pickLabel.text = "Click the dials to listen to, in order (or press Space on one)."
@@ -1293,6 +1295,17 @@ local function Render(ctx)
         text = "",
     }
 
+    pickRollButton = gui.Button{
+        classes = {"sizeS", "disabled"},
+        text = "Roll",
+        width = 70,
+        hmargin = 6,
+        valign = "center",
+        click = function(element)
+            RollListen()
+        end,
+    }
+
     pickRow = gui.Panel{
         classes = {"collapsed"},
         flow = "horizontal",
@@ -1300,16 +1313,7 @@ local function Render(ctx)
         height = "auto",
         tmargin = 6,
         pickLabel,
-        gui.Button{
-            classes = {"sizeS"},
-            text = "Roll",
-            width = 70,
-            hmargin = 6,
-            valign = "center",
-            click = function(element)
-                RollListen()
-            end,
-        },
+        pickRollButton,
         gui.Button{
             classes = {"sizeS"},
             text = "Cancel",

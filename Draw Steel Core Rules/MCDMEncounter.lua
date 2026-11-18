@@ -776,6 +776,38 @@ end
 --   2. if still over target, remove duplicates (a second copy of a type in a
 --      group, or a second squad), highest letter first, while that lands
 --      closer to target.
+--
+-- Everything above is the OPENING FIGHT only: the groups with no wave, which
+-- is also all the builder's difficulty readout counts.
+--
+-- Author gates above the current size. A group or monster the author set to
+-- appear from some larger size (minHeroes / monsterMinHeroes) arrives at that
+-- size exactly as they built it, before anything else is added; a group of
+-- theirs arriving counts as that step's new group. (Before 2026-11-17 such
+-- content was zeroed out and a look-alike group opened in its place, one more
+-- dead group per press.)
+--
+-- Reinforcement waves (groups with group.wave) are balanced separately, one
+-- wave at a time. A wave worth W EV at the current size aims for W * n / n0
+-- at n heroes: it grows and shrinks in proportion with the party, so a wave
+-- that arrives every round keeps the same share of the fight as one that
+-- arrives once. A wave is never given new groups or new monster types:
+--   up:   the author's gated content for that size, then another squad or a
+--         duplicate in one of the wave's groups, whichever lands closest,
+--         while that lands closer to target (same type limits as above).
+--   down: take away a squad or duplicate, or a whole group while another of
+--         the wave's groups stays, whichever lands closest, while that lands
+--         closer. A wave never loses its last group, so every party size
+--         still gets reinforcements.
+--
+-- Fine-tuning minion squads. Whole squads and monsters are coarse, so once
+-- both walks are done each size other than the current one gets a last pass
+-- (the opening fight, then each wave, against its own target): a minion
+-- entry may gain or lose up to SQUAD_FLEX (2) minions per squad, one EV step
+-- at a time, closest landing first and spread across squads, while that lands
+-- closer. It never changes the number of squads (Encounter.MinionSquadCount,
+-- which rounds to the nearest squad), so in practice a squad of 4 ranges 2-5
+-- and two squads of 4 range 6-9.
 -- ===========================================================================
 
 Encounter.RebalanceHeroCounts = { 3, 4, 5, 6, 7 }
@@ -789,9 +821,10 @@ local function RebalanceEntryEV(props, quantity)
     return ev
 end
 
---Number of units a count of one type represents (squads for minions).
+--Number of units a count of one type represents: squads for minions (step =
+--squad size, the same nearest-squad rule spawning uses), monsters otherwise.
 local function RebalanceUnits(count, step)
-    return math.ceil(count / step)
+    return Encounter.MinionSquadCount(count, step)
 end
 
 --Smallest n (3..7) from which `activeByN[n]` is true for every larger n, or
@@ -815,7 +848,9 @@ end
 --holds it. Mutates self.groups in place (existing group tables are kept so
 --open group cards stay valid) and appends any new groups. Returns a summary
 --keyed by hero count: { target = EV aimed for, ev = EV achieved, groups =
---number of active groups, added = number of new groups created }.
+--number of active groups, added = number of new groups created } for the
+--opening fight, plus waves = a list of { name, target, ev, groups }, one per
+--reinforcement wave.
 function Encounter.Rebalance(self, party)
     local n0 = party.numHeroes
     local strength = Encounter.PartyStrength {
@@ -866,31 +901,50 @@ function Encounter.Rebalance(self, party)
             local slot = {
                 group = group,
                 index = groupIndex,
+                --a reinforcement wave's group is scaled with its wave, never
+                --as part of the opening fight (see the header comment).
+                wave = group.wave,
                 types = types,
                 step = {},
                 base0 = {},
+                author = {},
             }
             for _, monsterid in ipairs(types) do
                 slot.step[monsterid] = cond(Info(monsterid).minion, group.squadSize or 4, 1)
-                --AdjustedMonsterQuantity applies the per-monster gate; the
-                --group gate is the caller's job, as in AdjustedGroupEV.
-                if group.minHeroes ~= nil and group.minHeroes > n0 then
-                    slot.base0[monsterid] = 0
-                else
-                    slot.base0[monsterid] = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid] or 0, n0)
+            end
+            --what the author's own settings place at each size. Content they
+            --gated in above the current size arrives at its gate from this
+            --(AuthorArrivals) instead of being thrown away. AdjustedMonsterQuantity
+            --applies the per-monster gate; the group gate is checked here, as
+            --in AdjustedGroupEV.
+            for n = math.min(n0, minN), math.max(n0, maxN) do
+                slot.author[n] = {}
+                for _, monsterid in ipairs(types) do
+                    if group.minHeroes ~= nil and group.minHeroes > n then
+                        slot.author[n][monsterid] = 0
+                    else
+                        slot.author[n][monsterid] = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid] or 0, n)
+                    end
                 end
+            end
+            for _, monsterid in ipairs(types) do
+                slot.base0[monsterid] = slot.author[n0][monsterid]
             end
             slots[#slots + 1] = slot
         end
     end
 
-    --the set of types the encounter uses anywhere; the only types allowed in.
+    --allTypes: every type the model covers, waves included (the write-back
+    --uses it). allTypesList: the opening fight's types, the only ones a new
+    --group may be seeded with.
     local allTypes = {}
     local allTypesList = {}
+    local listed = {}
     for _, slot in ipairs(slots) do
         for _, monsterid in ipairs(slot.types) do
-            if not allTypes[monsterid] then
-                allTypes[monsterid] = true
+            allTypes[monsterid] = true
+            if slot.wave == nil and not listed[monsterid] then
+                listed[monsterid] = true
                 allTypesList[#allTypesList + 1] = monsterid
             end
         end
@@ -925,10 +979,20 @@ function Encounter.Rebalance(self, party)
         return total
     end
 
+    --a slot of the opening fight, as opposed to a reinforcement wave's. The
+    --opening-fight walk below only ever looks at these.
+    local function IsOpening(s)
+        return slots[s].wave == nil
+    end
+
+    --EV of the opening fight (waves are left out, as in the builder's
+    --difficulty readout).
     local function RosterEV(roster)
         local total = 0
         for s = 1, #slots do
-            total = total + GroupEV(roster, s)
+            if IsOpening(s) then
+                total = total + GroupEV(roster, s)
+            end
         end
         return total
     end
@@ -942,21 +1006,25 @@ function Encounter.Rebalance(self, party)
         return false
     end
 
+    local function OpeningActive(roster, s)
+        return IsOpening(s) and GroupActive(roster, s)
+    end
+
     local function ActiveGroupCount(roster)
         local n = 0
         for s = 1, #slots do
-            if GroupActive(roster, s) then
+            if OpeningActive(roster, s) then
                 n = n + 1
             end
         end
         return n
     end
 
-    --units of a type across the whole roster.
+    --units of a type across the opening fight.
     local function TypeUnits(roster, monsterid)
         local n = 0
         for s, slot in ipairs(slots) do
-            local c = Count(roster, s, monsterid)
+            local c = cond(IsOpening(s), Count(roster, s, monsterid), 0)
             if c > 0 then
                 n = n + RebalanceUnits(c, slot.step[monsterid])
             end
@@ -978,7 +1046,7 @@ function Encounter.Rebalance(self, party)
     --a group made purely of minions exists somewhere in the roster.
     local function HasPureMinionGroup(roster)
         for s = 1, #slots do
-            if GroupActive(roster, s) and GroupNonMinions(roster, s) == 0 then
+            if OpeningActive(roster, s) and GroupNonMinions(roster, s) == 0 then
                 return true
             end
         end
@@ -989,7 +1057,7 @@ function Encounter.Rebalance(self, party)
     --in the roster, or nil.
     local function PairedMinion(roster, monsterid)
         for s, slot in ipairs(slots) do
-            if Count(roster, s, monsterid) > 0 then
+            if IsOpening(s) and Count(roster, s, monsterid) > 0 then
                 for _, other in ipairs(slot.types) do
                     if Info(other).minion and Count(roster, s, other) > 0 then
                         return other
@@ -1080,9 +1148,11 @@ function Encounter.Rebalance(self, party)
         local slot = {
             group = nil,
             index = #slots + 1,
+            wave = nil,
             types = {},
             step = {},
             base0 = {},
+            author = {},
         }
         slots[#slots + 1] = slot
         for _, r in pairs(counts) do
@@ -1091,13 +1161,45 @@ function Encounter.Rebalance(self, party)
         return #slots
     end
 
-    local function StepUp(roster, budget)
+    --what the author gated in at exactly n heroes: a group or a monster set
+    --to appear from this party size. It arrives as they built it. Only slots
+    --`include(s)` accepts are looked at. Returns the EV added and the number
+    --of groups that came on.
+    local function AuthorArrivals(roster, n, include)
+        local addedEV = 0
+        local opened = 0
+        for s, slot in ipairs(slots) do
+            local now = slot.author[n]
+            local before = slot.author[n - 1]
+            if now ~= nil and before ~= nil and include(s) then
+                local wasActive = GroupActive(roster, s)
+                for _, monsterid in ipairs(slot.types) do
+                    local want = now[monsterid] or 0
+                    if want > 0 and (before[monsterid] or 0) == 0 and Count(roster, s, monsterid) == 0 then
+                        roster[s][monsterid] = want
+                        addedEV = addedEV + RebalanceEntryEV(Info(monsterid).props, want)
+                    end
+                end
+                if not wasActive and GroupActive(roster, s) then
+                    opened = opened + 1
+                end
+            end
+        end
+        return addedEV, opened
+    end
+
+    local function StepUp(roster, budget, n)
         local added = 0
+
+        --0. the author's own content for this size comes first. A group of
+        --theirs arriving here is this size's "one more group".
+        local arrivedEV, arrivedGroups = AuthorArrivals(roster, n, IsOpening)
+        budget = budget - arrivedEV
 
         --1. the new group's first monster: least-represented type that fits.
         local allowMinionStart = HasPureMinionGroup(roster)
         local candidates = {}
-        for _, monsterid in ipairs(allTypesList) do
+        for _, monsterid in ipairs(cond(arrivedGroups > 0, {}, allTypesList)) do
             local info = Info(monsterid)
             --allTypesList only holds ids whose Info() was non-nil (and cached) when the slots were built.
             ---@cast info -nil
@@ -1138,7 +1240,7 @@ function Encounter.Rebalance(self, party)
         while true do
             local options = {}
             for s, slot in ipairs(slots) do
-                if GroupActive(roster, s) then
+                if OpeningActive(roster, s) then
                     local nonMinions = GroupNonMinions(roster, s)
                     for _, monsterid in ipairs(slot.types) do
                         local info = Info(monsterid)
@@ -1200,7 +1302,7 @@ function Encounter.Rebalance(self, party)
         --hero's strength under target, in which case whichever lands closest.
         local active = {}
         for s = 1, #slots do
-            if GroupActive(roster, s) then
+            if OpeningActive(roster, s) then
                 active[#active + 1] = s
             end
         end
@@ -1238,7 +1340,7 @@ function Encounter.Rebalance(self, party)
         while ev > target do
             local options = {}
             for s, slot in ipairs(slots) do
-                if GroupActive(roster, s) then
+                if OpeningActive(roster, s) then
                     for _, monsterid in ipairs(slot.types) do
                         local c = Count(roster, s, monsterid)
                         if RebalanceUnits(c, slot.step[monsterid]) >= 2 then
@@ -1276,7 +1378,7 @@ function Encounter.Rebalance(self, party)
         local roster = CopyRoster(counts[n - 1])
         counts[n] = roster
         local target = ev0 + (n - n0) * single
-        local added = StepUp(roster, target - RosterEV(roster))
+        local added = StepUp(roster, target - RosterEV(roster), n)
         summary[n] = { target = target, ev = RosterEV(roster), groups = ActiveGroupCount(roster), added = added }
     end
 
@@ -1286,6 +1388,290 @@ function Encounter.Rebalance(self, party)
         local target = ev0 + (n - n0) * single
         StepDown(roster, target)
         summary[n] = { target = target, ev = RosterEV(roster), groups = ActiveGroupCount(roster), added = 0 }
+    end
+
+    --------------------------------------------------------------------------
+    -- Reinforcement waves, each scaled on its own (see the header comment).
+    -- The walk above carried every wave slot through unchanged; this replaces
+    -- each size's wave counts, stepping out from n0 the same way.
+    --------------------------------------------------------------------------
+    local waveOrder = {}
+    local waveSlots = {}
+    for s, slot in ipairs(slots) do
+        if slot.wave ~= nil then
+            if waveSlots[slot.wave] == nil then
+                waveSlots[slot.wave] = {}
+                waveOrder[#waveOrder + 1] = slot.wave
+            end
+            local list = waveSlots[slot.wave]
+            list[#list + 1] = s
+        end
+    end
+
+    local function WaveEV(roster, list)
+        local total = 0
+        for _, s in ipairs(list) do
+            total = total + GroupEV(roster, s)
+        end
+        return total
+    end
+
+    local function WaveActiveGroups(roster, list)
+        local n = 0
+        for _, s in ipairs(list) do
+            if GroupActive(roster, s) then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
+    local function WaveTypeUnits(roster, list, monsterid)
+        local n = 0
+        for _, s in ipairs(list) do
+            local c = Count(roster, s, monsterid)
+            if c > 0 then
+                n = n + RebalanceUnits(c, slots[s].step[monsterid])
+            end
+        end
+        return n
+    end
+
+    --one more hero: the author's gated content for n, then squads and
+    --duplicates in the wave's groups while each lands closer to target.
+    local function WaveStepUp(roster, list, n, target)
+        local inWave = {}
+        for _, s in ipairs(list) do
+            inWave[s] = true
+        end
+        AuthorArrivals(roster, n, function(s) return inWave[s] == true end)
+
+        local ev = WaveEV(roster, list)
+        while true do
+            local options = {}
+            for _, s in ipairs(list) do
+                if GroupActive(roster, s) then
+                    local nonMinions = GroupNonMinions(roster, s)
+                    for _, monsterid in ipairs(slots[s].types) do
+                        local info = Info(monsterid)
+                        --slot.types only holds ids whose Info() was non-nil (and cached).
+                        ---@cast info -nil
+                        if Count(roster, s, monsterid) > 0 and not info.boss
+                            and (info.minion or nonMinions < 2) then
+                            local delta = AddDelta(roster, s, monsterid)
+                            local distance = math.abs(ev + delta - target)
+                            if delta > 0 and distance < math.abs(ev - target) then
+                                options[#options + 1] = {
+                                    s = s,
+                                    monsterid = monsterid,
+                                    score = { -distance, cond(info.minion, 1, 0), -WaveTypeUnits(roster, list, monsterid), s },
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            ev = ev + AddUnit(roster, pick.s, pick.monsterid)
+        end
+    end
+
+    --one fewer hero: take away a squad or duplicate, or a whole group while
+    --another stays, whichever lands closest, while that lands closer. A wave
+    --never loses its last group.
+    local function WaveStepDown(roster, list, target)
+        local ev = WaveEV(roster, list)
+        while ev > target do
+            local options = {}
+            local canDropGroup = WaveActiveGroups(roster, list) >= 2
+            local current = math.abs(ev - target)
+            for _, s in ipairs(list) do
+                if GroupActive(roster, s) then
+                    for _, monsterid in ipairs(slots[s].types) do
+                        local c = Count(roster, s, monsterid)
+                        if RebalanceUnits(c, slots[s].step[monsterid]) >= 2 then
+                            local delta, take = RemoveDelta(roster, s, monsterid)
+                            local distance = math.abs(ev - delta - target)
+                            if delta > 0 and distance < current then
+                                options[#options + 1] = {
+                                    s = s,
+                                    monsterid = monsterid,
+                                    delta = delta,
+                                    take = take,
+                                    score = { -distance, 1, s },
+                                }
+                            end
+                        end
+                    end
+                    if canDropGroup then
+                        local delta = GroupEV(roster, s)
+                        local distance = math.abs(ev - delta - target)
+                        if delta > 0 and distance < current then
+                            options[#options + 1] = {
+                                s = s,
+                                delta = delta,
+                                score = { -distance, 0, s },
+                            }
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            if pick.monsterid ~= nil then
+                roster[pick.s][pick.monsterid] = roster[pick.s][pick.monsterid] - pick.take
+            else
+                for _, monsterid in ipairs(slots[pick.s].types) do
+                    roster[pick.s][monsterid] = 0
+                end
+            end
+            ev = ev - pick.delta
+        end
+    end
+
+    local function CarryWave(list, from, to)
+        for _, s in ipairs(list) do
+            local copy = {}
+            for monsterid, c in pairs(counts[from][s] or {}) do
+                copy[monsterid] = c
+            end
+            counts[to][s] = copy
+        end
+    end
+
+    --each wave's EV at the current size; its target at n is w0 * n / n0.
+    local waveEV0 = {}
+    local function WaveTarget(waveid, n)
+        return waveEV0[waveid] * n / math.max(n0, 1)
+    end
+    for _, waveid in ipairs(waveOrder) do
+        local list = waveSlots[waveid]
+        waveEV0[waveid] = WaveEV(counts[n0], list)
+        for n = n0 + 1, maxN do
+            CarryWave(list, n - 1, n)
+            WaveStepUp(counts[n], list, n, WaveTarget(waveid, n))
+        end
+        for n = n0 - 1, minN, -1 do
+            CarryWave(list, n + 1, n)
+            WaveStepDown(counts[n], list, WaveTarget(waveid, n))
+        end
+    end
+
+    --------------------------------------------------------------------------
+    -- Fine-tune minion squads (see the header comment). Runs on each size's
+    -- finished roster once both walks are done, so no size inherits another
+    -- size's tuning and every step above still works in whole squads.
+    --------------------------------------------------------------------------
+    local SQUAD_FLEX = 2 --minions a squad may gain or lose (David 2026-11-17)
+
+    --nudge the minion counts of the slots `include(s)` accepts toward
+    --target. `ev` is their EV now. Each move takes one entry to its nearest
+    --count (either way) that changes its EV; the move landing closest wins,
+    --spreading ties across squads, while that lands closer.
+    local function FineTune(roster, include, ev, target)
+        local entries = {}
+        for s, slot in ipairs(slots) do
+            if include(s) then
+                for _, monsterid in ipairs(slot.types) do
+                    local built = Count(roster, s, monsterid)
+                    local info = Info(monsterid)
+                    --slot.types only holds ids whose Info() was non-nil (and cached).
+                    ---@cast info -nil
+                    if info.minion and built > 0 then
+                        local step = slot.step[monsterid]
+                        local squads = Encounter.MinionSquadCount(built, step)
+                        local lo = math.max(squads, built - SQUAD_FLEX * squads)
+                        local hi = built + SQUAD_FLEX * squads
+                        entries[#entries + 1] = {
+                            s = s,
+                            monsterid = monsterid,
+                            props = info.props,
+                            built = built,
+                            squads = squads,
+                            step = step,
+                            lo = lo,
+                            hi = hi,
+                        }
+                    end
+                end
+            end
+        end
+
+        while true do
+            local current = math.abs(ev - target)
+            local options = {}
+            for _, e in ipairs(entries) do
+                local c = Count(roster, e.s, e.monsterid)
+                local evNow = RebalanceEntryEV(e.props, c)
+                for _, dir in ipairs({ -1, 1 }) do
+                    --the nearest count this way that changes the EV and keeps
+                    --the number of squads.
+                    local c2 = c + dir
+                    while c2 >= e.lo and c2 <= e.hi
+                        and (RebalanceEntryEV(e.props, c2) == evNow
+                            or Encounter.MinionSquadCount(c2, e.step) ~= e.squads) do
+                        c2 = c2 + dir
+                    end
+                    if c2 >= e.lo and c2 <= e.hi then
+                        local newEV = ev - evNow + RebalanceEntryEV(e.props, c2)
+                        local distance = math.abs(newEV - target)
+                        if distance < current then
+                            options[#options + 1] = {
+                                entry = e,
+                                count = c2,
+                                ev = newEV,
+                                score = { -distance, -math.abs(c2 - e.built), e.s },
+                            }
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            roster[pick.entry.s][pick.entry.monsterid] = pick.count
+            ev = pick.ev
+        end
+    end
+
+    for n = minN, maxN do
+        if n ~= n0 and counts[n] ~= nil then
+            local roster = counts[n]
+            FineTune(roster, IsOpening, RosterEV(roster), ev0 + (n - n0) * single)
+            for _, waveid in ipairs(waveOrder) do
+                local list = waveSlots[waveid]
+                local inWave = {}
+                for _, s in ipairs(list) do
+                    inWave[s] = true
+                end
+                FineTune(roster, function(s) return inWave[s] == true end, WaveEV(roster, list), WaveTarget(waveid, n))
+            end
+        end
+    end
+
+    --the summary reports each size as it ended up.
+    local waveNames = {}
+    for _, wave in ipairs(self.waves or {}) do
+        waveNames[wave.id] = wave.name
+    end
+    for n, entry in pairs(summary) do
+        entry.ev = RosterEV(counts[n])
+        entry.waves = {}
+        for _, waveid in ipairs(waveOrder) do
+            local list = waveSlots[waveid]
+            entry.waves[#entry.waves + 1] = {
+                name = waveNames[waveid] or "Wave",
+                target = WaveTarget(waveid, n),
+                ev = WaveEV(counts[n], list),
+                groups = WaveActiveGroups(counts[n], list),
+            }
+        end
     end
 
     --------------------------------------------------------------------------
@@ -1406,8 +1792,22 @@ function Encounter.CountNonMinionMonsters(self, numHeroes, org)
     return count
 end
 
---How many minion squads this group is placed as. Fewer than 8 minions make one
---squad; 8 or more are split into squads of the group's squad size.
+--How many squads `quantity` minions are split into, for a group whose squad
+--size is `squadSize` (group.squadSize, default 4): the nearest whole number of
+--squads, at least one. So a squad of 4 that gains or loses a minion or two is
+--still one squad (2-5 minions), and 9 minions are two squads of 5 and 4. The
+--minions are dealt out round-robin, so the squads differ by at most one. This
+--is the one rule every spawn and count site uses; the builder's Balance button
+--relies on it to fine-tune squads without changing their number. (Before
+--2026-11-17: under 8 was always one squad, else ceil(quantity / squadSize).)
+function Encounter.MinionSquadCount(quantity, squadSize)
+    if quantity == nil or quantity <= 0 then
+        return 0
+    end
+    return math.max(1, round(quantity / (squadSize or 4)))
+end
+
+--How many minion squads this group is placed as (see MinionSquadCount).
 --Pass numHeroes for a raw (uncloned) group: each quantity is then adjusted for
 --that party size the way CloneForNumberOfHeroes would. Omit it for a group
 --that came out of CloneForNumberOfHeroes, whose quantities are already final.
@@ -1418,10 +1818,7 @@ function Encounter.GroupMinionSquadCount(group, numHeroes)
         end
         local monster = assets.monsters[monsterid]
         if monster ~= nil and monster.properties.minion and quantity ~= nil and quantity > 0 then
-            if quantity >= 8 then
-                return math.ceil(quantity / (group.squadSize or 4))
-            end
-            return 1
+            return Encounter.MinionSquadCount(quantity, group.squadSize)
         end
     end
     return 0
@@ -4731,9 +5128,7 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                 local monsterAsset = assets.monsters[monsterid]
                 if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
                     minionName = monsterAsset.properties.monster_type
-                    if quantity >= 8 then
-                        nsquads = math.ceil(quantity / (group.squadSize or 4))
-                    end
+                    nsquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                     break
                 end
             end

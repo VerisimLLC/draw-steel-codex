@@ -540,6 +540,48 @@ EotwDowntime.PROJECTS = {
             },
         },
     },
+    --Restore the Temple: a community project that opens the Temple of Saint
+    --Llewellyn, where fallen heroes are raised. Walls first (Might or Agility),
+    --then reconsecration (Presence or Intuition).
+    ["restore-temple"] = {
+        id = "restore-temple",
+        scope = "community",
+        title = T("downtime.projects.restore_temple.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "temple",
+        locationName = T("downtime.projects.restore_temple.place"),
+        --Matches the first stage. The town reads each stage's own list below.
+        characteristics = { "mgt", "agl" },
+        skills = { "Architecture", "Mechanics", "Religion" },
+        stages = {
+            {
+                upTo = 0.5,
+                name = T("downtime.projects.restore_temple.stage_rebuilding"),
+                blurb = T("downtime.projects.restore_temple.stage_rebuilding_blurb"),
+                characteristics = { "mgt", "agl" },
+                skills = { "Architecture", "Mechanics", "Religion" },
+            },
+            {
+                name = T("downtime.projects.restore_temple.stage_reconsecration"),
+                blurb = T("downtime.projects.restore_temple.stage_reconsecration_blurb"),
+                characteristics = { "prs", "inu" },
+                skills = { "Religion", "Lead", "History" },
+                banner = { text = T("downtime.projects.restore_temple.stage_banner"), subtitle = T("downtime.projects.restore_temple.stage_subtitle") },
+            },
+        },
+        benefit = T("downtime.projects.restore_temple.benefit"),
+        completeBanner = { text = T("downtime.projects.restore_temple.complete_banner"), subtitle = T("downtime.projects.restore_temple.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.restore_temple.blurb_maxed")
+            end
+            local stage = EotwDowntime.ProjectStage(EotwDowntime.PROJECTS["restore-temple"], state)
+            if stage ~= nil and stage.blurb ~= nil and stage.blurb ~= "" then
+                return stage.blurb
+            end
+            return T("downtime.projects.restore_temple.blurb")
+        end,
+    },
 }
 
 --A Draw Steel test's tier from a 2d10 roll: 11 or less, 12-16, 17+, and a
@@ -1319,18 +1361,27 @@ local function SendProjectRoll(roll, onDone)
         end
         return
     end
+    local args = {
+        rollid = roll.rollid,
+        projectid = roll.projectid,
+        heroid = roll.heroid,
+        natural = roll.natural,
+        total = roll.total,
+        characteristic = roll.characteristic,
+        skill = roll.skill,
+        breakthroughOf = roll.breakthroughOf,
+    }
+    --a roll on a Rite of Return (the Temple of Saint Llewellyn) goes to rite-roll.
+    local action = "project-roll"
+    if type(roll.rite) == "table" then
+        action = "rite-roll"
+        args.projectid = nil
+        args.owner = roll.rite.owner
+        args.riteHeroid = roll.rite.heroid
+    end
     conn:Request{
-        action = "project-roll",
-        args = {
-            rollid = roll.rollid,
-            projectid = roll.projectid,
-            heroid = roll.heroid,
-            natural = roll.natural,
-            total = roll.total,
-            characteristic = roll.characteristic,
-            skill = roll.skill,
-            breakthroughOf = roll.breakthroughOf,
-        },
+        action = action,
+        args = args,
         success = function(result)
             SaveMine("eotw:pendingProjectRoll", nil)
             if type(result.project) == "table" then
@@ -1340,7 +1391,9 @@ local function SendProjectRoll(roll, onDone)
             pcall(function() tier = EotwDowntime.TestTier(roll.natural, roll.total) end)
             local project = type(result.project) == "table" and result.project or {}
             EotwAnalytics.Track("eotw_project_roll", {
-                projectid = roll.projectid,
+                --a Rite of Return has no project id; tag it so it can be counted.
+                projectid = roll.projectid or cond(type(roll.rite) == "table", "rite", nil),
+                riteHeroid = type(roll.rite) == "table" and roll.rite.heroid or nil,
                 heroid = roll.heroid,
                 natural = roll.natural,
                 total = roll.total,
@@ -1411,8 +1464,14 @@ end
 --the player clicks or throws them, and cancel() fires if a throw is too
 --weak to roll. The dice are real 3D dice (dmhub.Roll works at the
 --titlescreen); the City spends the Downtime only when it records the roll.
+--
+--args.rite = {owner, heroid, title} rolls on a Rite of Return instead of a
+--project (the Temple of Saint Llewellyn): projectid is then ignored.
 function EotwDowntime.Roll(args)
     local project = EotwDowntime.PROJECTS[args.projectid]
+    if type(args.rite) == "table" then
+        project = { title = args.rite.title }
+    end
     local tok = dmhub.GetCharacterById(args.heroid)
     if project == nil or tok == nil then
         args.done(false, T("downtime.roll.not_ready"))
@@ -1427,6 +1486,9 @@ function EotwDowntime.Roll(args)
         skill = args.skill or "",
         breakthroughOf = args.breakthroughOf,
     }
+    if type(args.rite) == "table" then
+        roll.rite = { owner = args.rite.owner, heroid = args.rite.heroid }
+    end
     local title = cond(args.breakthroughOf ~= nil, T("downtime.roll.dice_breakthrough", { project = project.title }), T("downtime.roll.dice_project", { project = project.title }))
     dmhub.Roll{
         roll = string.format("2d10%+d", bonus),
@@ -1508,6 +1570,9 @@ local function ShowBanner(host, text, subtitle, sound, tokenid, bannerType)
     end)
     return ok
 end
+
+--For other town modules (a hero returning from the grave, EotwRoster).
+EotwDowntime.ShowBanner = ShowBanner
 
 --After a respite: a malice banner, one after another, for each Secret Twin
 --hero whose d10 came up 1 or 2 (RollSecretTwin).
@@ -3652,6 +3717,35 @@ function EotwDowntime.GreatForgeConstructionPanel(host)
         },
         EotwDowntime.ProjectCard(host, "build-great-forge"),
         EotwDowntime.TributeButton(host, "build-great-forge"),
+    }
+end
+
+--The Destroyed Temple: the same, for the town's shared project Restore
+--the Temple (rebuilt, then reconsecrated: see its stages).
+function EotwDowntime.TempleConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.temple_site.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.temple_site.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "restore-temple"),
+        EotwDowntime.TributeButton(host, "restore-temple"),
     }
 end
 

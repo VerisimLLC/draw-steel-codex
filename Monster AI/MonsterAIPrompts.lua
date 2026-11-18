@@ -346,6 +346,23 @@ MonsterAI:RegisterPrompt{
     handler = HandleFreeStrikePrompt,
 }
 
+--A free strike a monster must aim at one creature (To the Death!'s target
+--striking the hero, SASGFH6V). The invoke writes that creature into each
+--synthesized strike's target filter, which the planner honors. With no strike
+--that reaches it, nil lets HandlePrompt skip the strike in directorless play;
+--an empty target list would still cast the chooser and prompt a person.
+MonsterAI:RegisterPrompt{
+    id = "Generic Free Strike Against Specific Target",
+    prompts = {"Free Strike Against Specific Target"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local result = HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if result ~= nil and result.abilityOverride == nil then
+            return nil
+        end
+        return result
+    end,
+}
+
 local verticalForcedMovementTypes = {
     vertical_push = true,
     vertical_pull = true,

@@ -6,7 +6,11 @@ local mod = dmhub.GetModLoading()
 --
 --Credentials: the user's device token ("mgsdt_...") is kept with dmhub.SetLocalSecret,
 --on this machine only, and every request that carries it is quiet (kept out of logs).
---The catalogue key is never in the app: MGS results appear only for connected users.
+--
+--Browsing: a connected user sees MGS's manifest, which marks what their account may use.
+--Anyone else sees the whole library from our partnerAudioCatalogue cloud function (MGS's
+--catalogue key stays on our server, never in the app), with nothing usable, and can
+--still play previews, which MGS allows without an account.
 --
 --Storage: a track goes into R2 once. The first owner to add it downloads it from MGS
 --and uploads it; the partnerAudioRegistry cloud function then records that blob, and
@@ -23,6 +27,9 @@ local mod = dmhub.GetModLoading()
 --- @field duration number seconds
 --- @field entitled boolean the user may download it
 --- @field accessUrl nil|string where to get access (Patreon tier or album purchase)
+--- @field tier nil|string the Patreon tier that includes it, e.g. "Guardian"
+--- @field album nil|string the album to buy for it, when it is sold as an album
+--- @field free boolean any free MGS account includes it
 --- @field search string lower-case text a search matches against
 
 --- @class MGSAudio
@@ -60,9 +67,16 @@ local KIND_BY_TYPE = {
     ambience = "ambience",
 }
 
---- "unknown" before the first check, then "disconnected", "loading", "ready" or
---- "unavailable" (MGS switched the partnership off or could not be reached).
+--- "unknown" before the first load, then "loading", "ready" or "unavailable" (MGS
+--- switched the partnership off, or the library could not be reached).
 local g_state = "unknown"
+--- where g_tracks came from: "manifest" (connected), "catalogue" (not) or nil.
+--- @type nil|string
+local g_source = nil
+--- when the catalogue was loaded (dmhub.Time()), to reload it in a long session.
+local g_catalogueAt = 0
+--- how long a loaded catalogue is kept before the picker reloads it.
+local CATALOGUE_KEEP_SECONDS = 6 * 3600
 --- @type nil|string
 local g_token = nil
 local g_tokenLoaded = false
@@ -128,9 +142,11 @@ local function Forget()
     g_subscribed = false
     g_tracks = {}
     g_byId = {}
+    g_source = nil
     g_stamp = nil
-    g_state = "disconnected"
+    g_state = "unknown"
     Changed()
+    MGSAudio.Refresh()
 end
 
 --- A token call failed: 401 means the user revoked this install at MGS; a disabled
@@ -158,11 +174,8 @@ local function ErrorText(message, body)
     return message or "Michael Ghelfi Studios could not be reached."
 end
 
---- @return string "unknown", "disconnected", "loading", "ready" or "unavailable"
+--- @return string "unknown", "loading", "ready" or "unavailable"
 function MGSAudio.State()
-    if g_state == "unknown" and Token() == nil then
-        g_state = "disconnected"
-    end
     return g_state
 end
 
@@ -215,6 +228,17 @@ local function TrackFromRow(row)
     elseif type(row.buy_url) == "string" and row.buy_url ~= "" then
         accessUrl = row.buy_url
     end
+    --album.title names the Patreon tier when source_type is "patreon_tier".
+    local albumTitle = nil
+    if type(row.album) == "table" and type(row.album.title) == "string" and row.album.title ~= "" then
+        albumTitle = row.album.title
+    end
+    local tier, album = nil, nil
+    if row.source_type == "patreon_tier" then
+        tier = albumTitle
+    elseif type(row.buy_url) == "string" and row.buy_url ~= "" then
+        album = albumTitle
+    end
     return {
         id = row.id,
         title = row.title,
@@ -224,7 +248,65 @@ local function TrackFromRow(row)
         duration = tonumber(row.duration_seconds) or 0,
         entitled = row.entitled == true,
         accessUrl = accessUrl,
-        search = string.lower(table.concat(words, " ")),
+        tier = tier,
+        album = album,
+        free = row.free == true,
+        search =string.lower(table.concat(words, " ")),
+    }
+end
+
+--- Replace the track list with a manifest's or the catalogue's rows.
+--- @param response any
+--- @param source string "manifest" or "catalogue"
+local function TakeRows(response, source)
+    local tracks = {}
+    local byId = {}
+    local rows = type(response) == "table" and response.catalogue or nil
+    if type(rows) == "table" then
+        for _, row in ipairs(rows) do
+            local track = TrackFromRow(row)
+            if track ~= nil then
+                tracks[#tracks+1] = track
+                byId[track.id] = track
+            end
+        end
+    end
+    g_tracks = tracks
+    g_byId = byId
+    g_source = source
+    g_state = #tracks > 0 and "ready" or "unavailable"
+    Changed()
+end
+
+--- Where the whole library comes from for users who are not connected. A developer can
+--- point it at a local stand-in: MGSAudio.catalogueUrl = "http://127.0.0.1:8789/".
+--- @type nil|string
+MGSAudio.catalogueUrl = nil
+
+--- The whole MGS library for a user who is not connected (about 300 KB gzipped).
+local function LoadCatalogue()
+    g_state = "loading"
+    Changed()
+    net.Post{
+        url = MGSAudio.catalogueUrl or (dmhub.cloudFunctionsBaseUrl .. "/partnerAudioCatalogue"),
+        data = {partner = "mgs"},
+        --keeps the 1.5 MB reply out of the logs.
+        quiet = true,
+        success = function(response)
+            if mod.unloaded or Token() ~= nil then
+                return
+            end
+            g_catalogueAt = dmhub.Time()
+            TakeRows(response, "catalogue")
+        end,
+        error = function(message, status)
+            if mod.unloaded or Token() ~= nil then
+                return
+            end
+            print(string.format("MGSAudio: catalogue failed (%s %s)", tostring(status), tostring(message)))
+            g_state = "unavailable"
+            Changed()
+        end,
     }
 end
 
@@ -239,22 +321,7 @@ local function LoadManifest()
             if mod.unloaded then
                 return
             end
-            local tracks = {}
-            local byId = {}
-            local rows = type(response) == "table" and response.catalogue or nil
-            if type(rows) == "table" then
-                for _, row in ipairs(rows) do
-                    local track = TrackFromRow(row)
-                    if track ~= nil then
-                        tracks[#tracks+1] = track
-                        byId[track.id] = track
-                    end
-                end
-            end
-            g_tracks = tracks
-            g_byId = byId
-            g_state = "ready"
-            Changed()
+            TakeRows(response, "manifest")
         end,
         error = function(message, status, body)
             if mod.unloaded then
@@ -270,11 +337,13 @@ end
 --- Check the connection and bring the manifest up to date: call when the picker
 --- opens. It downloads the manifest (a few MB) only when MGS says it changed.
 function MGSAudio.Refresh()
-    if Token() == nil then
-        g_state = "disconnected"
+    if g_state == "loading" then
         return
     end
-    if g_state == "loading" then
+    if Token() == nil then
+        if g_source ~= "catalogue" or g_state ~= "ready" or dmhub.Time() - g_catalogueAt > CATALOGUE_KEEP_SECONDS then
+            LoadCatalogue()
+        end
         return
     end
     if g_user == nil then
@@ -308,7 +377,7 @@ function MGSAudio.Refresh()
                 return
             end
             local stamp = type(response) == "table" and (response.stamp or response.data) or nil
-            if stamp ~= nil and stamp == g_stamp and #g_tracks > 0 then
+            if stamp ~= nil and stamp == g_stamp and #g_tracks > 0 and g_source == "manifest" then
                 return
             end
             g_stamp = stamp
@@ -320,7 +389,7 @@ function MGSAudio.Refresh()
             end
             TokenFailed(status, body)
             --no stamp: load once anyway if nothing is loaded yet.
-            if Token() ~= nil and #g_tracks == 0 then
+            if Token() ~= nil and (#g_tracks == 0 or g_source ~= "manifest") then
                 LoadManifest()
             end
         end,
@@ -482,10 +551,7 @@ function MGSAudio.PlayPreview(trackId, done, fail)
             return
         end
     end
-    if Token() == nil then
-        fail("Connect your Michael Ghelfi Studios account to play previews.")
-        return
-    end
+    --no account needed: without a token MGS limits previews per IP address instead.
     if not PreviewAllowed() then
         fail(string.format("You have played %d previews today. More are available tomorrow.", FREE_PREVIEWS_PER_DAY))
         return

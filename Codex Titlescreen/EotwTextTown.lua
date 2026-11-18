@@ -316,7 +316,9 @@ text("eotw.series.part_in_pits", [[This part can only be played in the Proving P
 --The board's title.
 text("eotw.pits.board_title", [[The Proving Pits]])
 --The note at the top of the board, and wherever a Proving Pits party forms.
-text("eotw.pits.practice_note", [[The Proving Pits are practice. Heroes earn no Victories, keep no treasure and carry nothing else home. Afterwards you can vote on the encounter and leave feedback for its creator.]])
+text("eotw.pits.practice_note", [[The Proving Pits are a place to test upcoming encounters. Anyone can submit an Encounter to the Proving Pits, so experiences may vary. After playing an encounter you can vote and leave feedback for its creator. Only play in the Proving Pits if you are comfortable playing content that is untested and unvetted. Be kind and constructive when giving feedback.]])
+--A link added after the note above, opening the how-to video for making encounters.
+text("eotw.pits.practice_note_link", [[Learn how to make your own encounter]])
 --When nobody is forming a party in the Proving Pits.
 text("eotw.pits.no_parties", [[Nobody is in the Proving Pits right now. Pick an encounter below to form a party.]])
 --Section heading (shown in capitals). Short: a heading.
@@ -742,6 +744,23 @@ text("eotw.welcome.go_button", [[Let's Go!]])
 text("eotw.welcome.cancel_button", [[Cancel]])
 
 ----------------------------------------------------------------------------
+-- PROVING PITS INTRO: shown when a player opens the Proving Pits until they
+-- accept it
+----------------------------------------------------------------------------
+
+text("eotw.provingpits_intro.title", [[Proving Pits]])
+text("eotw.provingpits_intro.body", [[The Proving Pits are a place where any community member can submit their own possible Encounter of the Week. Please play in the Proving Pits only if you are comfortable with playing encounters that might be still in testing and are looking for feedback. Remember, it is a real person who is likely not a professional game designer who has made an encounter and they are doing their best and perhaps trying something new. Be constructive and kind when offering feedback.]])
+--{link} is the link below, underlined; it opens the video.
+text("eotw.provingpits_intro.video", [[See {link} for information on making your own Encounter!]])
+text("eotw.provingpits_intro.video_link", [[this video]])
+--The box the player must tick before Enter works.
+text("eotw.provingpits_intro.understood_check", [[I have read and understand how the Proving Pits work]])
+--The buttons. Short: buttons.
+text("eotw.provingpits_intro.enter_button", [[Enter]])
+--Returns to the town map.
+text("eotw.provingpits_intro.back_button", [[Back]])
+
+----------------------------------------------------------------------------
 -- STEAM INVITES: joining a friend's party
 ----------------------------------------------------------------------------
 
@@ -929,8 +948,26 @@ text("graveyard.empty_mine", [[None of your heroes lie here.]])
 text("graveyard.tab_everyone", [[Everyone]])
 text("graveyard.tab_mine", [[Your Fallen]])
 text("graveyard.awaken_button", [[Awaken]])
-text("graveyard.awaken_tooltip", [[This hero's ancestry does not stay dead. Awaken them and bring them back to your roster.]])
-text("graveyard.awaken_no_slots_tooltip", [[You don't have enough hero slots to awaken this hero]])
+--A grave of the player's own: their hero's name with a tag, so it is not
+--told apart by colour alone.
+text("graveyard.yours_name", [[{name} (yours)]])
+--The line under a grave saying how the hero can come back. Undying heroes
+--(Hakaan, Revenant, Vampire) awaken 12 hours after they die. {left} is like
+--"5h 20m", {clock} a time of day like "9:40 PM", {when} like "2 days ago".
+text("graveyard.status_waiting", [[This hero does not stay dead. They can awaken in {left} (at {clock}).]])
+text("graveyard.status_ready", [[This hero does not stay dead. Awaken them to bring them back to your roster.]])
+text("graveyard.status_no_slot", [[Ready to awaken, but you have no free hero slot. Expand the Guild, or dismiss a hero.]])
+text("graveyard.status_fire", [[Fire destroyed this hero's body. Only a Rite of Return at the Temple of Saint Llewellyn can bring them back.]])
+text("graveyard.status_beyond", [[This hero met their doom. Nothing can bring them back.]])
+text("graveyard.status_temple", [[This hero can be raised by a Rite of Return at the Temple of Saint Llewellyn.]])
+text("graveyard.status_restore_temple", [[Restore the Destroyed Temple, and this hero can be raised there.]])
+text("graveyard.status_risen", [[Returned from this grave {when}.]])
+text("graveyard.time_hours_minutes", [[{hours}h {minutes}m]])
+text("graveyard.time_minutes", [[{minutes}m]])
+--The banner when a hero comes back from the grave (awakened, or raised by a
+--Rite of Return), the next time their player is in town.
+text("roster.returned.banner_title", [[{name} Returns!]])
+text("roster.returned.banner_subtitle", [[Back from the grave, and waiting at the Guild.]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's
@@ -1432,6 +1469,19 @@ text("leads.arcane_market.line4_hero", [[How does anyone find a market that move
 text("leads.arcane_market.line5_npc", [[Just the right set of contacts. An alchemist who owes you a favour. A gnome who talks too much. A door that only opens to the right knock.]])
 text("leads.arcane_market.line6_npc", [[Ask around, {hero}. And mind the gnome tinkerers: half of them are mad, and the other half are worse.]])
 text("leads.arcane_market.line7_hero", [[Then I know what I'm doing with my downtime.]])
+
+--The Temple lead (tier 2): puts the Temple on the player's map. Its name, on
+--the "A New Lead!" banner and the carouse result.
+text("leads.temple.title", [[The Temple]])
+--Who tells it. The speaker line reads "{name}, {title}".
+text("leads.temple.npc_name", [[The Dawn Breaks over Whitest of Snow]])
+text("leads.temple.npc_title", [[High Elf Dawnmage]])
+--Heard once the town has restored the Temple: her line, then the narration.
+text("leads.temple.built_npc", [[Have you heard there is now a Temple in the town where even the fallen can be healed?]])
+text("leads.temple.built_narration", [[You can now visit the Temple to revive your fallen.]])
+--Heard while the Temple is still being rebuilt (Restore the Temple).
+text("leads.temple.site_npc", [[I hear a Temple is being built that will allow restoring of the dead. I do wonder if one such as yourself would like to help build it?]])
+text("leads.temple.site_narration", [[You may now access the project to build the temple.]])
 
 --The name above an NPC's line in a conversation.
 text("leads.conversation.npc_speaker", [[{name}, {title}]])

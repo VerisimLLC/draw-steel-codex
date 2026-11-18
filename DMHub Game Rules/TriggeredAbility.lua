@@ -1093,6 +1093,7 @@ end
 local g_departureTriggers = {
     move = true,
     teleport = true,
+    teleportmove = true,
 }
 
 --Events dispatched on the creature using an ability (most carry it as usedability).

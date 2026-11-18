@@ -24,9 +24,15 @@ local now = 0
 local logs = {}
 local heroTriggers = {}
 local playerSide = true
-local queue = {hidden = false, currentTurn = "hero", entries = {hero = {}}}
-function queue:try_get(key) return self[key] end
-function queue:IsEntryPlayer(id) return playerSide end
+--A queue as dmhub.initiativeQueue returns it. A reconnect rebuilds it: a new
+--object with the same guid (SASGFH6V).
+local function Queue(guid)
+    local q = {guid = guid, hidden = false, currentTurn = "hero", entries = {hero = {}}}
+    function q:try_get(key) return self[key] end
+    function q:IsEntryPlayer(id) return playerSide end
+    return q
+end
+local queue = Queue("combat-1")
 stub("InitiativeQueue", {GetInitiativeId = function(token) return "hero" end})
 
 local heroProps = {}
@@ -53,6 +59,8 @@ local registered = {}
 stub("GameHud", {RegisterBetweenTurnHandler = function(args) registered[args.id] = args end})
 stub("Tip", {notices = {}})
 
+assert(load(section("Draw Steel Core Rules/MCDMInitiativeBar.lua",
+    "--The current queue if it is still the combat", "function GameHud:NextInitiative")))()
 assert(load(section("Draw Steel Core Rules/MCDMInitiativeBar.lua",
     "--Hold the ended turn open while a hero has a trigger prompt", "local g_beginRoundStyles")))()
 
@@ -177,6 +185,37 @@ result = drive(Context(), function(resumes)
 end)
 check(result == "answered", "resolving trigger released without a claim, got " .. tostring(result))
 claimResolving = nil
+heroTriggers = {p1 = Prompt()}
+
+--A reconnect mid-hold rebuilds the queue for the same combat. The hold keeps
+--waiting and hands the rebuilt queue on; it used to read the new object as the
+--turn moving on, and initiative never advanced (SASGFH6V).
+local liveHud = rawget(_G, "GameHud")
+local dmhubStub = rawget(_G, "dmhub")
+local rebuilt = Queue("combat-1")
+context = Context()
+result = drive(context, function(resumes)
+    if resumes == 2 then
+        dmhubStub.initiativeQueue = rebuilt
+    elseif resumes == 5 then
+        heroTriggers.p1.triggered = true
+    end
+end)
+check(result == "answered", "hold survives a rebuilt queue, got " .. tostring(result))
+check(context.initiativeQueue == rebuilt, "context follows the rebuilt queue")
+check(liveHud.LiveInitiativeQueue(queue) == rebuilt, "same guid matches the rebuilt queue")
+check(liveHud.LiveInitiativeQueue(Queue(nil)) == nil, "a queue with no guid matches only itself")
+
+--A different combat (new guid) is the turn moving on, as before.
+heroTriggers = {p1 = Prompt()}
+dmhubStub.initiativeQueue = queue
+result = drive(Context(), function(resumes)
+    if resumes == 2 then dmhubStub.initiativeQueue = Queue("combat-2") end
+end)
+check(result == "turn moved on", "a new combat ends the wait, got " .. tostring(result))
+dmhubStub.initiativeQueue = nil
+check(liveHud.LiveInitiativeQueue(queue) == nil, "no initiative matches nothing")
+dmhubStub.initiativeQueue = queue
 heroTriggers = {p1 = Prompt()}
 
 --A prompt nobody answers is released at the deadline (it ages out then anyway).

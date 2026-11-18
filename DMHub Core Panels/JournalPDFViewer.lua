@@ -6048,9 +6048,11 @@ function PDFWrapper:Render(options)
 
     local ourAspect = self.width / self.height
 
-    local panelWidth = "100%"
+    --in chat (summary) the page shows at half size
+    local scale = cond(summary, 0.5, 1)
+    local panelWidth = string.format("%f%%", 100 * scale)
     if ourAspect < minAspectRatio then
-        panelWidth = string.format("%f%%", 100 * ourAspect / minAspectRatio)
+        panelWidth = string.format("%f%%", 100 * scale * ourAspect / minAspectRatio)
     end
 
     local args = {

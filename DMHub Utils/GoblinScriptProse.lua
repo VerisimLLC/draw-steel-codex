@@ -1178,6 +1178,8 @@ GoblinScriptProse.eventProse = {
     pressureplate     = "when {subject} step{s} on a pressure plate",
     pressureplateoff  = "when {subject} step{s} off a pressure plate",
     teleport          = "when {subject} teleport{s}",
+    --{subject} and {s} are filled later by the prose engine, so pass them through as-is.
+    teleportmove      = UIText.T("trigger.teleportmove.prose", { subject = "{subject}", s = "{s}" }),
 
     -- Resources & Victory band
     earnvictory       = "when {subject} earn{s} a victory",

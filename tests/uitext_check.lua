@@ -19,6 +19,7 @@ local DEFAULT_TEXT = {
     "Codex Titlescreen/EotwTextHeroes.lua",
     "Codex Titlescreen/EotwTextTrainingGrounds.lua",
     "Codex Titlescreen/EotwTextGreatForge.lua",
+    "Codex Titlescreen/EotwTextTemple.lua",
     "Codex Titlescreen/EotwTextForgeNegotiation.lua",
     --the negotiation shared by the town and (later) the game.
     "Draw Steel V/NegotiationSceneText.lua",
@@ -45,6 +46,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwRoster.lua",
     "Codex Titlescreen/EotwSocialRail.lua",
     "Codex Titlescreen/EotwTownHall.lua",
+    "Codex Titlescreen/EotwTemple.lua",
     "Codex Titlescreen/EotwTrainingGrounds.lua",
     --EotW's build engine, shared with the main game's Builder.
     "Draw Steel V/HeroBuildPools.lua",

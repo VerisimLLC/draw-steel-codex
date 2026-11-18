@@ -4996,12 +4996,14 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
             },
         }
 
-        if casterToken.properties.minion then
+        --A token can be listed while it has no properties (being created or
+        --deleted, e.g. a minion dying mid-cast); skip it rather than abort the cast.
+        if casterToken.properties ~= nil and casterToken.properties.minion then
             local squad = casterToken.properties:MinionSquad()
             if squad ~= nil then
 
                 for _,tok in ipairs(dmhub.allTokens) do
-                    if tok.charid ~= casterToken.charid and tok.properties.minion and tok.properties:MinionSquad() == squad then
+                    if tok.charid ~= casterToken.charid and tok.properties ~= nil and tok.properties.minion and tok.properties:MinionSquad() == squad then
                         result[#result+1] = { token = tok }
                     end
                 end
@@ -5010,11 +5012,11 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
     elseif self.applyto == 'caster_minions' then
         result = {}
 
-        local squad = casterToken.properties:MinionSquad()
+        local squad = casterToken.properties ~= nil and casterToken.properties:MinionSquad() or nil
         if squad ~= nil then
 
             for _,tok in ipairs(dmhub.allTokens) do
-                if tok.charid ~= casterToken.charid and tok.properties.minion and tok.properties:MinionSquad() == squad then
+                if tok.charid ~= casterToken.charid and tok.properties ~= nil and tok.properties.minion and tok.properties:MinionSquad() == squad then
                     result[#result+1] = { token = tok }
                 end
             end

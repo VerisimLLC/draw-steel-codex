@@ -61,6 +61,7 @@ local mod = dmhub.GetModLoading()
 ---@field applied table<string, boolean>|nil effects claimed by the host, so none runs twice
 ---@field effectsDone boolean|nil the outcome handlers have run for this solve or failure
 ---@field bypassWithFail boolean|nil bypassed at a cost: run the fail effects as well
+---@field dismissed string|nil the outcome the Director has dismissed from the puzzle list (Puzzle.Dismiss)
 
 Puzzle = {}
 PuzzleType = {}
@@ -291,6 +292,13 @@ function Puzzle.GetType(id)
     return PuzzleType.Get(Puzzle.GetTypeId(id))
 end
 
+--serverTime of the last player move since the puzzle was set up or reset, or nil.
+---@param id string
+---@return number|nil
+function Puzzle.LastMove(id)
+    return tonumber(BoardData(id).movedAt)
+end
+
 --True once a puzzle has a type, i.e. it has been set up.
 ---@param id string
 ---@return boolean
@@ -512,6 +520,7 @@ function Puzzle.Create(id, typeid, config, title)
         data.stateKey = nil
         data.holds = nil
         data.kept = nil
+        data.movedAt = nil
         if title ~= nil then
             data.title = title
         end
@@ -657,6 +666,11 @@ function Puzzle.Change(id, fn, description)
     WriteBoardDoc(id, function(data)
         data.state = state
         data.stateKey = key
+        --the last player move, for the Director's puzzle list (stalled,
+        --left half-done). The Director trying a puzzle does not count.
+        if not dmhub.isDM then
+            data.movedAt = dmhub.serverTime
+        end
     end, description or "Puzzle move")
     CheckOutcome(id, def, state, config)
 end
@@ -734,6 +748,7 @@ function Puzzle.Reset(id)
         data.state = state
         data.stateKey = key
         data.holds = nil
+        data.movedAt = nil
     end, "Reset puzzle")
     WriteStatus(id, function(status)
         for k in pairs(status) do
@@ -789,6 +804,48 @@ function Puzzle.Bypass(id, opts)
         status.solvedBy = "director"
         status.solvedAt = dmhub.serverTime
     end, "Bypass puzzle")
+end
+
+--A key for the puzzle's current outcome, or nil while it is still open. A new
+--solve gets a new key, so dismissing one never hides the next.
+---@param status PuzzleStatus
+---@return string|nil
+local function OutcomeKey(status)
+    if status.solved then
+        return "solved:" .. tostring(status.solvedAt)
+    elseif status.failed then
+        return "failed"
+    end
+    return nil
+end
+
+--A failure, or a solve by a player, the Director has not dismissed yet.
+--The Director's own Solve and Bypass never need them.
+---@param id string
+---@return boolean
+function Puzzle.NeedsDirector(id)
+    local status = Puzzle.Status(id)
+    local key = OutcomeKey(status)
+    if key == nil or status.dismissed == key then
+        return false
+    end
+    return not (status.solved and status.solvedBy == "director")
+end
+
+--The puzzle's current outcome key (see OutcomeKey), or nil while it is open.
+---@param id string
+---@return string|nil
+function Puzzle.OutcomeKey(id)
+    return OutcomeKey(Puzzle.Status(id))
+end
+
+---@param id string
+function Puzzle.Dismiss(id)
+    local key = OutcomeKey(Puzzle.Status(id))
+    if key == nil then
+        return
+    end
+    WriteStatus(id, function(status) status.dismissed = key end, "Dismiss puzzle outcome")
 end
 
 --Claim an effect before applying it: true at most once per key until a Reset,
@@ -1425,9 +1482,9 @@ end
 
 --A player's test: the montage's skill-aware roll (characteristic, the Skilled
 --chip, the hero's features), private to the roller; without Encounter of the
---Week, the characteristic alone. skill may be "" for none. tiers are the three
---result lines the roll dialog shows. onDone(tier, natural); onCancel when the
---player closes the roll without rolling (montage roll only).
+--Week, the core test dialog (creature:RollCustomPowerTableTest). skill may be ""
+--for none. tiers are the three result lines the roll dialog shows.
+--onDone(tier, natural); onCancel when the player closes the roll without rolling.
 ---@param tok CharacterToken
 ---@param attrid string
 ---@param skill string
@@ -1444,8 +1501,11 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
     if skill ~= nil and skill ~= "" then
         attr = string.format("%s, %s", attrName, skill)
     end
+    --a game without Encounter of the Week still has the title screen's
+    --EncounterMontage table, unloaded and dead: IsLoaded tells them apart.
     local montage = rawget(_G, "EncounterMontage")
-    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil then
+    if montage ~= nil and montage.BuildTestRoll ~= nil and montage.ShowTestRoll ~= nil
+        and montage.IsLoaded ~= nil and montage.IsLoaded() then
         --a bane rides in as a test rider, as the montage's own banes do.
         local verdict = nil
         if bane ~= nil then
@@ -1476,22 +1536,27 @@ function Puzzle.RollTest(tok, attrid, skill, name, tiers, stillWanted, onDone, o
         }
         return
     end
-    local bonus = 0
-    pcall(function() bonus = tok.properties:GetAttribute(attrid):Modifier() end)
-    if bane ~= nil then
-        bonus = bonus - 2
+    local skills = {}
+    if skill ~= nil and skill ~= "" then
+        for _, option in ipairs(Skill.skillsDropdownOptions or {}) do
+            if string.lower(option.text) == string.lower(skill) then
+                skills[#skills + 1] = option.id
+            end
+        end
     end
-    dmhub.Roll{
-        roll = string.format("2d10 + %d", bonus),
-        description = string.format("%s: %s", name, attr),
-        complete = function(rollInfo)
-            local tier = 1
-            pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+    local verdict = nil
+    if bane ~= nil then
+        verdict = { applied = { { rider = { effect = "bane" }, why = bane } } }
+    end
+    tok.properties:RollCustomPowerTableTest(string.format("%s: %s", name, attr), { [attrid] = true }, skills, tiers, {
+        modifiers = TestRiders.AppendModifiers({}, verdict, "test_power_roll"),
+        onComplete = function(tier, natural)
             if stillWanted() then
-                onDone(tier, rollInfo.naturalRoll)
+                onDone(tier, natural)
             end
         end,
-    }
+        onCancel = onCancel,
+    })
 end
 
 --------------------------------------------------------------------------------

@@ -2186,6 +2186,53 @@ function EncounterMontage.ReferencedContentIds(parse)
     return ids
 end
 
+--Bestiary ids of every monster the [[encounter]] islands in these script
+--documents place: the fight itself, its gated variants and its reinforcement
+--waves alike. The runtime spawns all of them from the script, so a token of
+--one already standing on the map would fight twice (FNPHVYCT: a module
+--published with its test spawn still on the map started with 36 monsters
+--instead of 18). documents: {docid -> true}, as ScriptForMap returns them.
+function EncounterMontage.EncounterMonsterIds(documents)
+    local ids = {}
+    local docsTable = dmhub.GetTable("documents") or {}
+    for docid in pairs(documents or {}) do
+        local doc = docsTable[docid]
+        if doc ~= nil then
+            pcall(function()
+                for _, tag in pairs(doc:try_get("annotations") or {}) do
+                    if type(tag) == "table" and tag.typeName == "RichEncounter" then
+                        local encounter = tag:try_get("encounter")
+                        for _, group in ipairs((encounter ~= nil and encounter.groups) or {}) do
+                            for monsterid in pairs(group.monsters or {}) do
+                                ids[monsterid] = true
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+    return ids
+end
+
+--The names a script's "# Encounter" beats declare as bystanders, lower-cased
+--(the list EncounterOfTheWeekGame.IsBystander matches tokens against).
+function EncounterMontage.BystanderNames(parse)
+    local names = {}
+    for _, beat in ipairs((parse ~= nil and parse.beats) or {}) do
+        if beat.kind == "encounter" then
+            for _, instruction in ipairs(beat.setup or {}) do
+                if instruction.kind == "bystanders" then
+                    for _, name in ipairs(instruction.names or {}) do
+                        names[#names + 1] = string.lower(name)
+                    end
+                end
+            end
+        end
+    end
+    return names
+end
+
 --A free tile for a new ally next to its hero: the nearest free Start-zone
 --tile (the party is confined there before combat), else a ring search
 --around the hero.
@@ -7642,6 +7689,13 @@ end
 
 function EncounterMontage.ShowTestRoll(args)
     ShowMontageRoll(args)
+end
+
+--False once this mod is unloaded. The EncounterMontage table outlives it (a
+--game without Encounter of the Week, entered from the title screen, still
+--has it), and ShowTestRoll then does nothing.
+function EncounterMontage.IsLoaded()
+    return not mod.unloaded
 end
 
 --Show the roll dialog for the current turn's option: 2d10 + the best of

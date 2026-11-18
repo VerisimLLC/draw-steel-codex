@@ -785,8 +785,8 @@ function ActivatedAbility.PowerRollDamageTypes(ability)
 
     for _, behavior in ipairs(ability.behaviors) do
         if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-            local tiers = behavior.tiers
-            for _, entry in ipairs(tiers) do
+            local powerRollBehavior = behavior --[[@as ActivatedAbilityPowerRollBehavior]]
+            for _, entry in ipairs(powerRollBehavior.tiers) do
                 local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
                 if damageMatch ~= nil then
                     local damageType = damageMatch.type or "untyped"

@@ -266,7 +266,12 @@ local function GroupNames(group)
     end
     if numbered and #group > 1 then
         table.sort(numbers)
-        if numbers[#numbers] - numbers[1] == #numbers - 1 then
+        --a run only: 1, 1, 3 spans as far as 1-3 but is not it.
+        local run = true
+        for i = 2, #numbers do
+            run = run and numbers[i] == numbers[i - 1] + 1
+        end
+        if run then
             return string.format("%s %d-%d", base, numbers[1], numbers[#numbers])
         end
     end
@@ -324,15 +329,16 @@ end
 local function SquadDeaths(kids)
     local deaths = {}
     for _, kid in ipairs(kids) do
-        if kid.family == "minions" then
+        if kid.family == "minions" and kid.name ~= nil then
             local death = deaths[kid.name]
             if death == nil then
                 death = {killed = 0, total = 0, left = 0, who = kid.who}
                 deaths[kid.name] = death
             end
-            death.killed = death.killed + kid.killed
-            death.total = math.max(death.total, kid.killed + kid.left)
-            death.left = kid.left
+            local killed, left = kid.killed or 0, kid.left or 0
+            death.killed = death.killed + killed
+            death.total = math.max(death.total, killed + left)
+            death.left = left
         end
     end
     return deaths
@@ -425,15 +431,17 @@ end
 --What a nested trigger did (W13), or a resource it changed (W14, D5).
 local function AddKid(rows, kid)
     if kid.family == "resource" then
-        local verb = cond(kid.amount > 0, "gained", "spent")
+        local amount = kid.amount or 0
+        local verb = cond(amount > 0, "gained", "spent")
         rows[#rows + 1] = {
             who = {kid.who},
             text = string.format("%s %s %s.", History.ShownName(kid.who), verb,
-                History.ResourceWords(math.abs(kid.amount), kid.name)),
+                History.ResourceWords(math.abs(amount), kid.name)),
         }
         return
     end
-    if kid.kind ~= "trigger" then
+    --an entry from an earlier build may lack its ability: nothing to name, so no row.
+    if kid.kind ~= "trigger" or kid.ability == nil then
         return
     end
 
@@ -441,7 +449,7 @@ local function AddKid(rows, kid)
     if kid.actor ~= nil then
         owner = string.format("%s's %s", History.ShownName(kid.actor), kid.ability.name)
     end
-    for _, who in ipairs(kid.targets) do
+    for _, who in ipairs(kid.targets or {}) do
         local name = History.ShownName(who)
         if OnlyDamage(who) and (who.types == nil or SingleType(who) ~= nil) then
             local damagetype = SingleType(who)
@@ -960,14 +968,16 @@ local function SideViewButton(row, mapid)
     --what the hover put on the map, destroyed when it ends.
     --- @type LuaMultiObjectReference[]
     local shown = {}
+    local sectioned = false
     local function Clear()
         for _, item in ipairs(shown) do
             item:Destroy()
         end
-        if #shown > 0 then
+        if #shown > 0 or sectioned then
             dmhub.ClearMovementCrossSection()
         end
         shown = {}
+        sectioned = false
     end
     return gui.Panel{
         classes = {"historySideView"},
@@ -979,15 +989,28 @@ local function SideViewButton(row, mapid)
         valign = "top",
         hover = function(element)
             Clear()
+            --the card outlives its tokens: one may be gone, or the map changed, since it was built.
+            local live = {}
+            if mapid == game.currentMapId then
+                for _, mover in ipairs(movers) do
+                    if mover.token.valid then
+                        live[#live + 1] = mover
+                    end
+                end
+            end
+            if #live == 0 then
+                return
+            end
             local path
-            shown, path = ShowMoves(movers)
-            local mover = movers[1]
+            shown, path = ShowMoves(live)
+            local mover = live[1]
             local collision = mover.moved.collision or 0
             local view = path ~= nil and dmhub.SetMovementCrossSection{
                 token = mover.token,
                 path = path,
                 collisionDamage = collision > 0 and collision or nil,
             } or nil
+            sectioned = view ~= nil
             --framed as the drag tooltip frames it; the bare name (L35) only when the
             --engine can't draw this move side-on (it crosses floors).
             local contents
@@ -1040,7 +1063,13 @@ local function StoryRow(row, width, mapid)
         textWidth = textWidth - STORY_FACE - STORY_GAP
     end
     --what is still on gets Active, always (B8), so "slowed" answers why you are slowed now.
-    local active = not row.ended and row.who[1] ~= nil and History.ActiveStart(row.who[1]) or nil
+    --a grouped row is Active while any of its creatures still has it.
+    local active = nil
+    if not row.ended then
+        for _, who in ipairs(row.who) do
+            active = active or History.ActiveStart(who)
+        end
+    end
     local tagged = row.ended or active ~= nil
     left[#left + 1] = gui.Label{
         classes = {"historyStory"},
@@ -1376,11 +1405,12 @@ local function SourceText(source, why)
     if source.hand then
         return "Set by hand"
     end
-    local text = SpoilerName(source.name)
+    local sourceName = source.name or ""
+    local text = SpoilerName(sourceName)
     if why then
         text = WhyName(text)
     end
-    text = ModifierLink(text, source.name, source.hover)
+    text = ModifierLink(text, sourceName, source.hover)
     if source.who ~= nil then
         text = string.format("%s's %s", History.ShownName(source.who), text)
     end
@@ -1911,7 +1941,7 @@ local function NumbersRows(entry, kids, width)
                 face.selfStyle.halign = "left"
                 triggered[#triggered + 1] = ReceiptLine(width, {
                     lead = {face},
-                    label = History.ShownName(kid.actor) .. History.DOT .. kid.ability.name,
+                    label = History.ShownName(kid.actor) .. (kid.ability ~= nil and (History.DOT .. kid.ability.name) or ""),
                     value = Signed(net),
                     valueClass = cond(net < 0, "historyHurt", "historyHealed"),
                 })

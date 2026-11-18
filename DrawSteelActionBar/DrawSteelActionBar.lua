@@ -748,12 +748,15 @@ end
 
 --Remove all instant duration effects and clear tracking. Called when casting ends.
 local function ClearCastingDurationEffects()
-    for behavior, entry in pairs(g_castingDurationEffects) do
+    --Take the list before running it: a destructor calls game.Refresh, which can re-enter
+    --this function (via restoreFromBackup -> cancelCasting) and must find nothing left to run.
+    local effects = g_castingDurationEffects
+    g_castingDurationEffects = {}
+    for behavior, entry in pairs(effects) do
         if entry.destructor ~= nil then
             entry.destructor()
         end
     end
-    g_castingDurationEffects = {}
 end
 
 function IsCurrentlyUsingAbility()
@@ -13037,11 +13040,12 @@ CreateAbilityController = function()
 
             ClearCastingDurationEffects()
 
-            for _, destructor in ipairs(g_castingDestructors) do
+            --Taken before running for the same re-entrancy reason as ClearCastingDurationEffects.
+            local destructors = g_castingDestructors
+            g_castingDestructors = {}
+            for _, destructor in ipairs(destructors) do
                 destructor()
             end
-
-            g_castingDestructors = {}
 
             if g_invokerInfo ~= nil and g_invokerInfo.oncancel ~= nil then
                 g_invokerInfo.oncancel()

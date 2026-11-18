@@ -5746,6 +5746,31 @@ local function CreateTopBar()
             }
         end
 
+        --Codex developers can only enter an online game: an offline (Local,
+        --storage 3) game lives on this computer. For one, the check starts off
+        --and turning it on explains how to put the game online instead.
+        local isOfflineGame = false
+        for _,g in ipairs(lobby.games or {}) do
+            if g.gameid == dmhub.gameid then
+                isOfflineGame = (g.storage == 3)
+                break
+            end
+        end
+        if isOfflineGame then
+            m_allowGameEntry = false
+        end
+
+        local offlineGameNote = gui.Label{
+            classes = {"collapsed"},
+            fontSize = 14,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            tmargin = 4,
+            text = "This game is offline, so Codex developers can't enter it. If you want to share it with them, put the game online first with Put Game Online in the Heroes panel.",
+        }
+
         local gameEntryCheck = gui.Check{
             text = "Allow Codex developers to enter my game if needed",
             placement = "right",
@@ -5754,6 +5779,13 @@ local function CreateTopBar()
             halign = "left",
             tmargin = cond(isBugReport, 8, 0),
             change = function(element)
+                if isOfflineGame then
+                    --assignment is silent, so this does not re-fire change.
+                    element.value = false
+                    m_allowGameEntry = false
+                    offlineGameNote:SetClass("collapsed", false)
+                    return
+                end
                 m_allowGameEntry = element.value
             end,
         }
@@ -6172,6 +6204,7 @@ local function CreateTopBar()
             sideChildren[#sideChildren + 1] = logCheck
         end
         sideChildren[#sideChildren + 1] = gameEntryCheck
+        sideChildren[#sideChildren + 1] = offlineGameNote
         sideChildren[#sideChildren + 1] = SideSeparator()
         sideChildren[#sideChildren + 1] = attachButton
         sideChildren[#sideChildren + 1] = m_attachmentsList
@@ -6190,6 +6223,10 @@ local function CreateTopBar()
             bpad = SIDE_PAD,
             bgimage = true,
             bgcolor = "@bgAlt",
+            --this fill reaches the frame's top-right corner, so round it to
+            --match the frame (framedPanel radius 10 minus FRAME_INSET).
+            --y1 is the top-right corner.
+            cornerRadius = {x1 = 0, y1 = 10 - FRAME_INSET, x2 = 0, y2 = 0},
 
             --tick boxes read as settings rows: the label wraps on the left and
             --the box sits at the right edge. The box is sized directly because
@@ -6230,7 +6267,7 @@ local function CreateTopBar()
                     width = "auto",
                     height = "auto",
                     valign = "center",
-                    text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+                    text = "If your bug is urgent or needs discussion, tell us about it on Discord",
                 },
 
                 gui.Button{

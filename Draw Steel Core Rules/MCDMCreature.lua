@@ -32,6 +32,11 @@ creature.minion = false
 
 creature.minionDead = false
 
+--The damage type of the blow that killed this creature ("" until it dies).
+--Persisted, unlike _tmp_lastdamagetype, so Encounter of the Week can tell a
+--Revenant burned to death after its token was despawned.
+creature.killingDamageType = ""
+
 creature.initiativeGrouping = false
 
 creature.skipTurnInitiativeId = ""
@@ -1114,9 +1119,7 @@ function monster.OnCreateFromBestiary(self, token, groupid)
                 assignToSquad = true
                 minionName = monsterInfo.properties.monster_type
 
-                if quantity >= 8 and (group.squadSize or 4) < quantity then
-                    numSquads = math.ceil(quantity / (group.squadSize or 4))
-                end
+                numSquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                 break
             end
         end
@@ -2956,15 +2959,12 @@ function creature:Stability()
     return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
---- If the creature can teleport.
+--- If the creature can teleport. The engine asks this when a token drag begins to decide
+--- whether holding Ctrl may turn the move into a teleport for a non-Director, so it must
+--- count teleport granted by features (Cinder Step, Translation) as well as an innate speed.
 --- @return boolean
 function creature:CanTeleport()
-    local movementSpeeds = self:try_get("movementSpeeds", {})
-    if movementSpeeds ~= nil then
-        return (movementSpeeds["teleport"] or 0) > 0
-    end
-
-    return false
+    return self:GetSpeed("teleport") > 0
 end
 
 --- Whether the creature can fly up or down under its own power. False for a creature
@@ -7140,6 +7140,7 @@ function creature.TakeDamage(self, amount, note, info)
         end
 
         if self:IsDead() then
+            self.killingDamageType = string.lower(tostring(eventArg.damagetype or "untyped"))
             self:RemoveAurasOnDeath()
 
             if self:IsDead() then
@@ -7363,6 +7364,8 @@ function creature.SetStaminaDirect(self, amount, note)
     end
 
     if (not isDeadAtStart) and isDeadNow then
+        --set directly, not by a blow: never fire.
+        self.killingDamageType = "untyped"
         self:RemoveAurasOnDeath()
         if self:IsDead() then
             self:ResetDeathSavingThrowStatus()

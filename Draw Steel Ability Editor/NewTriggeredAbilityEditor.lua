@@ -403,6 +403,12 @@ local TRIGGER_METADATA = {
         tags = {"teleport", "blink", "instant"},
         group = "movement",
     },
+    teleportmove = {
+        label = UIText.T("trigger.teleportmove.name"),
+        description = UIText.T("trigger.teleportmove.description"),
+        tags = {"teleport", "move", "cinder", "ctrl"},
+        group = "movement",
+    },
 
     -- Resources & Victory
     earnvictory = {

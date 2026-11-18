@@ -31,6 +31,7 @@
 --- @field properties any
 --- @field valid boolean
 --- @field teleport boolean
+--- @field teleportAsMovement boolean True on the path OnTeleport receives when a Ctrl-drag teleport is the creature's own movement: a player (or a directorless game's player host) dragged a creature that can teleport. False for every other teleport, including the Director's Ctrl-drag and teleports made by abilities or scripts.
 --- @field lineOfEffectBreak number
 LuaPath = {}
 

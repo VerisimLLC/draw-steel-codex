@@ -372,6 +372,12 @@ host, a player, so `HandlePrompt` logs `PROMPT SKIPPED` and returns `"skip"`,
 and `ExecuteInvoke` ends the invoke unused, as a declined prompt does
 (R6ATBX7P: the host was asked to pick the Minotaur's retaliatory strike).
 
+It asks for the invoker's token first. When a hero's ability invokes a prompt
+on a monster, the monster is the caster, and the AI answers for it only if the
+prompt is registered with `answersForCaster` (To the Death!'s free strike).
+Every other choice stays with the hero's player: a push on an AI-run monster
+once had its squares picked by the AI (WR3ESYAG).
+
 Optional triggers follow the same rule. The AI thread's trigger poll
 (`MonsterAIPanel.lua`) offers each open trigger of a Director-run creature to
 `HandleAvailableTrigger`; one with no `MonsterAI:RegisterTrigger` handler used to
@@ -525,6 +531,7 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 - `{targets = {}}` does not decline an ability chooser (`Invoked Ability`): with one ability on offer the invoke casts it anyway, with no targets, and any prompt inside it still comes up. The Minotaur's retaliation once declined its Charge this way, so the strike prompt inside Charge found no target and went to a person (R6ATBX7P)
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 - `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
+- `answersForCaster` -- optional registration flag. When a hero's ability invokes this prompt on an AI-run monster (the monster is the caster), the AI answers it instead of the hero's player. Only for prompts where the monster acts on its own (To the Death!'s free strike); forced movement and other choices about the target stay with the invoker (`MonsterAI.PromptAnswersForCaster`)
 
 The generic `Adjacent Enemy Free Strike Me` handler uses `resolvesInvokedAbility`.
 That standard ability is the "one ally adjacent to the target can make a free

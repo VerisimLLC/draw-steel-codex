@@ -1178,7 +1178,7 @@ graveyard.
       party; joiners need none. The siege's 5000 points need at least 30
       accounts winning all three (170 each) or 250 on Normal alone; David
       kept 20/50/100 knowing this (2026-11-15).
-    - **The encounter** is `Encounter: Demon Portal`
+    - **The encounter** is `erekgita-demonportal|Encounter: Demon Portal`
       (`GREAT_FORGE_SIEGE_ENCOUNTER` in city-core.ts; the town reads it from
       the project listing's `siege.encounter`, falling back to
       `EncounterOfTheWeek.SIEGE_ENCOUNTER_DEFAULT`). Combat only (David: "We
@@ -1261,6 +1261,14 @@ graveyard.
     module only by installing the new version into e96656f3 and republishing
     (the playtest's Iron Orb fix needs that: the module carries its own orb).
     The siege key stays the bare `Encounter: Demon Portal`.
+    **Superseded 2026-11-17 (David):** the siege now plays straight from
+    Erek Gita's module, key `erekgita-demonportal|Encounter: Demon Portal`
+    (server on release 802eb9d8, staging 426a65ee), so his updates go live
+    with no republish. The host installs the module's latest compatible
+    version (v15 needs 0.0.884; older clients get v13). Official module
+    **v42** (min engine 0.0.882) dropped the Demon Portal map and the
+    erekgita-demonportal dependency, so the two copies never meet in one
+    game. The horn names a `module|map` key by its map only (`hornWhere`).
   - **Headless publisher (2026-11-15):** `tools/eotw_publish/gamesource.py`
     now subscribes to the game store after auth (the local server stopped
     pushing it on auth). Run against e96656f3 today it refuses: six test
@@ -4484,6 +4492,29 @@ User direction (2026-10-11):
   the party, closes the account's open series parts, but a respite opens a
   carouse only when a resting hero banks a Victory. A respite with no
   Victories leaves an unused carouse open.
+- **Lead tiers** (David 2026-11-17): every lead is ranked tier 1, 2 or 3
+  (`CITY_LEADS` in city-core.ts, mirrored by `EotwLeads.TIERS`). A carouse
+  learns the next unlearned lead of its own tier; with none left there, the
+  next of the tier below, and so on down to tier 1; with none at or below
+  it, nothing. Never up a tier. The Arcane Market is tier 3 and the Temple
+  tier 2, so a tier 1 roll still learns nothing. The tier table shows
+  "learn a lead" on every tier that would learn one now.
+- **Leads that open a location** (David 2026-11-17): a lead may open a
+  project (`project`), a town location (`location`), or both. A
+  `CITY_LOCATIONS` row with `lead = "<id>"` stays off that player's map until
+  they learn it, then beckons (`LocationHidden`, `RevealFoundLocations`).
+  The City's `LOCATION_LEADS` + `locationKnown` refuse what is done there
+  until then, and the building's community project names the same lead in
+  `requiresLead`, which `project-roll` now enforces for any scope (and
+  `projectView.locked` reports per caller). Conversations may hold
+  `{ who = "narration", text }` lines: no speaker, figures dimmed, italic gold.
+- **The Temple lead** (tier 2, `temple`): The Dawn Breaks over Whitest of
+  Snow, a High Elf Dawnmage (the bestiary's High Elf Dawn Mage token art),
+  tells it. Her line and the narration depend on whether the town has
+  restored the Temple yet: if so, the Temple is open to visit; if not, the
+  Destroyed Temple and its Restore the Temple project are, and the same lead
+  covers the Temple once it is built. Until then the Temple is off the map,
+  its rolls and rites are refused, and the Graveyard names no Temple.
 - **Carouse skills** (+2 when trained): Brag, Flirt, Gamble, Music,
   Perform, Rumors (`EotwLeads.CAROUSE_SKILLS`). Tiers are Draw Steel's: 11-,
   12-16, 17+, and a natural 19-20 is tier 3.
@@ -8934,3 +8965,41 @@ release).
 release DOs, [ ] non-owner module access verified, [ ] disconnected-player
 rule, [ ] content hygiene (default map, orphan assets, pregen parties), [ ]
 remove the dev gate.
+
+
+---
+
+# The Temple of Saint Llewellyn and undying heroes (2026-11-12)
+
+Design: `TEMPLE_BRIEF.md` (locked 2026-11-12, decisions by Jason). Built
+2026-11-12; nothing run, nothing deployed, uncommitted.
+
+- **Undying heroes** (Hakaan, Revenant, Vampire, or a hero with the Back From
+  the Grave title) are buried like anyone, but David's **Awaken** button on
+  the Graveyard's Your Fallen tab now unlocks **12 real hours after the
+  death**, needs a free roster slot, and keeps the grave (marked "Rose ...").
+  Fire as the killing blow ends a Revenant (and a title holder); a doomed
+  Hakaan is beyond return. The game reports `killedByFire`, `doomed`,
+  `undyingTitle` and `diedAt` with each death (`DeathFacts`,
+  EncounterOfTheWeek/EncounterOfTheWeek.lua); `creature.killingDamageType`
+  is persisted at the death transition (MCDMCreature.lua). The City decides
+  (`undyingFacts`, `graveState`, city-core.ts).
+- **An awakened hero returns with Stamina equal to their Recovery value**; a
+  hero raised by rite at full Stamina. The client applies it (`ApplyReturns`,
+  EotwRoster.lua) and pushes with `ackReturn`; a banner plays in town.
+- **Restore the Temple** (`restore-temple`): community project, 6000 points,
+  two stages (Rebuilding: Might/Agility with Architecture, Mechanics,
+  Religion; then Reconsecration: Presence/Intuition with Religion, Lead, History),
+  `defaultHidden`. Map node `temple` near the Graveyard (PLACEHOLDER x 0.80,
+  y 0.78). Site and built scenes both use the Construction still until
+  Czepeku's chapel interior is uploaded (`TEMPLE_ART`). Text:
+  `EotwTextTemple.lua` (all placeholder drafts; roll lines empty, not wired).
+- **Rites of Return** (EotwTemple.lua; City `list-rites`, `start-rite`,
+  `rite-roll`, `rise-hero`): the owner starts one for a fallen,
+  non-undying hero (needs a free slot); any account's living hero spends
+  Downtime on it (2d10 + Presence or Reason, +2 Religion). Goal 30 x level,
+  doubled per earlier rite. At the goal the hero rises, or waits for the
+  owner to press Raise when the roster is full. Dismissing a fallen hero
+  mid-rite sends its points to Restore the Temple. Rites are player
+  projects named `rite-<heroid>`.
+- **Locations on the map:** `temple` -- the Destroyed Temple / Temple of Saint Llewellyn.

@@ -236,6 +236,10 @@ ActivatedAbilityInvokeAbilityBehavior.promptCard = false
 --if true we will invoke on the caster token.
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
 ActivatedAbilityInvokeAbilityBehavior.runOnController = false
+--Where the invoked ability measures its range from (data-only field): "" = the creature
+--casting it, "parent_primary_target" / "parent_current_target" = the parent's target,
+--"caster" = the creature casting the PARENT ability (e.g. land a teleported ally next to the
+--creature that brought it, rather than within range of the ally itself).
 ActivatedAbilityInvokeAbilityBehavior.rangeOrigin = ""
 
 --If false (the default), the invoked ability will not use squad coordination even if
@@ -1047,6 +1051,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     rangeOriginTokenId = GetParentPrimaryTargetTokenId(options)
                 elseif rangeOrigin == "parent_current_target" then
                     rangeOriginTokenId = GetParentCurrentTargetTokenId(options, target.token)
+                elseif rangeOrigin == "caster" and casterToken ~= nil and casterToken.valid then
+                    rangeOriginTokenId = casterToken.charid
                 end
 
                 --ParentTarget follows this invocation's squad pairing without changing
@@ -1886,6 +1892,13 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
                 aiPromptCallback = fallback(invokerToken) or false
+                --When a hero's ability acts on a monster, the monster is the caster here, but
+                --the hero's player still chooses (where to push it). Only prompts marked
+                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and monsterAI.PromptAnswersForCaster(abilityClone) then
+                    aiPromptCallback = fallback(casterToken) or false
+                end
             end
         end
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", creature.IsTokenAIControlled(invokerToken.charid), "promptCallback =", aiPromptCallback, "for", abilityClone.name, coroutine.running())
@@ -2413,6 +2426,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				{ text = "Caster", id = "" },
 				{ text = "Parent's Primary Target", id = "parent_primary_target" },
 				{ text = "Parent's Current Target", id = "parent_current_target" },
+				{ text = UIText.T("invoke.editor.range_origin.parent_caster"), id = "caster" },
 			},
 			idChosen = self:try_get("rangeOrigin", ""),
 			change = function(element)

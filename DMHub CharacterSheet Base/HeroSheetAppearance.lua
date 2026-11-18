@@ -6700,6 +6700,87 @@ function AnthemMGS.ConnectWindow()
     }
 end
 
+--- How to get a Michael Ghelfi Studios track you can only listen to: what includes it
+--- (a Patreon tier or an album) with a button to their page, and Connect for someone
+--- who has it already but has not connected their account here.
+--- @param track MGSTrack
+function AnthemMGS.AccessWindow(track)
+    local frame
+    local need
+    local go = nil
+    if track.tier ~= nil then
+        need = string.format("It comes with the %s tier or above on Michael Ghelfi Studios' Patreon.", track.tier)
+        go = "Subscribe"
+    elseif track.album ~= nil then
+        need = string.format("It comes with the album %s from Michael Ghelfi Studios.", track.album)
+        go = "Buy the album"
+    elseif track.free then
+        need = "Any free Michael Ghelfi Studios account includes it."
+    else
+        need = "Your Michael Ghelfi Studios account does not include it yet."
+    end
+    local connected = MGSAudio.IsConnected()
+    local after = cond(connected,
+        "Once your account includes it, it is ready to use here.",
+        "Already have it? Connect your account to use it here.")
+    local footerLeft = nil
+    if not connected then
+        local connect = SmallButton{
+            text = "Connect account",
+            click = function()
+                HeroSheetWindow.ClosePopup(frame)
+                AnthemMGS.ConnectWindow()
+            end,
+        }
+        connect.selfStyle.valign = "center"
+        footerLeft = connect
+    end
+    local url = track.accessUrl
+    frame = HeroSheetWindow.ShowDialog{
+        title = "Michael Ghelfi Studios",
+        width = 520,
+        bodyHeight = 24 + 8 + 40 + 8 + 20,
+        body = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            Text{
+                classes = {"heroSheetCardStrong"},
+                text = track.title,
+                fontSize = 18,
+                bold = true,
+                width = "100%",
+                height = 24,
+                bmargin = 8,
+                textWrap = false,
+                textOverflow = "ellipsis",
+            },
+            Text{
+                classes = {"heroSheetCardText"},
+                text = "You can listen to this track. To use it as an anthem, your account needs it. " .. need,
+                fontSize = 14,
+                width = "100%",
+                height = 40,
+                bmargin = 8,
+                textWrap = true,
+            },
+            Text{
+                classes = {"heroSheetCardSub"},
+                text = after,
+                fontSize = 13,
+                width = "100%",
+                height = 20,
+                textWrap = true,
+            },
+        },
+        footerLeft = footerLeft,
+        saveText = (url ~= nil and go ~= nil) and go or nil,
+        onSave = (url ~= nil and go ~= nil) and function()
+            dmhub.OpenURL(url)
+        end or nil,
+    }
+end
+
 --- Add a Michael Ghelfi Studios track your account includes to this game, then make
 --- it this look's anthem. Errors show in a message box.
 --- @param trackId string
@@ -6753,9 +6834,9 @@ end
 --- Anthem: tabs, search, one scrolling list (No anthem
 --- first), this look's anthem marked; picks save as you go. Upload audio or
 --- drop a sound on the window; the Director, or whoever uploaded a sound,
---- renames or deletes it from its right-click menu. Below the game's sounds come
---- Michael Ghelfi Studios tracks: those your account includes, in a folder per
---- genre, and on a search also the ones it does not, last.
+--- renames or deletes it from its right-click menu. Below the game's sounds comes
+--- the whole Michael Ghelfi Studios library in a folder per genre, connected or not:
+--- tracks your account includes are used on a click, the rest only play previews.
 local function AnthemWindow()
     local token = Token()
     if token == nil then
@@ -6786,13 +6867,13 @@ local function AnthemWindow()
     local Scroll, Refill
     local watcher = {}
     --each MGS genre folder row's words, by "<kind>|<genre>".
-    --- @type table<string, {label: string, count: integer}>
+    --- @type table<string, {label: string, count: integer, owned: integer}>
     local mgsHeaders = {}
 
     --- The Michael Ghelfi Studios rows after the game's own: "mgs:<track id>" for a
     --- track, "mgshdr:<kind>|<genre>" for a genre folder, "mgsnote:<what>" for a note.
-    --- With no search, the tracks your account includes, in folders. With a search,
-    --- matching tracks you have, then those you do not (only a search shows those).
+    --- The whole library, connected or not: with no search in a folder per genre, with
+    --- a search as one list. Tracks your account includes come first in each.
     --- @param list string[]
     local function AppendMGS(list)
         local kinds = AnthemMGS.TAB_KINDS[tab]
@@ -6800,9 +6881,8 @@ local function AnthemWindow()
             return
         end
         local state = MGSAudio.State()
-        if state == "disconnected" then
+        if not MGSAudio.IsConnected() then
             list[#list+1] = "mgsnote:connect"
-            return
         end
         local tracks = MGSAudio.Tracks()
         if #tracks == 0 then
@@ -6818,6 +6898,13 @@ local function AnthemWindow()
         end
         local function ByTitle(left, right)
             return string.lower(left.title) < string.lower(right.title)
+        end
+        --tracks you can use first, then the rest, each by title.
+        local function OwnedFirst(left, right)
+            if left.entitled ~= right.entitled then
+                return left.entitled
+            end
+            return ByTitle(left, right)
         end
         if search ~= "" then
             local needle = string.lower(search)
@@ -6845,7 +6932,7 @@ local function AnthemWindow()
         local groups = {}
         local keys = {}
         for _, track in ipairs(tracks) do
-            if track.entitled and kinds[track.kind] and not inGame[track.id] then
+            if kinds[track.kind] and not inGame[track.id] then
                 local key = track.kind .. "|" .. track.genre
                 local group = groups[key]
                 if group == nil then
@@ -6857,7 +6944,6 @@ local function AnthemWindow()
             end
         end
         if #keys == 0 then
-            list[#list+1] = "mgsnote:none"
             return
         end
         local function Split(key)
@@ -6880,10 +6966,16 @@ local function AnthemWindow()
             if tab == "all" then
                 label = string.format("%s \xC2\xB7 %s", AnthemMGS.KIND_NAMES[kind] or kind, genre)
             end
-            mgsHeaders[key] = {label = label, count = #group}
+            local owned = 0
+            for _, track in ipairs(group) do
+                if track.entitled then
+                    owned = owned + 1
+                end
+            end
+            mgsHeaders[key] = {label = label, count = #group, owned = owned}
             list[#list+1] = "mgshdr:" .. key
             if AnthemMGS.openGroups[key] then
-                table.sort(group, ByTitle)
+                table.sort(group, OwnedFirst)
                 for _, track in ipairs(group) do
                     list[#list+1] = "mgs:" .. track.id
                 end
@@ -6987,8 +7079,8 @@ local function AnthemWindow()
                     AnthemMGS.ConnectWindow()
                 elseif string.sub(id, 1, 4) == "mgs:" then
                     local track = MGSAudio.Track(string.sub(id, 5))
-                    if track ~= nil and track.accessUrl ~= nil then
-                        dmhub.OpenURL(track.accessUrl)
+                    if track ~= nil then
+                        AnthemMGS.AccessWindow(track)
                     end
                 end
             end,
@@ -7159,20 +7251,23 @@ local function AnthemWindow()
                 local info = mgsHeaders[key] or {label = key, count = 0}
                 caret.bgimage = cond(AnthemMGS.openGroups[key], "phosphor/caret-down-fill.png", "phosphor/caret-right-fill.png")
                 name.text = info.label
-                sub.text = string.format("%d %s from Michael Ghelfi Studios", info.count, cond(info.count == 1, "track", "tracks"))
+                local words = string.format("%d %s from Michael Ghelfi Studios", info.count, cond(info.count == 1, "track", "tracks"))
+                --connected: how many your account includes, when that is some of them.
+                if MGSAudio.IsConnected() and info.owned > 0 and info.owned < info.count then
+                    words = string.format("%s \xC2\xB7 %d in your account", words, info.owned)
+                end
+                sub.text = words
                 return
             end
             if prefix == "mgsnote" then
                 name.text = "Michael Ghelfi Studios"
                 if id == "mgsnote:connect" then
-                    sub.text = "Connect your account to use their music and sound effects."
+                    sub.text = "Listen to any of their tracks here. Connect your account to use them."
                     ShowAction("Connect")
                 elseif id == "mgsnote:unavailable" then
                     sub.text = "Their library cannot be reached right now."
-                elseif id == "mgsnote:none" then
-                    sub.text = "Nothing here in your account yet. Search to hear the rest."
                 else
-                    sub.text = "Loading your library..."
+                    sub.text = "Loading their library..."
                 end
                 return
             end
@@ -7185,13 +7280,12 @@ local function AnthemWindow()
             name.text = track.title
             local credit = AnthemMGS.Credit(track.composer)
             local length = AnthemMGS.Duration(track.duration)
+            if not track.entitled then
+                --listen-only: the same line as a track you have, and a way to get it.
+                ShowAction("Get access")
+            end
             if MGSAudio.IsAdding(track.id) then
                 sub.text = "Adding to this game..."
-            elseif not track.entitled then
-                sub.text = credit
-                if track.accessUrl ~= nil then
-                    ShowAction("Get access")
-                end
             elseif length ~= "" then
                 sub.text = credit .. " \xC2\xB7 " .. length
             else
@@ -7444,7 +7538,7 @@ local function AnthemWindow()
                 if not holder.valid then
                     return
                 end
-                local now = MGSAudio.State() .. "|" .. #MGSAudio.Tracks()
+                local now = MGSAudio.State() .. "|" .. #MGSAudio.Tracks() .. "|" .. tostring(MGSAudio.IsConnected())
                 if now ~= shape then
                     shape = now
                     Refill()
@@ -7452,7 +7546,7 @@ local function AnthemWindow()
                     PaintRows()
                 end
             end)
-            shape = MGSAudio.State() .. "|" .. #MGSAudio.Tracks()
+            shape = MGSAudio.State() .. "|" .. #MGSAudio.Tracks() .. "|" .. tostring(MGSAudio.IsConnected())
         end,
         --closing the window stops the preview.
         destroy = function(element)

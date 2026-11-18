@@ -506,17 +506,17 @@ local function ConfirmRemoveHome(ctx, id, h)
     local home = h.home
     local lines = {}
     if home.kind == "lock" then
-        lines[#lines + 1] = cond(home.placed == "object", "The lock object is taken off the map.",
+        lines[#lines + 1] = cond(home.placed == "object", "The lock is removed from the map.",
             cond(home.placed == "component", "The object stops being a lock.", "The object keeps its Puzzle Lock, with no puzzle set."))
         lines[#lines + 1] = "What this lock opens is forgotten."
     elseif home.kind == "table" then
-        lines[#lines + 1] = "The puzzle is taken off your table, and off the players' tables if you shared it."
+        lines[#lines + 1] = "It leaves your table, and players' tables if shared."
     elseif home.kind == "rail" then
-        lines[#lines + 1] = "The button is taken off your icon rail."
+        lines[#lines + 1] = "It leaves your icon rail."
     else
-        lines[#lines + 1] = "The puzzle is taken off the page."
+        lines[#lines + 1] = "It leaves the page."
     end
-    lines[#lines + 1] = "The puzzle stays in this panel."
+    lines[#lines + 1] = "It stays in this panel."
     Confirm(string.format("Remove from %s?", PuzzlePlace.HomeName(home)), lines, "Remove", function()
         ctx.Act(function() PuzzlePlace.RemoveHome(id, h.key) end)
     end)
@@ -591,14 +591,14 @@ local function RowMenuEntries(ctx, row, host)
             end }
             entries[#entries + 1] = { text = "Bypass", group = "live", click = function()
                 close()
-                Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved, marked as bypassed." }, "Bypass", function()
+                Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved." }, "Bypass", function()
                     ctx.Act(function() Puzzle.Bypass(id) end)
                 end, { effects = "onSolve" })
             end }
         end
         entries[#entries + 1] = { text = "Reset...", group = "live", click = function()
             close()
-            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "The table's progress will be lost, and the timer and hint start over." }, "Reset", function()
+            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "Progress, timer and hint start over." }, "Reset", function()
                 if not mod.unloaded then
                     ctx.Act(function()
                         g_pausedByAll[id] = nil
@@ -613,7 +613,7 @@ local function RowMenuEntries(ctx, row, host)
         entries[#entries + 1] = { text = "Remove from every place...", group = "remove", click = function()
             close()
             local lines = { "It is taken out of: " .. table.concat(liveNames, ", ") .. ".",
-                "The puzzle stays in this panel." }
+                "It stays in this panel." }
             lines[#lines + 1] = PeopleLine(row)
             Confirm(string.format("Remove \"%s\" from every place?", row.title), lines, "Remove", function()
                 ctx.Act(function() PuzzlePlace.RemoveEverywhere(id) end)
@@ -622,10 +622,10 @@ local function RowMenuEntries(ctx, row, host)
     end
     entries[#entries + 1] = { text = "Delete puzzle...", group = "delete", click = function()
         close()
-        local lines = { "Its board and status are cleared. This cannot be undone." }
+        local lines = { "All progress is lost. This can't be undone." }
         if #liveNames > 0 then
             lines[#lines + 1] = "It is in: " .. table.concat(liveNames, ", ") .. "."
-            lines[#lines + 1] = "Its locks stop opening anything, and its pages show an empty puzzle."
+            lines[#lines + 1] = "Its locks stop working and its pages go blank."
         end
         lines[#lines + 1] = PeopleLine(row)
         Confirm(string.format("Delete \"%s\"?", row.title), lines, "Delete", function()
@@ -988,7 +988,7 @@ local function RowPanel(ctx, row, view)
             bgcolor = "white",
             opacity = 0.6,
             hover = function(element)
-                gui.Tooltip("Drag onto a page, an object, the table, the rail or chat. Right-click for more.")(element)
+                gui.Tooltip("Drag to place it. Right-click for more.")(element)
             end,
         },
         gui.Label{
@@ -1102,7 +1102,7 @@ local function RowPanel(ctx, row, view)
                     height = "auto",
                     halign = "left",
                     interactable = false,
-                    text = "Not placed yet. Drag it onto a page, an object, the table or chat.",
+                    text = "Not placed yet. Drag it onto a page, object, table or chat.",
                 },
             }
         end
@@ -1471,7 +1471,7 @@ local function CreatePuzzleList()
         valign = "top",
         pad = 8,
         borderBox = true,
-        text = "No puzzles yet. Press New puzzle, add one to a journal page, or put a Puzzle Lock on a map object.",
+        text = "No puzzles yet. Press New puzzle to make one.",
     }
 
     list = gui.Panel{
@@ -1552,7 +1552,7 @@ local function CreatePuzzleList()
             end)
         end,
         hover = function(element)
-            gui.Tooltip(cond(element.data.resume == true, "Restarts the puzzle timers you paused here.",
+            gui.Tooltip(cond(element.data.resume == true, "Restarts the timers you paused.",
                 "Pauses every running puzzle timer."))(element)
         end,
         create = function(element)

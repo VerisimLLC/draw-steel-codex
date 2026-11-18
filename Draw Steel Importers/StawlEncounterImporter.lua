@@ -344,8 +344,9 @@ local function ImportStawlEncounter(doc)
 
             --Stawl expresses minion squads as the row count (a row of count 8
             --is one squad of 8). Codex stores one squadSize per group
-            --(default 4; spawning breaks quantity into ceil(quantity /
-            --squadSize) squads), so carry over the largest minion row count
+            --(default 4; spawning breaks quantity into the nearest whole
+            --number of squads of that size, Encounter.MinionSquadCount), so
+            --carry over the largest minion row count
             --as the group's squad size. Mixed row sizes of the same minion in
             --one group (e.g. rows of 8 and 4) cannot be represented exactly;
             --the largest row wins.

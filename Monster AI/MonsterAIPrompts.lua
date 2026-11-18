@@ -354,6 +354,9 @@ MonsterAI:RegisterPrompt{
 MonsterAI:RegisterPrompt{
     id = "Generic Free Strike Against Specific Target",
     prompts = {"Free Strike Against Specific Target"},
+    --The monster makes this strike itself (To the Death! has it strike the hero),
+    --so the AI answers it even though a hero's ability raised the prompt.
+    answersForCaster = true,
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
         local result = HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClone, symbols, options)
         if result ~= nil and result.abilityOverride == nil then

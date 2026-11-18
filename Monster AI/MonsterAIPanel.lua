@@ -782,6 +782,18 @@ function MonsterAI.PromptCallbackForCreature(token)
     end
 end
 
+--- True when the AI may answer this prompt for its caster even though someone
+--- else invoked it. When a hero's ability acts on a monster the monster is the
+--- caster, but the hero's player still decides (where to push it). Only prompts
+--- registered with answersForCaster = true qualify: ones where the monster acts
+--- on its own, like To the Death!'s free strike.
+--- @param abilityClone ActivatedAbility
+--- @return boolean
+function MonsterAI.PromptAnswersForCaster(abilityClone)
+    local entry = MonsterAI.prompts[abilityClone.name]
+    return entry ~= nil and entry.answersForCaster == true
+end
+
 MonsterAIPanel = function()
     local resultPanel
     local m_status

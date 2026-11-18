@@ -21,10 +21,6 @@ function GameHud.TokenMoving(self, token, path)
 
     local statusText = ""
 
-    --Lets a drop be told apart from a scripted teleport (creature:IsTeleportMove): a teleport
-    --path records the preview, any other path clears it.
-    creature.NoteTeleportDragPreview(token, path)
-
     --How-to-use-the-Codex notes, drawn as boxed callouts under the tooltip text.
     local codexCallouts = {}
 

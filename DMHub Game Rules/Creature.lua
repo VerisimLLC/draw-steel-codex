@@ -7654,11 +7654,6 @@ end
 --time is dmhub.serverTime, so it compares with a record synced from another client.
 local g_teleportOrigins = {}
 
---Ctrl-drag teleport previews keyed by charid: {dest = xyfloor str, time}. The movement
---tooltip updates it whenever the dragged token's path changes: a teleport path sets it,
---any other path (Ctrl released) clears it, so it always describes the drag as it stands.
-local g_teleportDragPreviews = {}
-
 --Out of combat a departure point stays meaningful for this many seconds.
 local g_teleportOriginLifetime = 300
 
@@ -7685,25 +7680,6 @@ function creature:RecordTeleportOrigin(originLoc)
     if charid ~= nil then
         g_teleportOrigins[charid] = MakeTeleportOriginRecord(self, originLoc)
     end
-end
-
---- Called by the movement tooltip each time a dragged token's path changes, so the teleport
---- that follows can be recognised as that drag (see creature:IsTeleportMove). A path that is
---- not a teleport (Ctrl released) clears the preview.
---- @param token CharacterToken
---- @param path LuaPath
-function creature.NoteTeleportDragPreview(token, path)
-    if token == nil then
-        return
-    end
-    if path == nil or not path.teleport or path.destination == nil then
-        g_teleportDragPreviews[token.charid] = nil
-        return
-    end
-    g_teleportDragPreviews[token.charid] = {
-        dest = path.destination.xyfloorOnly.str,
-        time = dmhub.Time(),
-    }
 end
 
 --- The newer of this client's record and the synced one, if it is still current: in combat
@@ -7775,44 +7751,22 @@ function creature:DistanceToTeleportOrigin(other)
     return best
 end
 
---The engine updates the tooltip only when the path changes, so a player may hold still for
---a while before dropping. This only stops a preview left over from an abandoned drag.
-local g_dragPreviewWindow = 120
-
---- A teleport that is the creature's own movement: a relocate flagged "Teleport Counts as
---- Movement", or a Ctrl-drag. The engine does not flag a Ctrl-drag commit, so a drag is
---- recognised as: not inside a cast, Ctrl still held, and landing exactly where this client's
---- movement tooltip just previewed a teleport for this token. A scripted Teleport() has no
---- such preview. path.teleport is honoured too, should the engine ever set it.
+--- A teleport that is the creature's own movement: a Ctrl-drag by a player or a directorless
+--- game's player host of a creature that can teleport (the engine sets path.teleportAsMovement;
+--- never for the Director's), or a relocate flagged "Teleport Counts as Movement".
 --- @param path LuaPath
 --- @return boolean
 function creature:IsTeleportMove(path)
-    if path.teleport or self:try_get("_tmp_teleportCountsAsMovement") then
+    if path.teleportAsMovement then
         return true
     end
-
-    local _, isMain = coroutine.running()
-    if isMain ~= true or dmhub.modKeys.ctrl ~= true or path.destination == nil then
-        return false
-    end
-
-    local charid = dmhub.LookupTokenId(self)
-    if charid == nil then
-        return false
-    end
-    local preview = g_teleportDragPreviews[charid]
-    if preview == nil or dmhub.Time() - preview.time > g_dragPreviewWindow then
-        return false
-    end
-    g_teleportDragPreviews[charid] = nil
-    return preview.dest == path.destination.xyfloorOnly.str
+    return self:try_get("_tmp_teleportCountsAsMovement") == true
 end
 
 --- Resolve a creature teleporting as its own movement (Cinder Step, an innate teleport speed):
 --- spend movement equal to the teleport distance, sync the departure point and fire the
---- "teleportmove" trigger. A Ctrl-drag counts only for a creature that can teleport, and a
---- Director's Ctrl-drag is always a free GM reposition. An ability flagged "Teleport Counts as
---- Movement" always pays: using the ability is the rules action.
+--- "teleportmove" trigger. An ability flagged "Teleport Counts as Movement" always pays:
+--- using the ability is the rules action.
 --- @param path LuaPath
 function creature:HandleTeleportMove(path)
     if path.origin == nil or path.destination == nil then
@@ -7820,9 +7774,6 @@ function creature:HandleTeleportMove(path)
     end
 
     local fromAbility = self:try_get("_tmp_teleportCountsAsMovement") and true or false
-    if not fromAbility and (dmhub.isDM or not self:CanTeleport()) then
-        return
-    end
 
     local token = dmhub.LookupToken(self)
     if token == nil then

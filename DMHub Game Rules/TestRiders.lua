@@ -331,6 +331,29 @@ function TestRiders.DamageTypesInText(text, add, patronType)
     end
 end
 
+--The damage types a conversion modifier's damageTypeMappings lets an ability
+--deal, given the set of types it deals ("untyped" included). Each source maps
+--to one type or a list the roller picks from; "all" means any damage.
+function TestRiders.ConvertedDamageTypes(dealt, mappings)
+    local result = {}
+    if type(mappings) ~= "table" then
+        return result
+    end
+    local dealsAny = next(dealt) ~= nil
+    for source, dest in pairs(mappings) do
+        source = lower(source)
+        if dealt[source] or (source == "all" and dealsAny) then
+            for _, damageType in ipairs(type(dest) == "table" and dest or { dest }) do
+                damageType = type(damageType) == "string" and lower(damageType) or ""
+                if DAMAGE_TYPES[damageType] then
+                    result[#result + 1] = damageType
+                end
+            end
+        end
+    end
+    return result
+end
+
 --Sources that make a hero impossible to surprise (a "you cannot be
 --surprised" requirement), on top of a real condition immunity.
 local NEVER_SURPRISED = { "perk:danger sense", "primordial cunning", "unphased" }
@@ -1323,7 +1346,9 @@ function TestRiders.CreatureFacts(c)
             patronType = c:PatronDamageType()
         end
     end)
+    local damageAbilities = {}
     local function NoteDamage(ability, name)
+        damageAbilities[#damageAbilities + 1] = ability
         AbilityDamageTypes(ability, function(damageType)
             if facts.damage[damageType] == nil then
                 facts.damage[damageType] = name
@@ -1354,6 +1379,39 @@ function TestRiders.CreatureFacts(c)
             end
         end
     end)
+    --modifiers that convert damage (Fallen Immortal: untyped -> holy) count
+    --for each ability the modifier would apply to when it is rolled.
+    local conversions = {}
+    pcall(function()
+        for _, entry in ipairs(c:GetActiveModifiers() or {}) do
+            local mod = entry.mod
+            if mod ~= nil and type(mod:try_get("damageTypeMappings")) == "table" then
+                conversions[#conversions + 1] = mod
+            end
+        end
+    end)
+    for _, ability in ipairs(conversions[1] ~= nil and damageAbilities or {}) do
+        local dealt = {}
+        pcall(function()
+            AbilityDamageTypes(ability, function(damageType) dealt[damageType] = true end, patronType, 0)
+            for _, damageType in ipairs(ActivatedAbility.PowerRollDamageTypes(ability)) do
+                dealt[lower(damageType)] = true
+            end
+        end)
+        for _, mod in ipairs(conversions) do
+            --one pcall per modifier: a bad one must not hide the others.
+            pcall(function()
+                local hint = CharacterModifier.TypeInfo.power.hintPowerRoll(mod, c, "ability_power_roll", { ability = ability })
+                if hint.result or hint.optIn then
+                    for _, damageType in ipairs(TestRiders.ConvertedDamageTypes(dealt, mod.damageTypeMappings)) do
+                        if facts.damage[damageType] == nil then
+                            facts.damage[damageType] = mod.name
+                        end
+                    end
+                end
+            end)
+        end
+    end
     --carried and equipped items.
     pcall(function()
         local gear = dmhub.GetTable("tbl_Gear") or {}

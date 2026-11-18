@@ -1119,9 +1119,7 @@ function monster.OnCreateFromBestiary(self, token, groupid)
                 assignToSquad = true
                 minionName = monsterInfo.properties.monster_type
 
-                if quantity >= 8 and (group.squadSize or 4) < quantity then
-                    numSquads = math.ceil(quantity / (group.squadSize or 4))
-                end
+                numSquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                 break
             end
         end

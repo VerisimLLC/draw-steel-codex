@@ -504,6 +504,10 @@ function History.Story(entry, kids)
 
     --a trigger can finish off a squad this action never touched (L22).
     for name, death in pairs(deaths) do
+        --a squad whose name players may not see, as AddSquad shows it.
+        if death.who ~= nil and death.who.secret and not dmhub.isDM then
+            name = "Unknown creature"
+        end
         rows[#rows + 1] = {
             who = death.who ~= nil and {death.who} or {},
             text = string.format("%s %s.", name, DeathWords(death)),
@@ -1816,8 +1820,10 @@ local function NumbersRows(entry, kids, width)
     local targets = entry.targets or {}
 
     --a roll hidden from players: they get this line instead of its numbers (2.4); the
-    --Director gets it above the numbers, with the eye that shows them to players.
-    if entry.secretroll or (entry.roll ~= nil and entry.roll.hidden) or (entry.privacy ~= nil and entry.privacy.hidden) then
+    --Director gets it above the numbers, with the eye that shows them to players. Once
+    --shown to everyone, only the Director keeps the line, for the eye that hides it again.
+    local hidden = entry.privacy or entry.roll
+    if entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)) then
         rows[#rows + 1] = SecretRollRow(entry, width)
     end
 

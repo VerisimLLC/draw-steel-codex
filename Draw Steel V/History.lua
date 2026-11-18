@@ -398,7 +398,12 @@ local function ForPlayers(entry)
         entry.secretroll = true
     end
     --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
-    local monster = entry.actor ~= nil and not entry.actor.hero
+    --An action keeps its roller in actor; a test or dice line, in who.
+    local roller = entry.actor
+    if roller == nil and (entry.family == "test" or entry.family == "dice") then
+        roller = entry.who
+    end
+    local monster = roller ~= nil and not roller.hero
     if monster and entry.roll ~= nil then
         WithoutHovers(entry.roll.sources)
     end

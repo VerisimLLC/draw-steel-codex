@@ -325,8 +325,8 @@ local function WithMinionDeathResolver(ai, marks, fn)
 end
 
 --Casts something that reduces these war dogs to 0 Stamina, then waits for
---their loyalty collars to go off. A captain's collar can prompt after the
---cast's own wait has ended, so answer collars once more before moving on.
+--their loyalty collars to go off. A captain's collar can go off after the cast
+--has finished, so answer any collars still waiting before moving on.
 local function ExecuteDetonation(ai, detonator, victims, fn)
     local marks = {}
     for _,victim in ipairs(victims) do
@@ -335,8 +335,9 @@ local function ExecuteDetonation(ai, detonator, victims, fn)
     WithMinionDeathResolver(ai, marks, function()
         fn()
         ai:WaitForAbilityIdle(30)
-        ai:ResolveDyingCreatureTriggers()
-        ai:WaitForAbilityIdle(30)
+        if ai:ResolveDyingCreatureTriggers() > 0 then
+            ai:WaitForAbilityIdle(30)
+        end
     end)
 end
 
@@ -2155,38 +2156,10 @@ MonsterAI:RegisterMaliceAbility{
     end,
 }
 
---The square each Fodder Run runner shifts to, by charid. Filled just before
---the AI casts Fodder Run and emptied right after.
-local g_fodderRunDestinations = {}
-
---Answers Fodder Run's Shift prompts, one per runner: each runner shifts to the
---square planned for it. The prompts arrive under the type of the war dog that
---cast Fodder Run; any other Shift falls through to the generic handler.
-local fodderRunShiftPrompt = {
-    id = "War Dog Malice: Fodder Run shift",
-    prompts = {},
-    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
-        local loc = g_fodderRunDestinations[casterToken.charid]
-        if loc == nil then
-            return nil
-        end
-        g_fodderRunDestinations[casterToken.charid] = nil
-        --Already standing on its square: the shift moves nowhere.
-        if ai:MovementTokenIsAtLoc(casterToken, loc) then
-            return {targets = {}}
-        end
-        return {targets = {{loc = loc}}}
-    end,
-}
-for _,monsterType in ipairs(warDogMonsters) do
-    fodderRunShiftPrompt.prompts[#fodderRunShiftPrompt.prompts+1] = monsterType .. ":Shift"
-end
-MonsterAI:RegisterPrompt(fodderRunShiftPrompt)
-
 --Fodder Run: each minion that can get next to an enemy shifts there, makes a
 --free strike, and is reduced to 0 Stamina, so its collar goes off there too.
 --Minions who cannot reach anyone simply stay out of it and live. Only minions
---the ability can target are planned (ExecuteAbility needs sight of each one).
+--the ability can target and the caster can see are planned.
 local function PlanFodderRun(ai, token, context, ability)
     --A Hidden enemy is unseen: the runners neither head for it nor can strike it.
     local enemies = {}
@@ -2276,29 +2249,27 @@ MonsterAI:RegisterMaliceAbility{
             return
         end
         Speak(ai, token, "fodderRun")
-        --The ability itself shifts every runner, then free strikes with each, then
-        --destroys them all. Its Shift prompts read the planned squares below.
+        --The ability itself shifts every runner to its planned square, then free
+        --strikes with each, then destroys them all, even a runner that could not
+        --strike. The AI used to spare a runner with no free strike.
         local targets = {}
         local victims = {}
+        local runnerIds = {}
         for _,plan in ipairs(plans) do
             targets[#targets+1] = {token = plan.token}
             victims[#victims+1] = plan.token
-            g_fodderRunDestinations[plan.token.charid] = plan.loc
-        end
-        --Any war dog in the band can cast it, not just the types listed in this
-        --file; without this its runners would shift to random squares.
-        for _,monsterType in ipairs(MonsterAI.AIMonsterTypes(token.properties)) do
-            local key = monsterType .. ":Shift"
-            if MonsterAI.prompts[key] == nil then
-                MonsterAI.prompts[key] = fodderRunShiftPrompt
-            end
+            runnerIds[#runnerIds+1] = plan.token.charid
+            MonsterAI.plannedShiftDestinations[plan.token.charid] = plan.loc
         end
         local ok, err = ai:RunYieldingFunction(function()
             ExecuteDetonation(ai, token, victims, function()
                 ai:ExecuteAbility(token, ability, targets, {sleep = stationaryPause})
             end)
         end)
-        g_fodderRunDestinations = {}
+        --A runner that never got its Shift prompt must not keep its square.
+        for _,runnerId in ipairs(runnerIds) do
+            MonsterAI.plannedShiftDestinations[runnerId] = nil
+        end
         if not ok then
             error(err, 0)
         end

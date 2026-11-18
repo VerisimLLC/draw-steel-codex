@@ -5,6 +5,9 @@ local mod = dmhub.GetModLoading()
 MonsterAI = RegisterGameType("MonsterAI")
 MonsterAI.moves = {} --a table of registered moves the ai can choose from.
 MonsterAI.prompts = {} --a table of prompted abilities the ai knows how to use.
+--Squares the AI picked for creatures an ability is about to shift, by charid.
+--A creature listed here shifts to its square when prompted, not a random one.
+MonsterAI.plannedShiftDestinations = {}
 MonsterAI.triggerHandlersByGuid = {}
 MonsterAI.triggerHandlersByMonsterAbility = {}
 MonsterAI.triggerHandlersByAbility = {}
@@ -3030,9 +3033,9 @@ end
 --thread is blocked in a wait, so its own trigger poll cannot run. The turn-start
 --wait uses this: a monster whose Before Start of Turn trigger is a prompt holds
 --its BeginTurn open until the prompt is answered. minionsOnly limits it to
---minions (the minion-death wait above); dyingOnly to creatures at 0 Stamina
---still on the map (ResolveDyingCreatureTriggers). Each prompt is tried once per
---wait. Returns how many prompts it tried this call.
+--minions (the minion-death wait above); dyingOnly to recent prompts on
+--creatures at 0 Stamina still on the map. Each prompt is tried once per wait.
+--Returns how many prompts it tried this call.
 ---@param answered table<string, boolean> prompts already tried this wait
 ---@param minionsOnly? boolean
 ---@param dyingOnly? boolean
@@ -3055,7 +3058,8 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly, dyingOnly)
             ---@cast props creature
             for _,trigger in pairs(props:GetAvailableTriggers(true) or {}) do
                 local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
-                if not answered[key] and not trigger.triggered and not trigger.dismissed then
+                if not answered[key] and not trigger.triggered and not trigger.dismissed
+                    and (not dyingOnly or MonsterAI.IsRecentPrompt(trigger)) then
                     answered[key] = true
                     work[#work+1] = {token = token, trigger = trigger}
                 end
@@ -3106,22 +3110,14 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly, dyingOnly)
     return #work
 end
 
---True while an AI-run creature at 0 Stamina has a death trigger still to come:
---queued behind running casts, or a prompt not yet tried in this wait.
----@param answered table<string, boolean>
+--True while an AI-run creature at 0 Stamina has a death trigger waiting for
+--running abilities to finish before it prompts.
 ---@return boolean
-local function DyingCreatureTriggerPending(answered)
+local function DyingCreatureTriggerQueued()
     for _,token in ipairs(dmhub.allTokens) do
-        if not token.playerControlled and MonsterAI.TokenIsDyingOnMap(token) then
-            if ActivatedAbility.HasDeferredCastFor(token) then
-                return true
-            end
-            for _,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
-                local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
-                if not answered[key] and not trigger.triggered and not trigger.dismissed then
-                    return true
-                end
-            end
+        if not token.playerControlled and MonsterAI.TokenIsDyingOnMap(token)
+            and ActivatedAbility.HasDeferredCastFor(token) then
+            return true
         end
     end
     return false
@@ -3141,7 +3137,8 @@ function MonsterAI:ResolveDyingCreatureTriggers(timeout)
     while not mod.unloaded do
         local count = self:AnswerAITriggersDuringWait(answered, false, true)
         total = total + count
-        if count == 0 and not DyingCreatureTriggerPending(answered) then
+        --Every open prompt was just tried, so only a queued one can still come.
+        if count == 0 and not DyingCreatureTriggerQueued() then
             return total
         end
         if dmhub.Time() >= deadline then
@@ -3352,8 +3349,11 @@ function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
             error(reason)
         end
         --An opportunity attack may have killed the mover; its death trigger
-        --(Loyalty Collar) fires now, not after the turn.
-        self:ResolveDyingCreatureTriggers()
+        --(Loyalty Collar) fires now, not after the turn. During a cast it can't
+        --go off until that cast ends, and the cast waits for it then.
+        if creature.GetAIActivityInProgress() == nil then
+            self:ResolveDyingCreatureTriggers()
+        end
         if not self.TokenIsLiveCombatant(token) then
             if continueIfActorDies then
                 self:LogDecision("MOVEMENT ACTOR LOST", {
@@ -4484,6 +4484,8 @@ end
 --- A minion reads its squad's shared Stamina, so it often still looks alive
 --- here; its prompts are answered by the AI's wait for minion deaths and its
 --- between-turns trigger check instead.
+--- This is also true for any body left on the map, so the AI answers only
+--- recent prompts on these creatures (see IsRecentPrompt below).
 --- @param token CharacterToken|nil
 --- @return boolean
 function MonsterAI.TokenIsDyingOnMap(token)
@@ -4495,6 +4497,15 @@ function MonsterAI.TokenIsDyingOnMap(token)
         return false
     end
     return props:IsDead() or props:CurrentHitpoints() <= 0
+end
+
+--- True for a prompt younger than the age at which ordinary prompts expire.
+--- A body left on the map can keep an old prompt the Director chose not to
+--- answer; the AI leaves those alone.
+--- @param trigger ActiveTrigger
+--- @return boolean
+function MonsterAI.IsRecentPrompt(trigger)
+    return trigger:SecondsUntilExpiry() > 0
 end
 
 function MonsterAI:RefreshCombatants(queue, referenceToken)
@@ -10269,10 +10280,8 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         if completed then
             completed, reason = self:WaitForHeroCasts()
         end
-        --A monster this cast killed may now explode (Loyalty Collar), and that
-        --blast can set off heroes' reactions in turn. Only the outermost cast
-        --waits: a collar queued behind an outer cast cannot go off until that
-        --outer cast has ended.
+        --A monster this cast killed may explode now (Loyalty Collar). Only the
+        --outermost cast waits, since a collar can't go off while an outer cast runs.
         if completed and previousInProgress == nil and self:ResolveDyingCreatureTriggers() > 0 then
             completed, reason = self:WaitForHeroCasts()
         end

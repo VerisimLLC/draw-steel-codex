@@ -3,6 +3,16 @@ local mod = dmhub.GetModLoading()
 MonsterAI:RegisterPrompt{
     prompts = {"Shift"},
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local planned = MonsterAI.plannedShiftDestinations[casterToken.charid]
+        if planned ~= nil then
+            MonsterAI.plannedShiftDestinations[casterToken.charid] = nil
+            --Already standing on its square: the shift moves nowhere.
+            if ai:MovementTokenIsAtLoc(casterToken, planned) then
+                return {targets = {}}
+            end
+            return {targets = {{loc = planned}}}
+        end
+
         local range = abilityClone:GetRange(casterToken.properties)
         local paths = casterToken:CalculatePathfindingArea(range*10, {"shift"})
         local bestLoc = nil

@@ -176,7 +176,10 @@ assert(logged[1] == "MOVEMENT SKIPPED")
 --Stopped short of the destination: only a creature that actually moved is
 --marked as falling short (so the move is re-planned rather than quarantined).
 dmhub.GenerateGuid = function() return "activity" end
-creature = {SetTokenAIActivity = function() return nil end}
+creature = {
+    SetTokenAIActivity = function() return nil end,
+    GetAIActivityInProgress = function() return nil end,
+}
 MonsterAI.TokenIsLiveCombatant = function() return true end
 function moveAi:MovementLocOverlapsCreature() return false end
 function moveAi:WaitForMovementActivity() return true end

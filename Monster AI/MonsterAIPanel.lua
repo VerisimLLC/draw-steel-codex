@@ -349,8 +349,9 @@ local function MonsterAIThread(process)
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
                 --Dying creatures too: a death trigger (Loyalty Collar) prompts on
-                --a creature already at 0 Stamina.
-                if (MonsterAI.TokenIsLiveCombatant(token) or MonsterAI.TokenIsDyingOnMap(token))
+                --a creature already at 0 Stamina. On those, only recent prompts.
+                local live = MonsterAI.TokenIsLiveCombatant(token)
+                if (live or MonsterAI.TokenIsDyingOnMap(token))
                     and not token.playerControlled then
                     local pollProf = MonsterAI.ProfBegin("thread: trigger poll")
                     local triggers = token.properties:GetAvailableTriggers()
@@ -363,7 +364,8 @@ local function MonsterAIThread(process)
                             local triggerHandled = false
                             local ok = true
                             local err = nil
-                            if not failedTriggers[triggerKey] then
+                            if not failedTriggers[triggerKey]
+                                and (live or MonsterAI.IsRecentPrompt(trigger)) then
                                 ok, err = ai:RunYieldingFunction(function()
                                     triggerHandled = ai:HandleAvailableTrigger(token, trigger)
                                 end)

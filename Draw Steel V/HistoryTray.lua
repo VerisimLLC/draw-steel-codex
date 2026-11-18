@@ -1586,8 +1586,62 @@ local function HasCard(entry)
         or entry.family == "test" or entry.family == "dice"
 end
 
+--The start of a combat (T10): the old log's swords and lettering as a landmark to scroll
+--back to, with who goes first under them. LineWords has the same facts as one sentence.
+local function BuildDrawSteel(entry)
+    local words = cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
+    if entry.rolled ~= nil then
+        words = words .. string.format(" (rolled %d)", entry.rolled)
+    end
+    local function Sword(flipped)
+        return gui.Panel{
+            bgimage = "panels/initiative/drawsteel-sword.png",
+            bgcolor = "white",
+            width = 44,
+            height = 22,
+            valign = "center",
+            scale = flipped and {x = -1, y = 1} or nil,
+        }
+    end
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vpad = 8,
+        borderBox = true,
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            Sword(false),
+            gui.Panel{
+                bgimage = "panels/initiative/drawsteel-text.png",
+                bgcolor = "white",
+                width = 144,
+                height = 20,
+                hmargin = 6,
+                valign = "center",
+            },
+            Sword(true),
+        },
+        gui.Label{
+            classes = {"historyLineText"},
+            text = History.SearchMark(words),
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            tmargin = 4,
+            textAlignment = "center",
+        },
+    }
+end
+
 local function BuildLine(item)
     local entry = item.entry
+    if entry.family == "drawsteel" then
+        return BuildDrawSteel(entry)
+    end
     local cause = entry.causetext
     if entry.recovered ~= nil then
         local recovered = string.format("No longer %s", entry.recovered)

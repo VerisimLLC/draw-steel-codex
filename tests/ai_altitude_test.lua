@@ -10,14 +10,14 @@ local function noop() end
 ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = noop, noop, noop, noop, noop, noop
 MonsterAI = {TokenIsLiveCombatant = function(t) return t and t.valid end,
     TokenLogName = tostring, TargetsLogName = tostring, AbilityActionLogName = tostring,
-    LogDecision = noop}
+    LogDecision = noop, AIMonsterTypes = function() return {} end}
 --Planning answers are not remembered between calls here.
 function MonsterAI:PlanningMemo() return {filters = {}, lineOfSight = {}, chargeProbes = {}, chargeRoutes = false} end
 dmhub = {unitsPerSquare = 1}
 assert(load(section("function MonsterAI.TargetDistance", "function MonsterAI:MovementTokenIsAtLoc")))()
 assert(load(section("function MonsterAI.StrikeChargeRange", "function MonsterAI:FindSquadMemberStrikeOptions")))()
 -- Run the actual cast preflight, stopping before presentation and resource spending.
-assert(load(section("function MonsterAI:ExecuteAbility(", "    if targetArea ~= nil and options.telegraphArea") .. "return true, targets, ability end"))()
+assert(load(section("function MonsterAI:StrikePairIsLegal(", "    if targetArea ~= nil and options.telegraphArea") .. "return true, targets, ability end"))()
 table.resize_array = function(t, n) for i = #t,n+1,-1 do t[i] = nil end end
 local function token(x, altitude, size)
     local t = {valid = true, charid = "token" .. x, loc = {x = x, altitude = altitude, str = x .. ":" .. altitude}, tileSize = size or 1}
@@ -93,7 +93,7 @@ _, targets = ai:ExecuteAbility(goblin, map)
 assert(#targets == 2, "map-wide effects remain unlimited")
 assert(ai:ExecuteAbility(goblin, ability, {{token = pixie}}, {targetArea = {}, telegraphArea = false}),
     "placed area membership is independent of direct creature range")
-assert(load(section("function MonsterAI:HandlePrompt", "--AI actions yield")))()
+assert(load(section("local function TokenLeftMap", "--AI actions yield")))()
 function goblin.properties:try_get(_, default) return default end
 goblin.charid = "goblin"
 ai.prompts = {[ability.name] = {handler = function() return {targets = {{token = pixie}}} end}}
@@ -105,4 +105,33 @@ pixie.loc.altitude = 3
 local options = {}
 assert(ai:HandlePrompt(goblin, goblin, ability, {}, options) == "inherit", "legal custom prompt remains automatic")
 assert(options.targets[1].token == pixie)
+--A minion killed and removed mid Dread March: its token stays referenced but
+--has no properties, and engine calls on it throw.
+local removed = token(0, 0)
+removed.valid, removed.properties = false, nil
+--The entry check must stop these before any handler or planned target is used.
+ai.prompts = {[ability.name] = {handler = function() error("handler ran for a token that left the map") end}}
+ai._tmp_expectedPromptTarget = {casterid = goblin.charid, targets = {{token = pixie}}}
+assert(ai:HandlePrompt(goblin, removed, ability, {}, {}) == "skip", "removed caster skips the prompt")
+assert(ai._tmp_expectedPromptTarget == nil, "targets planned for a skipped prompt are dropped")
+removed.charid = "removed"
+ai._tmp_expectedPromptTarget = {casterid = removed.charid, targets = {{token = pixie}}}
+assert(ai:HandlePrompt(removed, goblin, ability, {}, {}) == "skip", "removed invoker skips the prompt")
+assert(ai._tmp_expectedPromptTarget == nil, "targets planned for a removed invoker are dropped")
+--The caster leaves the map while its handler runs; only the check after the handler can catch it.
+local marcher = token(0, 2)
+ai.prompts = {[ability.name] = {handler = function()
+    marcher.valid, marcher.properties = false, nil
+    return {targets = {{token = pixie}}}
+end}}
+assert(ai:HandlePrompt(goblin, marcher, ability, {}, {}) == "skip", "caster removed while the handler waited")
+--An invoker that leaves while the handler runs does not stop the caster's cast.
+local invoker = token(0, 2)
+invoker.charid = "invoker"
+invoker.properties.try_get = goblin.properties.try_get
+ai.prompts = {[ability.name] = {handler = function()
+    invoker.valid, invoker.properties = false, nil
+    return {targets = {{token = pixie}}}
+end}}
+assert(ai:HandlePrompt(invoker, goblin, ability, {}, {}) == "inherit", "invoker removed while the handler waited")
 print("AI altitude distance, size, planning, and cast preflight tests passed")

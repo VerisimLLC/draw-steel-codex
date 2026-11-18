@@ -3351,6 +3351,10 @@ local function GraveStatusText(grave)
     elseif state == "beyond" then
         return T("graveyard.status_beyond")
     end
+    --the Temple is not named to a player who has not heard of it (its lead).
+    if not EotwLeads.Knows("temple") then
+        return nil
+    end
     if EotwRoster.TempleBuilt() then
         return T("graveyard.status_temple")
     elseif EotwDowntime.GetProject("restore-temple") ~= nil then

@@ -179,6 +179,14 @@ setting{
     storage = "preference",
 }
 
+--Whether this account has accepted the Proving Pits intro (ShowProvingPitsIntro).
+--Account storage, so a player sees it once, not once per machine.
+setting{
+    id = "eotw:provingPitsIntroAccepted",
+    default = false,
+    storage = "account",
+}
+
 --The newest chat message this player has seen in the town's chat drawer,
 --per channel ("town", or a party's gameid), in server ms. Drives the
 --drawer's New divider.
@@ -433,7 +441,10 @@ end
 --The town's locations, as fractions of the map image (so they survive a
 --re-export at another size). open(ctx) runs on click; locked(ctx) returns
 --the reason the location is closed, or nil; hidden(ctx), if given, takes the
---location off the map entirely while it returns true. A location with a scene opens
+--location off the map entirely while it returns true. lead, if given, keeps it
+--off the map until the player learns that lead (EotwLeads; the City's
+--LOCATION_LEADS refuses what is done there until then too), and the node
+--beckons when it appears. A location with a scene opens
 --full screen over its art instead of as a dialog over the map; focusX is
 --where to crop the art on screens that are not 16:9.
 local CITY_LOCATIONS = {
@@ -708,8 +719,10 @@ local CITY_LOCATIONS = {
     },
     --The Destroyed Temple until the town restores it
     --(EotwRoster.TempleBuilt); then the Temple, where fallen heroes are raised.
+    --Off the map until the player hears of it carousing (a tier 2 lead).
     {
         id = "temple",
+        lead = "temple",
         label = function(ctx) return cond(EotwRoster.TempleBuilt(), T("eotw.locations.temple.label"), T("eotw.locations.temple_site.label")) end,
         icon = function(ctx) return cond(EotwRoster.TempleBuilt(), "phosphor/sun.png", "phosphor/hammer-fill.png") end,
         --PLACEHOLDER spot near the Graveyard (0.89, 0.86): check it against the map art.
@@ -735,6 +748,40 @@ local function CityLocation(id)
     end
     error("EotW: no town location " .. id)
 end
+
+--Is this location off the map now: its lead not yet learned, or its own
+--hidden test says so?
+--- @param loc table
+--- @param ctx table
+--- @return boolean
+local function LocationHidden(loc, ctx)
+    if loc.lead ~= nil and not EotwLeads.Knows(loc.lead) then
+        return true
+    end
+    return loc.hidden ~= nil and loc.hidden(ctx) == true
+end
+
+--Pulse a town node's halo three times: it has just appeared on the map.
+--- @param node table
+--- @param id string
+local function BeckonNode(node, id)
+    for i = 0, 2 do
+        dmhub.Schedule(0.5 + i * 1.5, function()
+            if mod.unloaded or node == nil or not node.valid then
+                return
+            end
+            local halo = node:Get("eotwTownHalo-" .. id)
+            if halo ~= nil then
+                halo:PulseClass("beckon")
+            end
+        end)
+    end
+end
+
+--Whether each lead-gated town location (CITY_LOCATIONS' `lead`) was known
+--when last seen, { [locationid] = boolean }: a change to known beckons it.
+--Reset each time the town opens.
+local m_leadLocationsKnown = {}
 
 --Style pack for gui.Check in the create dialog. The titlescreen's legacy
 --cascade has no checkbox rules (they live in the themed default styles), so
@@ -1219,7 +1266,7 @@ end
 --the encounter key the City names in the project's listing, or the one it
 --ships with before the first listing. It is fought only from the Forge's
 --own party board, never at the Gate or in the Proving Pits.
-EncounterOfTheWeek.SIEGE_ENCOUNTER_DEFAULT = "Encounter: Demon Portal"
+EncounterOfTheWeek.SIEGE_ENCOUNTER_DEFAULT = "erekgita-demonportal|Encounter: Demon Portal"
 
 function EncounterOfTheWeek.SiegeEncounterKey()
     local siege = nil
@@ -5034,8 +5081,10 @@ CreateScreen = function(args)
         return "gate"
     end
 
-    --What the Proving Pits mean for the heroes, wherever a party forms there.
-    local PRACTICE_TEXT = T("eotw.pits.practice_note")
+    --What the Proving Pits mean for the heroes, wherever a party forms there,
+    --ending with a <link=url> to the video on making your own encounter.
+    local PRACTICE_TEXT = string.format("%s <color=#8fc7ff><u><link=%s>%s</link></u></color>",
+        T("eotw.pits.practice_note"), "https://youtu.be/Cv5t3-gNMXc", T("eotw.pits.practice_note_link"))
 
     local PracticeNote = function(width)
         return gui.Label{
@@ -5048,6 +5097,12 @@ CreateScreen = function(args)
             textAlignment = "center",
             textWrap = true,
             vmargin = 8,
+            links = true,
+            press = function(element)
+                if element.linkHovered ~= nil then
+                    dmhub.OpenURL(element.linkHovered)
+                end
+            end,
         }
     end
 
@@ -10168,9 +10223,7 @@ CreateScreen = function(args)
             end,
             create = function(element)
                 m_nodePanels[loc.id] = element
-                if loc.hidden ~= nil then
-                    element:SetClass("collapsed", loc.hidden(townContext) == true)
-                end
+                element:SetClass("collapsed", LocationHidden(loc, townContext))
                 element:FireEvent("think")
             end,
             hover = function(element)
@@ -10246,8 +10299,8 @@ CreateScreen = function(args)
     local ApplyLocationVisibility = function()
         for _,loc in ipairs(CITY_LOCATIONS) do
             local node = m_nodePanels[loc.id]
-            if loc.hidden ~= nil and node ~= nil and node.valid then
-                node:SetClass("collapsed", loc.hidden(townContext) == true)
+            if (loc.hidden ~= nil or loc.lead ~= nil) and node ~= nil and node.valid then
+                node:SetClass("collapsed", LocationHidden(loc, townContext))
             end
         end
     end
@@ -10960,6 +11013,117 @@ CreateScreen = function(args)
         ShowWelcomeDialog()
     end
 
+    --- the Proving Pits intro ----------------------------------------------
+    --Shown over the Proving Pits each time they open until the account accepts
+    --it (eotw:provingPitsIntroAccepted). Enter needs the box ticked; Back (or
+    --Escape) returns to the town map, and it asks again next time.
+    --Also reachable over MCP for testing: EncounterOfTheWeek.ShowProvingPitsIntro().
+    --Analytics: eotw_welcome with dialog = "provingpits".
+    --A table field, not a local: this function is at Lua's 200-local limit.
+    EncounterOfTheWeek.ShowProvingPitsIntro = function()
+        local videoUrl = "https://www.youtube.com/watch?v=Cv5t3-gNMXc"
+        local dlg = nil
+        local enterButton = nil
+        local understood = false
+        local Track = function(action)
+            EotwAnalytics.Track("eotw_welcome", { action = action, dialog = "provingpits" })
+        end
+        local Back = function()
+            Track("cancelled")
+            if dlg ~= nil and dlg.valid then
+                dlg:DestroySelf()
+            end
+            if m_locationId == "danger" then
+                CloseLocation()
+            end
+        end
+        --<link=url> spans in the text open their url when pressed.
+        local Paragraph = function(text)
+            return gui.Label{
+                text = text,
+                fontSize = 19,
+                color = "#efe4cc",
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                vmargin = 8,
+                links = true,
+                press = function(element)
+                    if element.linkHovered ~= nil then
+                        dmhub.OpenURL(element.linkHovered)
+                        Track("video")
+                    end
+                end,
+            }
+        end
+        dlg = ModalDialog{
+            title = T("eotw.provingpits_intro.title"),
+            width = 760,
+            escape = function(element)
+                Back()
+            end,
+            children = {
+                Paragraph(T("eotw.provingpits_intro.body")),
+                Paragraph(T("eotw.provingpits_intro.video", { link = string.format("<color=#8fc7ff><u><link=%s>%s</link></u></color>", videoUrl,T("eotw.provingpits_intro.video_link")) })),
+                gui.Check{
+                    text = T("eotw.provingpits_intro.understood_check"),
+                    value = false,
+                    fontSize = 20,
+                    styles = g_CheckboxStyles,
+                    halign = "center",
+                    vmargin = 12,
+                    change = function(element)
+                        understood = element.value == true
+                        if enterButton ~= nil and enterButton.valid then
+                            enterButton:SetClass("disabled", not understood)
+                        end
+                    end,
+                },
+            },
+            buttons = {
+                gui.Button{
+                    classes = { "disabled" },
+                    --the town's Styles.Default has no disabled look for buttons.
+                    styles = {
+                        { selectors = { "disabled" }, opacity = 0.35 },
+                    },
+                    text = T("eotw.provingpits_intro.enter_button"),
+                    fontSize = 20,
+                    width = 160,
+                    height = 44,
+                    hmargin = 8,
+                    create = function(element)
+                        enterButton = element
+                    end,
+                    click = function(element)
+                        if not understood then
+                            return
+                        end
+                        dmhub.SetSettingValue("eotw:provingPitsIntroAccepted", true)
+                        Track("accepted")
+                        if dlg ~= nil and dlg.valid then
+                            dlg:DestroySelf()
+                        end
+                    end,
+                },
+                gui.Button{
+                    text = T("eotw.provingpits_intro.back_button"),
+                    fontSize = 20,
+                    width = 160,
+                    height = 44,
+                    hmargin = 8,
+                    click = function(element)
+                        Back()
+                    end,
+                },
+            },
+        }
+        if dlg ~= nil then
+            Track("shown")
+        end
+        return dlg
+    end
+
     ---- Steam invites (see the note above CreateScreen) -----------------
 
     local InviteNotice = function(title, text)
@@ -11143,34 +11307,35 @@ CreateScreen = function(args)
     --Put the Arcane Market on the map once the player finds it (the Find
     --the Arcane Market project completes). Found while the town is open, it
     --beckons a few times; already found when the town opened, it just shows.
+    m_leadLocationsKnown = {}
+
     local RevealFoundLocations = function()
-        local node = m_nodePanels["market"]
-        if node == nil or not node.valid then
-            return
-        end
-        --ApplyLocationVisibility puts the node on the map; this only beckons.
-        local found = EotwRoster.MarketUnlocked()
+        --ApplyLocationVisibility puts the nodes on the map; this only beckons.
         if EotwRoster.GetHeroes() == nil then
             return
         end
-        if found and m_marketFound == false then
-            --usually found at the inn: beckon once the player is back on the map.
-            if m_locationId ~= nil then
-                return
+        --usually found at the inn: beckon once the player is back on the map.
+        if m_locationId ~= nil then
+            return
+        end
+        local node = m_nodePanels["market"]
+        if node ~= nil and node.valid then
+            local found = EotwRoster.MarketUnlocked()
+            if found and m_marketFound == false then
+                BeckonNode(node, "market")
             end
-            for i = 0, 2 do
-                dmhub.Schedule(0.5 + i * 1.5, function()
-                    if mod.unloaded or node == nil or not node.valid then
-                        return
-                    end
-                    local halo = node:Get("eotwTownHalo-market")
-                    if halo ~= nil then
-                        halo:PulseClass("beckon")
-                    end
-                end)
+            m_marketFound = found
+        end
+        for _, loc in ipairs(CITY_LOCATIONS) do
+            local leadNode = m_nodePanels[loc.id]
+            if loc.lead ~= nil and leadNode ~= nil and leadNode.valid then
+                local known = EotwLeads.Knows(loc.lead)
+                if known and m_leadLocationsKnown[loc.id] == false and not LocationHidden(loc, townContext) then
+                    BeckonNode(leadNode, loc.id)
+                end
+                m_leadLocationsKnown[loc.id] = known
             end
         end
-        m_marketFound = found
     end
 
     --Re-list the projects whenever the City says a community one changed
@@ -11905,6 +12070,9 @@ CreateScreen = function(args)
                     RefreshGames()
                 end
             end)
+            if dmhub.GetSettingValue("eotw:provingPitsIntroAccepted") ~= true then
+                EncounterOfTheWeek.ShowProvingPitsIntro()
+            end
         elseif id == "guild" then
             m_guildScene = LocationScene(CityLocation("guild"), 860, EotwRoster.GuildPanel(resultPanel),
                 --the guild's project under way, if any, in the space on the left.

@@ -6,9 +6,10 @@ local mod = dmhub.GetModLoading()
 --  * Each respite at the inn earns ONE carouse. While the player has leads
 --    left to learn, the inn card offers Carouse: one hero spends the evening
 --    in the common room and makes a Presence test.
---  * Tier 1 or 2 learns nothing. Tier 3 learns the next lead, told in a
---    conversation with whoever knows it (the old Elementalist, for the
---    Arcane Market).
+--  * Each lead is ranked tier 1, 2 or 3 (EotwLeads.TIERS). The roll learns
+--    the next lead of its tier, else of the tier below, and so on down; with
+--    none left at or below it, nothing. A lead is told in a conversation
+--    with whoever knows it (the old Elementalist, for the Arcane Market).
 --  * A lead opens a project (EotwDowntime.PROJECTS, `lead`). The Arcane
 --    Market's is Find the Arcane Market; completing it puts the market on
 --    the player's town map (EotwRoster.MarketUnlocked).
@@ -34,11 +35,27 @@ EotwLeads.CAROUSE_SKILLS = { "Brag", "Flirt", "Gamble", "Music", "Perform", "Rum
 --Dev (/eotwleads crit): the next carouse counts as a natural 20.
 EotwLeads.forceCritical = false
 
---The leads, in the order a carouse learns them (the City's CITY_LEADS).
-EotwLeads.ORDER = { "arcane-market" }
+--The leads by the carouse tier that learns them, each list in learning
+--order. Must match the City's CITY_LEADS (city-core.ts), which decides.
+EotwLeads.TIERS = {
+    [1] = {},
+    [2] = { "temple" },
+    [3] = { "arcane-market" },
+}
 
---Each lead: what it is called, the project it opens, and the conversation
---that tells it. conversation(heroName) returns { {who = "npc"|"hero", text}, ... }.
+--Every lead, highest tier first (for lists of leads).
+EotwLeads.ORDER = {}
+for tier = 3, 1, -1 do
+    for _, id in ipairs(EotwLeads.TIERS[tier]) do
+        EotwLeads.ORDER[#EotwLeads.ORDER+1] = id
+    end
+end
+
+--Each lead: what it is called, what it opens, and the conversation that
+--tells it. conversation(heroName) returns { {who = "npc"|"hero"|"narration", text}, ... }.
+--A lead opens a project (`project`, offered once the conversation ends),
+--or a town location (`location`: the CITY_LOCATIONS row with `lead` set to
+--this id stays off the map until the lead is learned), or both.
 EotwLeads.LEADS = {
     ["arcane-market"] = {
         id = "arcane-market",
@@ -62,7 +79,41 @@ EotwLeads.LEADS = {
             }
         end,
     },
+    --Puts the Temple on the map (CITY_LOCATIONS' `lead`), as the ruin to
+    --rebuild or the restored Temple, whichever it is when heard.
+    ["temple"] = {
+        id = "temple",
+        title = T("leads.temple.title"),
+        location = "temple",
+        npc = {
+            name = T("leads.temple.npc_name"),
+            title = T("leads.temple.npc_title"),
+            --the bestiary's High Elf Dawn Mage art.
+            portrait = "7537a844-e583-4373-9994-792f63bae4d1",
+            --token art, small in a square frame: crop to her figure (y is up).
+            imageRect = { x1 = 0.23, x2 = 0.66, y1 = 0.26, y2 = 0.82 },
+        },
+        conversation = function(heroName)
+            if EotwRoster.TempleBuilt() then
+                return {
+                    { who = "npc", text = T("leads.temple.built_npc") },
+                    { who = "narration", text = T("leads.temple.built_narration") },
+                }
+            end
+            return {
+                { who = "npc", text = T("leads.temple.site_npc") },
+                { who = "narration", text = T("leads.temple.site_narration") },
+            }
+        end,
+    },
 }
+
+--Has the player learned this lead?
+--- @param leadid string
+--- @return boolean
+function EotwLeads.Knows(leadid)
+    return EotwRoster.LearnedLeads()[leadid] == true
+end
 
 local function Bump()
     EotwDowntime.revision = EotwDowntime.revision + 1
@@ -78,6 +129,22 @@ function EotwLeads.LeadsLeft()
         end
     end
     return result
+end
+
+--The lead a carouse of this tier would learn now, or nil: the next unlearned
+--lead of that tier, else of each lower tier in turn (the City's pickLead).
+--- @param tier integer
+--- @return string|nil
+function EotwLeads.NextLead(tier)
+    local known = EotwRoster.LearnedLeads()
+    for t = math.min(tier, 3), 1, -1 do
+        for _, id in ipairs(EotwLeads.TIERS[t]) do
+            if not known[id] then
+                return id
+            end
+        end
+    end
+    return nil
 end
 
 --Can the player carouse now? (A respite's carouse is open and a lead is
@@ -381,9 +448,10 @@ EotwLeads.EMOTES = {
 }
 
 --Play any conversation between an NPC and one hero, the way a lead's plays.
---spec = { npc = {name, title, portrait, video?, videoAspect?},
+--spec = { npc = {name, title, portrait, video?, videoAspect?, imageRect?},
 --conversation = function(heroName, tok) -> { line, ... } }, where a line is
---  { who = "npc"|"hero", text }                     a line said, or
+--  { who = "npc"|"hero", text }                     a line said,
+--  { who = "narration", text }                      told, not said (no speaker), or
 --  { who = "choice", options = { option, ... } }    the hero picks what to say:
 --  option = { text, result?, lines = { line, ... }? }. The hero says the
 --  option's text, then its own lines play (they may hold choices too).
@@ -425,7 +493,7 @@ function EotwLeads.PlayConversation(host, spec, heroid, onDone)
     --the hero always stands on the left, the NPC on the right.
     local npcFigure = nil
     if lead.npc ~= nil then
-        npcFigure = Figure(lead.npc.portrait, nil, "right", lead.npc.video, lead.npc.videoAspect)
+        npcFigure = Figure(lead.npc.portrait, nil, "right", lead.npc.video, lead.npc.videoAspect, lead.npc.imageRect)
     end
     local heroFigure = Figure(nil, tok, "left")
     --figures[who] = {panel, name, title}; each side fills from its edge in.
@@ -504,6 +572,14 @@ function EotwLeads.PlayConversation(host, spec, heroid, onDone)
             if closing or index ~= lineIndex then
                 return
             end
+            --narration is nobody's line: no name, every figure dimmed.
+            if line.who == "narration" then
+                speakerLabel.text = ""
+                for _, f in pairs(figures) do
+                    f.panel:SetClass("listening", true)
+                end
+                return
+            end
             if speaker.title ~= nil then
                 speakerLabel.text = T("leads.conversation.npc_speaker", { name = speaker.name, title = speaker.title })
             else
@@ -551,6 +627,7 @@ function EotwLeads.PlayConversation(host, spec, heroid, onDone)
         prompt:SetClass("collapsed", true)
         local choosing = line.who == "choice"
         textLabel:SetClass("collapsed", choosing)
+        textLabel:SetClass("leadNarration", line.who == "narration")
         choiceList:SetClass("collapsed", not choosing)
         local rows = {}
         if choosing then
@@ -728,6 +805,11 @@ function EotwLeads.PlayConversation(host, spec, heroid, onDone)
                 textAlignment = "left",
             },
             {
+                selectors = { "leadText", "leadNarration" },
+                italics = true,
+                color = "#ffd66b",
+            },
+            {
                 selectors = { "leadPrompt" },
                 bgcolor = "#ffd66b",
             },
@@ -807,7 +889,8 @@ end
 --the City has listed it (it may take a moment after the carouse).
 local function OfferLeadProject(host, leadid, tries)
     local lead = EotwLeads.LEADS[leadid]
-    if lead == nil or mod.unloaded or host == nil or not host.valid then
+    --a lead that only opens a location has nothing to offer here.
+    if lead == nil or lead.project == nil or mod.unloaded or host == nil or not host.valid then
         return
     end
     if EotwDowntime.GetProject(lead.project) == nil then
@@ -826,12 +909,20 @@ end
 
 --- the carouse dialog ----------------------------------------------------------------
 
---What each tier of a carouse means, shown in the tier table.
-local CAROUSE_TIERS = {
-    T("leads.carouse.tier1"),
-    T("leads.carouse.tier2"),
-    T("leads.carouse.tier3"),
-}
+--What each tier of a carouse means, shown in the tier table: "learn a lead"
+--on any tier that would learn one now, else that tier's nothing-learned text.
+local function CarouseTierTexts()
+    local nothing = { T("leads.carouse.tier1"), T("leads.carouse.tier2"), T("leads.carouse.tier3") }
+    local result = {}
+    for tier = 1, 3 do
+        if EotwLeads.NextLead(tier) ~= nil then
+            result[tier] = T("leads.carouse.tier3")
+        else
+            result[tier] = nothing[tier]
+        end
+    end
+    return result
+end
 
 --The Draw Steel tier glyphs (DrawSteelGlyphs font): 11 or lower, 12-16, 17+.
 local TIER_GLYPHS = { "!", "@", "#" }
@@ -973,7 +1064,7 @@ function EotwLeads.ShowCarouseDialog(host)
 
     --built once, between the choices and the result, so the highlight
     --survives the re-renders while the dice tumble.
-    local tierTable, tierCtl = TierTable(CAROUSE_TIERS)
+    local tierTable, tierCtl = TierTable(CarouseTierTexts())
 
     local function SelectHero(c)
         if c == nil then
@@ -1615,7 +1706,7 @@ function EotwLeads.InnLeadsPanel(host)
         local known = EotwRoster.LearnedLeads()
         for _, leadid in ipairs(EotwLeads.ORDER) do
             local lead = EotwLeads.LEADS[leadid]
-            if known[leadid] and lead ~= nil and EotwDowntime.CanStart(lead.project) then
+            if known[leadid] and lead ~= nil and lead.project ~= nil and EotwDowntime.CanStart(lead.project) then
                 local project = EotwDowntime.PROJECTS[lead.project]
                 children[#children+1] = Row(project ~= nil and project.icon or "phosphor/hammer-fill.png",
                     T("leads.inn.project_row", { lead = lead.title, npc = lead.npc.name }),
@@ -1652,7 +1743,7 @@ end
 local DEV_USAGE = [[Usage: /eotwleads <command> (open the town first)
   crit       the next carouse counts as a natural 20 (learns a lead)
   reset      forget your leads and carouses; the latest respite's carouse opens again (city admins)
-  talk       replay the Arcane Market conversation (needs a hero at home)
+  talk [id]  replay a lead's conversation, default arcane-market (temple, ...; needs a hero at home)
   state      print the leads learned, the open carouse and the market
 To restart the hunt: /eotwleads reset, then /eotwdowntime resetproject find-arcane-market.]]
 
@@ -1699,7 +1790,12 @@ pcall(function()
                     print("EotW town (dev): no hero at home to listen")
                     return
                 end
-                EotwLeads.ShowConversation(host, "arcane-market", heroes[1].hero.heroid, nil)
+                local leadid = string.match(str or "", "^%s*%S+%s+(%S+)") or "arcane-market"
+                if EotwLeads.LEADS[leadid] == nil then
+                    printf("EotW town (dev): no lead '%s'", leadid)
+                    return
+                end
+                EotwLeads.ShowConversation(host, leadid, heroes[1].hero.heroid, nil)
             elseif verb == "state" then
                 local known = {}
                 for id, _ in pairs(EotwRoster.LearnedLeads()) do

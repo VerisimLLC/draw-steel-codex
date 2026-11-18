@@ -316,7 +316,9 @@ text("eotw.series.part_in_pits", [[This part can only be played in the Proving P
 --The board's title.
 text("eotw.pits.board_title", [[The Proving Pits]])
 --The note at the top of the board, and wherever a Proving Pits party forms.
-text("eotw.pits.practice_note", [[The Proving Pits are practice. Heroes earn no Victories, keep no treasure and carry nothing else home. Afterwards you can vote on the encounter and leave feedback for its creator.]])
+text("eotw.pits.practice_note", [[The Proving Pits are a place to test upcoming encounters. Anyone can submit an Encounter to the Proving Pits, so experiences may vary. After playing an encounter you can vote and leave feedback for its creator. Only play in the Proving Pits if you are comfortable playing content that is untested and unvetted. Be kind and constructive when giving feedback.]])
+--A link added after the note above, opening the how-to video for making encounters.
+text("eotw.pits.practice_note_link", [[Learn how to make your own encounter]])
 --When nobody is forming a party in the Proving Pits.
 text("eotw.pits.no_parties", [[Nobody is in the Proving Pits right now. Pick an encounter below to form a party.]])
 --Section heading (shown in capitals). Short: a heading.
@@ -740,6 +742,23 @@ text("eotw.welcome.discord_button", [[Join the Discord]])
 text("eotw.welcome.go_button", [[Let's Go!]])
 --Closes the town back to the title screen.
 text("eotw.welcome.cancel_button", [[Cancel]])
+
+----------------------------------------------------------------------------
+-- PROVING PITS INTRO: shown when a player opens the Proving Pits until they
+-- accept it
+----------------------------------------------------------------------------
+
+text("eotw.provingpits_intro.title", [[Proving Pits]])
+text("eotw.provingpits_intro.body", [[The Proving Pits are a place where any community member can submit their own possible Encounter of the Week. Please play in the Proving Pits only if you are comfortable with playing encounters that might be still in testing and are looking for feedback. Remember, it is a real person who is likely not a professional game designer who has made an encounter and they are doing their best and perhaps trying something new. Be constructive and kind when offering feedback.]])
+--{link} is the link below, underlined; it opens the video.
+text("eotw.provingpits_intro.video", [[See {link} for information on making your own Encounter!]])
+text("eotw.provingpits_intro.video_link", [[this video]])
+--The box the player must tick before Enter works.
+text("eotw.provingpits_intro.understood_check", [[I have read and understand how the Proving Pits work]])
+--The buttons. Short: buttons.
+text("eotw.provingpits_intro.enter_button", [[Enter]])
+--Returns to the town map.
+text("eotw.provingpits_intro.back_button", [[Back]])
 
 ----------------------------------------------------------------------------
 -- STEAM INVITES: joining a friend's party
@@ -1450,6 +1469,19 @@ text("leads.arcane_market.line4_hero", [[How does anyone find a market that move
 text("leads.arcane_market.line5_npc", [[Just the right set of contacts. An alchemist who owes you a favour. A gnome who talks too much. A door that only opens to the right knock.]])
 text("leads.arcane_market.line6_npc", [[Ask around, {hero}. And mind the gnome tinkerers: half of them are mad, and the other half are worse.]])
 text("leads.arcane_market.line7_hero", [[Then I know what I'm doing with my downtime.]])
+
+--The Temple lead (tier 2): puts the Temple on the player's map. Its name, on
+--the "A New Lead!" banner and the carouse result.
+text("leads.temple.title", [[The Temple]])
+--Who tells it. The speaker line reads "{name}, {title}".
+text("leads.temple.npc_name", [[The Dawn Breaks over Whitest of Snow]])
+text("leads.temple.npc_title", [[High Elf Dawnmage]])
+--Heard once the town has restored the Temple: her line, then the narration.
+text("leads.temple.built_npc", [[Have you heard there is now a Temple in the town where even the fallen can be healed?]])
+text("leads.temple.built_narration", [[You can now visit the Temple to revive your fallen.]])
+--Heard while the Temple is still being rebuilt (Restore the Temple).
+text("leads.temple.site_npc", [[I hear a Temple is being built that will allow restoring of the dead. I do wonder if one such as yourself would like to help build it?]])
+text("leads.temple.site_narration", [[You may now access the project to build the temple.]])
 
 --The name above an NPC's line in a conversation.
 text("leads.conversation.npc_speaker", [[{name}, {title}]])

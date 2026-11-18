@@ -785,6 +785,7 @@ function ActivatedAbility.PowerRollDamageTypes(ability)
 
     for _, behavior in ipairs(ability.behaviors) do
         if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            ---@cast behavior ActivatedAbilityPowerRollBehavior
             local tiers = behavior.tiers
             for _, entry in ipairs(tiers) do
                 local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")

@@ -1896,13 +1896,14 @@ end
 
 --Key used to merge identical aura chips (several casters giving the same aura, e.g. each
 --wyvern's Tenacious Hunter). Returns nil when merging is unsafe: no name, or the default
---"Aura" name that every map-object aura shares. Static so it also works on stale instances.
-function AuraInstance.ChipDedupeKey(instance)
-    local name = rawget(instance, "name")
-    if name == nil or name == Aura.name then
+--"Aura" name that every map-object aura shares.
+--- @return string|nil
+function AuraInstance:ChipDedupeKey()
+    local name = rawget(self, "name")
+    if name == nil or name == "" or name == Aura.name then
         return nil
     end
-    return name .. "|" .. tostring(instance.aura:try_get("description", ""))
+    return name .. "|" .. tostring(self.aura:try_get("description", ""))
 end
 
 --- True when the aura's only effect is granting activated abilities to creatures in it

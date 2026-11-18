@@ -10836,12 +10836,12 @@ function TacPanel.ConditionsRow()
             end
 
             --One chip per aura name: several casters (e.g. each wyvern's Tenacious Hunter) would repeat it.
-            local seenAuraNames = {}
+            local seenAuraKeys = {}
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                local auraKey = AuraInstance.ChipDedupeKey(auraInfo.auraInstance)
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraNames[auraKey]) then
-                    if auraKey ~= nil then seenAuraNames[auraKey] = true end
+                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then
+                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -13017,11 +13017,11 @@ function TacPanel.Conditions()
 
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
-            local seenAuraNames = {}
+            local seenAuraKeys = {}
             for _, auraInfo in ipairs(aurasTouching) do
-                local auraKey = AuraInstance.ChipDedupeKey(auraInfo.auraInstance)
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraNames[auraKey]) then --we'll see our own auras because we emit them.
-                    if auraKey ~= nil then seenAuraNames[auraKey] = true end
+                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then --we'll see our own auras because we emit them.
+                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end

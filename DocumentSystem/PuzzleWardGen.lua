@@ -650,7 +650,7 @@ function PuzzleWardGen.PageText(ward, i)
         lines[#lines + 1] = string.format("%d. %s", #m.rules + 1, THREAD_OTHERWISE[m.otherwise.id].text(m.otherwise))
         return { title = "Threads", intro = "Severed threads still count. Cut exactly one thread.", lines = lines }
     elseif m.kind == "glyphs" then
-        local intro = "Touch all four glyphs, one at a time. A glyph you touched correctly stays lit."
+        local intro = "Touch all four glyphs in order. Correct ones stay lit."
         for k, rule in ipairs(m.rules) do
             lines[k] = string.format("%d. %s", k, GLYPH_RULES[rule.id].text(rule))
         end
@@ -664,7 +664,7 @@ function PuzzleWardGen.PageText(ward, i)
         end
         return { title = "Glyphs", intro = intro, lines = lines }
     end
-    local intro = "Turn the dial, then press Set the seal. Turning is free; setting a wrong rune is a strike."
+    local intro = "Turn the dial and press Set the seal. Only a wrong setting is a strike."
     local n = 0
     if m.afterGlyphs then
         n = n + 1

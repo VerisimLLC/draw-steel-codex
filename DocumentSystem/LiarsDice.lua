@@ -479,9 +479,9 @@ local function Test(g, eff, secret, req, userid, random)
         AddHist(g, string.format("%s talks up the champion.", who))
         local text
         if amount >= 2 then
-            text = "The table hangs on your words: the next gambler gives the champion's bid a lot of credit."
+            text = "The table hangs on your words: the next gambler will likely believe the bid."
         elseif amount == 1 then
-            text = "They lean in to listen: the next gambler gives the champion's bid some credit."
+            text = "They lean in: the next gambler half-believes the bid."
         else
             text = "Nobody's buying it."
         end
@@ -507,7 +507,7 @@ local function Test(g, eff, secret, req, userid, random)
                 local face = hand[#knownList + 1]
                 knownList[#knownList + 1] = face
                 g.known["s" .. target] = B.HandText(knownList)
-                text = string.format("You glimpse one of %s's dice: a %d. The party can see it on the table.", seat.name, face)
+                text = string.format("You glimpse one of %s's dice: a %d. The party can see it now.", seat.name, face)
             else
                 text = string.format("You've seen all of %s's dice already.", seat.name)
             end
@@ -554,7 +554,7 @@ local function Test(g, eff, secret, req, userid, random)
         --the rules' Notice the Cheaters top tier: win without any other test (C6).
         if natural ~= nil and natural >= 19 and #crooked > 0 then
             g.claim = true
-            text = text .. " You know exactly how they cheat: the champion may claim the game."
+            text = text .. " You see how they cheat: the champion can claim the game."
         end
         Note(g, userid, "Watch the table: " .. text, true)
     end
@@ -881,13 +881,13 @@ local function Board()
         if g.bid ~= nil then
             rows[#rows + 1] = Label(string.format("Bid: %s by %s", BidText(g.bid.q, g.bid.f), SeatName(g, tonumber(g.bid.by) or 1)), {"sizeL", "bold"})
         end
-        rows[#rows + 1] = Label(string.format("%d dice on the table. Ones are wild: they count as any face.", total), {"sizeS"})
+        rows[#rows + 1] = Label(string.format("%d dice on the table. Ones are wild.", total), {"sizeS"})
         if g.bid ~= nil and g.champHand ~= nil and g_oddsSetting:Get() == true and g.reveal == nil then
             local known = KnownDice(g)
             local verdict = B.Verdict(known, total, g.bid.q, g.bid.f)
             local hidden = total - #known
             local likely = math.floor(hidden / 3 + 0.5)
-            rows[#rows + 1] = Label(string.format("%s is %s. The party can see %d; about %d more are likely among the %d hidden dice.",
+            rows[#rows + 1] = Label(string.format("%s is %s: %d seen, about %d more likely among %d hidden.",
                 BidText(g.bid.q, g.bid.f), VERDICT_WORDS[verdict], B.Matches(known, g.bid.f), likely, hidden), {"sizeS", "info"})
         end
         return rows
@@ -939,7 +939,7 @@ local function Board()
             if m_q > total then
                 reason = string.format("There are only %d dice on the table.", total)
             else
-                reason = "That's no raise: bid more dice, or the same number of a higher face."
+                reason = "Not a raise: bid more dice or a higher face."
             end
         end
         local known = KnownDice(g)
@@ -1381,17 +1381,15 @@ GameOfChance.Register{
     id = "liarsdice",
     name = "Liar's dice",
     howToPlay = [[
-One hero, the champion, plays against the gamblers at the table. Everyone has five dice under a cup. Ones are wild: they count as every face.
+You play one hero, the champion, against the gamblers. Everyone has five dice under a cup. Ones are wild.
 
-Press Take a seat and your selected hero becomes the champion. The whole party sees the champion's dice and can help.
+Press Take a seat to become the champion. The party sees your dice and can help.
 
-On your turn, bid how many dice on the whole table show one face, such as "four 5s". Every bid must raise the last: more dice, or the same number of a higher face. Or call Liar! if you think the last bid is too high.
+On your turn, bid how many dice on the table show a face, like "four 5s". Each bid must be more dice, or the same number of a higher face. Or call Liar! if the last bid is too high.
 
-When someone calls Liar, the cups lift and the dice are counted. If the bid was right, the caller loses a die. If not, the bidder does. Each challenge the champion takes part in is a round: win enough rounds before you lose too many.
+On Liar, the dice are counted. If the bid holds, the caller loses a die; if not, the bidder does. Win enough of these rounds before you lose too many.
 
-The rest of the party can suggest bids and roll tests: Read the bid (Intuition), Sell the bluff (Presence), Peek at a gambler's die (Agility) and Watch the table (Intuition) for cheating. Odds help shows how likely a bid is.
-
-Keyboard: click the table, then Up and Down change the number, 2-6 pick the face, Enter bids, L calls Liar, and S takes the newest suggestion.]],
+The party can suggest bids and roll tests to read, bluff, peek and spot cheats. Odds help shows how likely a bid is.]],
     flow = "turns",
     presets = PRESETS,
     presetOptions = {
@@ -1626,7 +1624,7 @@ Keyboard: click the table, then Up and Down change the number, 2-6 pick the face
                     champ ~= nil and " They can stand up for another hero." or "")
             end
             if champ == nil then
-                return "Take a seat to play: your selected hero becomes the champion."
+                return "Take a seat to play as your selected hero."
             end
             return string.format("Shake the dice for the next challenge. %s plays for the party.", champ.name)
         end
@@ -1643,7 +1641,7 @@ Keyboard: click the table, then Up and Down change the number, 2-6 pick the face
                     or "Your turn: open the bidding."
             end
             if dmhub.serverTime - (tonumber(g.turnAt) or dmhub.serverTime) >= IDLE_SECONDS then
-                return string.format("%s's turn has waited a while. Anyone can take over the seat.", champ ~= nil and champ.name or "The champion")
+                return string.format("%s is taking a while. Anyone can take over the seat.", champ ~= nil and champ.name or "The champion")
             end
             return string.format("%s's turn. Suggest a bid, or watch.", champ ~= nil and champ.name or "The champion")
         end

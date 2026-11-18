@@ -179,14 +179,14 @@ PuzzleType.Register{
     howToPlay = function(config)
         local attempts = math.tointeger(tonumber(config.attempts)) or 0
         local lines = {
-            "Type the password and press Enter. Capital letters and spaces at either end don't matter.",
-            "The password is somewhere in the world: a note, a journal page, something a character said.",
+            "Type the password and press Enter. Capitals don't matter.",
+            "The password is out in the world: a note, a page, something someone said.",
         }
         if attempts > 0 then
-            lines[#lines + 1] = string.format("You have %d %s. Run out and the terminal locks for good.", attempts, attempts == 1 and "try" or "tries")
+            lines[#lines + 1] = string.format("After %d wrong %s, it locks for good.", attempts, attempts == 1 and "try" or "tries")
         end
         if tostring(config.codeSheet or "") ~= "" then
-            lines[#lines + 1] = "The Director can give someone the code sheet. Only they can see it, so ask them to talk you through it."
+            lines[#lines + 1] = "One player may hold the code sheet. Only they can see it, so ask them."
         end
         return table.concat(lines, "\n\n")
     end,

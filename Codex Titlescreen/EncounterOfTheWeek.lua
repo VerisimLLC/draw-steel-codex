@@ -359,6 +359,29 @@ local GREAT_FORGE_VIDEO = "df4a22af-6369-4fa9-a0d2-efe2a0f43f3c"
 local GREAT_FORGE_ART = "7bffe83d-058f-4c90-a211-8ee548550209" --the video's first frame, 1920x1080
 CreatorCredit.RegisterArt(GREAT_FORGE_VIDEO, "czepeku")
 CreatorCredit.RegisterArt(GREAT_FORGE_ART, "czepeku")
+--The Temple's art, Czepeku's "Peaceful Village Church" interior (core image
+--assets): abandoned while the town rebuilds it, then by day once restored.
+local TEMPLE_SITE_ART = "e1b87a55-1479-4355-819b-778aa602c662"
+local TEMPLE_ART = "f8bb7eaf-f178-4ef8-af55-50470ab8aca7"
+CreatorCredit.RegisterArt(TEMPLE_SITE_ART, "czepeku")
+CreatorCredit.RegisterArt(TEMPLE_ART, "czepeku")
+local TEMPLE_SCENES = {
+    site = {
+        art = TEMPLE_SITE_ART,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.temple_site.title"),
+        tagline = T("eotw.locations.temple_site.tagline"),
+    },
+    built = {
+        art = TEMPLE_ART,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.temple.title"),
+        tagline = T("eotw.locations.temple.tagline"),
+    },
+}
+
 local GREAT_FORGE_SCENES = {
     site = {
         art = GREAT_FORGE_ART,
@@ -682,6 +705,22 @@ local CITY_LOCATIONS = {
             return EotwForge.LockedUntil()
         end,
         open = function(ctx) ctx.OpenGreatForge() end,
+    },
+    --The Destroyed Temple until the town restores it
+    --(EotwRoster.TempleBuilt); then the Temple, where fallen heroes are raised.
+    {
+        id = "temple",
+        label = function(ctx) return cond(EotwRoster.TempleBuilt(), T("eotw.locations.temple.label"), T("eotw.locations.temple_site.label")) end,
+        icon = function(ctx) return cond(EotwRoster.TempleBuilt(), "phosphor/sun.png", "phosphor/hammer-fill.png") end,
+        --PLACEHOLDER spot near the Graveyard (0.89, 0.86): check it against the map art.
+        x = 0.80,
+        y = 0.78,
+        scene = TEMPLE_SCENES.site,
+        --Hidden until the City lists its project, and when an admin hides it.
+        hidden = function(ctx)
+            return not EotwRoster.TempleBuilt() and EotwDowntime.GetProject("restore-temple") == nil
+        end,
+        open = function(ctx) ctx.OpenTemple() end,
     },
 }
 
@@ -10015,6 +10054,9 @@ CreateScreen = function(args)
         OpenGreatForge = function()
             OpenLocation("greatforge")
         end,
+        OpenTemple = function()
+            OpenLocation("temple")
+        end,
     }
 
     --One location on the map: a round icon over a name plaque. A locked
@@ -11232,6 +11274,7 @@ CreateScreen = function(args)
             end
             dmhub.Schedule(1.5, function() Try(0) end)
         end),
+        BuildingReveal("temple", EotwRoster.TempleBuilt, TEMPLE_SCENES.built),
     }
 
     ---- locations: full-screen scenes over the map ----
@@ -11986,6 +12029,18 @@ CreateScreen = function(args)
                 end
             end
             EotwRoster.Refresh()
+        elseif id == "temple" then
+            --the ruin until the town has restored it; then the Temple of Saint Llewellyn.
+            local loc = CityLocation("temple")
+            if EotwRoster.TempleBuilt() then
+                loc.scene = TEMPLE_SCENES.built
+                m_buildingScenes.temple = LocationScene(loc, 860, EotwTemple.Panel(resultPanel))
+            else
+                loc.scene = TEMPLE_SCENES.site
+                m_buildingScenes.temple = LocationScene(loc, 820, EotwDowntime.TempleConstructionPanel(resultPanel))
+            end
+            locationHost:AddChild(m_buildingScenes.temple)
+            EotwRoster.Refresh()
         end
         ApplyLocationMode()
     end
@@ -12656,6 +12711,7 @@ CreateScreen = function(args)
                 for _, reveal in ipairs(m_buildingReveals) do
                     reveal()
                 end
+                EotwRoster.AnnounceReturns(resultPanel)
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()

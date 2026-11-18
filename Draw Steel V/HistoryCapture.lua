@@ -800,6 +800,28 @@ local function OnForcedMove(creature, info)
 end
 
 --The landing: the only place the real distance is known, floors included.
+--An ability teleported a creature other than its user: the move goes on that target, as a
+--push would. A creature's own teleport writes nothing, like any move of its own.
+--info: {distance, cast}.
+local function OnTeleported(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    local state = OpenCast(info.cast)
+    if state == nil then
+        return
+    end
+    local actor = state.entry.actor
+    if actor ~= nil and actor.id == token.charid then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.moved = {kind = "teleport", distance = info.distance, fell = 0, collision = 0, walls = 0}
+    end
+end
+
 local function OnFell(creature, info)
     local token = dmhub.LookupToken(creature)
     if not History.Enabled() or token == nil then
@@ -1456,6 +1478,7 @@ GameSystem.RegisterPlayObserver("history", {
     heal = OnHeal,
     threshold = OnThreshold,
     forcedmove = OnForcedMove,
+    teleported = OnTeleported,
     fell = OnFell,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,

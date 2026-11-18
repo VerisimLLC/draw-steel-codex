@@ -604,6 +604,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
         	casterToken:Teleport(teleportLoc)
+            --History: observers decide whether this is worth a line (a creature's own
+            --teleport is not; one done to it by someone else's ability is).
+            if movementType == "teleport" and distance > 0 then
+                GameSystem.NotifyPlayObservers("teleported", casterToken.properties, {
+                    distance = distance,
+                    cast = options.symbols.cast,
+                })
+            end
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
             if countsAsMovement then

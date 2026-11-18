@@ -861,7 +861,7 @@ local function MinionWords(entry)
     return string.format("%d of %d killed", entry.killed, entry.killed + entry.left)
 end
 
-local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid"}
+local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid", teleport = "teleported"}
 History.MOVED_VERBS = MOVED_VERBS
 
 --"Push 3", with "fell 4" after a dot when it fell too (T14). vertical_push reads "Vertical push".

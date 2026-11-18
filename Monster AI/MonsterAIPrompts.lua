@@ -560,6 +560,99 @@ local function FindForceIntoLocation(invokerToken, casterToken, abilityClone, sy
     return bestLoc
 end
 
+--Answer a forced-move prompt with loc, showing the AI's arrow for a moment first.
+local function AnswerForcedMoveLoc(moverToken, loc, forcedMovement, range)
+    moverToken:MarkMovementArrow(ArrowLoc(moverToken, forcedMovement, loc), ForcedMovementArrowOptions(forcedMovement, range))
+    MonsterAI.Sleep(1)
+    moverToken:ClearMovementArrow()
+    return {
+        targets = {{loc = loc}},
+    }
+end
+
+--The undead object throws (Paranormal Fling, Paranormal Activity) aim at the
+--nearest enemy within 3 squares of the object.
+local objectMissileReach = 3
+
+--A slid object is a missile (Paranormal Fling, AME33M5U): aim it to hit an enemy
+--within reach, nearest first. The victim scoring below would rate a wall hit higher.
+--nil when no enemy is in reach or no line moves the object at all.
+local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPredicate)
+    local enemies = {}
+    for _,enemy in ipairs(ai.enemyTokens or {}) do
+        if MonsterAI.TokenIsLiveCombatant(enemy) and not enemy.isObject
+            and enemy:Distance(objectToken.loc) <= objectMissileReach then
+            enemies[#enemies+1] = enemy
+        end
+    end
+    if #enemies == 0 then
+        return nil
+    end
+    table.sort(enemies, function(a, b)
+        return a:Distance(objectToken.loc) < b:Distance(objectToken.loc)
+    end)
+    local enemyRank = {}
+    for i,enemy in ipairs(enemies) do
+        enemyRank[enemy.charid] = i
+    end
+
+    --Aim at every square of each enemy and its border; the arrow stops at the
+    --first creature in the way, so each line is scored by what it actually hits.
+    local candidates = {}
+    local seen = {}
+    for _,enemy in ipairs(enemies) do
+        for _,occupied in ipairs(enemy.locsOccupying) do
+            for dx = -1,1 do
+                for dy = -1,1 do
+                    local loc = occupied:dir(dx, dy):WithAltitude(0)
+                    if not seen[loc.str] and filterTargetPredicate(loc) then
+                        seen[loc.str] = true
+                        candidates[#candidates+1] = loc
+                    end
+                end
+            end
+        end
+    end
+
+    local bestLoc = nil
+    local bestScore = nil
+    for _,testLoc in ipairs(candidates) do
+        local movementInfo = objectToken:MarkMovementArrow(testLoc, ForcedMovementArrowOptions("slide", range))
+        if movementInfo ~= nil then
+            local destination = movementInfo.path.destination
+            if destination:DistanceInTiles(movementInfo.path.origin) > 0 then
+                local hitAlly = false
+                local hitRank = nil
+                for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                    local rank = enemyRank[collideToken.charid]
+                    if rank ~= nil then
+                        hitRank = math.min(hitRank or rank, rank)
+                    elseif not collideToken.isObject and collideToken:IsFriend(ai.token) then
+                        hitAlly = true
+                    end
+                end
+                --Never throw into an ally. Hitting the nearest enemy beats a farther one;
+                --a line that hits no one ends as close to the nearest enemy as it can.
+                if not hitAlly then
+                    local score
+                    if hitRank ~= nil then
+                        score = 1000 - hitRank
+                    else
+                        score = -enemies[1]:Distance(destination)
+                    end
+                    if bestScore == nil or score > bestScore then
+                        bestScore = score
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    objectToken:ClearMovementArrow()
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
@@ -591,6 +684,16 @@ MonsterAI:RegisterPrompt{
             return loc:WithAltitude(maxAltitude)
         end
 
+        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
+
+        --Before Force Into: that zone is for creatures, and would take a thrown object off its enemy.
+        if forcedMovement == "slide" and casterToken.isObject then
+            local missileLoc = FindObjectMissileLocation(ai, casterToken, range, filterTargetPredicate)
+            if missileLoc ~= nil then
+                return AnswerForcedMoveLoc(casterToken, missileLoc, forcedMovement, range)
+            end
+        end
+
         local forceIntoLoc = FindForceIntoLocation(invokerToken, casterToken, abilityClone,
             movementSymbols, range, forcedMovement)
         if forceIntoLoc ~= nil then
@@ -599,30 +702,17 @@ MonsterAI:RegisterPrompt{
                 to = ai.LocLogName(forceIntoLoc),
                 plan = forcedMovement,
             })
-            casterToken:MarkMovementArrow(forceIntoLoc, ForcedMovementArrowOptions(forcedMovement, range))
-            MonsterAI.Sleep(1)
-            casterToken:ClearMovementArrow()
-            return {
-                targets = {{loc = forceIntoLoc}},
-            }
+            return AnswerForcedMoveLoc(casterToken, forceIntoLoc, forcedMovement, range)
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
             local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
-                casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
-                MonsterAI.Sleep(1)
-                casterToken:ClearMovementArrow()
-                return {
-                    targets = {{loc = bestLoc}},
-                }
+                return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
             end
             return nil
         end
-
-        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
-
 
         --TODO: implement custom target shape for ai
         --local customLocs = abilityClone:CustomTargetShape(casterToken, range, symbols, {})
@@ -713,13 +803,7 @@ MonsterAI:RegisterPrompt{
         end
 
         if bestLoc ~= nil then
-            casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
-            MonsterAI.Sleep(1)
-            casterToken:ClearMovementArrow()
-
-            return {
-                targets = { {loc = bestLoc } }
-            }
+            return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
         end
     end,
 }

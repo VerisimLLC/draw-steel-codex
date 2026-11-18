@@ -8026,8 +8026,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 OnHide()
 
                 local rollVisibility = GetRollVisibility()
-                local dmonly = rollVisibility == "dm"
-                local dicetower = rollVisibility == "dicetower"
+                --a roll that demands the Dice Tower (options.dicetower, e.g. a requested
+                --roll with Dice Tower ticked) goes there whatever the roller's own setting.
+                local dicetower = rollVisibility == "dicetower" or (m_options ~= nil and m_options.dicetower == true)
+                local dmonly = rollVisibility == "dm" and not dicetower
                 local instant = false
 
                 NotifyRollAllPrompts()

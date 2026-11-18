@@ -1139,6 +1139,26 @@ local function OnGlobalResource(resourceid, before, after, note)
     History.Write(entry)
 end
 
+--The first line of a combat: who goes first, and the Draw Steel die if one was rolled (T10).
+--info: {queue, mapid, heroesFirst, rolled}, from the one client that starts the combat.
+local function OnCombatBegan(info)
+    local q = info.queue
+    if not History.Enabled() or q == nil or info.mapid == nil then
+        return
+    end
+    local entry = {
+        kind = "line",
+        family = "drawsteel",
+        map = info.mapid,
+        encounter = q.guid,
+        round = q.round,
+        turn = q.turnNumber,
+        heroesFirst = info.heroesFirst,
+        rolled = info.rolled,
+    }
+    History.Write(entry)
+end
+
 local function OnEncounterEnded(creature)
     local token = dmhub.LookupToken(creature)
     if History.Enabled() and token ~= nil then
@@ -1449,6 +1469,7 @@ GameSystem.RegisterPlayObserver("history", {
     tested = OnTested,
     diceroll = OnDiceRoll,
     persistenceended = OnPersistenceEnded,
+    combatbegan = OnCombatBegan,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,

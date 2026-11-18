@@ -2854,6 +2854,27 @@ Commands.RegisterMacro{
     if isNewCombat then
         local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens, playerids, monsterids)
         chat.SendCustom(message)
+
+        --History's Draw Steel line. rolled is nil when no die decided it (a banner
+        --shown with its result already known).
+        local rolled = nil
+        local rollDoc = mod:GetDocumentSnapshot("drawsteel")
+        if rollDoc.data.finished == true and type(rollDoc.data.result) == "number" then
+            rolled = rollDoc.data.result
+        end
+        local mapid = nil
+        for _,tok in ipairs(tokens) do
+            if tok ~= nil and tok.valid then
+                mapid = tok.mapid
+                break
+            end
+        end
+        GameSystem.NotifyPlayObservers("combatbegan", {
+            queue = info.initiativeQueue,
+            mapid = mapid,
+            heroesFirst = info.initiativeQueue.playersGoFirst == true,
+            rolled = rolled,
+        })
     end
 
 

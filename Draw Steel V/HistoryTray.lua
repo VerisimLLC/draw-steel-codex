@@ -1520,6 +1520,12 @@ local function LineWords(entry)
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
+    elseif family == "drawsteel" then
+        local words = "<b>Draw Steel!</b>" .. DOT .. cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
+        if entry.rolled ~= nil then
+            words = words .. string.format(" (rolled %d)", entry.rolled)
+        end
+        return words
     elseif family == "threshold" then
         if entry.state == "killed" then
             return name .. " was killed"
@@ -1571,6 +1577,13 @@ local function LineNumber(entry)
         }
     end
     return nil
+end
+
+--Which entries open a detail card: actions, an encounter's closing line with something to
+--list (L17), and test or Dice panel rolls. Every other line already says all there is.
+local function HasCard(entry)
+    return entry.kind == "action" or (entry.family == "encounterend" and #(entry.ended or {}) > 0)
+        or entry.family == "test" or entry.family == "dice"
 end
 
 local function BuildLine(item)
@@ -1710,8 +1723,7 @@ local function BuildLine(item)
 
     --the closing line of an encounter lists what ended on its card (L17).
     --a test or Dice panel roll opens its numbers.
-    local hasCard = (entry.family == "encounterend" and #(entry.ended or {}) > 0)
-        or entry.family == "test" or entry.family == "dice"
+    local hasCard = HasCard(entry)
     local opens = hasCard and OpensCard(item) or nil
     return gui.Panel{
         classes = {"historyFold"},
@@ -3647,7 +3659,8 @@ local function CreateFace()
             end
             for _, item in ipairs(builtItems) do
                 if item.key == showKey and item.entry ~= nil then
-                    if selected == nil or selected.key ~= item.key then
+                    --a plain line has no card: scrolling to it is all there is to show.
+                    if HasCard(item.entry) and (selected == nil or selected.key ~= item.key) then
                         Select(item)
                     end
                     break

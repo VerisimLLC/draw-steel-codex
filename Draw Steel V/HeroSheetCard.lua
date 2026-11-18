@@ -1704,7 +1704,7 @@ local function ApplyStamina(mode, text)
                 hero:SetTemporaryHitpoints(text)
                 hero:DispatchEvent("gaintempstamina", {})
             else
-                hero:SetCurrentHitpoints(value)
+                hero:SetStaminaDirect(value)
             end
         end,
     }

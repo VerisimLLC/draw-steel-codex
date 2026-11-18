@@ -1121,16 +1121,30 @@ function HeroSheetWindow.Create(args)
         dragMove = false,
     }
 
+    --A picture dropped on the window becomes the Hero's art: a file from the
+    --desktop, or a journal picture dragged from the table or the journal
+    --(item drags find their target as map token drags do, so the inside is
+    --a token drop target too).
+    local artDrop = HeroSheetAppearance.ArtDrop()
+
     inner = gui.Panel{
-        classes = {"heroSheetInner"},
+        classes = {"heroSheetInner", ChatItemLinks.ITEM_DROP_TARGET_CLASS},
         halign = "left",
         valign = "top",
         flow = "vertical",
         width = "100%",
         height = "100%",
+        tokenDropTarget = true,
+        dragAndDropExtensions = artDrop.extensions,
+        dragfilesenter = artDrop.filesEnter,
+        dragfilesleave = artDrop.leave,
+        dropfiles = artDrop.dropFiles,
+        itemLinkDragHover = artDrop.itemsHover,
+        itemLinkDrop = artDrop.dropItems,
         titleBar,
         holder,
         builderHost,
+        artDrop.outline,
     }
 
     window = gui.Panel{
@@ -1308,23 +1322,30 @@ function HeroSheetWindow.TargetSize(size)
     return size
 end
 
---- Runs fn once the engine has drawn two more frames, when sizes are right.
---- Counts frames, not time: a throttled app can draw less often than any
---- fixed delay.
+--- Runs fn once this frame's layout is done, when sizes are right, and lays
+--- out what fn changes before the frame is drawn: a fit never shows a frame
+--- of the unfitted layout.
 --- @param fn fun()
 function HeroSheetWindow.AfterLayout(fn)
-    local target = dmhub.FrameCount() + 2
-    local function Check()
+    gui.AfterLayout(function()
         if mod.unloaded then
             return
         end
-        if dmhub.FrameCount() >= target then
-            fn()
-        else
-            dmhub.Schedule(0.01, Check)
+        fn()
+    end)
+end
+
+--- The `rendered` handler of a panel that fits itself on `think` from its own
+--- size (a column count, pairing, a crop): when its size changes, its think
+--- also runs once layout is done, so the fit is drawn with the new size
+--- rather than a frame, or a think interval, later.
+--- @param element Panel
+function HeroSheetWindow.ThinkOnResize(element)
+    HeroSheetWindow.AfterLayout(function()
+        if element.valid then
+            element:FireEvent("think")
         end
-    end
-    dmhub.Schedule(0.01, Check)
+    end)
 end
 
 --- A short message at the bottom of the screen, as the app's other toasts.

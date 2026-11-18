@@ -1,10 +1,16 @@
 local mod = dmhub.GetModLoading()
 
 CodexQuotes = {
-    quotes = {}
+    quotes = {},
+    --ids in the order they were registered, so the Developer preview can step
+    --through the quotes in file order.
+    ordered = {},
 }
 
 CodexQuotes.Register = function(entry)
+    if CodexQuotes.quotes[entry.id] == nil then
+        CodexQuotes.ordered[#CodexQuotes.ordered + 1] = entry.id
+    end
     CodexQuotes.quotes[entry.id] = entry
 end
 

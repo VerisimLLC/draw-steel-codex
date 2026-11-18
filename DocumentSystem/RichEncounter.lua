@@ -797,9 +797,7 @@ function RichEncounter.CreateDisplay(self)
                     local monster = assets.monsters[monsterid]
                     if monster ~= nil and monster.properties:IsMonster() and monster.properties.minion then
                         minionName = monster.properties.monster_type
-                        if quantity >= 8 then
-                            nsquads = math.ceil(quantity / (group.squadSize or 4))
-                        end
+                        nsquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                         break
                     end
                 end

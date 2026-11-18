@@ -303,6 +303,8 @@ prompts and can shift/move between each selection.
 For "move before OR after" (binary choice), use `multipleModes: true` with `variation`
 fields on the modeList entries (see Angulotl Hopper's Leapfrog for this pattern).
 
+If a single-target ability's modes only suit some targets ("spend a Recovery or make a save"), consider target-then-mode: the activated-ability skill, "Target-Then-Mode".
+
 ### Summon Placement Belongs to the Summon Behavior, Not to Targeting
 
 **CRITICAL:** For "N creatures appear in unoccupied spaces within distance", do NOT
@@ -403,6 +405,17 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 | `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
 ## Critical Rules
+
+### Nested abilities carry their own implementation status
+
+Every nested/invoked ability (the `customAbility` inside an `ActivatedAbilityInvokeAbilityBehavior`,
+a triggered ability's inner abilities, etc.) shows its own automation badge in the app, and
+an unset one reads "not automated" even when the parent is Gold. Before finishing, walk EVERY
+nested `customAbility` and set `implementation:` honestly (4 when it fully resolves at runtime).
+Also set `hideSightlines: true` on an Invoke of a "Caster May Hide" standard ability so the
+hide-gate arrows draw, and use `targeting: prompt` on an Invoke of the Free Strike Against
+Specific Target standard ability so the player can pick the free-strike target.
+
 
 ### Critical Pitfalls (Read First!)
 

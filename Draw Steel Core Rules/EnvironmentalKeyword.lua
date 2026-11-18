@@ -105,6 +105,12 @@ EnvironmentalKeyword.aiDirectiveTypes = {
 		tooltip = "Creatures the Monster AI controls treat a zone of this type as their post: when they can reach it they always end their movement inside it, and one that is driven out heads back before doing anything else.",
 		filterHelp = "Which creatures hold zones of this type. Leave it empty for every creature the Monster AI controls.",
 	},
+	{
+		id = "retreat",
+		text = "Retreat",
+		tooltip = "Where creatures the Monster AI controls run to once they want to retreat (an Encounter Script decides when). A retreating creature flees here, avoiding opportunity attacks where it can, and leaves the map once it reaches the zone. Monsters never retreat unless a script says so.",
+		filterHelp = "Which creatures may escape through zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
 }
 
 --- This keyword's Monster AI directives. A keyword saved before the list
@@ -3744,22 +3750,16 @@ creature.RegisterSymbol {
 	},
 }
 
---True if the floor the token stands on is capped by a ceiling (layers report
---their parent floor's). A token whose floor cannot be found counts as covered.
+--True if something is overhead: a roof's art or an upper storey over any square
+--the token occupies, or its floor's ceiling setting. Decided per square by the
+--engine, so a token in a courtyard beside a roofed building is under open sky.
 --- @param token CharacterToken
 --- @return boolean
 local function TokenFloorHasCeiling(token)
-	local map = game.currentMap
-	local loc = token.loc
-	if map == nil or loc == nil then
+	if game.currentMap == nil or token.loc == nil then
 		return true
 	end
-	for _,floor in ipairs(map.floors) do
-		if floor.floorIndex == loc.floor then
-			return floor.hasCeiling == true
-		end
-	end
-	return true
+	return token.coveredOverhead == true
 end
 
 --True if a zone over the squares the token occupies shelters it from the sky:
@@ -3821,7 +3821,7 @@ creature.RegisterSymbol {
 	help = {
 		name = "Exposed To Sky",
 		type = "boolean",
-		desc = "True if nothing is between the creature and the sky: its floor has no ceiling (see the floor's Ceiling setting) and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
+		desc = "True if nothing is between the creature and the sky: no roof or upper floor is over the squares it occupies, its floor's Ceiling setting doesn't cover it, and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
 		seealso = {"Environment"},
 		examples = {"Exposed To Sky"},
 	},

@@ -2,7 +2,12 @@ local mod = dmhub.GetModLoading()
 
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 function GameHud.TokenMoving(self, token, path)
-	
+
+	--The token being drag-moved (cleared by FinishTokenMoving), for the
+	--flight wheel input hint. Not a forced (alt) or teleport (ctrl) drag:
+	--those use the wheel for their own altitude.
+	GameHud.dragMovingToken = cond(path.forced or path.teleport, nil, token)
+
 	local diagonals = dmhub.GetSettingValue("truediagonals") and math.floor(path.numDiagonals/2) or 0
 
 	local distance = path.numSteps + diagonals
@@ -15,6 +20,9 @@ function GameHud.TokenMoving(self, token, path)
     end
 
     local statusText = ""
+
+    --How-to-use-the-Codex notes, drawn as boxed callouts under the tooltip text.
+    local codexCallouts = {}
 
     --No legal route exists, so the engine's flat fallback route is what we're being handed
     --(see the longer note on the "No path found" line below). Its step count, elevation
@@ -152,6 +160,23 @@ function GameHud.TokenMoving(self, token, path)
         --reading as near-zero distance.
         distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
+
+
+        --A creature that can teleport is spending its own movement on this (see
+        --creature:HandleTeleportMove), so quote the cost the way a walking move does.
+        --A Director's Ctrl-drag is a free reposition, so it has no cost to quote.
+        local mover = token.properties
+        if mover ~= nil and mover:CanTeleport() and mover:IsOurTurn() and not dmhub.isDM then
+            local speed = mover:GetEffectiveSpeed(mover:CurrentMoveType())
+            local alreadyMoved = mover:DistanceMovedThisTurn()
+            text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(distance*dmhub.unitsPerSquare), mover.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(speed), string.lower(MeasurementSystem.UnitName()))
+            if alreadyMoved > 0 then
+                text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(alreadyMoved*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
+            end
+            if (alreadyMoved + distance)*dmhub.unitsPerSquare > speed then
+                statusText = statusText .. "\n<color=#ff0000>" .. UIText.T("movement.teleport_beyond_remaining") .. "</color>"
+            end
+        end
 	end
 
 	local floorDelta = nil
@@ -216,10 +241,6 @@ function GameHud.TokenMoving(self, token, path)
 		local distMoved = creature:DistanceMovedThisTurn()
 		if distMoved > 0 then
 			text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(distMoved*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
-		end
-
-		if creature:CanTeleport() then
-			text = string.format(tr("%s\n<color=#00ff00>This token can teleport. Hold ctrl to teleport.</color>"), text)
 		end
     elseif creature ~= nil and path.shifting then
 		text = string.format(tr('%s\n%s moves %s %s per round when using <b>disengage</b> to shift'), text, creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:CarefulMovementSpeed()), string.lower(MeasurementSystem.UnitName()))
@@ -330,6 +351,33 @@ function GameHud.TokenMoving(self, token, path)
         end
     end
 
+    --Illegal stop: Draw Steel forbids ending a move in another creature's space unless
+    --creature:CanShareSpaceWith allows it. The drag still lands (the engine doesn't block
+    --player moves); this only warns. Creatures above or below the mover's height don't count.
+    if creature ~= nil and not path.forced and not path.mount then
+        local destBottom = path.destination.altitude
+        local destTop = destBottom + math.max(1, token.tileSize) - 1
+        local blockedBy = nil
+        for _,loc in ipairs(token:LocsOccupyingWhenAt(path.destination)) do
+            for _,other in ipairs(game.GetTokensAtLoc(loc) or {}) do
+                if other.charid ~= token.charid and other.properties ~= nil then
+                    local otherBottom = other.loc.altitude
+                    local otherTop = otherBottom + math.max(1, other.tileSize) - 1
+                    if otherBottom <= destTop and otherTop >= destBottom and not creature:CanShareSpaceWith(other) then
+                        blockedBy = other
+                        break
+                    end
+                end
+            end
+            if blockedBy ~= nil then
+                break
+            end
+        end
+        if blockedBy ~= nil then
+            statusText = statusText .. "\n" .. tr("<color=#ff0000>Can't end a move in another creature's space.</color>")
+        end
+    end
+
 	if noPath and dmhub.isDM then
 		text = string.format('%s\nNo path found, move through walls or hold control to teleport.', text)
 	end
@@ -338,7 +386,28 @@ function GameHud.TokenMoving(self, token, path)
     local modifiers = token.properties:GetActiveModifiers()
     for _,mod in ipairs(modifiers) do
         text = mod.mod:MovementAdvisoryText(token.properties, path, text)
+        local callout = mod.mod:MovementCodexCallout(token.properties, path)
+        if callout ~= nil then
+            codexCallouts[#codexCallouts+1] = callout
+        end
     end
+
+    --Anything with Can Teleport (a feature, an animal trait, an innate teleport speed) can
+    --hold Ctrl to teleport instead of moving -- shown while walking and while teleporting.
+    if creature ~= nil and creature:CanTeleport() and not path.forced then
+        codexCallouts[#codexCallouts+1] = UIText.T("movement.callout.hold_ctrl_to_teleport")
+    end
+
+    --A feature may carry the same note as its own Codex Callout (Cinder Step); show it once.
+    local seenCallouts = {}
+    local uniqueCallouts = {}
+    for _,callout in ipairs(codexCallouts) do
+        if not seenCallouts[callout] then
+            seenCallouts[callout] = true
+            uniqueCallouts[#uniqueCallouts+1] = callout
+        end
+    end
+    codexCallouts = uniqueCallouts
 
     text = text .. statusText
 
@@ -362,6 +431,7 @@ function GameHud.TokenMoving(self, token, path)
 		halign = halign,
 		valign = valign,
 		floorDelta = floorDelta,
+		codexCallouts = codexCallouts,
 
 		--used by the movement cross-section diagram in the tooltip
 		--(see CreateMovementDiagramPanel in GameHud.lua).

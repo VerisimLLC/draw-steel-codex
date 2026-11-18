@@ -33,6 +33,7 @@ ClassLevel = RegisterGameType("ClassLevel") --type which represents the benefits
 --- @class CharacterChoice: GameType
 --- @field new fun(o?: table): CharacterChoice
 --- @field guid string Identifies the choice; the key of the hero's picks in its level choices.
+--- @field appliesToCompanion nil|boolean True when this choice and its picks go to the hero's companion instead (see Class.FillChildChoice).
 CharacterChoice = RegisterGameType("CharacterChoice")
 
 --- @class CharacterFeatureChoice:CharacterChoice
@@ -323,6 +324,105 @@ function Class:GetSubclasses(choices, levelNum, extraLevelInfo)
 	return result
 end
 
+--"Applies to companion": class content with appliesToCompanion = true belongs to the
+--hero's companion, not the hero. The flag is honored on a class level's items and on
+--the options and items of Feature Choices and Feature Lists (subtypes included). Those are
+--the only places the class editor offers the box; perks, deities and domains are edited in
+--their own tables, whose editors have no such box, so nothing under them can carry the flag. A subtype
+--that can hold flagged content must pass each child to Class.FillChildChoice if it
+--overrides FillChoice, and check Class.SkipForHero if it overrides FillFeaturesRecursive;
+--otherwise its ticked children go to the hero and all its children go to the companion.
+--Which walk is running decides what a flagged node does:
+--  nil: not walking class content (ancestry, kit...), so the flag is ignored;
+--  "hero": the hero's class walk or feature list, which skip flagged nodes and everything under them;
+--  "search": the companion's walk (FillCompanionFeaturesForLevel), which takes only those;
+--  "collect": inside a flagged node, so it takes everything (the flag carries down).
+local g_companionWalk = nil
+
+--Defined after FillFeaturesForLevel below; the walk entry points call it.
+local FillLevelFeatures
+
+--- Whether class content is ticked "applies to companion". Read raw so a node that
+--- has lost its type counts as unticked instead of erroring.
+--- @param node any
+--- @return boolean
+local function IsCompanionFlagged(node)
+	return type(node) == "table" and rawget(node, "appliesToCompanion") == true
+end
+Class.IsCompanionFlagged = IsCompanionFlagged
+
+--Runs fn(...) with the walk set to mode, putting the previous one back even if fn errors.
+--The error is raised again with the traceback of where it happened, not of this function.
+local function WithWalk(mode, fn, ...)
+	local previous = g_companionWalk
+	g_companionWalk = mode
+	local ok, err = xpcall(fn, debug.traceback, ...)
+	g_companionWalk = previous
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- Fill one child of a class level or of a feature choice/list, honoring the
+--- "applies to companion" flag. Containers call this for each child instead of
+--- child:FillChoice so the hero and companion walks each get their own parts.
+--- @param node CharacterFeature|CharacterChoice|CharacterFeatureList|CharacterSingleFeat
+--- @param choices table<string, string[]>
+--- @param result CharacterFeature[]
+function Class.FillChildChoice(node, choices, result)
+	if g_companionWalk == nil or g_companionWalk == "collect" then
+		node:FillChoice(choices, result)
+		return
+	end
+
+	local flagged = IsCompanionFlagged(node)
+	if g_companionWalk == "hero" then
+		if not flagged then
+			node:FillChoice(choices, result)
+		end
+		return
+	end
+
+	--search: only a flagged node gives anything. Feature Choices and Lists are looked
+	--inside, since they send each child back through here; other nodes are skipped.
+	if flagged then
+		WithWalk("collect", node.FillChoice, node, choices, result)
+	elseif node.IsDerivedFrom("CharacterFeatureChoice") or node.IsDerivedFrom("CharacterFeatureList") then
+		node:FillChoice(choices, result)
+	end
+end
+
+--- True while the hero's feature details are being listed (FillHeroFeatureDetailsForLevel)
+--- and this node is ticked for the companion, so it and its picks are left out. The
+--- details walk (FillFeaturesRecursive) asks this for each child, as FillChildChoice does.
+--- @param node any
+--- @return boolean
+function Class.SkipForHero(node)
+	return g_companionWalk == "hero" and IsCompanionFlagged(node)
+end
+
+--- Like FillFeatureDetailsForLevel, but leaves out content ticked for the hero's companion
+--- and everything picked under it: the hero's own features, for sheets and lists.
+--- @param choices table<string, string[]>
+--- @param levelNum integer
+--- @param extraLevelInfo nil|table
+--- @param secondaryClass boolean|string
+--- @param result {class: Class, levels: integer[], feature: CharacterFeature|CharacterChoice}[]
+function Class:FillHeroFeatureDetailsForLevel(choices, levelNum, extraLevelInfo, secondaryClass, result)
+	WithWalk("hero", self.FillFeatureDetailsForLevel, self, choices, levelNum, extraLevelInfo, secondaryClass, result)
+end
+
+--- Like FillFeaturesForLevel, but fills only the content flagged as applying to
+--- the hero's companion (with whatever was chosen under it).
+--- @param choices table<string, string[]>
+--- @param levelNum integer
+--- @param extraLevelInfo nil|table
+--- @param secondaryClass boolean|string
+--- @param result CharacterFeature[]
+function Class:FillCompanionFeaturesForLevel(choices, levelNum, extraLevelInfo, secondaryClass, result)
+	WithWalk("search", FillLevelFeatures, self, choices, levelNum, extraLevelInfo, secondaryClass, result)
+end
+
 --- Fills result with CharacterFeature objects for this class up to levelNum.
 --- Features with duplicate names will have only the highest level version included.
 --- @param choices table<string, string[]>
@@ -334,30 +434,45 @@ end
 --Features with duplicate names will have only the highest level returned.
 --choices is a map of string -> {string choice} made for that string.
 function Class:FillFeaturesForLevel(choices, levelNum, extraLevelInfo, secondaryClass, result)
+	WithWalk("hero", FillLevelFeatures, self, choices, levelNum, extraLevelInfo, secondaryClass, result)
+end
+
+--FillFeaturesForLevel's work, for whichever walk (hero or companion) is set.
+--- @param class Class
+--- @param choices table<string, string[]>
+--- @param levelNum integer
+--- @param extraLevelInfo nil|table
+--- @param secondaryClass boolean|string
+--- @param result CharacterFeature[]
+FillLevelFeatures = function(class, choices, levelNum, extraLevelInfo, secondaryClass, result)
 	local levels = {}
-	self:FillLevelsUpTo(levelNum, extraLevelInfo, secondaryClass, levels)
+	class:FillLevelsUpTo(levelNum, extraLevelInfo, secondaryClass, levels)
 
 	--levels is in ascending level order, so appending each name as it is seen ranks features
 	--by the highest level they reach. Downstream suppression (a higher-level ability
 	--replacing its lower-level version) breaks ties by list position, so this must be ordered.
 	local featureNames = {}
 	local features = {}
+	local companionWalk = g_companionWalk == "search"
 	for i,levelInfo in ipairs(levels) do
 		for j,feature in ipairs(levelInfo.features) do
 			if feature.typeName == 'CharacterFeature' then
-				if features[feature.name] ~= nil then
-					--a later level upgrades this feature, so re-rank it to that higher level.
-					for k,name in ipairs(featureNames) do
-						if name == feature.name then
-							table.remove(featureNames, k)
-							break
+				--Each walk keeps only its own features: flagged ones are the companion's.
+				if IsCompanionFlagged(feature) == companionWalk then
+					if features[feature.name] ~= nil then
+						--a later level upgrades this feature, so re-rank it to that higher level.
+						for k,name in ipairs(featureNames) do
+							if name == feature.name then
+								table.remove(featureNames, k)
+								break
+							end
 						end
 					end
+					featureNames[#featureNames+1] = feature.name
+					features[feature.name] = feature
 				end
-				featureNames[#featureNames+1] = feature.name
-				features[feature.name] = feature
 			else
-				feature:FillChoice(choices, result)
+				Class.FillChildChoice(feature, choices, result)
 			end
 		end
 	end
@@ -389,7 +504,9 @@ function Class:FillFeatureDetailsForLevel(choices, levelNum, extraLevelInfo, sec
         end
 
 		for j,feature in ipairs(levelInfo.features) do
-			if features[feature:CharacterUniqueID()] == nil then
+			if Class.SkipForHero(feature) then
+				--ticked for the companion: left out of the hero's list.
+			elseif features[feature:CharacterUniqueID()] == nil then
 				featureNames[#featureNames+1] = feature:CharacterUniqueID()
 				features[feature:CharacterUniqueID()] = {
 					class = self,
@@ -871,7 +988,7 @@ function CharacterFeatureChoice:FillChoice(choices, result)
 	for j,choiceid in ipairs(choiceidList) do
 		for i,option in ipairs(options) do
 			if choiceid == option.guid then
-				option:FillChoice(choices, result)
+				Class.FillChildChoice(option, choices, result)
 			end
 		end
 	end
@@ -889,7 +1006,7 @@ function CharacterFeatureChoice:FillFeaturesRecursive(choices, result)
 
 	for j,choiceid in ipairs(choiceidList) do
 		for i,option in ipairs(options) do
-			if choiceid == option.guid then
+			if choiceid == option.guid and not Class.SkipForHero(option) then
 				option:FillFeaturesRecursive(choices, result)
 			end
 		end

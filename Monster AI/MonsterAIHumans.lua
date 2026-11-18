@@ -379,7 +379,7 @@ local function FindBestCubePlan(token, ability, enemies)
 end
 
 local function SavingManeuverToRaise(ai, actor)
-    if actor.properties.monster_type ~= "Human Death Cultist" then
+    if MonsterAI.AIMonsterType(actor.properties) ~= "Human Death Cultist" then
         return false
     end
     local rise = FindAbility(actor, "Rise, My Minions")

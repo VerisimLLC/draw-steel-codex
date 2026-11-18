@@ -531,7 +531,9 @@ function Sections.words(d, tok, p)
     for langid,_ in pairs(p:LanguagesKnown()) do
         local lang = languagesTable[langid]
         if lang ~= nil then
-            d.languages[#d.languages+1] = lang.name
+            --must match the labels HeroSkillsLanguages.LanguageSources gives,
+            --which the hero sheet's Languages card is keyed by.
+            d.languages[#d.languages+1] = lang:DisplayName()
         end
     end
     table.sort(d.languages)

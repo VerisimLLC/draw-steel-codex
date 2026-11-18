@@ -1719,12 +1719,157 @@ end
 --checked with its series and never listed as an encounter of its own; the
 --series is keyed by the plain name even when no map has it. Parts marked
 --"Coming soon" go in comingSoonParts = { {number, title, text?}, ... }
---instead, so an app that predates them never offers them. Also ticks
+--instead, so an app that predates them never offers them. A part marked
+--"Coming soon at the Town Gate" goes there too, with gateOnly = true and
+--the part's own fields, so a newer town can play it in the Proving Pits
+--while older apps still keep it locked. Also ticks
 --every document a script is built from (ctx.include), since nothing else
 --ties a map to the documents in its journal folder.
+--Where a series part goes in the module record, and what it carries.
+--part: the playable record { number, title, townGate, townGateSource,
+--tracks, map, restFree }. comingSoon: the part's mark, or nil.
+--Returns "parts", part for a playable part; "comingSoonParts" and
+--{ number, title, text } for a "Coming soon" part; and for one marked
+--"Coming soon at the Town Gate", "comingSoonParts" and the whole part with
+--text and gateOnly = true (older apps read only number, title and text).
+local function SeriesPartRecord(comingSoon, part)
+	if comingSoon == nil then
+		return "parts", part
+	end
+	if comingSoon.board == "gate" then
+		local record = {}
+		for k, v in pairs(part) do
+			record[k] = v
+		end
+		record.text = comingSoon.text
+		record.gateOnly = true
+		return "comingSoonParts", record
+	end
+	return "comingSoonParts", { number = part.number, title = part.title, text = comingSoon.text }
+end
+
+--Tokens an Encounter of the Week module leaves out (FNPHVYCT). A game spawns
+--every monster its script's encounters place and brings the heroes from the
+--party, so a hero token, or a token of one of those monsters, still on an
+--encounter map (a playtest's spawn, a pregen) would join the fight twice.
+--Other tokens (bystanders, set dressing, creatures the script never spawns)
+--still ship. checks: one per encounter map, { name, mapids = {id -> true},
+--documents = {docid -> true}, bystanders = {lower-cased names} }.
+--Returns {guid -> true} to leave out, and the warnings that say so.
+local StrayEncounterTokens = function(ctx, checks, montage)
+	local strip = {}
+	local warnings = {}
+	--display names left out, per check (and heroes on no encounter map).
+	local leftOut = {}
+	local heroesElsewhere = {}
+
+	--the script's bystander rule (EncounterOfTheWeekGame.IsBystander): the
+	--token's name, "<name> <anything>", or its bestiary type.
+	local function IsBystander(tokenName, monsterType, names)
+		for _, name in ipairs(names) do
+			if tokenName == name or string.sub(tokenName, 1, #name + 1) == name .. " " or monsterType == name then
+				return true
+			end
+		end
+		return false
+	end
+
+	local seen = {}
+	local function Consider(guid)
+		if seen[guid] then
+			return
+		end
+		seen[guid] = true
+		local info = ctx.assetInfo[guid]
+		if info == nil or info.type ~= "character" then
+			return
+		end
+		local token = dmhub.GetCharacterById(guid)
+		if token == nil then
+			return
+		end
+
+		local check = nil
+		local mapid = token.mapid
+		for _, c in ipairs(checks) do
+			if mapid ~= nil and c.mapids[mapid] then
+				check = c
+				break
+			end
+		end
+
+		local isHero = false
+		pcall(function() isHero = token.properties:IsHero() == true end)
+		local stray = isHero
+		if not stray and check ~= nil then
+			if check.monsterIds == nil then
+				check.monsterIds = montage.EncounterMonsterIds(check.documents)
+				check.monsterNames = {}
+				for id in pairs(check.monsterIds) do
+					local asset = (assets.monsters or {})[id]
+					if asset ~= nil and type(asset.name) == "string" then
+						check.monsterNames[string.lower(asset.name)] = true
+					end
+				end
+			end
+			local monsterType = ""
+			pcall(function() monsterType = string.lower(token.properties:try_get("monster_type") or "") end)
+			local bestiaryId = token.bestiaryId
+			if (bestiaryId ~= nil and check.monsterIds[bestiaryId]) or check.monsterNames[monsterType] then
+				stray = not IsBystander(string.lower(token.name or ""), monsterType, check.bystanders)
+			end
+		end
+
+		if stray then
+			strip[guid] = true
+			local list = heroesElsewhere
+			if check ~= nil then
+				leftOut[check] = leftOut[check] or {}
+				list = leftOut[check]
+			end
+			list[#list + 1] = info.displayName or token.name or guid
+		end
+	end
+	for guid in pairs(ctx.includedAssets) do
+		Consider(guid)
+	end
+	for guid in pairs(ctx.dependencyAssets) do
+		Consider(guid)
+	end
+
+	--"Demon Ensnarer x4, The Iron Orb"
+	local function Summarize(names)
+		local counts = {}
+		local order = {}
+		for _, name in ipairs(names) do
+			if counts[name] == nil then
+				order[#order + 1] = name
+			end
+			counts[name] = (counts[name] or 0) + 1
+		end
+		table.sort(order)
+		local parts = {}
+		for _, name in ipairs(order) do
+			parts[#parts + 1] = cond(counts[name] > 1, string.format("%s x%d", name, counts[name]), name)
+		end
+		return table.concat(parts, ", ")
+	end
+	for _, c in ipairs(checks) do
+		if leftOut[c] ~= nil then
+			warnings[#warnings + 1] = string.format("%s: %d token(s) on the map will be left out of the module: %s. The game spawns the encounter's monsters from the script and brings the heroes from the party, so these would fight twice.", c.name, #leftOut[c], Summarize(leftOut[c]))
+		end
+	end
+	if #heroesElsewhere > 0 then
+		warnings[#warnings + 1] = string.format("%d hero(es) will be left out of the module: %s. Encounter of the Week heroes come from the party.", #heroesElsewhere, Summarize(heroesElsewhere))
+	end
+	return strip, warnings
+end
+
 local CheckEncounterModule = function(ctx)
-	local result = { errors = {}, warnings = {}, encounters = {} }
+	local result = { errors = {}, warnings = {}, encounters = {}, strip = {} }
 	local errors, warnings = result.errors, result.warnings
+	--one per encounter map, for StrayEncounterTokens.
+	local strayChecks = {}
 
 	local eotw = rawget(_G, "EncounterOfTheWeek")
 	local montage = rawget(_G, "EncounterMontage")
@@ -1806,6 +1951,15 @@ local CheckEncounterModule = function(ctx)
 				ctx.include(docid)
 			end
 
+			local strayCheck = { name = m.name, mapids = {}, documents = {}, bystanders = {} }
+			strayChecks[#strayChecks+1] = strayCheck
+			if m.id ~= nil then
+				strayCheck.mapids[m.id] = true
+			end
+			for docid,_ in pairs(found.documents) do
+				strayCheck.documents[docid] = true
+			end
+
 			--a partner's art must carry their credit (a licence term).
 			local unsetWatermarks = {}
 			for _,wm in ipairs({ m, table.unpack(partMaps[m.name] or {}) }) do
@@ -1829,8 +1983,10 @@ local CheckEncounterModule = function(ctx)
 				if not pmOk or pmFound == nil then
 					errors[#errors+1] = string.format("%s: its script could not be read: %s", pm.name, tostring(pmErr))
 				else
+					strayCheck.mapids[pm.id] = true
 					for docid,_ in pairs(pmFound.documents) do
 						ctx.include(docid)
+						strayCheck.documents[docid] = true
 					end
 					if #(pmFound.parts or {}) == 0 then
 						errors[#errors+1] = string.format("%s: its script needs a \"# Part %d\" heading.", pm.name, pm.part)
@@ -1879,6 +2035,12 @@ local CheckEncounterModule = function(ctx)
 				errors[#errors+1] = string.format("%s: no script. File a journal document with # Narrative, # Montage and # Encounter beats in this map's journal folder.", m.name)
 			end
 
+			for _,entry in ipairs(scripts) do
+				for _,name in ipairs(montage.BystanderNames(entry.script.parse)) do
+					strayCheck.bystanders[#strayCheck.bystanders+1] = name
+				end
+			end
+
 			local parts = {}
 			local comingSoonParts = {}
 			for _,entry in ipairs(scripts) do
@@ -1897,12 +2059,16 @@ local CheckEncounterModule = function(ctx)
 					end
 				end
 				local comingSoon = script.parse.part ~= nil and script.parse.part.comingSoon or nil
-				if comingSoon ~= nil then
+				local gateOnly = comingSoon ~= nil and comingSoon.board == "gate"
+				if gateOnly then
+					warnings[#warnings+1] = string.format("%s: marked 'Coming soon at the Town Gate', so the Gate shows it locked and the Proving Pits can play it.", entry.label)
+				elseif comingSoon ~= nil then
 					warnings[#warnings+1] = string.format("%s: marked 'Coming soon', so players see it locked and cannot play it yet.", entry.label)
 				end
 				if not hasEncounter then
 					local problem = string.format("%s: the script has no # Encounter beat, so the fight never starts.", entry.label)
-					if comingSoon ~= nil then
+					--a Gate-only part still plays in the Proving Pits.
+					if comingSoon ~= nil and not gateOnly then
 						warnings[#warnings+1] = problem
 					else
 						errors[#errors+1] = problem
@@ -1937,10 +2103,14 @@ local CheckEncounterModule = function(ctx)
 						tracks = tracks or {}
 						tracks[#tracks+1] = { name = decl.name, hidden = decl.hidden == true, description = decl.description }
 					end
-					if comingSoon ~= nil then
-						comingSoonParts[#comingSoonParts+1] = { number = entry.number, title = entry.title, text = comingSoon.text }
+					--restFree: a rest does not lock this part again once the part before is won.
+					local restFree = cond(script.parse.part ~= nil and script.parse.part.restFree == true, true, nil)
+					local list, partRecord = SeriesPartRecord(comingSoon, { number = entry.number, title = entry.title, townGate = townGateText,
+						townGateSource = townGateSource, tracks = tracks, map = entry.map, restFree = restFree })
+					if list == "parts" then
+						parts[#parts+1] = partRecord
 					else
-						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map }
+						comingSoonParts[#comingSoonParts+1] = partRecord
 					end
 				elseif townGateText ~= nil or townGateSource ~= nil then
 					result.encounters[m.name] = { townGate = townGateText, townGateSource = townGateSource }
@@ -1960,6 +2130,12 @@ local CheckEncounterModule = function(ctx)
 				result.encounters[m.name] = record
 			end
 		end
+	end
+
+	local strayWarnings
+	result.strip, strayWarnings = StrayEncounterTokens(ctx, strayChecks, montage)
+	for _,w in ipairs(strayWarnings) do
+		warnings[#warnings+1] = w
 	end
 
 	return result
@@ -2001,6 +2177,11 @@ local g_heroOptionTables = {
 --publishingProperties (optional) is called with the same ctx when the module
 --is published and returns {key -> value} to store in the module record's
 --publishingProperties.
+--
+--stripAssets (optional) is called with the same ctx when the module is
+--published and returns {guid -> true} for entries to leave out of the upload
+--even though they are checked or pulled in (an Encounter of the Week map's
+--leftover monster and hero tokens). Say so in a validate warning.
 --
 --excludedDependencyTypes (optional) is {row type -> true} for entries the
 --dependency search never pulls in. Excluding "module" also keeps out anything
@@ -2106,6 +2287,9 @@ local g_moduleTypes = {
 		publishingProperties = function(ctx)
 			return { eotwEncounters = CheckEncounterModule(ctx).encounters }
 		end,
+		stripAssets = function(ctx)
+			return CheckEncounterModule(ctx).strip
+		end,
 	},
 	{
 		--Hero options players add to their inventory on the titlescreen; the
@@ -2114,7 +2298,7 @@ local g_moduleTypes = {
 		--(see HeroModuleReviewAfterPublish below).
 		id = "hero",
 		text = "Hero Module",
-		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve each version before players can add it to their inventory; Directors can still install it into a game like any module.",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. " .. UIText.Term("directors") .. " can still install it into a game like any module.",
 		validate = function(ctx)
 			local errors = {}
 			local warnings = {}
@@ -2168,7 +2352,7 @@ local g_moduleTypes = {
 				errors[#errors+1] = string.format("A Hero module's characters must be heroes, which become pregens: %s", table.concat(nonHeroes, ", "))
 			end
 			if hasCode and not dmhub.isAdminAccount then
-				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. Directors can install it into a game straight away."
+				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. " .. UIText.Term("directors") .. " can install it into a game straight away."
 			end
 			return errors, warnings
 		end,
@@ -2212,7 +2396,13 @@ local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeMod
 				report(string.format("Sending it for review failed: %s", type(data) == "table" and data.error or "invalid response"))
 				return
 			end
-			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")
+			--the server approves a version at once when an admin has already
+			--approved all of its code mods (heroModuleReviewRequest).
+			if data.status == "approved" then
+				report("Its code was approved for an earlier version, so players can use it as a Hero module now.")
+				return
+			end
+			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; " .. UIText.Term("directors") .. " can install it now.")
 		end,
 		error = function(msg)
 			report(string.format("Sending it for review failed: %s", msg))
@@ -2569,6 +2759,19 @@ local showShareModuleDialog = function(options)
 						end
 					end
 
+					--what the module type keeps out of the upload (its
+					--validate warning named them).
+					local stripped = {}
+					local stripTypeInfo = GetModuleType(moduleInstance.moduleType)
+					if stripTypeInfo.stripAssets ~= nil then
+						for k,_ in pairs(stripTypeInfo.stripAssets(ModuleTypeContext())) do
+							if assetsIncludingDependencies[k] then
+								assetsIncludingDependencies[k] = nil
+								stripped[#stripped+1] = k
+							end
+						end
+					end
+
 					local notes = nil
 					if versionNotesInput ~= nil then
 						notes = versionNotesInput.text
@@ -2581,6 +2784,28 @@ local showShareModuleDialog = function(options)
 
 					local contentSummary = {}
 					dialogPanel:FireEventTree("collectManifest", contentSummary)
+
+					--the summary lists what is ticked; drop what was stripped.
+					for _,guid in ipairs(stripped) do
+						local info = assetInfo[guid]
+						if info ~= nil then
+							for _,summaryEntry in ipairs(contentSummary) do
+								if summaryEntry.type == info.type then
+									for i,name in ipairs(summaryEntry.items) do
+										if name == info.displayName then
+											table.remove(summaryEntry.items, i)
+											break
+										end
+									end
+								end
+							end
+						end
+					end
+					for i = #contentSummary, 1, -1 do
+						if #contentSummary[i].items == 0 then
+							table.remove(contentSummary, i)
+						end
+					end
 
 					moduleInstance.contentSummary = contentSummary
 
@@ -6769,6 +6994,16 @@ end
 
 
 mod.shared.ShowExportDialog = function()
+
+	--a Map Preview is only to be looked at; the engine refuses to save it too.
+	local current = game.currentMap
+	if current ~= nil and current.valid and current.preview then
+		gui.ModalMessage{
+			title = "Export Map",
+			message = "A map preview cannot be exported. Add the map to your game to export it.",
+		}
+		return
+	end
 
 	local MapExport = dmhub.MapExport
 

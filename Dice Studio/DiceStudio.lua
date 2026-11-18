@@ -5048,9 +5048,14 @@ end
 	-- silhouette the moment it lands. A surface material (e.g. Prismatic) can only draw rays inside
 	-- the die's own mesh; this carries the same ray math into the surrounding area. Authored per set
 	-- (dicestudio.rayBurst*), applied by DiceController.UpdateRayBurst via DMHub-Dice-RayBurst.
-	-- All rows collapse while the effect is disabled.
+	-- All rows collapse while the effect is disabled. The "sigil" style draws a ring symbol on the
+	-- floor instead of rays; each style shows only the sliders it uses.
 	local rayBurstSection
 	do
+		local function IsSigil()
+			return dicestudio.rayBurstStyle == "sigil"
+		end
+
 		-- Local slider helper: the nine ray controls are all "label + 0..max slider" rows, so build
 		-- them from one shape rather than nine near-identical blocks. The "or default" fallbacks
 		-- only matter before a build ships the C# dicestudio.rayBurst* bridge (nil until then).
@@ -5094,7 +5099,7 @@ end
 					halign = "left",
 					fontSize = 12,
 					color = "#bbbbbbff",
-					text = "Bursts a fan of light rays outward past each die when it lands, then fades. The rays use the same math as the Prismatic surface material, so they read as the die's own light escaping it.",
+					text = "Bursts a fan of light rays outward past each die when it lands, then fades. The rays use the same math as the Prismatic surface material, so they read as the die's own light escaping it. The Sigil style draws a ring on the floor instead, with spikes pointing inward and a glint in the middle.",
 				},
 
 				-- Enabled
@@ -5140,6 +5145,34 @@ end
 						gui.Label{
 							classes = {"formLabel"},
 							halign = "left",
+							text = "Style:",
+						},
+						gui.Dropdown{
+							width = 200,
+							height = 26,
+							fontSize = 14,
+							options = {
+								{ id = "rays", text = "Rays" },
+								{ id = "sigil", text = "Sigil" },
+							},
+							idChosen = dicestudio.rayBurstStyle or "rays",
+							newmaterial = function(element)
+								element.idChosen = dicestudio.rayBurstStyle or "rays"
+							end,
+							change = function(element)
+								---@cast element Dropdown
+								dicestudio.rayBurstStyle = element.idChosen
+								RefreshDice()
+								element.root:FireEventTree("refreshDice")
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
 							text = "Color:",
 						},
 						gui.ColorPicker{
@@ -5167,31 +5200,69 @@ end
 					RaySlider("Intensity:", 0, 8, 1.5,
 						function() return dicestudio.rayBurstIntensity end,
 						function(v) dicestudio.rayBurstIntensity = v end),
-					RaySlider("Rainbow:", 0, 1, 0.45,
-						function() return dicestudio.rayBurstSaturation end,
-						function(v) dicestudio.rayBurstSaturation = v end),
-					RaySlider("Ray Count:", 2, 24, 9,
-						function() return dicestudio.rayBurstCount end,
-						function(v) dicestudio.rayBurstCount = v end),
-					RaySlider("Sharpness:", 0.5, 8, 2.5,
-						function() return dicestudio.rayBurstContrast end,
-						function(v) dicestudio.rayBurstContrast = v end),
-					RaySlider("Shimmer:", 0, 4, 0.4,
-						function() return dicestudio.rayBurstSpeed end,
-						function(v) dicestudio.rayBurstSpeed = v end),
-					RaySlider("Inner Radius:", 0, 0.9, 0.22,
-						function() return dicestudio.rayBurstInnerRadius end,
-						function(v) dicestudio.rayBurstInnerRadius = v end),
-					-- Streaky filaments streaming outward through the beams (0 = clean wedges).
-					RaySlider("Streaks:", 0, 1, 0,
-						function() return dicestudio.rayBurstStreaks end,
-						function(v) dicestudio.rayBurstStreaks = v end),
-					RaySlider("Core Flash:", 0, 2, 0,
-						function() return dicestudio.rayBurstCoreFlash end,
-						function(v) dicestudio.rayBurstCoreFlash = v end),
-					RaySlider("Expanding Ring:", 0, 2, 0,
-						function() return dicestudio.rayBurstRing end,
-						function(v) dicestudio.rayBurstRing = v end),
+
+					-- Sigil-only rows.
+					gui.Panel{
+						width = "100%",
+						height = "auto",
+						flow = "vertical",
+						create = function(element)
+							element:SetClass("collapsed", not IsSigil())
+						end,
+						refreshDice = function(element)
+							element:SetClass("collapsed", not IsSigil())
+						end,
+
+						RaySlider("Spikes:", 0, 24, 8,
+							function() return dicestudio.rayBurstSpikes end,
+							function(v) dicestudio.rayBurstSpikes = v end),
+						RaySlider("Spike Length:", 0, 0.6, 0.32,
+							function() return dicestudio.rayBurstSpikeLength end,
+							function(v) dicestudio.rayBurstSpikeLength = v end),
+						-- 0 = crisp ring and spikes, 1 = soft glow like the glint in the middle.
+						RaySlider("Blur:", 0, 1, 1,
+							function() return dicestudio.rayBurstSigilBlur end,
+							function(v) dicestudio.rayBurstSigilBlur = v end),
+					},
+
+					-- Ray-only rows; the sigil ignores them.
+					gui.Panel{
+						width = "100%",
+						height = "auto",
+						flow = "vertical",
+						create = function(element)
+							element:SetClass("collapsed", IsSigil())
+						end,
+						refreshDice = function(element)
+							element:SetClass("collapsed", IsSigil())
+						end,
+
+						RaySlider("Rainbow:", 0, 1, 0.45,
+							function() return dicestudio.rayBurstSaturation end,
+							function(v) dicestudio.rayBurstSaturation = v end),
+						RaySlider("Ray Count:", 2, 24, 9,
+							function() return dicestudio.rayBurstCount end,
+							function(v) dicestudio.rayBurstCount = v end),
+						RaySlider("Sharpness:", 0.5, 8, 2.5,
+							function() return dicestudio.rayBurstContrast end,
+							function(v) dicestudio.rayBurstContrast = v end),
+						RaySlider("Shimmer:", 0, 4, 0.4,
+							function() return dicestudio.rayBurstSpeed end,
+							function(v) dicestudio.rayBurstSpeed = v end),
+						RaySlider("Inner Radius:", 0, 0.9, 0.22,
+							function() return dicestudio.rayBurstInnerRadius end,
+							function(v) dicestudio.rayBurstInnerRadius = v end),
+						-- Streaky filaments streaming outward through the beams (0 = clean wedges).
+						RaySlider("Streaks:", 0, 1, 0,
+							function() return dicestudio.rayBurstStreaks end,
+							function(v) dicestudio.rayBurstStreaks = v end),
+						RaySlider("Core Flash:", 0, 2, 0,
+							function() return dicestudio.rayBurstCoreFlash end,
+							function(v) dicestudio.rayBurstCoreFlash = v end),
+						RaySlider("Expanding Ring:", 0, 2, 0,
+							function() return dicestudio.rayBurstRing end,
+							function(v) dicestudio.rayBurstRing = v end),
+					},
 				},
 			},
 		}
@@ -5491,6 +5562,7 @@ end
 			{ id = "star4", text = "Star (4-point)" },
 			{ id = "star5", text = "Star (5-point)" },
 			{ id = "spark", text = "Spark" },
+			{ id = "glint", text = "Glint" },
 			{ id = "ember", text = "Ember" },
 			{ id = "bubble", text = "Bubble" },
 		}

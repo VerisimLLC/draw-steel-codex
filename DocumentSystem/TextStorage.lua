@@ -211,11 +211,26 @@ function TextStorage:GetContent()
     --the live table.keys (Utils.lua) always returns a list; only the lua-core one can return nil.
     local keys = table.keys(self.sections) --[[@as string[] ]]
     table.sort(keys)
-    local result = ""
+    --one table.concat, not repeated `..`: concatenating in a loop copies the
+    --whole text once per section (quadratic), and callers that read every
+    --document on a map several times a second turned that into ~1 MB of
+    --garbage per pass and 30-60 ms GC stalls.
+    local parts = {}
     for i,k in ipairs(keys) do
-        result = result .. self.sections[k]
+        parts[i] = self.sections[k]
     end
-    return result
+    return table.concat(parts)
+end
+
+--- The length of GetContent()'s text without building it (no allocation):
+--- the sum of the section lengths. For change detection, not display.
+--- @return integer
+function TextStorage:GetContentLength()
+    local n = 0
+    for _, section in pairs(self.sections) do
+        n = n + #section
+    end
+    return n
 end
 
 function TextStorage:SetContent(str)

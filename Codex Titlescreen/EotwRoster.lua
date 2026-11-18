@@ -297,6 +297,8 @@ function EotwRoster.Attach(conn)
     m_leads = nil
     m_carouse = nil
     EotwRoster.lastError = nil
+    --project states are per server too (the town can switch staging/release).
+    EotwDowntime.ForgetProjects()
     Bump()
 end
 
@@ -476,6 +478,11 @@ end
 --Build the Hall of Heroes)? Until then its place on the map is the
 --Construction.
 function EotwRoster.HallBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-hall-of-heroes") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.hallOfHeroes == true then
         return true
     end
@@ -488,6 +495,11 @@ end
 --Has the town finished building the Town Hall (the community project Build
 --the Town Hall)? Until then its place on the map is a building site.
 function EotwRoster.TownHallBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-town-hall") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.townHall == true then
         return true
     end
@@ -500,10 +512,42 @@ end
 --building site, and a respite Levels heroes up itself; once built, a
 --respite only banks XP and heroes Level up at the Training Grounds.
 function EotwRoster.TrainingGroundsBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-training-grounds") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.trainingGrounds == true then
         return true
     end
     local state = EotwDowntime.GetProject("build-training-grounds")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
+--Has the town finished building the Great Forge (the community project
+--Build the Great Forge)? Until then its place on the map is a building site.
+function EotwRoster.GreatForgeBuilt()
+    --a hidden project's building is not there, even if built.
+    if EotwDowntime.CommunityProjectHidden("build-great-forge") then
+        return false
+    end
+    if m_unlocks ~= nil and m_unlocks.greatForge == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("build-great-forge")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
+--Has the town restored the Temple of Saint Llewellyn (the community project Restore the
+--Temple)? Until then its place on the map is a ruin.
+function EotwRoster.TempleBuilt()
+    if EotwDowntime.CommunityProjectHidden("restore-temple") then
+        return false
+    end
+    if m_unlocks ~= nil and m_unlocks.temple == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("restore-temple")
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
@@ -662,6 +706,21 @@ function EotwRoster.AwayHeroes()
     return result
 end
 
+--Is any of this account's heroes at home (not claimed by a party)? nil
+--while the roster has not been listed.
+function EotwRoster.HeroAtHome()
+    if m_heroes == nil then
+        return nil
+    end
+    local away = EotwRoster.AwayHeroes()
+    for _, hero in ipairs(m_heroes) do
+        if away[hero.heroid] == nil then
+            return true
+        end
+    end
+    return false
+end
+
 --Put a working copy in this lobby game's player party. A pregen arrives with
 --its module party and a city record with its uploader's lobby party, neither
 --of which exists here (the sheet shows "Controlled by: (Invalid)"). The
@@ -686,6 +745,7 @@ end
 --defined with the coming-home write-back below.
 local ApplyPendingOutcomes
 local PromoteRosterHeroes
+local ApplyReturns
 --heroids whose slow-start promotion is being pushed to the city right now.
 local m_promoting = {}
 
@@ -748,6 +808,8 @@ local function FetchAndImport(hero)
                 if not mod.unloaded then
                     PromoteRosterHeroes()
                     ApplyPendingOutcomes()
+                    --a hero just back from the grave: set their Stamina.
+                    ApplyReturns()
                 end
             end)
         end,
@@ -1059,6 +1121,84 @@ PromoteRosterHeroes = function()
     end
 end
 
+--Heroes the city raised (awakened, or by a Rite of Return) whose return this
+--client has not applied yet, from list-heroes: heroid -> { by = "awaken"|"rite" }.
+local m_returned = {}
+--Returns applied this session, still to be announced with a banner: { heroid... }.
+local m_returnsToAnnounce = {}
+--heroids whose return is being pushed to the City right now.
+local m_returning = {}
+
+--Apply each pending return once the hero's working copy is in step with the
+--city: an awakened hero comes back with Stamina equal to their Recovery value
+--(Recoveries as they were), a hero raised by rite at full Stamina. The push
+--carries ackReturn so the city stops listing the return.
+ApplyReturns = function()
+    local revs = GetRevs()
+    local _, pending = LoadPendingOutcomes()
+    local outcomeWillPush = {}
+    for _, entry in pairs(pending) do
+        if type(entry) == "table" and type(entry.heroid) == "string" and entry.stage ~= "pushed" then
+            outcomeWillPush[entry.heroid] = true
+        end
+    end
+    for heroid, returnInfo in pairs(m_returned) do
+        local tok = dmhub.GetCharacterById(heroid)
+        local hero = EotwRoster.FindHero(heroid)
+        if tok ~= nil and hero ~= nil and revs[heroid] == hero.rev and not m_importing[heroid] and not m_promoting[heroid]
+            and not m_returning[heroid] and not outcomeWillPush[heroid] then
+            m_returning[heroid] = true
+            tok:ModifyProperties{
+                description = "Returned from the grave",
+                undoable = false,
+                execute = function()
+                    local props = tok.properties
+                    if returnInfo.by == "rite" then
+                        EotwRoster.SetWounds(props, 0, 0)
+                    else
+                        local maxStamina = props:MaxHitpoints()
+                        local damage = math.max(0, maxStamina - props:RecoveryAmount())
+                        local used = props:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+                        EotwRoster.SetWounds(props, damage, used)
+                    end
+                end,
+            }
+            dmhub.Schedule(0.3, function()
+                if mod.unloaded then
+                    return
+                end
+                EotwRoster.PushHero(heroid, function(ok)
+                    m_returning[heroid] = nil
+                    if ok then
+                        m_returned[heroid] = nil
+                        m_returnsToAnnounce[#m_returnsToAnnounce+1] = heroid
+                    end
+                end, { ackReturn = true })
+            end)
+        end
+    end
+end
+
+--Play a banner for each hero who returned from the grave since the last call
+--(the town screen calls this from its think, with itself as the host).
+function EotwRoster.AnnounceReturns(host)
+    if #m_returnsToAnnounce == 0 or host == nil or not host.valid then
+        return
+    end
+    local list = m_returnsToAnnounce
+    m_returnsToAnnounce = {}
+    for i, heroid in ipairs(list) do
+        dmhub.Schedule((i - 1) * 4.5, function()
+            if mod.unloaded or not host.valid then
+                return
+            end
+            local tok = dmhub.GetCharacterById(heroid)
+            local name = tok ~= nil and tok.name or T("graveyard.hero_fallback")
+            EotwDowntime.ShowBanner(host, T("roster.returned.banner_title", { name = name }), T("roster.returned.banner_subtitle"), nil, heroid)
+        end)
+    end
+end
+
 --Bring the lobby working copies in line with the city's roster.
 local function SyncWorkingCopies()
     if not LobbyReady() then
@@ -1106,6 +1246,7 @@ local function SyncWorkingCopies()
     PromoteRosterHeroes()
     --encounters won since the last visit: Victories onto the heroes.
     ApplyPendingOutcomes()
+    ApplyReturns()
 end
 
 --Queue won encounters for heroes to bring home -- the same queue the game
@@ -1204,6 +1345,12 @@ function EotwRoster.Refresh()
             m_heroes = heroes
             m_unlocks = type(result.unlocks) == "table" and result.unlocks or {}
             m_slots = tonumber(result.slots) or EotwRoster.BASE_SLOTS
+            m_returned = {}
+            for _, entry in ipairs(result.returned or {}) do
+                if type(entry) == "table" and type(entry.heroid) == "string" then
+                    m_returned[entry.heroid] = { by = entry.by }
+                end
+            end
             EotwRoster.SetListedLeads(result.leads, result.carouse)
             Bump()
             SyncWorkingCopies()
@@ -1230,9 +1377,16 @@ local m_pushing = {}
 
 --Push a working copy to the city: creates the hero there the first time,
 --replaces it afterwards (revision-checked). onDone(ok, message) optional.
-function EotwRoster.PushHero(charid, onDone)
+--extraArgs (optional) adds fields to put-hero (ackReturn); a push already in
+--flight drops them, so a caller that needs them retries later.
+---@param extraArgs nil|table
+function EotwRoster.PushHero(charid, onDone, extraArgs)
     local inFlight = m_pushing[charid]
     if inFlight ~= nil then
+        if extraArgs ~= nil and onDone ~= nil then
+            onDone(false, "busy")
+            return
+        end
         inFlight.again = true
         if onDone ~= nil then
             inFlight.waiting[#inFlight.waiting+1] = onDone
@@ -1276,15 +1430,19 @@ function EotwRoster.PushHero(charid, onDone)
         end
     end
 
+    local args = {
+        heroid = charid,
+        baseRev = baseRev,
+        summary = BuildSummary(tok),
+        record = data.record,
+        assets = data.assets,
+    }
+    for key, value in pairs(extraArgs or {}) do
+        args[key] = value
+    end
     m_conn:Request{
         action = "put-hero",
-        args = {
-            heroid = charid,
-            baseRev = baseRev,
-            summary = BuildSummary(tok),
-            record = data.record,
-            assets = data.assets,
-        },
+        args = args,
         success = function(result)
             SetRev(charid, result.rev)
             EotwRoster.lastError = nil
@@ -1808,7 +1966,8 @@ function EotwRoster.SetActive(heroid, active)
     }
 end
 
---One page of the Hall of Heroes. args {encounter?, sort?, offset?, limit?};
+--One page of the Hall of Heroes. args {encounter?, sort?, offset?, limit?,
+--mine?} (mine = only entries with one of this account's heroes);
 --onDone(result) with {entries, more, encounters, sort} (see the city's list-hall).
 function EotwRoster.ListHall(args, onDone)
     if m_conn == nil then
@@ -1842,15 +2001,47 @@ function EotwRoster.GetHallEntry(gameid, onDone, onFail)
 end
 
 --One page of the shared graveyard. onDone(result) with {graves, more}.
-function EotwRoster.ListGraveyard(before, onDone)
+--mine: only this account's graves.
+function EotwRoster.ListGraveyard(before, onDone, mine)
     if m_conn == nil then
         return
     end
     m_conn:Request{
         action = "list-graveyard",
-        args = { before = before, limit = 50 },
+        args = { before = before, limit = 50, mine = mine == true },
         success = onDone,
         error = Fail,
+    }
+end
+
+--Is there a free roster slot for one more living hero?
+function EotwRoster.HasFreeSlot()
+    return EotwRoster.LivingCount() < EotwRoster.Slots()
+end
+
+--Bring a fallen hero back from the Graveyard to the roster. The city removes
+--the grave; the re-list then brings the working copy back. onDone(ok).
+function EotwRoster.AwakenHero(heroid, onDone)
+    if m_conn == nil then
+        Fail(T("roster.error.not_connected"))
+        onDone(false)
+        return
+    end
+    m_conn:Request{
+        action = "awaken-hero",
+        args = { heroid = heroid },
+        success = function()
+            if mod.unloaded then
+                return
+            end
+            printf("EotW town: awakened %s from the Graveyard", tostring(heroid))
+            EotwRoster.Refresh()
+            onDone(true)
+        end,
+        error = function(message)
+            Fail(message)
+            onDone(false)
+        end,
     }
 end
 
@@ -1964,6 +2155,9 @@ local function Portrait(portrait, width, height, halign, click)
     }
 end
 
+
+--Shared with the Temple's lists (EotwTemple.lua).
+EotwRoster.Portrait = Portrait
 --- the Hero's Guild ---------------------------------------------------------
 
 --A fresh name for a recruit from its ancestry's name generator, or the
@@ -3117,13 +3311,125 @@ local function OpenFallen(g)
     }
 end
 
---Everyone's fallen heroes, newest first, with this account's marked.
+--"in 11h 40m": the time left until a server timestamp (ms), for countdowns.
+local function TimeUntil(at)
+    local seconds = math.max(0, math.floor(((tonumber(at) or 0) - dmhub.serverTimeMilliseconds) / 1000))
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    if hours > 0 then
+        return T("graveyard.time_hours_minutes", { hours = tostring(hours), minutes = tostring(minutes) })
+    end
+    return T("graveyard.time_minutes", { minutes = tostring(math.max(1, minutes)) })
+end
+
+--A server timestamp (ms) as a local clock time, e.g. "9:40 PM".
+local function ClockTime(at)
+    local clock = os.date("%I:%M %p", math.floor((tonumber(at) or 0) / 1000))
+    return (string.gsub(tostring(clock), "^0", ""))
+end
+
+--Shared with the Temple, so both show a grave's time the same way.
+EotwRoster.ClockTime = ClockTime
+
+--The line under one of this account's graves saying how (or whether) the hero
+--can come back, from the grave's state as the City lists it (list-graveyard).
+--Always text, never colour alone or a hover tooltip.
+local function GraveStatusText(grave)
+    local state = grave.state
+    if state == "risen" then
+        local rose = (grave.epitaph or {}).rose or {}
+        return T("graveyard.status_risen", { when = DescribeServerTimestamp(tonumber(rose.at) or grave.at) })
+    elseif state == "waiting" then
+        return T("graveyard.status_waiting", { left = TimeUntil(grave.readyAt), clock = ClockTime(grave.readyAt) })
+    elseif state == "ready" then
+        if EotwRoster.HasFreeSlot() then
+            return T("graveyard.status_ready")
+        end
+        return T("graveyard.status_no_slot")
+    elseif state == "fire" then
+        return T("graveyard.status_fire")
+    elseif state == "beyond" then
+        return T("graveyard.status_beyond")
+    end
+    --the Temple is not named to a player who has not heard of it (its lead).
+    if not EotwLeads.Knows("temple") then
+        return nil
+    end
+    if EotwRoster.TempleBuilt() then
+        return T("graveyard.status_temple")
+    elseif EotwDowntime.GetProject("restore-temple") ~= nil then
+        return T("graveyard.status_restore_temple")
+    end
+    return nil
+end
+
+--The Awaken button on one of this account's undying graves (a Hakaan,
+--Revenant, Vampire or Back From the Grave hero). Enabled once the City says
+--the grave is ready (12 hours after the death) and the roster has a free slot;
+--the reason it is not is the status line beside it. onAwakened() runs once the
+--hero is back in the roster.
+local function AwakenButton(g, onAwakened)
+    local busy = false
+    local function Usable()
+        return g.state == "ready" and EotwRoster.HasFreeSlot()
+    end
+    --the town's button theme gives "disabled" no look of its own, so a
+    --disabled Awaken is dimmed by hand.
+    local function SetDisabled(element, disabled)
+        element:SetClass("disabled", disabled)
+        element.selfStyle.opacity = cond(disabled, 0.4, 1)
+    end
+    return gui.Button{
+        text = T("graveyard.awaken_button"),
+        fontSize = 18,
+        width = 130,
+        height = 40,
+        halign = "right",
+        valign = "center",
+        create = function(element)
+            SetDisabled(element, not Usable())
+        end,
+        --a waiting grave turns ready while the Graveyard is open.
+        thinkTime = 1,
+        think = function(element)
+            if g.state == "waiting" and dmhub.serverTimeMilliseconds >= (tonumber(g.readyAt) or 0) then
+                g.state = "ready"
+            end
+            if not busy then
+                SetDisabled(element, not Usable())
+            end
+        end,
+        click = function(element)
+            if busy or not Usable() then
+                return
+            end
+            busy = true
+            SetDisabled(element, true)
+            audio.FireSoundEvent("Mouse.Click")
+            EotwRoster.AwakenHero(g.heroid, function(ok)
+                busy = false
+                if ok then
+                    onAwakened()
+                elseif element.valid then
+                    SetDisabled(element, not Usable())
+                end
+            end)
+        end,
+    }
+end
+
+--Everyone's fallen heroes, newest first, with this account's marked; or,
+--with the Yours tab, only this account's, where a Hakaan, Revenant or Vampire
+--can be awakened.
 function EotwRoster.ShowGraveyard(host)
     local dlg
     local listPanel = nil
     local graves = {}
     local more = false
     local loading = false
+    local mineOnly = false
+    --bumped on a tab switch, so a page asked for by the other tab is dropped
+    local generation = 0
 
     local Rebuild
     local LoadMore = function()
@@ -3131,15 +3437,32 @@ function EotwRoster.ShowGraveyard(host)
             return
         end
         loading = true
+        local asked = generation
         local before = #graves > 0 and graves[#graves].id or nil
         EotwRoster.ListGraveyard(before, function(result)
+            if asked ~= generation then
+                return
+            end
             loading = false
             for _,g in ipairs(result.graves or {}) do
                 graves[#graves+1] = g
             end
             more = result.more == true
             Rebuild()
-        end)
+        end, mineOnly)
+    end
+
+    local function SetMineOnly(value)
+        if mineOnly == value then
+            return
+        end
+        mineOnly = value
+        generation = generation + 1
+        graves = {}
+        more = false
+        loading = false
+        Rebuild()
+        LoadMore()
     end
 
     Rebuild = function()
@@ -3148,7 +3471,8 @@ function EotwRoster.ShowGraveyard(host)
         end
         local rows = {}
         if #graves == 0 then
-            rows[1] = gui.Label{ text = cond(loading, T("graveyard.loading"), T("graveyard.empty")), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
+            local empty = cond(mineOnly, T("graveyard.empty_mine"), T("graveyard.empty"))
+            rows[1] = gui.Label{ text = cond(loading, T("graveyard.loading"), empty), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
         end
         for _,g in ipairs(graves) do
             local e = g.epitaph or {}
@@ -3181,9 +3505,25 @@ function EotwRoster.ShowGraveyard(host)
             end
             lines[#lines+1] = fell
             lines[#lines+1] = T("graveyard.played_by", { player = e.owner or "?" })
+            local awaken = nil
+            if mine and (g.state == "waiting" or g.state == "ready") then
+                awaken = AwakenButton(g, function()
+                    --the grave stays, marked as risen.
+                    g.state = "risen"
+                    g.epitaph = g.epitaph or {}
+                    g.epitaph.rose = { at = dmhub.serverTimeMilliseconds }
+                    Rebuild()
+                end)
+            end
+            --how this hero can come back: on your own graves, and on anyone's
+            --grave the hero has already risen from.
+            local status = nil
+            if mine or g.state == "risen" then
+                status = GraveStatusText(g)
+            end
             rows[#rows+1] = gui.Panel{
                 width = "100%",
-                height = 100,
+                height = cond(status ~= nil, 120, 100),
                 flow = "horizontal",
                 bgimage = "panels/square.png",
                 bgcolor = cond(mine, "#2a2418cc", "#ffffff0a"),
@@ -3215,20 +3555,57 @@ function EotwRoster.ShowGraveyard(host)
                 vmargin = 3,
                 Portrait(e.portrait, 63, 84),
                 gui.Panel{
-                    width = "100%-90",
+                    width = cond(awaken ~= nil, "100%-230", "100%-90"),
                     height = "100%",
                     flow = "vertical",
                     valign = "center",
                     lmargin = 14,
-                    gui.Label{ text = e.name or T("graveyard.hero_fallback"), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto" },
+                    gui.Label{ text = cond(mine, T("graveyard.yours_name", { name = e.name or T("graveyard.hero_fallback") }), e.name or T("graveyard.hero_fallback")), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto" },
                     gui.Label{ text = table.concat(lines, "\n"), fontSize = 14, color = DIM, width = "100%", height = "auto" },
+                    gui.Label{
+                        classes = { cond(status == nil, "collapsed", nil) },
+                        text = status or "",
+                        fontSize = 14,
+                        italics = true,
+                        color = TEXT,
+                        width = "100%",
+                        height = "auto",
+                        --a countdown ticks while the Graveyard is open.
+                        thinkTime = 30,
+                        think = function(element)
+                            if status == nil then
+                                return
+                            end
+                            element.text = GraveStatusText(g) or ""
+                        end,
+                    },
                 },
+                awaken,
             }
         end
         if more then
             rows[#rows+1] = Button(T("graveyard.older_button"), LoadMore, 220)
         end
         listPanel.children = rows
+    end
+
+    local function Tab(text, value)
+        return gui.Button{
+            text = text,
+            fontSize = 18,
+            width = 180,
+            height = 38,
+            hmargin = 4,
+            classes = { cond(mineOnly == value, "selected", nil) },
+            refreshTab = function(element)
+                element:SetClass("selected", mineOnly == value)
+            end,
+            click = function(element)
+                audio.FireSoundEvent("Mouse.Click")
+                SetMineOnly(value)
+                element.parent:FireEventTree("refreshTab")
+            end,
+        }
     end
 
     local titleParts = Title(T("graveyard.title"), T("graveyard.subtitle"))
@@ -3239,8 +3616,33 @@ function EotwRoster.ShowGraveyard(host)
             titleParts[1],
             titleParts[2],
             gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                tmargin = 6,
+                Tab(T("graveyard.tab_everyone"), false),
+                Tab(T("graveyard.tab_mine"), true),
+            },
+            --a roster change (an awakening, a dismissal) can free or fill a
+            --slot: rebuild so the Awaken buttons are up to date.
+            gui.Panel{
+                floating = true,
+                width = 1,
+                height = 1,
+                interactable = false,
+                data = { seen = EotwRoster.revision },
+                thinkTime = 0.25,
+                think = function(element)
+                    if element.data.seen ~= EotwRoster.revision then
+                        element.data.seen = EotwRoster.revision
+                        Rebuild()
+                    end
+                end,
+            },
+            gui.Panel{
                 width = "94%",
-                height = "100%-190",
+                height = "100%-240",
                 halign = "center",
                 flow = "vertical",
                 vscroll = true,
@@ -3336,6 +3738,18 @@ local function HallChip(text, selected, click)
     }
 end
 
+--Style pack for the Hall's gui.Check. The town has no checkbox rules of its
+--own (as with EncounterOfTheWeek.lua's g_CheckboxStyles), so without these
+--the check square never paints.
+local HALL_CHECK_STYLES = {
+    { selectors = {"checkbox"}, bgimage = true, flow = "horizontal", bgcolor = "clear", height = 30, width = "auto", hpad = 4 },
+    { selectors = {"checkBackground"}, bgimage = true, bgcolor = "#080B09", halign = "left", valign = "center", height = "70%", width = "100% height", rmargin = 6, borderColor = DIM, borderWidth = 2 },
+    { selectors = {"checkBackground", "parent:hover"}, borderColor = TEXT },
+    { selectors = {"checkMark"}, bgimage = true, bgcolor = TEXT, halign = "center", valign = "center", width = "50%", height = "50%" },
+    { selectors = {"checkboxLabel"}, halign = "left", valign = "center", textAlignment = "left", borderWidth = 0, width = "auto", height = "auto", fontSize = 16, color = DIM },
+    { selectors = {"checkboxLabel", "parent:hover"}, color = TEXT },
+}
+
 --Open an entry's saved victory screen over `host`.
 local function OpenHallEntry(host, entry)
     audio.FireSoundEvent("Mouse.Click")
@@ -3370,6 +3784,9 @@ function EotwRoster.HallPanel(host)
     --after either changed is dropped (see `generation`).
     local encounter = ""
     local sort = "recent"
+    --My Heroes Only: the city keeps just the entries with one of our heroes
+    --(the tab counts too), so paging and ranks stay right.
+    local mineOnly = false
     local generation = 0
 
     local Rebuild
@@ -3379,7 +3796,7 @@ function EotwRoster.HallPanel(host)
         end
         loading = true
         local g = generation
-        EotwRoster.ListHall({ encounter = encounter, sort = sort, offset = #entries }, function(result)
+        EotwRoster.ListHall({ encounter = encounter, sort = sort, offset = #entries, mine = mineOnly }, function(result)
             if g ~= generation then
                 return
             end
@@ -3499,7 +3916,20 @@ function EotwRoster.HallPanel(host)
                     Reload()
                 end
             end) }
+            --My Heroes Only lists just our encounters; the open tab stays
+            --(at 0) even when none of our heroes won it.
+            local tabs = encounters
+            local found = encounter == ""
             for _,enc in ipairs(encounters) do
+                found = found or enc.encounter == encounter
+            end
+            if not found then
+                tabs = { { encounter = encounter, count = 0 } }
+                for _,enc in ipairs(encounters) do
+                    tabs[#tabs+1] = enc
+                end
+            end
+            for _,enc in ipairs(tabs) do
                 local key = enc.encounter
                 chips[#chips+1] = HallChip(string.format("%s (%d)", HallEncounterName(key), tonumber(enc.count) or 0), encounter == key, function()
                     if encounter ~= key then
@@ -3527,7 +3957,8 @@ function EotwRoster.HallPanel(host)
         end
         local rows = {}
         if #entries == 0 then
-            rows[1] = gui.Label{ text = cond(loading, T("roster.hall.loading"), T("roster.hall.empty")), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
+            local emptyText = cond(mineOnly, T("roster.hall.empty_mine"), T("roster.hall.empty"))
+            rows[1] = gui.Label{ text = cond(loading, T("roster.hall.loading"), emptyText), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
         end
         for i,e in ipairs(entries) do
             --a ranked order numbers its rows; newest-first does not
@@ -3557,15 +3988,36 @@ function EotwRoster.HallPanel(host)
                     Rebuild()
                 end,
             },
+            --the sort chips (rebuilt with the list) and, kept out of the
+            --rebuild so it is not destroyed under its own click, My Heroes Only.
             gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 vmargin = 4,
-                create = function(element)
-                    sortPanel = element
-                    Rebuild()
-                end,
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "horizontal",
+                    valign = "center",
+                    create = function(element)
+                        sortPanel = element
+                        Rebuild()
+                    end,
+                },
+                gui.Check{
+                    text = T("roster.hall.mine_check"),
+                    value = mineOnly,
+                    styles = HALL_CHECK_STYLES,
+                    valign = "center",
+                    lmargin = 18,
+                    linger = gui.Tooltip(T("roster.hall.mine_tooltip")),
+                    change = function(element)
+                        audio.FireSoundEvent("Mouse.Click")
+                        mineOnly = element.value == true
+                        Reload()
+                    end,
+                },
             },
             --the tab and sort strips above take about 100 (more if the
             --tabs wrap onto a second row), the tribute button below 45.

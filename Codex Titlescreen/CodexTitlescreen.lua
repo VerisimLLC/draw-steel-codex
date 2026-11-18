@@ -839,6 +839,272 @@ local function ScaleDimensionsToFill(dim)
     return dim * math.max(a/b, b/a)
 end
 
+--Text for a loading-screen quote: the quote in italics, then "- speaker" when
+--the quote has one. Shared by the loading screen and the Developer preview.
+--The speaker sits in an <indent> block as wide as "- " (measured 0.54em), so a
+--speaker written over several lines ("Dancer\nChronicler, ...") lines up
+--under its first line instead of under the dash.
+local function FormatLoadingQuote(quote)
+    if quote == nil then
+        return ""
+    end
+    if quote.speaker ~= nil and quote.speaker ~= "" then
+        return string.format("<i>%s</i>\n- <indent=0.55em>%s</indent>", quote.quote, quote.speaker)
+    end
+    return string.format("<i>%s</i>", quote.quote)
+end
+
+--imageLoaded handler for the loading-screen art panel: crops the art so it
+--fills the panel without stretching.
+local function FitLoadingScreenArt(element)
+    if element.bgsprite == nil then
+        return
+    end
+
+    local src_w = element.bgsprite.dimensions.x
+    local src_h = element.bgsprite.dimensions.y
+
+    local dst_w = ScaleDimensionsToFill(1920)
+    local dst_h = ScaleDimensions(1080)
+
+
+    if dst_w/dst_h > src_w/src_h then
+        --the destination is wider than the source. Fit to width.
+        local new_src_h = src_w * (dst_h / dst_w)
+        local letterbox = 1 - new_src_h/src_h
+
+        local rect = {
+            x1 = 0,
+            y1 = letterbox*0.5,
+            x2 = 1,
+            y2 = 1 - letterbox*0.5,
+        }
+
+        element.selfStyle.imageRect = rect
+
+    elseif dst_w/dst_h < src_w/src_h then
+        --the destination is taller than the source. Fit to height.
+        local new_src_w = src_h * (dst_w / dst_h)
+        local letterbox = 1 - new_src_w/src_w
+        local rect = {
+            x1 = letterbox*0.5,
+            y1 = 0,
+            x2 = 1 - letterbox*0.5,
+            y2 = 1,
+        }
+
+        element.selfStyle.imageRect = rect
+    else
+        element.selfStyle.imageRect = {
+            x1 = 0,
+            y1 = 0,
+            x2 = 1,
+            y2 = 1,
+        }
+    end
+end
+
+--The quote banner along the bottom of the loading screen. Fire
+--"setLoadingQuote" on it with new text to swap the quote in place.
+local function CreateLoadingQuoteBanner(quoteText)
+    -- Viewport-sized container so the loading-quote banner stays
+    -- in the visible screen area at any aspect ratio. loadingScreen
+    -- is oversized by ScaleDimensionsToFill on widescreens, which
+    -- would otherwise push this bottom-anchored banner below the
+    -- screen. (Mirrors the ProgressDice container in beginLoading.)
+    return gui.Panel {
+        floating = true,
+        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
+        height = 1080,
+        halign = "center",
+        valign = "center",
+
+        gui.Panel {
+            flow = "vertical",
+            width = 1200,
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            bmargin = 80,
+
+            -- Sits just above the banner's dark fill, mirroring the
+            -- bottom divider. Overlapping it hides the line under
+            -- the banner, which draws later.
+            gui.Divider {
+                vmargin = 0,
+                height = 2,
+                y = -0.5,
+            },
+
+            gui.Panel {
+                classes = { "loadingQuoteBanner" },
+                -- Theme-aware banner: the scheme's @bg paints in the
+                -- middle of a horizontal alpha mask, darkening the
+                -- cover art behind the quote and fading smoothly to
+                -- clear at the edges. Label color falls through to the theme
+                -- default ({label} -> @fgStrong) for legibility.
+                styles = ThemeEngine.MergeStyles{
+                    {
+                        selectors = { "loadingQuoteBanner" },
+                        bgimage = "panels/square.png",
+                        bgcolor = "@bg",
+                        gradient = LoadingQuoteFadeGradient(),
+                    },
+                },
+
+                halign = "center",
+                height = "auto",
+                vpad = 15,
+                minHeight = 60,
+                vmargin = 0,
+                width = "68%",
+
+                gui.Label {
+                    text = quoteText,
+                    fontSize = 20,
+                    width = "auto",
+                    height = "auto",
+                    textAlignment = "left",
+                    halign = "center",
+                    valign = "center",
+                    maxWidth = 600,
+                    markdown = true,
+                    setLoadingQuote = function(element, text)
+                        element.text = text
+                    end,
+                },
+            },
+
+            gui.Divider {
+                vmargin = 0,
+                height = 2,
+                y = -3.5,
+            },
+        },
+    }
+end
+
+--Developer > Loading Screen Quotes: a full-screen copy of the loading screen
+--for stepping through every quote, in the order the quote files register them.
+LoadingQuotesPreview = {}
+
+function LoadingQuotesPreview.Show()
+    local quotes = rawget(_G, "CodexQuotes")
+    if quotes == nil or quotes.ordered == nil or #quotes.ordered == 0 then
+        print("LoadingQuotesPreview: no quotes registered")
+        return
+    end
+    local ids = quotes.ordered
+
+    --The real loading screen shows the cover art of the game being entered;
+    --use this game's art, else the Encounter of the Week loading art.
+    local art = nil
+    pcall(function() art = game.coverart end)
+    if type(art) ~= "string" or art == "" then
+        art = "panels/backgrounds/delian-tomb-bg.png"
+    end
+
+    local index = 1
+    local modalLayer = nil
+    local banner = CreateLoadingQuoteBanner("")
+    local counterLabel
+
+    local function Close()
+        if modalLayer ~= nil then
+            gui.CloseModalInLayer(modalLayer)
+            modalLayer = nil
+        end
+    end
+
+    local function ShowQuote(i)
+        index = ((i - 1) % #ids) + 1
+        local id = ids[index]
+        banner:FireEventTree("setLoadingQuote", FormatLoadingQuote(quotes.quotes[id]))
+        counterLabel.text = string.format("%d / %d   %s", index, #ids, id)
+    end
+
+    counterLabel = gui.Label {
+        text = "",
+        fontSize = 18,
+        width = 320,
+        height = "auto",
+        textAlignment = "center",
+        valign = "center",
+        hmargin = 12,
+    }
+
+    local backdrop = gui.Panel {
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000ff",
+        styles = ThemeEngine.GetStyles(),
+        escape = function(element)
+            Close()
+        end,
+        escapeActivates = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+
+        gui.Panel {
+            floating = true,
+            width = ScaleDimensionsToFill(1920),
+            height = ScaleDimensionsToFill(1080),
+            halign = "center",
+            valign = "center",
+            bgimage = art,
+            bgimageAlpha = "panels/gamescreen/loadingscreen4.png",
+            bgcolor = "#ffffffff",
+            --The loading screen's resting state once its fade-in finishes.
+            alphaThreshold = 1,
+            alphaThresholdFade = 0.1,
+            imageLoaded = FitLoadingScreenArt,
+        },
+
+        banner,
+
+        gui.Panel {
+            floating = true,
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            tmargin = 40,
+            pad = 10,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#000000cc",
+
+            gui.Button {
+                text = "Previous",
+                valign = "center",
+                click = function(element)
+                    ShowQuote(index - 1)
+                end,
+            },
+            counterLabel,
+            gui.Button {
+                text = "Next",
+                valign = "center",
+                click = function(element)
+                    ShowQuote(index + 1)
+                end,
+            },
+            gui.Button {
+                text = "Close",
+                valign = "center",
+                lmargin = 24,
+                click = function(element)
+                    Close()
+                end,
+            },
+        },
+    }
+
+    modalLayer = gui.ShowModal(backdrop)
+    ShowQuote(1)
+end
+
 local resistanceCurve = function(x)
     x = x * 2
     local negative = x < 0
@@ -930,6 +1196,15 @@ local g_streamerModeSetting = setting {
 
 local g_gamePageSetting = g_playerGamePageSetting
 
+--The HEROES column shows this many cards (MakeHeroPanel slots) per page.
+local HEROES_PER_PAGE = 8
+
+local g_heroPageSetting = setting {
+    id = "playerheropage",
+    storage = "preference",
+    default = 1,
+}
+
 -- Maximum number of games a user may participate in at once. Admin
 -- accounts get a higher cap (48); everyone else is limited to 24.
 local function MaxGamesAllowed()
@@ -994,10 +1269,10 @@ local function TooManyGamesDialog(element)
 end
 
 
---The titlescreen HEROES roster in slot order, plus how many of those entries the
---player made. Ranked, not filtered: module NPCs that a lobby picked up before
---InstallModuleCo learned to skip them carry no ctime, so a plain ctime sort ties
---them at 0 and pushes the player's own heroes past the eighth slot. Filtering
+--The titlescreen HEROES roster in slot order (HEROES_PER_PAGE per page). Ranked,
+--not filtered: module NPCs that a lobby picked up before InstallModuleCo learned
+--to skip them carry no ctime, so a plain ctime sort ties them at 0 and pushes the
+--player's own heroes off the first page. Filtering
 --them out instead would hide monster-typed heroes, which are legitimate (see
 --HeroIsUnstarted).
 local function LobbyHeroes()
@@ -1040,15 +1315,11 @@ local function LobbyHeroes()
     end)
 
     local chars = {}
-    local nheroes = 0
     for i, entry in ipairs(entries) do
         chars[i] = entry.char
-        if entry.rank < 2 then
-            nheroes = nheroes + 1
-        end
     end
 
-    return chars, nheroes
+    return chars
 end
 
 --A hero the player abandoned in the builder without building anything: no
@@ -3594,10 +3865,17 @@ local function MakeGamePanel(gameIndex)
 
         refreshGames = function(element, orderedGames, baseIndex)
             local index = baseIndex + gameIndex
+            --a campaign still downloading shows loadingPanel instead.
+            local loading = CampaignRearrange.IsPlaceholder(orderedGames[index])
             m_game = orderedGames[index]
+            if loading then
+                --nil while the card is hidden, as its declaration says.
+                ---@diagnostic disable-next-line: cast-local-type
+                m_game = nil
+            end
             if m_game == nil then
                 element:SetClass("hidden", true)
-                addGameButton:SetClass("hidden", #lobby.games >= MaxGamesAllowed())
+                addGameButton:SetClass("hidden", loading or #lobby.games >= MaxGamesAllowed())
                 element:HaltEventPropagation()
                 return
             end
@@ -4092,12 +4370,40 @@ local function MakeGamePanel(gameIndex)
 
     }
 
+    --Holds the slot of a campaign whose summary is still downloading, so the
+    --pages keep their positions while the list fills in.
+    local loadingPanel = gui.Panel {
+        classes = { "hidden" },
+        bgimage = true,
+        bgcolor = "black",
+        opacity = 0.9,
+        width = "100%",
+        height = "100%",
+
+        refreshGames = function(element, orderedGames, baseIndex)
+            local entry = (orderedGames or {})[(baseIndex or 0) + gameIndex]
+            element:SetClass("hidden", not CampaignRearrange.IsPlaceholder(entry))
+        end,
+
+        gui.Label {
+            classes = { "fgMuted" },
+            text = "Loading...",
+            fontSize = 20,
+            fontFace = "newzald",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
     local resultPanel = gui.Panel {
         width = "100%",
         height = 176,
         bmargin = 10,
         gamePanel,
         addGameButton,
+        loadingPanel,
     }
 
     return resultPanel
@@ -6533,11 +6839,17 @@ local g_infernalContractDiscordShownSetting = setting{
 
 --The Discord account state from dmhub.discordStatus: "notlinked", "linking",
 --"connecting", "ready", "error", or "off"/"unsupported" where this build or
---this user's settings have no Discord. pcall: an older engine has no such property.
+--this user's settings have no Discord. "provisional" is "ready" on a
+--provisional account: signed in to Discord, but no Discord account linked.
+--pcall: an older engine has no such property.
 local function DiscordAccountState()
 	local result = "off"
 	pcall(function()
-		result = dmhub.discordStatus.account or "off"
+		local s = dmhub.discordStatus
+		result = s.account or "off"
+		if result == "ready" and s.provisional == true then
+			result = "provisional"
+		end
 	end)
 	return result
 end
@@ -7100,7 +7412,8 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				RefreshSections()
 			elseif state == "connecting" then
 				SetDiscordStatus("Connecting to Discord...", false)
-			elseif state == "error" then
+			elseif state == "error" or state == "provisional" then
+				--"provisional": the sign-in failed but the provisional account is still up.
 				m_discordWaiting = false
 				discordButton.text = "Link Discord"
 				local message = nil
@@ -7241,6 +7554,17 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 		closeContract = function(element)
 			element:DestroySelf()
+
+			--closing without linking is declining Discord: the player goes on
+			--with a provisional account, so voice and friends still work, and can
+			--link later. Does nothing while a link is under way.
+			if m_offerDiscord and not m_discordDone and DiscordAccountState() == "notlinked" then
+				pcall(function()
+					if dmhub.discordStatus.provisionalUnavailable ~= true then
+						dmhub.DiscordUseProvisional()
+					end
+				end)
+			end
 
 			--anything the new-items dialog held back while we were up.
 			dmhub.Schedule(0.3, function()
@@ -7717,11 +8041,7 @@ function CreateTitlescreen(dialog, options)
                     element.data.loadingScreen = nil
                 end
 
-                local quote = CodexQuotes.SelectQuote()
-                local quoteText = ""
-                if quote ~= nil then
-                    quoteText = string.format("<i>%s</i>\n- %s", quote.quote, quote.speaker)
-                end
+                local quoteText = FormatLoadingQuote(CodexQuotes.SelectQuote())
 
                 -- Show an error with Retry/Cancel if the load stalls past this many seconds.
                 -- The outer watcher panel must stay active (no "hidden" class) so its think
@@ -7852,57 +8172,7 @@ function CreateTitlescreen(dialog, options)
                     width = ScaleDimensionsToFill(1920),
                     height = ScaleDimensionsToFill(1080),
 
-                    imageLoaded = function(element)
-                        if element.bgsprite == nil then
-                            return
-                        end
-
-                        local src_w = element.bgsprite.dimensions.x
-                        local src_h = element.bgsprite.dimensions.y
-
-                        local dst_w = ScaleDimensionsToFill(1920)
-                        local dst_h = ScaleDimensions(1080)
-
-                        print("ASPECT::", dst_w/dst_h, "vs", src_w/src_h)
-
-                        if dst_w/dst_h > src_w/src_h then
-                            --the destination is wider than the source. Fit to width.
-                            local new_src_h = src_w * (dst_h / dst_w)
-                            local letterbox = 1 - new_src_h/src_h
-
-                            local rect = {
-                                x1 = 0,
-                                y1 = letterbox*0.5,
-                                x2 = 1,
-                                y2 = 1 - letterbox*0.5,
-                            }
-
-                            element.selfStyle.imageRect = rect
-
-                        elseif dst_w/dst_h < src_w/src_h then
-                            --the destination is taller than the source. Fit to height.
-                            local new_src_w = src_h * (dst_w / dst_h)
-                            local letterbox = 1 - new_src_w/src_w
-                            local rect = {
-                                x1 = letterbox*0.5,
-                                y1 = 0,
-                                x2 = 1 - letterbox*0.5,
-                                y2 = 1,
-                            }
-
-                            element.selfStyle.imageRect = rect
-                        else
-                            element.selfStyle.imageRect = {
-                                x1 = 0,
-                                y1 = 0,
-                                x2 = 1,
-                                y2 = 1,
-                            }
-                        end
-
-
-
-                    end,
+                    imageLoaded = FitLoadingScreenArt,
                     halign = "center",
                     valign = "center",
                     floating = true,
@@ -7939,78 +8209,7 @@ function CreateTitlescreen(dialog, options)
                     },
 
 
-                    -- Viewport-sized container so the loading-quote banner stays
-                    -- in the visible screen area at any aspect ratio. loadingScreen
-                    -- is oversized by ScaleDimensionsToFill on widescreens, which
-                    -- would otherwise push this bottom-anchored banner below the
-                    -- screen. (Mirrors the ProgressDice container below.)
-                    gui.Panel {
-                        floating = true,
-                        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
-                        height = 1080,
-                        halign = "center",
-                        valign = "center",
-
-                    gui.Panel {
-                        flow = "vertical",
-                        width = 1200,
-                        height = "auto",
-                        halign = "center",
-                        valign = "bottom",
-                        bmargin = 80,
-
-                        -- Sits just above the banner's dark fill, mirroring the
-                        -- bottom divider. Overlapping it hides the line under
-                        -- the banner, which draws later.
-                        gui.Divider {
-                            vmargin = 0,
-                            height = 2,
-                            y = -0.5,
-                        },
-
-                        gui.Panel {
-                            classes = { "loadingQuoteBanner" },
-                            -- Theme-aware banner: the scheme's @bg paints in the
-                            -- middle of a horizontal alpha mask, darkening the
-                            -- cover art behind the quote and fading smoothly to
-                            -- clear at the edges. Label color falls through to the theme
-                            -- default ({label} -> @fgStrong) for legibility.
-                            styles = ThemeEngine.MergeStyles{
-                                {
-                                    selectors = { "loadingQuoteBanner" },
-                                    bgimage = "panels/square.png",
-                                    bgcolor = "@bg",
-                                    gradient = LoadingQuoteFadeGradient(),
-                                },
-                            },
-
-                            halign = "center",
-                            height = "auto",
-                            vpad = 15,
-                            minHeight = 60,
-                            vmargin = 0,
-                            width = "68%",
-
-                            gui.Label {
-                                text = quoteText,
-                                fontSize = 20,
-                                width = "auto",
-                                height = "auto",
-                                textAlignment = "left",
-                                halign = "center",
-                                valign = "center",
-                                maxWidth = 600,
-                                markdown = true,
-                            },
-                        },
-
-                        gui.Divider {
-                            vmargin = 0,
-                            height = 2,
-                            y = -3.5,
-                        },
-                    },
-                    },
+                    CreateLoadingQuoteBanner(quoteText),
 
                     -- Viewport-sized container so the ProgressDice stays
                     -- in the visible screen area at any aspect ratio.
@@ -9350,12 +9549,26 @@ function CreateTitlescreen(dialog, options)
                             },
                         }
 
+                        --Hero paging state. The list panel works out the page
+                        --count on each refresh; the pager shows it.
+                        local m_numHeroPages = 1
+                        ---@type Panel|nil
+                        local m_heroList = nil
+                        ---@type Panel|nil
+                        local m_heroPager = nil
+
+                        --The stored page clamped to the pages that exist now: the
+                        --setting persists and heroes can be deleted.
+                        local function CurrentHeroPage()
+                            return clamp(round(g_heroPageSetting:Get()), 1, m_numHeroPages)
+                        end
+
                         return gui.Panel {
                         classes = { "hideOnDirector" },
 
                         -- Scoped ThemeEngine cascade for the Heroes column,
                         -- mirrors the Campaigns column. Catches the HEROES
-                        -- header strip and the 8 hero cards below.
+                        -- header strip and the page of 8 hero cards below.
                         styles = ThemeEngine.MergeStyles(m_heroesExtras),
 
                         bgimage = true,
@@ -9413,22 +9626,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Create a Hero")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = CreateHero,
 
                                     gui.Panel {
@@ -9462,22 +9659,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Import a Hero from Forge Steel")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = ImportForgeSteel,
                                 },
 
@@ -9493,22 +9674,6 @@ function CreateTitlescreen(dialog, options)
 
                                     hover = function(element)
                                         gui.Tooltip("Import a Hero from a Codex JSON file")(element)
-                                    end,
-
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportCodexJson,
@@ -9559,9 +9724,30 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             refreshGame = function(element)
+                                --In a campaign, GetAllCharacters() is the campaign's
+                                --roster, not the lobby's (see startMonitoring), and the
+                                --title screen is hidden; refreshLobby still fans out on
+                                --every game-info revision, which cost ~30 ms per bump
+                                --in a game with 1500 characters. returnFromGameComplete
+                                --refreshes the list on the way back.
+                                if dmhub.inGame and not dmhub.isLobbyGame then
+                                    return
+                                end
                                 local chars = LobbyHeroes()
                                 local games = lobby.games
-                                element:FireEventTree("characters", chars, games)
+                                m_numHeroPages = math.max(1, math.ceil(#chars / HEROES_PER_PAGE))
+
+                                --The slots index into this page's slice of the roster.
+                                local base = (CurrentHeroPage() - 1) * HEROES_PER_PAGE
+                                local pageChars = {}
+                                for i = 1, HEROES_PER_PAGE do
+                                    pageChars[i] = chars[base + i]
+                                end
+                                element:FireEventTree("characters", pageChars, games)
+
+                                if m_heroPager ~= nil and m_heroPager.valid then
+                                    m_heroPager:FireEventTree("refreshHeroPages", CurrentHeroPage(), m_numHeroPages)
+                                end
                             end,
 
                             beginLoading = function(element)
@@ -9595,6 +9781,7 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             create = function(element)
+                                m_heroList = element
                             end,
 
 
@@ -9606,6 +9793,73 @@ function CreateTitlescreen(dialog, options)
                             MakeHeroPanel(6),
                             MakeHeroPanel(7),
                             MakeHeroPanel(8),
+                        },
+
+                        --Hero paging panel: same look as the CAMPAIGNS one, under
+                        --the right edge of the hero cards. Hidden with one page.
+                        gui.Panel {
+                            styles = ThemeEngine.GetStyles(),
+                            classes = {"bgAlt", "hidden"},
+                            floating = true,
+                            minWidth = 100,
+                            width = "auto",
+                            height = 60,
+                            flow = "horizontal",
+                            halign = "right",
+                            valign = "bottom",
+                            y = 68,
+                            opacity = 0.8,
+
+                            create = function(element)
+                                m_heroPager = element
+                            end,
+
+                            refreshHeroPages = function(element, page, numPages)
+                                element:SetClass("hidden", numPages <= 1)
+                            end,
+
+                            gui.Button {
+                                classes = {"pagingArrow", "sizeL"},
+                                valign = "center",
+                                halign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page <= 1)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() - 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
+
+                            gui.Label {
+                                textAlignment = "center",
+                                width = "auto",
+                                minWidth = 60,
+                                height = 50,
+                                fontSize = 20,
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element.text = string.format("Page\n%d/%d", page, numPages)
+                                end,
+                            },
+
+                            gui.Button {
+                                classes = {"pagingArrow", "right", "sizeL"},
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page >= numPages)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() + 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
                         },
                     }
                     end)(),
@@ -9736,12 +9990,17 @@ function CreateTitlescreen(dialog, options)
                             local orderedGames = {}
                             local directorMode = DirectorMode()
 
-                            print("REFRESH WITH DIRECTOR =", directorMode)
-
-                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
-                            for _, game in ipairs(viewGames) do
-                                if m_currentSearch == nil or game:MatchesSearch(m_currentSearch) then
-                                    orderedGames[#orderedGames + 1] = game
+                            --campaigns still downloading keep their slot as a
+                            --placeholder; a search cannot match them yet.
+                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewEntries(directorMode), directorMode)
+                            for _, entry in ipairs(viewGames) do
+                                if m_currentSearch == nil then
+                                    orderedGames[#orderedGames + 1] = entry
+                                elseif not CampaignRearrange.IsPlaceholder(entry) then
+                                    local game = entry --[[@as LuaGameInfo]]
+                                    if game:MatchesSearch(m_currentSearch) then
+                                        orderedGames[#orderedGames + 1] = game
+                                    end
                                 end
                             end
 
@@ -10394,13 +10653,13 @@ TitlescreenHeroes = {
             return false
         end)
     end,
-    --The heroes in the titlescreen's HEROES slots, in slot order: the first
-    --8 of LobbyHeroes() (one per hard-coded MakeHeroPanel slot), minus
-    --abandoned empty shells. The EotW Guild offers these to copy into town.
+    --The heroes in the titlescreen's HEROES slots, in slot order across every
+    --page of LobbyHeroes(), minus abandoned empty shells. The EotW Guild offers
+    --these to copy into town.
     List = function()
         local result = {}
         local chars = LobbyHeroes()
-        for i = 1, math.min(8, #chars) do
+        for i = 1, #chars do
             if not HeroIsUnstarted(chars[i]) then
                 result[#result+1] = chars[i]
             end

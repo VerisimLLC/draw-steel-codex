@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The object a map import places for each light: an object with a Light
+--component, in each white label's own cloud ("light" in the Codex's, "Light"
+--in DMHub's).
+local DEFAULT_LIGHT_OBJECT_ID = cond(dmhub.whiteLabel == "mcdm", "2339211c-c35a-4e0a-a5fa-79d2e446bd3b", "5fd062ac-d67e-40b6-a59c-044c352defca")
+
 local function ComponentTypeMatches(value, componentType)
     if value == nil then
         return false
@@ -51,6 +56,72 @@ end
 --then the game.GetOtherGameMapPreview result (or {failed = true}).
 local s_otherGamePreviews = {}
 
+--The whole map-pack index as Lua tables, shared by every open of the dialog.
+--mappacks.Search{text = ""} converts every entry (~6500, about half a
+--second), so it runs only when the index or the account's access changes,
+--not on each refresh. Treat the lists as read-only: they are shared.
+--  all: every entry in index order; byMap["pack/mapid"]: that map's
+--  variants in variant order.
+local s_index = { key = nil, all = nil, byMap = nil }
+local s_accessStamp = nil
+local s_accessSignature = nil
+
+--what the owned/objectsOwned flags depend on: each pack's full access and
+--the account's pledge to its creator. About 5 ms, so worked out once a frame.
+local function IndexAccessSignature()
+    local now = dmhub.Time()
+    if s_accessStamp ~= now or s_accessSignature == nil then
+        local parts = {}
+        for _, pack in ipairs(mappacks.packs) do
+            local access = mappacks.GetPackAccess(pack.id)
+            parts[#parts + 1] = string.format("%s:%s%d", pack.id, cond(access.full, "F", ""), tonumber(access.cents) or 0)
+        end
+        s_accessSignature = table.concat(parts, ",")
+        s_accessStamp = now
+    end
+    return s_accessSignature
+end
+
+local function IndexCacheKey()
+    return string.format("%d|%d|%s", mappacks.version, mappacks.count, IndexAccessSignature())
+end
+
+--whether AllIndexEntries can answer without searching the engine.
+local function IndexCacheWarm()
+    return s_index.key == IndexCacheKey()
+end
+
+--every index entry (see s_index), searched again only when stale.
+---@return MapPackIndexEntry[]
+local function AllIndexEntries()
+    local key = IndexCacheKey()
+    if s_index.key ~= key then
+        local all = mappacks.Search{ text = "", maxResults = 100000 }
+        local byMap = {}
+        for _, entry in ipairs(all) do
+            local mapKey = entry.pack .. "/" .. entry.id
+            local variants = byMap[mapKey]
+            if variants == nil then
+                variants = {}
+                byMap[mapKey] = variants
+            end
+            variants[#variants + 1] = entry
+        end
+        for _, variants in pairs(byMap) do
+            table.sort(variants, function(a, b) return a.variantIndex < b.variantIndex end)
+        end
+        s_index = { key = key, all = all, byMap = byMap }
+    end
+    --always set by the branch above once the key matches.
+    return s_index.all --[[@as MapPackIndexEntry[] ]]
+end
+
+--the variants of one map in variant order (an empty list when unknown).
+local function IndexMapVariants(pack, mapid)
+    AllIndexEntries()
+    return s_index.byMap[pack .. "/" .. mapid] or {}
+end
+
 --the sidebar section the dialog last showed, so the next open this session
 --returns to it (transient: every app start opens on All Maps). One of
 --"empty", "import", "othergames", or "library|<kind>|<packid or blank>".
@@ -75,9 +146,13 @@ end
 --options (optional): { created = function(mapid) } is called once the map
 --the dialog makes exists in the game, before travelling to it. Every way of
 --making a map calls it: blank, import, map library, another game.
+--options.restore = {entry, search, markupId, name} reopens the dialog on a
+--library map as it was left (the Preview button closes the dialog while the
+--map is previewed, then reopens it here).
 mod.shared.ShowCreateMapDialog = function(options)
 
     local m_created = options ~= nil and options.created or nil
+    local m_restore = options ~= nil and options.restore or nil
     local function NotifyCreated(mapid)
         if m_created ~= nil then
             m_created(mapid)
@@ -94,11 +169,11 @@ mod.shared.ShowCreateMapDialog = function(options)
     --active filter row when the rows arrive after the async pack sync.
     local m_mainMode = "empty"
     ---@type MapPackIndexEntry?
-    local m_packEntry = nil
+    local m_packEntry = m_restore ~= nil and m_restore.entry or nil
     --the map picked in the Your Other Games section: {gameid, mapid, name}.
     local m_otherEntry = nil
     local m_packEntries = {}
-    local m_search = ""
+    local m_search = m_restore ~= nil and m_restore.search or ""
     local m_dialog = nil
     --the hud modal layer this dialog was shown in; hidden (not closed)
     --while the settings sheet is open from the Link Patreon button.
@@ -123,11 +198,17 @@ mod.shared.ShowCreateMapDialog = function(options)
     --listed for the selected pack map, and the one chosen to add it with.
     local m_markupId = nil
     local m_markupMapKey = nil
+    --reopened after a Map Preview: the markup set that was checked (id nil
+    --= none checked), put back once the map's list arrives.
+    local m_restoreMarkup = nil
+    if m_restore ~= nil and m_restore.entry ~= nil then
+        m_restoreMarkup = {key = m_restore.entry.pack .. "/" .. m_restore.entry.id, id = m_restore.markupId}
+    end
     local markupHeading
     local markupList
     local markupStatus
 
-    local m_mapName = "New Map"
+    local m_mapName = m_restore ~= nil and m_restore.name or "New Map"
     --the name the dialog last filled in by itself (a pack map's name), so a
     --user edit is kept when they switch tiles but an untouched name follows
     --the selection.
@@ -164,6 +245,23 @@ mod.shared.ShowCreateMapDialog = function(options)
         height = "auto",
         flow = "vertical",
         tmargin = 10,
+    }
+    --under the pictures: look around the selected map before adding it, as
+    --a Map Preview (MapPreview.lua). Director only, on the table. Assigned
+    --further down, once the markup choice it passes on is defined.
+    local StartPreview
+    local mapPreview = rawget(_G, "MapPreview")
+    local detailPreviewButton = gui.Button{
+        classes = {"sizeM", cond(mapPreview ~= nil and mapPreview.CanPreview(), nil, "collapsed")},
+        width = "auto",
+        hpad = 16,
+        halign = "left",
+        tmargin = 8,
+        text = "Preview",
+        hover = gui.Tooltip("Walk test tokens around this map before adding it. Nothing is added to your game."),
+        click = function(element)
+            StartPreview()
+        end,
     }
     --the Patreon strip: the glyph plus what the selected appearance needs,
     --or that the account's membership covers it, on a raised accent-edged bar.
@@ -265,6 +363,16 @@ mod.shared.ShowCreateMapDialog = function(options)
         flow = "horizontal",
         halign = "left",
         tmargin = 2,
+    }
+    --what a Full Scene map comes with ("3 floors", "12 doors", "Weather"),
+    --one per line under its chip.
+    local detailFeatures = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        tmargin = 4,
     }
     local appearancesHeading = gui.Panel{
         classes = {"hidden"},
@@ -377,9 +485,11 @@ mod.shared.ShowCreateMapDialog = function(options)
             detailTitle,
             detailCreator,
             detailHero,
+            detailPreviewButton,
             detailInfo,
             detailTags,
             detailProps,
+            detailFeatures,
             detailAccess,
             appearancesHeading,
             variantsPanel,
@@ -408,6 +518,11 @@ mod.shared.ShowCreateMapDialog = function(options)
         return SameMap(a, b) and a.variantIndex == b.variantIndex
     end
 
+    --the name the dialog fills in for a library map.
+    local PackAutoName = function(entry)
+        return entry.sceneName ~= "" and entry.sceneName or entry.name
+    end
+
     --id of the markup set the pack makes this map's default, "" for none.
     local DefaultMarkupOf = function(entry)
         if entry == nil then
@@ -416,6 +531,43 @@ mod.shared.ShowCreateMapDialog = function(options)
         --engine field added with default markup; the generated stub gains it on the next regen.
         ---@diagnostic disable-next-line: undefined-field
         return entry.defaultMarkup or ""
+    end
+
+    --the markup the selected map would be added with: the checked set, or,
+    --with none checked, the plain map ("none") even when the pack has a
+    --default set, since an unchecked list means the user wants it plain.
+    local ChosenMarkup = function(entry)
+        if m_markupId == nil and DefaultMarkupOf(entry) ~= "" then
+            return "none"
+        end
+        return m_markupId
+    end
+
+    StartPreview = function()
+        local entry = m_packEntry
+        local preview = rawget(_G, "MapPreview")
+        if entry == nil or preview == nil or not preview.CanPreview() then
+            return
+        end
+        --the dialog closes so the map takes the keyboard (a hidden modal
+        --still holds it), and comes back on this map when the preview ends.
+        local restore = {entry = entry, search = m_search, markupId = m_markupId, name = m_mapName}
+        local created = m_created
+        gui.CloseModal()
+        preview.Start(entry, {
+            markupId = ChosenMarkup(entry),
+            onEnd = function(shown)
+                --back on the variant the preview was last showing; a name the
+                --user did not type follows it, as picking that tile would.
+                if shown ~= nil and not SameEntry(shown, entry) then
+                    if restore.name == PackAutoName(entry) then
+                        restore.name = PackAutoName(shown)
+                    end
+                    restore.entry = shown
+                end
+                mod.shared.ShowCreateMapDialog{created = created, restore = restore}
+            end,
+        })
     end
 
     --"12 walls, 3 zones, 2 footstep regions, 1 prop" for a shared markup set.
@@ -587,6 +739,10 @@ mod.shared.ShowCreateMapDialog = function(options)
                         m_markupId = defaultId
                     end
                 end
+                if m_restoreMarkup ~= nil and m_restoreMarkup.key == key then
+                    m_markupId = m_restoreMarkup.id
+                end
+                m_restoreMarkup = nil
                 local rows = {}
                 for _, info in ipairs(list) do
                     rows[#rows + 1] = MarkupRow(info)
@@ -614,7 +770,7 @@ mod.shared.ShowCreateMapDialog = function(options)
     --owned flag live against the account's pledges), or the entry itself if
     --it is no longer listed.
     local FreshEntry = function(entry)
-        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+        for _, other in ipairs(IndexMapVariants(entry.pack, entry.id)) do
             if SameEntry(other, entry) then
                 return other
             end
@@ -638,14 +794,7 @@ mod.shared.ShowCreateMapDialog = function(options)
     --from the whole index rather than the grid, which only shows one
     --variant per map unless a search asked for more.
     local SiblingVariants = function(entry)
-        local result = {}
-        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
-            if SameMap(other, entry) then
-                result[#result + 1] = other
-            end
-        end
-        table.sort(result, function(a, b) return a.variantIndex < b.variantIndex end)
-        return result
+        return IndexMapVariants(entry.pack, entry.id)
     end
 
     --the entries the grid shows for a search result. Without a search each
@@ -1092,26 +1241,51 @@ mod.shared.ShowCreateMapDialog = function(options)
         detailTags.children = tagPanels
         detailTags:SetClass("hidden", #tagPanels == 0)
 
-        local hasProps = (tonumber(entry.objectCount) or 0) > 0
-        detailProps:SetClass("hidden", not hasProps)
-        if hasProps then
-            detailProps.children = {
+        --what the map comes with beyond its picture: a whole scene (walls,
+        --lights, sounds) and/or a set of props, each a chip with hover detail.
+        local extras = {}
+        if entry.fullScene then
+            extras[#extras + 1] = gui.Panel{
+                classes = {"mapPackTagChip"},
+                flow = "horizontal",
+                hover = gui.Tooltip(mod.shared.MapPackSceneText(entry)),
                 gui.Panel{
-                    classes = {"mapPackTagChip"},
-                    flow = "horizontal",
-                    hover = function(element)
-                        element.tooltip = gui.TooltipFrame(mod.shared.MapPackObjectsPreview(entry))
-                    end,
-                    gui.Panel{
-                        classes = {"mapPackPropsChipIcon"},
-                    },
-                    gui.Label{
-                        classes = {"mapPackTagText"},
-                        text = mod.shared.MapPackPropsText(entry),
-                    },
+                    classes = {"mapPackFullSceneChipIcon"},
+                },
+                gui.Label{
+                    classes = {"mapPackTagText"},
+                    text = "Full Scene",
                 },
             }
         end
+        if (tonumber(entry.objectCount) or 0) > 0 then
+            extras[#extras + 1] = gui.Panel{
+                classes = {"mapPackTagChip"},
+                flow = "horizontal",
+                hover = function(element)
+                    element.tooltip = gui.TooltipFrame(mod.shared.MapPackObjectsPreview(entry))
+                end,
+                gui.Panel{
+                    classes = {"mapPackPropsChipIcon"},
+                },
+                gui.Label{
+                    classes = {"mapPackTagText"},
+                    text = mod.shared.MapPackPropsText(entry),
+                },
+            }
+        end
+        detailProps:SetClass("hidden", #extras == 0)
+        detailProps.children = extras
+
+        local featurePanels = {}
+        for _, line in ipairs(mod.shared.MapPackFeatureLines(entry)) do
+            featurePanels[#featurePanels + 1] = gui.Label{
+                classes = {"mapPackFeatureItem"},
+                text = line,
+            }
+        end
+        detailFeatures.children = featurePanels
+        detailFeatures:SetClass("hidden", #featurePanels == 0)
 
         --a lone "Default" appearance button is noise; the section only
         --shows when there is a real choice.
@@ -1208,7 +1382,7 @@ mod.shared.ShowCreateMapDialog = function(options)
         for _, tile in ipairs(packGrid.children) do
             tile:SetClass("selected", tile == litTile)
         end
-        SetAutoName(entry.sceneName ~= "" and entry.sceneName or entry.name)
+        SetAutoName(PackAutoName(entry))
         RefreshDetails()
         UpdateCreateButton()
     end
@@ -1220,8 +1394,10 @@ mod.shared.ShowCreateMapDialog = function(options)
     local GRID_CHUNK = GRID_COLUMNS * 6
     local m_shown = GRID_CHUNK
 
-    --which pack the library sidebar has filtered to; nil is all packs.
-    local m_packFilter = nil
+    --which creator the library sidebar has filtered to (the creator id,
+    --mod.shared.MapPackCreatorId: one row covers all of a creator's packs);
+    --nil is every creator.
+    local m_creatorFilter = nil
     --which kind of map within that: "all", "free" (tier 0) or "owned"
     --(a gated appearance the account's Patreon pledges unlock).
     local m_packKind = "all"
@@ -1242,6 +1418,28 @@ mod.shared.ShowCreateMapDialog = function(options)
                 if tier > 0 and entry.owned then
                     result[#result + 1] = entry
                 end
+            end
+        end
+        return result
+    end
+
+    --searches every pack, keeping the creator the sidebar has filtered to.
+    local SearchLibrary = function(text)
+        --an empty search is the whole index, which is cached; a real search
+        --asks the engine, which returns only the matches.
+        local entries
+        if text:match("%S") == nil then
+            entries = AllIndexEntries()
+        else
+            entries = mappacks.Search{ text = text, maxResults = 100000 }
+        end
+        if m_creatorFilter == nil then
+            return entries
+        end
+        local result = {}
+        for _, entry in ipairs(entries) do
+            if mod.shared.MapPackCreatorId(entry) == m_creatorFilter then
+                result[#result + 1] = entry
             end
         end
         return result
@@ -1280,10 +1478,31 @@ mod.shared.ShowCreateMapDialog = function(options)
         text = "Syncing map packs...",
     }
 
+    --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's
+    --maps with shared markup, m_rankStats how many users have added each
+    --map (see LoadRankSignals).
+    local m_rankMarkup = {}
+    local m_rankStats = nil
+
+    --browsing ranks lazily: m_browseSource is the unranked one-per-map list
+    --(nil while searching) and m_rankedCount how many leading entries of
+    --m_packEntries are in their final browse order. The rest follow in plain
+    --score order until Show More (or a kept selection) reaches them.
+    local m_browseSource = nil
+    local m_rankedCount = 0
+    local EnsureRanked = function(n)
+        if m_browseSource == nil or n <= m_rankedCount or m_rankedCount >= #m_browseSource then
+            return
+        end
+        m_rankedCount = math.min(#m_browseSource, n)
+        m_packEntries = mod.shared.RankMapPackEntriesForBrowsing(m_browseSource, m_rankMarkup, m_rankStats, m_rankedCount)
+    end
+
     --builds tiles for the entries shown so far, plus the Show More card
     --when more remain.
     local RenderTiles
     RenderTiles = function()
+        EnsureRanked(m_shown)
         local count = math.min(#m_packEntries, m_shown)
         local tiles = {}
         for i = 1, count do
@@ -1312,12 +1531,6 @@ mod.shared.ShowCreateMapDialog = function(options)
         packGrid.children = tiles
     end
 
-    --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's
-    --maps with shared markup, m_rankStats how many users have added each
-    --map (see LoadRankSignals).
-    local m_rankMarkup = {}
-    local m_rankStats = nil
-
     local RefreshPackGrid = function()
         if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
             return
@@ -1328,31 +1541,35 @@ mod.shared.ShowCreateMapDialog = function(options)
         --browse order; a search keeps match quality first, with markup and
         --popularity deciding between equally good matches.
         local searching = m_search:match("%S") ~= nil
-        m_packEntries = DiversifyEntries(FilterByKind(mappacks.Search{
-            text = m_search,
-            pack = m_packFilter,
-            maxResults = 100000,
-        }, m_packKind), searching, function(entry)
+        m_packEntries = DiversifyEntries(FilterByKind(SearchLibrary(m_search), m_packKind), searching, function(entry)
             return mod.shared.MapPackEntryBoost(entry, m_rankMarkup, m_rankStats)
         end)
+        m_browseSource = nil
+        m_rankedCount = 0
         if not searching then
-            m_packEntries = mod.shared.RankMapPackEntriesForBrowsing(m_packEntries, m_rankMarkup, m_rankStats)
+            m_browseSource = m_packEntries
+            EnsureRanked(GRID_CHUNK)
         end
 
         --keep the selected variant if its map is still listed, even when
         --the grid shows a different variant of it.
         local stillSelected = nil
         local selectedIndex = nil
-        for i, entry in ipairs(m_packEntries) do
-            if SameEntry(entry, m_packEntry) then
-                stillSelected = entry
-                selectedIndex = i
-                break
-            elseif stillSelected == nil and SameMap(entry, m_packEntry) then
-                stillSelected = FreshEntry(m_packEntry)
-                selectedIndex = i
+        local FindSelected = function()
+            stillSelected = nil
+            selectedIndex = nil
+            for i, entry in ipairs(m_packEntries) do
+                if SameEntry(entry, m_packEntry) then
+                    stillSelected = entry
+                    selectedIndex = i
+                    break
+                elseif stillSelected == nil and SameMap(entry, m_packEntry) then
+                    stillSelected = FreshEntry(m_packEntry)
+                    selectedIndex = i
+                end
             end
         end
+        FindSelected()
 
         if mappacks.count == 0 then
             packStatus.text = "No map packs are available yet."
@@ -1361,8 +1578,10 @@ mod.shared.ShowCreateMapDialog = function(options)
         else
             --the grid shows one entry per map without a search, so count
             --maps rather than the index's variant entries.
-            local mapCount = #DiversifyEntries(FilterByKind(mappacks.Search{ text = "", pack = m_packFilter, maxResults = 100000 }, m_packKind), false)
+            --without a search the grid's own list is already one per map.
+            local mapCount = #m_packEntries
             if searching then
+                mapCount = #DiversifyEntries(FilterByKind(SearchLibrary(""), m_packKind), false)
                 local matchedMaps = #DiversifyEntries(m_packEntries, false)
                 packStatus.text = string.format("%d of %d maps", matchedMaps, mapCount)
             else
@@ -1372,9 +1591,13 @@ mod.shared.ShowCreateMapDialog = function(options)
 
         --a fresh list starts back at one chunk, grown as needed so a kept
         --selection is always among the built tiles.
+        --Ranking further can move the selection, so repeat until it lands
+        --inside the shown chunks (m_shown only grows, so this ends).
         m_shown = GRID_CHUNK
-        if selectedIndex ~= nil and selectedIndex > m_shown then
+        while selectedIndex ~= nil and selectedIndex > m_shown do
             m_shown = math.ceil(selectedIndex / GRID_CHUNK) * GRID_CHUNK
+            EnsureRanked(m_shown)
+            FindSelected()
         end
 
         if stillSelected ~= nil then
@@ -1391,7 +1614,50 @@ mod.shared.ShowCreateMapDialog = function(options)
         end
     end
 
+    --Adding a library map or copying one from another game takes seconds
+    --(downloading and writing its floors), after the dialog has closed. A
+    --"Loading map..." stand-in window with a spinner sits on the table until
+    --the map exists, so the click visibly did something. Returns the
+    --stand-in's Close (a no-op when the table is not showing).
+    local ShowAddingMap = function(name, aspect)
+        local loading = Tabletop.ShowLoadingWindow{
+            name = name,
+            aspect = aspect,
+            status = "Adding it to your game...",
+        }
+        return function()
+            if loading ~= nil then
+                loading.Close()
+                loading = nil
+            end
+        end
+    end
+
+    --waits for an added map to arrive in the game (up to 10 s), then closes
+    --the stand-in and shows the map.
+    local ShowWhenAdded = function(mapid, closeLoading)
+        dmhub.Coroutine(function()
+            for i = 1, 200 do
+                if game.GetMap(mapid) ~= nil then
+                    break
+                end
+                coroutine.yield(0.05)
+            end
+            closeLoading()
+            local map = game.GetMap(mapid)
+            if map ~= nil then
+                NotifyCreated(mapid)
+                ShowNewMap(map)
+            end
+        end)
+    end
+
     local AddPackMap = function(entry, name, markupId)
+        local aspect = nil
+        if (tonumber(entry.tilesW) or 0) > 0 and (tonumber(entry.tilesH) or 0) > 0 then
+            aspect = entry.tilesW / entry.tilesH
+        end
+        local closeLoading = ShowAddingMap(name, aspect)
         mappacks.AddMapToGame{
             pack = entry.pack,
             mapid = entry.id,
@@ -1399,21 +1665,10 @@ mod.shared.ShowCreateMapDialog = function(options)
             name = name,
             markupId = markupId,
             success = function(mapid)
-                dmhub.Coroutine(function()
-                    for i = 1, 200 do
-                        if game.GetMap(mapid) ~= nil then
-                            break
-                        end
-                        coroutine.yield(0.05)
-                    end
-                    local map = game.GetMap(mapid)
-                    if map ~= nil then
-                        NotifyCreated(mapid)
-                        ShowNewMap(map)
-                    end
-                end)
+                ShowWhenAdded(mapid, closeLoading)
             end,
             error = function(msg)
+                closeLoading()
                 gui.ModalMessage{
                     title = "Could not add map",
                     message = msg,
@@ -1424,26 +1679,16 @@ mod.shared.ShowCreateMapDialog = function(options)
 
     --copies a map out of another of the user's games, then travels to it.
     local ImportOtherGameMap = function(entry, name)
+        local closeLoading = ShowAddingMap(name, nil)
         game.ImportMapFromOtherGame{
             gameid = entry.gameid,
             mapid = entry.mapid,
             name = name,
             success = function(mapid)
-                dmhub.Coroutine(function()
-                    for i = 1, 200 do
-                        if game.GetMap(mapid) ~= nil then
-                            break
-                        end
-                        coroutine.yield(0.05)
-                    end
-                    local map = game.GetMap(mapid)
-                    if map ~= nil then
-                        NotifyCreated(mapid)
-                        ShowNewMap(map)
-                    end
-                end)
+                ShowWhenAdded(mapid, closeLoading)
             end,
             error = function(msg)
+                closeLoading()
                 gui.ModalMessage{
                     title = "Could not import map",
                     message = msg,
@@ -1501,13 +1746,7 @@ mod.shared.ShowCreateMapDialog = function(options)
             if m_packEntry ~= nil then
                 local entry = m_packEntry
                 local name = m_mapName
-                local markupId = m_markupId
-                --with nothing checked the user wants the plain map; when the
-                --map has a default set the engine would add that instead
-                --unless told "none".
-                if markupId == nil and DefaultMarkupOf(entry) ~= "" then
-                    markupId = "none"
-                end
+                local markupId = ChosenMarkup(entry)
                 gui.CloseModal()
                 AddPackMap(entry, name, markupId)
                 return
@@ -1640,6 +1879,15 @@ mod.shared.ShowCreateMapDialog = function(options)
 		vmargin = 2,
 	}
 	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackFullSceneChipIcon"},
+		width = 12,
+		height = 12,
+		valign = "center",
+		rmargin = 4,
+		bgimage = "phosphor/film-slate-fill.png",
+		bgcolor = "@fgMuted",
+	}
+	tileStyles[#tileStyles + 1] = {
 		selectors = {"mapPackPropsChipIcon"},
 		width = 12,
 		height = 12,
@@ -1654,6 +1902,17 @@ mod.shared.ShowCreateMapDialog = function(options)
 		color = "@fgMuted",
 		width = "auto",
 		height = "auto",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackFeatureItem"},
+		fontSize = 12,
+		color = "@fgMuted",
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		textAlignment = "left",
+		textWrap = true,
+		vmargin = 1,
 	}
 	tileStyles[#tileStyles + 1] = {
 		selectors = {"mapPackAccessStrip"},
@@ -1850,18 +2109,35 @@ mod.shared.ShowCreateMapDialog = function(options)
         rmargin = 8,
         bgcolor = "@fg",
     }
+    --a creator row showing a logo is taller than a text row, so the
+    --wordmark can be drawn large enough to read.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "cmNavLogoRow"},
+        height = 52,
+    }
     --a creator logo in place of the glyph and the name: its own aspect
     --within the row's height, untinted so a wide wordmark reads, and
-    --centered in the row since it stands alone (the count stays right).
+    --left-aligned with the other rows' glyphs (the count stays right).
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavIcon", "cmNavLogo"},
         width = "auto",
         height = "auto",
-        maxWidth = 40,
-        maxHeight = 18,
-        halign = "center",
+        maxWidth = 160,
+        maxHeight = 36,
+        halign = "left",
         rmargin = 0,
         autosizeimage = true,
+        bgcolor = "white",
+    }
+    --an emblem logo beside the creator's name: a little taller row so
+    --the emblem reads; the width is set per logo from its aspect.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "cmNavEmblemRow"},
+        height = 40,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavIcon", "cmNavEmblem"},
+        height = 28,
         bgcolor = "white",
     }
     tileStyles[#tileStyles + 1] = {
@@ -2060,7 +2336,7 @@ mod.shared.ShowCreateMapDialog = function(options)
     local libraryNav
     local GoToLibrary
     local m_gridGeneration = 0
-    local LibraryFilterItem = function(label, count, packid, kind, icon)
+    local LibraryFilterItem = function(label, count, creator, kind, icon)
         local nameLabel = gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = label }
         local iconPanel = gui.Panel{
             classes = {"cmNavIcon"},
@@ -2069,9 +2345,9 @@ mod.shared.ShowCreateMapDialog = function(options)
         return gui.Panel{
             classes = {"cmNavItem"},
             flow = "horizontal",
-            data = { pack = packid, kind = kind, label = nameLabel, icon = iconPanel },
+            data = { creator = creator, kind = kind, label = nameLabel, icon = iconPanel },
             press = function(element)
-                m_packFilter = element.data.pack
+                m_creatorFilter = element.data.creator
                 m_packKind = element.data.kind
                 GoToLibrary()
                 --the row lights up and the view switches this frame;
@@ -2106,7 +2382,7 @@ mod.shared.ShowCreateMapDialog = function(options)
             el:SetClass("selected", false)
         end
         for _, row in ipairs(libraryNav.children) do
-            row:SetClass("selected", row.data.pack == m_packFilter and row.data.kind == m_packKind)
+            row:SetClass("selected", row.data.creator == m_creatorFilter and row.data.kind == m_packKind)
         end
         if m_setMainMode ~= nil then
             m_setMainMode("library")
@@ -2122,21 +2398,23 @@ mod.shared.ShowCreateMapDialog = function(options)
         if not mappacks.synced or not libraryNav.valid then
             return
         end
-        local all = DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+        local all = DiversifyEntries(AllIndexEntries(), false)
         local navKey = string.format("%d|%s", #all, PatreonSignature())
         if navKey == m_libraryNavKey then
             return
         end
         m_libraryNavKey = navKey
 
-        local packOrder = {}
-        local packInfo = {}
+        --one row per creator, covering all of that creator's packs.
+        local creatorOrder = {}
+        local creatorInfo = {}
         for _, e in ipairs(all) do
-            local info = packInfo[e.pack]
+            local creator = mod.shared.MapPackCreatorId(e)
+            local info = creatorInfo[creator]
             if info == nil then
                 info = { count = 0, entry = e }
-                packInfo[e.pack] = info
-                packOrder[#packOrder + 1] = e.pack
+                creatorInfo[creator] = info
+                creatorOrder[#creatorOrder + 1] = creator
             end
             info.count = info.count + 1
         end
@@ -2147,46 +2425,81 @@ mod.shared.ShowCreateMapDialog = function(options)
         if IsPatron() then
             rows[#rows + 1] = LibraryFilterItem("Your Maps", #FilterByKind(all, "owned"), nil, "owned", "phosphor/patreon-logo-fill.png")
         end
-        --one row per pack, named for its creator once that record lands.
-        --A creator with a logo shows the logo alone, centered: the name
-        --would only repeat what the wordmark already says.
-        for _, packid in ipairs(packOrder) do
-            local info = packInfo[packid]
-            local row = LibraryFilterItem("Map Pack", info.count, packid, "all", "phosphor/user.png")
+        --one row per creator, named once the creator's record lands.
+        --A creator with a wide logo (a wordmark) shows the logo alone,
+        --left-aligned: the name would only repeat what the wordmark says. A
+        --squarer logo is an emblem with no name in it (Tom Cartos), so it
+        --takes the glyph's place beside the name instead.
+        for _, creator in ipairs(creatorOrder) do
+            local info = creatorInfo[creator]
+            local row = LibraryFilterItem("Map Pack", info.count, creator, "all", "phosphor/user.png")
             rows[#rows + 1] = row
-            mod.shared.GetMapPackCreator(info.entry, function(creator)
-                if not row.valid or creator == nil then
+            mod.shared.GetMapPackCreator(info.entry, function(record)
+                if not row.valid or record == nil then
                     return
                 end
-                if (creator.displayName or "") ~= "" then
-                    row.data.label.text = creator.displayName
+                if (record.displayName or "") ~= "" then
+                    row.data.label.text = record.displayName
                 end
-                if (creator.logo or "") ~= "" then
-                    row.data.icon.bgimage = creator.logo
-                    row.data.icon:SetClass("cmNavLogo", true)
-                    row.data.label:SetClass("collapsed", true)
+                local logo = record.logo or ""
+                if logo == "" then
+                    return
                 end
+                --the size lookup wants the bare url, without the md5: prefix.
+                local lookup = logo
+                if lookup:sub(1, 4) == "md5:" then
+                    lookup = lookup:sub(5)
+                end
+                gui.GetImageDimensionsCallback(lookup, function(dims)
+                    if not row.valid or dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+                        return
+                    end
+                    --a NEW panel, not the glyph panel given a new bgimage: the
+                    --engine re-measures an autosized image only when a panel's
+                    --first image finishes loading, so a swapped-in logo kept the
+                    --glyph's square box (squashed) until the logo was cached.
+                    local logoPanel
+                    if dims.width / dims.height < 2 then
+                        row:SetClass("cmNavEmblemRow", true)
+                        logoPanel = gui.Panel{
+                            classes = {"cmNavIcon", "cmNavEmblem"},
+                            bgimage = logo,
+                            width = math.floor(28 * dims.width / dims.height + 0.5),
+                        }
+                    else
+                        row.data.label:SetClass("collapsed", true)
+                        row:SetClass("cmNavLogoRow", true)
+                        logoPanel = gui.Panel{
+                            classes = {"cmNavIcon", "cmNavLogo"},
+                            bgimage = logo,
+                        }
+                    end
+                    row.data.icon:SetClass("collapsed", true)
+                    local children = row.children
+                    table.insert(children, 1, logoPanel)
+                    row.children = children
+                end)
             end)
         end
         libraryNav.children = rows
         --the rows arrive after the dialog opened; when the library view
         --is already showing, light the row for the active filter.
         if m_mainMode == "library" then
-            --a filter remembered from an earlier open may name a pack that
+            --a filter remembered from an earlier open may name a creator that
             --is gone, or Your Maps for an account no longer pledged: then
             --show All Maps instead (every caller refreshes the grid next).
             local matched = false
             for _, row in ipairs(rows) do
-                if row.data.pack == m_packFilter and row.data.kind == m_packKind then
+                if row.data.creator == m_creatorFilter and row.data.kind == m_packKind then
                     matched = true
                 end
             end
             if not matched then
-                m_packFilter = nil
+                m_creatorFilter = nil
                 m_packKind = "all"
             end
             for _, row in ipairs(rows) do
-                row:SetClass("selected", row.data.pack == m_packFilter and row.data.kind == m_packKind)
+                row:SetClass("selected", row.data.creator == m_creatorFilter and row.data.kind == m_packKind)
             end
         end
     end
@@ -2268,6 +2581,8 @@ mod.shared.ShowCreateMapDialog = function(options)
                 valign = "center",
                 rmargin = 16,
                 placeholderText = "Search maps...",
+                --reopened after a Map Preview: the search it was left with.
+                text = m_search,
                 search = function(element, str)
                     m_search = str
                     --typing a search means looking at the library.
@@ -2898,7 +3213,7 @@ mod.shared.ShowCreateMapDialog = function(options)
             end
         end
         if mode == "library" then
-            g_lastSectionSetting:Set(string.format("library|%s|%s", m_packKind, m_packFilter or ""))
+            g_lastSectionSetting:Set(string.format("library|%s|%s", m_packKind, m_creatorFilter or ""))
         else
             g_lastSectionSetting:Set(mode)
         end
@@ -2921,7 +3236,9 @@ mod.shared.ShowCreateMapDialog = function(options)
         local kind, packid = string.match(lastSection, "^library|([^|]*)|(.*)$")
         if kind ~= nil and kind ~= "" then
             m_packKind = kind
-            m_packFilter = cond(packid == "", nil, packid)
+            --a remembered pack id ("tehox-maps", from before the sidebar
+            --listed creators) means its creator.
+            m_creatorFilter = cond(packid == "", nil, mod.shared.MapPackCreatorId({ pack = packid }))
         end
     end
     if not restoredSource then
@@ -3033,23 +3350,49 @@ mod.shared.ShowCreateMapDialog = function(options)
         pending = pending - 1
     end
 
+    --BuildLibraryNav goes first: its few creator lookups must be queued
+    --ahead of LoadRankSignals' one fetch per pack (hundreds on a first
+    --open), or the sidebar shows "Map Pack" until the flood drains.
+    --the index version the grid was filled from just now, nil if not yet.
+    local filledVersion = nil
     if mappacks.synced then
-        LoadRankSignals()
-        BuildLibraryNav()
-        RefreshPackGrid()
+        filledVersion = mappacks.version
+        local Fill = function()
+            BuildLibraryNav()
+            LoadRankSignals()
+            RefreshPackGrid()
+        end
+        if IndexCacheWarm() then
+            Fill()
+        else
+            --first open this session (or the index changed): reading the
+            --whole index takes a few hundred ms, so let the dialog appear
+            --first and fill the grid on the next frame.
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded or m_dialog == nil or not m_dialog.valid then
+                    return
+                end
+                Fill()
+            end)
+        end
     end
 
     --re-sync on every open so newly published packs appear; only changed
     --pack index blobs are downloaded.
     mappacks.Sync{
         success = function()
-            LoadRankSignals()
+            --nothing was published since: the grid filled above is current,
+            --and rebuilding it would only cost another hitch.
+            if filledVersion ~= nil and mappacks.version == filledVersion then
+                return
+            end
             BuildLibraryNav()
+            LoadRankSignals()
             RefreshPackGrid()
         end,
         error = function(msg)
-            LoadRankSignals()
             BuildLibraryNav()
+            LoadRankSignals()
             RefreshPackGrid()
             if m_dialog ~= nil and m_dialog.valid then
                 packStatus.text = msg
@@ -3203,7 +3546,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         doorObjectId = "-MfWx0b2IlyApLQwasYg",
         windowObjectId = "-MDd3Knydcq2WsjStef2",
         secretDoorObjectId = "-MfWx0b2IlyApLQwasYg",
-        lightObjectId = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b",
+        lightObjectId = DEFAULT_LIGHT_OBJECT_ID,
         structuralWallMode = "wall",
         objectWallMode = "wall",
         terrainWallMode = "wall",
@@ -3946,7 +4289,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         end
     end
 
-    local lightnode = lightnodeChoice or "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
+    local lightnode = lightnodeChoice or DEFAULT_LIGHT_OBJECT_ID
     if lightMode == "asset" and type(data.lights) == "table" and ObjectNodeHasComponent(lightnode, "Light") then
         local foundryGrid = gridSize(data)
         for _, light in ipairs(data.lights) do
@@ -5895,7 +6238,7 @@ end
 --- on the table, say) through the import wizard, where the user sets the
 --- grid. The new map is travelled to once made.
 --- @param paths string[] Local file paths, one per floor.
---- @param options nil|{name: nil|string, created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
+--- @param options nil|{name: nil|string, imported: nil|fun(width: number, height: number), created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string), progress: nil|fun(stage: string, fraction: number), failed: nil|fun(message: string)} name: the map's name; imported: called with the map's size in tiles once the files are read, before the map is made; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map. Universal VTT files only (they import in the background with no wizard): progress follows the import ("reading", then "uploading" with a fraction 0 to 1), failed reports an error instead of the error dialog.
 function ImportMapFromFiles(paths, options)
     options = options or {}
     if paths == nil or #paths == 0 then
@@ -5906,7 +6249,12 @@ function ImportMapFromFiles(paths, options)
         tileType = "squares",
         nofade = true,
         paths = paths,
+        progress = options.progress,
+        failed = options.failed,
         finish = function(info)
+            if options.imported ~= nil then
+                options.imported(tonumber(info.width) or 0, tonumber(info.height) or 0)
+            end
             mod.shared.FinishMapImport(options.name or "New Map", info, options.created, {
                 variations = options.variations,
                 done = options.done,

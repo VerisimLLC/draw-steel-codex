@@ -66,7 +66,7 @@ setting{
 		{
 			value = 'eraser',
 			icon = 'phosphor/eraser-fill.png',
-			help = "Eraser: rub out parts of strokes. Players can only erase their own strokes; the Director can erase anyone's.",
+			help = "Eraser: rub out parts of strokes. Players can only erase their own strokes; the " .. UIText.Term("director") .. " can erase anyone's.",
 		},
 	},
 }

@@ -2012,7 +2012,7 @@ function CharSheet.CharacterSheetProficiencesAndLanguagesPanel()
 						local cat = "Languages"
 						local itemsList = (items[cat] or {})
 						itemsList[#itemsList+1] = {
-							text = lang.name
+							text = lang:DisplayName()
 						}
 						items[cat] = itemsList
 					end
@@ -2291,7 +2291,8 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 						width = "80%",
 						height = 20,
 						flow = "horizontal",
-						text = lang.name,
+						text = lang:DisplayName(),
+						hover = Language.TooltipHover(lang),
 						fontSize = 16,
 						textAlignment = "left",
 						halign = "center",
@@ -2361,7 +2362,7 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 				if innateLanguages[k] == nil then
 					options[#options+1] = {
 						id = k,
-						text = string.format("%s (%s)", v.name, v.speakers),
+						text = v:DisplayNameWithDetail(),
 					}
 				end
 			end

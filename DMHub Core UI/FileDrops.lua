@@ -49,6 +49,19 @@ function FileDrops.IsMapFile(path)
     return false
 end
 
+--- A Universal VTT file's map size in tiles, read from the start of the file
+--- (instant, even for a huge file), or nil if it is not there. For shaping
+--- the outline while the file is dragged and the window it will open in.
+--- @param path string
+--- @return nil|{width: number, height: number}
+function FileDrops.MapFileSize(path)
+    local header = assets:ReadUniversalVTTHeader(path)
+    if header == nil then
+        return nil
+    end
+    return {width = header.width, height = header.height}
+end
+
 --- True for a document file (by extension; see DOCUMENT_EXTENSIONS).
 --- @param path string
 --- @return boolean
@@ -80,6 +93,19 @@ end
 --- @return string
 function FileDrops.Extension(path)
     return string.lower(string.match(path, "(%.[^%.\\/]+)$") or "")
+end
+
+--- True for an image or video file (by extension; see MEDIA_EXTENSIONS).
+--- @param path string
+--- @return boolean
+function FileDrops.IsMedia(path)
+    local ext = FileDrops.Extension(path)
+    for _, mediaExt in ipairs(FileDrops.MEDIA_EXTENSIONS) do
+        if ext == mediaExt then
+            return true
+        end
+    end
+    return false
 end
 
 --- True for a video file (by extension).
@@ -195,9 +221,31 @@ dmhub.FileDragGameTarget = function(info)
             name = info.token.name
         end
         if name ~= nil and name ~= "" then
-            text = string.format("Set as %s's avatar", name)
+            text = string.format("Release to set as %s's avatar", name)
         else
-            text = "Set as this token's avatar"
+            text = "Release to set as this token's avatar"
+        end
+        --the token as it is now and with the picture (the engine uses the
+        --drop's first picture or video, with the crop reset).
+        local path = nil
+        for _, candidate in ipairs(info.paths) do
+            if path == nil and FileDrops.IsMedia(candidate) then
+                path = candidate
+            end
+        end
+        if info.token ~= nil and path ~= nil then
+            local card
+            card = TableDropDialog.ShowAvatarDropCard{
+                token = info.token,
+                path = path,
+                name = FileDrops.BaseName(path),
+                action = text,
+                isActive = function()
+                    return g_mapGhost == card
+                end,
+            }
+            g_mapGhost = card
+            return
         end
     elseif #info.paths == 1 then
         text = "Place on the map as an object"

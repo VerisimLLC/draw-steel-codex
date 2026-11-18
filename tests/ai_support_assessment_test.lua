@@ -24,7 +24,6 @@ CharacterResource = {
     triggerResourceId = "trigger",
 }
 
-local function MonsterTypeOf(token) return token.properties:try_get("monster_type", "") end
 MonsterAI = {
     moves = {},
     villainActions = {},
@@ -36,12 +35,17 @@ MonsterAI = {
     triggerHandlersByMonsterText = {},
     triggerHandlersByText = {},
 }
+--the "similar to" helpers (AIMonsterType and friends) from MonsterAI.lua.
+do
+    local source = assert(io.open("Monster AI/MonsterAI.lua")):read("*a")
+    local first = '--"Similar to" ---'
+    local start = assert(source:find(first, 1, true))
+    local stop = assert(source:find("function MonsterAI.MoveMatchesMonster", start, true))
+    assert(load(source:sub(start, stop - 1), "MonsterAI similar to"))()
+end
 function MonsterAI.MoveMatchesMonster(token, move)
     if move.monsters == nil then return true end
-    for _, name in ipairs(move.monsters) do
-        if name == MonsterTypeOf(token) then return true end
-    end
-    return false
+    return MonsterAI.ListsAnyMonsterType(move.monsters, MonsterAI.AIMonsterTypes(token.properties))
 end
 function MonsterAI.MaliceAbilityMatchesMonster(token, registration)
     if registration.monsterGroups ~= nil then
@@ -82,6 +86,7 @@ end
 local function Monster(args)
     local props = {
         monster_type = args.type,
+        aiSimilarTo = args.similarTo,
         minion = args.minion,
         innateActivatedAbilities = args.abilities or {},
         characterFeatures = args.features or {},
@@ -216,5 +221,23 @@ local ghoul = MonsterAI.AssessSupport(Monster{
     abilities = { Ability{ name = "Claw", categorization = "Signature Ability" } },
 })
 check(ghoul.level == "Tailored", "fully hand-written is Tailored")
+
+--"similar to": a reskin borrows the Goblin Warrior's hand-written AI for
+--the abilities it shares by name, and the warrior's moves for abilities it
+--lacks are not stale for it.
+local reskin = MonsterAI.AssessSupport(Monster{
+    type = "Goblin Grunt",
+    similarTo = "Goblin Warrior",
+    abilities = { Ability{ name = "Spear Charge", categorization = "Signature Ability" } },
+})
+check(reskin.similarTo == "Goblin Warrior", "similar to type is reported")
+check(EntryNamed(reskin, "Spear Charge").status == status.tailored, "similar to borrows the hand-written move")
+check(#reskin.stale == 0, "the similar monster's registrations are never stale for the reskin")
+local plain = MonsterAI.AssessSupport(Monster{
+    type = "Goblin Grunt",
+    abilities = { Ability{ name = "Spear Charge", categorization = "Signature Ability" } },
+})
+check(plain.similarTo == nil and EntryNamed(plain, "Spear Charge").status ~= status.tailored,
+    "without similar to the move is not borrowed")
 
 print(string.format("ai_support_assessment_test: %d checks passed", checks))

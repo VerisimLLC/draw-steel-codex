@@ -239,10 +239,17 @@ Handling 364 is necessary; looking good at 1500 is the other half.
   ```
 
   Prefer one layout that flexes (wrap, auto, complements) over two layouts and a breakpoint.
-  The only in-tree precedents for size-reactive code are polling `renderedWidth` on `think`
-  (Gui.lua slider dragBounds) and clamping a card's `maxHeight` to
-  `dmhub.screenDimensionsBelowTitlebar.y` (Timeline AbilitySidebar) -- both positioning-grade,
-  not layout-grade. If you use `rendered`, say so in the PR/summary so it gets watched.
+  If you use `rendered`, say so in the PR/summary so it gets watched.
+- **Measure-then-fit: use `gui.AfterLayout(fn)`, never a `think` poll, `dmhub.Schedule` delay
+  or frame count.** `fn` runs once the frame's layout is done (sizes are current) and what it
+  changes is laid out before the frame is drawn, so the user never sees the unfitted layout.
+  A delay or a `think` draws at least one frame (often several) of the old layout, then jerks.
+  The usual shape: keep the fit on `think` for content that changes size inside the panel, and
+  add `rendered = function(element) gui.AfterLayout(function() if element.valid then
+  element:FireEvent("think") end end) end` so a resize refits the same frame (the hero sheet's
+  `HeroSheetWindow.ThinkOnResize` is exactly this). Style changes made inside a `rendered`
+  handler are also laid out the same frame. `gui.LayoutSettleDiagnostics()` counts the late
+  layouts; `{log = true}` logs who caused each one.
 - **`uiscale` is the blunt instrument.** It scales a whole subtree (and DOES participate in
   layout, unlike `scale`), which is how `dockscale` shrinks the docks. It is a zoom, not
   responsiveness -- text AND chrome scale together, and it has a pivot trap: set `pivot` via

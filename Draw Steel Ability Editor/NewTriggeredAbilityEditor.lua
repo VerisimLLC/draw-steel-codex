@@ -403,6 +403,12 @@ local TRIGGER_METADATA = {
         tags = {"teleport", "blink", "instant"},
         group = "movement",
     },
+    teleportmove = {
+        label = UIText.T("trigger.teleportmove.name"),
+        description = UIText.T("trigger.teleportmove.description"),
+        tags = {"teleport", "move", "cinder", "ctrl"},
+        group = "movement",
+    },
 
     -- Resources & Victory
     earnvictory = {
@@ -1140,6 +1146,11 @@ end
     from the New Ability Editor, then When Target Despawns at the bottom.
 ]]
 
+-- The "Fire after other abilities finish" checkbox, shown in both the trigger
+-- editor and the aura trigger editor.
+local TRIGGER_AFTER_CASTS_LABEL = "Fire after other abilities finish"
+local TRIGGER_AFTER_CASTS_TOOLTIP = "The trigger waits until the abilities resolving now are done, then checks its trigger condition, picks its targets from where everyone is, and prompts. Use it when the triggering ability can still change things, like a killing blow that also pushes.\n\nIts cost and whether it can be used are still checked when the event happens. A death trigger needs its creature kept on the map until then (e.g. Minion Prevent Death, with the trigger removing the creature itself)."
+
 -- Trigger Mode values. The two common ones are surfaced as a segmented
 -- toggle; the three advanced ones live under an expander with radios.
 -- Labels come from the design doc's Trigger Mode table.
@@ -1410,6 +1421,34 @@ local function buildSetupSection(ability, refreshSection, fireChange, editorOpti
             ability.hostile = element.value
         end,
     }
+
+    -- Only prompted triggers offer this; automatic ones keep firing at once.
+    if ability:MayBePrompted() then
+        children[#children + 1] = gui.Check{
+            text = TRIGGER_AFTER_CASTS_LABEL,
+            hover = gui.Tooltip(TRIGGER_AFTER_CASTS_TOOLTIP),
+            value = ability.triggerAfterCasts,
+            vmargin = 6,
+            change = function(element)
+                ability.triggerAfterCasts = element.value
+            end,
+        }
+    end
+
+    -- Wait for other casts. Off makes the trigger wait only for casts by or
+    -- targeting its creature (e.g. Monster Death after a skull click). Hidden
+    -- for triggers that may prompt: a prompt could cover another cast's card.
+    if not ability:MayBePrompted() then
+        children[#children + 1] = gui.Check{
+            text = "Wait for other casts to finish",
+            hover = gui.Tooltip("Off: wait only for casts by or targeting this creature. Turn off only for triggers with no rolls, like Monster Death."),
+            value = ability.waitForOtherCasts,
+            vmargin = 6,
+            change = function(element)
+                ability.waitForOtherCasts = element.value
+            end,
+        }
+    end
 
     -- Targeting block (Target Type + Range + numTargets + AOE shape +
     -- proximity + Affects + Can Target Self + Object ID + Target Filter +
@@ -7096,13 +7135,15 @@ function TriggeredAbility:GenerateEmbeddedEditor()
         --editor writes, so IsMandatory / MayBePrompted keep working unchanged.
         local promptTextPanel
         local hostileCheck
+        local triggerAfterCastsCheck
 
-        --Prompt Text and Hostile only do anything on the prompt path; hide
-        --them when the chosen mode fires without asking.
+        --Prompt Text, Hostile and Fire After only do anything on the prompt
+        --path; hide them when the chosen mode fires without asking.
         local RefreshPromptVisibility = function()
             local mayPrompt = self:MayBePrompted()
             promptTextPanel:SetClass("collapsed", not mayPrompt)
             hostileCheck:SetClass("collapsed", not mayPrompt)
+            triggerAfterCastsCheck:SetClass("collapsed", not mayPrompt)
         end
 
         children[#children+1] = gui.Panel{
@@ -7148,6 +7189,17 @@ function TriggeredAbility:GenerateEmbeddedEditor()
             end,
         }
         children[#children+1] = hostileCheck
+
+        triggerAfterCastsCheck = gui.Check{
+            halign = "left",
+            text = TRIGGER_AFTER_CASTS_LABEL,
+            hover = gui.Tooltip(TRIGGER_AFTER_CASTS_TOOLTIP),
+            value = self.triggerAfterCasts,
+            change = function(element)
+                self.triggerAfterCasts = element.value
+            end,
+        }
+        children[#children+1] = triggerAfterCastsCheck
 
         RefreshPromptVisibility()
 

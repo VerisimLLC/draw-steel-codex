@@ -194,6 +194,12 @@ text("herobuilder.kit.companion_undo", [[Choose companion melee bonus]])
 
 --The Class page's heading over each Level's choices. {ordinal} is "2nd" and so on.
 text("herobuilder.class.level_heading", [[{ordinal}-Level Features]])
+--A link on a choice that a module's own step now handles; it opens that step.
+--{step} is the step's name.
+text("herobuilder.moved.link", [[Go to {step}]])
+--The done row left where a choice was, when the step that took it gives no text
+--of its own. {step} is the step's name.
+text("herobuilder.moved.placeholder", [[Made in the {step} step]])
 
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: You gain (what a step gives without a choice)
@@ -245,6 +251,7 @@ text("herobuilder.detail.skill", [[Skill]])
 --The small capitals over a language, and the label of its speakers.
 text("herobuilder.detail.language", [[Language]])
 text("herobuilder.detail.spoken_by", [[Spoken by]])
+text("herobuilder.detail.in_world_name", [[In-world name]])
 --Under a hover card too long to show whole.
 text("herobuilder.detail.pin_hint", [[Click the (i) to pin this and scroll.]])
 --A kit's card: the small capitals over its parts, then one line per bonus.

@@ -449,9 +449,11 @@ end
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves
 --- the total by 2; a double one shifts the tier instead (DiceResultToTier).
+--- The target's tier-forcing flags (autosuccess etc.) are absolute and add to
+--- the roll's own: a Tier 1/2/3 trigger used after the dice land sets only these.
 --- Resolution, the action log and the roll dialog all read tiers through this.
 --- @param rollResult table {total, naturalRoll, boons, banes, tiers, autosuccess, autofailure, nottierone, nottierthree}
---- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number}
+--- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number, autosuccess: nil|boolean, autofailure: nil|boolean, nottierone: nil|boolean, nottierthree: nil|boolean}
 --- @return table rollInfo A new table, ready for DiceResultToTier
 function RollUtils.EffectiveRollForTarget(rollResult, target)
     local rollInfo = {
@@ -484,6 +486,11 @@ function RollUtils.EffectiveRollForTarget(rollResult, target)
     if (target.tiersDelta or 0) ~= 0 then
         rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
     end
+
+    rollInfo.autosuccess = rollInfo.autosuccess or target.autosuccess or nil
+    rollInfo.autofailure = rollInfo.autofailure or target.autofailure or nil
+    rollInfo.nottierone = rollInfo.nottierone or target.nottierone or nil
+    rollInfo.nottierthree = rollInfo.nottierthree or target.nottierthree or nil
 
     return rollInfo
 end
@@ -743,6 +750,15 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         --for the selected target only; see the tier label's press handler.
         local m_orTargetId = nil
         local m_orMultiTarget = false
+        --a secret Critical row (RollPropertiesPowerTable.IsCriticalSecret) stays
+        --collapsed until the dice land on a natural 19-20.
+        local m_critSecret = RollPropertiesPowerTable.IsCriticalSecret(rollProperties)
+        local m_critRevealed = false
+        --Does this roll land on the table's 4th "Critical" tier? Only tables that
+        --define one; DiceResultToTier is shared and still caps at 3.
+        local function CriticalRolled(info)
+            return rollProperties.tiers[4] ~= nil and (info.naturalRoll or 0) >= 19
+        end
         local tbl = gui.Table{
             width = "100%",
             height = "auto",
@@ -805,6 +821,12 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         if m_finished then
                             multitargets = CalculateMultitargetsFromRollProperties(m_rollInfo)
                             tier = NormalizeTierBasedOnMultitargets(tier, multitargets)
+                            --the same Critical promotion as the dice-end path below.
+                            --Without it this re-check, every think, knocked a landed
+                            --Critical straight back down to tier 3.
+                            if m_rollInfo.properties:try_get("overrideTier") == nil and CriticalRolled(m_rollInfo) then
+                                tier = 4
+                            end
                             if multitargets ~= nil and m_multitargetResults ~= nil then
                                 if #multitargets ~= #m_multitargetResults then
                                     multitargetsChanged = true
@@ -852,9 +874,10 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     --Promote to the "Critical" row (tier 4) on a natural 19-20, but only for power
                     --tables that actually define a 4th "Critical" outcome. 3-tier ability rolls are
                     --untouched (DiceResultToTier is shared and intentionally still returns 1-3).
-                    local critPromoted = rollProperties.tiers[4] ~= nil and (m_rollInfo.naturalRoll or 0) >= 19
+                    local critPromoted = CriticalRolled(m_rollInfo)
                     if critPromoted then
                         tier = 4
+                        m_critRevealed = true
                     end
 
                     tier = m_rollInfo.properties:try_get("overrideTier") or tier
@@ -904,6 +927,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 m_endTime = nil
                 m_finished = false
                 m_tierFinished = nil
+                --a re-roll hides a secret Critical again until it lands.
+                m_critRevealed = false
 
                 element.thinkTime = 0.1
                 m_rollInfo = rollInfo
@@ -974,6 +999,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
             end
 
             local row = gui.TableRow{
+                classes = cond(i == 4 and m_critSecret, {"collapsed"}, nil),
                 bgimage = true,
                 width = "100%",
                 height = "auto",
@@ -1008,6 +1034,9 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     end
                     if finish then
                         element:FireEventTree("finishRoll", tierNumber)
+                    end
+                    if i == 4 and m_critSecret then
+                        element:SetClass("collapsed", not m_critRevealed)
                     end
                     element:SetClassTree("highlight", tierNumber == i)
                     if tierNumber == i and finish then
@@ -1285,6 +1314,7 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
 
     --caster's modifiers.
     local modifiersOnCaster = self:GetActiveModifiers()
+    local indexByCoreKey = {}
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
         if m ~= nil then
@@ -1293,7 +1323,16 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                result[#result+1] = m
+                --Two imbued weapons each carry their own core bonus; list only the best one.
+                local coreKey = DSImbuement.CoreDamageBonusKey(m.modifier)
+                if coreKey == nil then
+                    result[#result+1] = m
+                elseif indexByCoreKey[coreKey] == nil then
+                    result[#result+1] = m
+                    indexByCoreKey[coreKey] = #result
+                elseif DSImbuement.CoreDamageBonusIsBetter(result[indexByCoreKey[coreKey]], m) then
+                    result[indexByCoreKey[coreKey]] = m
+                end
             end
         end
     end
@@ -1600,7 +1639,16 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         })
                         if m.hint ~= nil then
                             local guid = m.modifier:try_get("guid")
-                            if guid == nil then
+                            --Two imbued weapons each carry their own core bonus; show only the best one.
+                            local coreKey = DSImbuement.CoreDamageBonusKey(m.modifier)
+                            if coreKey ~= nil then
+                                if indexByGuid[coreKey] == nil then
+                                    candidateModifiers[#candidateModifiers+1] = m
+                                    indexByGuid[coreKey] = #candidateModifiers
+                                elseif DSImbuement.CoreDamageBonusIsBetter(candidateModifiers[indexByGuid[coreKey]], m) then
+                                    candidateModifiers[indexByGuid[coreKey]] = m
+                                end
+                            elseif guid == nil then
                                 candidateModifiers[#candidateModifiers+1] = m
                             elseif indexByGuid[guid] == nil then
                                 candidateModifiers[#candidateModifiers+1] = m
@@ -2082,6 +2130,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return
     end
 
+    --Each target's tier, including edges/banes/forced tiers from triggers used
+    --after the dice landed. The raw m_result misses those (E8TWPX8B).
+    local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
+
+    --The tier for one target token, or for the roll as a whole when nil (the
+    --first target's, since the stats record one tier per roll).
+    local function EffectiveTier(targetToken)
+        for _,multitarget in ipairs(multitargetResults or {}) do
+            if multitarget.token ~= nil and (targetToken == nil or multitarget.token.charid == targetToken.charid) then
+                return multitarget.tier
+            end
+        end
+        return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    end
+
     --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
     --stats, along with the edges and banes that were applied to the roll
     --(m_result.boons/banes -- the engine's names for edges/banes, captured from
@@ -2090,7 +2153,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --monster/non-hero casters are dropped. Use the same effective tier the rest
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
-    local rolledTier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    local rolledTier = EffectiveTier(nil)
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -2119,9 +2182,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         for _,target in ipairs(targets or {}) do
             local targetToken = target.token
             if targetToken ~= nil then
+                local targetTier = EffectiveTier(targetToken)
                 local args = {
-                    outcome = string.format("tier%d", rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)),
-                    degree = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result),
+                    outcome = string.format("tier%d", targetTier),
+                    degree = targetTier,
                     target = GenerateSymbols(targetToken.properties),
                     ability = GenerateSymbols(ability),
                     usedability = GenerateSymbols(ability),
@@ -2138,8 +2202,6 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             targets[i] = options.symbols.cast:RedirectTarget(targets[i])
         end
     end
-
-    local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
 
     local triggerInfo = {
         surges = 0,
@@ -2408,6 +2470,9 @@ ActivatedAbilityPowerRollBehavior.s_modificationTypes = {
 {text = "Ignore Edges", id = "ignore_edges", mod = "", value = -2, ignore_edges = true, lateness = 100},
 {text = "Ignore Banes", id = "ignore_banes", mod = "", value = 2, ignore_banes = true, lateness = 100},
 {text = "Tier 3", id = "tier3", mod = "autosuccess", value = 0},
+--Forces tier 2: with both flags DiceResultToTier can only land on 2, crits
+--included. An autosuccess/autofailure on the same roll still wins.
+{text = "Tier 2", id = "tier2", mod = "nottierone nottierthree", value = 0},
 {text = "Tier 1", id = "tier1", mod = "autofailure", value = 0},
 {text = "Not Tier 3", id = "nottierthree", mod = "nottierthree", value = 0},
 {text = "Not Tier 1", id = "nottierone", mod = "nottierone", value = 0},
@@ -2435,11 +2500,13 @@ for _,option in ipairs(ActivatedAbilityPowerRollBehavior.s_modificationTypes) do
     ActivatedAbilityPowerRollBehavior.s_modificationTypesById[option.id] = option
 end
 
-function ActivatedAbilityBehavior:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string|nil
+function ActivatedAbilityBehavior:GetPowerRollDisplay(caster)
     return nil
 end
 
-function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
+function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay(caster)
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
@@ -2449,13 +2516,10 @@ end
 --render pass already unwraps those nested tiers to display them, so this
 --lookup has to find the same roll -- it gates the whole power-roll section,
 --which stays collapsed while it returns "".
-function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
-    if self.abilityType ~= "custom" then
-        return nil
-    end
-
+--A module's registered invoke type shows its preview's roll the same way.
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay(caster)
     --Take the last matching subbehavior, which is what the render pass shows.
-    local customAbility = self:try_get("customAbility")
+    local customAbility = self:HeldAbility(caster)
     local result = nil
     for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
         if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
@@ -2518,9 +2582,11 @@ function ActivatedAbility:GetRollCharacteristicValue(caster)
     return nil
 end
 
-function ActivatedAbility:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string
+function ActivatedAbility:GetPowerRollDisplay(caster)
     for _,behavior in ipairs(self.behaviors) do
-        local result = behavior:GetPowerRollDisplay()
+        local result = behavior:GetPowerRollDisplay(caster)
         if result ~= nil then
             return result
         end
@@ -2949,6 +3015,26 @@ end
 --- Draw Steel variant of RollProperties that resolves outcomes against a power roll table.
 RollPropertiesPowerTable = RegisterGameType("RollPropertiesPowerTable", "RollProperties")
 
+--A table with a 4th "Critical" tier can keep it secret: true hides the
+--Critical row (roll dialog, chat card, everyone's shared copy) until the
+--dice land on a natural 19-20. The Encounter of the Week montage uses it.
+RollPropertiesPowerTable.secretCritical = false
+
+--- Is the Critical row of this table (a raw table or a typed object) hidden
+--- until a critical is rolled?
+--- @param rollProperties nil|table
+--- @return boolean
+function RollPropertiesPowerTable.IsCriticalSecret(rollProperties)
+    if type(rollProperties) ~= "table" then
+        return false
+    end
+    local secret = rawget(rollProperties, "secretCritical")
+    if secret == nil and rollProperties.try_get ~= nil then
+        secret = rollProperties:try_get("secretCritical")
+    end
+    return secret == true
+end
+
 --- @class TierSymbols: GameType
 --- @field new fun(o?: table): TierSymbols
 --- @field tier string The tier result text (e.g. "Tier 1", "Tier 2", "Tier 3") exposed to GoblinScript.
@@ -3270,6 +3356,16 @@ function RollPropertiesPowerTable:CustomPanel(message)
     local m_nottierone = false
     local m_nottierthree = false
 
+    --a secret Critical row is built collapsed and only opens when the roll
+    --lands on it; until then a tumbling natural 19-20 highlights tier 3.
+    local m_critSecret = RollPropertiesPowerTable.IsCriticalSecret(self)
+    local function LiveTier(index)
+        if m_critSecret and index == 4 then
+            return 3
+        end
+        return index
+    end
+
     local m_multitargetPanels = {}
     local m_selectedMultitarget = 1
     local m_multitargetsPanel = gui.Panel{
@@ -3373,7 +3469,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                                 local total = m_lastKnownTotal + newMod - oldMod
 
                                 local amendedResult = { total = total, naturalRoll = m_naturalRoll, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
-                                local index = self:try_get("overrideTier") or self:PromoteTierOnCrit(DiceResultToTier(amendedResult), amendedResult)
+                                local index = LiveTier(self:try_get("overrideTier") or self:PromoteTierOnCrit(DiceResultToTier(amendedResult), amendedResult))
                                 if m_rows ~= nil then
                                     for i,row in ipairs(m_rows) do
                                         if row ~=nil and row.valid then
@@ -3498,6 +3594,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                         end
 
                         m_rows[#m_rows+1] = gui.TableRow{
+                            classes = cond(i == 4 and m_critSecret and not (complete and index == 4), {"collapsed"}, nil),
                             height = "auto",
                             tierLabel,
                             gui.Label{
@@ -3586,6 +3683,9 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 if #m_rows == #self.tiers then
                     for i,row in ipairs(m_rows) do
                         if row ~= nil and row.valid then
+                            if i == 4 and m_critSecret and index == 4 then
+                                row:SetClass("collapsed", false)
+                            end
                             row:SetClassImmediate("highlighted", i == index)
                             if complete then
                                 if i <= index then
@@ -3619,7 +3719,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 if #info.rolls == 0 then
                     local total = m_mod
                     local nodiceResult = { total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
-                    local index = self:PromoteTierOnCrit(DiceResultToTier(nodiceResult), nodiceResult)
+                    local index = LiveTier(self:PromoteTierOnCrit(DiceResultToTier(nodiceResult), nodiceResult))
                     for i,row in ipairs(m_rows) do
                         if row ~=nil and row.valid then
                             row:SetClassImmediate("highlighted", i == index)
@@ -3688,7 +3788,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
             end
 
             local liveResult = { total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
-            local index = self:PromoteTierOnCrit(DiceResultToTier(liveResult), liveResult)
+            local index = LiveTier(self:PromoteTierOnCrit(DiceResultToTier(liveResult), liveResult))
             --diceface only arrives from dice events the refresh handler listens to after it builds m_rows.
             ---@cast m_rows -nil
             for i,row in ipairs(m_rows) do

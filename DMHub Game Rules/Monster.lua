@@ -76,6 +76,18 @@ function monster.OnCreateFromBestiary(self, token)
 		token:SwitchAppearanceVariation(index)
 	end
 
+	monster.AssignGeneratedName(self, token)
+
+	--do a local validate and repair.
+	self:ValidateAndRepair(true)
+end
+
+--- Give a freshly spawned monster token its name per the Monster Name
+--- Generation setting ("Goblin 3", a rolled name, or blank). Shared by the
+--- bestiary spawn above and by summons, which spawn without OnCreateFromBestiary.
+--- @param self monster
+--- @param token CharacterToken
+function monster.AssignGeneratedName(self, token)
     local role = self:try_get("role")
 
     --the basis of the generated name: a player-given playerName overrides monster_type.
@@ -157,9 +169,6 @@ function monster.OnCreateFromBestiary(self, token)
 			token.name = string.format("%s %d", nameBasis, highestNumber+1)
 		end
 	end
-
-	--do a local validate and repair.
-	self:ValidateAndRepair(true)
 end
 
 --Rename a monster (typically invoked by a player from the token radial menu when the

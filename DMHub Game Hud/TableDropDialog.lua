@@ -1988,9 +1988,13 @@ function TableDropDialog.ShowDragCard(args)
     --Universal VTT files open the map import wizard instead of this dialog
     --(Tabletop's TableFilesDropped), so pictures dropped with them are not added.
     local skippedMedia = 0
+    --a Universal VTT file's map size (in tiles) is at the start of the file:
+    --the outline takes the shape of the window the map will open in.
+    local mapSize = nil
     if #mapFiles > 0 then
         skippedMedia = #mediaPaths
         mediaPaths = {}
+        mapSize = FileDrops.MapFileSize(mapFiles[1])
     end
     local files = ReadFiles(mediaPaths)
     local first = files[1]
@@ -2184,12 +2188,28 @@ function TableDropDialog.ShowDragCard(args)
         footprints = {}
     end
     local function PlaceFootprints()
-        if first == nil or analysis == nil or tableLayer == nil or not tableLayer.valid then
+        if tableLayer == nil or not tableLayer.valid then
             return
         end
         local mouse = dmhub.mouseScreenPosition
         local mx, my = Tabletop.ScreenToTable(mouse.x, mouse.y)
-        local rects = FootprintRects(files, analysis, mx, my)
+        local rects
+        if first ~= nil and analysis ~= nil then
+            rects = FootprintRects(files, analysis, mx, my)
+        elseif mapSize ~= nil then
+            --placed as Tabletop.AddFilesAsMap places the map's window.
+            local area = Tabletop.LayerRect()
+            local boxW, boxH = Tabletop.ShapedBox()
+            local w, h = Tabletop.ShapeWindow(boxW, boxH, mapSize.width / mapSize.height)
+            rects = {{
+                x = math.max(0, math.min(math.floor(mx - w / 2), area.w - w)),
+                y = math.max(0, math.min(math.floor(my - h / 2), area.h - h)),
+                w = w,
+                h = h,
+            }}
+        else
+            return
+        end
         if #rects ~= #footprints then
             ClearFootprints()
             for _ = 1, #rects do
@@ -2228,6 +2248,15 @@ function TableDropDialog.ShowDragCard(args)
             nameLabel.text = FileDrops.BaseName(mapFiles[1])
             metaLabel.text = cond(#mapFiles == 1, "New map with its walls, doors and lights",
                 string.format("New map of %d floors, with walls, doors and lights", #mapFiles))
+            if mapSize ~= nil then
+                local function Tiles(n)
+                    if n == math.floor(n) then
+                        return string.format("%d", math.floor(n))
+                    end
+                    return string.format("%.1f", n)
+                end
+                metaLabel.text = string.format("%s x %s squares. %s", Tiles(mapSize.width), Tiles(mapSize.height), metaLabel.text)
+            end
         elseif #documents > 0 then
             badgeText.text = cond(#documents == 1, string.upper(string.sub(FileDrops.Extension(documents[1]), 2)), "Documents")
             nameLabel.text = cond(#documents == 1, FileDrops.BaseName(documents[1]), Count(#documents, "document", "documents"))
@@ -2401,5 +2430,298 @@ function TableDropDialog.ShowDragCard(args)
             detectionChanged = true
         end)
     end
+    return card
+end
+
+----------------------------------------------------------------------
+--The avatar card: by the mouse while a picture is dragged onto a token on
+--the map (FileDrops.lua) or onto a Hero sheet (HeroSheetAppearance.lua).
+--The same card as the table's, with the token as it is now beside the token
+--as it will be, drawn with its own frame and crop.
+
+local AVATAR_STRIP_HEIGHT = 124
+local AVATAR_BEFORE_SIZE = 62
+local AVATAR_AFTER_SIZE = 100
+
+--The crop a picture of w x h gets on a token at zoom and offset: the
+--engine's CharacterToken.GetPortraitRect.
+--- @param w number
+--- @param h number
+--- @param zoom number
+--- @param ox number
+--- @param oy number
+--- @return {x1: number, y1: number, x2: number, y2: number}
+local function PortraitRect(w, h, zoom, ox, oy)
+    local dim = zoom * math.min(w, h)
+    local rw = dim / w
+    local rh = dim / h
+    local x = ox + 0.5
+    local y = oy + 0.5
+    return {x1 = x - rw / 2, y1 = y - rh / 2, x2 = x + rw / 2, y2 = y + rh / 2}
+end
+
+--- @class AvatarDropCardArgs
+--- @field token CharacterToken the token whose picture changes
+--- @field path nil|string a file dragged in from the desktop
+--- @field image nil|string or a picture already in the game (a journal image)
+--- @field imageWidth nil|number that picture's size, if known
+--- @field imageHeight nil|number
+--- @field name string the picture's name
+--- @field action string what releasing does ("Release to ...")
+--- @field keepCrop nil|boolean the token keeps its zoom and offset (the Hero sheet); else they reset, as a map drop does
+--- @field isActive fun(): boolean
+
+--- Shows the avatar card by the mouse. It goes when isActive returns false
+--- or the card is destroyed.
+--- @param args AvatarDropCardArgs
+--- @return nil|Panel
+function TableDropDialog.ShowAvatarDropCard(args)
+    local hud = GameHud.instance --[[@as GameHud]]
+    if hud == nil then
+        return nil
+    end
+    local layer = hud.bannerLayer
+    if layer == nil or not layer.valid then
+        layer = hud.documentsPanel
+    end
+    if layer == nil or not layer.valid then
+        return nil
+    end
+
+    local token = args.token
+    local zoom, ox, oy = 1, 0, 0
+    if args.keepCrop then
+        zoom = tonumber(token.portraitZoom) or 1
+        local offset = token.portraitOffset
+        if offset ~= nil then
+            ox, oy = offset.x, offset.y
+        end
+    end
+
+    --a file is read like the table's: its size from the header now, its
+    --picture decoded a few frames in.
+    --- @type nil|TableDropFile
+    local file = nil
+    local image = args.image
+    local width = tonumber(args.imageWidth) or 0
+    local height = tonumber(args.imageHeight) or 0
+    if args.path ~= nil then
+        file = ReadFiles({args.path})[1]
+        width, height = file.width, file.height
+    end
+
+    local innerW = CARD_WIDTH - 4
+    local textW = CARD_WIDTH - CARD_HPAD * 2 - 4
+
+    local before, paintBefore = HeroSheetAppearance.TokenPreview(AVATAR_BEFORE_SIZE)
+    local after, paintAfter = HeroSheetAppearance.TokenPreview(AVATAR_AFTER_SIZE)
+    before.selfStyle.valign = "center"
+
+    --a video has no picture to show here: a glyph over the empty token.
+    local afterGlyph = gui.Panel{
+        classes = {"tableDragGlyph", "collapsed"},
+        bgimage = "phosphor/film-strip.png",
+        floating = true,
+        width = 30,
+        height = 30,
+        halign = "center",
+        valign = "center",
+    }
+    local afterHolder = gui.Panel{
+        width = AVATAR_AFTER_SIZE,
+        height = AVATAR_AFTER_SIZE,
+        valign = "center",
+        flow = "none",
+        after,
+        afterGlyph,
+    }
+
+    --The token with the new picture: every other field (frame, tint, popout)
+    --read from the token itself.
+    local function PaintAfter()
+        local rect = nil
+        if image ~= nil and width > 0 and height > 0 then
+            rect = PortraitRect(width, height, zoom, ox, oy)
+        end
+        local view = setmetatable({portrait = image, portraitRect = rect}, {
+            __index = function(_, key)
+                return token[key]
+            end,
+        })
+        paintAfter(view --[[@as CharacterToken]])
+        afterGlyph:SetClass("collapsed", image ~= nil or file == nil or not file.video)
+    end
+
+    paintBefore(token)
+    PaintAfter()
+
+    local meta = ""
+    if width > 0 and height > 0 then
+        meta = string.format("%d x %d px", width, height)
+    elseif file ~= nil and file.video then
+        meta = "Video"
+    end
+
+    local strip = gui.Panel{
+        classes = {"tableDragThumb"},
+        bgimage = "panels/square.png",
+        width = innerW,
+        height = AVATAR_STRIP_HEIGHT,
+        flow = "none",
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "center",
+            before,
+            gui.Panel{
+                classes = {"tableDragGlyph"},
+                bgimage = "phosphor/caret-right-bold.png",
+                width = 16,
+                height = 16,
+                hmargin = 12,
+                valign = "center",
+            },
+            afterHolder,
+        },
+        --top left: clear of the bigger token on the right.
+        gui.Panel{
+            classes = {"tableDragBadge"},
+            bgimage = "panels/square.png",
+            floating = true,
+            halign = "left",
+            valign = "top",
+            x = 6,
+            y = 6,
+            width = "auto",
+            height = "auto",
+            hpad = 6,
+            vpad = 1,
+            borderBox = true,
+            gui.Label{
+                classes = {"tableDragBadgeText"},
+                text = "Avatar",
+                width = "auto",
+                height = "auto",
+                fontSize = 12,
+                bold = true,
+            },
+        },
+    }
+
+    local rule = function(tmargin)
+        return gui.Panel{
+            classes = {"tableDragRule"},
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+            tmargin = tmargin,
+        }
+    end
+
+    local metaLabel = nil
+    if meta ~= "" then
+        metaLabel = gui.Label{
+            classes = {"tableDragMeta"},
+            text = meta,
+            width = textW,
+            height = "auto",
+            fontSize = 13,
+            tmargin = 2,
+        }
+    end
+
+    local cardBody = gui.Panel{
+        classes = {"tableDragCard"},
+        bgimage = "panels/square.png",
+        width = CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        pad = 2,
+        borderBox = true,
+        strip,
+        rule(0),
+        gui.Panel{
+            width = innerW,
+            height = "auto",
+            flow = "vertical",
+            hpad = CARD_HPAD - 2,
+            tpad = 7,
+            bpad = 8,
+            borderBox = true,
+            gui.Label{
+                classes = {"tableDragName"},
+                text = args.name,
+                width = textW,
+                height = "auto",
+                fontSize = 16,
+                textWrap = true,
+            },
+            metaLabel,
+            rule(8),
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                tmargin = 6,
+                gui.Panel{
+                    classes = {"tableDragActionIcon"},
+                    bgimage = "phosphor/user-circle-fill.png",
+                    width = 14,
+                    height = 14,
+                    valign = "center",
+                    rmargin = 6,
+                },
+                gui.Label{
+                    classes = {"tableDragAction"},
+                    text = args.action,
+                    width = textW - 20,
+                    height = "auto",
+                    fontSize = 13,
+                    valign = "center",
+                },
+            },
+        },
+    }
+
+    --- @type nil|integer
+    local previewIn = cond(file ~= nil and not file.video, 2, nil)
+    local card = gui.Panel{
+        styles = ThemeEngine.MergeTokens(DragCardStyles()),
+        halign = "left",
+        valign = "top",
+        width = CARD_WIDTH + 8,
+        height = "auto",
+        flow = "vertical",
+        cardBody,
+
+        thinkTime = 0.02,
+        think = function(element)
+            if mod.unloaded or not args.isActive() then
+                if element.valid then
+                    element:DestroySelf()
+                end
+                return
+            end
+            PlaceCard(element, layer)
+            if previewIn ~= nil and file ~= nil then
+                previewIn = previewIn - 1
+                if previewIn <= 0 then
+                    previewIn = nil
+                    LoadPreview(file)
+                    if file.preview ~= nil then
+                        image = file.preview
+                        PaintAfter()
+                    end
+                end
+            end
+        end,
+    }
+
+    layer:AddChild(card)
+    card:MakeNonInteractiveRecursive()
+    card:SetAsLastSibling()
+    PlaceCard(card, layer)
     return card
 end

@@ -760,6 +760,7 @@ local CARD_HEIGHTS = {text = 46, cards = 38, kits = 88, wide = 88}
 --- @field link nil|boolean You gain has choices to make: the link to Skills & Languages shows
 --- @field stale nil|HeroBuilderStale picks no longer offered
 --- @field kept nil|HeroBuilderKept[] picks kept for one higher Level; such a section has no cards
+--- @field movedTo nil|string a choice a registered step took over: that step's id, linked from the heading
 
 --- @class HeroBuilderStale
 --- @field ids string[] the picked ids no longer offered
@@ -1312,7 +1313,7 @@ local function CultureDetail(item)
     local languageid = item:try_get("languageid")
     local language = type(languageid) == "string" and (dmhub.GetTableVisible(Language.tableName) or {})[languageid] or nil
     if language ~= nil then
-        lines[#lines+1] = T("herobuilder.culture.detail_language", {language = language.name})
+        lines[#lines+1] = T("herobuilder.culture.detail_language", {language = language:DisplayNameWithDetail()})
     end
     return {title = item.name, text = table.concat(lines, "\n")}
 end
@@ -1852,6 +1853,7 @@ local function RowSection(token, stepid, row, taken, rowOptions)
         result = result,
         search = search,
         stale = StalePicks(stepid, row.stale),
+        movedTo = info.movedTo,
     }
 end
 
@@ -1869,7 +1871,8 @@ end
 --- (a subclass's features, a kit's signature ability, a complication's
 --- features), tagged with the pick, then outright skills and languages. The
 --- features are read with no picks applied, so a choice's picks never show
---- here (they are the pane's other blocks).
+--- here (they are the pane's other blocks). A feature whose prerequisites the
+--- Hero does not meet (such as a domain they did not pick) is left out.
 --- @param token CharacterToken
 --- @param stepid string
 --- @return HeroBuilderPaneLine[]
@@ -1886,7 +1889,7 @@ local function StepGains(token, stepid)
             --features list in FeatureStack shows one instead).
             local isChoice = true
             pcall(function() isChoice = feature.IsDerivedFrom("CharacterChoice") end)
-            if feature ~= nil and not isChoice then
+            if feature ~= nil and not isChoice and Engine().hero.PrerequisitesMet(hero, feature) then
                 found[#found+1] = {feature = feature, tag = tag, shown = Engine().FeatureShown(feature), level = tonumber((entry.levels or {})[1]) or 1}
             end
         end
@@ -1913,9 +1916,10 @@ local function StepGains(token, stepid)
             end
         elseif stepid == "class" then
             local extra = hero:ExtraLevelInfo()
+            --the hero's own gains: content ticked for the companion is not the hero's.
             for i, entry in ipairs(hero:GetClassesAndSubClasses()) do
                 local details = {}
-                entry.class:FillFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
+                entry.class:FillHeroFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
                 Add(details, cond(i == 1, nil, entry.class.name))
             end
         elseif stepid == "complication" then
@@ -1963,8 +1967,12 @@ local function StepGains(token, stepid)
                         elseif subtype == "language" and languages[id] ~= nil then
                             seen[id] = true
                             local language = languages[id]
-                            profLines[#profLines+1] = {name = language.name, tag = T("herobuilder.gain.tag_language"), kind = "language", level = item.level, detail = function()
-                                return {kicker = T("herobuilder.detail.language"), title = language.name, facts = {{label = T("herobuilder.detail.spoken_by"), value = language:try_get("speakers") or "-"}}}
+                            profLines[#profLines+1] = {name = language:DisplayName(), tag = T("herobuilder.gain.tag_language"), kind = "language", level = item.level, detail = function()
+                                local facts = {{label = T("herobuilder.detail.spoken_by"), value = language:try_get("speakers") or "-"}}
+                                if language:DisplayName() ~= language.name then
+                                    table.insert(facts, 1, {label = T("herobuilder.detail.in_world_name"), value = language.name})
+                                end
+                                return {kicker = T("herobuilder.detail.language"), title = language:DisplayName(), facts = facts}
                             end}
                         end
                     end
@@ -2154,7 +2162,11 @@ local function GainRows(gains, pools)
                 entry = languages[id]
             end
             if entry ~= nil then
-                names[#names+1] = entry.name
+                if pool.kind == "skill" then
+                    names[#names+1] = entry.name
+                else
+                    names[#names+1] = entry:DisplayName()
+                end
             end
         end
         rows[#rows+1] = {
@@ -3771,6 +3783,9 @@ function HeroBuilder.Create(args)
     --Other choices shows only while something asks for one; Paint
     --keeps this up to date, and the pills, Back and Next follow it.
     local otherShown = false
+    --Registered steps this Hero does not have (Engine().StepShown); Paint
+    --keeps this up to date like otherShown.
+    local hiddenSteps = {}
     --the stepper row's width, for refitting the pills when a step shows or hides.
     local pillRowW = 1300
 
@@ -3788,6 +3803,9 @@ function HeroBuilder.Create(args)
             if stepid == REVIEW then
                 return args.review ~= nil
             end
+        end
+        if hiddenSteps[stepid] then
+            return false
         end
         return stepid ~= OTHER or otherShown
     end
@@ -4768,10 +4786,11 @@ function HeroBuilder.Create(args)
     --- @param title string
     --- @param right nil|Panel replaces the state plate at the heading's right
     --- @param before nil|Panel sits just before the state plate (a list's search)
+    --- @param beside nil|Panel sits just after the name and note (a link to another step)
     --- @return Panel[] the heading and its rule, to start the section with
     --- @return Panel status the state plate
     --- @return Panel note
-    local function SectionHead(title, right, before)
+    local function SectionHead(title, right, before, beside)
         local status = gui.Label{
             classes = {"heroBuilderStatus"},
             bgimage = "panels/square.png",
@@ -4826,6 +4845,9 @@ function HeroBuilder.Create(args)
             before.selfStyle.valign = "center"
             before.selfStyle.rmargin = 10
             row = {caps, note, before, status}
+        end
+        if beside ~= nil then
+            table.insert(row, 3, beside)
         end
         return {
             gui.Panel{
@@ -5601,7 +5623,34 @@ function HeroBuilder.Create(args)
                 end,
             }
         end
-        local children, status, note = SectionHead(section.title, nil, search)
+        --a choice another step took over links to that step, beside its name.
+        local movedLink = nil
+        if section.movedTo ~= nil then
+            local target = section.movedTo --[[@as string]]
+            local targetStep = Engine().STEP_BY_ID[target]
+            movedLink = gui.Label{
+                classes = {"heroSheetFeatLink", "hoverable"},
+                text = T("herobuilder.moved.link", {step = targetStep ~= nil and targetStep.title or target}),
+                fontSize = 13,
+                underline = true,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 12,
+                textWrap = false,
+                click = function()
+                    --Level up's pages are Levels, not steps: open the Builder on the step instead.
+                    local heroSheet = rawget(_G, "HeroSheet")
+                    if stepIndex[target] == nil and heroSheet ~= nil then
+                        heroSheet.OpenBuilderAt(target)
+                        return
+                    end
+                    GoTo(target)
+                end,
+            }
+        end
+        local children, status, note = SectionHead(section.title, nil, search, movedLink)
         local stale = StaleRow(stepid, section.key)
         children[#children+1] = stale.panel
         --no chosen card above the tiles: the pane's top card shows the pick,
@@ -6522,10 +6571,11 @@ function HeroBuilder.Create(args)
             end
             entry.modelKey = modelKey
             --with choices from more than one Level, the Class step groups
-            --them under "1st-Level Features"... headers.
+            --them under "1st-Level Features"... headers, and so does a step a
+            --module registered (its rows can come from class features too).
             local grouped = false
             --Level up shows one Level, so it needs no groups.
-            if stepid == "class" and stepStatus.levelUp == nil then
+            if (stepid == "class" or Engine().extraSteps[stepid] ~= nil) and stepStatus.levelUp == nil then
                 for _, section in ipairs(model.sections) do
                     grouped = grouped or (section.kept == nil and (section.level or 1) > 1)
                 end
@@ -8235,6 +8285,21 @@ function HeroBuilder.Create(args)
             otherShown = status.other ~= nil
             FitPills(pillRowW)
             if not otherShown and state.step == OTHER then
+                state.step = FirstOpenStep(status)
+            end
+        end
+        --true or nil (never false), so an unchanged Hero compares equal to hiddenSteps.
+        local hidden, hiddenChanged = {}, false
+        for _, step in ipairs(steps) do
+            hidden[step.id] = not Engine().StepShown(hero, step.id) or nil
+            if hidden[step.id] ~= hiddenSteps[step.id] then
+                hiddenChanged = true
+            end
+        end
+        if hiddenChanged then
+            hiddenSteps = hidden
+            FitPills(pillRowW)
+            if hiddenSteps[state.step] then
                 state.step = FirstOpenStep(status)
             end
         end

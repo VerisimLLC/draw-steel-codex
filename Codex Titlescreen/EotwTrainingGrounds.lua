@@ -384,9 +384,11 @@ function EotwTrainingGrounds.Panel(host)
             height = "auto",
             bmargin = 6,
         },
+        --the labels above and the status line below take about 300, the
+        --tribute button below 45.
         gui.Panel{
             width = "100%",
-            height = "100%-300",
+            height = "100%-345",
             flow = "vertical",
             vscroll = true,
             rpad = 12,
@@ -408,5 +410,7 @@ function EotwTrainingGrounds.Panel(host)
                 statusLabel = element
             end,
         },
+        --who built the Training Grounds (the community project it was).
+        EotwDowntime.TributeButton(host, "build-training-grounds"),
     }
 end

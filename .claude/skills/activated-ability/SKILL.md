@@ -79,7 +79,9 @@ iconid: "uuid"                       # icon asset id (or "ui-icons/skills/1.png"
 multipleModes: false
 modeList:                            # only if multipleModes: true
   - text: "Untyped"
+    condition: ""                    # optional GoblinScript on the CASTER; failing hides the mode
   - text: "Fire"
+chooseModeAfterTargeting: false      # target first, then mode -- see "Target-Then-Mode" below
 
 # Limited use (optional)
 usageLimitOptions:
@@ -395,6 +397,25 @@ behaviors:
     modesSelected: [2]
     tiers: ["4 damage", "7 damage", "10 damage"]
 ```
+
+### Target-Then-Mode (modes that depend on the target)
+For a single-target ability whose modes only suit some targets. The player picks the target, then gets buttons only for modes that target passes. Reference: Heal in
+`data/objectTables/globalrulemods/actions.yaml`.
+
+```yaml
+multipleModes: true                  # not "variations"
+chooseModeAfterTargeting: true
+modeList:
+- text: Spend a Recovery
+  targetCondition: Target.Recoveries Available to Spend > 0
+  targetUnavailableText: This creature is out of Recoveries.
+```
+
+- `condition` sees only the caster; `targetCondition` (editor: "Target Filter") sees `Target.`.
+- A creature no mode passes is an invalid target automatically; no `reasonedFilter` needed.
+- Single target only: if `numTargets` works out above 1 for the caster, the ability behaves like normal modes.
+- All modes must share targeting and range; if they don't, don't use this.
+- If the target rolls, invoke a standard ability with `runOnController: true`.
 
 ### Villain Action with Forced Movement
 ```yaml

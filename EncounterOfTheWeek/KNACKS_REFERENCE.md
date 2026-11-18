@@ -14,7 +14,7 @@ Code: `DMHub Game Rules/TestRiders.lua` (the grammar, the
 vocabulary, `CreatureFacts`). The montage parts are in
 `EncounterOfTheWeek/` (`EncounterScript.lua`,
 `EncounterMontage.lua`, `EncounterMontageStage.lua`). Tests are in
-`tests/encounter_script_test.lua`.
+`tests/encounter_script_test.lua` and `tests/test_riders_damage_test.lua`.
 
 **Only the hero at the entry counts** (montages). A hero approaches an
 entry alone -- companions and assists were removed 2026-10-18 -- so knack
@@ -128,6 +128,7 @@ Scene conditions accept the same vocabulary:
 - `if PC can fly then`
 - `if PC has the Monster Whisperer perk then`
 - `if PC is immune to fire then`
+- `if PC can deal fire damage then`
 - `if PC was a Farmer then`
 - `if PC carries a lantern then`
 - `if PC worships Grole the One-Handed then`
@@ -174,6 +175,7 @@ contain the word "or"**. A test enforces this.
 | item | `you carry a Healing Potion`, `you carry the Bastion Belt` | inventory and equipped items (plural tolerated) |
 | immunity | `you are immune to fire`, `you have fire immunity` | any immunity to that damage type |
 | weakness | `you have fire weakness`, `you are weak to fire` | any weakness to that type (good for banes) |
+| damage | `you can deal fire damage`, `you can deal fire damage or deal holy damage`, `you can deal fire or holy damage` | any ability of the hero's that deals that type (below) |
 | condition immunity | `you cannot be surprised`, `you can't be frightened` | condition immunities. "Surprised" also counts Danger Sense, Primordial Cunning and Unphased |
 | size | `you are tiny` / `small` / `large` / `huge`, `your size is 1L or larger` | Draw Steel size order 1T < 1S < 1M < 1L < 2 ... |
 | numbers | `your Wealth is 2 or higher`, `your Renown is 2 or higher`, `you are level 2 or higher`, `you have 3 or more victories`, `your Might is 2 or higher`, `your Might is 0 or lower` | Wealth, Renown, Level, Victories, the five characteristics |
@@ -219,6 +221,43 @@ contain the word "or"**. A test enforces this.
 | create objects | conjure tools | Hands of the Maker, Improvisation Creation |
 | disarm traps | jam traps | Gum Up the Works |
 | escape bonds | slip free | Slipped Lead |
+
+### Damage types
+
+`you can deal <type> damage` is met by a hero with any ability that deals
+that type: acid, cold, corruption, fire, holy, lightning, poison, psychic or
+sonic. It is read from the abilities themselves, not from a name list, so new
+content counts with no edit here:
+
+- every ability the hero can use: class, subclass, kit signature, ancestry,
+  item and feature abilities, and triggered abilities (a Censor's Judgment);
+- an ability counts when a Damage behaviour has the type, any power-roll tier
+  or command rule says "<type> damage" ("2 + R fire damage; push 2"), a mode
+  sets the type, or an ability it invokes or swaps in by mode does. A choose-a-
+  type ability such as Hurl Element counts for each type it offers;
+- "patron damage" (the Acolyte) is the hero's patron type;
+- untyped damage counts for nothing.
+
+The chip names the first ability found: "Edge: you can deal fire damage
+(Bifurcated Incineration)". `deal fire or holy damage` and `deal fire, cold or
+holy damage` are split into one alternative per type, and a bare `holy` or
+`holy damage` after a damage clause inherits it. An unknown type
+(`you can deal radiant damage`) is reported by the validator and never met.
+
+Scene conditions take it too (`if PC can deal fire damage then`), but there
+`or` joins whole conditions: write `if PC can deal fire damage or PC can deal
+holy damage then`.
+
+In the Delian Tomb pregens (checked 2026-11-07): Polder Elementalist fire
+(Bifurcated Incineration) and acid, cold, corruption, lightning, poison,
+sonic (Hurl Element); Human Censor holy (Your Allies Cannot Save You!); Orc
+Conduit holy (Blessed Light) and corruption (Drain); Wode Elf Troubadour
+psychic (Witty Banter); Human Talent psychic (Kinetic Pulse). The Null,
+Shadow, Tactician and Fury deal no typed damage.
+
+Code: `TestRiders.DamageTypesInText` (pure, tested in
+`tests/test_riders_damage_test.lua`) and `AbilityDamageTypes` in
+`CreatureFacts`, which fills `facts.damage = { fire = "<ability name>" }`.
 
 **Adding a capability.** Call `TestRiders.RegisterCapability{ key, phrases,
 describe, movement, tag, immunity, sources }`. A plain source name matches

@@ -916,6 +916,13 @@ local function StageRules()
             textAlignment = "center",
             vmargin = 2,
         },
+        --a result that gave the party nothing but its words.
+        {
+            selectors = {"eotwAppliedLine", "noReward"},
+            bold = false,
+            italics = true,
+            color = "#b8b8b8",
+        },
         --the scene stage (CreateSceneStage): portraits, the dialog box along
         --the bottom (narration and speech) and its blinking page prompt.
         {
@@ -1087,6 +1094,11 @@ local function StageRules()
             height = "100%",
             textAlignment = "center",
         },
+        --"pleased": a red heart in the same balloon.
+        {
+            selectors = {"eotwEmoteHeart"},
+            bgcolor = "#d8342aff",
+        },
         --"alarmed": three yellow dashes fanned out over the head.
         {
             selectors = {"eotwEmoteDash"},
@@ -1165,6 +1177,23 @@ local function StageRules()
             bold = false,
             italics = true,
             color = "#c8c8c8",
+        },
+        --the scene's Continue: the primary button, gold like the page arrow.
+        {
+            selectors = {"eotwSceneContinue"},
+            bgcolor = "#3a2e10f2",
+            border = 2,
+            borderColor = "#ffd66bd0",
+        },
+        {
+            selectors = {"eotwSceneContinue", "hover"},
+            bgcolor = "#5a4718f2",
+            borderColor = "#ffd66bff",
+        },
+        {
+            selectors = {"eotwSceneContinueName"},
+            fontSize = 20,
+            color = "#ffe9a8",
         },
         --"no roll" after the name of an option a hero's knack (or the
         --option itself) settles without dice.
@@ -1673,6 +1702,135 @@ local function RevealText(markup, count)
     return table.concat(out)
 end
 
+--Narrative prose (a beat's intro, a narrative section's text) types on the
+--same way, a little faster than a scene's spoken lines as there is more of it.
+--Each stage keeps one typer. A piece of prose types ONCE, keyed by what it is
+--(e.g. "section:<id>:<arrival>"), so a panel rebuilt mid-way picks up where
+--it was and a revisit shows it in full. Any click on it finishes all typing.
+--  typer.Label(args)       a gui.Label; args.prose/proseKey/proseAfter set what
+--                          it types, or fire "setProse"(key, text, after) later.
+--  typer.Gate(key, panels) holds panels (options, buttons) back until `key` has
+--                          typed, then fades them in.
+--A field, not a local: this file is near Lua's 200-local ceiling.
+function EncounterMontageStage.CreateProseTyper()
+    local cps = 70
+    local entries = {}
+    local typer = {}
+
+    --Starts `key` typing, once: now, or when the prose `after` is out.
+    function typer.Start(key, full, after)
+        if key == nil or entries[key] ~= nil then
+            return
+        end
+        local start = dmhub.Time()
+        local prev = after ~= nil and entries[after] or nil
+        if prev ~= nil and not prev.done then
+            start = math.max(start, prev.start + prev.total / cps)
+        end
+        entries[key] = { start = start, total = VisibleLength(full), done = false }
+    end
+
+    --How many characters of `key` show now; math.huge once all of it does
+    --(or it never started).
+    function typer.Count(key)
+        local e = key ~= nil and entries[key] or nil
+        if e == nil or e.done then
+            return math.huge
+        end
+        local n = math.floor((dmhub.Time() - e.start) * cps)
+        if n >= e.total then
+            e.done = true
+            return math.huge
+        end
+        return math.max(0, n)
+    end
+
+    function typer.Done(key)
+        return typer.Count(key) == math.huge
+    end
+
+    function typer.FinishAll()
+        for _, e in pairs(entries) do
+            e.done = true
+        end
+    end
+
+    function typer.Label(args)
+        local key, full, after = args.proseKey, args.prose or "", args.proseAfter
+        args.proseKey, args.prose, args.proseAfter = nil, nil, nil
+        local shown = nil
+        local function Show(element)
+            local n = typer.Count(key)
+            if n ~= shown then
+                shown = n
+                element.text = RevealText(full, n)
+            end
+            if n == math.huge then
+                element.thinkTime = nil
+            end
+        end
+        typer.Start(key, full, after)
+        args.text = RevealText(full, typer.Count(key))
+        args.thinkTime = cond(typer.Done(key), nil, 0.03)
+        args.think = Show
+        args.setProse = function(element, newKey, newFull, newAfter)
+            key, full, shown = newKey, newFull or "", nil
+            typer.Start(key, full, newAfter)
+            element.thinkTime = 0.03
+            Show(element)
+        end
+        args.press = function(element)
+            typer.FinishAll()
+        end
+        return gui.Label(args)
+    end
+
+    --The panels are laid out from the start (so whatever holds them is its
+    --final size at once), drawn clear, with a cover over them that takes
+    --clicks meanwhile and finishes the typing instead of pressing an option.
+    --The cover stays until the panels have faded in (GATE_GRACE), so a quick
+    --second click after skipping the typing cannot press what appears.
+    local GATE_GRACE = 0.5
+    function typer.Gate(key, panels)
+        local waiting = not typer.Done(key)
+        local doneAt = nil
+        local cover = gui.Panel{
+            classes = Classes(not waiting and "collapsed"),
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            press = function(element)
+                typer.FinishAll()
+            end,
+        }
+        panels[#panels + 1] = cover
+        return gui.Panel{
+            classes = Classes("eotwProseGate", waiting and "eotwProseWaiting"),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "top",
+            children = panels,
+            thinkTime = cond(waiting, 0.05, nil),
+            think = function(element)
+                if doneAt == nil and typer.Done(key) then
+                    doneAt = dmhub.Time()
+                    element:SetClass("eotwProseWaiting", false)
+                end
+                if doneAt ~= nil and dmhub.Time() - doneAt >= GATE_GRACE then
+                    element.thinkTime = nil
+                    cover:SetClass("collapsed", true)
+                end
+            end,
+        }
+    end
+
+    return typer
+end
+
 --The recognized-rules colours: the green the applied-effect lines already
 --use, and a muted version of it for a dimmed row.
 local RULES_COLOR = "#8ee08e"
@@ -1687,8 +1845,8 @@ local RULES_COLOR_DIM = "#5d7a5d"
 --coloured the applied-effect green, so a player can see at a glance which
 --words the montage will actually act on and which are flavour. A teaser is
 --never marked: the grammar only ever parses the full text.
-local function TierText(roll, t, landed, dim, heroName)
-    local text = EncounterScript.TierDisplayText(roll, t, landed, heroName)
+local function TierText(roll, t, landed, dim, heroName, pronouns)
+    local text = EncounterScript.TierDisplayText(roll, t, landed, heroName, pronouns)
     local teaser = roll.teasers ~= nil and roll.teasers[t] or nil
     if (not landed) and teaser ~= nil then
         return text
@@ -1698,18 +1856,22 @@ local function TierText(roll, t, landed, dim, heroName)
 end
 
 --The critical tier (4) gets no row until a critical has landed: every test
---has one, and what it gives is a surprise until it is rolled.
-local function TierRows(roll, landedTier, dimOthers, heroName)
+--has one, and what it gives is a surprise until it is rolled. With
+--`hiddenCritical` its row is built collapsed instead, for SetLandedTier to
+--open when the dice land on it (the live rows of a roll in progress).
+local function TierRows(roll, landedTier, dimOthers, heroName, hiddenCritical, pronouns)
     local rows = {}
     for t in ipairs(roll.tiers) do
-        if t > 3 and landedTier ~= t then
+        local hidden = t > 3 and landedTier ~= t
+        if hidden and not hiddenCritical then
             break
         end
         local range = TIER_RANGES[t] or ""
         local landed = landedTier == t
         local dim = dimOthers and landedTier ~= nil and not landed
-        local tierText = TierText(roll, t, landed, dim, heroName)
+        local tierText = TierText(roll, t, landed, dim, heroName, pronouns)
         rows[#rows + 1] = gui.Panel{
+            classes = Classes(hidden and "collapsed"),
             width = "100%",
             height = "auto",
             flow = "horizontal",
@@ -1735,7 +1897,7 @@ local function TierRows(roll, landedTier, dimOthers, heroName)
                 end
             end,
         }
-        rows[#rows].data = { roll = roll, tier = t, shown = tierText, heroName = heroName }
+        rows[#rows].data = { roll = roll, tier = t, shown = tierText, heroName = heroName, pronouns = pronouns }
     end
     return rows
 end
@@ -1749,6 +1911,11 @@ local function SetLandedTier(rows, landedTier, reveal)
     for t, row in ipairs(rows) do
         local landed = landedTier == t
         local dim = landedTier ~= nil and not landed
+        --the critical's row (TierRows hiddenCritical) shows only once it has
+        --landed and settled.
+        if t > 3 then
+            row:SetClass("collapsed", not (landed and reveal == true))
+        end
         for _, label in ipairs(row.children) do
             label:SetClass("landed", landed)
             label:SetClass("dim", dim)
@@ -1756,7 +1923,7 @@ local function SetLandedTier(rows, landedTier, reveal)
         local d = row.data
         if d ~= nil and d.roll ~= nil then
             local showFull = landed and reveal == true
-            local text = TierText(d.roll, t, showFull, dim, d.heroName)
+            local text = TierText(d.roll, t, showFull, dim, d.heroName, d.pronouns)
             if text ~= d.shown then
                 local teaser = d.roll.teasers ~= nil and d.roll.teasers[t] or nil
                 d.shown = text
@@ -1785,8 +1952,8 @@ end
 --The roller's own client reads the same document it writes, so every
 --client runs the one code path. Falls back to plain rows on a core
 --without the share exports.
-local function LiveTierRows(roll, heroName)
-    local rows = TierRows(roll, nil, true, heroName)
+local function LiveTierRows(roll, heroName, pronouns)
+    local rows = TierRows(roll, nil, true, heroName, true, pronouns)
     if CharacterPanel.AbilityShareDocPath == nil or CharacterPanel.GetAbilityShareData == nil then
         return rows
     end
@@ -1801,9 +1968,13 @@ local function LiveTierRows(roll, heroName)
     end
 
     --the tier a running total of the dice would land on, using the roll
-    --message's own edges/banes/tier shifts.
-    local function RunningTier(d, total)
+    --message's own edges/banes/tier shifts. `settled`: the dice have landed,
+    --so a natural 19-20 is the critical (EncounterMontage's TierIndexForRoll).
+    local function RunningTier(d, total, settled)
         local rm = d.rollMsg
+        if settled and roll.tiers[4] ~= nil and total - d.mod >= 19 then
+            return 4
+        end
         local tier = 1
         pcall(function()
             tier = RollUtils.DiceResultToTier{
@@ -1898,7 +2069,7 @@ local function LiveTierRows(roll, heroName)
                     element.thinkTime = 0.1
                     if numDice == 0 and rollMsg.total ~= nil then
                         element.data.finished = true
-                        SetLandedTier(rows, RunningTier(element.data, rollMsg.total), true)
+                        SetLandedTier(rows, RunningTier(element.data, rollMsg.total, true), true)
                     else
                         SetLandedTier(rows, nil, false)
                     end
@@ -1963,7 +2134,7 @@ local function LiveTierRows(roll, heroName)
                             total = total + value
                         end
                     end
-                    SetLandedTier(rows, RunningTier(d, total), true)
+                    SetLandedTier(rows, RunningTier(d, total, true), true)
                     --pick up the broadcast tier if it has already moved on.
                     element:FireEvent("syncRoll")
                 end
@@ -2041,6 +2212,9 @@ local function EntryHeroTooltip(rec, finished)
     end
     for _, line in ipairs(rec.applied or {}) do
         lines[#lines + 1] = string.format("- %s", line)
+    end
+    if rec.noReward then
+        lines[#lines + 1] = string.format("<i>%s</i>", T("stage.round.summary_no_reward"))
     end
     return table.concat(lines, "\n")
 end
@@ -2499,13 +2673,27 @@ local function GrantedRows(option)
     for _, g in ipairs(EncounterMontage.OptionTestMods(nil, option)) do
         local label = EncounterScript.RiderLabel(g.effect)
         local text = label
-        if g.entryName ~= nil and g.entryName ~= "" then
+        if g.reason ~= nil and g.reason ~= "" then
+            --the script said why ("{... on X: the body is charred}").
+            text = T("stage.option.granted_reason", { label = label, reason = g.reason })
+        elseif g.entryName ~= nil and g.entryName ~= "" then
             text = T("stage.option.granted_at", { label = label, entry = g.entryName })
+        end
+        --"...: Distracted (you were distracted by the skeletons)": the card
+        --says "Bane: Distracted" and the bracketed words are its tooltip.
+        local detail = g.detail
+        if detail == "" then
+            detail = nil
         end
         rows[#rows + 1] = gui.Label{
             classes = Classes("eotwRider", cond(EncounterScript.RiderBoons(g.effect) > 0, "met", "hurt")),
             text = text,
-            interactable = false,
+            interactable = detail ~= nil,
+            linger = function(element)
+                if detail ~= nil then
+                    gui.Tooltip(detail)(element)
+                end
+            end,
         }
     end
     return rows
@@ -2513,11 +2701,8 @@ end
 
 --The rules of a free version (no roll), marked up like a landed tier once
 --they have been applied.
-local function FreeRulesRow(free, applied, heroName)
-    local text = EncounterScript.VisibleText(free.text or "")
-    if heroName ~= nil then
-        text = EncounterScript.SubstitutePC(text, heroName)
-    end
+local function FreeRulesRow(free, applied, heroName, pronouns)
+    local text = EncounterScript.SubstitutePC(EncounterScript.VisibleText(free.text or ""), heroName, pronouns)
     local markup = EncounterScript.MarkupRules(text, string.format("<color=%s>", RULES_COLOR), "</color>")
     return gui.Panel{
         width = "100%",
@@ -2529,7 +2714,10 @@ local function FreeRulesRow(free, applied, heroName)
     }
 end
 
-local function OptionCard(entry, option, index, m)
+--`extra` (optional) adds to the card's panel args: its classes are appended,
+--anything else replaces the card's own (the narrative board makes the card
+--a drop target with its own press).
+local function OptionCard(entry, option, index, m, extra)
     local mine = IsMyTurn(m) and m.turn.status == "choosing"
     local chosen = m.turn ~= nil and m.turn.optionIndex == index
     local landed = nil
@@ -2544,6 +2732,7 @@ local function OptionCard(entry, option, index, m)
     local heroid = m.turn ~= nil and m.turn.heroid or nil
     --"PC" in the outcomes reads as that hero.
     local heroName = m.turn ~= nil and m.turn.heroName or nil
+    local pronouns = EncounterMontage.HeroPronouns(heroid)
     local version = option
     local knackReason = nil
     if chosen then
@@ -2595,22 +2784,33 @@ local function OptionCard(entry, option, index, m)
         end
         local rows
         if chosen and (m.turn.status == "rolling" or m.turn.status == "pardon") then
-            rows = LiveTierRows(version.roll, heroName)
+            rows = LiveTierRows(version.roll, heroName, pronouns)
         else
-            rows = TierRows(version.roll, landed, true, heroName)
+            rows = TierRows(version.roll, landed, true, heroName, nil, pronouns)
         end
         for _, row in ipairs(rows) do
             children[#children + 1] = row
         end
     elseif version.free ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwOptionRoll"}, text = T("stage.option.no_roll_needed"), interactable = false }
+        --"No roll needed" only tells players something beside options that
+        --do roll; on a board of plain choices it is noise.
+        local othersRoll = false
+        for _, other in ipairs((entry or {}).options or {}) do
+            if other ~= option and other.roll ~= nil then
+                othersRoll = true
+                break
+            end
+        end
+        if othersRoll then
+            children[#children + 1] = gui.Label{ classes = {"eotwOptionRoll"}, text = T("stage.option.no_roll_needed"), interactable = false }
+        end
         for _, row in ipairs(RiderRows(EncounterScript.VersionRiders(option, version), verdict)) do
             children[#children + 1] = row
         end
-        children[#children + 1] = FreeRulesRow(version.free, chosen and m.turn.status == "resolved", heroName)
+        children[#children + 1] = FreeRulesRow(version.free, chosen and m.turn.status == "resolved", heroName, pronouns)
     end
     local takeable = version.roll ~= nil or version.free ~= nil or (option.delve ~= nil and (m.turn == nil or m.turn.delve == nil))
-    return gui.Panel{
+    local args = {
         classes = Classes("eotwOptionCard", mine and not locked and "actionable", chosen and "chosen", locked and "locked", unlocked and "unlocked"),
         width = "100%",
         height = "auto",
@@ -2633,6 +2833,16 @@ local function OptionCard(entry, option, index, m)
             EncounterMontage.SendRequest("choose", { optionIndex = index })
         end,
     }
+    for k, v in pairs(extra or {}) do
+        if k == "classes" then
+            for _, class in ipairs(v) do
+                args.classes[#args.classes + 1] = class
+            end
+        else
+            args[k] = v
+        end
+    end
+    return gui.Panel(args)
 end
 
 --whose move it is now: shown whenever the floor is free, which includes
@@ -2762,6 +2972,77 @@ PerkOfferChildren = function(m, t)
 end
 
 --Pardon My Friend: another hero is making the failed test in the hero's place.
+--A Gauntlet test before the dice: who is assisting (or may), what is on
+--the roll (the assist, the roller's Weary banes), and for the hero's own
+--player Make the test, Step back and a Ritualist's blessing. The Assist
+--buttons themselves are on the other heroes' cards.
+local function GauntletAssistChildren(m, t)
+    local children = {}
+    local heroName = t.heroName or T("stage.fallback.the_hero")
+    local a = t.assist
+    local hint
+    if a ~= nil and a.tier == nil then
+        hint = T("stage.gauntlet.assist_rolling", { helper = a.heroName or T("stage.fallback.a_hero"), hero = heroName })
+    elseif a ~= nil then
+        hint = T("stage.gauntlet.assist_done", { helper = a.heroName or T("stage.fallback.a_hero"), tier = a.tier or 1 })
+    else
+        hint = T("stage.gauntlet.assist_open", { hero = heroName })
+    end
+    children[#children + 1] = gui.Label{ classes = {"eotwSceneHint"}, text = hint }
+
+    --what the roll will carry, in words (the dialog shows the chips).
+    local onRoll = {}
+    if a ~= nil and a.outcome == "edge" then
+        onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_edge", { helper = a.heroName or "" })
+    elseif a ~= nil and a.outcome == "doubleedge" then
+        onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_doubleedge", { helper = a.heroName or "" })
+    elseif a ~= nil and a.outcome == "bane" then
+        onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_bane", { helper = a.heroName or "" })
+    end
+    local rolls = EncounterGauntlet.RollsMade(m, t.heroid)
+    if rolls == 1 then
+        onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_weary_one")
+    elseif rolls >= 2 then
+        onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_weary_many")
+    end
+    if t.blessing ~= nil then
+        onRoll[#onRoll + 1] = T("stage.perk.blessed", { hero = t.blessing.heroName or T("stage.perk.blessed_fallback") })
+    end
+    if #onRoll > 0 then
+        children[#children + 1] = gui.Label{ classes = {"eotwSceneHint"}, text = T("stage.gauntlet.on_roll", { list = table.concat(onRoll, ", ") }) }
+    end
+
+    if IsMyTurn(m) and t.status == "assist" then
+        local row = {}
+        row[#row + 1] = PerkButton(T("stage.gauntlet.make_test_button"), nil, function(element)
+            EncounterMontage.SendRequest("proceedTest", {})
+        end)
+        --the hero in the spotlight was given this test and cannot step back
+        --(the host refuses it), so the button is not offered.
+        if not t.forced then
+            row[#row + 1] = PerkButton(T("stage.gauntlet.step_back_button"), nil, function(element)
+                EncounterMontage.SendRequest("unclaim", {})
+            end)
+        end
+        local g = m.gauntlet or {}
+        if t.blessing == nil and EncounterMontage.HeroHasPerk(t.heroid, "Ritualist") and not (g.ritualUsed or {})[t.heroid] then
+            row[#row + 1] = PerkButton(T("stage.perk.bless_button"), T("stage.perk.bless_tooltip"), function(element)
+                EncounterMontage.SendRequest("bless", { heroid = t.heroid })
+                element:SetClass("hidden", true)
+            end)
+        end
+        children[#children + 1] = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            flow = "horizontal",
+            tmargin = 6,
+            children = row,
+        }
+    end
+    return children
+end
+
 local function PardonChildren(m, t)
     local p = t.pardon or {}
     return {
@@ -2833,6 +3114,8 @@ local function TurnSignature(m)
         --an item used here can reveal an option or open a knack.
         tostring(m.consumeSeq),
         tostring((m.dice or {}).seq), tostring(DiceLanded(m.dice)),
+        --a Gauntlet assist: claimed, then landed.
+        tostring((t.assist or {}).rollSeq), tostring((t.assist or {}).tier),
     }, "|")
 end
 
@@ -2974,31 +3257,6 @@ local function DiceHint(m)
     return T("stage.dice.hint_waiting", { heroes = table.concat(waiting, ", ") })
 end
 
---The Roll button for this user's montage dice, or nil when they have none
---waiting (or have already clicked it).
-local function DiceRollButton(halign)
-    if not EncounterMontage.MyDiceWaiting() then
-        return nil
-    end
-    return gui.Panel{
-        classes = {"eotwSceneOption", "actionable"},
-        width = "auto",
-        height = "auto",
-        halign = halign or "left",
-        hpad = 14,
-        vpad = 5,
-        borderBox = true,
-        vmargin = 2,
-        bgimage = "panels/square.png",
-        gui.Label{ classes = {"eotwSceneOptionName"}, text = T("stage.dice.roll_button"), interactable = false },
-        press = function(element)
-            audio.FireSoundEvent("Mouse.Click")
-            element:SetClass("hidden", true)
-            EncounterMontage.RollMyDice()
-        end,
-    }
-end
-
 --- the scene stage -------------------------------------------------------------------
 --
 --While a hero is at an entry the centre panel is a small stage (user
@@ -3068,8 +3326,53 @@ end
 
 --One figure on the stage: the hero (args.charid) or a scene character,
 --pictured by the bestiary monster that plays them (args.monster).
---The mark an emote puts over a figure's head ("alert" or "alarmed").
+--The mark an emote puts over a figure's head ("alert", "alarmed" or "pleased").
 local function EmoteMarker(emote)
+    if emote == "pleased" then
+        --a heart in the alert balloon: two round lobes over a square turned
+        --to a point.
+        local function Lobe(x)
+            local lobe = gui.Panel{
+                classes = {"eotwEmoteHeart"},
+                floating = true,
+                width = 12,
+                height = 12,
+                halign = "center",
+                valign = "center",
+                cornerRadius = 6,
+                bgimage = "panels/square.png",
+                interactable = false,
+            }
+            lobe.selfStyle.x = x
+            lobe.selfStyle.y = -3
+            return lobe
+        end
+        local point = gui.Panel{
+            classes = {"eotwEmoteHeart"},
+            floating = true,
+            width = 12,
+            height = 12,
+            halign = "center",
+            valign = "center",
+            rotate = 45,
+            bgimage = "panels/square.png",
+            interactable = false,
+        }
+        point.selfStyle.y = 2
+        return gui.Panel{
+            classes = {"eotwEmote", "eotwEmoteBalloon"},
+            floating = true,
+            width = 38,
+            height = 38,
+            halign = "right",
+            valign = "top",
+            bgimage = "panels/square.png",
+            interactable = false,
+            point,
+            Lobe(-4),
+            Lobe(4),
+        }
+    end
     if emote == "alert" then
         return gui.Panel{
             classes = {"eotwEmote", "eotwEmoteBalloon"},
@@ -3112,9 +3415,10 @@ end
 
 local function SceneActor(args)
     local aspect = SCENE_PORTRAIT_WIDTH / SCENE_PORTRAIT_HEIGHT
-    --"scared" jerks this wrapper about. It carries no style rules, so no
-    --transitionTime smooths the jerks into a drift.
+    --"scared" and "angry" jerk this wrapper about ("angry" twice as hard). It
+    --carries no style rules, so no transitionTime smooths the jerks into a drift.
     local shakeUntil = 0
+    local shakePx = SCENE_SHAKE_PX
     local shaker = gui.Panel{
         width = "100%",
         height = SCENE_PORTRAIT_HEIGHT,
@@ -3126,7 +3430,7 @@ local function SceneActor(args)
                 element.thinkTime = nil
                 return
             end
-            element.selfStyle.x = math.random(-SCENE_SHAKE_PX, SCENE_SHAKE_PX)
+            element.selfStyle.x = math.random(-shakePx, shakePx)
             element.selfStyle.y = math.random(-2, 2)
         end,
     }
@@ -3141,10 +3445,11 @@ local function SceneActor(args)
         gone = function(element)
             element:DestroySelf()
         end,
-        --play an emote: "scared" trembles, the others put a mark over the
-        --head that pops in, holds and fades.
+        --play an emote: "scared" trembles, "angry" shakes harder, the others
+        --put a mark over the head that pops in, holds and fades.
         emote = function(element, emote)
-            if emote == "scared" then
+            if emote == "scared" or emote == "angry" then
+                shakePx = cond(emote == "angry", SCENE_SHAKE_PX * 2, SCENE_SHAKE_PX)
                 shakeUntil = dmhub.Time() + SCENE_SHAKE_TIME
                 shaker.thinkTime = 0.03
                 return
@@ -3173,6 +3478,36 @@ local function SceneActor(args)
                 marker:DestroySelf()
             end)
         end,
+        --hold an emote mark over the head until told otherwise (nil clears
+        --it). A narrative keeps the hero's last "alert" / "alarmed" up while
+        --they take their test. Firing the same emote again changes nothing.
+        holdEmote = function(element, emote)
+            local held = element.data.heldMarker
+            if element.data.heldEmote == emote and (emote == nil or (held ~= nil and held.valid)) then
+                return
+            end
+            element.data.heldEmote = emote
+            if held ~= nil and held.valid then
+                held:DestroySelf()
+            end
+            element.data.heldMarker = nil
+            if emote == nil or emote == "scared" then
+                return
+            end
+            local marker = EmoteMarker(emote)
+            element:AddChild(marker)
+            marker.selfStyle.x = 12
+            marker.selfStyle.y = -24
+            marker:SetClassTreeImmediate("eotwEmotePop", true)
+            dmhub.Schedule(0.03, function()
+                if mod.unloaded or not marker.valid then
+                    return
+                end
+                marker:SetClassTree("eotwEmotePop", false)
+            end)
+            element.data.heldMarker = marker
+        end,
+        data = { heldEmote = nil, heldMarker = nil },
         shaker,
     }
     shaker:AddChild(gui.Panel{
@@ -3253,6 +3588,10 @@ local function CreateSceneStage()
     --a turn already in progress (a join, a reload) shows it settled, with
     --no typing and no entrances.
     local m_settled = false
+    --a narrative hero's "alert" / "alarmed" played by a line of this turn:
+    --{ seq, emote }. It is held on their portrait at once, before the host
+    --records it (EncounterGauntlet.NoteSceneEnded) when the lines end.
+    local m_sceneHeld = nil
 
     local root
 
@@ -3294,6 +3633,12 @@ local function CreateSceneStage()
 
     --Put the turn's hero on the stage (a new hero replaces the last).
     local function SyncHero(t)
+        if t.heroid == nil then
+            --a Gauntlet section's arrival: the party, but no one hero.
+            heroSlot.children = {}
+            m_mainFigure = nil
+            return
+        end
         if m_mainFigure == nil or not m_mainFigure.valid or m_mainFigure.data.charid ~= t.heroid then
             m_mainFigure = CreateFigure(t.heroid, t.heroName)
             heroSlot.children = { m_mainFigure }
@@ -3347,7 +3692,7 @@ local function CreateSceneStage()
             end
             narration:SetClass("garbled", false)
             narration.selfStyle.fontFace = nil
-            speakerLabel.text = T("stage.scene.speaker_in_language", { speaker = shown.speaker, language = shown.lang })
+            speakerLabel.text = T("stage.scene.speaker_in_language", { speaker = shown.speaker, language = Language.DisplayNameForName(shown.lang) })
             StartTyping(narration, shown.plain, true)
             narration:SetClass("transposing", false)
             narration:PulseClass("translated")
@@ -3483,8 +3828,10 @@ local function CreateSceneStage()
         end
     end
 
-    --the emotes that come with a line, on the figures they belong to.
-    local function PlayEmotes(emotes)
+    --the emotes that come with a line, on the figures they belong to. In a
+    --narrative (turn `t` is a Gauntlet turn) the hero's alert / alarmed mark
+    --stays up instead of fading.
+    local function PlayEmotes(emotes, t)
         for _, e in ipairs(emotes or {}) do
             local panel = nil
             if e.side == "left" then
@@ -3493,7 +3840,12 @@ local function CreateSceneStage()
                 panel = m_actors[string.lower(e.name or "")]
             end
             if panel ~= nil and panel.valid then
-                panel:FireEvent("emote", e.emote)
+                if e.side == "left" and t ~= nil and t.gauntlet and (e.emote == "alert" or e.emote == "alarmed") then
+                    m_sceneHeld = { seq = t.seq, emote = e.emote }
+                    panel:FireEvent("holdEmote", e.emote)
+                else
+                    panel:FireEvent("emote", e.emote)
+                end
             end
         end
     end
@@ -3890,7 +4242,12 @@ local function CreateSceneStage()
 
         --inside a delve, the obstacle the hero faces is what is on offer.
         local here = EncounterMontage.TurnEntry(beat, t) or entry
-        if t.delve ~= nil and here ~= entry then
+        if t.arrival then
+            titleLabel.text = entry.name
+        elseif t.gauntlet then
+            titleLabel.text = T("stage.gauntlet.title_claim", { hero = t.heroName or T("stage.fallback.a_hero"),
+                option = t.optionName or entry.name })
+        elseif t.delve ~= nil and here ~= entry then
             titleLabel.text = T("stage.scene.title_delve_place", { hero = t.heroName or T("stage.fallback.a_hero"), entry = entry.name, place = here.name })
         elseif t.delve ~= nil then
             titleLabel.text = T("stage.scene.title_delve", { hero = t.heroName or T("stage.fallback.a_hero"), entry = entry.name })
@@ -3899,6 +4256,15 @@ local function CreateSceneStage()
         end
         m_heroid = t.heroid
         SyncHero(t)
+        --a narrative hero's last alert / alarmed stays on their portrait (the
+        --host's record, or a line of this turn that just played it).
+        if t.gauntlet and m_mainFigure ~= nil and m_mainFigure.valid then
+            local held = EncounterGauntlet.HeldEmote(m, t.heroid)
+            if m_sceneHeld ~= nil and m_sceneHeld.seq == t.seq then
+                held = m_sceneHeld.emote
+            end
+            m_mainFigure.data.actor:FireEvent("holdEmote", held)
+        end
 
         local scene = t.scene or {}
         local steps = scene.steps or {}
@@ -3908,39 +4274,80 @@ local function CreateSceneStage()
             index = math.min(index, #steps)
             step = steps[index]
         end
-        SyncCast(step ~= nil and step.cast or scene.cast, instant)
+        --a narrative turn with no lines of its own still shows whoever is on
+        --stage from earlier sections (EncounterGauntlet.Cast).
+        local cast = step ~= nil and step.cast or scene.cast
+        if cast == nil and t.gauntlet then
+            cast = EncounterGauntlet.Cast(m)
+        end
+        SyncCast(cast, instant)
 
         if step ~= nil then
             m_boxKey = nil
             ShowDetail({})
-            boxExtra.children = {}
+            ---@type Panel[]
+            local sceneButtons = {}
+            --every line the local player paces gets a plain Continue, so
+            --turning the page does not depend on knowing the box (or its
+            --small arrow) can be clicked. It does exactly what the box does.
+            if EncounterMontage.LocalUserPacesScene(m) then
+                sceneButtons[#sceneButtons + 1] = gui.Panel{
+                    classes = {"eotwSceneOption", "actionable", "eotwSceneContinue"},
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    hpad = 28,
+                    vpad = 7,
+                    borderBox = true,
+                    bgimage = "panels/square.png",
+                    --the press is handled here; without the swallow the box
+                    --would turn the page a second time.
+                    swallowPress = true,
+                    gui.Label{ classes = {"eotwSceneOptionName", "eotwSceneContinueName"}, text = T("stage.scene.continue_button"), interactable = false },
+                    press = function(element)
+                        PagePressed()
+                    end,
+                }
+            end
             --the first line of an approach shows nothing about the entry yet,
             --so a mis-clicked hero may still walk away for free.
             if IsMyTurn(m) and EncounterMontage.CanBackOut(m) then
+                sceneButtons[#sceneButtons + 1] = gui.Panel{
+                    classes = {"eotwSceneOption", "actionable"},
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 12,
+                    hpad = 14,
+                    vpad = 5,
+                    borderBox = true,
+                    bgimage = "panels/square.png",
+                    --the box's own press turns the page, which would
+                    --move past the first line and void the back-out.
+                    swallowPress = true,
+                    gui.Label{ classes = {"eotwSceneOptionName", "pass"}, text = T("stage.scene.back_out_button"), interactable = false },
+                    linger = function(element)
+                        gui.Tooltip(T("stage.scene.back_out_tooltip"))(element)
+                    end,
+                    press = function(element)
+                        audio.FireSoundEvent("Mouse.Click")
+                        EncounterMontage.SendRequest("backout", {})
+                    end,
+                }
+            end
+            if #sceneButtons > 0 then
                 boxExtra.children = {
                     gui.Panel{
-                        classes = {"eotwSceneOption", "actionable"},
                         width = "auto",
                         height = "auto",
                         halign = "left",
-                        hpad = 14,
-                        vpad = 5,
-                        borderBox = true,
+                        flow = "horizontal",
                         tmargin = 8,
-                        bgimage = "panels/square.png",
-                        --the box's own press turns the page, which would
-                        --move past the first line and void the back-out.
-                        swallowPress = true,
-                        gui.Label{ classes = {"eotwSceneOptionName", "pass"}, text = T("stage.scene.back_out_button"), interactable = false },
-                        linger = function(element)
-                            gui.Tooltip(T("stage.scene.back_out_tooltip"))(element)
-                        end,
-                        press = function(element)
-                            audio.FireSoundEvent("Mouse.Click")
-                            EncounterMontage.SendRequest("backout", {})
-                        end,
+                        children = sceneButtons,
                     },
                 }
+            else
+                boxExtra.children = {}
             end
             narration:SetClass("collapsed", false)
             local key = string.format("%s:%d", tostring(scene.id), index)
@@ -3951,7 +4358,7 @@ local function CreateSceneStage()
             end
             m_textKey = key
             if not instant then
-                PlayEmotes(step.emotes)
+                PlayEmotes(step.emotes, t)
             end
             m_prompt = boxPrompt
             m_garbledShown = nil
@@ -3970,7 +4377,9 @@ local function CreateSceneStage()
                 end
                 local name = step.speaker or ""
                 if step.lang ~= nil then
-                    name = cond(garbled, T("stage.scene.speaker_speaking_language", { speaker = name, language = step.lang }), T("stage.scene.speaker_in_language", { speaker = name, language = step.lang }))
+                    --the script names the language in-world; show it the way this user reads languages.
+                    local langName = Language.DisplayNameForName(step.lang)
+                    name = cond(garbled, T("stage.scene.speaker_speaking_language", { speaker = name, language = langName }), T("stage.scene.speaker_in_language", { speaker = name, language = langName }))
                 end
                 speakerLabel.text = name
                 speakerLabel:SetClass("collapsed", false)
@@ -3995,14 +4404,42 @@ local function CreateSceneStage()
         end
 
         --between lines: the choice, the roll, the result.
-        m_textKey = nil
-        m_typing = nil
-        m_prompt = nil
-        root.thinkTime = nil
-        ShowPrompt()
-        SetSpeaking(nil)
-        speakerLabel:SetClass("collapsed", true)
-        narration:SetClass("collapsed", true)
+        --A Spotlight test claimed for its hero the moment the section came up
+        --(t.forced) skipped the board, so the section's text is read here,
+        --typed once, above the test.
+        local leadText = nil
+        if t.gauntlet and t.forced and not t.arrival then
+            --its "If ...:" blocks read for the story so far.
+            local lead = EncounterScript.ResolveStoryText(entry, EncounterMontage.Story())
+            if lead ~= "" then
+                leadText = lead
+            end
+        end
+        local leadKey = leadText ~= nil and string.format("lead:%s", tostring(t.seq)) or nil
+        if leadText ~= nil then
+            if leadKey ~= m_textKey then
+                m_textKey = leadKey
+                m_prompt = nil
+                m_garbledShown = nil
+                SetSpeaking(nil)
+                speakerLabel:SetClass("collapsed", true)
+                narration:SetClass("transposing", false)
+                narration:SetClass("speech", false)
+                narration:SetClass("garbled", false)
+                narration.selfStyle.fontFace = nil
+                narration:SetClass("collapsed", false)
+                StartTyping(narration, leadText, instant)
+            end
+        else
+            m_textKey = nil
+            m_typing = nil
+            m_prompt = nil
+            root.thinkTime = nil
+            ShowPrompt()
+            SetSpeaking(nil)
+            speakerLabel:SetClass("collapsed", true)
+            narration:SetClass("collapsed", true)
+        end
 
         local boxKey = TurnSignature(m)
         if boxKey == m_boxKey then
@@ -4066,7 +4503,6 @@ local function CreateSceneStage()
             m_detailDefault = { DiceCard(m, beat) }
             boxExtra.children = {
                 gui.Label{ classes = {"eotwSceneHint"}, text = DiceHint(m) },
-                DiceRollButton(),
             }
         else
             if option ~= nil then
@@ -4083,6 +4519,8 @@ local function CreateSceneStage()
                 boxExtra.children = PerkOfferChildren(m, t)
             elseif t.status == "pardon" then
                 boxExtra.children = PardonChildren(m, t)
+            elseif t.status == "assist" or t.status == "assisting" then
+                boxExtra.children = GauntletAssistChildren(m, t)
             else
                 boxExtra.children = {}
             end
@@ -4247,6 +4685,32 @@ local function CurrentConsequenceKeys(m)
     return keys
 end
 
+--Every "Edge on <option>" the party has earned on a test still to come, under
+--the round heading. The round summary only shows the LAST result, so without
+--this an edge earned earlier in the round vanished from view.
+local function StandingModChildren(m, beat)
+    local children = {}
+    local seen = {}
+    for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
+        local finished = (m.taken or {})[entry.id] == true or (m.vanquished or {})[entry.id] == true
+        if not finished and not EncounterMontage.EntryRemoved(m, entry) and not EncounterMontage.EntryExpired(m, entry) then
+            for _, option in ipairs(entry.options or {}) do
+                local key = EncounterScript.MatchKey(option.name)
+                if not seen[key] then
+                    seen[key] = true
+                    for _, g in ipairs(EncounterMontage.OptionTestMods(m, option)) do
+                        if #children == 0 then
+                            children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.round.standing_mods") }
+                        end
+                        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = EncounterScript.DescribeTestMod(g.effect, option.name) }
+                    end
+                end
+            end
+        end
+    end
+    return children
+end
+
 --`consequenceStart(key)` gives when that consequence started playing on this
 --stage, or nil to show it settled (CreateStage's m_consequencesPlayed).
 --- @param consequenceStart nil|fun(key: string): number|nil
@@ -4315,10 +4779,6 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         if m.dice ~= nil then
             Add(DiceCard(m, beat))
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
-            local rollButton = DiceRollButton("center")
-            if rollButton ~= nil then
-                Add(rollButton)
-            end
             return children
         end
         Add(gui.Button{
@@ -4343,6 +4803,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         Add(gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.round.title", { round = m.round or 1 }) })
         Add(YourMoveLabel())
         for _, child in ipairs(TeamLeaderChildren(m)) do
+            Add(child)
+        end
+        for _, child in ipairs(StandingModChildren(m, beat)) do
             Add(child)
         end
         --a "(Temporary)" threat that ran out pays its consequence at the
@@ -4404,6 +4867,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
             for _, line in ipairs(last.applied or {}) do
                 Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
             end
+            if last.noReward then
+                Add(gui.Label{ classes = {"eotwAppliedLine", "noReward"}, text = T("stage.round.summary_no_reward") })
+            end
         end
         return children
     end
@@ -4420,6 +4886,15 @@ local function HeroSignature(heroes)
     for _, hero in ipairs(heroes) do
         local allies = EncounterMontage.GetAllies(hero.charid)
         parts[#parts + 1] = hero.charid .. ":" .. table.concat(allies, ",")
+    end
+    return table.concat(parts, "|")
+end
+
+--Who controls each hero, so a stage can tell when a hero changes hands.
+local function OwnerSignature(heroes)
+    local parts = {}
+    for _, hero in ipairs(heroes) do
+        parts[#parts + 1] = hero.charid .. ":" .. tostring(hero.ownerId)
     end
     return table.concat(parts, "|")
 end
@@ -4865,6 +5340,10 @@ local function DragMode(charid)
     if EncounterMontage.LocalUserCanAct(charid) then
         return "approach"
     end
+    --a narrative challenge: the hero may be dropped on an option to take it.
+    if EncounterMontageStage.GauntletClaimOptions(charid) ~= nil then
+        return "gauntlet"
+    end
     return nil
 end
 
@@ -4914,6 +5393,9 @@ local function CreateHeroColumn(hero)
     local hud = Hud()
     local charid = hero.charid
     local card = nil
+    --while this hero is dragged in a narrative: the options it may take
+    --({ [optionIndex] = true }), read once as the drag starts.
+    local dragClaim = nil
     --the "you can act" ring: shown while DragMode says the local user can
     --take a beat with this hero; 5px outside the card on each
     --side so it frames the card's own border instead of covering it.
@@ -4958,6 +5440,10 @@ local function CreateHeroColumn(hero)
             showStats = true,
             --out of combat a hero may spend a Recovery whenever they like.
             spendRecovery = true,
+            --a narrative's Weary, beside the hero's conditions.
+            extraChips = function(id)
+                return EncounterMontageStage.WearyChips(id)
+            end,
             click = function(element, openCharacterPanel)
                 local mode = DragMode(charid)
                 if mode ~= nil then
@@ -4974,9 +5460,13 @@ local function CreateHeroColumn(hero)
             beginDrag = function(element)
                 element:SetClass("dragging", true)
                 local mode = DragMode(charid) or "approach"
+                dragClaim = nil
+                if mode == "gauntlet" then
+                    dragClaim = EncounterMontageStage.GauntletClaimOptions(charid)
+                end
                 SelectHero(nil)
                 PreviewHero(nil, nil)
-                Broadcast("dragTargets", true, mode)
+                Broadcast("dragTargets", true, mode, charid)
             end,
             --every frame of the drag, with the drop target under the
             --cursor: the entry hovered previews this hero in its slot.
@@ -4988,6 +5478,10 @@ local function CreateHeroColumn(hero)
                 PreviewHero(charid, entryId)
             end,
             canDragOnto = function(element, target)
+                --a narrative option this hero may take.
+                if target:HasClass("eotwGauntletOption") then
+                    return dragClaim ~= nil and dragClaim[target.data.optionIndex] == true
+                end
                 if not target:HasClass("eotwEntryCard") then
                     return false
                 end
@@ -5008,6 +5502,15 @@ local function CreateHeroColumn(hero)
                     PreviewHero(nil, nil)
                 end
                 if target == nil then
+                    return
+                end
+                if target:HasClass("eotwGauntletOption") then
+                    local claim = dragClaim
+                    dragClaim = nil
+                    if claim ~= nil and claim[target.data.optionIndex] == true then
+                        audio.FireSoundEvent("Mouse.Click")
+                        EncounterMontage.SendRequest("claim", { heroid = charid, optionIndex = target.data.optionIndex })
+                    end
                     return
                 end
                 if target:HasClass("eotwEntryCard") and EncounterMontage.LocalUserCanAct(charid) then
@@ -5068,8 +5571,9 @@ local function CreateHeroColumn(hero)
         data = { charid = charid },
         cardRow,
         refreshMontage = function(element, m)
-            --dimmed once they have taken their beat this round.
-            local done = m.phase ~= "rounds" or (m.acted or {})[charid] == true
+            --dimmed once they have taken their beat this round (a Gauntlet
+            --hero may always act again, so never there).
+            local done = m.gauntlet == nil and (m.phase ~= "rounds" or (m.acted or {})[charid] == true)
             card:SetClass("acted", done)
             local mode = DragMode(charid)
             card.draggable = mode ~= nil
@@ -5167,71 +5671,200 @@ local function CreditOf(backdrop)
     return backdrop.data.credit
 end
 
---The scene art behind a stage, aspect-fit exactly like FullscreenDisplay
---does it. Shared by the montage and the narrative stage. Set its art with
---SetBackdropScene, which knows how to play a video scene. Its credit badge
---(CreditOf) must be added to the stage after the dim.
-local function CreateBackdrop()
-    return gui.Panel{
+--How long a new scene takes to dissolve in over the old one, in seconds.
+local BACKDROP_FADE_TIME = 0.6
+
+--A scene that has not loaded after this many seconds is shown anyway, so a
+--failed download cannot leave the previous scene up for good.
+local BACKDROP_LOAD_TIMEOUT = 8
+
+--Fades the backdrop layer the new scene appears on into view (or one being
+--removed out of it): the scene's credit badge changes as it starts.
+local function RevealBackdropLayer(backdrop, layer)
+    local d = backdrop.data
+    if d.pending ~= layer then
+        return
+    end
+    d.pending = nil
+    local credit = d.credit
+    if credit ~= nil and credit.valid then
+        credit:FireEvent("setSceneCredit", layer.data.sceneId)
+    end
+    --The layers already showing stay fully opaque underneath while the new
+    --one dissolves in on top (fading both would dip to black mid-way), and
+    --are destroyed once it covers them.
+    local covered = d.shown
+    d.shown = { layer }
+    layer:SetClass("backdropFade", false)
+    dmhub.Schedule(BACKDROP_FADE_TIME + 0.1, function()
+        if mod.unloaded then
+            return
+        end
+        for _, old in ipairs(covered) do
+            if old.valid then
+                old:DestroySelf()
+            end
+        end
+    end)
+end
+
+--One scene's art on the backdrop. It is created invisible (backdropFade) and
+--asks the backdrop to reveal it once its image has really loaded and been
+--fitted: a still's bgsprite, or a video's size and a prepared player. A
+--fresh panel per scene, rather than swapping bgimage on a live one, is what
+--avoids the flash: a live panel shows nothing (or, for a stream that has not
+--started, a blank white image) while the new art downloads.
+local function CreateBackdropLayer(backdrop, scene)
+    local video = IsVideoAsset(scene)
+    local layer
+    layer = gui.Panel{
+        classes = {"backdropLayer", "backdropFade"},
         floating = true,
-        classes = {"hidden"},
         width = "100%",
         height = "100%",
         halign = "center",
         valign = "center",
-        bgimage = "panels/square.png",
+        bgimage = cond(video, nil, scene),
         bgcolor = "white",
         interactable = false,
-        data = { sceneId = nil, credit = CreateCreditHolder() },
-        --aspect-fit the scene art exactly like FullscreenDisplay does.
-        imageLoaded = function(element)
-            if element.bgsprite ~= nil then
-                FitBackdrop(element, element.bgsprite.dimensions.y / element.bgsprite.dimensions.x)
-                return
-            end
-            --a streamed video has no sprite to measure; ask for its size.
-            local sceneId = element.data.sceneId
-            if sceneId == nil then
-                return
-            end
-            pcall(function()
-                gui.GetImageDimensionsCallback(sceneId, function(dims)
-                    if mod.unloaded or not element.valid or element.data.sceneId ~= sceneId then
-                        return
-                    end
-                    if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
-                        FitBackdrop(element, dims.height / dims.width)
-                    end
+        data = { sceneId = scene, video = video, aspect = nil, start = dmhub.Time() },
+        create = function(element)
+            if video then
+                --a private looping player (the "###" suffix), muted: the
+                --stage's own music and sound play over it.
+                element.bgimageStreamed = scene .. "###LOOP" .. dmhub.GenerateGuid()
+                --a streamed video has no sprite to measure; ask for its size.
+                pcall(function()
+                    gui.GetImageDimensionsCallback(scene, function(dims)
+                        if mod.unloaded or not element.valid then
+                            return
+                        end
+                        if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                            element.data.aspect = dims.height / dims.width
+                        end
+                    end)
                 end)
-            end)
+            end
+            element:ScheduleEvent("tryReveal", 0.05)
+        end,
+        imageLoaded = function(element)
+            if element.bgsprite ~= nil and not element.data.video then
+                local dims = element.bgsprite.dimensions
+                if dims.x > 0 and dims.y > 0 then
+                    element.data.aspect = dims.y / dims.x
+                end
+            end
+            element:ScheduleEvent("tryReveal", 0.01)
+        end,
+        --Polls (every 0.1 s) until the art is ready to be seen, then fits it
+        --exactly like FullscreenDisplay does and reveals it.
+        tryReveal = function(element)
+            local d = element.data
+            if backdrop.data.pending ~= element then
+                return
+            end
+            local ready = d.aspect ~= nil
+            if ready and d.video then
+                --the player exists and knows its length once it has prepared.
+                ready = element.videoDuration > 0
+            end
+            local parent = element.parent
+            local laidOut = parent ~= nil and parent.renderedWidth > 0 and parent.renderedHeight > 0
+            local timedOut = dmhub.Time() - d.start > BACKDROP_LOAD_TIMEOUT
+            if not laidOut or (not ready and not timedOut) then
+                element:ScheduleEvent("tryReveal", 0.1)
+                return
+            end
+            FitBackdrop(element, d.aspect)
+            if d.video and not d.revealScheduled then
+                --give the prepared player a moment to draw its first frame.
+                d.revealScheduled = true
+                element:ScheduleEvent("tryReveal", 0.15)
+                return
+            end
+            RevealBackdropLayer(backdrop, element)
         end,
         screenResized = function(element)
-            element:ScheduleEvent("imageLoaded", 0.5)
+            element:ScheduleEvent("refit", 0.5)
         end,
+        refit = function(element)
+            FitBackdrop(element, element.data.aspect)
+        end,
+    }
+    return layer
+end
+
+--The scene art behind a stage, aspect-fit exactly like FullscreenDisplay
+--does it. Shared by the montage and the narrative stage. Set its art with
+--SetBackdropScene, which knows how to play a video scene and cross-fades
+--from one scene to the next. Its credit badge (CreditOf) must be added to
+--the stage after the dim. The backdrop itself draws nothing: each scene is
+--a child layer (CreateBackdropLayer) over the stage's own near-black.
+local function CreateBackdrop()
+    return gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        interactable = false,
+        styles = {
+            --Only the fade rule carries a transitionTime, and it applies in
+            --both directions (the CodexShopScreen banner cross-fade relies on
+            --the same): a layer is created at opacity 0 and dissolves in when
+            --the class is removed.
+            {
+                selectors = {"backdropLayer", "backdropFade"},
+                opacity = 0,
+                transitionTime = BACKDROP_FADE_TIME,
+            },
+        },
+        --shown: layers revealed (the last is on top); pending: the layer
+        --still loading, if any (always the topmost child).
+        data = { sceneId = nil, credit = CreateCreditHolder(), shown = {}, pending = nil },
     }
 end
 
 --Show a scene (an image or video asset id) on a backdrop, or hide it (nil).
+--The new scene loads invisibly on top of the old one and dissolves in once
+--it is ready; until then the old scene stays.
 local function SetBackdropScene(backdrop, scene)
-    local credit = backdrop.data.credit
-    if credit ~= nil and credit.valid then
-        credit:FireEvent("setSceneCredit", scene)
+    local d = backdrop.data
+    if d.pending ~= nil then
+        --superseded before it finished loading: never seen, just drop it.
+        if d.pending.valid then
+            d.pending:DestroySelf()
+        end
+        d.pending = nil
     end
+    d.sceneId = scene
     if scene == nil then
-        backdrop.data.sceneId = nil
-        backdrop:SetClass("hidden", true)
+        local credit = d.credit
+        if credit ~= nil and credit.valid then
+            credit:FireEvent("setSceneCredit", nil)
+        end
+        local shown = d.shown
+        d.shown = {}
+        for _, layer in ipairs(shown) do
+            if layer.valid then
+                layer:SetClass("backdropFade", true)
+            end
+        end
+        dmhub.Schedule(BACKDROP_FADE_TIME + 0.1, function()
+            if mod.unloaded then
+                return
+            end
+            for _, layer in ipairs(shown) do
+                if layer.valid then
+                    layer:DestroySelf()
+                end
+            end
+        end)
         return
     end
-    backdrop.data.sceneId = scene
-    if IsVideoAsset(scene) then
-        --a private looping player (the "###" suffix), muted: the stage's
-        --own music and sound play over it.
-        backdrop.bgimageStreamed = scene .. "###LOOP" .. dmhub.GenerateGuid()
-    else
-        backdrop.bgimage = scene
-    end
-    backdrop:SetClass("hidden", false)
-    backdrop:ScheduleEvent("imageLoaded", 0.2)
+    local layer = CreateBackdropLayer(backdrop, scene)
+    d.pending = layer
+    backdrop:AddChild(layer)
 end
 
 local function CreateDim()
@@ -5276,6 +5909,10 @@ local function CreateStage(args)
     local m_headerHeight = nil
     local m_turnSignature = nil
     local m_heroSignature = nil
+    --who controls each hero, as last drawn (OwnerSignature): a returning
+    --player is handed their heroes back after they arrive, which changes no
+    --montage document, so the think redraws on this instead.
+    local m_ownerSignature = nil
     local m_scene = nil
     --when each consequence (ConsequenceKey/ExpiredKey) started playing here,
     --so a rebuild never replays one. false = it was already on the board at
@@ -5300,7 +5937,8 @@ local function CreateStage(args)
     end
 
     local titleLabel = gui.Label{ classes = {"eotwStageTitle"}, text = T("stage.montage.title"), halign = "center" }
-    local introLabel = gui.Label{ classes = {"eotwStageSubtitle", "eotwMontageIntro"}, text = "", halign = "center" }
+    --the beat's intro types on, once per beat (a click finishes it).
+    local introLabel = EncounterMontageStage.CreateProseTyper().Label{ classes = {"eotwStageSubtitle", "eotwMontageIntro"}, text = "", halign = "center" }
     local roundLabel = gui.Label{ classes = {"eotwStageRound"}, text = "", halign = "center" }
     --Auto height, not the fixed HEADER_HEIGHT: the intro prose wraps to as
     --many lines as it needs, and the body below is re-sized from what the
@@ -5499,7 +6137,7 @@ local function CreateStage(args)
         local phase = m.phase
         --the draw landing is a rebuild: the entries it let through have to
         --arrive, and the round number has not changed to bring them in.
-        local drawPending = m.removed == nil and EncounterScript.HasScaling(beat)
+        local drawPending = m.removed == nil and (EncounterScript.HasScaling(beat) or EncounterMontage.Notches() < 0)
         local drawLanded = m_entryDrawPending and not drawPending
         m_entryDrawPending = drawPending
         --an "Unlock <name>" outcome can land at any moment; the count only
@@ -5608,7 +6246,7 @@ local function CreateStage(args)
             m_builtBeat = m.beatIndex
             m_entryRound = nil
             m_entryPhase = nil
-            introLabel.text = beat.intro or ""
+            introLabel:FireEvent("setProse", string.format("intro:%s", tostring(m.beatIndex)), beat.intro or "")
             introLabel:SetClass("collapsed", (beat.intro or "") == "")
             m_turnSignature = nil
         end
@@ -5709,6 +6347,17 @@ local function CreateStage(args)
             end
             pcall(EncounterMontage.ClientTick)
             SyncHeaderHeight()
+            --a hero changing hands (a player back from away) changes which
+            --cards may be dragged and the "your move" line.
+            local owners = OwnerSignature(EncounterMontage.Heroes())
+            if owners ~= m_ownerSignature then
+                local first = m_ownerSignature == nil
+                m_ownerSignature = owners
+                if not first then
+                    m_turnSignature = nil
+                    Refresh(element)
+                end
+            end
             element:FireEventTree("refreshCard")
         end,
     }
@@ -6453,26 +7102,1559 @@ end
 
 EncounterMontageStage.CreateNarrative = CreateNarrativeStage
 
+--- the Gauntlet stage --------------------------------------------------------
+--
+--A "# Gauntlet" beat (EncounterGauntlet.lua): the same frame around a trail
+--of the sections met so far, the section on the board with every option the
+--party can see (each with its own Undertake button), the vote at a fork, and
+--the result with where the party goes next. While a hero is taking an option
+--(its lines, the assist step, the roll, perks, dice, its outcome) the
+--montage's scene panel plays it. Design and mockup: GAUNTLET_PLAN.md at the
+--dmhub repo root, "The stage".
+--Board and scene share ONE frame (CreateGauntletStage): each step fades the
+--old content out, swaps it, eases the frame to its new size, then fades the
+--new content in, so the whole narrative reads as a single dialog.
+
+--space under the hero cards: the 5 px "can act" ring outside each card, then
+--a 12 px margin to the bottom of the screen.
+local GAUNTLET_HERO_BOTTOM_GAP = 17
+--the hero row's least height: the Assist button's 32 px slot above a stats
+--card (234 * its 1.2 uiscale = 281, as MONTAGE_HERO_ROW_HEIGHT budgets). The
+--row is auto-sized; this only guards against a card measured unscaled.
+local GAUNTLET_HERO_ROW_HEIGHT = 32 + MONTAGE_HERO_ROW_HEIGHT - 12
+local GAUNTLET_TILE_WIDTH = 300
+local GAUNTLET_PORTRAIT_WIDTH = 26
+local GAUNTLET_PORTRAIT_HEIGHT = 36
+
+local function GauntletRules()
+    return {
+        {
+            selectors = {"eotwGauntletChip"},
+            bgcolor = "#14171cf0",
+            border = 1,
+            borderColor = "#5b5f66",
+            cornerRadius = 12,
+        },
+        {
+            selectors = {"eotwGauntletChip", "current"},
+            bgcolor = "#1b1608f0",
+            border = 2,
+            borderColor = "#f0c060",
+        },
+        {
+            selectors = {"eotwGauntletChip", "detour"},
+            borderColor = "#6aa7d8",
+        },
+        {
+            selectors = {"eotwGauntletChip", "ahead"},
+            borderColor = "#4a4f57",
+        },
+        {
+            selectors = {"eotwGauntletChipText"},
+            fontSize = 14,
+            color = "#c7c2b6",
+            width = "auto",
+            height = "auto",
+        },
+        {
+            selectors = {"eotwGauntletChipText", "parent:current"},
+            color = "#f0c060",
+            bold = true,
+        },
+        {
+            selectors = {"eotwGauntletChipText", "parent:detour"},
+            color = "#9cc8ec",
+        },
+        {
+            selectors = {"eotwGauntletChipText", "parent:ahead"},
+            color = "#8b8d92",
+        },
+        {
+            selectors = {"eotwGauntletLink"},
+            bgcolor = "#3a3f47",
+        },
+        {
+            selectors = {"eotwGauntletSectionName"},
+            fontSize = 26,
+            bold = true,
+            color = "#f2eee4",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+        },
+        {
+            selectors = {"eotwGauntletWho"},
+            fontSize = 12,
+            color = "#cdb6ff",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            rmargin = 4,
+        },
+        {
+            selectors = {"eotwGauntletWho", "knack"},
+            color = "#9fd8b0",
+        },
+        {
+            selectors = {"eotwGauntletPortrait"},
+            border = 1,
+            borderColor = "#cdb6ff",
+            cornerRadius = 3,
+        },
+        {
+            selectors = {"eotwGauntletPortrait", "knack"},
+            borderColor = "#9fd8b0",
+        },
+        --an option card a hero can be dropped on: while the hero is dragged
+        --the engine adds "drag-target" (and "drag-target-hover" under the
+        --cursor), which the theme fills with the accent colour and inverts
+        --the text of. Keep the card dark (priority beats the theme's 5).
+        {
+            selectors = {"eotwOptionCard", "eotwGauntletOption", "drag-target"},
+            bgcolor = "#243018f2",
+            borderColor = "#b8e04aff",
+            border = 2,
+            priority = 6,
+        },
+        {
+            selectors = {"eotwOptionCard", "eotwGauntletOption", "drag-target-hover"},
+            bgcolor = "#34461cf8",
+            borderColor = "#e0ff8aff",
+            border = 3,
+            scale = 1.03,
+            priority = 7,
+        },
+        {
+            selectors = {"eotwSceneOptionName", "eotwGauntletBigText"},
+            fontSize = 24,
+        },
+        {
+            selectors = {"eotwGauntletNext"},
+            fontSize = 18,
+            bold = true,
+            color = "#9cc8ec",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            tmargin = 12,
+        },
+        --the frame's content between steps (and the whole frame as the
+        --stage opens). Lua's SetClass animates both ways: adding fades out,
+        --removing fades in; a class given at creation applies at once.
+        {
+            selectors = {"eotwFrameHidden"},
+            groupOpacity = 0,
+            transitionTime = 0.18,
+        },
+        --a section's options while its text types on (ProseTyper Gate).
+        {
+            selectors = {"eotwProseGate", "eotwProseWaiting"},
+            groupOpacity = 0,
+            transitionTime = 0.35,
+        },
+    }
+end
+
+--A small portrait of a hero (who may take a secret option, or who would
+--take a better version of one), with their name on hover.
+local function GauntletPortrait(hero, knack)
+    local tok = hero.token or dmhub.GetCharacterById(hero.charid)
+    return gui.Panel{
+        classes = Classes("eotwGauntletPortrait", knack and "knack"),
+        width = GAUNTLET_PORTRAIT_WIDTH,
+        height = GAUNTLET_PORTRAIT_HEIGHT,
+        valign = "center",
+        rmargin = 3,
+        bgimage = "panels/square.png",
+        bgcolor = "#444444",
+        create = function(element)
+            SetPortraitFrom(element, tok, GAUNTLET_PORTRAIT_WIDTH / GAUNTLET_PORTRAIT_HEIGHT, nil)
+        end,
+        linger = function(element)
+            gui.Tooltip(hero.name)(element)
+        end,
+    }
+end
+
+--"Only" (a secret option) or "Better for" (a knack version) and the heroes
+--it is about; nil when the option is the same for everyone.
+local function GauntletWhoStrip(who)
+    local list, label, knack = nil, nil, false
+    if who.secret then
+        list, label = who.allowed, T("stage.gauntlet.only")
+    elseif #who.knack > 0 then
+        list, label, knack = who.knack, T("stage.gauntlet.better_for"), true
+    end
+    if list == nil or #list == 0 then
+        return nil
+    end
+    ---@type Panel[]
+    local children = { gui.Label{ classes = Classes("eotwGauntletWho", knack and "knack"), text = label, interactable = false } }
+    for _, hero in ipairs(list) do
+        children[#children + 1] = GauntletPortrait(hero, knack)
+    end
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 4,
+        children = children,
+    }
+end
+
+--Which options of the narrative challenge on the board the local user may
+--take with this hero right now ({ [optionIndex] = true }), or nil for none:
+--the board is open for a claim, the local user controls the hero, a
+--"(Spotlight)" section is the spotlight hero's alone, and a secret option
+--only takes the heroes its riders let in. The host applies the same gates.
+--A field, not a local: this file is near Lua's 200-local ceiling.
+function EncounterMontageStage.GauntletClaimOptions(charid)
+    local m = EncounterMontage.GetState()
+    if charid == nil or m == nil or m.gauntlet == nil or m.phase ~= "rounds" or m.turn ~= nil then
+        return nil
+    end
+    if not LocalControls(charid) then
+        return nil
+    end
+    local beat = EncounterMontage.CurrentBeat()
+    local section = beat ~= nil and EncounterGauntlet.CurrentSection(beat, m) or nil
+    if section == nil or section.kind ~= "challenge" then
+        return nil
+    end
+    local spot = m.gauntlet.spotlight
+    if spot ~= nil and spot.sectionId == section.id and spot.heroid ~= charid then
+        return nil
+    end
+    local heroes = EncounterMontage.Heroes()
+    local result = nil
+    for i, option in ipairs(section.options) do
+        if EncounterGauntlet.OptionVisible(option, heroes) then
+            for _, hero in ipairs(EncounterGauntlet.OptionHeroes(option, heroes).allowed) do
+                if hero.charid == charid then
+                    result = result or {}
+                    result[i] = true
+                end
+            end
+        end
+    end
+    return result
+end
+
+--A narrative's Weary as a chip on the hero card (EotwHeroCard's
+--extraChips): one bane after a roll, a double bane (badge "2") after two.
+function EncounterMontageStage.WearyChips(charid)
+    local m = EncounterMontage.GetState()
+    if m == nil or m.gauntlet == nil then
+        return {}
+    end
+    local n = EncounterGauntlet.RollsMade(m, charid)
+    if n <= 0 then
+        return {}
+    end
+    local double = n >= 2
+    return {
+        {
+            key = cond(double, "weary2", "weary1"),
+            --an orange downward arrow (David 2026-11-07); a double bane adds the "2".
+            icon = "phosphor/arrow-fat-down-fill.png",
+            tint = "#f08a30",
+            borderColor = "#c0743aff",
+            count = cond(double, 2, 1),
+            tooltip = string.format("%s\n%s", cond(double, T("stage.gauntlet.weary_double"), T("stage.gauntlet.weary_one")),
+                T("gauntlet.chip.weary_description")),
+        },
+    }
+end
+
+--Give every option card in a row of tiles the height of the tallest, so
+--the row reads as one set. Run after layout: rendered sizes are pixels,
+--turned back into layout units by the tiles' known width. A shorter card
+--gets an empty filler at its bottom (a minHeight would spread its rows
+--apart instead), kept in `fillers` (tile index -> filler) so a later pass
+--measures each card without its filler.
+function EncounterMontageStage.EqualizeTileCards(row, fillers)
+    local cards = {}
+    local tallest = 0
+    local perUnit = 0
+    for i, tile in ipairs(row.children) do
+        local card = tile.children[1]
+        if card ~= nil and card.valid and card:HasClass("eotwOptionCard") then
+            local filler = fillers[i]
+            local natural = card.renderedHeight - (filler ~= nil and filler.renderedHeight or 0)
+            cards[#cards + 1] = { index = i, card = card, natural = natural }
+            tallest = math.max(tallest, natural)
+            if perUnit == 0 and tile.renderedWidth > 0 then
+                perUnit = tile.renderedWidth / GAUNTLET_TILE_WIDTH
+            end
+        end
+    end
+    if #cards < 2 or tallest <= 0 or perUnit <= 0 then
+        return
+    end
+    for _, c in ipairs(cards) do
+        local want = (tallest - c.natural) / perUnit
+        local filler = fillers[c.index]
+        if filler ~= nil then
+            filler.selfStyle.height = math.max(0, want)
+        elseif want >= 1 then
+            filler = gui.Panel{ width = 1, height = want, interactable = false }
+            c.card:AddChild(filler)
+            fillers[c.index] = filler
+        end
+    end
+end
+
+--The narrative's one big button: a section's Proceed, the end's "Draw
+--Steel!". Gold, like the scene's Continue. One press sends; the board
+--rebuilds without it once the host has the request. `press` fires on mouse
+--DOWN, so a press in its first moments is a click meant for whatever was
+--under the cursor before (a Continue, the typing) and is ignored. `key`
+--names the moment the button belongs to, so a board rebuild while it is up
+--does not restart that wait.
+EncounterMontageStage.bigButtonShownAt = {}
+function EncounterMontageStage.GauntletBigButton(label, onPress, key)
+    local pressed = false
+    --an old entry (a re-run of the same test reuses keys) counts as new.
+    local shown = EncounterMontageStage.bigButtonShownAt
+    if key ~= nil and (shown[key] == nil or dmhub.Time() - shown[key] > 120) then
+        shown[key] = dmhub.Time()
+    end
+    local armedAt = (key ~= nil and shown[key] or dmhub.Time()) + 0.5
+    return gui.Panel{
+        classes = {"eotwSceneOption", "actionable", "eotwSceneContinue"},
+        width = "auto",
+        height = "auto",
+        minWidth = 220,
+        halign = "center",
+        hpad = 36,
+        vpad = 10,
+        borderBox = true,
+        tmargin = 14,
+        bgimage = "panels/square.png",
+        gui.Label{ classes = {"eotwSceneOptionName", "eotwSceneContinueName", "eotwGauntletBigText"}, text = label,
+            halign = "center", textAlignment = "center", interactable = false },
+        press = function(element)
+            if pressed or dmhub.Time() < armedAt then
+                return
+            end
+            pressed = true
+            audio.FireSoundEvent("Mouse.Click")
+            element:SetClass("actionable", false)
+            onPress()
+        end,
+    }
+end
+
+--One option of a challenge: the montage's option card (tiers, riders,
+--knacks) and who it is for. A hero takes it by being dragged onto the card
+--or by a click on it: the hero picked on the hero row, else the player's
+--one hero who may take it, else a menu of their heroes who may.
+local function GauntletOptionTile(section, option, index, m, heroes, canClaim, spotlightHeroid)
+    local who = EncounterGauntlet.OptionHeroes(option, heroes)
+    local mine = {}
+    local mineSet = {}
+    if canClaim then
+        for _, hero in ipairs(who.allowed) do
+            --a "(Spotlight)" section is only the spotlight hero's to take.
+            if LocalControls(hero.charid) and (spotlightHeroid == nil or hero.charid == spotlightHeroid) then
+                mine[#mine + 1] = hero
+                mineSet[hero.charid] = true
+            end
+        end
+    end
+    local function Claim(heroid)
+        audio.FireSoundEvent("Mouse.Click")
+        SelectHero(nil)
+        EncounterMontage.SendRequest("claim", { heroid = heroid, optionIndex = index })
+    end
+    ---@type Panel[]
+    local children = {
+        OptionCard(section, option, index, m, {
+            classes = Classes("eotwGauntletOption", #mine > 0 and "actionable"),
+            dragTarget = #mine > 0,
+            dragTargetPriority = 10,
+            data = { optionIndex = index },
+            press = function(element)
+                if #mine == 0 then
+                    return
+                end
+                if m_selectedHero ~= nil and m_selectMode == "gauntlet" and mineSet[m_selectedHero] then
+                    Claim(m_selectedHero)
+                    return
+                end
+                if #mine == 1 then
+                    Claim(mine[1].charid)
+                    return
+                end
+                local entries = {}
+                for _, hero in ipairs(mine) do
+                    entries[#entries + 1] = {
+                        text = hero.name,
+                        click = function()
+                            element.popup = nil
+                            Claim(hero.charid)
+                        end,
+                    }
+                end
+                element.popup = gui.ContextMenu{
+                    width = 240,
+                    entries = entries,
+                    click = function() element.popup = nil end,
+                }
+            end,
+            --lit while one of this player's heroes who may take it is being
+            --dragged, or has been picked with a click.
+            dragTargets = function(element, on, mode, sourceCharid)
+                element:SetClass("droppable", on == true and mode == "gauntlet" and mineSet[sourceCharid] == true)
+            end,
+            selectHero = function(element, heroid, mode)
+                element:SetClass("droppable", heroid ~= nil and mode == "gauntlet" and mineSet[heroid] == true)
+            end,
+        }),
+    }
+    local strip = GauntletWhoStrip(who)
+    if strip ~= nil then
+        children[#children + 1] = strip
+    end
+    return gui.Panel{
+        width = GAUNTLET_TILE_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        hmargin = 8,
+        vmargin = 4,
+        children = children,
+    }
+end
+
+--One option of a vote: its card (clicking it is this player's vote, and
+--clicking their own choice again takes it back) and the players who chose it.
+local function GauntletVoteTile(section, option, index, m, heroes)
+    local vote = (m.gauntlet or {}).vote or {}
+    local myKey = EncounterNarrative.VoterKeyForUser(dmhub.loginUserid, heroes)
+    local myHeroid = nil
+    if vote.individual then
+        --an individual section: choose for this player's next hero who has
+        --not chosen yet (a stopgap until each hero gets their own choice).
+        myKey = nil
+        for _, hero in ipairs(heroes) do
+            if (hero.ownerId == dmhub.loginUserid or hero.ownerId == "PARTY") and (vote.choices or {})[hero.charid] == nil then
+                myKey, myHeroid = hero.charid, hero.charid
+                break
+            end
+        end
+    end
+    local open = vote.decision == nil and vote.result == nil and m.turn == nil
+    local extra = nil
+    if open and myKey ~= nil then
+        local mineHere = (not vote.individual) and tonumber(((vote.choices or {})[myKey] or {}).optionIndex) == index
+        extra = {
+            classes = mineHere and {"actionable", "chosen"} or {"actionable"},
+            press = function(element)
+                audio.FireSoundEvent("Mouse.Click")
+                if mineHere then
+                    EncounterMontage.SendRequest("unvote", {})
+                else
+                    EncounterMontage.SendRequest("vote", { optionIndex = index, heroid = myHeroid })
+                end
+            end,
+        }
+    end
+    local card = OptionCard(section, option, index, m, extra)
+    local names = {}
+    for _, voter in ipairs(EncounterNarrative.Voters(section, heroes)) do
+        local choice = (vote.choices or {})[voter.key]
+        if choice ~= nil and tonumber(choice.optionIndex) == index then
+            names[#names + 1] = voter.name
+        end
+    end
+    ---@type Panel[]
+    local children = { card }
+    if #names > 0 then
+        children[#children + 1] = gui.Label{ classes = {"eotwChoiceChip"}, text = table.concat(names, ", "), interactable = false }
+    end
+    return gui.Panel{
+        width = GAUNTLET_TILE_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        hmargin = 8,
+        vmargin = 4,
+        children = children,
+        gauntletFlash = function(element, optionIndex)
+            card:SetClass("flashing", optionIndex == index)
+        end,
+    }
+end
+
+--Where the party goes once the section on the board has its result.
+local function GauntletNextLabel(beat, m)
+    local upcoming, known = EncounterGauntlet.UpcomingSection(beat, m)
+    if not known then
+        return nil
+    end
+    local text
+    if upcoming == nil then
+        text = T("stage.gauntlet.next_end")
+    elseif upcoming.kind == "event" then
+        --an event point is only settled on arrival; never name it.
+        text = T("stage.gauntlet.next_unknown")
+    else
+        text = T("stage.gauntlet.next", { section = upcoming.name })
+    end
+    return gui.Label{ classes = {"eotwGauntletNext"}, text = text, interactable = false }
+end
+
+--A resolved test (or No Roll option): who took what, how it landed, what it
+--did, and where the party goes next.
+local function GauntletTurnResult(beat, m)
+    local t = m.turn
+    local children = {}
+    local hero = t.heroName or T("stage.fallback.a_hero")
+    local option = t.optionName or "?"
+    local title
+    if t.interrupted then
+        title = string.format("%s: %s", option, T("montage.interrupted.result"))
+    elseif (tonumber(t.tier) or 0) > 0 then
+        title = T("stage.gauntlet.result_test", { hero = hero, option = option, tier = TierName(t.tier) })
+    else
+        title = T("stage.gauntlet.result_free", { hero = hero, option = option })
+    end
+    children[#children + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = title, interactable = false }
+    for _, line in ipairs(t.applied or {}) do
+        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+    end
+    if #(t.applied or {}) == 0 then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = cond((t.tierText or "") ~= "", t.tierText, T("stage.gauntlet.result_nothing")), interactable = false }
+    end
+    children[#children + 1] = GauntletNextLabel(beat, m)
+    return children
+end
+
+--A settled vote: the option the party took, who decided a split, what it
+--did, and where the party goes next.
+local function GauntletVoteResult(beat, m)
+    local vote = m.gauntlet.vote
+    local result = vote.result
+    if vote.individual then
+        local list = {}
+        for _, group in ipairs(result.groups or {}) do
+            list[#list + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.result_group", { option = tostring(group.optionName),
+                heroes = table.concat(group.heroNames or {}, ", ") }), interactable = false }
+            for _, line in ipairs(group.applied or {}) do
+                list[#list + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+            end
+        end
+        list[#list + 1] = GauntletNextLabel(beat, m)
+        return list
+    end
+    local children = {
+        gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.result_vote", { option = result.optionName or "?" }), interactable = false },
+    }
+    if result.decidedBy ~= nil and vote.decision ~= nil then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.result_decided", { player = tostring(vote.decision.winnerName or "?") }), interactable = false }
+    end
+    for _, line in ipairs(result.applied or {}) do
+        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+    end
+    children[#children + 1] = GauntletNextLabel(beat, m)
+    return children
+end
+
+--An "Everyone rolls:" section: the test, then each hero's roll as it lands
+--(the dice themselves are on each player's own screen), and where the party
+--goes once every hero has rolled. A field, not a local: this file is near
+--Lua's 200-local ceiling.
+function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
+    local children = {}
+    local group = (m.gauntlet or {}).group
+    local option = section.options[1]
+    children[#children + 1] = gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.gauntlet.group_hint"), halign = "center" }
+    if section.partyResult ~= nil then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_party_hint"), halign = "center" }
+    end
+    if option ~= nil then
+        children[#children + 1] = gui.Panel{
+            width = GAUNTLET_TILE_WIDTH,
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            tmargin = 6,
+            OptionCard(section, option, 1, m),
+        }
+    end
+    if group == nil or group.sectionId ~= section.id then
+        return children
+    end
+    local waiting = {}
+    for _, charid in ipairs(group.order or {}) do
+        local rec = group.heroes[charid]
+        if rec ~= nil then
+            if rec.status == "done" then
+                local text = T("stage.gauntlet.group_landed", { hero = tostring(rec.heroName), tier = TierName(rec.tier, true) })
+                if rec.auto then
+                    text = string.format("%s %s", text, T("stage.gauntlet.group_auto"))
+                end
+                children[#children + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = text, interactable = false }
+                for _, line in ipairs(rec.applied or {}) do
+                    children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+                end
+                --under a party result a hero's own tier text is not what happens.
+                if #(rec.applied or {}) == 0 and (rec.tierText or "") ~= "" and section.partyResult == nil then
+                    children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = rec.tierText, interactable = false }
+                end
+            else
+                waiting[#waiting + 1] = tostring(rec.heroName)
+            end
+        end
+    end
+    if #waiting > 0 then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_waiting", { heroes = table.concat(waiting, ", ") }), halign = "center" }
+    elseif group.result ~= nil then
+        local party = group.result.party
+        if party ~= nil then
+            children[#children + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.group_party_result", { tier = TierName(party.tier, true) }), interactable = false }
+            for _, line in ipairs(party.applied or {}) do
+                children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+            end
+            if #(party.applied or {}) == 0 and (party.tierText or "") ~= "" then
+                children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = party.tierText, interactable = false }
+            end
+        end
+        children[#children + 1] = GauntletNextLabel(beat, m)
+    end
+    return children
+end
+
+--What the board shows when no option is being taken. `prose` (optional):
+--{ typer = the stage's ProseTyper, after = the prose key to type after }. The
+--section text types on (once per arrival), and this sets prose.gateFrom and
+--prose.gateKey: the children from gateFrom on wait for that typing.
+local function GauntletBoardChildren(beat, m, heroes, prose)
+    local children = {}
+    local function Add(child)
+        if child ~= nil then
+            children[#children + 1] = child
+        end
+    end
+    if m.phase == "arriving" then
+        Add(gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.arriving_title") })
+        Add(gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.arriving_hint") })
+        return children
+    end
+    if m.phase == "done" then
+        --a fight comes next: the screen waits for one "Draw Steel!" click
+        --from anyone (the host holds the beat until then: HoldDone).
+        local _, script = EncounterMontage.CurrentBeat()
+        local fight = EncounterGauntlet.FightFollows(script, m.beatIndex)
+        if fight and m.doneAck then
+            Add(gui.Label{ classes = {"eotwGauntletSectionName"}, text = T("stage.gauntlet.draw_steel_button") })
+        elseif not fight then
+            Add(gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.done_title") })
+        end
+        if m.lastApplied ~= nil then
+            for _, line in ipairs(m.lastApplied.applied or {}) do
+                Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
+            end
+        end
+        if fight and not m.doneAck then
+            Add(EncounterMontageStage.GauntletBigButton(T("stage.gauntlet.draw_steel_button"), function()
+                EncounterMontageStage.drawSteelPressedAt = dmhub.Time()
+                EncounterMontage.SendRequest("drawSteel", {})
+            end, string.format("done:%s:%s", tostring(m.beatIndex), tostring(m.seq))))
+        elseif not fight then
+            Add(gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.done_hint") })
+        end
+        return children
+    end
+    local section = EncounterGauntlet.CurrentSection(beat, m)
+    if section == nil then
+        return children
+    end
+    Add(gui.Label{ classes = {"eotwGauntletSectionName"}, text = section.name })
+    --description keeps every "If ...:" block; this reads them for the story.
+    local sectionText = EncounterScript.ResolveStoryText(section, EncounterMontage.Story())
+    if sectionText ~= "" then
+        if prose ~= nil and prose.typer ~= nil then
+            --keyed by the arrival (path length), so a section met again
+            --types again but a rebuild of this one does not.
+            local key = string.format("section:%s:%d", tostring(section.id), #(((m.gauntlet or {}).path) or {}))
+            Add(prose.typer.Label{ classes = {"eotwNarrativeText"}, halign = "center",
+                prose = sectionText, proseKey = key, proseAfter = prose.after })
+            prose.gateFrom, prose.gateKey = #children + 1, key
+        else
+            Add(gui.Label{ classes = {"eotwNarrativeText"}, text = sectionText, halign = "center" })
+        end
+    end
+
+    local t = m.turn
+    if t ~= nil and t.gauntlet and t.status == "resolved" then
+        for _, child in ipairs(GauntletTurnResult(beat, m)) do
+            Add(child)
+        end
+        return children
+    end
+
+    local tiles = {}
+    local vote = (m.gauntlet or {}).vote or {}
+    if section.implicitOption then
+        --no options: not a choice, just a Proceed under the text. Anyone's
+        --click moves the party on; when it is the last section before a
+        --fight it is the "Draw Steel!" click as well.
+        if vote.result == nil and next(vote.choices or {}) == nil then
+            local label = T("stage.gauntlet.proceed_button")
+            local _, script = EncounterMontage.CurrentBeat()
+            local drawSteel = EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)
+            if drawSteel then
+                label = T("stage.gauntlet.draw_steel_button")
+            end
+            Add(EncounterMontageStage.GauntletBigButton(label, function()
+                if drawSteel then
+                    EncounterMontageStage.drawSteelPressedAt = dmhub.Time()
+                end
+                EncounterMontage.SendRequest("vote", { optionIndex = 1 })
+            end, string.format("proceed:%s:%d", tostring(section.id), #(((m.gauntlet or {}).path) or {}))))
+        end
+        return children
+    end
+    if section.kind == "choice" or section.kind == "individual" then
+        if vote.result ~= nil then
+            for _, child in ipairs(GauntletVoteResult(beat, m)) do
+                Add(child)
+            end
+            return children
+        end
+        --"one vote per player" only matters when there is more than one
+        --voter; a lone player just picks, under the author's question if any.
+        local how = ""
+        if section.kind == "individual" then
+            how = T("stage.gauntlet.individual_how")
+        elseif #EncounterNarrative.Voters(section, heroes) > 1 then
+            how = T("stage.gauntlet.vote_how")
+        end
+        local promptText = trim(string.format("%s %s", section.prompt or "", how))
+        if promptText ~= "" then
+            Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = promptText, halign = "center" })
+        end
+        for i, option in ipairs(section.options) do
+            --an option whose story gate is shut is not on offer.
+            if not EncounterGauntlet.OptionGated(option) then
+                tiles[#tiles + 1] = GauntletVoteTile(section, option, i, m, heroes)
+            end
+        end
+    elseif section.kind == "group" then
+        for _, child in ipairs(EncounterMontageStage.GauntletGroupChildren(beat, m, section)) do
+            Add(child)
+        end
+        return children
+    else
+        local spot = (m.gauntlet or {}).spotlight
+        local spotlightHeroid = nil
+        if spot ~= nil and spot.sectionId == section.id then
+            spotlightHeroid = spot.heroid
+            Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.gauntlet.spotlight_hint", { hero = tostring(spot.heroName) }), halign = "center" })
+        else
+            Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.gauntlet.board_hint"), halign = "center" })
+        end
+        local canClaim = m.phase == "rounds" and m.turn == nil
+        for i, option in ipairs(section.options) do
+            if EncounterGauntlet.OptionVisible(option, heroes) then
+                tiles[#tiles + 1] = GauntletOptionTile(section, option, i, m, heroes, canClaim, spotlightHeroid)
+            end
+        end
+    end
+    Add(gui.Panel{
+        width = "auto",
+        maxWidth = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        halign = "center",
+        valign = "top",
+        tmargin = 6,
+        children = tiles,
+        --the cards in the row the same height (once laid out; again a
+        --moment later in case the first pass was too early).
+        create = function(element)
+            element:ScheduleEvent("equalize", 0.05)
+            element:ScheduleEvent("equalize", 0.3)
+        end,
+        data = { fillers = {} },
+        equalize = function(element)
+            EncounterMontageStage.EqualizeTileCards(element, element.data.fillers)
+        end,
+    })
+    if (section.kind == "choice" or section.kind == "individual") and vote.decision == nil then
+        local pending = {}
+        local voters = EncounterNarrative.Voters(section, heroes)
+        for _, voter in ipairs(voters) do
+            if (vote.choices or {})[voter.key] == nil then
+                pending[#pending + 1] = voter.name
+            end
+        end
+        --a lone voter is never waiting on anyone else.
+        if #pending > 0 and #voters > 1 then
+            Add(gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.waiting_on", { players = table.concat(pending, ", ") }), halign = "center" })
+        end
+    end
+    return children
+end
+
+--A hero's card and, while another hero's test is open to an assist, an
+--Assist button above it. (Weary is a chip on the card: WearyChips.)
+local function CreateGauntletHeroColumn(hero)
+    local charid = hero.charid
+    local assistButton = PerkButton(T("stage.gauntlet.assist_button"), T("stage.gauntlet.assist_tooltip"), function(element)
+        EncounterMontage.SendRequest("assist", { heroid = charid })
+    end)
+    assistButton:SetClass("collapsed", true)
+    local top = gui.Panel{
+        width = "auto",
+        height = 32,
+        flow = "horizontal",
+        halign = "center",
+        valign = "bottom",
+        assistButton,
+    }
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "bottom",
+        data = { charid = charid },
+        top,
+        CreateHeroColumn(hero),
+        refreshGauntlet = function(element, m)
+            local t = m.turn
+            local canAssist = t ~= nil and t.gauntlet == true and t.status == "assist" and t.assist == nil
+                and t.heroid ~= nil and t.heroid ~= charid and LocalControls(charid)
+            assistButton:SetClass("collapsed", not canAssist)
+        end,
+    }
+end
+
+--- the narrative's cast beside the board ----------------------------------------
+--Characters who have entered and not exited (EncounterGauntlet.Cast, host
+--state) stand at the right of the stage while the board is up, e.g. the
+--Sailor Revenant over "A Dark Foe". The scene stage draws its own cast, so
+--this column steps aside whenever the scene stage is showing. Fields, not
+--locals: this file is near Lua's 200-local ceiling.
+
+--The characters on stage in the narrative right now (never nil).
+function EncounterMontageStage.GauntletCast(m)
+    return EncounterGauntlet.Cast(m)
+end
+
+--The column, floating at the stage's bottom right, just above the hero row.
+--`sceneStage` is the stage's CreateSceneStage panel (hidden = board up);
+--`heroRow` (optional) is measured so the figures stand clear of the cards.
+--It listens for the stage's refreshGauntlet event.
+function EncounterMontageStage.CreateGauntletCast(sceneStage, heroRow)
+    local actors = {}
+    local row = gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "right",
+        valign = "bottom",
+        interactable = false,
+    }
+    return gui.Panel{
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "bottom",
+        rmargin = 14,
+        bmargin = 344,
+        interactable = false,
+        row,
+        refreshGauntlet = function(element, m)
+            local boardUp = sceneStage == nil or not sceneStage.valid or sceneStage:HasClass("collapsed")
+            local cast = {}
+            if boardUp and m.phase == "rounds" then
+                cast = EncounterGauntlet.Cast(m)
+            end
+            --the row's height plus room for its own bottom margin.
+            if heroRow ~= nil and heroRow.valid and (heroRow.renderedHeight or 0) > 0 then
+                element.selfStyle.bmargin = heroRow.renderedHeight + 40
+            end
+            local want = {}
+            for _, c in ipairs(cast) do
+                want[string.lower(c.name or "")] = true
+            end
+            for key, panel in pairs(actors) do
+                if not want[key] then
+                    actors[key] = nil
+                    if panel.valid then
+                        panel:SetClassTree("eotwSceneOffstage", true)
+                        panel:ScheduleEvent("gone", SCENE_ACTOR_FADE + 0.05)
+                    end
+                end
+            end
+            for _, c in ipairs(cast) do
+                local key = string.lower(c.name or "")
+                if actors[key] == nil then
+                    local panel = SceneActor{ name = c.name, monster = c.monster }
+                    actors[key] = panel
+                    row:AddChild(panel)
+                    panel:SetClassTreeImmediate("eotwSceneOffstage", true)
+                    dmhub.Schedule(0.05, function()
+                        if mod.unloaded or not panel.valid then
+                            return
+                        end
+                        panel:SetClassTree("eotwSceneOffstage", false)
+                    end)
+                end
+            end
+            --small enough to stand in the board's right-hand margin.
+            row.selfStyle.uiscale = cond(#cast > 1, 0.6, 0.75)
+        end,
+    }
+end
+
+local function CreateGauntletStage(args)
+    local embedded = args ~= nil and args.embedded == true
+    local m_boardKey = nil
+    local m_trailKey = nil
+    local m_heroSignature = nil
+    local m_ownerSignature = nil
+    local m_flashIndex = nil
+    local m_scene = nil
+
+    local backdrop, dim = nil, nil
+    if not embedded then
+        backdrop = CreateBackdrop()
+        dim = CreateDim()
+    end
+
+    --the stage panel; declared up here for the frame's think.
+    local stage
+
+    --the beat intro and each section's text type on (N15), once each.
+    local typer = EncounterMontageStage.CreateProseTyper()
+    local m_introKey = nil
+    --when this stage began fading into the fight (FightClosing), or nil. A
+    --new stage forgets an earlier "Draw Steel!" press.
+    local m_closingAt = nil
+    EncounterMontageStage.drawSteelPressedAt = nil
+
+    local titleLabel = gui.Label{ classes = {"eotwStageTitle"}, text = "", halign = "center" }
+    local introLabel = typer.Label{ classes = {"eotwStageSubtitle"}, text = "", halign = "center" }
+    local trailRow = gui.Panel{
+        width = "auto",
+        maxWidth = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        halign = "center",
+        valign = "top",
+        tmargin = 4,
+    }
+    --sized to its content (a long intro wraps to as many lines as it needs);
+    --the body below takes whatever height is left.
+    local header = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        bmargin = 10,
+        titleLabel,
+        introLabel,
+        trailRow,
+    }
+
+    --the split-vote flash, as the narrative stage does it.
+    local decideName = gui.Label{ classes = {"eotwDecideName"}, text = "", halign = "center" }
+    local decideOption = gui.Label{ classes = {"eotwTurnText"}, text = "", halign = "center" }
+    local decidePanel = gui.Panel{
+        classes = {"collapsed"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        vmargin = 8,
+        gui.Label{ classes = {"eotwDecideBanner"}, text = T("stage.narrative.split_banner"), halign = "center" },
+        decideName,
+        decideOption,
+    }
+
+    --THE FRAME (N14). One panel holds both views: the board (section text,
+    --options, votes, results) and the scene (a hero taking an option). A
+    --change of step fades the content out (FRAME_FADE), swaps it while it is
+    --invisible, eases the frame to the new view's size (FRAME_EASE, in the
+    --frame's think: the engine animates style rules, not a size written to
+    --selfStyle), then fades the new content in. Small changes inside a step
+    --(a vote cast, a hero's roll landing) rebuild in place; the frame eases
+    --to any new height.
+    local FRAME_FADE = 0.18
+    local FRAME_EASE = 14
+    local FRAME_PAD = 20
+    --the frame's width per view, as a share of the body's width. The board
+    --is as tall as its content (up to the body); the scene uses all of it.
+    local FRAME_BOARD_WIDTH = 0.82
+    local FRAME_SCENE_WIDTH = 0.62
+    --the view showing ("board"/"scene"), what step it shows, and the swap
+    --in flight: m_swapAt while the old content fades out, then m_fadeInFrom
+    --while the frame resizes before the new content fades in.
+    local m_view = nil
+    local m_stepKey = nil
+    local m_swapAt = nil
+    local m_fadeInFrom = nil
+    --the frame's size as last written, and whether it has reached its target.
+    local m_frameW, m_frameH, m_frameT = nil, nil, nil
+    local m_writtenW, m_writtenH = nil, nil
+    local m_frameSettled = false
+
+    local boardBody = gui.Panel{
+        width = "100%-20",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+    }
+    --measured by the frame to size itself to the board.
+    local boardContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        decidePanel,
+        boardBody,
+    }
+    --scrolls only when the board is taller than the body (the frame's think).
+    local boardView = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        vscroll = false,
+        boardContent,
+    }
+    local sceneStage = CreateSceneStage()
+    local sceneView = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        sceneStage,
+    }
+    local body
+
+    local frame = gui.Panel{
+        --hidden until its first size is known, then it fades in.
+        classes = {"eotwTurnPanel", "eotwFrameHidden"},
+        width = string.format("%d%%", math.floor(FRAME_BOARD_WIDTH * 100)),
+        height = 120,
+        halign = "center",
+        valign = "top",
+        bgimage = "panels/square.png",
+        pad = FRAME_PAD,
+        borderBox = true,
+        boardView,
+        sceneView,
+        --a click anywhere on the frame finishes text that is typing on.
+        press = function(element)
+            typer.FinishAll()
+        end,
+        thinkTime = 0.016,
+        think = function(element)
+            local now = dmhub.Time()
+            --the old step has faded out: show the new one (still hidden).
+            if m_swapAt ~= nil and now >= m_swapAt then
+                m_swapAt = nil
+                m_fadeInFrom = now
+                if stage ~= nil and stage.valid then
+                    stage:FireEvent("refreshGame")
+                end
+            end
+
+            local bodyW = body.renderedWidth or 0
+            local bodyH = body.renderedHeight or 0
+            if bodyW <= 0 or bodyH <= 0 then
+                return
+            end
+            local wantW, wantH
+            if m_view == "scene" then
+                wantW, wantH = bodyW * FRAME_SCENE_WIDTH, bodyH
+            else
+                wantW = bodyW * FRAME_BOARD_WIDTH
+                local contentH = (boardContent.renderedHeight or 0) + 2 * FRAME_PAD + 4
+                local over = contentH > bodyH + 0.5
+                if boardView.vscroll ~= over then
+                    boardView.vscroll = over
+                end
+                wantH = math.max(80, math.min(bodyH, contentH))
+            end
+
+            local dt = now - (m_frameT or now)
+            m_frameT = now
+            if m_frameW == nil then
+                --first sight: take the size at once and fade the frame in.
+                m_frameW, m_frameH = wantW, wantH
+                element:SetClass("eotwFrameHidden", false)
+            elseif now - (m_fadeInFrom or -1) >= 0.04 then
+                --(a swap's new content is measured a frame late: wait for it)
+                local k = 1 - math.exp(-math.min(dt, 0.1) * FRAME_EASE)
+                m_frameW = m_frameW + (wantW - m_frameW) * k
+                m_frameH = m_frameH + (wantH - m_frameH) * k
+                if math.abs(wantW - m_frameW) < 0.5 then
+                    m_frameW = wantW
+                end
+                if math.abs(wantH - m_frameH) < 0.5 then
+                    m_frameH = wantH
+                end
+            end
+            --written only when it changes: each write lays the frame out again.
+            local w, h = math.floor(m_frameW + 0.5), math.floor(m_frameH + 0.5)
+            if w ~= m_writtenW or h ~= m_writtenH then
+                m_writtenW, m_writtenH = w, h
+                element.selfStyle.width = w
+                element.selfStyle.height = h
+            end
+            m_frameSettled = math.abs(wantW - m_frameW) < 4 and math.abs(wantH - m_frameH) < 4
+
+            --the new content fades in once the frame is (nearly) its size.
+            if m_fadeInFrom ~= nil and ((m_frameSettled and now - m_fadeInFrom >= 0.06) or now - m_fadeInFrom >= 0.45) then
+                m_fadeInFrom = nil
+                boardView:SetClass("eotwFrameHidden", false)
+                sceneView:SetClass("eotwFrameHidden", false)
+            end
+        end,
+    }
+    --the room between the header and the hero row: all of it, whatever
+    --the header's height (N9).
+    body = gui.Panel{
+        width = "100%-40",
+        height = "100% available",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        frame,
+    }
+    --auto height: as tall as the real cards (with their Assist slot), and
+    --a margin under them to the bottom of the screen (N10).
+    local heroRow = gui.Panel{
+        width = "auto",
+        height = "auto",
+        minHeight = GAUNTLET_HERO_ROW_HEIGHT,
+        flow = "horizontal",
+        halign = "center",
+        valign = "bottom",
+        tmargin = 10,
+        bmargin = GAUNTLET_HERO_BOTTOM_GAP,
+    }
+    --characters still on stage stand at the right while the board is up.
+    local castLayer = EncounterMontageStage.CreateGauntletCast(sceneStage, heroRow)
+
+    local pools = nil
+    if not embedded then
+        pools = CreatePoolsPanel()
+    end
+
+    --An interrupted test: the dice fade mid-throw, the Malice sting plays
+    --and this word slams across the stage while what interrupted it appears.
+    local INTERRUPT_BANNER_SECONDS = 2.2
+    local m_interruptSeq = nil
+    local m_interruptShownAt = nil
+    local interruptBanner = gui.Label{
+        classes = {"eotwDecideBanner", "collapsed"},
+        text = T("stage.gauntlet.interrupted_banner"),
+        floating = true,
+        fontSize = 72,
+        color = "#ff5a4a",
+        halign = "center",
+        valign = "center",
+        width = "100%",
+        height = "auto",
+        interactable = false,
+    }
+    local function RefreshInterrupt(m)
+        local t = m ~= nil and m.turn or nil
+        if t ~= nil and t.interrupted and t.seq ~= m_interruptSeq then
+            m_interruptSeq = t.seq
+            m_interruptShownAt = dmhub.Time()
+            interruptBanner:SetClass("collapsed", false)
+            interruptBanner:PulseClass("impact")
+            audio.FireSoundEvent("Notify.Malice_Use")
+        end
+        if m_interruptShownAt ~= nil and dmhub.Time() - m_interruptShownAt >= INTERRUPT_BANNER_SECONDS then
+            m_interruptShownAt = nil
+            interruptBanner:SetClass("collapsed", true)
+        end
+    end
+
+    --The path so far as chips: each section met, detours in blue, the one on
+    --the board in gold, then a "?" while there is more to come.
+    local function RefreshTrail(beat, m)
+        local g = m.gauntlet or {}
+        local key = string.format("%s|%s", table.concat(g.path or {}, ">"), tostring(m.phase))
+        if key == m_trailKey then
+            return
+        end
+        m_trailKey = key
+        local chips = {}
+        local function Chip(text, classes)
+            if #chips > 0 then
+                chips[#chips + 1] = gui.Panel{ classes = {"eotwGauntletLink"}, width = 22, height = 2, valign = "center", hmargin = 4, bgimage = "panels/square.png" }
+            end
+            chips[#chips + 1] = gui.Panel{
+                classes = classes,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                hpad = 12,
+                vpad = 3,
+                borderBox = true,
+                vmargin = 2,
+                bgimage = "panels/square.png",
+                gui.Label{ classes = {"eotwGauntletChipText"}, text = text, interactable = false },
+            }
+        end
+        local path = g.path or {}
+        for i, id in ipairs(path) do
+            local entry = EncounterScript.FindEntry(beat, id)
+            local current = i == #path and m.phase == "rounds"
+            local detour = entry ~= nil and entry.detour == true
+            Chip(entry ~= nil and entry.name or "?", Classes("eotwGauntletChip", current and "current", detour and "detour"))
+        end
+        if m.phase ~= "done" then
+            Chip("?", {"eotwGauntletChip", "ahead"})
+        end
+        trailRow.children = chips
+    end
+
+    local function RefreshHeroes()
+        local heroes = EncounterMontage.Heroes()
+        local sig = HeroSignature(heroes)
+        if sig ~= m_heroSignature then
+            m_heroSignature = sig
+            local columns = {}
+            for _, hero in ipairs(heroes) do
+                columns[#columns + 1] = CreateGauntletHeroColumn(hero)
+            end
+            heroRow.children = columns
+        end
+    end
+
+    --everything the board's contents depend on; a change rebuilds it.
+    local function BoardKey(m, heroes)
+        local g = m.gauntlet or {}
+        local vote = g.vote or {}
+        local t = m.turn or {}
+        local choices = {}
+        for key, choice in pairs(vote.choices or {}) do
+            choices[#choices + 1] = string.format("%s=%s", tostring(key), tostring(choice.optionIndex))
+        end
+        table.sort(choices)
+        --an "Everyone rolls:" section: each hero's roll as it lands.
+        local group = g.group or {}
+        local rolled = {}
+        for _, charid in ipairs(group.order or {}) do
+            local rec = (group.heroes or {})[charid] or {}
+            rolled[#rolled + 1] = string.format("%s=%s", tostring(rec.status), tostring(rec.tier))
+        end
+        choices[#choices + 1] = table.concat(rolled, ",")
+        choices[#choices + 1] = tostring(group.result ~= nil)
+        choices[#choices + 1] = tostring(g.spotlight ~= nil and g.spotlight.heroid or nil)
+        return table.concat({
+            tostring(m.phase), tostring(g.section), tostring(t.seq), tostring(t.status), tostring(t.tier),
+            table.concat(choices, ","), tostring(vote.decision ~= nil), tostring(vote.result ~= nil),
+            HeroSignature(heroes), OwnerSignature(heroes), tostring(m.consumeSeq), tostring(#(m.log or {})),
+            tostring(m.doneAck),
+        }, "|")
+    end
+
+    --What counts as a new step of the narrative, which the frame fades
+    --between: the board <-> a hero's test, a new section or phase, a new
+    --claim, and a result arriving (a test's, a vote's, an "Everyone rolls"
+    --section's). Anything else (votes cast, rolls landing one by one, the
+    --scene's own lines and dice) changes in place.
+    local function StepKey(m, staged)
+        local g = m.gauntlet or {}
+        local t = m.turn or {}
+        return table.concat({
+            tostring(staged), tostring(m.phase), tostring(g.section), tostring(#(g.path or {})),
+            tostring(cond(staged, t.seq, nil)), tostring(t.status == "resolved" and t.seq or nil),
+            tostring((g.vote or {}).result ~= nil), tostring((g.group or {}).result ~= nil),
+        }, "|")
+    end
+
+    --"Draw Steel!" was pressed (here, or by anyone: the state shows it): the
+    --narrative is over, so its content stays as it is and the whole stage
+    --fades into the fight (think) instead of stepping through the end screens.
+    local function FightClosing(m, beat, script)
+        local pressedAt = EncounterMontageStage.drawSteelPressedAt
+        if pressedAt ~= nil and dmhub.Time() - pressedAt < 30 then
+            return true
+        end
+        if m.phase == "done" and m.doneAck then
+            return true
+        end
+        local section = EncounterGauntlet.CurrentSection(beat, m)
+        local vote = (m.gauntlet or {}).vote or {}
+        return m.phase == "rounds" and section ~= nil and section.implicitOption and next(vote.choices or {}) ~= nil
+            and EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)
+    end
+
+    local function Refresh(element)
+        local m = EncounterMontage.GetState()
+        local beat, script = EncounterMontage.CurrentBeat()
+        if m == nil or beat == nil or not beat.gauntlet then
+            return
+        end
+        if m_closingAt ~= nil then
+            return
+        end
+        if FightClosing(m, beat, script) then
+            m_closingAt = dmhub.Time()
+            return
+        end
+        --a narrative's title is the section the party is at; its intro
+        --belongs to the first section only.
+        local section = EncounterGauntlet.CurrentSection(beat, m)
+        if section == nil and m.phase == "done" then
+            section = EncounterGauntlet.LastSection(beat, m)
+        end
+        local firstSection = #(((m.gauntlet or {}).path) or {}) <= 1
+        titleLabel.text = (section ~= nil and section.name) or beat.title or ""
+        local intro = cond(firstSection, beat.intro or "", "")
+        --types on once per beat; the first section's text types after it.
+        local introKey = cond(intro ~= "", string.format("intro:%s", tostring(m.beatIndex)), nil)
+        if introKey ~= m_introKey then
+            m_introKey = introKey
+            introLabel:FireEvent("setProse", introKey, intro)
+        end
+        introLabel:SetClass("collapsed", intro == "")
+        if not embedded then
+            ---@cast backdrop -nil
+            local scene = EncounterGauntlet.SceneImage(script, beat)
+            if scene ~= m_scene then
+                m_scene = scene
+                SetBackdropScene(backdrop, scene)
+            end
+        end
+        RefreshTrail(beat, m)
+        RefreshHeroes()
+
+        local heroes = EncounterMontage.Heroes()
+        local t = m.turn
+        local staged = t ~= nil and m.phase == "rounds" and t.status ~= "resolved"
+
+        --a new step (see StepKey) first fades the frame's content out; the
+        --frame's think calls back here to swap it once it is invisible.
+        local step = StepKey(m, staged)
+        if m_stepKey ~= nil and step ~= m_stepKey and m_swapAt == nil then
+            m_swapAt = dmhub.Time() + FRAME_FADE
+            m_fadeInFrom = nil
+            boardView:SetClass("eotwFrameHidden", true)
+            sceneView:SetClass("eotwFrameHidden", true)
+        end
+        m_stepKey = step
+        if m_swapAt == nil then
+            local view = cond(staged, "scene", "board")
+            if view ~= m_view then
+                m_view = view
+                boardView:SetClass("collapsed", staged)
+                sceneView:SetClass("collapsed", not staged)
+            end
+            --the scene stage starts collapsed itself (CreateSceneStage).
+            sceneStage:SetClass("collapsed", not staged)
+            if staged then
+                m_boardKey = nil
+                sceneStage:FireEvent("showTurn", m, beat)
+            else
+                sceneStage:FireEvent("showIdle")
+                local key = BoardKey(m, heroes)
+                if key ~= m_boardKey then
+                    m_boardKey = key
+                    local prose = { typer = typer, after = m_introKey }
+                    local children = GauntletBoardChildren(beat, m, heroes, prose)
+                    --the options and buttons under the section text wait
+                    --for it to type, then fade in (N15).
+                    local from = prose.gateFrom
+                    if from ~= nil and from <= #children and not typer.Done(prose.gateKey) then
+                        local rest = {}
+                        local n = #children
+                        for i = from, n do
+                            rest[#rest + 1] = children[i]
+                        end
+                        for i = n, from, -1 do
+                            children[i] = nil
+                        end
+                        children[from] = typer.Gate(prose.gateKey, rest)
+                    end
+                    boardBody.children = children
+                end
+            end
+            local vote = (m.gauntlet or {}).vote
+            decidePanel:SetClass("collapsed", staged or vote == nil or vote.decision == nil or vote.result ~= nil)
+        end
+
+        element:FireEventTree("refreshMontage", m)
+        element:FireEventTree("refreshGauntlet", m)
+    end
+
+    local function Styles()
+        local rules = StageRules()
+        for _, rule in ipairs(GauntletRules()) do
+            rules[#rules + 1] = rule
+        end
+        return ThemeEngine.MergeStyles(rules)
+    end
+
+    stage = gui.Panel{
+        styles = Styles(),
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        bgimage = cond(embedded, nil, "panels/square.png"),
+        bgcolor = cond(embedded, "#00000000", "#05070a"),
+        swallowPress = true,
+
+        children = Classes(backdrop, dim, header, body, heroRow, pools, CreditOf(backdrop), castLayer, interruptBanner),
+
+        monitorGame = EncounterMontage.DocPath(),
+        refreshGame = function(element)
+            Refresh(element)
+        end,
+
+        create = function(element)
+            Refresh(element)
+            --a turn already interrupted when the stage opens is old news.
+            local opening = EncounterMontage.GetState()
+            if opening ~= nil and opening.turn ~= nil and opening.turn.interrupted then
+                m_interruptSeq = opening.turn.seq
+            end
+            if not embedded then
+                AcquireActionBarHide()
+                EotwProf("stage created")
+                element:ScheduleEvent("releaseLoadingScreen", 0.1)
+            end
+        end,
+
+        destroy = function(element)
+            if not embedded then
+                ReleaseActionBarHide()
+            end
+        end,
+
+        releaseLoadingScreen = function(element)
+            if HoldForParty() then
+                element:ScheduleEvent("releaseLoadingScreen", 0.1)
+                return
+            end
+            EotwProf("stage up; releasing the loading screen")
+            pcall(function() dmhub.ReleaseLoadingScreen() end)
+        end,
+
+        thinkTime = 0.05,
+        think = function(element)
+            if mod.unloaded then
+                element:DestroySelf()
+                return
+            end
+            pcall(EncounterMontage.ClientTick)
+            if m_closingAt == nil and EncounterMontageStage.drawSteelPressedAt ~= nil
+                and dmhub.Time() - EncounterMontageStage.drawSteelPressedAt < 30 then
+                m_closingAt = dmhub.Time()
+            end
+            if m_closingAt ~= nil then
+                local fade = EncounterMontage.FIGHT_FADE_SECONDS
+                local elapsed = dmhub.Time() - m_closingAt
+                element.selfStyle.groupOpacity = math.max(0, 1 - elapsed / fade)
+                --fading out for the fight: stop the invisible stage eating
+                --clicks while the host moves the party on.
+                if element.interactable then
+                    element.interactable = false
+                    element.blocksGameInteraction = false
+                end
+                --the host never acted (lag, a dropped request): once the
+                --closing condition lapses, bring the stage back.
+                if elapsed > 30 then
+                    local cm = EncounterMontage.GetState()
+                    local cbeat, cscript = EncounterMontage.CurrentBeat()
+                    if cm ~= nil and cbeat ~= nil and cbeat.gauntlet and not FightClosing(cm, cbeat, cscript) then
+                        m_closingAt = nil
+                        element.selfStyle.groupOpacity = 1
+                        element.interactable = true
+                        element.blocksGameInteraction = true
+                        m_boardKey = nil
+                        Refresh(element)
+                    end
+                end
+                return
+            end
+            RefreshInterrupt(EncounterMontage.GetState())
+            --a hero changing hands changes who may claim, vote and assist.
+            local owners = OwnerSignature(EncounterMontage.Heroes())
+            if owners ~= m_ownerSignature then
+                local first = m_ownerSignature == nil
+                m_ownerSignature = owners
+                if not first then
+                    m_boardKey = nil
+                    Refresh(element)
+                end
+            end
+            local m = EncounterMontage.GetState()
+            local vote = m ~= nil and m.gauntlet ~= nil and m.gauntlet.vote or nil
+            if vote ~= nil and vote.decision ~= nil and vote.result == nil then
+                local index, landed = FlashCandidateIndex(vote.decision, dmhub.serverTime)
+                if index ~= m_flashIndex then
+                    m_flashIndex = index
+                    local candidate = (vote.decision.candidates or {})[index]
+                    if candidate ~= nil then
+                        decideName.text = tostring(candidate.name or "")
+                        decideOption.text = tostring(candidate.optionName or "")
+                        element:FireEventTree("gauntletFlash", candidate.optionIndex)
+                        if not landed then
+                            audio.FireSoundEvent("Mouse.Click")
+                        end
+                    end
+                end
+            elseif m_flashIndex ~= nil then
+                m_flashIndex = nil
+                element:FireEventTree("gauntletFlash", nil)
+            end
+            element:FireEventTree("refreshCard")
+        end,
+    }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if stage ~= nil and stage.valid then
+            stage.styles = Styles()
+        end
+    end)
+
+    m_root = stage
+    m_selectedHero = nil
+
+    return stage
+end
+
+EncounterMontageStage.CreateGauntlet = CreateGauntletStage
+
 --- the negotiation stage -------------------------------------------------------
 --
---A "# Negotiation" beat, played with no Director: the NPC speaks, the party
---picks who talks and what they say, and the runtime (EncounterNegotiation)
---applies the book's rules. Arguments down the left, what the party has noticed
---and learned down the right, the deal on the table above the NPC. Like every
---stage body this only reads state and sends requests.
-
-local NEGOTIATION_RAIL_WIDTH = 380
-local NEGOTIATION_SIDE_WIDTH = 320
-local NEGOTIATION_HEADER_HEIGHT = 146
-local NEGOTIATION_PORTRAIT_WIDTH = 200
-local NEGOTIATION_PORTRAIT_HEIGHT = 270
-local NEGOTIATION_SELECT_MODE = "negotiation"
+--A "# Negotiation" beat, played with no Director, on the shared negotiation
+--screen (Draw Steel V/NegotiationSceneStage.lua) over this game's session
+--(EncounterNegotiation.Session). This passes in the EotW pieces: the NPC's
+--bestiary portrait, the hero cards with stats, the Intelligence hint check
+--and this stage's hero card styles.
 
 local function NegotiationCanAct(charid)
-    local m = EncounterNegotiation.GetState()
-    if m == nil or m.phase ~= "choosing" then
-        return false
-    end
     local tok = dmhub.GetCharacterById(charid)
     if tok == nil or not tok.valid then
         return false
@@ -6485,511 +8667,142 @@ local function NegotiationCanAct(charid)
     return mine == true
 end
 
-local function NegotiationPatienceCue(patience, npc)
-    local cues = {
-        [0] = T("stage.negotiation.patience.none", { npc = npc }),
-        [1] = T("stage.negotiation.patience.one"),
-        [2] = T("stage.negotiation.patience.two", { npc = npc }),
-        [3] = T("stage.negotiation.patience.three", { npc = npc }),
-        [4] = T("stage.negotiation.patience.four", { npc = npc }),
-        [5] = T("stage.negotiation.patience.five", { npc = npc }),
-    }
-    return cues[patience] or ""
-end
+--The figures over the speech box, drawn like a montage scene's: the NPC in the
+--middle (the bestiary entry its script names, "Played by:", else the NPC's own
+--name), and the hero who is talking steps on at the left. The shared stage
+--says who is on and speaking with "negotiationCast"; the NPC's reaction to an
+--argument plays as an emote.
+local function NegotiationPortrait()
+    local m_npcFor = nil
+    local m_npc = nil
+    local m_hero = nil
+    local m_emoteKey = nil
+    local m_fit = 1
+    --both slots shrink from their feet to fit a short figure area.
+    local npcSlot = gui.Panel{ floating = true, width = SCENE_FIGURE_WIDTH, height = SCENE_PORTRAIT_HEIGHT,
+        halign = "center", valign = "bottom", flow = "none", pivot = { x = 0.5, y = 0 }, interactable = false }
+    local heroSlot = gui.Panel{ floating = true, width = SCENE_FIGURE_WIDTH, height = SCENE_PORTRAIT_HEIGHT,
+        halign = "center", valign = "bottom", flow = "none", pivot = { x = 0.5, y = 0 }, interactable = false }
 
-local function NegotiationArgue(argument, heroid)
-    if heroid == nil or not NegotiationCanAct(heroid) then
-        return
+    local function PlaceSlots()
+        npcSlot.selfStyle.scale = m_fit
+        heroSlot.selfStyle.scale = m_fit
+        heroSlot.selfStyle.x = -(SCENE_FIGURE_WIDTH + 40) * m_fit
     end
-    audio.FireSoundEvent("Mouse.Click")
-    SelectHero(nil)
-    EncounterNegotiation.SendRequest("argue", { argumentId = argument.id, heroid = heroid })
-end
+    PlaceSlots()
 
-local function NegotiationArgumentCard(beat, m, argument)
-    local known = argument.traitId ~= nil and (m.learned or {})[argument.traitId] == true
-    local said = (m.usedArguments or {})[argument.id] == true
-    local verdict = m_selectedHero ~= nil and EncounterNegotiation.Verdict(m_selectedHero, argument) or nil
-    local children = {
-        gui.Label{ classes = {"eotwOptionName"}, text = argument.name, interactable = false },
-    }
-    local note = nil
-    if said then
-        note = T("stage.negotiation.argument.said")
-    elseif known and argument.kind == "pitfall" then
-        note = T("stage.negotiation.argument.avoid", { trait = EncounterNegotiation.Trait(beat, argument.traitId).name })
-    elseif known and argument.kind == "motivation" then
-        note = T("stage.negotiation.argument.appeal", { trait = EncounterNegotiation.Trait(beat, argument.traitId).name })
+    local function UpdateNpc()
+        local beat = EncounterNegotiation.CurrentBeat()
+        if beat == nil then
+            return
+        end
+        local key = beat.playedBy ~= "" and beat.playedBy or beat.name
+        if key == m_npcFor then
+            return
+        end
+        m_npcFor = key
+        m_npc = SceneActor{ name = beat.name, monster = key }
+        npcSlot.children = { m_npc }
     end
-    if note ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwEntryDesc"}, text = note, interactable = false }
-    end
-    if verdict ~= nil and verdict.gated then
-        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = T("stage.negotiation.argument.knack"), interactable = false }
-    end
-    if verdict ~= nil and (verdict.boons or 0) > 0 then
-        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = T("stage.negotiation.argument.edge"), interactable = false }
-    end
-    return gui.Panel{
-        classes = {"eotwOptionCard", cond(m.phase == "choosing", "actionable", "disabledCard")},
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        pad = 8,
-        borderBox = true,
-        bmargin = 6,
-        bgimage = "panels/square.png",
-        dragTarget = true,
-        dragTargetPriority = 10,
-        data = { argument = argument },
-        children = children,
-        press = function(element)
-            NegotiationArgue(argument, m_selectedHero)
-        end,
-        dragTargets = function(element, on, mode)
-            element:SetClass("droppable", on == true and (mode or "") == NEGOTIATION_SELECT_MODE)
-        end,
-        selectHero = function(element, heroid, mode)
-            element:SetClass("droppable", heroid ~= nil and (mode or "") == NEGOTIATION_SELECT_MODE)
-        end,
-    }
-end
 
-local function CreateNegotiationHeroColumn(hero)
-    local hud = Hud()
-    local charid = hero.charid
-    local card = nil
-    if hud ~= nil and hud.CreateHeroCard ~= nil then
-        card = hud.CreateHeroCard({ charid = charid, mine = false, name = hero.name }, {
-            halign = "center",
-            draggable = NegotiationCanAct(charid),
-            showStats = true,
-            click = function(element, openCharacterPanel)
-                if NegotiationCanAct(charid) then
-                    audio.FireSoundEvent("Mouse.Click")
-                    if m_selectedHero == charid then
-                        SelectHero(nil)
-                    else
-                        SelectHero(charid, NEGOTIATION_SELECT_MODE)
-                    end
-                    return
-                end
-                openCharacterPanel(element)
-            end,
-            beginDrag = function(element)
-                element:SetClass("dragging", true)
-                SelectHero(charid, NEGOTIATION_SELECT_MODE)
-                Broadcast("dragTargets", true, NEGOTIATION_SELECT_MODE)
-            end,
-            canDragOnto = function(element, target)
-                return target:HasClass("eotwOptionCard") and NegotiationCanAct(charid)
-            end,
-            drag = function(element, target)
-                element:SetClass("dragging", false)
-                Broadcast("dragTargets", false)
-                if target ~= nil and target:HasClass("eotwOptionCard") then
-                    NegotiationArgue(target.data.argument, charid)
-                end
-            end,
-        })
-    else
-        card = gui.Label{ width = 132, height = 176, text = hero.name, bgimage = "panels/square.png", bgcolor = "#333333" }
-    end
-    local spokeLabel = gui.Label{ classes = {"eotwHeroChoice"}, text = "", halign = "center" }
-    return gui.Panel{
-        width = "auto",
-        height = "auto",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        hmargin = 6,
-        data = { charid = charid },
-        card,
-        spokeLabel,
-        refreshNegotiation = function(element, m)
-            local n = tonumber((m.spoke or {})[charid]) or 0
-            card.draggable = NegotiationCanAct(charid)
-            card:SetClass("selected", m_selectedHero == charid)
-            card:SetClass("acted", n > 0)
-            local text = T("stage.negotiation.hero.quiet")
-            if n == 1 then
-                text = T("stage.negotiation.hero.spoke_once")
-            elseif n > 1 then
-                text = T("stage.negotiation.hero.spoke_many", { count = n })
+    --one hero on (a new one replaces the last), or none.
+    local function SetHero(charid, name)
+        if m_hero ~= nil and m_hero.valid and m_hero.data.charid == charid then
+            return
+        end
+        if m_hero ~= nil and m_hero.valid then
+            local leaving = m_hero
+            leaving:SetClassTree("eotwSceneOffstage", true)
+            leaving:ScheduleEvent("gone", SCENE_ACTOR_FADE + 0.05)
+        end
+        m_hero = nil
+        if charid == nil then
+            return
+        end
+        local actor = SceneActor{ name = name, charid = charid }
+        actor.data.charid = charid
+        m_hero = actor
+        heroSlot:AddChild(actor)
+        actor:SetClassTreeImmediate("eotwSceneOffstage", true)
+        dmhub.Schedule(0.05, function()
+            if mod.unloaded or not actor.valid then
+                return
             end
-            spokeLabel.text = text
+            actor:SetClassTree("eotwSceneOffstage", false)
+        end)
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        interactable = false,
+        npcSlot,
+        heroSlot,
+        thinkTime = 0.25,
+        create = function(element)
+            UpdateNpc()
+        end,
+        think = function(element)
+            UpdateNpc()
+            local h = element.renderedHeight
+            if h == nil or h <= 0 then
+                return
+            end
+            local fit = math.min(1, h / (SCENE_PORTRAIT_HEIGHT * SCENE_SPEAKING_SCALE))
+            if math.abs(fit - m_fit) >= 0.01 then
+                m_fit = fit
+                PlaceSlots()
+            end
+        end,
+        negotiationCast = function(element, cast)
+            UpdateNpc()
+            SetHero(cast.heroid, cast.heroName)
+            local speaker = cast.speaker
+            if m_hero ~= nil and m_hero.valid then
+                m_hero:SetClassTree("speaking", speaker == "hero")
+                m_hero:SetClassTree("quiet", speaker == "npc")
+            end
+            if m_npc ~= nil and m_npc.valid then
+                m_npc:SetClassTree("speaking", speaker == "npc")
+                m_npc:SetClassTree("quiet", speaker == "hero")
+                if cast.emote ~= nil and cast.emoteKey ~= m_emoteKey then
+                    m_emoteKey = cast.emoteKey
+                    m_npc:FireEvent("emote", cast.emote)
+                end
+            end
         end,
     }
 end
 
 local function CreateNegotiationStage(args)
-    local m_heroSignature = nil
-    local m_cardSignature = nil
-    local m_portraitFor = nil
-
-    local titleLabel = gui.Label{ classes = {"eotwStageTitle"}, text = "", halign = "center" }
-    local wantLabel = gui.Label{ classes = {"eotwStageSubtitle"}, text = "", halign = "center" }
-    local bandLabels = {}
-    local bandsRow = gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "center", tmargin = 4 }
-    local patienceLabel = gui.Label{ classes = {"eotwStageRound"}, text = "", halign = "center" }
-    local header = gui.Panel{
-        width = "100%",
-        height = NEGOTIATION_HEADER_HEIGHT,
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        titleLabel,
-        wantLabel,
-        bandsRow,
-        patienceLabel,
-    }
-
-    local promptLabel = gui.Label{ classes = {"eotwNarrativePrompt"}, text = "", width = "100%", vmargin = 2, valign = "top" }
-    local cardList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local readButton = gui.Button{
-        width = "100%",
-        height = 44,
-        tmargin = 4,
-        valign = "top",
-        text = T("stage.negotiation.read"),
-        click = function(element)
-            local heroid = m_selectedHero
-            if heroid ~= nil and NegotiationCanAct(heroid) then
-                SelectHero(nil)
-                EncounterNegotiation.SendRequest("read", { heroid = heroid })
+    local stage = NegotiationSceneStage.Create{
+        session = EncounterNegotiation.Session(),
+        canAct = NegotiationCanAct,
+        figure = NegotiationPortrait,
+        createHeroCard = function(entry, opts)
+            local hud = Hud()
+            if hud == nil or hud.CreateHeroCard == nil then
+                return nil
             end
+            opts.showStats = true
+            return hud.CreateHeroCard(entry, opts)
         end,
-    }
-    local clueButton = gui.Button{
-        width = "100%",
-        height = 44,
-        tmargin = 4,
-        valign = "top",
-        text = T("stage.negotiation.spend_clue"),
-        click = function(element)
-            EncounterNegotiation.SendRequest("spendClue")
-        end,
-    }
-    local leftRail = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = NEGOTIATION_RAIL_WIDTH,
-        height = "100%",
-        flow = "vertical",
-        halign = "left",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 12,
-        borderBox = true,
-        vscroll = true,
-        promptLabel,
-        cardList,
-        readButton,
-        clueButton,
-    }
-
-    local offerShape = gui.Label{ classes = {"eotwTurnText"}, text = "", halign = "center", textAlignment = "center" }
-    local offerTerms = gui.Label{ classes = {"eotwEntryDesc"}, text = "", halign = "center", textAlignment = "center" }
-    local offerPanel = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = "90%",
-        height = "auto",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 8,
-        borderBox = true,
-        offerShape,
-        offerTerms,
-    }
-    local portrait = gui.Panel{
-        width = NEGOTIATION_PORTRAIT_WIDTH,
-        height = NEGOTIATION_PORTRAIT_HEIGHT,
-        halign = "center",
-        valign = "bottom",
-        bgcolor = "#00000000",
-        bgimage = "panels/square.png",
-        interactable = false,
-    }
-    local speakerLabel = gui.Label{ classes = {"eotwSceneActorName"}, text = "", halign = "left" }
-    local speechLabel = gui.Label{ classes = {"eotwTurnText"}, text = "", width = "100%", textWrap = true }
-    local rollLabel = gui.Label{ classes = {"eotwEntryDesc"}, text = "", width = "100%" }
-    local buttonRow = gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "right", tmargin = 6 }
-    local dialogBox = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        valign = "bottom",
-        bgimage = "panels/square.png",
-        pad = 14,
-        borderBox = true,
-        speakerLabel,
-        speechLabel,
-        rollLabel,
-        buttonRow,
-    }
-    local center = gui.Panel{
-        width = string.format("100%%-%d", NEGOTIATION_RAIL_WIDTH + NEGOTIATION_SIDE_WIDTH + 24),
-        height = "100%",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        hmargin = 12,
-        offerPanel,
-        gui.Panel{ width = "100%", height = "100%-260", flow = "none", portrait },
-        dialogBox,
-    }
-
-    local clueList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local learnedList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local logList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local rightRail = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = NEGOTIATION_SIDE_WIDTH,
-        height = "100%",
-        flow = "vertical",
-        halign = "right",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 12,
-        borderBox = true,
-        vscroll = true,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.noticed"), width = "100%", vmargin = 2, valign = "top" },
-        clueList,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.learned"), width = "100%", vmargin = 2, tmargin = 10, valign = "top" },
-        learnedList,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.so_far"), width = "100%", vmargin = 2, tmargin = 10, valign = "top" },
-        logList,
-    }
-
-    local body = gui.Panel{
-        width = "100%-40",
-        height = string.format("100%%-%d", NEGOTIATION_HEADER_HEIGHT + HERO_ROW_HEIGHT),
-        flow = "horizontal",
-        halign = "center",
-        valign = "top",
-        leftRail,
-        center,
-        rightRail,
-    }
-    local heroRow = gui.Panel{
-        width = "auto",
-        height = HERO_ROW_HEIGHT,
-        flow = "horizontal",
-        halign = "center",
-        valign = "bottom",
-        tmargin = 10,
-    }
-
-    local function TextRows(texts)
-        local rows = {}
-        for _, text in ipairs(texts) do
-            rows[#rows + 1] = gui.Label{ classes = {"eotwEntryDesc"}, text = text, width = "100%", interactable = false }
-        end
-        return rows
-    end
-
-    local function Buttons(m, beat)
-        local buttons = {}
-        local function Add(text, fn)
-            buttons[#buttons + 1] = gui.Button{ width = 200, height = 44, lmargin = 8, text = text, click = fn }
-        end
-        if m.phase == "choosing" and m.interest >= 1 then
-            Add(T("stage.negotiation.take_deal"), function() EncounterNegotiation.SendRequest("takeDeal") end)
-        elseif m.phase == "reply" or m.phase == "done" then
-            Add(T("stage.negotiation.continue"), function() EncounterNegotiation.SendRequest("continue") end)
-        elseif m.phase == "voting" then
-            Add(T("stage.negotiation.vote_deal"), function() EncounterNegotiation.SendRequest("vote", { choice = "deal" }) end)
-            Add(T("stage.negotiation.vote_talk"), function() EncounterNegotiation.SendRequest("vote", { choice = "talk" }) end)
-        elseif m.phase == "final" then
-            Add(T("stage.negotiation.vote_deal"), function() EncounterNegotiation.SendRequest("vote", { choice = "deal" }) end)
-            Add(T("stage.negotiation.vote_refuse"), function() EncounterNegotiation.SendRequest("vote", { choice = "refuse" }) end)
-        end
-        return buttons
-    end
-
-    local stage
-    local function Refresh(element)
-        local m = EncounterNegotiation.GetState()
-        local beat = EncounterNegotiation.CurrentBeat()
-        if m == nil or beat == nil then
-            return
-        end
-        local npc = beat.name
-        titleLabel.text = npc
-        wantLabel.text = beat.want
-        wantLabel:SetClass("collapsed", beat.want == "")
-
-        if #bandLabels == 0 then
-            local labels = {}
-            for i = 0, NegotiationRules.MAX do
-                labels[i] = gui.Label{ classes = {"eotwEntryDesc"}, width = 110, height = 28, text = NegotiationRules.bands[i], textAlignment = "center", bgimage = "panels/square.png" }
-                bandLabels[#bandLabels + 1] = labels[i]
-            end
-            bandsRow.children = bandLabels
-        end
-        for i, label in ipairs(bandLabels) do
-            local on = i - 1 == m.interest
-            label.selfStyle.bgcolor = cond(on, "#ffffff33", "#00000000")
-            label.selfStyle.opacity = cond(on, 1, 0.65)
-        end
-        patienceLabel.text = NegotiationPatienceCue(m.patience, npc)
-
-        if m_portraitFor ~= beat.playedBy then
-            m_portraitFor = beat.playedBy
-            local _, asset = EncounterMontage.FindMonster(beat.playedBy ~= "" and beat.playedBy or npc)
-            if asset ~= nil then
-                local info = nil
-                pcall(function() info = asset.info end)
-                SetPortraitFrom(portrait, info, NEGOTIATION_PORTRAIT_WIDTH / NEGOTIATION_PORTRAIT_HEIGHT, nil)
-            end
-        end
-
-        local offer = beat.offers[m.interest + 1]
-        offerShape.text = T("stage.negotiation.on_the_table", { shape = NegotiationRules.offerLabels[m.interest] or "" })
-        offerTerms.text = offer ~= nil and offer.text or ""
-        offerTerms:SetClass("collapsed", offerTerms.text == "")
-
-        --who is speaking: the NPC's reply, a read's result, or how it ended.
-        local speaker, speech, roll = npc, beat.opening, ""
-        local last = m.last
-        if last ~= nil and last.kind == "clue" then
-            local trait = EncounterNegotiation.Trait(beat, last.found)
-            roll = T("stage.negotiation.clue_found", { trait = trait ~= nil and trait.name or "" })
-        elseif last ~= nil and last.kind == "read" then
-            speaker = last.heroName
-            local trait = last.found ~= nil and EncounterNegotiation.Trait(beat, last.found) or nil
-            if trait ~= nil then
-                speech = T("stage.negotiation.read_found", { hero = last.heroName, trait = trait.name })
-            elseif (tonumber(last.tier) or 1) <= 1 then
-                speech = T("stage.negotiation.read_pushed", { hero = last.heroName, npc = npc })
-            else
-                speech = T("stage.negotiation.read_nothing", { hero = last.heroName })
-            end
-        elseif last ~= nil then
-            speech = last.reply
-            local argument = EncounterNegotiation.Argument(beat, last.argumentId)
-            if argument ~= nil then
-                roll = T("stage.negotiation.argued", { hero = last.heroName, argument = argument.name })
-            end
-        end
-        if m.phase == "rolling" and m.turn ~= nil then
-            speaker, speech, roll = m.turn.heroName, T("stage.negotiation.rolling"), ""
-        elseif m.phase == "final" or m.phase == "voting" then
-            roll = cond(m.phase == "final", T("stage.negotiation.final_offer"), T("stage.negotiation.voting"))
-            local key = EncounterNarrative.VoterKeyForUser(dmhub.loginUserid, EncounterMontage.Heroes())
-            local mine = key ~= nil and (m.votes or {})[key] or nil
-            if mine ~= nil then
-                local said = cond(mine.choice == "deal", T("stage.negotiation.vote_deal"),
-                    cond(mine.choice == "talk", T("stage.negotiation.vote_talk"), T("stage.negotiation.vote_refuse")))
-                roll = T("stage.negotiation.vote_yours", { text = roll, choice = said })
-            end
-            local waiting = EncounterNegotiation.PendingVoters(m)
-            if #waiting > 0 then
-                roll = T("stage.negotiation.vote_waiting", { text = roll, players = table.concat(waiting, ", ") })
-            end
-        elseif m.phase == "done" and m.result ~= nil then
-            roll = cond(m.result.outcome == "deal", T("stage.negotiation.deal"),
-                cond(m.result.outcome == "refused", T("stage.negotiation.refused"), T("stage.negotiation.no_deal")))
-        end
-        if m.split ~= nil and (m.phase == "choosing" or m.phase == "done") then
-            roll = T("stage.negotiation.split", { player = m.split, text = roll })
-        end
-        speakerLabel.text = speaker
-        speechLabel.text = speech
-        rollLabel.text = roll
-        rollLabel:SetClass("collapsed", roll == "")
-
-        promptLabel.text = cond(m.phase == "voting" or m.phase == "final", T("stage.negotiation.prompt_vote"),
-            cond(m.phase ~= "choosing", T("stage.negotiation.prompt_wait"),
-                cond(m_selectedHero ~= nil, T("stage.negotiation.prompt_argument"), T("stage.negotiation.prompt_hero"))))
-        readButton:SetClass("collapsed", m.phase ~= "choosing" or not m.canRead)
-        local mine = {}
-        for _, hero in ipairs(EncounterMontage.Heroes()) do
-            if hero.ownerId == dmhub.loginUserid or hero.ownerId == "PARTY" then
-                mine[#mine + 1] = hero.charid
-            end
-        end
-        clueButton:SetClass("collapsed", not EncounterNegotiation.CanSpendClue(m, beat)
-            or EncounterMontage.SpendableIntelligence(mine) < 1)
-
-        local clues, learned, log = {}, {}, {}
-        for _, trait in ipairs(beat.traits) do
-            if (m.learned or {})[trait.id] then
-                learned[#learned + 1] = cond(trait.kind == "motivation", T("stage.negotiation.learned_motivation", { trait = trait.name }), T("stage.negotiation.learned_pitfall", { trait = trait.name }))
-            elseif trait.clue ~= "" then
-                clues[#clues + 1] = trait.clue
-            end
-        end
-        for i = #(m.log or {}), math.max(1, #(m.log or {}) - 4), -1 do
-            log[#log + 1] = T("stage.negotiation.log", { hero = m.log[i].heroName, argument = m.log[i].text })
-        end
-
-        local signature = string.format("%s|%s|%s|%s|%s|%s", tostring(m.seq), tostring(m.phase), tostring(m_selectedHero), #clues, #learned, #log)
-        if signature ~= m_cardSignature then
-            m_cardSignature = signature
-            local cards = {}
-            for _, argument in ipairs(beat.arguments) do
-                local secret = false
-                for _, rider in ipairs(argument.riders or {}) do
-                    secret = secret or rider.effect == "allow"
-                end
-                if not secret or (m_selectedHero ~= nil and EncounterNegotiation.CanMakeArgument(m_selectedHero, argument)) then
-                    cards[#cards + 1] = NegotiationArgumentCard(beat, m, argument)
-                end
-            end
-            cardList.children = cards
-            clueList.children = TextRows(clues)
-            learnedList.children = TextRows(learned)
-            logList.children = TextRows(log)
-            buttonRow.children = Buttons(m, beat)
-        end
-
-        local heroes = EncounterMontage.Heroes()
-        local sig = HeroSignature(heroes)
-        if sig ~= m_heroSignature then
-            m_heroSignature = sig
-            local columns = {}
-            for _, hero in ipairs(heroes) do
-                columns[#columns + 1] = CreateNegotiationHeroColumn(hero)
-            end
-            heroRow.children = columns
-        end
-        element:FireEventTree("refreshNegotiation", m)
-    end
-
-    stage = gui.Panel{
-        styles = ThemeEngine.MergeStyles(StageRules()),
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        valign = "center",
-        flow = "vertical",
-        bgcolor = "#00000000",
-        swallowPress = true,
-        children = Classes(header, body, heroRow),
-
+        styles = StageRules(),
+        heroRowHeight = HERO_ROW_HEIGHT,
         monitorGame = EncounterMontage.DocPath(),
-        refreshGame = function(element)
-            Refresh(element)
-        end,
-        create = function(element)
-            Refresh(element)
-        end,
-
-        thinkTime = 0.1,
-        think = function(element)
-            if mod.unloaded then
-                element:DestroySelf()
-                return
+        --a hint is paid for from the local player's own heroes' Intelligence
+        --(plus any shared part).
+        clueAffordable = function()
+            local mine = {}
+            for _, hero in ipairs(EncounterMontage.Heroes()) do
+                if hero.ownerId == dmhub.loginUserid or hero.ownerId == "PARTY" then
+                    mine[#mine + 1] = hero.charid
+                end
             end
-            pcall(EncounterNegotiation.ClientTick)
-            Refresh(element)
-            element:FireEventTree("refreshCard")
+            return EncounterMontage.SpendableIntelligence(mine) >= 1
         end,
     }
-
     m_root = stage
     m_selectedHero = nil
     return stage
@@ -7551,6 +9364,11 @@ local function CurrentSceneImage(beat, index, script)
     if beat == nil or script == nil then
         return nil
     end
+    if beat.kind == "narrative" and beat.gauntlet and rawget(_G, "EncounterGauntlet") ~= nil then
+        --a section may hang its own scene (only once the live state is this
+        --beat's; until then, the beat's).
+        return EncounterGauntlet.SceneImage(script, beat)
+    end
     if beat.kind == "narrative" then
         local runtime = rawget(_G, "EncounterNarrative")
         if runtime == nil then
@@ -7635,6 +9453,8 @@ local function CreateScriptStage(args)
     local m_holdsActionBar = false
     local m_staleHideSent = false
     local m_staleCheckScheduled = false
+    --the script the body was built from (its document and map).
+    local m_scriptKey = nil
 
     --one child, sized to fill: the montage's body or the narrative's.
     local bodyHolder = gui.Panel{
@@ -7731,11 +9551,26 @@ local function CreateScriptStage(args)
                 kind = "prep"
             end
         end
-        if kind ~= "montage" and kind ~= "narrative" and kind ~= "prep" and kind ~= "negotiation" then
+        --a narrative's body is the section board.
+        if kind == "narrative" and beat ~= nil and beat.gauntlet and rawget(_G, "EncounterGauntlet") ~= nil then
+            kind = "gauntlet"
+        end
+        if kind ~= "montage" and kind ~= "narrative" and kind ~= "prep" and kind ~= "negotiation" and kind ~= "gauntlet" then
             --a beat that does not own the stage, or a script we cannot read:
             --hold what is up rather than tearing the surface down. The host
             --hides the stage when it really means to hand the map back.
             return
+        end
+
+        --a client that came in on another map (joining a game under way)
+        --builds the stage from that map's script, then travels: the body
+        --follows the script it should be showing.
+        local scriptKey = string.format("%s|%s", tostring(script ~= nil and script.docid or nil), tostring(game.currentMapId))
+        if scriptKey ~= m_scriptKey then
+            if m_scriptKey ~= nil then
+                m_kind = nil
+            end
+            m_scriptKey = scriptKey
         end
 
         if kind ~= m_kind then
@@ -7746,6 +9581,8 @@ local function CreateScriptStage(args)
                 bodyHolder.children = { CreatePrepStage{ embedded = true } }
             elseif kind == "negotiation" then
                 bodyHolder.children = { CreateNegotiationStage{ embedded = true } }
+            elseif kind == "gauntlet" then
+                bodyHolder.children = { CreateGauntletStage{ embedded = true } }
             else
                 bodyHolder.children = { CreateStage{ embedded = true } }
             end

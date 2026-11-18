@@ -1877,7 +1877,7 @@ local function StripSpoilers(text, ink)
 
                     local canSpeak = false
                     if bestLanguage ~= nil then
-                        result = result .. string.format("(in %s) ", bestLanguage.name)
+                        result = result .. string.format("(in %s) ", bestLanguage:DisplayName())
 
                         if not dmhub.isDM then
                             local token = dmhub.currentToken
@@ -2767,6 +2767,13 @@ end
 --
 --Note: pattern-based rich tags (RichTag.pattern) are not specially handled here;
 --they do not carry stored annotations, so they never contribute to the result.
+--The annotation keys GetReferencedAnnotations found in each document's text,
+--{ text = <text tokenized>, keys = { key, ... } }, for calls with no options.
+--Tokenizing a long document costs 10-40 ms and the encounter finders ask
+--several times a second; the keys only change when the text does. Weak keys:
+--a document dropped by a table refresh drops its entry.
+local g_referencedKeysCache = setmetatable({}, { __mode = "k" })
+
 function MarkdownDocument:GetReferencedAnnotations(options)
     local result = {}
     local annotations = self:try_get("annotations")
@@ -2774,8 +2781,26 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         return result
     end
 
-    local tokens = BreakdownRichTags(self:GetTextContent(), nil, options or {})
+    local text = self:GetTextContent()
+    --a "???" conditional line is evaluated against the game state as the text
+    --is tokenized, so its tags can change while the text does not: never cache.
+    local cacheable = options == nil and string.find(text, "???", 1, true) == nil
+    if cacheable then
+        local cached = g_referencedKeysCache[self]
+        if cached ~= nil and cached.text == text then
+            for _, key in ipairs(cached.keys) do
+                local annotation = annotations[key]
+                if annotation ~= nil then
+                    result[#result + 1] = { key = key, annotation = annotation }
+                end
+            end
+            return result
+        end
+    end
+
+    local tokens = BreakdownRichTags(text, nil, options or {})
     local tagsSeen = {}
+    local keys = {}
     for _, token in ipairs(tokens) do
         if token.type == "tag" then
             local fullname = token.text
@@ -2789,6 +2814,7 @@ function MarkdownDocument:GetReferencedAnnotations(options)
                     index = index + 1
                 end
                 tagsSeen[candidate] = true
+                keys[#keys + 1] = candidate
 
                 local annotation = annotations[candidate]
                 if annotation ~= nil then
@@ -2798,6 +2824,9 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         end
     end
 
+    if cacheable then
+        g_referencedKeysCache[self] = { text = text, keys = keys }
+    end
     return result
 end
 
@@ -6754,6 +6783,9 @@ local g_richTagDescriptions = {
     follower = {desc = "Companion or follower", takesName = true},
     setting = {desc = "Game setting toggle", patternExample = "setting:settingid"},
     fishing = {desc = "Fishing activity", takesName = true},
+    sliderpuzzle = {desc = "Sliding tile puzzle made from an image", takesName = true, menuLabel = "slider puzzle"},
+    tornpuzzle = {desc = "Torn-paper puzzle made from an image", takesName = true, menuLabel = "torn puzzle"},
+    puzzle = {desc = "Puzzle: slider, torn note, or any registered puzzle type", takesName = true, menuLabel = "puzzle"},
 }
 
 -- The document text that inserts (or previews) a pattern-based rich tag, plus
@@ -8526,7 +8558,7 @@ local function CreateMarkdownToolbar(opts)
     local mediaTags  = { "image", "sound", "ability", "scene",
                          "encounter", "party", "follower" }
     local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
-                         "reminder", "timer", "setting" }
+                         "reminder", "timer", "setting", "puzzle" }
 
     --The option id stays the internal tag name (the change handler inserts by
     --tag name), but the label shown can differ -- see menuLabel above.
@@ -12439,13 +12471,18 @@ local g_markdownSamples = {
 }
 
 MarkdownReferenceTooltip = function()
+    --The sample image and sound are assets in each white label's own cloud:
+    --the Codex's are a Draw Steel hero and DS_OpenDoor.wav, DMHub's a core
+    --portrait ("Dwarf - Explorer") and "Dungeon Door 1".
+    local mcdm = dmhub.whiteLabel == "mcdm"
     local annotations = {
         image = RichImage.new {
-            image = "98fa8fcd-5a62-4736-924d-0753b2900b2e",
-            uiscale = 0.15,
+            image = cond(mcdm, "98fa8fcd-5a62-4736-924d-0753b2900b2e", "-MDitJx9y5VJr1d9EfiT"),
+            --about 134 px wide either way (896 px and 400 px source widths).
+            uiscale = cond(mcdm, 0.15, 0.33),
         },
         sound = RichAudio.new{
-            sound = "f6bc62cc-7225-48cf-b719-b86280ea198d",
+            sound = cond(mcdm, "f6bc62cc-7225-48cf-b719-b86280ea198d", "47683b26-07d2-4c1b-a347-299c26e43a70"),
         },
     }
 

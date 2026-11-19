@@ -640,7 +640,7 @@ the tier explanation with who overrode it and what the dice gave; a test line's 
 keep L78.
 | ID | What | Wording |
 |---|---|---|
-| L91 | Tag on an overridden action row | Overridden |
+| L91 | An overridden action row | no tag (changed 2026-11-19, James): the tier badge is drawn in the warning colour; hover: Overridden |
 | L92 | The card's Why line in place of the tier explanation | {Who} overrode the result: Tier {n}. The dice gave Tier {m}. |
 | L93 | A test line overridden | cause: {Test} · Tier {n} · Overridden |
 

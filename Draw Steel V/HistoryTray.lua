@@ -114,6 +114,11 @@ local function Styles()
             borderColor = "@fgMuted",
         },
         {
+            selectors = {"label", "historyTier", "historyTierOverridden"},
+            color = "@warning",
+            borderColor = "@warning",
+        },
+        {
             selectors = {"label", "historyButton"},
             fontSize = 12,
             color = "@fgMuted",
@@ -810,9 +815,25 @@ local function Caret(down)
     }
 end
 
-local function TierBadge(tier)
+--- The tier pill. overridden: someone chose this tier after the dice landed (L91); it is
+--- drawn in the warning colour and says so on hover, and the card says who and what the
+--- dice gave.
+--- @param tier integer
+--- @param overridden boolean|nil
+--- @return Panel
+local function TierBadge(tier, overridden)
     return gui.Label{
-        classes = {"historyTier"},
+        classes = {"historyTier", overridden and "historyTierOverridden" or nil},
+        --like a face, it holds back the row's own "Open the detail" while it shows its word.
+        hover = overridden and function(element)
+            g_faceHovered = element
+            gui.Tooltip{text = "Overridden", fontSize = 13}(element)
+        end or nil,
+        dehover = overridden and function(element)
+            if g_faceHovered == element then
+                g_faceHovered = nil
+            end
+        end or nil,
         bgimage = "panels/square.png",
         text = string.format("Tier %d", tier),
         width = "auto",
@@ -1514,12 +1535,8 @@ local function BuildAction(item)
     if entry.ability.villainaction ~= nil then
         titleChildren[#titleChildren + 1] = Tag("historyVillainTag", "Villain Action")
     end
-    --a tier chosen after the dice landed (L91); the card says who and what the dice gave.
-    if entry.roll ~= nil and entry.roll.overridden ~= nil then
-        titleChildren[#titleChildren + 1] = Tag("historyEndedTag", "Overridden")
-    end
     if tier ~= nil then
-        titleChildren[#titleChildren + 1] = TierBadge(tier)
+        titleChildren[#titleChildren + 1] = TierBadge(tier, entry.roll ~= nil and entry.roll.overridden ~= nil)
     end
     if dmhub.isDM and entry.hiddenfromplayers then
         titleChildren[#titleChildren + 1] = HiddenEye()

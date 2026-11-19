@@ -1375,6 +1375,10 @@ local function OnTested(creature, info)
     end
     if info.natural ~= nil then
         local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(info.edges or 0, info.banes or 0)
+        if info.cause ~= nil then
+            --an opposed power roll has no tiers: every edge or bane that counts is 2.
+            edgeBonus = 2 * math.min(info.edges or 0, 2) - 2 * math.min(info.banes or 0, 2)
+        end
         local value = info.characteristic ~= nil and info.characteristic.value or 0
         local bonus = info.total - info.natural - edgeBonus - value
         roll.bonus = bonus ~= 0 and bonus or nil

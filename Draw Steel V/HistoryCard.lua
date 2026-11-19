@@ -1597,7 +1597,8 @@ end
 --note. A side that was ignored entirely gets its own line, edges before the net line and
 --banes after it.
 --- @param sources HistoryEdgeSource[]|nil
-local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
+--- @param flat? boolean The roll has no tiers (an opposed power roll): a double edge or bane is +4 or -4.
+local function AddEdgeLines(rows, width, edges, banes, forTarget, sources, flat)
     edges, banes = edges or 0, banes or 0
     sources = sources or {}
     local removedEdges, removedBanes = 0, 0
@@ -1609,6 +1610,9 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         AddStruckLine(rows, width, "edge", removedEdges, forTarget, sources)
     end
     local net = NetEdges(edges, banes)
+    if flat and net ~= nil and net.count == 2 then
+        net.value = net.side == "edge" and "+4" or "-4"
+    end
     if net ~= nil then
         local label = net.label
         if forTarget and net.side ~= nil then
@@ -1935,7 +1939,7 @@ local function NumbersRows(entry, kids, width)
                 rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
             end
         end
-        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources)
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources, entry.family == "test" and entry.cause ~= nil)
         --the tier of the roll itself: a target with edges or banes of its own got another.
         local tier = roll.tier
         for _, who in ipairs(targets) do

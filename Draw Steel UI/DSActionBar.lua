@@ -4274,9 +4274,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 													description = "Use resources",
 													execute = function()
 														if diff > 0 then
-															m_token.properties:RefreshResource(resourceid, resource.usageLimit, diff)
+															GameSystem.HandEdit(function() m_token.properties:RefreshResource(resourceid, resource.usageLimit, diff) end)
 														else
-															m_token.properties:ConsumeResource(resourceid, resource.usageLimit, -diff)
+															GameSystem.HandEdit(function() m_token.properties:ConsumeResource(resourceid, resource.usageLimit, -diff) end)
 														end
 													end
 												}

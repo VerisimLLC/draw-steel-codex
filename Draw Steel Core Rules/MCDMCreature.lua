@@ -7478,7 +7478,11 @@ function creature.SetStaminaDirect(self, amount, note)
     local isBelowZeroAtStart = self:CurrentHitpoints() <= 0
     local isDeadAtStart = self:IsDead()
 
+    local before = self:CurrentHitpoints()
     self:SetCurrentHitpoints(amount, note)
+    if self:CurrentHitpoints() ~= before then
+        GameSystem.NotifyPlayObservers("staminaset", self, before, self:CurrentHitpoints(), note)
+    end
 
     local isWindedNow = self:IsWinded()
     local isBelowZeroNow = self:CurrentHitpoints() <= 0

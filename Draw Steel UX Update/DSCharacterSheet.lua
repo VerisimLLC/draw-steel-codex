@@ -2036,7 +2036,7 @@ function CharSheet.CharacterHitpointsPanel()
 						events = {
 							change = function(element)
 								local creature = CharacterSheet.instance.data.info.token.properties
-								creature:SetStaminaDirect(element.text)
+								GameSystem.HandEdit(function() creature:SetStaminaDirect(element.text) end)
 								element.data.previous_value = nil --don't flash green/red on an edit.
 								CharacterSheet.instance:FireEvent('refreshAll')
 							end,
@@ -2177,7 +2177,7 @@ function CharSheet.CharacterHitpointsPanel()
 							events = {
 								change = function(element)
 									local creature = CharacterSheet.instance.data.info.token.properties
-									creature:SetTemporaryHitpoints(element.text)
+									GameSystem.HandEdit(function() creature:SetTemporaryHitpoints(element.text) end)
 									element.data.previous_value = nil
 									CharacterSheet.instance:FireEvent('refreshAll')
 								end,
@@ -2214,7 +2214,7 @@ function CharSheet.CharacterHitpointsPanel()
 				events = {
 					change = function(element)
 						local creature = CharacterSheet.instance.data.info.token.properties
-						creature:Heal(element.text)
+						GameSystem.HandEdit(function() creature:Heal(element.text) end)
 						element.text = ''
 						CharacterSheet.instance:FireEvent('refreshAll')
 					end,
@@ -2239,7 +2239,7 @@ function CharSheet.CharacterHitpointsPanel()
 				events = {
 					change = function(element)
 						local creature = CharacterSheet.instance.data.info.token.properties
-						creature:TakeDamage(element.text)
+						GameSystem.HandEdit(function() creature:TakeDamage(element.text) end)
 						element.text = ''
 						CharacterSheet.instance:FireEvent('refreshAll')
 					end,
@@ -3417,7 +3417,7 @@ function DSCharacterSheet.ActionsPanel()
 																if number ~= nil and number >= 0 and number <= parentPanel.data.maxCharges then
 																	local diff = number - parentPanel.data.availableCharges
 																	parentPanel.popup = nil
-																	CharacterSheet.instance.data.info.token.properties:ConsumeResource(parentPanel.data.resourceid, parentPanel.data.refreshType, -diff)
+																	GameSystem.HandEdit(function() CharacterSheet.instance.data.info.token.properties:ConsumeResource(parentPanel.data.resourceid, parentPanel.data.refreshType, -diff) end)
 																	CharacterSheet.instance:FireEvent("refreshAll")
 																end
 															end,

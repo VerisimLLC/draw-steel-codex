@@ -32,6 +32,8 @@ local g_playObservers = {}
 ---     info: source, cast.
 ---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
 ---   temporarystamina(creature, before, after, note): the pool grew.
+---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
+---     or healed (a sheet field, a Set Stamina step).
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.
@@ -51,6 +53,28 @@ local g_playObservers = {}
 --- @param handlers table<string, function>
 function GameSystem.RegisterPlayObserver(id, handlers)
 	g_playObservers[id] = handlers
+end
+
+--How many GameSystem.HandEdit calls are running (they can nest).
+local g_handEditDepth = 0
+
+--- Runs a change a person made by hand (a sheet field, the Stamina bar, the condition
+--- menu) so play observers can tell it from one the rules made: while fn runs,
+--- GameSystem.IsHandEdit() is true. Wrap only the change itself; fn must not yield.
+--- @param fn function
+function GameSystem.HandEdit(fn)
+	g_handEditDepth = g_handEditDepth + 1
+	local ok, err = pcall(fn)
+	g_handEditDepth = g_handEditDepth - 1
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- True while a change made by hand (GameSystem.HandEdit) is running.
+--- @return boolean
+function GameSystem.IsHandEdit()
+	return g_handEditDepth > 0
 end
 
 --- Tells every observer that something happened. Safe in hot code: it costs a table

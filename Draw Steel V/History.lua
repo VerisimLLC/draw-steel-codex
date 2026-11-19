@@ -41,7 +41,8 @@ local mod = dmhub.GetModLoading()
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
---- "negotiation", "downtime", "table" or "award".
+--- "negotiation", "downtime", "table", "award" or "staminaset".
+--- @field byplayer? boolean On a line: a player made this change by hand (L87); it turns the Director's badge gold.
 --- @field counter? string On a montagecounter line: "successes" or "failures".
 --- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed". On an award line: "victories", "item", "title", "renown" or "wealth".
 --- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
@@ -100,8 +101,8 @@ local mod = dmhub.GetModLoading()
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.
 --- @field damagetype? string On a damage line: the type, if it has one.
---- @field before? number On a temporary Stamina line: the pool before. On a victories, renown or wealth award line: the score before.
---- @field after? number On a temporary Stamina line: the pool after. On a victories, renown or wealth award line: the score after.
+--- @field before? number On a temporary Stamina line: the pool before. On a victories, renown or wealth award line: the score before. On a staminaset line: Stamina before.
+--- @field after? number On a temporary Stamina line: the pool after. On a victories, renown or wealth award line: the score after. On a staminaset line: Stamina after.
 
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.

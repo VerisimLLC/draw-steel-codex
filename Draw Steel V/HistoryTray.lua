@@ -1756,6 +1756,8 @@ local function LineWords(entry)
         return "<b>Montage ended</b>"
     elseif family == "montagecounter" then
         return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
+    elseif family == "staminaset" then
+        return string.format("%s Stamina %d to %d", name, entry.before, entry.after)
     elseif family == "award" then
         local sub = entry.sub
         if sub == "victories" then
@@ -3713,6 +3715,14 @@ local function CreateFace()
         end
     end
 
+    --The view is at the end of the list, or within half a row of it. A fraction of the
+    --scroll range alone is many pixels on a long list, so a new row landing just past the
+    --edge counted as "new below" while it was in view.
+    local function AtBottom()
+        local range = (rowsPanel.renderedHeight or 0) - (list.renderedHeight or 0)
+        return list.vscrollPosition <= 0.02 or list.vscrollPosition * range <= 24
+    end
+
     --Latest shows only once the view has left the default: scrolled up, older rows
     --loaded, or a round or turn opened or closed by hand.
     local function UpdateLatest()
@@ -3722,7 +3732,7 @@ local function CreateFace()
         --a list too short to scroll reports a position that means nothing, and fills its
         --own spare room with older rows: neither is the reader moving away.
         local scrollable = rowsPanel ~= nil and (rowsPanel.renderedHeight or 0) - (list.renderedHeight or 0) > 1
-        away = (scrollable and (list.vscrollPosition > 0.02 or loadedOlder)) or next(g_open) ~= nil
+        away = (scrollable and (not AtBottom() or loadedOlder)) or next(g_open) ~= nil
         UpdateNewBelow()
     end
     local mapid = game.currentMapId
@@ -3954,7 +3964,7 @@ local function CreateFace()
         if face == nil or not face.valid then
             return
         end
-        local stick = list.vscrollPosition <= 0.02
+        local stick = AtBottom()
         --someone reading: the pointer on History, or a card open. mousePoint is 0-1 inside
         --the panel (not (0,0) outside, whatever the stub says), as the title bar search reads it.
         local point = face.mousePoint
@@ -4203,7 +4213,7 @@ local function CreateFace()
             AlignCard()
             UpdateLatest()
             --back at the bottom: everything is seen.
-            if newBelow > 0 and element.vscrollPosition <= 0.02 then
+            if newBelow > 0 and AtBottom() then
                 newBelow = 0
                 seenKeys = {}
                 for key in pairs(rows) do
@@ -4925,6 +4935,10 @@ local function Unseen()
                         local actorMine = Mine(entry.actor)
                         local function Add(row, mine)
                             result.lines[#result.lines + 1] = {row = row, mine = mine, turn = turnKey}
+                        end
+                        --a player's hand edit is what the Director's gold is for (Appendix V).
+                        if dmhub.isDM and entry.byplayer then
+                            result.gold = true
                         end
                         if entry.kind == "line" then
                             local mine = not dmhub.isDM and Mine(entry.who)

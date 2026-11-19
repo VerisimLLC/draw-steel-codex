@@ -60,9 +60,9 @@ end
 local function SetResource(hero, id, current, value, refreshType, note)
     local diff = value - current
     if diff > 0 then
-        hero:RefreshResource(id, refreshType, diff, note)
+        GameSystem.HandEdit(function() hero:RefreshResource(id, refreshType, diff, note) end)
     elseif diff < 0 then
-        hero:ConsumeResource(id, refreshType, -diff, note)
+        GameSystem.HandEdit(function() hero:ConsumeResource(id, refreshType, -diff, note) end)
     end
 end
 
@@ -1697,14 +1697,14 @@ local function ApplyStamina(mode, text)
         execute = function(hero)
             if mode == "dmg" then
                 --a string: TakeDamage takes a formula.
-                hero:TakeDamage(text)
+                GameSystem.HandEdit(function() hero:TakeDamage(text) end)
             elseif mode == "heal" then
-                hero:Heal(value)
+                GameSystem.HandEdit(function() hero:Heal(value) end)
             elseif mode == "temp" then
-                hero:SetTemporaryHitpoints(text)
+                GameSystem.HandEdit(function() hero:SetTemporaryHitpoints(text) end)
                 hero:DispatchEvent("gaintempstamina", {})
             else
-                hero:SetStaminaDirect(value)
+                GameSystem.HandEdit(function() hero:SetStaminaDirect(value) end)
             end
         end,
     }

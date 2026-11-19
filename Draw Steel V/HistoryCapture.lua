@@ -650,6 +650,24 @@ local function Cause(note)
     return nil
 end
 
+--A change made by hand (GameSystem.HandEdit) says who made it under its line (L87), and
+--a player's marks the Director's badge gold (byplayer). Returns facts, for WriteLine.
+local function NoteHand(facts)
+    if GameSystem.IsHandEdit() then
+        facts.causetext = dmhub.isDM and "Director" or dmhub.userDisplayName
+        facts.byplayer = not dmhub.isDM or nil
+    end
+    return facts
+end
+
+--The cast a change belongs to, or nil. A hand edit belongs to none, even mid-cast.
+local function CastFor(cast)
+    if GameSystem.IsHandEdit() then
+        return nil
+    end
+    return OpenCast(cast)
+end
+
 --The target's place on a cast's row, added if the cast did not aim at it.
 local function RowTarget(state, token)
     AddTarget(state.entry, state.seen, token)
@@ -690,14 +708,14 @@ local function OnDamage(creature, info)
 
     local soaked = info.landed - info.lost
     local damagetype = TypeWord(info.damagetype)
-    local state = OpenCast(info.cast)
+    local state = CastFor(info.cast)
     if state == nil then
         if info.landed > 0 then
             local cause = Cause(info.source)
             if info.startofturn and cause ~= nil then
                 cause = "Start of turn: " .. cause
             end
-            WriteLine(token, "damage", {
+            WriteLine(token, "damage", NoteHand{
                 taken = info.landed,
                 soaked = soaked > 0 and soaked or nil,
                 damagetype = damagetype,
@@ -796,9 +814,9 @@ local function OnHeal(creature, regained, note, recovered)
     if token == nil then
         return
     end
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
-        local entry = WriteLine(token, "heal", {healed = regained, recovered = recovered, causetext = Cause(note)})
+        local entry = WriteLine(token, "heal", NoteHand{healed = regained, recovered = recovered, causetext = Cause(note)})
         if note == "Use Recovery" then
             g_recoveryHeal = {entry = entry, charid = token.charid, t = dmhub.serverTimeMilliseconds}
         end
@@ -938,9 +956,9 @@ local function OnTemporaryStamina(creature, before, after, note)
     if token == nil then
         return
     end
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
-        WriteLine(token, "temporarystamina", {before = before, after = after, causetext = Cause(note)})
+        WriteLine(token, "temporarystamina", NoteHand{before = before, after = after, causetext = Cause(note)})
         return
     end
     local target = RowTarget(state, token)
@@ -991,13 +1009,13 @@ local function OnEffectStarted(creature, info)
     facts.renewed = info.renewed
     facts.ref = info.instanceid
 
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
         --a renewal outside any cast is upkeep (an aura re-applying what it gives every
         --move), not something anyone did, so only casts record one (L39).
         if not info.renewed then
             facts.causetext = Cause(info.source)
-            WriteLine(token, "condition", facts)
+            WriteLine(token, "condition", NoteHand(facts))
         end
         return
     end
@@ -1038,7 +1056,8 @@ local function WriteEnded(token, names, causetext, hidden)
         end
         return
     end
-    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden})
+    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden,
+        byplayer = GameSystem.IsHandEdit() and not dmhub.isDM or nil})
 end
 
 --The closing line of each encounter, while its creatures report what ended (L17).
@@ -1097,7 +1116,7 @@ local function OnResource(creature, key, before, after, refreshType, note)
     end
     local name, style = ResourceFacts(creature, key)
     local change = after - before
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     --the Recovery behind the heal just written: it becomes that row's cause (L3).
     local healed = g_recoveryHeal
     g_recoveryHeal = nil
@@ -1117,7 +1136,7 @@ local function OnResource(creature, key, before, after, refreshType, note)
     end
     --gains are lines, with Undo. Inside an automatic trigger the line names the trigger
     --and its cause, so the tray can still nest it (T15).
-    WriteLine(token, "resource", {
+    WriteLine(token, "resource", NoteHand{
         name = name,
         amount = change,
         resourceid = key,
@@ -1193,7 +1212,7 @@ local function OnMalice(before, after, note)
 
     local byHand = note == nil or note == "Manually set"
     local token = caster ~= nil and caster.valid and caster or nil
-    local entry = {
+    local entry = NoteHand{
         kind = "line",
         family = "malice",
         map = token ~= nil and token.mapid or game.currentMapId,
@@ -1220,7 +1239,7 @@ local function OnGlobalResource(resourceid, before, after, note)
     if info == nil or info.name ~= "Hero Tokens" then
         return
     end
-    local entry = {
+    local entry = NoteHand{
         kind = "line",
         family = "globalresource",
         map = game.currentMapId,
@@ -1477,6 +1496,9 @@ local function OnEffectsEnded(creature, ended, cause)
         causetext = "Respite began"
     end
 
+    if causetext == nil and GameSystem.IsHandEdit() then
+        causetext = NoteHand({}).causetext
+    end
     if causetext == nil then
         local state = OpenCast(nil)
         if state ~= nil then
@@ -1737,6 +1759,19 @@ local function OnAwarded(creature, info)
     })
 end
 
+--Stamina set to a number rather than dealt or healed (L88): a sheet field, the Stamina
+--bar's number, or a Set Stamina step outside any action row.
+local function OnStaminaSet(creature, before, after, note)
+    if not History.Enabled() then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    WriteLine(token, "staminaset", NoteHand{before = before, after = after, causetext = Cause(note)})
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1795,6 +1830,7 @@ GameSystem.RegisterPlayObserver("history", {
     fell = OnFell,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
+    staminaset = OnStaminaSet,
     resource = OnResource,
     globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,

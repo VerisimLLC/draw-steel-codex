@@ -42,6 +42,14 @@ local mod = dmhub.GetModLoading()
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend" or "montagecounter".
 --- @field counter? string On a montagecounter line: "successes" or "failures".
+--- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended".
+--- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
+--- @field playercause? string On a negotiation line: the cause text players read when raw is false.
+--- @field directoronly? boolean On a negotiation line: players get no line.
+--- @field trait? string On a negotiation line: the motivation or pitfall it is about.
+--- @field text? string On a negotiation argument: what the Hero said.
+--- @field cue? string On a negotiation argument: the stage's cue for how it landed.
+--- @field which? string On a negotiation adjust line: "interest" or "patience".
 --- @field limit? number On a montagecounter line: how many the montage needs.
 --- @field level? integer On a levelup line: the Level reached.
 --- @field heroesFirst? boolean On a drawsteel line: the heroes go first.
@@ -419,6 +427,16 @@ local function ForPlayers(entry)
             end
         end
         entry.ended = kept
+    end
+    --a negotiation line: the Director's own corrections never reach players, and the
+    --meters read as numbers only if the Director was showing them on the stage (5.1f).
+    if entry.family == "negotiation" then
+        if entry.directoronly then
+            return nil
+        end
+        if not entry.raw then
+            entry.causetext = entry.playercause
+        end
     end
     --a test or dice line rolled out of players' sight, as the chat shows it (L79).
     local privacy = entry.privacy

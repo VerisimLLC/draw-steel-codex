@@ -496,6 +496,16 @@ end
 --- @return HistoryStoryRow[]
 function History.Story(entry, kids)
     local rows = {}
+    --a negotiation argument: what the Hero said, then the stage's cue for how it landed.
+    if entry.family == "negotiation" then
+        if (entry.text or "") ~= "" then
+            rows[#rows + 1] = {who = entry.who ~= nil and {entry.who} or {}, text = string.format("\"%s\"", entry.text)}
+        end
+        if (entry.cue or "") ~= "" then
+            rows[#rows + 1] = {who = {}, text = entry.cue}
+        end
+        return rows
+    end
     if entry.family == "encounterend" then
         for _, item in ipairs(entry.ended or {}) do
             rows[#rows + 1] = {
@@ -825,6 +835,12 @@ local function Header(entry, width, inTray, close)
     if entry.family == "test" or entry.family == "dice" then
         local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
         title = name .. History.DOT .. (entry.family == "test" and entry.name or "Dice")
+        if roller ~= nil then
+            children[#children + 1] = History.Face(roller, 30, true)
+            titleWidth = titleWidth - 39
+        end
+    elseif entry.family == "negotiation" then
+        title = (roller ~= nil and History.ShownName(roller) or "A Hero") .. History.DOT .. "Argument"
         if roller ~= nil then
             children[#children + 1] = History.Face(roller, 30, true)
             titleWidth = titleWidth - 39

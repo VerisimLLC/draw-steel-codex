@@ -1639,6 +1639,20 @@ local function LineWords(entry)
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
+    elseif family == "negotiation" then
+        local npc = string.format("<b>%s</b>", entry.name or "the NPC")
+        if entry.sub == "began" then
+            return "Negotiation with " .. npc
+        elseif entry.sub == "ended" then
+            return string.format("Negotiation with %s ended", npc)
+        elseif entry.sub == "pitfall" then
+            return string.format("%s hit a pitfall: %s", name, entry.trait or "")
+        elseif entry.sub == "reveal" then
+            return string.format("%s %s revealed", npc, entry.trait or "")
+        elseif entry.sub == "adjust" then
+            return string.format("%s %s %d to %d", npc, entry.which or "interest", entry.before or 0, entry.after or 0)
+        end
+        return string.format("%s rolled %d", name, entry.total or 0)
     elseif family == "montagetest" then
         return string.format("%s rolled %d", name, entry.total)
     elseif family == "montagethreat" then
@@ -1715,6 +1729,7 @@ end
 local function HasCard(entry)
     return entry.kind == "action" or (entry.family == "encounterend" and #(entry.ended or {}) > 0)
         or entry.family == "test" or entry.family == "dice"
+        or (entry.family == "negotiation" and entry.sub == "argument" and (entry.text or "") ~= "")
 end
 
 --The start of a combat (T10): the old log's swords and lettering as a landmark to scroll

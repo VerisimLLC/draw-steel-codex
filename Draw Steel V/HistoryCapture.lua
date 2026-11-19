@@ -1253,6 +1253,88 @@ local function OnCombatBegan(info)
     History.Write(entry)
 end
 
+--"Interest 2 to 3", or nil when it did not move.
+local function MeterWords(label, meter)
+    if meter == nil or meter.before == meter.after then
+        return nil
+    end
+    return string.format("%s %d to %d", label, meter.before, meter.after)
+end
+
+--Negotiation (5.1f, L62-L68). info comes from NegotiationRun.Note. Each line keeps two
+--cause texts: the Director's, with the numbers, and the players', where interest reads as
+--its band and patience is left out unless the Director was showing the numbers (info.raw).
+local function OnNegotiation(info)
+    if not History.Enabled() then
+        return
+    end
+    local npc = info.npc or "the NPC"
+    local interest = MeterWords("Interest", info.interest)
+    local patience = MeterWords("Patience", info.patience)
+    local band = nil
+    if info.bands ~= nil and info.bands.before ~= info.bands.after then
+        band = string.format("%s to %s", info.bands.before, info.bands.after)
+    end
+    --what follows the lead on each cause line: full has the numbers, shown has the band.
+    local function Causes(lead, withPatience)
+        local full, shown = {lead}, {lead}
+        full[#full + 1] = interest
+        shown[#shown + 1] = band
+        if withPatience then
+            full[#full + 1] = patience
+        end
+        return table.concat(full, History.DOT), table.concat(shown, History.DOT)
+    end
+
+    local entry = {kind = "line", family = "negotiation", sub = info.kind, map = game.currentMapId, name = npc, raw = info.raw}
+    local token = info.heroid ~= nil and info.heroid ~= "" and dmhub.GetCharacterById(info.heroid) or nil
+    if token ~= nil then
+        entry.who = History.Creature(token)
+    end
+
+    if info.kind == "began" then
+        entry.causetext = string.format("Interest %d%sPatience %d", info.interest.after, History.DOT, info.patience.after)
+        entry.playercause = info.bands.after
+    elseif info.kind == "argument" then
+        entry.total = info.total
+        entry.text = info.text
+        entry.cue = info.cue
+        entry.causetext, entry.playercause = Causes(string.format("Argument%sTier %d", History.DOT, info.tier or 0), true)
+    elseif info.kind == "pitfall" then
+        entry.trait = info.trait
+        local full, shown = {}, {}
+        full[#full + 1] = interest
+        full[#full + 1] = patience
+        shown[#shown + 1] = band
+        entry.causetext = #full > 0 and table.concat(full, History.DOT) or nil
+        entry.playercause = #shown > 0 and table.concat(shown, History.DOT) or nil
+    elseif info.kind == "read" then
+        entry.total = info.total
+        local lead = string.format("Read %s%sTier %d%s%s", npc, History.DOT, info.tier or 0, History.DOT,
+            info.learned and "Learned something" or "Learned nothing")
+        entry.playercause = lead
+        entry.causetext = patience ~= nil and (lead .. History.DOT .. patience) or lead
+    elseif info.kind == "reveal" then
+        entry.trait = info.trait
+        entry.causetext = info.traitKind == "pitfall" and "Pitfall" or "Motivation"
+        entry.playercause = entry.causetext
+    elseif info.kind == "adjust" then
+        --the Director's own correction: players get no line (L67).
+        entry.directoronly = true
+        entry.causetext = "Director"
+        entry.which = info.which
+        entry.before = info.which == "interest" and info.interest.before or info.patience.before
+        entry.after = info.which == "interest" and info.interest.after or info.patience.after
+    elseif info.kind == "ended" then
+        entry.causetext = info.offer ~= nil and info.offer ~= "" and ("Final offer: " .. info.offer) or "No deal"
+        entry.playercause = entry.causetext
+    else
+        return
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
 local function Count(n, one, many)
     return string.format("%d %s", n, n == 1 and one or many)
 end
@@ -1633,6 +1715,7 @@ GameSystem.RegisterPlayObserver("history", {
     persistenceended = OnPersistenceEnded,
     combatbegan = OnCombatBegan,
     montage = OnMontage,
+    negotiation = OnNegotiation,
     resting = OnResting,
     rested = OnRested,
     encounterended = OnEncounterEnded,

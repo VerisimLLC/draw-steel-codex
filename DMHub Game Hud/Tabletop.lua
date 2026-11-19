@@ -12387,10 +12387,11 @@ dmhub.RegisterEventHandler("ChangeCurrentFloor", function()
 end)
 
 --Keeps the engine's table surface in step with this user's choice. A
---surface no longer offered (Wood and Slate were removed) is changed to the
---default once, so the settings dropdown and the menu show what is drawn. One
---whose dice set this account doesn't own draws as leather but stays chosen:
---the inventory may just not have loaded yet.
+--retired surface (Wood and Slate were removed) is changed to the default
+--once, so the settings dropdown and the menu show what is drawn. Any other
+--surface this copy doesn't know (a Table Studio table it can't draw) draws as
+--leather but stays chosen, as does one whose dice set this account doesn't
+--own: the inventory may just not have loaded yet.
 SyncSurface = function()
     local surface = g_surfaceSetting:Get()
     if surface ~= "custom" then
@@ -12402,8 +12403,10 @@ SyncSurface = function()
             end
         end
         if known == nil then
+            if surface == "wood" or surface == "slate" then
+                g_surfaceSetting:Set("leather")
+            end
             surface = "leather"
-            g_surfaceSetting:Set(surface)
         elseif not TABLE_SURFACES.Offered(known) then
             surface = "leather"
         end

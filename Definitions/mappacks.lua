@@ -11,7 +11,7 @@
 --- @field name string
 --- @field thumb string image id of the 512px preview (usable as a bgimage)
 --- @field image string image id of the full map image
---- @field preview string image id of a picture of the whole scene, every floor-level layer composed, for the full-size viewer ("" when image already shows it)
+--- @field preview string image id of a picture of the whole scene, every floor-level layer composed, for the full-size viewer (" when image already shows it)
 --- @field tilesW integer
 --- @field tilesH integer
 --- @field tileType string

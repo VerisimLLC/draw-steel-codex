@@ -23,6 +23,7 @@
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
 --- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
 --- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
+--- @field haloOutsideOnly boolean When true, the halo is drawn only outside the die's silhouette, as a glow around its edges. Use it on see-through dice: by default the halo is drawn behind the die body, which on a see-through die also fills the die's interior and covers the billboard glow.
 --- @field smokeTrailEnabled boolean Whether soft smoke trails behind each die while it moves: hundreds of overlapping puffs laid along its path that swirl, spread and fade like real smoke. See smokeTrailColor/smokeTrailIntensity/smokeTrailStrands/smokeTrailWidth/smokeTrailLength/smokeTrailWander/smokeTrailOpacity/smokeTrailWisp.
 --- @field smokeTrailColor Color The smoke strands' color (HDR: values above 1 glow brighter).
 --- @field smokeTrailIntensity number HDR brightness multiplier of the smoke strands.
@@ -34,7 +35,6 @@
 --- @field smokeTrailWisp number Wispiness of the smoke: 0 = soft, smooth puffs; 1 = eaten away into curling wisps and stirred harder.
 --- @field smokeTrailCurl number Curl of the smoke: 0 = the streams wander on their own over time; 1 = they swing round in big loose loops as the die travels. Curls follow the distance the die moves, so a fast throw still curls instead of stretching into straight lines.
 --- @field smokeTrailTaper number Taper of the smoke: 0 = puffs swell as they age, like real smoke spreading; 1 = they start wide around the die and shrink into a thin tail, like a flame.
---- @field haloOutsideOnly boolean When true, the halo is drawn only outside the die's silhouette, as a glow around its edges. Use it on see-through dice: by default the halo is drawn behind the die body, which on a see-through die also fills the die's interior and covers the billboard glow.
 --- @field rayBurstEnabled boolean Whether this dice set fires a burst of light rays outward past each die's silhouette when it lands. The die's surface material can only draw rays inside the die itself; this carries them into the surrounding area. See rayBurstColor/rayBurstSize/rayBurstDuration/rayBurstIntensity/rayBurstSaturation/rayBurstCount/rayBurstContrast/rayBurstSpeed/rayBurstInnerRadius for its look.
 --- @field rayBurstColor Color The color of the landing ray burst. HDR: values above 1 make it glow brighter.
 --- @field rayBurstSize number How far the landing ray burst reaches, as a multiple of the die's diameter (3 == three dice wide).

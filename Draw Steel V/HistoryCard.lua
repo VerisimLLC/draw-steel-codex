@@ -863,6 +863,27 @@ local function Header(entry, width, inTray, close)
         end
         title = History.ShownName(actor) .. History.DOT .. name
     end
+    local meta = gui.Label{
+        classes = {"historyCardMeta"},
+        text = MetaWords(entry),
+        width = "100%",
+        height = "auto",
+        textAlignment = "left",
+    }
+    --a villain action carries its tag beside the round and turn, as its row does (L90).
+    local villainAction = entry.ability ~= nil and entry.ability.villainaction or nil
+    if villainAction ~= nil then
+        meta.selfStyle.width = "auto"
+        meta.selfStyle.halign = "left"
+        meta = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            meta,
+            History.Tag("historyVillainTag", villainAction),
+        }
+    end
     children[#children + 1] = gui.Panel{
         flow = "vertical",
         width = titleWidth,
@@ -877,13 +898,7 @@ local function Header(entry, width, inTray, close)
             height = "auto",
             textAlignment = "left",
         }),
-        gui.Label{
-            classes = {"historyCardMeta"},
-            text = MetaWords(entry),
-            width = "100%",
-            height = "auto",
-            textAlignment = "left",
-        },
+        meta,
     }
     children[#children + 1] = gui.Panel{
         classes = {"historyCardClose"},

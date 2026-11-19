@@ -280,6 +280,11 @@ local function CastBegan(ability, casterToken, targets, options)
     end
 
     local actor = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
+    --the stat block's slot, "Villain Action 1"; "none" or missing for any other ability.
+    local villainAction = ability:try_get("villainAction")
+    if villainAction == "none" or villainAction == "" then
+        villainAction = nil
+    end
     local state = BeginCastState({
         id = symbols ~= nil and symbols.castid or nil,
         t = dmhub.serverTimeMilliseconds,
@@ -291,6 +296,7 @@ local function CastBegan(ability, casterToken, targets, options)
             icon = ability:try_get("iconid"),
             action = ActionKind(ability),
             area = ability:IsTargetTypeAOE(ability.targetType) or nil,
+            villainaction = villainAction,
         },
         --whoever is rolling is on this client; nil means the Director.
         player = not dmhub.isDM and dmhub.GetDisplayName(dmhub.userid) or nil,

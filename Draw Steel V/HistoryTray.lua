@@ -201,6 +201,16 @@ local function Styles()
             bgcolor = "clear",
             borderColor = "@fgMuted",
         },
+        --a villain action (L90): outlined in the Malice chip's red, apart from a filled Failure.
+        {
+            selectors = {"label", "historyVillainTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@danger",
+            bgcolor = "clear",
+            borderColor = "@danger",
+        },
         {
             selectors = {"label", "historySuccessTag"},
             fontSize = 11,
@@ -705,7 +715,7 @@ local function Tag(style, text)
         hpad = 4,
         borderBox = true,
         cornerRadius = 3,
-        borderWidth = cond(style == "historyEndedTag", 1, 0),
+        borderWidth = cond(style == "historyEndedTag" or style == "historyVillainTag", 1, 0),
         lmargin = 5,
         halign = "left",
         valign = "center",
@@ -1499,6 +1509,9 @@ local function BuildAction(item)
         halign = "left",
         valign = "center",
     }
+    if entry.ability.villainaction ~= nil then
+        titleChildren[#titleChildren + 1] = Tag("historyVillainTag", entry.ability.villainaction)
+    end
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier)
     end

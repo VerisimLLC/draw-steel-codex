@@ -348,7 +348,11 @@ local function MonsterAIThread(process)
         local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
-                if MonsterAI.TokenIsLiveCombatant(token) and not token.playerControlled then
+                --Dying creatures too: a death trigger (Loyalty Collar) prompts on
+                --a creature already at 0 Stamina. On those, only recent prompts.
+                local live = MonsterAI.TokenIsLiveCombatant(token)
+                if (live or MonsterAI.TokenIsDyingOnMap(token))
+                    and not token.playerControlled then
                     local pollProf = MonsterAI.ProfBegin("thread: trigger poll")
                     local triggers = token.properties:GetAvailableTriggers()
                     MonsterAI.ProfEnd(pollProf)
@@ -360,7 +364,8 @@ local function MonsterAIThread(process)
                             local triggerHandled = false
                             local ok = true
                             local err = nil
-                            if not failedTriggers[triggerKey] then
+                            if not failedTriggers[triggerKey]
+                                and (live or MonsterAI.IsRecentPrompt(trigger)) then
                                 ok, err = ai:RunYieldingFunction(function()
                                     triggerHandled = ai:HandleAvailableTrigger(token, trigger)
                                 end)
@@ -368,7 +373,7 @@ local function MonsterAIThread(process)
                             if not ok then
                                 failedTriggers[triggerKey] = true
                                 pcall(function()
-                                    if MonsterAI.TokenIsLiveCombatant(token) then
+                                    if MonsterAI.TokenIsLiveCombatant(token) or MonsterAI.TokenIsDyingOnMap(token) then
                                         token:ModifyProperties{
                                             description = "AI Trigger Recovery",
                                             undoable = false,
@@ -780,6 +785,18 @@ function MonsterAI.PromptCallbackForCreature(token)
         local ai = MonsterAI.new{token = invokerToken}
         return ai:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
     end
+end
+
+--- True when the AI may answer this prompt for its caster even though someone
+--- else invoked it. When a hero's ability acts on a monster the monster is the
+--- caster, but the hero's player still decides (where to push it). Only prompts
+--- registered with answersForCaster = true qualify: ones where the monster acts
+--- on its own, like To the Death!'s free strike.
+--- @param abilityClone ActivatedAbility
+--- @return boolean
+function MonsterAI.PromptAnswersForCaster(abilityClone)
+    local entry = MonsterAI.prompts[abilityClone.name]
+    return entry ~= nil and entry.answersForCaster == true
 end
 
 MonsterAIPanel = function()

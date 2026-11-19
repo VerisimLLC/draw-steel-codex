@@ -310,7 +310,12 @@ run()
 check(#ai.casts == 1, "stop request prevents the extra action")
 
 ai, tokens, run = fixture(1)
-ai.afterCast = function() tokens["1"].actions = 1; dmhub.initiativeQueue.current = "hero" end
+ai.afterCast = function()
+    tokens["1"].actions = 1
+    --The fixture's fake queue tracks the active turn in `current`, a field the real InitiativeQueue lacks.
+    local fakeQueue = dmhub.initiativeQueue --[[@as {current: string}]]
+    fakeQueue.current = "hero"
+end
 run()
 check(#ai.casts == 1 and ai._tmp_abortTurn ~= nil, "a turn taken by another entry stops the extra action")
 

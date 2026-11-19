@@ -449,9 +449,11 @@ end
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves
 --- the total by 2; a double one shifts the tier instead (DiceResultToTier).
+--- The target's tier-forcing flags (autosuccess etc.) are absolute and add to
+--- the roll's own: a Tier 1/2/3 trigger used after the dice land sets only these.
 --- Resolution, the action log and the roll dialog all read tiers through this.
 --- @param rollResult table {total, naturalRoll, boons, banes, tiers, autosuccess, autofailure, nottierone, nottierthree}
---- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number}
+--- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number, autosuccess: nil|boolean, autofailure: nil|boolean, nottierone: nil|boolean, nottierthree: nil|boolean}
 --- @return table rollInfo A new table, ready for DiceResultToTier
 function RollUtils.EffectiveRollForTarget(rollResult, target)
     local rollInfo = {
@@ -484,6 +486,11 @@ function RollUtils.EffectiveRollForTarget(rollResult, target)
     if (target.tiersDelta or 0) ~= 0 then
         rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
     end
+
+    rollInfo.autosuccess = rollInfo.autosuccess or target.autosuccess or nil
+    rollInfo.autofailure = rollInfo.autofailure or target.autofailure or nil
+    rollInfo.nottierone = rollInfo.nottierone or target.nottierone or nil
+    rollInfo.nottierthree = rollInfo.nottierthree or target.nottierthree or nil
 
     return rollInfo
 end
@@ -2123,6 +2130,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return
     end
 
+    --Each target's tier, including edges/banes/forced tiers from triggers used
+    --after the dice landed. The raw m_result misses those (E8TWPX8B).
+    local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
+
+    --The tier for one target token, or for the roll as a whole when nil (the
+    --first target's, since the stats record one tier per roll).
+    local function EffectiveTier(targetToken)
+        for _,multitarget in ipairs(multitargetResults or {}) do
+            if multitarget.token ~= nil and (targetToken == nil or multitarget.token.charid == targetToken.charid) then
+                return multitarget.tier
+            end
+        end
+        return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    end
+
     --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
     --stats, along with the edges and banes that were applied to the roll
     --(m_result.boons/banes -- the engine's names for edges/banes, captured from
@@ -2131,7 +2153,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --monster/non-hero casters are dropped. Use the same effective tier the rest
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
-    local rolledTier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+    local rolledTier = EffectiveTier(nil)
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -2160,9 +2182,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         for _,target in ipairs(targets or {}) do
             local targetToken = target.token
             if targetToken ~= nil then
+                local targetTier = EffectiveTier(targetToken)
                 local args = {
-                    outcome = string.format("tier%d", rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)),
-                    degree = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result),
+                    outcome = string.format("tier%d", targetTier),
+                    degree = targetTier,
                     target = GenerateSymbols(targetToken.properties),
                     ability = GenerateSymbols(ability),
                     usedability = GenerateSymbols(ability),
@@ -2179,8 +2202,6 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             targets[i] = options.symbols.cast:RedirectTarget(targets[i])
         end
     end
-
-    local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
 
     local triggerInfo = {
         surges = 0,
@@ -2449,6 +2470,9 @@ ActivatedAbilityPowerRollBehavior.s_modificationTypes = {
 {text = "Ignore Edges", id = "ignore_edges", mod = "", value = -2, ignore_edges = true, lateness = 100},
 {text = "Ignore Banes", id = "ignore_banes", mod = "", value = 2, ignore_banes = true, lateness = 100},
 {text = "Tier 3", id = "tier3", mod = "autosuccess", value = 0},
+--Forces tier 2: with both flags DiceResultToTier can only land on 2, crits
+--included. An autosuccess/autofailure on the same roll still wins.
+{text = "Tier 2", id = "tier2", mod = "nottierone nottierthree", value = 0},
 {text = "Tier 1", id = "tier1", mod = "autofailure", value = 0},
 {text = "Not Tier 3", id = "nottierthree", mod = "nottierthree", value = 0},
 {text = "Not Tier 1", id = "nottierone", mod = "nottierone", value = 0},
@@ -2476,11 +2500,13 @@ for _,option in ipairs(ActivatedAbilityPowerRollBehavior.s_modificationTypes) do
     ActivatedAbilityPowerRollBehavior.s_modificationTypesById[option.id] = option
 end
 
-function ActivatedAbilityBehavior:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string|nil
+function ActivatedAbilityBehavior:GetPowerRollDisplay(caster)
     return nil
 end
 
-function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
+function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay(caster)
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
@@ -2490,13 +2516,10 @@ end
 --render pass already unwraps those nested tiers to display them, so this
 --lookup has to find the same roll -- it gates the whole power-roll section,
 --which stays collapsed while it returns "".
-function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
-    if self.abilityType ~= "custom" then
-        return nil
-    end
-
+--A module's registered invoke type shows its preview's roll the same way.
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay(caster)
     --Take the last matching subbehavior, which is what the render pass shows.
-    local customAbility = self:try_get("customAbility")
+    local customAbility = self:HeldAbility(caster)
     local result = nil
     for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
         if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
@@ -2559,9 +2582,11 @@ function ActivatedAbility:GetRollCharacteristicValue(caster)
     return nil
 end
 
-function ActivatedAbility:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string
+function ActivatedAbility:GetPowerRollDisplay(caster)
     for _,behavior in ipairs(self.behaviors) do
-        local result = behavior:GetPowerRollDisplay()
+        local result = behavior:GetPowerRollDisplay(caster)
         if result ~= nil then
             return result
         end

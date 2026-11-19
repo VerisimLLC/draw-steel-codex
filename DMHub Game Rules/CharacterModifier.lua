@@ -4082,6 +4082,85 @@ function CharacterModifier:HasTriggeredEvent(creature, eventName, targetsOther, 
 	end
 end
 
+--- The checks a trigger on this modifier must pass to fire: in combat if it is
+--- combat-only, resources and cost, triggered actions allowed, not switched off by
+--- the user. TriggerEvent runs them when the event fires; a trigger set to "Fire
+--- after other abilities finish" runs them again once it has waited.
+--- @param creature creature
+--- @param debugLog nil|table
+--- @return boolean
+function CharacterModifier:TriggerGatesPass(creature, debugLog)
+    if self.triggeredAbility:try_get("whenActive", "always") == "combat" and (dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden) then
+        return false
+    end
+
+	local creatureToken = dmhub.LookupToken(creature)
+    if creatureToken == nil then
+        if debugLog ~= nil then
+            debugLog[#debugLog+1] = {
+                name = self.triggeredAbility.name,
+                success = false,
+                reason = "Token not found",
+            }
+        end
+        return false
+    end
+
+    if self.triggeredAbility:try_get("whenActive", "always") == "combat" and dmhub.initiativeQueue:HasInitiative(InitiativeQueue.GetInitiativeId(creatureToken)) == false then
+        if debugLog ~= nil then
+            debugLog[#debugLog+1] = {
+                name = self.triggeredAbility.name,
+                success = false,
+                reason = "Not in combat",
+            }
+        end
+        return false
+    end
+
+	if self:HasResourcesAvailable(creature) == false or (not self.triggeredAbility:CanAfford(creatureToken)) then
+        if debugLog ~= nil then
+            debugLog[#debugLog+1] = {
+                name = self.triggeredAbility.name,
+                success = false,
+                reason = "Not enough resources",
+            }
+        end
+		return false
+	end
+
+    local mandatory = self.triggeredAbility:IsMandatory(creatureToken)
+
+    --An effect forbidding triggered actions suppresses optional triggers whose
+    --Action is "Triggered Action" or "Free Triggered Action". Triggers with no
+    --action are not actions the creature takes (automatic effects, and prompt
+    --plumbing like "Spend Recovery" fired by Healing Grace) so they go through,
+    --as do mandatory triggers (fire automatically) and hostile triggers (forced
+    --on the creature).
+    if (not mandatory) and (not self.triggeredAbility:try_get("hostile", false)) and self.triggeredAbility:IsTriggeredAction() and creature:TriggeredActionsForbidden() then
+        if debugLog ~= nil then
+            debugLog[#debugLog+1] = {
+                name = self.triggeredAbility.name,
+                success = false,
+                reason = "Cannot use triggered actions",
+            }
+        end
+        return false
+    end
+
+    if  ((not mandatory) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
+        if debugLog ~= nil then
+            debugLog[#debugLog+1] = {
+                name = self.triggeredAbility.name,
+                success = false,
+                reason = "Trigger disabled by user",
+            }
+        end
+        return false
+    end
+
+    return true
+end
+
 --modContext is a 'mod context' as returned by creature.GetActiveModifiers(). We use it to affect the ongoing effect or other context.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, debugLog, localFilter)
@@ -4098,71 +4177,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
         elseif localFilter == "skipLocal" and self.triggeredAbility:IsLocalOnly() then
             return false
         end
-        if self.triggeredAbility:try_get("whenActive", "always") == "combat" and (dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden) then
-            return false
-        end
-
-		local creatureToken = dmhub.LookupToken(creature)
-        if creatureToken == nil then
-            if debugLog ~= nil then
-                debugLog[#debugLog+1] = {
-                    name = self.triggeredAbility.name,
-                    success = false,
-                    reason = "Token not found",
-                }
-            end
-            return false
-        end
-
-        if self.triggeredAbility:try_get("whenActive", "always") == "combat" and dmhub.initiativeQueue:HasInitiative(InitiativeQueue.GetInitiativeId(creatureToken)) == false then
-            if debugLog ~= nil then
-                debugLog[#debugLog+1] = {
-                    name = self.triggeredAbility.name,
-                    success = false,
-                    reason = "Not in combat",
-                }
-            end
-            return false
-        end
-
-		if self:HasResourcesAvailable(creature) == false or (not self.triggeredAbility:CanAfford(creatureToken)) then
-            if debugLog ~= nil then
-                debugLog[#debugLog+1] = {
-                    name = self.triggeredAbility.name,
-                    success = false,
-                    reason = "Not enough resources",
-                }
-            end
-			return false
-		end
-
-        local mandatory = self.triggeredAbility:IsMandatory(creatureToken)
-
-        --An effect forbidding triggered actions suppresses optional triggers whose
-        --Action is "Triggered Action" or "Free Triggered Action". Triggers with no
-        --action are not actions the creature takes (automatic effects, and prompt
-        --plumbing like "Spend Recovery" fired by Healing Grace) so they go through,
-        --as do mandatory triggers (fire automatically) and hostile triggers (forced
-        --on the creature).
-        if (not mandatory) and (not self.triggeredAbility:try_get("hostile", false)) and self.triggeredAbility:IsTriggeredAction() and creature:TriggeredActionsForbidden() then
-            if debugLog ~= nil then
-                debugLog[#debugLog+1] = {
-                    name = self.triggeredAbility.name,
-                    success = false,
-                    reason = "Cannot use triggered actions",
-                }
-            end
-            return false
-        end
-
-        if  ((not mandatory) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
-            if debugLog ~= nil then
-                debugLog[#debugLog+1] = {
-                    name = self.triggeredAbility.name,
-                    success = false,
-                    reason = "Trigger disabled by user",
-                }
-            end
+        if not self:TriggerGatesPass(creature, debugLog) then
             return false
         end
 
@@ -4178,7 +4193,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 		--respects the same modifications as the manual-cast / display version
 		--(GetActivatedAbilities{manualTriggers=true} already does this).
 		local ability = creature:ApplyAbilityModifiers(self.triggeredAbility, nil, "triggered") or self.triggeredAbility
-		ability:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal")})
+		ability:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal"), gatedByModifier = true})
 		return true
 	end
 

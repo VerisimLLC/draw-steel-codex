@@ -425,14 +425,23 @@ dmhub.RegisterEventHandler("ChangeCurrentFloor", function()
 			return
 		end
 
-		--Floors are listed lowest first, so walk down from the top.
+		--Floors are listed lowest first, so walk down from the top. Prefer a floor that is
+		--not a roof, as the engine's own entry-floor choice does; take a roof only if
+		--nothing else is visible.
 		local floors = currentMap.floors or {}
+		local fallbackRoof = nil
 		for i = #floors, 1, -1 do
 			local f = floors[i]
 			if f.parentFloor == nil and f.floorInvisible ~= true then
-				game.ChangeMap(currentMap, f)
-				break
+				if f.roof ~= true then
+					game.ChangeMap(currentMap, f)
+					return
+				end
+				fallbackRoof = fallbackRoof or f
 			end
+		end
+		if fallbackRoof ~= nil then
+			game.ChangeMap(currentMap, fallbackRoof)
 		end
 	end)
 end)
@@ -610,9 +619,9 @@ local function ShowFloorSettings(floor, onHeightChanged)
 		},
 	}
 
-	--"Inside" means standing on any building-layer tile, so this gate is for building roofs
-	--only; the engine ignores it for canopies (their cutaway reveals what is beneath), so the
-	--check is hidden for the Canopy type.
+	--"Inside" means on a building-layer tile or under the art of a roof or upper floor. The
+	--engine ignores this for canopies (their cutaway reveals what is beneath), so the check is
+	--hidden for the Canopy type.
 	local hideWhenInsideCheck = gui.Check{
 		classes = cond(floor.canopy, "collapsed"),
 		text = "Hide roof when players are inside",
@@ -623,7 +632,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			change = function(element)
 				floor.roofShowWhenInside = not element.value
 			end,
-			linger = gui.Tooltip("This layer will be hidden when players are inside a building."),
+			linger = gui.Tooltip("This roof is hidden while every player creature is indoors: under a roof or an upper floor, or on a building tile."),
 		},
 	}
 
@@ -661,7 +670,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			gui.Label{
 				classes = {"formStacked"},
 				text = "Layer Type:",
-				linger = gui.Tooltip("Floor: a normal map level. Roof: hidden for players beneath it except where they can't see. Canopy: a roof that cuts away around tokens (tree foliage etc)."),
+				linger = gui.Tooltip("Floor: a normal map level. Roof: hidden for players beneath it except where they can't see; creatures can stand and walk on it. Canopy: tree foliage that cuts away around tokens; creatures can't stand on it and it doesn't block the sky."),
 			},
 			gui.Dropdown{
 				classes = {"formStacked"},

@@ -494,7 +494,7 @@ local function CodeControl(config, setConfig)
                 width = 300,
                 height = "auto",
                 tmargin = 2,
-                text = "Changing the symbols, dials or code puts the dials back to a new start.",
+                text = "Changing the symbols, dials or code resets the dials.",
             },
         }
         RefreshWarning()
@@ -584,6 +584,7 @@ local function Render(ctx)
     local listenButton
     local listenReason
     local pickRow
+    local pickRollButton
     local pickLabel
     local directorRow
 
@@ -1139,9 +1140,10 @@ local function Render(ctx)
         listenReason.text = reason or ""
         listenReason:SetClass("collapsed", not canListen or reason == nil or m_picking ~= nil)
         pickRow:SetClass("collapsed", m_picking == nil)
+        pickRollButton:SetClass("disabled", m_picking == nil or #m_picking == 0)
         if m_picking ~= nil then
             if #m_picking == 0 then
-                pickLabel.text = "Click the dials to listen to, in order (or press Space on one)."
+                pickLabel.text = "Click up to three dials to listen to, in order."
             else
                 local names = {}
                 for i, p in ipairs(m_picking) do
@@ -1293,6 +1295,17 @@ local function Render(ctx)
         text = "",
     }
 
+    pickRollButton = gui.Button{
+        classes = {"sizeS", "disabled"},
+        text = "Roll",
+        width = 70,
+        hmargin = 6,
+        valign = "center",
+        click = function(element)
+            RollListen()
+        end,
+    }
+
     pickRow = gui.Panel{
         classes = {"collapsed"},
         flow = "horizontal",
@@ -1300,16 +1313,7 @@ local function Render(ctx)
         height = "auto",
         tmargin = 6,
         pickLabel,
-        gui.Button{
-            classes = {"sizeS"},
-            text = "Roll",
-            width = 70,
-            hmargin = 6,
-            valign = "center",
-            click = function(element)
-                RollListen()
-            end,
-        },
+        pickRollButton,
         gui.Button{
             classes = {"sizeS"},
             text = "Cancel",
@@ -1438,15 +1442,15 @@ PuzzleType.Register{
     howToPlay = function(config)
         local attempts = math.tointeger(tonumber(config.attempts)) or 0
         local lines = {
-            "Turn the dials to the right code, then press Try the code. The code is somewhere else: a journal page, a torn note, a mural on the wall.",
-            "Click + or - to turn a dial, or click a dial's face to pick a symbol. Click the lock to use the keyboard: Left and Right move between dials, Up and Down turn them, typing a symbol sets the dial and moves on, and Enter tries the code.",
-            "Everyone turns the same dials. Under each dial is the name of whoever set it last.",
+            "Set the dials to the code and press Try the code. The code is out in the world: a page, a note, a mural.",
+            "Click the lock to use the keyboard: arrows move and turn, typing a symbol sets it, Enter tries the code.",
+            "Everyone shares the dials. Each one shows who set it last.",
         }
         if attempts > 0 then
             lines[#lines + 1] = string.format("The lock jams after %d wrong %s.", attempts, attempts == 1 and "try" or "tries")
         end
         if config.tumbler ~= false then
-            lines[#lines + 1] = "Listen (Agility): each hero can listen at the lock once. Click up to three dials in the order you want to hear them, then roll. The better the roll, the more of those dials you hear the right symbol for."
+            lines[#lines + 1] = "Listen (Agility): once per hero. Pick up to three dials, then roll. The better the roll, the more you hear."
         end
         return table.concat(lines, "\n\n")
     end,
@@ -1461,13 +1465,13 @@ PuzzleType.Register{
         { id = "images", type = "custom", label = "Images (up to ten, each with a name)", default = {}, visible = UsesImages, Control = ImagesControl },
         { id = "code", type = "custom", label = "The code", default = "", Control = CodeControl },
         { id = "attempts", type = "number", label = "Tries before it jams (0 for unlimited)", default = 0, min = 0, max = 10 },
-        { id = "tumbler", type = "toggle", label = "Heroes can listen to the tumblers (Agility, Pick Lock)", default = true },
+        { id = "tumbler", type = "toggle", label = "Allow listening (Agility, Pick Lock)", default = true },
         { id = "difficulty", type = "choice", label = "Listening difficulty", default = "medium", visible = Listens, options = {
             { id = "easy", text = "Easy" },
             { id = "medium", text = "Medium" },
             { id = "hard", text = "Hard" },
         } },
-        { id = "consequence", type = "choice", label = "A success or failure with a consequence", default = "noise", visible = Listens, options = {
+        { id = "consequence", type = "choice", label = "On a result with a consequence", default = "noise", visible = Listens, options = {
             { id = "noise", text = "Makes a noise (a chat line)" },
             { id = "try", text = "Costs a try (when tries are limited)" },
         } },

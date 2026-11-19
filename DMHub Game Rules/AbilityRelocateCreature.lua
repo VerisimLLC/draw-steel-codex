@@ -153,6 +153,11 @@ ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
 
+--If set, a teleport made by this behavior is the creature's own movement (Cinder Step from
+--the Move drawer): it spends movement equal to the distance and fires the "Teleport as
+--Movement" trigger, exactly like a Ctrl-drag teleport (creature:HandleTeleportMove).
+ActivatedAbilityRelocateCreatureBehavior.teleportCountsAsMovement = false
+
 --A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
 --when "Expend Full Movement" is set we bill the creature's entire remaining
 --movement for the turn no matter how far it actually travelled. Only meaningful
@@ -192,6 +197,71 @@ function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
     end
 
     return self.movementType
+end
+
+--- True when this ability's relocate moves along a straight line (Move's straightline option).
+--- @return boolean
+function ActivatedAbility:IsStraightLineMove()
+    return self.targeting == "straightline" or self.targeting == "straightpath"
+        or self.targeting == "straightpathignorecreatures" or self.targetType == "line"
+end
+
+--- The options token:Move takes for this ability's walked or pushed relocate of moverToken
+--- (the branch of ActivatedAbilityRelocateCreatureBehavior:Cast that is not a teleport, jump,
+--- swap or charge-jump). The cast adds waypoints, maxCost, freeMovement and flightAltitude
+--- and moves with them. The action bar previews a straight-line move by passing the same
+--- table to MarkMovementArrow, which then plans the line with the real move's own planner, so
+--- the arrow shows the move that will happen (a Devastating Rush preview once climbed over a
+--- market stall's corner that the real rush stopped at).
+--- @param moverToken CharacterToken the creature that moves (the cast's caster token)
+--- @param symbols table the cast symbols (forcedmovement, invoker)
+--- @param movementType nil|string the relocate's movement type ("move", "shift", ...)
+--- @return table<string, any>
+function ActivatedAbility:RelocateMoveOptions(moverToken, symbols, movementType)
+    local throughCreatures = self:try_get("forcedMovementThroughCreatures", false)
+    local forcedPushOptions = moverToken.properties:GetForcedPushOptions()
+    local abilityDist = self:GetRange(moverToken.properties)/dmhub.unitsPerSquare
+
+    local isVerticalSlideCast = (symbols.forcedmovement or self:try_get("forcedMovement", "slide")) == "vertical_slide"
+        or self:try_get("forcedMovementStraightUp", false)
+
+    --forced tells the engine the creature is being pushed, pulled or slid. The engine
+    --already spots a straight-line shove on its own; this covers a forced move aimed
+    --around a corner, which walks its path like any other move.
+    local forcedMove = (symbols.forcedmovement ~= nil or self:try_get("forcedMovement") ~= nil)
+
+    --The engine has no "move" movement type: a straight-line "move" falls back to
+    --Pushed, which reports the path as forced and so provokes no opportunity attacks.
+    --Push/pull/slide abilities rely on that fallback, so only a willing straight-path
+    --move (Charge, Tide of Death, Wrecking Ball) is sent as a walk. "Willing" means
+    --nothing marks it forced and the creature moving is the one using the ability,
+    --not a creature moved by someone else's invoked ability (report C5XGW6HH).
+    --A willing move also gets no forced-movement distance, so walls that only block
+    --forced movement don't stop it.
+    local engineMovementType = movementType
+    local forcedMoveDist = abilityDist
+    if movementType == "move" and (not forcedMove) and (self.targeting == "straightpath" or self.targeting == "straightpathignorecreatures") then
+        local invoker = symbols.invoker
+        if type(invoker) == "function" then
+            invoker = invoker("self")
+        end
+        if invoker == nil or invoker == moverToken.properties then
+            engineMovementType = "walk"
+            forcedMoveDist = 0
+        end
+    end
+
+    return {
+        straightline = self:IsStraightLineMove(),
+        moveThroughFriends = (self.targeting ~= "straightline"),
+        ignorecreatures = (self.targeting == "straightpathignorecreatures" or self.targetType == "line" or throughCreatures),
+        movementType = engineMovementType,
+        forcedMovementDistance = forcedMoveDist,
+        rebound = forcedPushOptions.rebound,
+        maxBounces = forcedPushOptions.maxBounces,
+        slide = isVerticalSlideCast,
+        forced = forcedMove,
+    }
 end
 
 --After a shortfall, only offer the ordinary charge selector when an affordable
@@ -521,9 +591,17 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 teleportOAObservers = casterToken.properties:CaptureTeleportOpportunityAttackers(casterToken.loc)
             end
 
+            local countsAsMovement = movementType == "teleport" and self:try_get("teleportCountsAsMovement", false)
+            if countsAsMovement then
+                casterToken.properties._tmp_teleportCountsAsMovement = true
+            end
+
         	casterToken:Teleport(teleportLoc)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
+            if countsAsMovement then
+                casterToken.properties._tmp_teleportCountsAsMovement = nil
+            end
 
             --After the caster teleports, bring along any grabbed creatures.
             --Placement: closest legal adjacent square (within radius 1 of caster's
@@ -735,49 +813,37 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 
-			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
-				or ability.forcedMovementStraightUp
-
 			--freeMovement mirrors the _tmp_freeMovement flag set at the top of Cast: an
 			--ability-granted shift/move is not the creature's move action, so the engine must
 			--not clamp it to the creature's remaining strict:movement budget. Without it, a
 			--caster that already used its movement this turn has a negative budget and the
 			--engine rejects the move outright (report 7BE97X9P).
-			--forced tells the engine the creature is being pushed, pulled or slid. The engine
-			--already spots a straight-line shove on its own; this covers a forced move aimed
-			--around a corner, which walks its path like any other move.
 			--flightAltitude: the end altitude a flier dialed on the wheel while picking the
 			--destination (the action bar's flight wheel); the engine climbs to it over the move.
-			local forcedMove = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil)
-
-			--The engine has no "move" movement type: a straight-line "move" falls back to
-			--Pushed, which reports the path as forced and so provokes no opportunity attacks.
-			--Push/pull/slide abilities rely on that fallback, so only a willing straight-path
-			--move (Charge, Tide of Death, Wrecking Ball) is sent as a walk. "Willing" means
-			--nothing marks it forced and the creature moving is the one using the ability,
-			--not a creature moved by someone else's invoked ability (report C5XGW6HH).
-			--A willing move also gets no forced-movement distance, so walls that only block
-			--forced movement don't stop it.
-			local engineMovementType = movementType
-			local forcedMoveDist = abilityDist
-			if movementType == "move" and (not forcedMove) and (ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures") then
-				local invoker = options.symbols.invoker
-				if type(invoker) == "function" then
-					invoker = invoker("self")
-				end
-				if invoker == nil or invoker == casterToken.properties then
-					engineMovementType = "walk"
-					forcedMoveDist = 0
-				end
-			end
-
-			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = engineMovementType, forcedMovementDistance = forcedMoveDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = forcedMove, flightAltitude = options.symbols.flightAltitude })
+			--The rest comes from RelocateMoveOptions, which the action bar's preview uses too.
+			local moveOptions = ability:RelocateMoveOptions(casterToken, options.symbols, movementType --[[@as nil|string]])
+			moveOptions.waypoints = waypoints
+			moveOptions.maxCost = 30000
+			moveOptions.freeMovement = true
+			moveOptions.flightAltitude = options.symbols.flightAltitude
+			local path = casterToken:Move(EngineLoc(targets[#targets].loc), moveOptions)
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total
             --silence and look like the relocate had happened, so make the failure traceable.
             if path == nil then
                 print("Relocate:: MOVE REFUSED -- caster did not move. movementType =", movementType, "dest =", targets[#targets].loc.str, "ability =", ability.name)
+            end
+
+            --A willing straight-line move (a rush or charge) that ends before the chosen square
+            --says so on the map; the strike it leads into may now have nobody in reach.
+            if moveOptions.movementType == "walk" and moveOptions.straightline then
+                local wanted = targets[#targets].loc
+                local reached = path ~= nil and path.destination or nil
+                if wanted ~= nil and (reached == nil or reached.x ~= wanted.x or reached.y ~= wanted.y) then
+                    print("Relocate:: STOPPED SHORT --", ability.name, "wanted", wanted.str, "reached", reached ~= nil and reached.str or "nothing")
+                    casterToken.properties:FloatLabel(tr("Path blocked"), "#ff0000")
+                end
             end
 
             --fire wallbreak events for any walls broken during the move
@@ -1169,6 +1235,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 		value = self.expendFullMovement,
 		change = function(element)
 			self.expendFullMovement = element.value
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = UIText.T("relocate.editor.teleport_counts_as_movement"),
+		tooltip = UIText.T("relocate.editor.teleport_counts_as_movement_tooltip"),
+		value = self:try_get("teleportCountsAsMovement", false),
+		change = function(element)
+			self.teleportCountsAsMovement = element.value
 		end,
 	}
 

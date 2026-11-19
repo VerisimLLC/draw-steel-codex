@@ -1528,6 +1528,17 @@ function dmhub.RunSteamHandoffDiagnostic(variant, onComplete) end
 --- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete) end
 
+--- Reads a secret stored on this machine only with @see SetLocalSecret (Windows: DPAPI for this Windows user; macOS: the keychain). Returns nil when there is none. Keys are [a-z0-9_-], at most 64 characters.
+--- @param key string
+--- @return nil|string
+function dmhub.GetLocalSecret(key) end
+
+--- Stores a secret on this machine only, never in the cloud, logs or settings files: for credentials such as a partner's device token. nil or an empty string removes it. Returns false when it could not be stored.
+--- @param key string
+--- @param value nil|string
+--- @return boolean
+function dmhub.SetLocalSecret(key, value) end
+
 --- Open the given URL in a web browser. Only links to certain approved domains will be allowed for security reasons.
 --- @param url? string
 function dmhub.OpenURL(url) end
@@ -2153,10 +2164,6 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
---- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
---- @param enabled? boolean
-function dmhub.PanelNursery(enabled) end
-
 --- Diagnostic: how the style cascade finds the rules of each ancestor's styles list that match a panel. 0 = test every rule (the original walk), 1 = test only the rules an index says the panel could match (default), 2 = verify: do both, keep the original result and count any difference. Pass -1 to leave the mode as it is; pass reset=true to zero the counters. Returns the counters. --style-index off|on|verify at startup sets the same switch.
 --- @param mode? integer
 --- @param reset? boolean
@@ -2178,6 +2185,10 @@ function dmhub.PanelMaterialSharing(mode, reset) end
 --- Diagnostic: the renderer's per-frame counters -- SetPass calls, draw calls, batches, vertices -- averaged over the frames recorded so far (up to the last 60). Recording starts on the first call, so call once, let a second pass, and call again.
 --- @return string
 function dmhub.RenderStats() end
+
+--- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
+--- @param enabled? boolean
+function dmhub.PanelNursery(enabled) end
 
 --- Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
 --- @param enabled? boolean

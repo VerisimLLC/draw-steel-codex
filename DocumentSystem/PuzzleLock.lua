@@ -797,9 +797,9 @@ local function OpenSetup(id, floorid, objid)
             change = function(element)
                 Puzzle.SetConfig(id, { solveAnywhere = element.value == true })
             end,
-            hover = gui.Tooltip("Off: players who open it from a page, the table or chat can look but must come to the lock to solve it."),
+            hover = gui.Tooltip("Off: players can look from elsewhere but must come to the lock to solve it."),
         }
-        children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 10, text = "Players can use it from (squares):" }
+        children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 10, text = "Range (squares):" }
         children[#children + 1] = gui.Slider{
             width = 200,
             labelWidth = 48,
@@ -823,7 +823,7 @@ local function OpenSetup(id, floorid, objid)
         for _, a in ipairs(attrs) do
             attrOptions[#attrOptions + 1] = { id = a.id, text = a.text }
         end
-        children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Bypass test (tier 3 opens it; tier 2 opens it and runs the fail effects):" }
+        children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Bypass test:", hover = gui.Tooltip("Tier 3 opens it. Tier 2 opens it and runs the fail effects.") }
         children[#children + 1] = gui.Dropdown{
             width = 200,
             options = attrOptions,
@@ -872,7 +872,7 @@ local function OpenSetup(id, floorid, objid)
             width = "auto",
             height = 24,
             fontSize = 14,
-            text = "Hide this object when solved",
+            text = "Hide when solved",
             value = lock.hideWhenSolved == true,
             change = function(element)
                 local current = ReadLock()

@@ -748,12 +748,15 @@ end
 
 --Remove all instant duration effects and clear tracking. Called when casting ends.
 local function ClearCastingDurationEffects()
-    for behavior, entry in pairs(g_castingDurationEffects) do
+    --Take the list before running it: a destructor calls game.Refresh, which can re-enter
+    --this function (via restoreFromBackup -> cancelCasting) and must find nothing left to run.
+    local effects = g_castingDurationEffects
+    g_castingDurationEffects = {}
+    for behavior, entry in pairs(effects) do
         if entry.destructor ~= nil then
             entry.destructor()
         end
     end
-    g_castingDurationEffects = {}
 end
 
 function IsCurrentlyUsingAbility()
@@ -926,8 +929,8 @@ local function OverviewAbilityFacets(ability)
     --Field test 21 (Ghoul Leap): effects can hide one level down - an
     --InvokeAbilityBehavior whose customAbility carries the real rule (Leap:
     --"1 damage; prone" in a nested DrawSteelCommandBehavior). The scanner
-    --recurses one level into invoked custom abilities and parses bare rule
-    --commands with the same tier-text parser.
+    --looks up to two levels into the abilities invokes hold (custom or a
+    --module's registered type) and parses bare rule commands with the same tier-text parser.
     local scanBehaviors
     scanBehaviors = function(behaviorList, depth)
         for _, behavior in ipairs(behaviorList or {}) do
@@ -1020,7 +1023,10 @@ local function OverviewAbilityFacets(ability)
                     end
                 end
             elseif tn == "ActivatedAbilityInvokeAbilityBehavior" and depth < 3 then
-                local invoked = behavior:try_get("customAbility")
+                --HeldAbility, not customAbility: it also covers module-registered invoke
+                --types, and ignores a leftover customAbility once the type was changed.
+                --The bound caster (when the bar's list bound one) lets a module's preview see who uses it.
+                local invoked = behavior:HeldAbility(ability:try_get("_tmp_boundCaster"))
                 if invoked ~= nil then
                     scanBehaviors(invoked:try_get("behaviors"), depth + 1)
                 end
@@ -10465,35 +10471,24 @@ local function MoveTargetLocRejected(targetingType, loc)
 end
 
 --- MarkMovementArrow options for a straight-line move by g_token with the current ability
---- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They match the
---- real move in AbilityRelocateCreature.lua, so the hover arrow and the Direct Path highlight
---- show where the creature ends up. Known differences from the real move: flight altitude is
---- not sent, and a forced straight-path move (or one made through another creature's ability)
---- previews without the walls that only block forced movement.
+--- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They are the
+--- options the real move passes to Move (ActivatedAbility:RelocateMoveOptions), and with a
+--- movement type the engine knows (a willing Direct Path move is a "walk") MarkMovementArrow
+--- plans the line with the real move's own planner, so the hover arrow and the Direct Path
+--- highlight show where the creature ends up. Known difference from the real move: flight
+--- altitude is not sent.
 --- Lives on the module table because this file's main chunk is at Lua's 200-local limit.
 --- @param targetingType string
 --- @return table options, boolean hasCharge true when charge-jump options were merged in
 function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
     ---@cast g_token -nil
     ---@cast g_currentAbility -nil
-    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
-    local reboundOptions = g_token.properties:GetForcedPushOptions()
-    --pass forcedMovementDistance so the preview cost function treats "blocks forced movement"
-    --walls as blocking (same flag the real cast sets in AbilityRelocateCreature.lua).
-    --only applies to the straightline (forced-movement) targeting variant.
-    local previewForcedDist = 0
-    if targetingType == "straightline" then
-        previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
+    local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+    --Teleports, jumps and relocates are not walked or pushed along the line by the cast.
+    if movementType == "teleport" or movementType == "relocate" or movementType == "jump" then
+        movementType = nil
     end
-    local options = {
-        straightline = true,
-        moveThroughFriends = (targetingType ~= "straightline"),
-        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
-        rebound = reboundOptions.rebound,
-        maxBounces = reboundOptions.maxBounces,
-        forcedMovementDistance = previewForcedDist,
-        slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
-    }
+    local options = g_currentAbility:RelocateMoveOptions(g_token, g_currentSymbols, movementType)
     local chargeOptions = g_currentAbility:GetChargeJumpOptions(g_token, g_currentSymbols, g_abilities)
     if chargeOptions ~= nil then
         for key, value in pairs(chargeOptions) do
@@ -10501,6 +10496,26 @@ function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
         end
     end
     return options, chargeOptions ~= nil
+end
+
+--- The line the prompt adds when an invoked ability that targets creatures (the strike a
+--- rush or charge makes after moving) has no creature it may target and none chosen.
+--- nil when there is at least one, or for any other prompt.
+--- @param ability ActivatedAbility
+--- @param symbols table
+--- @param potentialTargetTokens CharacterToken[] the tokens CalculateSpellTargetFocusing armed
+--- @param chosenCount integer
+--- @return nil|string
+function DrawSteelActionBar.NoValidTargetPromptHint(ability, symbols, potentialTargetTokens, chosenCount)
+    if symbols.invoked ~= true or ability.targetType ~= "target" or chosenCount > 0 then
+        return nil
+    end
+    for _, tok in ipairs(potentialTargetTokens or {}) do
+        if tok.valid and tok.sheet ~= nil and tok.sheet.data.targetValid then
+            return nil
+        end
+    end
+    return string.format(tr("No creature is in reach. Choose Skip to end %s."), ability.name)
 end
 
 --- True for a "Direct Path" move: a straight-path move to a chosen space (e.g. Charge).
@@ -13094,11 +13109,12 @@ CreateAbilityController = function()
 
             ClearCastingDurationEffects()
 
-            for _, destructor in ipairs(g_castingDestructors) do
+            --Taken before running for the same re-entrancy reason as ClearCastingDurationEffects.
+            local destructors = g_castingDestructors
+            g_castingDestructors = {}
+            for _, destructor in ipairs(destructors) do
                 destructor()
             end
-
-            g_castingDestructors = {}
 
             if g_invokerInfo ~= nil and g_invokerInfo.oncancel ~= nil then
                 g_invokerInfo.oncancel()
@@ -13319,7 +13335,7 @@ CreateAbilityController = function()
             --the life of the chooser so the bar shows it; popped in destroy.
             local pushedSourceToken = false
             if options.sourceToken ~= nil and options.sourceToken.valid then
-                local shownToken = g_token
+                local shownToken = g_token --[[@as nil|CharacterToken]]
                 if #g_casterTokenStack == 0 then
                     shownToken = DrawSteelActionBar._operate.SelectedBoardToken()
                 end
@@ -16006,6 +16022,19 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             g_range = range
 
             g_potentialTargetTokens = CalculateSpellTargetFocusing(g_currentSymbols)
+
+            --An invoked strike with nobody in reach (the strike after a rush that was
+            --stopped short) would otherwise sit with nothing clickable and no word why.
+            local noTargetHint = DrawSteelActionBar.NoValidTargetPromptHint(g_currentAbility, g_currentSymbols, g_potentialTargetTokens, #targets)
+            if noTargetHint ~= nil then
+                local shownPrompt = g_castMessage.data.promptText
+                if shownPrompt == nil or shownPrompt == "" then
+                    g_castMessage.data.promptText = noTargetHint
+                else
+                    g_castMessage.data.promptText = shownPrompt .. "\n" .. noTargetHint
+                end
+                g_castMessage:FireEvent("refresh")
+            end
 
             --refresh the radius marker.
             if g_currentAbility.targetType == "line" then

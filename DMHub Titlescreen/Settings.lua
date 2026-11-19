@@ -50,13 +50,15 @@ setting{
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier
 --patron of every creator organization and of the DMHub campaign: map pack
 --tiers, Patreon-included modules, patronTier. The engine ignores it on
---non-admin accounts. Toggle with /set patreondevgrant true|false; /patreon
---reports whether it is in force. Nothing is written to the server.
+--non-admin accounts. On by default so admins can use every partner map
+--whatever their own pledges; /set patreondevgrant false to see the gated
+--view a player gets. /patreon reports whether it is in force. Nothing is
+--written to the server.
 setting{
     id = "patreondevgrant",
     description = "Admin: pretend to hold every Patreon grant.",
     storage = "preference",
-    default = false,
+    default = true,
 }
 
 setting{

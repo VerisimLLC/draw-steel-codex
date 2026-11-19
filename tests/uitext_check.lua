@@ -19,6 +19,10 @@ local DEFAULT_TEXT = {
     "Codex Titlescreen/EotwTextHeroes.lua",
     "Codex Titlescreen/EotwTextTrainingGrounds.lua",
     "Codex Titlescreen/EotwTextGreatForge.lua",
+    "Codex Titlescreen/EotwTextTemple.lua",
+    "Codex Titlescreen/EotwTextForgeNegotiation.lua",
+    --the negotiation shared by the town and (later) the game.
+    "Draw Steel V/NegotiationSceneText.lua",
     "EncounterOfTheWeek/EncounterText.lua",
     "EncounterOfTheWeek/EncounterAuthoringText.lua",
     --the main game's Hero Builder, which EotW runs too.
@@ -32,6 +36,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwBuild.lua",
     "Codex Titlescreen/EotwBuilder.lua",
     "Codex Titlescreen/EotwDowntime.lua",
+    "Codex Titlescreen/EotwForge.lua",
     "Codex Titlescreen/EotwHeroCard.lua",
     "Codex Titlescreen/EotwHeroSheet.lua",
     "Codex Titlescreen/EotwHeroSheetData.lua",
@@ -41,9 +46,12 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwRoster.lua",
     "Codex Titlescreen/EotwSocialRail.lua",
     "Codex Titlescreen/EotwTownHall.lua",
+    "Codex Titlescreen/EotwTemple.lua",
     "Codex Titlescreen/EotwTrainingGrounds.lua",
     --EotW's build engine, shared with the main game's Builder.
     "Draw Steel V/HeroBuildPools.lua",
+    "Draw Steel V/NegotiationScene.lua",
+    "Draw Steel V/NegotiationSceneStage.lua",
     --the main game's Hero Builder and its Skills & Languages, which EotW runs too.
     "Draw Steel Character Builder/HeroBuilder.lua",
     "Draw Steel Character Builder/HeroSkillsLanguages.lua",
@@ -384,6 +392,21 @@ local function CheckCall(path, src, pos, isPlural, openPos)
     local id = string.match(argsrc, '^%s*"([^"]*)"') or string.match(argsrc, "^%s*'([^']*)'")
     if id == nil then
         Warn(where, "id is not a literal string; cannot be checked")
+        return
+    end
+    --T("a.prefix." .. key): an id built at run time. Every text under the
+    --prefix counts as used; it is an error only if there is none.
+    if string.match(argsrc, '^%s*"[^"]*"%s*%.%.') or string.match(argsrc, "^%s*'[^']*'%s*%.%.") then
+        local found = false
+        for defid, _ in pairs(defs) do
+            if string.sub(defid, 1, #id) == id then
+                used[defid] = true
+                found = true
+            end
+        end
+        if not found then
+            Err(where, string.format("no text starting with '%s'", id))
+        end
         return
     end
 

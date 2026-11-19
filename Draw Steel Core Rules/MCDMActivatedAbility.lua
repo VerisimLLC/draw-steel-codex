@@ -775,30 +775,39 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+--The damage types an ability's power roll deals ("untyped" for plain damage).
+--Shared by the Ability.DamageTypes symbol and TestRiders, so a rider's "you
+--can deal holy damage" agrees with the conditions modifiers check at roll time.
+--- @param ability ActivatedAbility
+--- @return string[]
+function ActivatedAbility.PowerRollDamageTypes(ability)
+    local strings = {}
+
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local powerRollBehavior = behavior --[[@as ActivatedAbilityPowerRollBehavior]]
+            for _, entry in ipairs(powerRollBehavior.tiers) do
+                local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
+                if damageMatch ~= nil then
+                    local damageType = damageMatch.type or "untyped"
+                    if not table.contains(strings, damageType) then
+                        strings[#strings + 1] = string.lower(damageType)
+                    end
+                end
+            end
+        end
+    end
+
+    return strings
+end
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "damagetypes",
     type = "set",
     desc = "The damage types this ability does.",
     calculate = function(c)
-        local strings = {}
-
-        for _, behavior in ipairs(c.behaviors) do
-            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                local tiers = behavior.tiers
-                for _, entry in ipairs(tiers) do
-                    local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
-                    if damageMatch ~= nil then
-                        local damageType = damageMatch.type or "untyped"
-                        if not table.contains(strings, damageType) then
-                            strings[#strings + 1] = string.lower(damageType)
-                        end
-                    end
-                end
-            end
-        end
-
         return StringSet.new {
-            strings = strings,
+            strings = ActivatedAbility.PowerRollDamageTypes(c),
         }
     end,
 
@@ -1630,8 +1639,9 @@ local function CardBookmarkTab(hide, buildArgs)
 end
 
 --- The power roll whose tier table the ability card shows. A top-level roll wins;
---- otherwise it is a roll inside an invoked custom ability, or inside a trigger of
---- an aura the ability places (e.g. Noxious Bubble's Might test when it bursts).
+--- otherwise it is a roll inside an invoked custom ability or a module invoke type's
+--- preview, or inside a trigger of an aura the ability places (e.g. Noxious Bubble's
+--- Might test when it bursts).
 --- @param ability ActivatedAbility
 --- @param token CharacterToken|nil
 --- @param params table
@@ -1643,14 +1653,14 @@ local function FindCardPowerTableBehavior(ability, token, params)
             --the modes didn't match, so just pass on this one.
         elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
             return behavior --[[@as ActivatedAbilityPowerRollBehavior]]
-        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
-            --if we invoke a power roll ability try to pull that out.
-            --customAbility has no class default and may be unset even when
-            --abilityType resolves to "custom" (the class default), so read it safely.
-            local customAbility = behavior:try_get("customAbility")
+        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            --if we invoke a power roll ability try to pull that out: a custom
+            --ability, or what a module's registered invoke type previews.
+            local invokeBehavior = behavior --[[@as ActivatedAbilityInvokeAbilityBehavior]]
+            local customAbility = invokeBehavior:HeldAbility(token ~= nil and token.properties or nil)
             for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                    result = subbehavior
+                    result = subbehavior --[[@as ActivatedAbilityPowerRollBehavior]]
                 end
             end
         elseif behavior.typeName == "ActivatedAbilityAuraBehavior" then
@@ -3444,7 +3454,7 @@ function ActivatedAbility:Render(options, params)
                     element:SetClass("collapsed", true)
                 end,
 
-                classes = { "abilitySection", cond(self:GetPowerRollDisplay() == "", "collapsed", nil) },
+                classes = { "abilitySection", cond(self:GetPowerRollDisplay(creatureProperties) == "", "collapsed", nil) },
                 width = "100%",
                 height = "auto",
                 tmargin = 2,
@@ -3466,7 +3476,7 @@ function ActivatedAbility:Render(options, params)
 
                 gui.Label {
 
-                    text = self:GetPowerRollDisplay(),
+                    text = self:GetPowerRollDisplay(creatureProperties),
                     fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",
@@ -5235,7 +5245,14 @@ end
 
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
     if self:try_get("promptOverride") ~= nil then
-        return self.promptOverride .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
+        local reboundHint = ""
+        --A rebounding push bounces with whatever distance is left past the obstacle, so tell
+        --the player where to point.
+        if self:try_get("targeting", "direct") == "straightline" and casterToken ~= nil and casterToken.properties ~= nil
+            and casterToken.properties:GetForcedPushOptions().rebound then
+            reboundHint = ". Click a space behind the collision target to rebound."
+        end
+        return self.promptOverride .. reboundHint .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
     end
 
     if synthesizedSpells ~= nil then

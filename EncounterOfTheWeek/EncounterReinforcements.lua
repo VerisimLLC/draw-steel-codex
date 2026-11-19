@@ -499,6 +499,180 @@ function EncounterReinforcements.HostTick(queue, live, force)
     doc:CompleteChange("Encounter of the Week: reinforcements arrived", { undoable = false })
 end
 
+--- monsters that fled an earlier part ------------------------------------
+--The "Monsters Fled from Last Fight" Encounter Script (builtin:fled-monsters,
+--`stragglers = true`) on a series part's opening encounter: the monsters the
+--previous part's result lists as escaped through its Retreat Zone join this
+--part's opening fight, in the encounter's Stragglers Zone, less one for each
+--"one of the fleeing monsters is destroyed" clause (doc.data.retreatKills).
+--A part recorded with a count but no list (a test's Story so far) is filled
+--from that part's own opening fight.
+
+--The bestiary entry for one fled monster: the entry it was spawned from,
+--else the visible entry of its monster type.
+local function FledMonsterId(rec)
+    if rec.monsterid ~= nil and assets.monsters[rec.monsterid] ~= nil then
+        return rec.monsterid
+    end
+    local wanted = lower(rec.monsterType or rec.name)
+    local fallback = nil
+    for id, m in pairs(assets.monsters) do
+        local t, hidden = nil, false
+        pcall(function()
+            t = m.properties:try_get("monster_type")
+            hidden = m.hidden == true
+        end)
+        if t ~= nil and lower(t) == wanted then
+            if not hidden then
+                return id
+            end
+            fallback = fallback or id
+        end
+    end
+    return fallback
+end
+
+--The monsters of a series part's own opening fight, one bestiary id per
+--creature, non-minions first (who flees first when only a count is known).
+local function PartFightMonsters(part)
+    local ids = {}
+    pcall(function()
+        local found = EncounterMontage.ScriptForMap(game.currentMapId)
+        for _, script in ipairs(found.parts or {}) do
+            if script.parse.part ~= nil and script.parse.part.number == part and script.doc ~= nil then
+                local tag = (script.doc:try_get("annotations") or {})["encounter"]
+                local enc = tag ~= nil and tag:try_get("encounter") or nil
+                local minions = {}
+                for _, group in ipairs(enc ~= nil and enc.groups or {}) do
+                    if group.wave == nil then
+                        for id, count in pairs(group.monsters or {}) do
+                            local isMinion = false
+                            pcall(function() isMinion = assets.monsters[id].properties.minion == true end)
+                            for _ = 1, tonumber(count) or 0 do
+                                if isMinion then
+                                    minions[#minions + 1] = id
+                                else
+                                    ids[#ids + 1] = id
+                                end
+                            end
+                        end
+                    end
+                end
+                for _, id in ipairs(minions) do
+                    ids[#ids + 1] = id
+                end
+            end
+        end
+    end)
+    return ids
+end
+
+--Who the encounter's "Monsters Fled from Last Fight" script brings in:
+--{ part, monsters = { bestiary id, ... }, kills }, or nil when the encounter
+--has no such script or this is not a later part of a series.
+function EncounterReinforcements.RetreatedJoining(encounter)
+    if encounter == nil or not encounter:HasStragglersScript() then
+        return nil
+    end
+    local part = (tonumber(EncounterOfTheWeekGame.ActivePart()) or 1) - 1
+    if part < 1 then
+        return nil
+    end
+    local list = {}
+    local rec = EncounterMontage.Story().parts[part]
+    if type(rec) == "table" then
+        for _, r in ipairs(rec.retreated or {}) do
+            local id = FledMonsterId(r)
+            if id ~= nil then
+                list[#list + 1] = id
+            else
+                printf("EotW: no bestiary entry for '%s', which fled Part %d", tostring(r.monsterType or r.name), part)
+            end
+        end
+        local count = tonumber(rec.retreats) or #list
+        if #list < count then
+            local fight = PartFightMonsters(part)
+            for i = #list + 1, math.min(count, #fight) do
+                list[#list + 1] = fight[i]
+            end
+        end
+    end
+    local kills = tonumber(EncounterMontage.GetDoc().data.retreatKills) or 0
+    for _ = 1, kills do
+        if #list == 0 then
+            break
+        end
+        table.remove(list, math.random(#list))
+    end
+    return { part = part, monsters = list, kills = kills }
+end
+
+--The encounter's Stragglers Zone tiles on the current map, shuffled, the
+--free ones first.
+local function StragglerLocs(encounter)
+    local free, taken = {}, {}
+    for _, loc in ipairs(Encounter.StartLocsOnCurrentMap(encounter:GetStragglerLocs())) do
+        if game.GetTokensAtLoc(loc) == nil then
+            free[#free + 1] = loc
+        else
+            taken[#taken + 1] = loc
+        end
+    end
+    for _, list in ipairs({ free, taken }) do
+        for i = #list, 2, -1 do
+            local j = math.random(1, i)
+            list[i], list[j] = list[j], list[i]
+        end
+    end
+    for _, loc in ipairs(taken) do
+        free[#free + 1] = loc
+    end
+    return free
+end
+
+--Host, from the opening spawn (EncounterOfTheWeekGame.SpawnEncounterGroups):
+--spawn the monsters that fled the previous part, one initiative group per
+--monster type, in the encounter's Stragglers Zone (else around `anchor`).
+--Returns the spawned charids.
+function EncounterReinforcements.SpawnRetreatedJoining(encounter, numHeroes, anchor)
+    local joining = EncounterReinforcements.RetreatedJoining(encounter)
+    if joining == nil then
+        return {}
+    end
+    if #joining.monsters == 0 then
+        printf("EotW: no monsters that fled Part %d join the fight (%d destroyed on the way)", joining.part, joining.kills)
+        return {}
+    end
+    local counts, order = {}, {}
+    for _, id in ipairs(joining.monsters) do
+        if counts[id] == nil then
+            counts[id] = 0
+            order[#order + 1] = id
+        end
+        counts[id] = counts[id] + 1
+    end
+    local zoneLocs = StragglerLocs(encounter)
+    if #zoneLocs == 0 then
+        printf("EotW: the encounter has no Stragglers Zone; the monsters that fled Part %d arrive beside the fight", joining.part)
+    end
+    local used = { n = 0 }
+    local spawned = {}
+    for _, id in ipairs(order) do
+        local group = { monsters = { [id] = counts[id] } }
+        local at = anchor or dmhub.cameraPosition
+        if #zoneLocs > 0 then
+            group.spawnlocs = PickLocs(zoneLocs, counts[id], used)
+            at = group.spawnlocs[1]
+        end
+        local _, charids = Encounter.SpawnGroupForReal(group, numHeroes, at)
+        for _, charid in ipairs(charids) do
+            spawned[#spawned + 1] = charid
+        end
+    end
+    printf("EotW: %d monster(s) that fled Part %d join the fight in the Stragglers Zone (%d destroyed on the way)", #spawned, joining.part, joining.kills)
+    return spawned
+end
+
 --- the clear-the-map victory ----------------------------------------------
 
 --The beat's "Victory:" instruction, or nil.
@@ -532,12 +706,12 @@ local function IsKind(token, who)
     return match
 end
 
---The enemies still standing on the map: monsters nobody controls, not the
---script's bystanders, not dead. `who` narrows it (see IsKind).
+--The enemies still standing on the map: monsters not fighting for the heroes,
+--not the script's bystanders, not dead. `who` narrows it (see IsKind).
 function EncounterReinforcements.LivingEnemies(who)
     local result = {}
     for _, token in ipairs(dmhub.allTokens) do
-        if token.valid and token.properties ~= nil and not token.playerControlled then
+        if token.valid and token.properties ~= nil and not Encounter.FightsForHeroes(token) then
             local isMonster, isHero, dead = false, false, false
             pcall(function()
                 isMonster = token.properties:IsMonster()

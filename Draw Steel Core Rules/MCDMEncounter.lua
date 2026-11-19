@@ -776,6 +776,38 @@ end
 --   2. if still over target, remove duplicates (a second copy of a type in a
 --      group, or a second squad), highest letter first, while that lands
 --      closer to target.
+--
+-- Everything above is the OPENING FIGHT only: the groups with no wave, which
+-- is also all the builder's difficulty readout counts.
+--
+-- Author gates above the current size. A group or monster the author set to
+-- appear from some larger size (minHeroes / monsterMinHeroes) arrives at that
+-- size exactly as they built it, before anything else is added; a group of
+-- theirs arriving counts as that step's new group. (Before 2026-11-17 such
+-- content was zeroed out and a look-alike group opened in its place, one more
+-- dead group per press.)
+--
+-- Reinforcement waves (groups with group.wave) are balanced separately, one
+-- wave at a time. A wave worth W EV at the current size aims for W * n / n0
+-- at n heroes: it grows and shrinks in proportion with the party, so a wave
+-- that arrives every round keeps the same share of the fight as one that
+-- arrives once. A wave is never given new groups or new monster types:
+--   up:   the author's gated content for that size, then another squad or a
+--         duplicate in one of the wave's groups, whichever lands closest,
+--         while that lands closer to target (same type limits as above).
+--   down: take away a squad or duplicate, or a whole group while another of
+--         the wave's groups stays, whichever lands closest, while that lands
+--         closer. A wave never loses its last group, so every party size
+--         still gets reinforcements.
+--
+-- Fine-tuning minion squads. Whole squads and monsters are coarse, so once
+-- both walks are done each size other than the current one gets a last pass
+-- (the opening fight, then each wave, against its own target): a minion
+-- entry may gain or lose up to SQUAD_FLEX (2) minions per squad, one EV step
+-- at a time, closest landing first and spread across squads, while that lands
+-- closer. It never changes the number of squads (Encounter.MinionSquadCount,
+-- which rounds to the nearest squad), so in practice a squad of 4 ranges 2-5
+-- and two squads of 4 range 6-9.
 -- ===========================================================================
 
 Encounter.RebalanceHeroCounts = { 3, 4, 5, 6, 7 }
@@ -789,9 +821,10 @@ local function RebalanceEntryEV(props, quantity)
     return ev
 end
 
---Number of units a count of one type represents (squads for minions).
+--Number of units a count of one type represents: squads for minions (step =
+--squad size, the same nearest-squad rule spawning uses), monsters otherwise.
 local function RebalanceUnits(count, step)
-    return math.ceil(count / step)
+    return Encounter.MinionSquadCount(count, step)
 end
 
 --Smallest n (3..7) from which `activeByN[n]` is true for every larger n, or
@@ -815,7 +848,9 @@ end
 --holds it. Mutates self.groups in place (existing group tables are kept so
 --open group cards stay valid) and appends any new groups. Returns a summary
 --keyed by hero count: { target = EV aimed for, ev = EV achieved, groups =
---number of active groups, added = number of new groups created }.
+--number of active groups, added = number of new groups created } for the
+--opening fight, plus waves = a list of { name, target, ev, groups }, one per
+--reinforcement wave.
 function Encounter.Rebalance(self, party)
     local n0 = party.numHeroes
     local strength = Encounter.PartyStrength {
@@ -866,31 +901,50 @@ function Encounter.Rebalance(self, party)
             local slot = {
                 group = group,
                 index = groupIndex,
+                --a reinforcement wave's group is scaled with its wave, never
+                --as part of the opening fight (see the header comment).
+                wave = group.wave,
                 types = types,
                 step = {},
                 base0 = {},
+                author = {},
             }
             for _, monsterid in ipairs(types) do
                 slot.step[monsterid] = cond(Info(monsterid).minion, group.squadSize or 4, 1)
-                --AdjustedMonsterQuantity applies the per-monster gate; the
-                --group gate is the caller's job, as in AdjustedGroupEV.
-                if group.minHeroes ~= nil and group.minHeroes > n0 then
-                    slot.base0[monsterid] = 0
-                else
-                    slot.base0[monsterid] = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid] or 0, n0)
+            end
+            --what the author's own settings place at each size. Content they
+            --gated in above the current size arrives at its gate from this
+            --(AuthorArrivals) instead of being thrown away. AdjustedMonsterQuantity
+            --applies the per-monster gate; the group gate is checked here, as
+            --in AdjustedGroupEV.
+            for n = math.min(n0, minN), math.max(n0, maxN) do
+                slot.author[n] = {}
+                for _, monsterid in ipairs(types) do
+                    if group.minHeroes ~= nil and group.minHeroes > n then
+                        slot.author[n][monsterid] = 0
+                    else
+                        slot.author[n][monsterid] = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid] or 0, n)
+                    end
                 end
+            end
+            for _, monsterid in ipairs(types) do
+                slot.base0[monsterid] = slot.author[n0][monsterid]
             end
             slots[#slots + 1] = slot
         end
     end
 
-    --the set of types the encounter uses anywhere; the only types allowed in.
+    --allTypes: every type the model covers, waves included (the write-back
+    --uses it). allTypesList: the opening fight's types, the only ones a new
+    --group may be seeded with.
     local allTypes = {}
     local allTypesList = {}
+    local listed = {}
     for _, slot in ipairs(slots) do
         for _, monsterid in ipairs(slot.types) do
-            if not allTypes[monsterid] then
-                allTypes[monsterid] = true
+            allTypes[monsterid] = true
+            if slot.wave == nil and not listed[monsterid] then
+                listed[monsterid] = true
                 allTypesList[#allTypesList + 1] = monsterid
             end
         end
@@ -925,10 +979,20 @@ function Encounter.Rebalance(self, party)
         return total
     end
 
+    --a slot of the opening fight, as opposed to a reinforcement wave's. The
+    --opening-fight walk below only ever looks at these.
+    local function IsOpening(s)
+        return slots[s].wave == nil
+    end
+
+    --EV of the opening fight (waves are left out, as in the builder's
+    --difficulty readout).
     local function RosterEV(roster)
         local total = 0
         for s = 1, #slots do
-            total = total + GroupEV(roster, s)
+            if IsOpening(s) then
+                total = total + GroupEV(roster, s)
+            end
         end
         return total
     end
@@ -942,21 +1006,25 @@ function Encounter.Rebalance(self, party)
         return false
     end
 
+    local function OpeningActive(roster, s)
+        return IsOpening(s) and GroupActive(roster, s)
+    end
+
     local function ActiveGroupCount(roster)
         local n = 0
         for s = 1, #slots do
-            if GroupActive(roster, s) then
+            if OpeningActive(roster, s) then
                 n = n + 1
             end
         end
         return n
     end
 
-    --units of a type across the whole roster.
+    --units of a type across the opening fight.
     local function TypeUnits(roster, monsterid)
         local n = 0
         for s, slot in ipairs(slots) do
-            local c = Count(roster, s, monsterid)
+            local c = cond(IsOpening(s), Count(roster, s, monsterid), 0)
             if c > 0 then
                 n = n + RebalanceUnits(c, slot.step[monsterid])
             end
@@ -978,7 +1046,7 @@ function Encounter.Rebalance(self, party)
     --a group made purely of minions exists somewhere in the roster.
     local function HasPureMinionGroup(roster)
         for s = 1, #slots do
-            if GroupActive(roster, s) and GroupNonMinions(roster, s) == 0 then
+            if OpeningActive(roster, s) and GroupNonMinions(roster, s) == 0 then
                 return true
             end
         end
@@ -989,7 +1057,7 @@ function Encounter.Rebalance(self, party)
     --in the roster, or nil.
     local function PairedMinion(roster, monsterid)
         for s, slot in ipairs(slots) do
-            if Count(roster, s, monsterid) > 0 then
+            if IsOpening(s) and Count(roster, s, monsterid) > 0 then
                 for _, other in ipairs(slot.types) do
                     if Info(other).minion and Count(roster, s, other) > 0 then
                         return other
@@ -1080,9 +1148,11 @@ function Encounter.Rebalance(self, party)
         local slot = {
             group = nil,
             index = #slots + 1,
+            wave = nil,
             types = {},
             step = {},
             base0 = {},
+            author = {},
         }
         slots[#slots + 1] = slot
         for _, r in pairs(counts) do
@@ -1091,13 +1161,45 @@ function Encounter.Rebalance(self, party)
         return #slots
     end
 
-    local function StepUp(roster, budget)
+    --what the author gated in at exactly n heroes: a group or a monster set
+    --to appear from this party size. It arrives as they built it. Only slots
+    --`include(s)` accepts are looked at. Returns the EV added and the number
+    --of groups that came on.
+    local function AuthorArrivals(roster, n, include)
+        local addedEV = 0
+        local opened = 0
+        for s, slot in ipairs(slots) do
+            local now = slot.author[n]
+            local before = slot.author[n - 1]
+            if now ~= nil and before ~= nil and include(s) then
+                local wasActive = GroupActive(roster, s)
+                for _, monsterid in ipairs(slot.types) do
+                    local want = now[monsterid] or 0
+                    if want > 0 and (before[monsterid] or 0) == 0 and Count(roster, s, monsterid) == 0 then
+                        roster[s][monsterid] = want
+                        addedEV = addedEV + RebalanceEntryEV(Info(monsterid).props, want)
+                    end
+                end
+                if not wasActive and GroupActive(roster, s) then
+                    opened = opened + 1
+                end
+            end
+        end
+        return addedEV, opened
+    end
+
+    local function StepUp(roster, budget, n)
         local added = 0
+
+        --0. the author's own content for this size comes first. A group of
+        --theirs arriving here is this size's "one more group".
+        local arrivedEV, arrivedGroups = AuthorArrivals(roster, n, IsOpening)
+        budget = budget - arrivedEV
 
         --1. the new group's first monster: least-represented type that fits.
         local allowMinionStart = HasPureMinionGroup(roster)
         local candidates = {}
-        for _, monsterid in ipairs(allTypesList) do
+        for _, monsterid in ipairs(cond(arrivedGroups > 0, {}, allTypesList)) do
             local info = Info(monsterid)
             --allTypesList only holds ids whose Info() was non-nil (and cached) when the slots were built.
             ---@cast info -nil
@@ -1138,7 +1240,7 @@ function Encounter.Rebalance(self, party)
         while true do
             local options = {}
             for s, slot in ipairs(slots) do
-                if GroupActive(roster, s) then
+                if OpeningActive(roster, s) then
                     local nonMinions = GroupNonMinions(roster, s)
                     for _, monsterid in ipairs(slot.types) do
                         local info = Info(monsterid)
@@ -1200,7 +1302,7 @@ function Encounter.Rebalance(self, party)
         --hero's strength under target, in which case whichever lands closest.
         local active = {}
         for s = 1, #slots do
-            if GroupActive(roster, s) then
+            if OpeningActive(roster, s) then
                 active[#active + 1] = s
             end
         end
@@ -1238,7 +1340,7 @@ function Encounter.Rebalance(self, party)
         while ev > target do
             local options = {}
             for s, slot in ipairs(slots) do
-                if GroupActive(roster, s) then
+                if OpeningActive(roster, s) then
                     for _, monsterid in ipairs(slot.types) do
                         local c = Count(roster, s, monsterid)
                         if RebalanceUnits(c, slot.step[monsterid]) >= 2 then
@@ -1276,7 +1378,7 @@ function Encounter.Rebalance(self, party)
         local roster = CopyRoster(counts[n - 1])
         counts[n] = roster
         local target = ev0 + (n - n0) * single
-        local added = StepUp(roster, target - RosterEV(roster))
+        local added = StepUp(roster, target - RosterEV(roster), n)
         summary[n] = { target = target, ev = RosterEV(roster), groups = ActiveGroupCount(roster), added = added }
     end
 
@@ -1286,6 +1388,290 @@ function Encounter.Rebalance(self, party)
         local target = ev0 + (n - n0) * single
         StepDown(roster, target)
         summary[n] = { target = target, ev = RosterEV(roster), groups = ActiveGroupCount(roster), added = 0 }
+    end
+
+    --------------------------------------------------------------------------
+    -- Reinforcement waves, each scaled on its own (see the header comment).
+    -- The walk above carried every wave slot through unchanged; this replaces
+    -- each size's wave counts, stepping out from n0 the same way.
+    --------------------------------------------------------------------------
+    local waveOrder = {}
+    local waveSlots = {}
+    for s, slot in ipairs(slots) do
+        if slot.wave ~= nil then
+            if waveSlots[slot.wave] == nil then
+                waveSlots[slot.wave] = {}
+                waveOrder[#waveOrder + 1] = slot.wave
+            end
+            local list = waveSlots[slot.wave]
+            list[#list + 1] = s
+        end
+    end
+
+    local function WaveEV(roster, list)
+        local total = 0
+        for _, s in ipairs(list) do
+            total = total + GroupEV(roster, s)
+        end
+        return total
+    end
+
+    local function WaveActiveGroups(roster, list)
+        local n = 0
+        for _, s in ipairs(list) do
+            if GroupActive(roster, s) then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
+    local function WaveTypeUnits(roster, list, monsterid)
+        local n = 0
+        for _, s in ipairs(list) do
+            local c = Count(roster, s, monsterid)
+            if c > 0 then
+                n = n + RebalanceUnits(c, slots[s].step[monsterid])
+            end
+        end
+        return n
+    end
+
+    --one more hero: the author's gated content for n, then squads and
+    --duplicates in the wave's groups while each lands closer to target.
+    local function WaveStepUp(roster, list, n, target)
+        local inWave = {}
+        for _, s in ipairs(list) do
+            inWave[s] = true
+        end
+        AuthorArrivals(roster, n, function(s) return inWave[s] == true end)
+
+        local ev = WaveEV(roster, list)
+        while true do
+            local options = {}
+            for _, s in ipairs(list) do
+                if GroupActive(roster, s) then
+                    local nonMinions = GroupNonMinions(roster, s)
+                    for _, monsterid in ipairs(slots[s].types) do
+                        local info = Info(monsterid)
+                        --slot.types only holds ids whose Info() was non-nil (and cached).
+                        ---@cast info -nil
+                        if Count(roster, s, monsterid) > 0 and not info.boss
+                            and (info.minion or nonMinions < 2) then
+                            local delta = AddDelta(roster, s, monsterid)
+                            local distance = math.abs(ev + delta - target)
+                            if delta > 0 and distance < math.abs(ev - target) then
+                                options[#options + 1] = {
+                                    s = s,
+                                    monsterid = monsterid,
+                                    score = { -distance, cond(info.minion, 1, 0), -WaveTypeUnits(roster, list, monsterid), s },
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            ev = ev + AddUnit(roster, pick.s, pick.monsterid)
+        end
+    end
+
+    --one fewer hero: take away a squad or duplicate, or a whole group while
+    --another stays, whichever lands closest, while that lands closer. A wave
+    --never loses its last group.
+    local function WaveStepDown(roster, list, target)
+        local ev = WaveEV(roster, list)
+        while ev > target do
+            local options = {}
+            local canDropGroup = WaveActiveGroups(roster, list) >= 2
+            local current = math.abs(ev - target)
+            for _, s in ipairs(list) do
+                if GroupActive(roster, s) then
+                    for _, monsterid in ipairs(slots[s].types) do
+                        local c = Count(roster, s, monsterid)
+                        if RebalanceUnits(c, slots[s].step[monsterid]) >= 2 then
+                            local delta, take = RemoveDelta(roster, s, monsterid)
+                            local distance = math.abs(ev - delta - target)
+                            if delta > 0 and distance < current then
+                                options[#options + 1] = {
+                                    s = s,
+                                    monsterid = monsterid,
+                                    delta = delta,
+                                    take = take,
+                                    score = { -distance, 1, s },
+                                }
+                            end
+                        end
+                    end
+                    if canDropGroup then
+                        local delta = GroupEV(roster, s)
+                        local distance = math.abs(ev - delta - target)
+                        if delta > 0 and distance < current then
+                            options[#options + 1] = {
+                                s = s,
+                                delta = delta,
+                                score = { -distance, 0, s },
+                            }
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            if pick.monsterid ~= nil then
+                roster[pick.s][pick.monsterid] = roster[pick.s][pick.monsterid] - pick.take
+            else
+                for _, monsterid in ipairs(slots[pick.s].types) do
+                    roster[pick.s][monsterid] = 0
+                end
+            end
+            ev = ev - pick.delta
+        end
+    end
+
+    local function CarryWave(list, from, to)
+        for _, s in ipairs(list) do
+            local copy = {}
+            for monsterid, c in pairs(counts[from][s] or {}) do
+                copy[monsterid] = c
+            end
+            counts[to][s] = copy
+        end
+    end
+
+    --each wave's EV at the current size; its target at n is w0 * n / n0.
+    local waveEV0 = {}
+    local function WaveTarget(waveid, n)
+        return waveEV0[waveid] * n / math.max(n0, 1)
+    end
+    for _, waveid in ipairs(waveOrder) do
+        local list = waveSlots[waveid]
+        waveEV0[waveid] = WaveEV(counts[n0], list)
+        for n = n0 + 1, maxN do
+            CarryWave(list, n - 1, n)
+            WaveStepUp(counts[n], list, n, WaveTarget(waveid, n))
+        end
+        for n = n0 - 1, minN, -1 do
+            CarryWave(list, n + 1, n)
+            WaveStepDown(counts[n], list, WaveTarget(waveid, n))
+        end
+    end
+
+    --------------------------------------------------------------------------
+    -- Fine-tune minion squads (see the header comment). Runs on each size's
+    -- finished roster once both walks are done, so no size inherits another
+    -- size's tuning and every step above still works in whole squads.
+    --------------------------------------------------------------------------
+    local SQUAD_FLEX = 2 --minions a squad may gain or lose (David 2026-11-17)
+
+    --nudge the minion counts of the slots `include(s)` accepts toward
+    --target. `ev` is their EV now. Each move takes one entry to its nearest
+    --count (either way) that changes its EV; the move landing closest wins,
+    --spreading ties across squads, while that lands closer.
+    local function FineTune(roster, include, ev, target)
+        local entries = {}
+        for s, slot in ipairs(slots) do
+            if include(s) then
+                for _, monsterid in ipairs(slot.types) do
+                    local built = Count(roster, s, monsterid)
+                    local info = Info(monsterid)
+                    --slot.types only holds ids whose Info() was non-nil (and cached).
+                    ---@cast info -nil
+                    if info.minion and built > 0 then
+                        local step = slot.step[monsterid]
+                        local squads = Encounter.MinionSquadCount(built, step)
+                        local lo = math.max(squads, built - SQUAD_FLEX * squads)
+                        local hi = built + SQUAD_FLEX * squads
+                        entries[#entries + 1] = {
+                            s = s,
+                            monsterid = monsterid,
+                            props = info.props,
+                            built = built,
+                            squads = squads,
+                            step = step,
+                            lo = lo,
+                            hi = hi,
+                        }
+                    end
+                end
+            end
+        end
+
+        while true do
+            local current = math.abs(ev - target)
+            local options = {}
+            for _, e in ipairs(entries) do
+                local c = Count(roster, e.s, e.monsterid)
+                local evNow = RebalanceEntryEV(e.props, c)
+                for _, dir in ipairs({ -1, 1 }) do
+                    --the nearest count this way that changes the EV and keeps
+                    --the number of squads.
+                    local c2 = c + dir
+                    while c2 >= e.lo and c2 <= e.hi
+                        and (RebalanceEntryEV(e.props, c2) == evNow
+                            or Encounter.MinionSquadCount(c2, e.step) ~= e.squads) do
+                        c2 = c2 + dir
+                    end
+                    if c2 >= e.lo and c2 <= e.hi then
+                        local newEV = ev - evNow + RebalanceEntryEV(e.props, c2)
+                        local distance = math.abs(newEV - target)
+                        if distance < current then
+                            options[#options + 1] = {
+                                entry = e,
+                                count = c2,
+                                ev = newEV,
+                                score = { -distance, -math.abs(c2 - e.built), e.s },
+                            }
+                        end
+                    end
+                end
+            end
+            local pick = Best(options)
+            if pick == nil then
+                break
+            end
+            roster[pick.entry.s][pick.entry.monsterid] = pick.count
+            ev = pick.ev
+        end
+    end
+
+    for n = minN, maxN do
+        if n ~= n0 and counts[n] ~= nil then
+            local roster = counts[n]
+            FineTune(roster, IsOpening, RosterEV(roster), ev0 + (n - n0) * single)
+            for _, waveid in ipairs(waveOrder) do
+                local list = waveSlots[waveid]
+                local inWave = {}
+                for _, s in ipairs(list) do
+                    inWave[s] = true
+                end
+                FineTune(roster, function(s) return inWave[s] == true end, WaveEV(roster, list), WaveTarget(waveid, n))
+            end
+        end
+    end
+
+    --the summary reports each size as it ended up.
+    local waveNames = {}
+    for _, wave in ipairs(self.waves or {}) do
+        waveNames[wave.id] = wave.name
+    end
+    for n, entry in pairs(summary) do
+        entry.ev = RosterEV(counts[n])
+        entry.waves = {}
+        for _, waveid in ipairs(waveOrder) do
+            local list = waveSlots[waveid]
+            entry.waves[#entry.waves + 1] = {
+                name = waveNames[waveid] or "Wave",
+                target = WaveTarget(waveid, n),
+                ev = WaveEV(counts[n], list),
+                groups = WaveActiveGroups(counts[n], list),
+            }
+        end
     end
 
     --------------------------------------------------------------------------
@@ -1406,8 +1792,22 @@ function Encounter.CountNonMinionMonsters(self, numHeroes, org)
     return count
 end
 
---How many minion squads this group is placed as. Fewer than 8 minions make one
---squad; 8 or more are split into squads of the group's squad size.
+--How many squads `quantity` minions are split into, for a group whose squad
+--size is `squadSize` (group.squadSize, default 4): the nearest whole number of
+--squads, at least one. So a squad of 4 that gains or loses a minion or two is
+--still one squad (2-5 minions), and 9 minions are two squads of 5 and 4. The
+--minions are dealt out round-robin, so the squads differ by at most one. This
+--is the one rule every spawn and count site uses; the builder's Balance button
+--relies on it to fine-tune squads without changing their number. (Before
+--2026-11-17: under 8 was always one squad, else ceil(quantity / squadSize).)
+function Encounter.MinionSquadCount(quantity, squadSize)
+    if quantity == nil or quantity <= 0 then
+        return 0
+    end
+    return math.max(1, round(quantity / (squadSize or 4)))
+end
+
+--How many minion squads this group is placed as (see MinionSquadCount).
 --Pass numHeroes for a raw (uncloned) group: each quantity is then adjusted for
 --that party size the way CloneForNumberOfHeroes would. Omit it for a group
 --that came out of CloneForNumberOfHeroes, whose quantities are already final.
@@ -1418,10 +1818,7 @@ function Encounter.GroupMinionSquadCount(group, numHeroes)
         end
         local monster = assets.monsters[monsterid]
         if monster ~= nil and monster.properties.minion and quantity ~= nil and quantity > 0 then
-            if quantity >= 8 then
-                return math.ceil(quantity / (group.squadSize or 4))
-            end
-            return 1
+            return Encounter.MinionSquadCount(quantity, group.squadSize)
         end
     end
     return 0
@@ -1455,9 +1852,31 @@ function Encounter.IsHeroSideSummon(token)
     return summoner ~= nil and summoner.valid and summoner.properties ~= nil and not summoner.properties:IsMonster()
 end
 
+--True for a creature fighting on the heroes' side, which is never a monster
+--left to defeat: a hero-side summon, a player-controlled token, or a token in
+--the heroes' party or an allied party (the side combat setup puts it on in
+--DSInitiativeRoll). An EotW recruited ally used to block victory (9D9FUC6T).
+--- @param token CharacterToken
+--- @return boolean
+function Encounter.FightsForHeroes(token)
+    if token.playerControlled or Encounter.IsHeroSideSummon(token) then
+        return true
+    end
+    local partyid = token.partyId
+    if partyid == nil then
+        return false
+    end
+    local playerPartyId = GetDefaultPartyID()
+    if partyid == playerPartyId then
+        return true
+    end
+    local party = GetParty(playerPartyId)
+    return party ~= nil and party:GetAllyParties()[partyid] ~= nil
+end
+
 function Encounter.VictoryUnitKey(token)
     local props = token.properties
-    if props == nil or not props:IsMonster() or Encounter.IsHeroSideSummon(token) then
+    if props == nil or not props:IsMonster() or Encounter.FightsForHeroes(token) then
         return nil
     end
     if not props.minion then
@@ -3893,6 +4312,16 @@ end
 -- Unset or empty = no start zone. Once the encounter is placed on the map,
 -- every client shows the zone and players' tokens can only move inside it,
 -- until combat starts.
+--
+-- retreatLocs: the Retreat Zone, same shape as heroStartLocs. When an
+-- Encounter Script says a monster wants to retreat (the Retreat script), the
+-- Monster AI runs it to these tiles and it leaves the map there. Unset = no
+-- Retreat Zone (Retreat zone types painted on the map still count).
+--
+-- stragglerLocs: the Stragglers Zone, same shape. With the "Monsters Fled
+-- from Last Fight" script on the encounter, the monsters that fled the
+-- previous part of an Encounter of the Week series (through its Retreat
+-- Zone) appear on these tiles when the fight spawns.
 
 --- @alias EncounterRegion {x1: number, y1: number, x2: number, y2: number}
 --- @alias EncounterStartLoc {x: number, y: number, floor: string}
@@ -3926,6 +4355,54 @@ function Encounter:SetHeroStartLocs(locs)
         locs = nil
     end
     self.heroStartLocs = locs
+end
+
+--- @return EncounterStartLoc[]
+function Encounter:GetRetreatLocs()
+    local locs = self:try_get("retreatLocs")
+    if type(locs) ~= "table" then
+        return {}
+    end
+    return locs
+end
+
+--- @param locs EncounterStartLoc[]|nil nil or empty = no Retreat Zone.
+function Encounter:SetRetreatLocs(locs)
+    if locs ~= nil and #locs == 0 then
+        locs = nil
+    end
+    self.retreatLocs = locs
+end
+
+--- @return EncounterStartLoc[]
+function Encounter:GetStragglerLocs()
+    local locs = self:try_get("stragglerLocs")
+    if type(locs) ~= "table" then
+        return {}
+    end
+    return locs
+end
+
+--- @param locs EncounterStartLoc[]|nil nil or empty = no Stragglers Zone.
+function Encounter:SetStragglerLocs(locs)
+    if locs ~= nil and #locs == 0 then
+        locs = nil
+    end
+    self.stragglerLocs = locs
+end
+
+--- Does an attached script bring back the monsters that fled the last fight
+--- (the "Monsters Fled from Last Fight" built-in: `stragglers = true`)?
+--- @return boolean
+function Encounter:HasStragglersScript()
+    for _, instance in ipairs(self:GetScripts()) do
+        local def = nil
+        pcall(function() def = instance:GetDefinition() end)
+        if def ~= nil and def.stragglers then
+            return true
+        end
+    end
+    return false
 end
 
 --- @alias EncounterMapRef {pack: string, mapid: string, name: string}
@@ -4651,9 +5128,7 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                 local monsterAsset = assets.monsters[monsterid]
                 if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
                     minionName = monsterAsset.properties.monster_type
-                    if quantity >= 8 then
-                        nsquads = math.ceil(quantity / (group.squadSize or 4))
-                    end
+                    nsquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                     break
                 end
             end
@@ -4981,7 +5456,7 @@ function LiveEncounter:CountLiveNonMinions(org)
             if token ~= nil and not seen[token.charid] then
                 seen[token.charid] = true
                 local props = token.properties
-                if props ~= nil and props:IsMonster() and not props.minion and not Encounter.IsHeroSideSummon(token) and
+                if props ~= nil and props:IsMonster() and not props.minion and not Encounter.FightsForHeroes(token) and
                     (org == nil or OrganizationKeyword(props) == org) and props:CurrentHitpoints() > 0 then
                     count = count + 1
                 end
@@ -5731,6 +6206,15 @@ return {
     --     }
     -- end,
 
+    -- Uncomment to make monsters retreat. The Monster AI asks it on the host
+    -- at the start of each monster's turn (ctx is read-only, like a victory
+    -- check). Return true and the monster flees to a zone whose type has the
+    -- "Retreat" Monster AI directive, then leaves the map. With no such zone
+    -- on the map, or no retreat function, monsters never retreat.
+    -- retreat = function(ctx, token)
+    --     return ctx.state.retreating == true
+    -- end,
+
     onPrepare = function(ctx)
     end,
 
@@ -5914,6 +6398,15 @@ local function NormalizeDefinition(def)
     end
     norm.status = def.status
 
+    if def.retreat ~= nil and type(def.retreat) ~= "function" then
+        return nil, "retreat must be a function"
+    end
+    norm.retreat = def.retreat
+
+    --"Monsters Fled from Last Fight": the builder offers a Stragglers Zone
+    --and Encounter of the Week spawns the fled monsters there.
+    norm.stragglers = def.stragglers == true or nil
+
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
@@ -5992,6 +6485,12 @@ function EncounterScript.DescribeDefinition(def)
     end
     if def.status ~= nil then
         parts[#parts + 1] = "initiative bar status"
+    end
+    if def.retreat ~= nil then
+        parts[#parts + 1] = "decides when monsters retreat"
+    end
+    if def.stragglers then
+        parts[#parts + 1] = "brings back monsters that fled the last fight"
     end
     local handlers = {}
     for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
@@ -6463,6 +6962,135 @@ end
 --- Evaluate a script's defeat check.
 function EncounterScript.EvaluateDefeatCheck(liveEncounter, instance, def)
     return EvaluateConditionCheck(liveEncounter, instance, def, def.defeat.check, "defeat")
+end
+
+-- ---------------------------------------------------------------------------
+-- Retreat
+-- ---------------------------------------------------------------------------
+-- A script's retreat(ctx, token) decides whether a monster wants to flee. The
+-- Monster AI asks it (MonsterAI.WantsToRetreat) and does the fleeing; a monster
+-- that escapes is noted here so later code (an Encounter of the Week series
+-- part, for one) can see who got away.
+
+--- The live encounter of the current combat, or nil.
+--- @return LiveEncounter|nil
+local function CurrentLiveEncounter()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return nil
+    end
+    local live = q:try_get("liveEncounter")
+    if type(live) ~= "table" then
+        return nil
+    end
+    return live
+end
+
+--- The current combat's Retreat Zone tiles (Encounter:GetRetreatLocs) that lie
+--- on the map on screen, as locs. Empty when there is no combat or zone.
+--- @return Loc[]
+function EncounterScript.LiveRetreatLocs()
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return {}
+    end
+    local mapid = live:try_get("mapid", "")
+    if mapid ~= "" and mapid ~= game.currentMapId then
+        return {}
+    end
+    return Encounter.StartLocsOnCurrentMap(live:GetRetreatLocs())
+end
+
+--- True when an attached Encounter Script's retreat function says this
+--- monster wants to retreat. Runs script code: host/director side only.
+--- @param token CharacterToken
+--- @return boolean
+function EncounterScript.MonsterWantsToRetreat(token)
+    local live = CurrentLiveEncounter()
+    if live == nil or token == nil or not token.valid then
+        return false
+    end
+    for _, instance in ipairs(live:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.retreat ~= nil then
+            local ctx = MakeReadContext(live, instance, def)
+            local ok, result = pcall(def.retreat, ctx, token)
+            if not ok then
+                PrintScriptError(instance, "retreat error: " .. tostring(result))
+            elseif result == true then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- True when any attached Encounter Script has a retreat function, so the
+--- Monster AI can skip the question entirely in ordinary fights.
+--- @return boolean
+function EncounterScript.AnyRetreatScripts()
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return false
+    end
+    for _, instance in ipairs(live:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.retreat ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--Creatures that escaped through a Retreat zone this combat, in order:
+--{ charid, name, monsterType, keywords = {Undead = true, ...}, minion, round }.
+LiveEncounter.retreated = {}
+
+--- Every creature that retreated off the map this combat.
+--- @return {charid: string, name: string, monsterType: string|nil, keywords: table<string,boolean>, minion: boolean, round: number}[]
+function LiveEncounter:GetRetreated()
+    return self:try_get("retreated", {})
+end
+
+--- Note that a creature escaped. The caller removes it from the map and
+--- uploads the queue (the record rides in it).
+--- @param token CharacterToken
+function LiveEncounter:RecordRetreat(token)
+    local props = token.properties
+    local keywords = {}
+    pcall(function()
+        for keyword, on in pairs(props:try_get("keywords", {})) do
+            if on then
+                keywords[keyword] = true
+            end
+        end
+    end)
+    local q = dmhub.initiativeQueue
+    local list = DeepCopy(self:try_get("retreated", {}))
+    list[#list + 1] = {
+        charid = token.charid,
+        name = token.name or props:try_get("monster_type") or "creature",
+        monsterType = props:try_get("monster_type"),
+        --the bestiary entry it was spawned from, when the spawn kept it.
+        monsterid = props:try_get("encounterSpawnMonster"),
+        keywords = keywords,
+        minion = props.minion == true,
+        round = q ~= nil and q.round or 0,
+    }
+    self.retreated = list
+end
+
+--- Record the creature's escape on the current combat. False with no live
+--- encounter (the creature still leaves; there is just nowhere to note it).
+--- @param token CharacterToken
+--- @return boolean
+function LiveEncounter.RecordCurrentRetreat(token)
+    local live = CurrentLiveEncounter()
+    if live == nil then
+        return false
+    end
+    live:RecordRetreat(token)
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -7458,6 +8086,79 @@ return {
             ctx:Announce(string.format("Round %d: survive this round to win!", ctx.round))
         end
     end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:retreat",
+    name = "Retreat",
+    description = "The monsters flee to the Retreat Zone and leave the map, starting when you choose (e.g. once the heroes outnumber them).",
+    code = [==[
+--the same count the victory conditions use: live heroes against live
+--monsters plus reinforcements still to come, a minion squad as one.
+local function Outnumbered(ctx)
+    local live = ctx.encounter
+    if live == nil or ctx.queue == nil then
+        return false
+    end
+    local heroes, monsters = live:CountLiveCombatants()
+    monsters = monsters + live:CountPendingReinforcements(dmhub.GetSettingValue("numheroes"))
+    if heroes <= 0 then
+        return false
+    end
+    if ctx.params.when == "two_to_one" then
+        return heroes >= 2 * monsters
+    end
+    return heroes > monsters
+end
+
+return {
+    name = "Retreat",
+    description = "When the moment you choose comes, the monsters left standing flee to the Retreat Zone and leave the map. Draw the zone with the encounter's Retreat Zone button (a zone type with the Monster AI's Retreat directive works too). Once the retreat starts it holds for the rest of the fight. Monsters that escape count as gone for the victory condition.",
+
+    params = {
+        { id = "when", name = "Retreat When", type = "choice", default = "outnumber",
+            options = {
+                { id = "outnumber", text = "When Outnumbered" },
+                { id = "two_to_one", text = "When Outnumbered Two-to-One" },
+            },
+        },
+    },
+
+    --the host latches the retreat the first time the numbers turn, so a
+    --hero going down later does not call the monsters back.
+    think = function(ctx)
+        if not ctx.state.retreating and Outnumbered(ctx) then
+            ctx.state.retreating = true
+        end
+    end,
+
+    --only the heroes' enemies run, never a monster fighting on their side.
+    retreat = function(ctx, token)
+        if Encounter.VictoryUnitKey(token) == nil then
+            return false
+        end
+        for _, other in ipairs(dmhub.allTokens) do
+            if other.properties ~= nil and other.properties:IsHero() and dmhub.TokensAreFriendly(token, other) then
+                return false
+            end
+        end
+        return ctx.state.retreating == true or Outnumbered(ctx)
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:fled-monsters",
+    name = "Monsters Fled from Last Fight",
+    description = "The monsters that fled the last fight of an Encounter of the Week series appear in the Stragglers Zone when this fight starts.",
+    code = [==[
+return {
+    name = "Monsters Fled from Last Fight",
+    description = "In an Encounter of the Week series, the monsters that fled the previous part through its Retreat Zone join this fight: they appear in the Stragglers Zone (draw it with the encounter's Stragglers Zone button) when the monsters spawn, levelled like the rest. One the story killed on the way (\"one of the fleeing monsters is destroyed\") does not come. Outside a series it does nothing.",
+    stragglers = true,
 }
 ]==],
 }

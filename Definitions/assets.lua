@@ -118,10 +118,20 @@ function assets.UploadPDFDocumentAsset(options) end
 --- @return string The id of the new folder.
 function assets:UploadNewDocumentFolder(tableArgs) end
 
---- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3, and any other file Unity cannot decode (e.g. Opus) to Ogg Vorbis. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3, and any other file Unity cannot decode (e.g. Opus) to Ogg Vorbis. Options include path, guid, parentFolder, description, category (music / ambience / effects), source / sourceId / sourceCredit / sourceUrl (a partner track's origin), error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded audio asset, or nil on failure.
 function assets:UploadAudioAsset(options) end
+
+--- Adds an audio asset to the current game that plays a blob already in cloud storage, without uploading the audio again (the same file in several games is stored once). Options: audioId (the blob id, e.g. another asset's audioId), extension, duration (seconds), description, optional loudnessLufs, category, parentFolder, source / sourceId / sourceCredit / sourceUrl, and upload(guid) called once the asset record is saved.
+--- @param options {audioId: string, extension: string, duration: number, description: string, loudnessLufs: nil|number, category: nil|string, parentFolder: nil|string, source: nil|string, sourceId: nil|string, sourceCredit: nil|string, sourceUrl: nil|string, upload: nil|fun(guid: string)}
+--- @return nil|string The GUID of the new audio asset, or nil when audioId or extension is missing.
+function assets:CreateAudioAssetFromBlob(options) end
+
+--- Plays an audio file from local disk (mp3, ogg or wav), for example one fetched with net.DownloadFile, and returns its playback instance. It belongs to no game. The instance ends itself when the clip finishes.
+--- @param path string Full path to the file.
+--- @return nil|SoundEventInstanceLua
+function assets:PlayAudioFile(path) end
 
 --- Uploads a clipboard image asset. Options include item (ClipboardItem), path, error, and upload callbacks.
 --- @param options table Upload options.

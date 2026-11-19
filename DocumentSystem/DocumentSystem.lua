@@ -22764,13 +22764,27 @@ local function CreateIconRail(side, entries, opts)
                     return ScriptButtonHoverText(def, def.name or panelName or "Button")
                 end
             end
+            local text = string.upper(panelName)
             if docid == nil and charid == nil and toolkitid == nil then
                 local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
                 if bind ~= nil and bind ~= "" then
-                    return string.format("%s  (%s)", string.upper(panelName), bind)
+                    text = string.format("%s  (%s)", text, bind)
                 end
             end
-            return string.upper(panelName)
+            --a registration's newContentText() says what its lit alert is
+            --about (Puzzles: which puzzles need the Director).
+            if reg ~= nil and reg.newContentText ~= nil and reg.hasNewContent ~= nil then
+                local ok, extra = pcall(function()
+                    if reg.hasNewContent() then
+                        return reg.newContentText()
+                    end
+                    return nil
+                end)
+                if ok and type(extra) == "string" and extra ~= "" then
+                    text = string.format("%s  -  %s", text, extra)
+                end
+            end
+            return text
         end
 
         --The flyout itself: the members' own buttons in a strip beside the
@@ -23527,7 +23541,8 @@ local function CreateIconRail(side, entries, opts)
         --inside the marker as a badge; 1 stays a plain dot), and
         --markContentSeen() is called while the panel is on screen so the
         --registration can retire its "new" state (how Chat absorbs unread
-        --messages), and clearNewContent() retires it on demand -- the
+        --messages), newContentText() adds what the alert is about to the
+        --hover label, and clearNewContent() retires it on demand -- the
         --right-click "Clear Alerts" entry, for the panels whose alerts do
         --NOT retire by being looked at (novel module content clears only
         --per item, and only from the handful of rows wired to do it).
@@ -26465,6 +26480,49 @@ function MapRail.CheckMerged()
     end)
 end
 
+--- The on-screen (zoomed) size a window opened from this map-rail button
+--- will have: its size remembered from a resize this session, else the
+--- panel default.
+--- @param button Panel
+--- @return number width, number height
+function MapRail.WindowSize(button)
+    local scale = WindowUIScale()
+    local width, height = nil, nil
+    local key = nil
+    pcall(function() key = button.data.key end)
+    if type(key) == "string" then
+        width, height = RailWindowSize(RailPanelDocument(PanelDocument.WindowOwner(string.lower(key))))
+    end
+    return (width or PanelDocument.DefaultWidth) * scale, (height or PanelDocument.DefaultHeight) * scale
+end
+
+--- The x for a window opened from the map window's rail so it sits just
+--- OUTSIDE the map window, on the rail's own side only. nil when that side
+--- has no room between the window and the screen edge; the caller then
+--- opens it inside the map window as before.
+--- @param side "left"|"right" the map-rail column the button is in
+--- @param width number the window's on-screen (zoomed) width
+--- @return number|nil
+function MapRail.BesideWindowX(side, width)
+    local tabletop = rawget(_G, "Tabletop")
+    if tabletop == nil or tabletop.LiveWindowRect == nil then
+        return nil
+    end
+    local rect = tabletop.LiveWindowRect()
+    if rect == nil then
+        return nil
+    end
+    local gap = 8
+    --it only has to fit on screen; covering the screen rails is fine.
+    local minX = 8
+    local maxX = IconRailUIWidth() - 8
+    local x = cond(side == "left", rect.x - gap - width, rect.x + rect.w + gap)
+    if x >= minX and x + width <= maxX then
+        return x
+    end
+    return nil
+end
+
 --- The live map window's rail columns (left: map panels, right: Map
 --- Settings and the map's own buttons), for Tabletop.lua to mount inside
 --- the window. Each needs setRailScale fired once attached. Empty when the
@@ -26488,15 +26546,16 @@ function PanelDocument.CreateMapRails()
                 fixed = true,
                 windowed = true,
                 inset = MapRail.WINDOW_INSET,
-                --beside the button, toward the middle of the screen.
+                --outside the map window on this rail's side when there is
+                --room, else inside it beside the button. Level with the
+                --button either way.
                 anchor = function(button, index)
-                    local scale = WindowUIScale()
-                    local placement = PanelDocument.PanelWindowPlacement(button,
-                        PanelDocument.DefaultWidth * scale, PanelDocument.DefaultHeight * scale)
+                    local w, h = MapRail.WindowSize(button)
+                    local placement = PanelDocument.PanelWindowPlacement(button, w, h)
                     if placement == nil then
                         return nil
                     end
-                    return placement.x, placement.y
+                    return MapRail.BesideWindowX(column.side, w) or placement.x, placement.y
                 end,
             })
         end

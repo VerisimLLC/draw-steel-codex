@@ -4005,7 +4005,8 @@ local ShowItemDetailsInternal = function(args)
 			local bundleid = nil
 			local inventory = shop.inventoryItems
 			for _, instance in pairs(inventory) do
-				if instance.itemid == item.id then
+				--borrowed (a player window's main account items) can't be removed here.
+				if instance.itemid == item.id and not instance.borrowed then
 					if instance.bundleid == nil or instance.bundleid == "" then
 						directCount = directCount + 1
 					else

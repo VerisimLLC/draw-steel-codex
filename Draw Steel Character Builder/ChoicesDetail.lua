@@ -107,25 +107,27 @@ end
 --- @return Panel
 local function _codexNoteCallout(note)
     return gui.Panel{
-        classes = {"panel", "blockQuote", "codex-note"},
+        classes = {"panel", "codex-note"},
         width = "100%-64",
         height = "auto",
         halign = "center",
-        flow = "horizontal",
         gui.Panel{
-            width = 24,
-            height = 24,
-            valign = "top",
-            tmargin = 8,
-            bgimage = "ui-icons/codex-logo.png",
-            bgcolor = "white",
-        },
-        gui.Label{
-            classes = {"builder-base", "label", "info", "overview", "codex-note-text"},
-            width = "100%-24",
-            vpad = 6,
-            markdown = true,
-            text = "<b>Codex Note:</b> " .. note,
+            classes = {"panel", "codex-note-body"},
+            gui.Panel{
+                width = 24,
+                height = 24,
+                valign = "top",
+                tmargin = 8,
+                bgimage = "ui-icons/codex-logo.png",
+                bgcolor = "white",
+            },
+            gui.Label{
+                classes = {"builder-base", "label", "info", "overview", "codex-note-text"},
+                width = "100%-24",
+                vpad = 6,
+                markdown = true,
+                text = "<b>Codex Note:</b> " .. note,
+            },
         },
     }
 end

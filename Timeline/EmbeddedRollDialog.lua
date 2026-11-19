@@ -1138,6 +1138,10 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field banes number
     --- @field boonsOverride nil|number
     --- @field tiersDelta nil|number
+    --- @field autosuccess nil|boolean tier-forcing flags from this row's roll text, absolute rather than relative to the roll; a trigger used after the dice land only reaches the tier through these.
+    --- @field autofailure nil|boolean
+    --- @field nottierone nil|boolean
+    --- @field nottierthree nil|boolean
     --- @field text string
     --- @field surges nil|number
     --- @field modifiers EmbeddedRollModifierEntry[]
@@ -4450,7 +4454,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         --exception: only the roller can say whether it applies.
                         --So is an opt-in option the roller can afford (hint.optIn, e.g.
                         --To the Uttermost End's extra Ferocity, Barbed Tail's once per
-                        --round): paying or spending the use is their choice.
+                        --round, or an option of the ability itself like Blood for Blood!):
+                        --paying or taking the option is their choice.
                         local rollerChoice = mod.rollerDecides == true
                         if not rollerChoice and mod.hint ~= nil and mod.hint.optIn == true and creature ~= nil then
                             local maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
@@ -5881,6 +5886,13 @@ function GameHud.CreateEmbeddedRollDialog()
             m_multitargets[index].boons = (rollInfo.boons or 0)
             m_multitargets[index].banes = (rollInfo.banes or 0)
             m_multitargets[index].tiersDelta = (rollInfo.tiers or 0)
+            --Tier-forcing flags (Tier 1/2/3, Not Tier 1/3 roll mods). After the dice
+            --land the roll's own flags are fixed, so a trigger's only path to the
+            --tier is here (E8TWPX8B).
+            m_multitargets[index].autosuccess = rollInfo.autosuccess or nil
+            m_multitargets[index].autofailure = rollInfo.autofailure or nil
+            m_multitargets[index].nottierone = rollInfo.nottierone or nil
+            m_multitargets[index].nottierthree = rollInfo.nottierthree or nil
 
             -- Check roll requirements for triggers so they hide/show dynamically.
             -- If a trigger is already activated, skip the check -- its own effect

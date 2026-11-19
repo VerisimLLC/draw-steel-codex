@@ -1194,13 +1194,11 @@ PuzzleType.Register{
     id = "torn",
     name = "Torn note",
     howToPlay = [[
-The note has been torn into pieces. Put it back together.
+The note is torn to pieces. Put it back together.
 
-Drag a piece across the table, or click a piece and then click where it should go. When a piece lands beside one it belongs next to, the two are taped together and move as one from then on.
+Pieces that belong together tape themselves when they meet, and move as one.
 
-Everyone works on the same pieces. A piece someone else is moving can't be picked up until they let go.
-
-When every piece is joined, the puzzle is solved.]],
+Everyone shares the pieces. You can't grab one someone else is holding.]],
     fields = {
         { id = "source", type = "choice", label = "Source", default = "image",
             options = { { id = "image", text = "Image" }, { id = "note", text = "Note" } } },

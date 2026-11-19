@@ -2614,6 +2614,37 @@ Nobody crosses tonight.
     check(writ.kind == "pitfall" and writ.roll == nil and writ.backfires ~= "", "a pitfall argument needs no test")
     check(drink.kind == "neutral" and drink.traitId == nil and drink.backfires ~= "", "a neutral argument")
     check(oath.riders[1].effect == "allow", "a secret argument")
+    local oathKnackEdge = false
+    for _, r in ipairs(oath.riders) do
+        if r.effect == "edge" and r.text == oath.riders[1].text then
+            oathKnackEdge = true
+        end
+    end
+    check(not oathKnackEdge, "a knack argument gets no automatic edge")
+
+    local knacks = EncounterScript.Parse([==[
+# Negotiation: Hask
+
+## Argument: Bribe
+Appeals: Nothing
+|Allow: your Wealth is 3 or higher
+|Test: Presence (Persuade)
+
+## Argument: Boast
+Appeals: Nothing
+|Allow: your Renown is 2 or higher
+|Edge: your Renown is 2 or higher
+|Test: Presence (Brag)
+]==])
+    local bribe, boast = knacks.beats[1].arguments[1], knacks.beats[1].arguments[2]
+    check(#bribe.riders == 1, "an Allow alone adds no edge")
+    local boastEdges = 0
+    for _, r in ipairs(boast.riders) do
+        if r.effect == "edge" then
+            boastEdges = boastEdges + 1
+        end
+    end
+    check(boastEdges == 1, "a written edge on a knack is kept")
     check(b.offers[4].text ~= "" and #b.offers[4].effects == 1 and b.offers[4].effects[1].kind == "malice", "an offer and its rules")
     check(b.offers[2].text == "Nobody crosses tonight." and b.offers[1] == nil, "offers sit at interest + 1")
 
@@ -2674,6 +2705,7 @@ Appeals: Nothing
     check(string.find(said, "at least two motivations", 1, true) ~= nil, "too few motivations")
     check(string.find(said, "no 'Opening:' line", 1, true) ~= nil, "no opening")
     check(string.find(said, "'## Offer: yes, but'", 1, true) ~= nil, "a missing offer")
+    check(string.find(said, "argument 'Cut' has no 'PC:' line", 1, true) ~= nil, "an argument the hero has no words for")
 
     local uncover = EncounterScript.ParseEffects("You uncover the ledger")[1]
     check(uncover.kind == "uncover" and uncover.name == "the ledger", "the uncover clause")

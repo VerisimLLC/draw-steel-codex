@@ -88,6 +88,9 @@ local mod = dmhub.GetModLoading()
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.
     hardCap = 500,
+    --An encounter counts towards dropping older ones only once it has this many entries,
+    --so a combat started by mistake and ended at once does not cost the last real fight.
+    minEncounterEntries = 5,
     --Set by the tray: runs when the setting changes.
     --- @type nil|function
     OnEnabledChanged = nil,
@@ -158,15 +161,23 @@ local function Cull(data)
     local encounters = data.encounters
     local entries = data.entries
 
+    --counts: entries written per encounter. One with no count is from before counts were
+    --kept, and counts as a real encounter.
+    local counts = data.counts or {}
     local starts = {}
     for id, t in pairs(encounters) do
-        starts[#starts + 1] = {id = id, t = t}
+        if counts[id] == nil or counts[id] >= History.minEncounterEntries then
+            starts[#starts + 1] = {id = id, t = t}
+        end
     end
     if #starts > 2 then
         table.sort(starts, function(a, b) return a.t > b.t end)
         local keepFrom = KeyPrefix(starts[2].t)
-        for i = 3, #starts do
-            encounters[starts[i].id] = nil
+        for id, t in pairs(encounters) do
+            if t < starts[2].t then
+                encounters[id] = nil
+                counts[id] = nil
+            end
         end
         for key in pairs(entries) do
             if key < keepFrom then
@@ -248,6 +259,9 @@ local function WriteEntries(mapid, list)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
+    if type(data.counts) ~= "table" then
+        data.counts = {}
+    end
     --a list here is a table saved before ids had their "h" (see TextHash): start it again.
     if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" or data.hovers[1] ~= nil then
         data.hovers = {}
@@ -255,9 +269,19 @@ local function WriteEntries(mapid, list)
     end
     for _, entry in ipairs(list) do
         StoreHoverTexts(entry, data.hovers, data.hoverused, entry.t)
-        data.entries[EntryKey(entry)] = dmhub.ToRawJson(entry)
-        if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
-            data.encounters[entry.encounter] = entry.t
+        local key = EntryKey(entry)
+        local isNew = data.entries[key] == nil
+        data.entries[key] = dmhub.ToRawJson(entry)
+        if entry.encounter ~= nil then
+            if data.encounters[entry.encounter] == nil then
+                data.encounters[entry.encounter] = entry.t
+                --an encounter new to this map starts its count at zero; an older one has none.
+                data.counts[entry.encounter] = 0
+            end
+            --a rewrite of an entry (an Undo, a reveal) is not another entry.
+            if isNew and data.counts[entry.encounter] ~= nil then
+                data.counts[entry.encounter] = data.counts[entry.encounter] + 1
+            end
         end
     end
     Cull(data)

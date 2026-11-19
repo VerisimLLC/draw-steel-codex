@@ -80,6 +80,14 @@ local function Styles()
             uppercase = true,
             color = "@fgStrong",
         },
+        --a round under a Combat heading: quieter than the heading it sits in.
+        {
+            selectors = {"label", "historyRoundTitle"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@fgMuted",
+        },
         {
             selectors = {"label", "historyMuted"},
             fontSize = 11,
@@ -1978,7 +1986,7 @@ local function BuildRoundHead(item)
         title[1] = Caret(true)
     end
     title[#title + 1] = gui.Label{
-        classes = {"historyTitle"},
+        classes = {item.sub and "historyRoundTitle" or "historyTitle"},
         text = item.text,
         width = "auto",
         height = "auto",
@@ -2048,7 +2056,7 @@ local function BuildRoundFold(item)
             borderBox = true,
             Caret(false),
             gui.Label{
-                classes = {"historyTitle"},
+                classes = {item.sub and "historyRoundTitle" or "historyTitle"},
                 text = item.text,
                 width = "auto",
                 height = "auto",
@@ -2221,9 +2229,15 @@ local g_builders = {
 --with no entry here follows the default: only the newest stays open.
 local g_open = {}
 
+--The section or turn just opened or closed by hand. Its heading must stay built: opening an
+--older combat adds rows under it, which would push it out of the rows built from the bottom.
+--- @type string|nil
+local g_toggled = nil
+
 local function Toggle(id, isOpen)
     return function()
         g_open[id] = not isOpen
+        g_toggled = id
         if g_tray ~= nil then
             g_tray.Refresh()
         end
@@ -2988,8 +3002,8 @@ local function AddTurnRows(items, turn, isNewest, nested)
 end
 
 --- A section's rows: its heading or fold line, then its turns. sub: a round inside a
---- Combat heading, drawn one step in.
-local function AddSectionRows(items, section, isNewest, nested, sub)
+--- Combat heading, drawn one step in. open: open unless closed by hand (a combat's only round).
+local function AddSectionRows(items, section, isNewest, nested, sub, open)
     --the first turn this user has not seen, if the section has one.
     local firstNew = nil
     if not g_searchOpen then
@@ -3002,7 +3016,7 @@ local function AddSectionRows(items, section, isNewest, nested, sub)
     end
     local isOpen = g_open[section.id]
     if isOpen == nil or g_searchOpen then
-        isOpen = g_searchOpen or isNewest or firstNew ~= nil or (g_frozen and g_lastOpen[section.id] == true)
+        isOpen = g_searchOpen or isNewest or open or firstNew ~= nil or (g_frozen and g_lastOpen[section.id] == true)
     end
     if isOpen then
         g_nowOpen[section.id] = true
@@ -3129,7 +3143,7 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
         toggle = (not g_searchOpen and (not isNewest or g_open[id] == false)) and Toggle(id, isOpen) or nil,
     }
     for i = first, last do
-        AddSectionRows(items, sections[i], isNewest and i == last, nested, true)
+        AddSectionRows(items, sections[i], isNewest and i == last, nested, true, first == last)
     end
 end
 
@@ -3848,6 +3862,15 @@ local function CreateFace()
                     end
                 end
             end
+        end
+        if g_toggled ~= nil then
+            for i, item in ipairs(items) do
+                if (item.key == "head-" .. g_toggled or item.key == "fold-" .. g_toggled) and i < first then
+                    first = i
+                    rowsWanted = #items - i + 1
+                end
+            end
+            g_toggled = nil
         end
         hasOlder = first > 1
         face:FireEventTree("searchResults", matches)

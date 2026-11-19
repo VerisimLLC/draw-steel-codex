@@ -571,6 +571,13 @@ Granted downtime rolls and fishing write nothing; project event rolls use the ta
 | L74 | Completed | {Project} completed | {Hero} · project points {n} of {goal} |
 | L75 | Director adjusts points | {Project} project points {b} to {n} | Director |
 
+**Withdrawn 2026-11-19 (James): L69-L72 and L75.** A project keeps its own rolls and adjustments, and the
+Respite shows what everyone rolled, so these lines only repeated them and crowded the respite out of
+History. Only what changes the table is written: L73 and L74. The hook still reports every change
+(`DTProject:_notePoints`), so the lines can come back without touching the project code. L73 does not
+depend on the Players Manage Downtime Projects setting: a player's project already says "Milestone
+reached" whatever that setting is, and only the milestone still to come is kept from them.
+
 **Tables and hidden rolls (signed off 2026-11-15).** Matches today's chat: a table card always shows its
 row (a table's own visibility only hides rows before rolling). GM only: the engine sends the message only
 to the roller and the Director, so other players get no line. Dice Tower: everyone sees the roll happen,

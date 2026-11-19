@@ -43,8 +43,7 @@ local mod = dmhub.GetModLoading()
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
 --- "negotiation" or "downtime".
 --- @field counter? string On a montagecounter line: "successes" or "failures".
---- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "roll", "adjust", "milestone" or "completed".
---- @field breakthrough? boolean On a downtime roll: a natural 19 or 20, which earns another roll.
+--- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed".
 --- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
 --- @field playercause? string On a negotiation line: the cause text players read when raw is false.
 --- @field directoronly? boolean On a negotiation line: players get no line.

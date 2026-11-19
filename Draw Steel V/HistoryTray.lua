@@ -1641,17 +1641,10 @@ local function LineWords(entry)
         return "<b>Encounter ended</b>"
     elseif family == "downtime" then
         local project = string.format("<b>%s</b>", entry.name or "A project")
-        if entry.sub == "milestone" then
-            return project .. " reached a milestone"
-        elseif entry.sub == "completed" then
+        if entry.sub == "completed" then
             return project .. " completed"
-        elseif entry.sub == "adjust" then
-            return string.format("%s project points %d to %d", project, entry.before or 0, entry.after or 0)
         end
-        if entry.who == nil then
-            name = string.format("<b>%s</b>", entry.roller or "A follower")
-        end
-        return string.format("%s rolled %d", name, entry.total or 0)
+        return project .. " reached a milestone"
     elseif family == "negotiation" then
         local npc = string.format("<b>%s</b>", entry.name or "the NPC")
         if entry.sub == "began" then
@@ -1823,8 +1816,6 @@ local function BuildLine(item)
         tag = Tag("historyEndedTag", "Ended")
     elseif entry.family == "save" and not entry.passed then
         tag = Tag("historyActiveTag", "Active")
-    elseif entry.family == "downtime" and entry.breakthrough then
-        tag = Tag("historySuccessTag", "Breakthrough")
     elseif entry.family == "montagetest" and entry.tier ~= nil and entry.tier >= 3 then
         tag = Tag("historySuccessTag", "Success")
     elseif entry.family == "montagetest" and entry.tier == 1 then

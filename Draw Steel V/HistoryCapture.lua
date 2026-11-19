@@ -1253,49 +1253,25 @@ local function OnCombatBegan(info)
     History.Write(entry)
 end
 
---Downtime projects (5.1g, L69-L75). info comes from DTProject:_notePoints: a roll or a
---hand adjustment that changed a project's points, with whether that reached a milestone
---or completed it. A project roll has no tier. Written by whoever committed the change.
+--Downtime projects (5.1g). info comes from DTProject:_notePoints, on every roll or hand
+--adjustment that changes a project's points. Only what changes the table is written: a
+--milestone reached (L73) and a project completed (L74). The rolls and adjustments stay
+--where they are already kept, on the project and in the Respite's record (James,
+--2026-11-19). A player's project says a milestone was reached, so this line may too; the
+--milestone still to come is never named.
 local function OnDowntime(info)
-    if not History.Enabled() then
+    if not History.Enabled() or not (info.milestone or info.completed) then
         return
     end
-    local map = game.currentMapId
     local project = info.project ~= nil and info.project ~= "" and info.project or "A project"
     local owner = info.ownerid ~= nil and dmhub.GetCharacterById(info.ownerid) or nil
     local function Write(entry)
         entry.kind = "line"
         entry.family = "downtime"
-        entry.map = map
+        entry.map = game.currentMapId
         entry.name = project
         History.AddCombatFacts(entry)
         History.Write(entry)
-    end
-    local points = string.format("project points %d to %d of %d", info.before, info.after, info.goal)
-
-    if info.kind == "roll" then
-        local entry = {sub = "roll", total = info.total}
-        local roller = info.rollerid ~= nil and info.rollerid ~= "" and dmhub.GetCharacterById(info.rollerid) or nil
-        local follower = info.followerid ~= nil and info.followerid ~= ""
-        if roller ~= nil and not follower then
-            entry.who = History.Creature(roller)
-        else
-            --a follower has no token of its own: the roll keeps the name it was made under.
-            entry.roller = info.rollername
-        end
-        --another Hero's project is named for its owner (L70).
-        local label = project
-        if not follower and owner ~= nil and info.rollerid ~= info.ownerid then
-            label = string.format("%s's %s", owner.name or "A Hero", project)
-        end
-        entry.causetext = label .. History.DOT .. points
-        entry.breakthrough = (tonumber(info.natural) or 0) >= 19 or nil
-        Write(entry)
-    elseif info.kind == "adjust" then
-        if info.before == info.after then
-            return
-        end
-        Write{sub = "adjust", before = info.before, after = info.after, causetext = dmhub.isDM and "Director" or nil}
     end
     if info.milestone then
         Write{sub = "milestone", causetext = "The Director rolls a project event"}

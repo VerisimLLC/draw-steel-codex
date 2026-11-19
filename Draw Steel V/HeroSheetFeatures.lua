@@ -2016,9 +2016,8 @@ end
 --- @param id string
 --- @param expanded table<string, boolean>
 --- @param from Panel where the shared editors open from
---- @param grew fun() the list got taller (an opened group): it may need to scroll
 --- @return HeroFeatureGroup
-local function NewGroup(id, expanded, from, grew)
+local function NewGroup(id, expanded, from)
     local key = "f:" .. id
     local folded = HeroSheetLists.IsFolded(key)
     --- @type HeroFeatureCard[]
@@ -2115,7 +2114,6 @@ local function NewGroup(id, expanded, from, grew)
             caret.selfStyle.rotate = cond(folded, 90, 0)
             if not folded then
                 Fill()
-                grew()
             end
         end,
         caret,
@@ -2238,9 +2236,8 @@ HeroSheetFeatures.BarButton = BarButton
 --- @class HeroFeaturesPane
 --- @field filters Panel the pillar chips and the search, placed by the lists' frame
 --- @field bar Panel Edit mode's buttons (New feature, Paste feature, Show hidden features)
---- @field body Panel the list, scrolling once it is taller than its room
+--- @field body Panel the list, scrolling when it is taller than its room
 --- @field route fun(text: nil|string) open filtered by this text (the search's way in)
---- @field fit fun() the room changed: scroll if the list no longer fits
 --- @field setEditing fun(editing: boolean)
 
 --- The Features list for the lists' frame (HeroSheetLists.Create places its
@@ -2253,8 +2250,6 @@ function HeroSheetFeatures.Create()
     local expanded = {}
     --- @type fun()
     local ApplyFilter
-    --- @type fun()
-    local FitScroll
     --- @type Panel
     local list
 
@@ -2394,7 +2389,7 @@ function HeroSheetFeatures.Create()
     local groups = {}
     local groupPanels = {coreHolder}
     for _, sectionDef in ipairs(SECTIONS) do
-        local group = NewGroup(sectionDef.id, expanded, bar, function() FitScroll() end)
+        local group = NewGroup(sectionDef.id, expanded, bar)
         groups[sectionDef.id] = group
         groupPanels[#groupPanels+1] = group.panel
     end
@@ -2476,7 +2471,6 @@ function HeroSheetFeatures.Create()
             shown = shown + shownInGroup
         end
         nothing:SetClass("collapsed", not (filtered and shown == 0))
-        FitScroll()
     end
 
     list = HeroSheetRefresh.Block({
@@ -2519,26 +2513,19 @@ function HeroSheetFeatures.Create()
         end,
     })
 
-    --scrolls once its content is taller: panels made inside a scrolling
-    --panel lay out far more slowly, so the cards are made first.
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the list.
     --its height is set by the lists' frame (what the filters leave).
     local body = gui.Panel{
         width = "100%",
         height = "100%-6",
         flow = "vertical",
+        vscroll = true,
+        --cards well outside the view are skipped, so the tab shows and scrolls faster.
+        hideObjectsOutOfScroll = true,
         tmargin = 6,
         list,
     }
-    FitScroll = function()
-        HeroSheetWindow.AfterLayout(function()
-            if body.valid and not body.vscroll and list.renderedHeight > body.renderedHeight + 0.5 then
-                body.vscroll = true
-                --the engine then skips cards well outside the view, so the tab shows and
-                --scrolls faster. Set only once the scroll view exists: before that the engine errors.
-                body.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     return {
         filters = filters,
@@ -2552,9 +2539,6 @@ function HeroSheetFeatures.Create()
             --through the field's edit handler, which also shows its clear X.
             search.text = text or ""
             search:FireEvent("edit")
-        end,
-        fit = function()
-            FitScroll()
         end,
         setEditing = function(editing)
             if editing then

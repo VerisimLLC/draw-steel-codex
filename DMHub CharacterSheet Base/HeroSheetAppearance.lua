@@ -4681,7 +4681,7 @@ local function ArtWindow(target)
         end
         local top = 0
         local range = total - ART_GRID_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -4707,6 +4707,7 @@ local function ArtWindow(target)
         width = "100%",
         height = ART_GRID_H,
         flow = "vertical",
+        vscroll = true,
         thinkTime = 0.03,
         think = function(element)
             Scroll()
@@ -4718,16 +4719,14 @@ local function ArtWindow(target)
     --- A fresh tab or search: rebuild the rows, back to the top.
     Refill = function()
         Build()
-        holder.vscroll = false
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
-        --built without scrolling, then scrolling turned on once laid out:
-        --building under a scroll view costs more per panel.
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then
                 return
             end
-            holder.vscroll = total > ART_GRID_H
             holder.vscrollPosition = 1
         end)
     end
@@ -7364,7 +7363,7 @@ local function AnthemWindow()
         end
         local top = 0
         local range = #ids * ANTHEM_ROW_H - ANTHEM_LIST_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -7384,6 +7383,7 @@ local function AnthemWindow()
         width = "100%",
         height = ANTHEM_LIST_H,
         flow = "vertical",
+        vscroll = true,
         thinkTime = 0.03,
         think = function(element)
             Scroll()
@@ -7395,16 +7395,14 @@ local function AnthemWindow()
     --- A fresh tab or search: rebuild the rows, back to the top.
     function Refill()
         Build()
-        holder.vscroll = false
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
-        --built without scrolling, then scrolling turned on once laid out:
-        --building under a scroll view costs more per panel.
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then
                 return
             end
-            holder.vscroll = #ids * ANTHEM_ROW_H > ANTHEM_LIST_H
             holder.vscrollPosition = 1
         end)
     end
@@ -8752,6 +8750,7 @@ local function DiceWindow()
         height = DICE_GRID_H,
         tmargin = 12,
         flow = "vertical",
+        vscroll = true,
         grid,
     }
     local holder = gui.Panel{
@@ -8789,14 +8788,6 @@ local function DiceWindow()
         body = holder,
         onDone = function() end,
     }
-    --built without scrolling, then scrolling turned on once laid out:
-    --building under a scroll view costs more per panel.
-    HeroSheetWindow.AfterLayout(function()
-        if not scroller.valid then
-            return
-        end
-        scroller.vscroll = grid.renderedHeight > scroller.renderedHeight + 0.5
-    end)
     --each set's showcase dice are built a few frames apart after opening:
     --building one on its first hover stalls that frame.
     for i, set in ipairs(sets) do
@@ -10657,26 +10648,6 @@ local function BuildBody(state, bus)
     local content
     local holder
 
-    --- The body scrolls only once its content overflows: a panel under a
-    --- scroll view costs more to build and lay out.
-    local fitGen = 0
-    local function FitScroll()
-        fitGen = fitGen + 1
-        local gen = fitGen
-        HeroSheetWindow.AfterLayout(function()
-            if gen ~= fitGen or not holder.valid then
-                return
-            end
-            if holder.renderedHeight <= 0 then
-                return
-            end
-            local over = content.renderedHeight > holder.renderedHeight + 0.5
-            if (holder.vscroll == true) ~= over then
-                holder.vscroll = over
-            end
-        end)
-    end
-
     --whether the sheet shows this tab: the map preview's floor exists only
     --while it is on screen, and a preview stops when the tab goes.
     local sheetState = HeroSheet.State()
@@ -10713,7 +10684,6 @@ local function BuildBody(state, bus)
             pane:SetClass("collapsed", paneid ~= id)
         end
         HeroSheetRefresh.CatchUpShown()
-        FitScroll()
         SyncShown()
     end
     bus.ShowSubtab = Show
@@ -10985,21 +10955,13 @@ local function BuildBody(state, bus)
         panes.effects,
         panes.summons,
     }
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the content.
     holder = gui.Panel{
         width = "100%",
         height = "100%-42",
         flow = "vertical",
-        --content that grows in place (dice rows appearing, a card row) must
-        --turn scrolling on too, or its top goes out of reach.
-        data = {height = -1},
-        thinkTime = 0.25,
-        think = function(element)
-            local renderedHeight = content.renderedHeight
-            if renderedHeight ~= element.data.height then
-                element.data.height = renderedHeight
-                FitScroll()
-            end
-        end,
+        vscroll = true,
         content,
     }
     Show("look")
@@ -11010,7 +10972,7 @@ local function BuildBody(state, bus)
     bus.RevealArt = function()
         Show("look")
         dmhub.Schedule(0.05, function()
-            if mod.unloaded or not holder.valid or holder.vscroll ~= true then
+            if mod.unloaded or not holder.valid then
                 return
             end
             local range = content.renderedHeight - holder.renderedHeight
@@ -11025,15 +10987,8 @@ local function BuildBody(state, bus)
         width = "100%",
         height = "100%",
         flow = "vertical",
-        heroSheetLayout = function(element)
-            FitScroll()
-        end,
-        heroSheetTier = function(element)
-            FitScroll()
-        end,
         heroSheetHero = function(element)
             StopAudition()
-            FitScroll()
         end,
         heroSheetTab = function(element, tabid)
             tabShown = tabid == "Appearance"
@@ -11053,7 +11008,6 @@ local function BuildBody(state, bus)
             hosted = host.builder
             hostShown = host.shown
             SyncShown()
-            FitScroll()
         end,
         strip,
         holder,

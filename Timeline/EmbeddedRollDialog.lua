@@ -6663,12 +6663,17 @@ function GameHud.CreateEmbeddedRollDialog()
         --the rest so callers reading rolls/boons/banes still see natural dice.
         --Built field-by-field because the real rollInfo is a C++ wrapper that
         --pairs() can't iterate.
+        local overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+        --rolledTotal and overrideMessage are for a record of play (History): what the
+        --dice said, and who changed it.
         local synthetic = {
             total = range.min,
             boons = last.boons,
             banes = last.banes,
             rolls = last.rolls,
             properties = last.properties,
+            rolledTotal = last.total,
+            overrideMessage = overrideMessage,
         }
 
         --Push override to chat so the action log re-renders with the new row.
@@ -6676,8 +6681,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --overrideRollTotal.
         if m_tableRoll_state.lastRollProperties ~= nil then
             m_tableRoll_state.lastRollProperties.overrideRollTotal = range.min
-            m_tableRoll_state.lastRollProperties.overrideMessage =
-                string.format("%s overrode the result", dmhub.userDisplayName)
+            m_tableRoll_state.lastRollProperties.overrideMessage = overrideMessage
 
             if type(last) == "userdata" then
                 last:UploadProperties(m_tableRoll_state.lastRollProperties)

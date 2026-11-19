@@ -1676,6 +1676,67 @@ local function OnDiceRoll(rollInfo, kind)
     History.Write(entry)
 end
 
+--A table's result is cut to this many characters under its line; the card has all of it.
+local TABLE_RESULT_SHOWN = 60
+
+--A roll on a table (L76-L78): a journal's table, a Director's request, an ability's (under
+--its row) or a project event the Director rolled (L77). info: see RollOnTableProperties.NotifyRolled.
+local function OnTableRolled(roller, info)
+    if not History.Enabled() then
+        return
+    end
+    local result = info.result
+    if result ~= nil and #result > TABLE_RESULT_SHOWN then
+        result = string.sub(result, 1, TABLE_RESULT_SHOWN - 3) .. "..."
+    end
+    local cause = info.project ~= nil and (info.project .. " event") or info.table
+    if result ~= nil then
+        cause = cause .. History.DOT .. result
+    end
+    if info.overridden ~= nil then
+        cause = cause .. History.DOT .. "Overridden"
+    end
+    local token = roller ~= nil and dmhub.LookupToken(roller) or nil
+    local entry = {
+        kind = "line",
+        family = "table",
+        map = (token ~= nil and token.mapid) or game.currentMapId,
+        name = info.table,
+        project = info.project,
+        total = info.rolled,
+        dice = info.dice,
+        result = info.result,
+        overridden = info.overridden,
+        cause = info.cause,
+        causetext = cause,
+    }
+    --the Director rolls a project's event for the Hero, so the line is the Director's.
+    if token ~= nil and info.project == nil then
+        entry.who = History.Creature(token)
+    else
+        entry.roller = dmhub.isDM and "Director" or dmhub.userDisplayName
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--A Director's or player's macro gave a Hero something (L82-L85). info: {kind, before, after}
+--for victories, renown and wealth; {kind, name, quantity} for an item; {kind, name} for a title.
+local function OnAwarded(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    WriteLine(token, "award", {
+        sub = info.kind,
+        name = info.name,
+        quantity = info.quantity,
+        before = info.before,
+        after = info.after,
+        causetext = dmhub.isDM and "Director" or dmhub.userDisplayName,
+    })
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1743,6 +1804,8 @@ GameSystem.RegisterPlayObserver("history", {
     saved = OnSaved,
     tested = OnTested,
     diceroll = OnDiceRoll,
+    tablerolled = OnTableRolled,
+    awarded = OnAwarded,
     persistenceended = OnPersistenceEnded,
     combatbegan = OnCombatBegan,
     montage = OnMontage,

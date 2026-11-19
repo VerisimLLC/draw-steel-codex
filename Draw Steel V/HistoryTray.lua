@@ -1457,8 +1457,9 @@ local function BuildAction(item)
     local extra = {}
     local triggers = {}
     local minions = {}
-    --rolls the ability asked for: each side of an opposed power roll.
+    --rolls the ability asked for: each side of an opposed power roll, and rolls on a table.
     local rolls = {}
+    local tableRolls = {}
     for _, kid in ipairs(item.triggers or {}) do
         if kid.kind == "trigger" then
             triggers[#triggers + 1] = kid
@@ -1467,6 +1468,8 @@ local function BuildAction(item)
             end
         elseif kid.family == "test" then
             rolls[#rolls + 1] = kid
+        elseif kid.family == "table" then
+            tableRolls[#tableRolls + 1] = kid
         elseif kid.family == "resource" then
             triggers[#triggers + 1] = {
                 actor = kid.who,
@@ -1526,6 +1529,9 @@ local function BuildAction(item)
         for _, kid in ipairs(rolls) do
             triggerRows[#triggerRows + 1] = RollRow(kid)
         end
+    end
+    for _, kid in ipairs(tableRolls) do
+        triggerRows[#triggerRows + 1] = RollRow(kid)
     end
 
     local opens = OpensCard(item)
@@ -1624,7 +1630,7 @@ local function LineWords(entry)
             most[i] = names[i]
         end
         return string.format("%s %s and %s", name, table.concat(most, ", "), names[#names])
-    elseif family == "test" or family == "dice" then
+    elseif family == "test" or family == "dice" or family == "table" then
         if entry.who == nil and entry.roller ~= nil then
             name = string.format("<b>%s</b>", entry.roller)
         end
@@ -1667,6 +1673,18 @@ local function LineWords(entry)
         return "<b>Montage ended</b>"
     elseif family == "montagecounter" then
         return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
+    elseif family == "award" then
+        local sub = entry.sub
+        if sub == "victories" then
+            local gained = entry.after - entry.before
+            return string.format("%s gained %d %s", name, gained, cond(gained == 1, "Victory", "Victories"))
+        elseif sub == "item" then
+            local count = (entry.quantity or 1) > 1 and string.format(" x%d", entry.quantity) or ""
+            return string.format("%s received %s%s", name, entry.name or "an item", count)
+        elseif sub == "title" then
+            return string.format("%s earned the title %s", name, entry.name or "")
+        end
+        return string.format("%s %s %d to %d", name, cond(sub == "renown", "Renown", "Wealth"), entry.before, entry.after)
     elseif family == "respite" then
         return name .. " took a respite"
     elseif family == "levelup" then
@@ -1731,10 +1749,10 @@ local function LineNumber(entry)
 end
 
 --Which entries open a detail card: actions, an encounter's closing line with something to
---list (L17), and test or Dice panel rolls. Every other line already says all there is.
+--list (L17), and test, Dice panel or table rolls. Every other line already says all there is.
 local function HasCard(entry)
     return entry.kind == "action" or (entry.family == "encounterend" and #(entry.ended or {}) > 0)
-        or entry.family == "test" or entry.family == "dice"
+        or entry.family == "test" or entry.family == "dice" or entry.family == "table"
         or (entry.family == "negotiation" and entry.sub == "argument" and (entry.text or "") ~= "")
 end
 

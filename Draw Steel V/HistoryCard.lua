@@ -832,9 +832,14 @@ local function Header(entry, width, inTray, close)
     local title = "Encounter ended"
     --a test or Dice panel line: who rolled, and what ("Gordon - Might test", "Gordon - Dice").
     local roller = entry.who
-    if entry.family == "test" or entry.family == "dice" then
+    if entry.family == "test" or entry.family == "dice" or entry.family == "table" then
         local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
-        title = name .. History.DOT .. (entry.family == "test" and entry.name or "Dice")
+        local what = entry.family == "test" and entry.name or "Dice"
+        if entry.family == "table" then
+            --"Gordon - Prayer Table"; a project event the Director rolled, "Director - Seek the Lost Sword event".
+            what = entry.project ~= nil and (entry.project .. " event") or entry.name or "Table"
+        end
+        title = name .. History.DOT .. what
         if roller ~= nil then
             children[#children + 1] = History.Face(roller, 30, true)
             titleWidth = titleWidth - 39
@@ -862,7 +867,7 @@ local function Header(entry, width, inTray, close)
         flow = "vertical",
         width = titleWidth,
         height = "auto",
-        lmargin = (entry.actor ~= nil or (roller ~= nil and (entry.family == "test" or entry.family == "dice"))) and 9 or 0,
+        lmargin = (entry.actor ~= nil or (roller ~= nil and (entry.family == "test" or entry.family == "dice" or entry.family == "table"))) and 9 or 0,
         halign = "left",
         valign = "center",
         gui.Label(Linked{
@@ -1896,6 +1901,33 @@ local function SecretRollRow(entry, width)
     }
 end
 
+--A roll on a table: its dice, any bonus, the total, then the row it landed on in full and,
+--when the result was overridden, the roll dialog's message saying who changed it.
+local function AddTableLines(rows, width, entry)
+    if entry.dice ~= nil and #entry.dice > 0 then
+        local lead = {}
+        local sum = 0
+        for _, face in ipairs(entry.dice) do
+            lead[#lead + 1] = Die(face)
+            sum = sum + face
+        end
+        rows[#rows + 1] = ReceiptLine(width, {lead = lead, value = tostring(sum)})
+        if entry.total ~= nil and entry.total ~= sum then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(entry.total - sum)})
+        end
+    end
+    if entry.total ~= nil then
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", value = tostring(entry.total), total = true})
+    end
+    if entry.result ~= nil then
+        rows[#rows + 1] = SubHead("Result", width)
+        rows[#rows + 1] = ReceiptNote(width, entry.result)
+    end
+    if entry.overridden ~= nil then
+        rows[#rows + 1] = ReceiptNote(width, entry.overridden, "historyReceiptMore")
+    end
+end
+
 --- The receipt's rows for an action entry; empty when it has nothing to add up.
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
@@ -1971,6 +2003,20 @@ local function NumbersRows(entry, kids, width)
             badge = nil
         end
         rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
+    end
+
+    --a table the ability rolled on, under its roller's name, as the table line's own card has it.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "table" then
+            local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or "Director"
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Table"), width, kid.who)
+            AddTableLines(rows, width, kid)
+        end
+    end
+
+    if entry.family == "table" then
+        rows[#rows + 1] = SubHead("Dice", width)
+        AddTableLines(rows, width, entry)
     end
 
     --a Dice panel roll: each die, its edges and banes, and what the total adds past them.
@@ -3150,7 +3196,7 @@ function History.CreateCard(args)
     local inner = width - 2 * CARD_PAD
 
     --a test or Dice panel line's card is only its numbers: the line already says what happened.
-    local rolled = entry.family == "test" or entry.family == "dice"
+    local rolled = entry.family == "test" or entry.family == "dice" or entry.family == "table"
     local body = {}
     if not rolled then
         body[1] = SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)

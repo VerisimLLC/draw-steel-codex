@@ -34,16 +34,16 @@ local mod = dmhub.GetModLoading()
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
 --- @field player? string On an action: the player who used it. Nil means the Director.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil} The power roll. hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
---- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
+--- @field cause? string On an automatic trigger or a minions line: id of the cast behind it. On a test or table line: the ability that asked for the roll, whose row it goes under.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
---- "negotiation" or "downtime".
+--- "negotiation", "downtime", "table" or "award".
 --- @field counter? string On a montagecounter line: "successes" or "failures".
---- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed".
+--- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed". On an award line: "victories", "item", "title", "renown" or "wealth".
 --- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
 --- @field playercause? string On a negotiation line: the cause text players read when raw is false.
 --- @field directoronly? boolean On a negotiation line: players get no line.
@@ -55,12 +55,16 @@ local mod = dmhub.GetModLoading()
 --- @field level? integer On a levelup line: the Level reached.
 --- @field heroesFirst? boolean On a drawsteel line: the heroes go first.
 --- @field rolled? number On a drawsteel line: the Draw Steel die, when one was rolled.
---- @field total? number On a test or dice line: what the roll came to.
---- @field dice? number[] On a dice line: each die as it landed.
+--- @field total? number On a test or dice line: what the roll came to. On a table line: what the dice came to, before any override.
+--- @field dice? number[] On a dice or table line: each die as it landed.
+--- @field result? string On a table line: the row's full text (the row picked, after an override).
+--- @field overridden? string On a table line: the roll dialog's override message, when the result was overridden.
+--- @field project? string On a table line: the downtime project whose event the Director rolled (L77).
+--- @field quantity? number On an item award line: how many.
 --- @field tier? integer On a dice line from the Power Roll tile: its tier.
 --- @field edges? integer On a dice line: edges on the roll.
 --- @field banes? integer On a dice line: banes on the roll.
---- @field roller? string On a dice line with no creature: who rolled ("Director" for the Director).
+--- @field roller? string On a dice or table line with no creature: who rolled ("Director" for the Director).
 --- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
 --- @field amount? number On a resource line (or a heal with its Recovery): the change, negative when spent.
 --- @field resourceid? string On a resource line or a Recovery heal: the resource, for Undo.
@@ -72,7 +76,7 @@ local mod = dmhub.GetModLoading()
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
---- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test").
+--- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title.
 --- @field names? string[] On an ended line: what ended.
 --- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
@@ -95,8 +99,8 @@ local mod = dmhub.GetModLoading()
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.
 --- @field damagetype? string On a damage line: the type, if it has one.
---- @field before? number On a temporary Stamina line: the pool before.
---- @field after? number On a temporary Stamina line: the pool after.
+--- @field before? number On a temporary Stamina line: the pool before. On a victories, renown or wealth award line: the score before.
+--- @field after? number On a temporary Stamina line: the pool after. On a victories, renown or wealth award line: the score after.
 
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.
@@ -461,7 +465,7 @@ local function ForPlayers(entry)
     --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
     --An action keeps its roller in actor; a test or dice line, in who.
     local roller = entry.actor
-    if roller == nil and (entry.family == "test" or entry.family == "dice") then
+    if roller == nil and (entry.family == "test" or entry.family == "dice" or entry.family == "table") then
         roller = entry.who
     end
     local monster = roller ~= nil and not roller.hero

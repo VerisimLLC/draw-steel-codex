@@ -732,11 +732,32 @@ Commands.RegisterBuiltinDoc{
 
 -- roll: Roll dice into chat.
 --
--- Not a C# command: Commands.roll lives in the engine's core-asset Lua chunk
--- (Assets/CoreAssets/Lua/commands.txt, loaded before the codex) and calls
--- dmhub.Roll with the current token as the roller. RegisterBuiltinDoc only
--- writes Commands._macros, so the core-asset function keeps handling
--- execution -- do NOT define Commands.roll here, that would shadow it.
+-- Not a C# command: Commands.roll and Commands.dmroll start in the engine's
+-- core-asset Lua chunk (Assets/CoreAssets/Lua/commands.txt, loaded before the
+-- codex). These copies roll exactly as those do, and add only a complete
+-- callback so a record of play (History) hears the result on the client that
+-- rolled. Keep them in step with the engine's. /r calls Commands.roll.
+local function RollToChat(str, description, dmonly)
+    local tok = dmhub.currentToken
+    dmhub.Roll{
+        description = description,
+        dmonly = dmonly,
+        roll = str,
+        creature = tok ~= nil and tok.properties or nil,
+        complete = function(rollInfo)
+            GameSystem.NotifyPlayObservers("diceroll", rollInfo, "chat")
+        end,
+    }
+end
+
+Commands.roll = function(str)
+    RollToChat(str, "Custom Roll", false)
+end
+
+Commands.dmroll = function(str)
+    RollToChat(str, "GM-only Custom Roll", true)
+end
+
 Commands.RegisterBuiltinDoc{
     name = "roll",
     summary = "roll dice",

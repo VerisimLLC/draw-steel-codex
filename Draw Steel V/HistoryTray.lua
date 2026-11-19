@@ -1190,15 +1190,9 @@ local function DirectorMenu(sources)
                     click = function()
                         g_menuChosenAt = dmhub.Time()
                         element.popup = nil
-                        gui.ModalMessage{
-                            title = "Clear History?",
-                            message = "This removes every entry on this map for everyone. It can't be undone.",
-                            options = {
-                                {text = "Clear History", execute = function() History.Clear(mapid) end},
-                                {text = "Cancel"},
-                            },
-                            owner = element,
-                        }
+                        DTConfirmationDialog.ShowModal("Clear History?",
+                            "This removes every entry on this map for everyone. It can't be undone.",
+                            "Clear History", "Cancel", function() History.Clear(mapid) end)
                     end,
                 },
             },

@@ -191,6 +191,7 @@ local function SaveHolder(entry, description, fn)
             description = description,
             others = {party},
             othersOnly = true,
+            refusedText = "Someone else changed the stash first. Nothing changed.",
             execute = function()
                 fn(party.properties)
             end,

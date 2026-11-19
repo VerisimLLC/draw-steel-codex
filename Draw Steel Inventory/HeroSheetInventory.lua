@@ -179,7 +179,7 @@ local CONTENT_PAD = 12
 --Narrow's tab row over the list, and the gap under it.
 local TAB_ROW = 40
 local TAB_ROW_GAP = 8
---about what the list header's Take all adds to the chip row's width.
+--roughly how much wider the header's Take all button makes the chip row.
 local TAKE_ALL_WIDTH = 80
 
 --- @class HeroInventoryEntry
@@ -259,6 +259,25 @@ local function CraftText(item)
     return table.concat(lines, "\n")
 end
 
+--- One of the Hero's treasures (from HeroSheetRefresh.Read) as a list row.
+--- The Treasures card's rows build the same entry when they are dragged.
+--- @param treasure table
+--- @return HeroInventoryEntry
+function HeroSheetInventory.EntryFromTreasure(treasure)
+    return {
+        key = treasure.itemid .. "|" .. tostring(treasure.slot or "carried"),
+        itemid = treasure.itemid,
+        name = treasure.name,
+        kind = treasure.kind,
+        item = treasure.item,
+        quantity = treasure.quantity or 1,
+        equipped = treasure.equipped == true,
+        equippable = treasure.equippable == true,
+        slot = treasure.slot,
+        source = treasure,
+    }
+end
+
 --- The Hero's items as the list shows them: the treasures the sheet's read
 --- of the Hero gives, by kind, then the used-up items an equipment slot
 --- remembers.
@@ -274,23 +293,12 @@ local function Entries(token)
     local seen = {}
     for _, list in ipairs({treasures.leveled, treasures.trinkets, treasures.consumables}) do
         for _, treasure in ipairs(list) do
-            local key = treasure.itemid .. "|" .. tostring(treasure.slot or "carried")
-            if not seen[key] then
-                seen[key] = true
-                result[#result+1] = {
-                    key = key,
-                    itemid = treasure.itemid,
-                    name = treasure.name,
-                    kind = treasure.kind,
-                    item = treasure.item,
-                    quantity = treasure.quantity or 1,
-                    equipped = treasure.equipped == true,
-                    equippable = treasure.equippable == true,
-                    slot = treasure.slot,
-                    --the read gives the reason ("weapon"); the card shows its sentence.
-                    noBenefit = treasure.noBenefit ~= nil and EotwHeroSheet.NoBenefitText(treasure.noBenefit, read.kitGear) or nil,
-                    source = treasure,
-                }
+            local entry = HeroSheetInventory.EntryFromTreasure(treasure)
+            if not seen[entry.key] then
+                seen[entry.key] = true
+                --the read gives the reason ("weapon"); the card shows its sentence.
+                entry.noBenefit = treasure.noBenefit ~= nil and EotwHeroSheet.NoBenefitText(treasure.noBenefit, read.kitGear) or nil
+                result[#result+1] = entry
             end
         end
     end
@@ -333,24 +341,13 @@ end
 --- @param token CharacterToken
 --- @return HeroInventoryEntry[]
 local function StashListEntries(token)
-    local result = {}
-    local props = token.properties
-    for _, entry in ipairs(HeroSheetInventoryActions.StashEntries(HeroSheetInventoryActions.Party(token))) do
-        result[#result+1] = {
-            key = entry.key,
-            itemid = entry.itemid,
-            name = entry.name,
-            kind = entry.kind,
-            item = entry.item,
-            quantity = entry.quantity,
-            equipped = false,
-            equippable = false,
-            stash = true,
-            waits = HeroSheetInventoryActions.SlotWaitsFor(props, entry.itemid),
-            source = entry,
-        }
+    --StashEntries builds new tables each call, so they can be filled in place.
+    local entries = HeroSheetInventoryActions.StashEntries(HeroSheetInventoryActions.Party(token)) --[[@as HeroInventoryEntry[] ]]
+    for _, entry in ipairs(entries) do
+        entry.waits = HeroSheetInventoryActions.SlotWaitsFor(token.properties, entry.itemid)
+        entry.source = entry
     end
-    return result
+    return entries
 end
 
 --- What a change of equipment does, as the pane's chips: equipped, what the
@@ -1710,8 +1707,8 @@ function HeroSheetInventory.Create()
                 shown = shown + 1
             end
         end
-        --A long list (a big stash) builds the rows that show first and the
-        --rest a few a frame after: building a row costs about 5 ms.
+        --a big stash builds its first rows at once and the rest a few a
+        --frame, so the switch doesn't stall.
         local budget = {left = BUILD_FIRST}
         local complete = true
         local first = true

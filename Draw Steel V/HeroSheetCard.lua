@@ -3450,23 +3450,12 @@ local function ItemRow()
     --view there is nowhere to drop it, so it does not drag.
     --- @return nil|HeroInventoryEntry
     local function DragEntry()
-        local it = cur.it
+        local treasure = cur.it
         local sheet = HeroSheet.State()
-        if it == nil or sheet == nil or sheet.tab ~= "Inventory" or HeroSheetInventory.Source() ~= "stash" then
+        if treasure == nil or sheet == nil or sheet.tab ~= "Inventory" or HeroSheetInventory.Source() ~= "stash" then
             return nil
         end
-        return {
-            key = it.itemid .. "|" .. tostring(it.slot or "carried"),
-            itemid = it.itemid,
-            name = it.name,
-            kind = it.kind,
-            item = it.item,
-            quantity = it.quantity or 1,
-            equipped = it.equipped == true,
-            equippable = it.equippable == true,
-            slot = it.slot,
-            source = it,
-        }
+        return HeroSheetInventory.EntryFromTreasure(treasure)
     end
     local nameArgs = {
         classes = {"heroSheetCardText"},

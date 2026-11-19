@@ -41,6 +41,7 @@ local mod = dmhub.GetModLoading()
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
+--- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
 --- Something besides the tier itself that made a target's damage (2.3b).
 --- @class HistoryDamagePart
@@ -822,6 +823,19 @@ local function OnTeleported(creature, info)
     end
 end
 
+--An opposed power roll finished against this creature. info: {attacker, defender, cast}.
+local function OnOpposed(creature, info)
+    local token = dmhub.LookupToken(creature)
+    local state = OpenCast(info.cast)
+    if not History.Enabled() or token == nil or state == nil then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.opposed = {attacker = info.attacker, defender = info.defender}
+    end
+end
+
 local function OnFell(creature, info)
     local token = dmhub.LookupToken(creature)
     if not History.Enabled() or token == nil then
@@ -1482,6 +1496,7 @@ GameSystem.RegisterPlayObserver("history", {
     threshold = OnThreshold,
     forcedmove = OnForcedMove,
     teleported = OnTeleported,
+    opposed = OnOpposed,
     fell = OnFell,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,

@@ -1858,8 +1858,26 @@ local function NumbersRows(entry, kids, width)
     end
 
     local roll = entry.roll
+    --each side of an opposed power roll, under its roller's name: the same lines a test
+    --line's own card shows. A roll players may not see keeps only its heading.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "test" and kid.cause ~= nil then
+            local name = kid.who ~= nil and History.ShownName(kid.who) or "Director"
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Roll"), width, kid.who)
+            if kid.roll ~= nil and not kid.secretroll then
+                for _, line in ipairs(NumbersRows(kid, nil, width)) do
+                    rows[#rows + 1] = line
+                end
+            else
+                rows[#rows + 1] = ReceiptLine(width, {label = "Rolled in secret", value = ""})
+            end
+        end
+    end
     if roll ~= nil then
-        rows[#rows + 1] = SubHead("Power roll", width)
+        --a nested roll sits under its roller's heading already.
+        if entry.cause == nil or entry.family ~= "test" then
+            rows[#rows + 1] = SubHead("Power roll", width)
+        end
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
             --a monster's stat block gives its roll a flat number, not a characteristic, so its
@@ -1889,7 +1907,13 @@ local function NumbersRows(entry, kids, width)
                 break
             end
         end
-        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = tier, value = tostring(roll.total), total = true})
+        --an opposed roll is compared with the other side's total: it has no tier.
+        --- @type number|nil
+        local badge = tier
+        if entry.family == "test" and entry.cause ~= nil then
+            badge = nil
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
     end
 
     --a Dice panel roll: each die, its edges and banes, and what the total adds past them.

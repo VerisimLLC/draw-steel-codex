@@ -2810,6 +2810,12 @@ local g_since = nil
 --rail marks it seen, until the window reads it. false when they had never looked.
 --- @type string|false|nil
 local g_sinceAtOpen = nil
+--The action bar's row, and where its strip last was on the screen, in screen pixels.
+--- @type Panel|nil
+local g_barRow = nil
+--- @type {top: number, left: number, right: number}|nil
+local g_barStrip = nil
+
 --Whether the marker went in during this build (it goes before the first new turn only).
 local g_markerPlaced = false
 
@@ -3466,12 +3472,50 @@ local function CreateFace()
     local selected = nil
     --- @type Panel|nil
     local card = nil
-    --- @type {x: number, width: number, maxHeight: number, inTray: boolean}|nil
+    --- @type {x: number, width: number, maxHeight: number, inTray: boolean, reserve: number|nil}|nil
     local cardPlace = nil
+
+    --The action bar is drawn over rail windows and takes the clicks there, so the card
+    --treats its strip as the foot of the screen: always, so nothing moves when a token is
+    --selected. Returns how far the strip reaches up from the foot of the layer, in layer
+    --units, for a card between left and right (layer units); 0 when the card is beside it.
+    local function BarReserve(layer, left, right)
+        local hud = GameHud.instance
+        local bar = hud and hud.actionBarPanel or nil
+        if bar ~= nil and bar.valid then
+            if g_barRow == nil or not g_barRow.valid then
+                g_barRow = bar:GetChildrenWithClassRecursive("actionBar")[1]
+            end
+            --measured while the bar shows; kept for when it is hidden, when it has no place.
+            if g_barRow ~= nil and g_barRow.valid and (g_barRow.renderedHeight or 0) > 0 then
+                local edges = g_barRow.distancesToScreenEdge
+                if edges.w > 0 and edges.w < dmhub.screenHeight then
+                    g_barStrip = {top = edges.w, left = edges.x, right = dmhub.screenWidth - edges.z}
+                end
+            end
+        end
+        local layerEdges = layer.distancesToScreenEdge
+        local screenHeight = dmhub.screenHeight - layerEdges.w - layerEdges.y
+        local screenWidth = dmhub.screenWidth - layerEdges.x - layerEdges.z
+        if screenHeight <= 0 or screenWidth <= 0 then
+            return 0
+        end
+        --screen pixels to layer units, each way.
+        local ky = layer.renderedHeight / screenHeight
+        local kx = layer.renderedWidth / screenWidth
+        --until the bar has been seen once: its usual place, the middle of the foot.
+        local strip = g_barStrip or {top = dmhub.screenHeight - 60, left = dmhub.screenWidth * 0.22, right = dmhub.screenWidth * 0.78}
+        local barLeft = (strip.left - layerEdges.x) * kx
+        local barRight = (strip.right - layerEdges.x) * kx
+        if right <= barLeft or left >= barRight then
+            return 0
+        end
+        return math.max(0, (dmhub.screenHeight - layerEdges.y - strip.top) * ky)
+    end
 
     --Where the rail window sits on the screen layer, in layer units, with the top of this
     --face (below the window's header). Nil in a popped-out window: it has no room beside it.
-    --- @return {x: number, top: number, w: number, scale: number, layerWidth: number, layerHeight: number}|nil
+    --- @return {x: number, top: number, w: number, scale: number, layer: Panel, layerWidth: number, layerHeight: number}|nil
     local function WindowRect()
         local dialog = face:FindParentWithClass("panelDocumentWindow")
         local hud = GameHud.instance
@@ -3485,6 +3529,7 @@ local function CreateFace()
             top = dialog.y + (dialog.renderedHeight - face.renderedHeight) * scale,
             w = dialog.renderedWidth * scale,
             scale = scale,
+            layer = layer,
             layerWidth = layer.renderedWidth - RailRightColumnWidth(),
             layerHeight = layer.renderedHeight,
         }
@@ -3502,9 +3547,12 @@ local function CreateFace()
                 x = -(History.CARD_WIDTH + CARD_GAP)
             end
             if x ~= nil then
-                --the card slides up or down to stay on the screen, so the screen's height bounds it.
-                local room = math.floor((rect.layerHeight - 2 * CARD_GAP) / rect.scale)
-                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false}
+                --the card slides up or down to stay on the screen, so the screen's height bounds
+                --it: less the action bar's strip when the card stands over it.
+                local left = rect.x + x * rect.scale
+                local reserve = BarReserve(rect.layer, left, left + History.CARD_WIDTH * rect.scale)
+                local room = math.floor((rect.layerHeight - reserve - 2 * CARD_GAP) / rect.scale)
+                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false, reserve = reserve}
             end
         end
         return {x = 0, width = TRAY_WIDTH, maxHeight = face.renderedHeight, inTray = true}
@@ -3580,7 +3628,7 @@ local function CreateFace()
         local level = math.max(listTop, math.min(target, listBottom))
         local cardHeight = card.renderedHeight
         local minY = CARD_GAP - rect.top / rect.scale
-        local maxY = (rect.layerHeight - rect.top) / rect.scale - CARD_GAP - cardHeight
+        local maxY = (rect.layerHeight - (cardPlace.reserve or 0) - rect.top) / rect.scale - CARD_GAP - cardHeight
         local y = math.max(minY, math.min(level - TAIL_DOWN, maxY))
         card.y = y
 

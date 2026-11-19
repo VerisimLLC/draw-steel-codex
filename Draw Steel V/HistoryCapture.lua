@@ -1895,7 +1895,8 @@ end
 
 --Revert Turn or Turn Rewind restored the board (L39, L40). History is not part of the
 --checkpoint, so nothing is erased: what came after it is marked Reverted, under one
---"Turn reverted" line. info: {since, turnkey}; turnkey only for Turn Rewind.
+--"Turn reverted" line. info: {since, turnkey, turn}: turnkey for Turn Rewind, turn (the
+--encounter, round and turn undone) for Revert Turn.
 local function OnTurnReverted(info)
     if not History.Enabled() or info.since == nil then
         return
@@ -1906,9 +1907,10 @@ local function OnTurnReverted(info)
         family = "reverted",
         map = mapid,
         causetext = dmhub.isDM and "By the Director" or ("By " .. dmhub.userDisplayName),
+        wholeturn = info.turn ~= nil or nil,
     }
     History.AddCombatFacts(line)
-    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line)
+    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line, info.turn)
 end
 
 local PERSISTENCE_WORDS = {

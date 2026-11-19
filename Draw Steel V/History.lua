@@ -53,6 +53,7 @@ local mod = dmhub.GetModLoading()
 --- @field hiddenfromplayers? boolean The Director chose Hide from players (L41): players get no row.
 --- @field reverted? string Revert Turn or Turn Rewind undid this (L39): the revertkey of the line that says so. The row fades, tagged Reverted, and drops out of the totals.
 --- @field revertkey? string On a reverted line (L40): the key its reverted rows carry.
+--- @field wholeturn? boolean On a reverted line: Revert Turn undid the whole turn, so the turn redone after it starts afresh under its own heading.
 --- @field trait? string On a negotiation line: the motivation or pitfall it is about.
 --- @field text? string On a negotiation argument: what the Hero said.
 --- @field cue? string On a negotiation argument: the stage's cue for how it landed.
@@ -694,16 +695,20 @@ function History.SetHiddenFromPlayers(entries, hidden)
     end
 end
 
---- Marks what a revert undid (L39, L40). Entries on mapid stamped after since take
---- reverted = key; entries key marked before that lose it again (Turn Rewind rolling
---- forward). The revert's line is written afresh at the end while anything stays reverted,
---- and removed when nothing does. Reads the stored entries, not this client's copy, which
---- for a player has parts cut out (ForPlayers) and must never be written back.
+--- Marks what a revert undid (L39, L40). With turn (Revert Turn), every entry of that turn
+--- takes reverted = key. Without it (Turn Rewind), entries stamped after since do, and
+--- entries key marked before that lose it again (rolling forward). Revert Turn goes by the
+--- turn rather than the time because each client stamps with its own estimate of server
+--- time, and a player's can run behind the Director's checkpoint. The revert's line is
+--- written afresh at the end while anything stays reverted, and removed when nothing does.
+--- Reads the stored entries, not this client's copy, which for a player has parts cut out
+--- (ForPlayers) and must never be written back.
 --- @param mapid string
 --- @param since number server ms the restored checkpoint was taken
 --- @param key string the same key for every step of one Turn Rewind turn; a new one per Revert Turn
 --- @param line HistoryEntry the Turn reverted line, without id or t
-function History.SetReverted(mapid, since, key, line)
+--- @param turn? {encounter: string, round: integer, turn: integer} Revert Turn: the turn undone
+function History.SetReverted(mapid, since, key, line, turn)
     local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
     local entries = doc.data.entries
     if type(entries) ~= "table" then
@@ -716,13 +721,19 @@ function History.SetReverted(mapid, since, key, line)
         --keys start with the 13-digit stamp: an entry at or before since only matters if
         --this key marked it, and then its text holds the key.
         local stamp = tonumber(string.sub(k, 1, 13)) or 0
-        if stamp > since or string.find(raw, key, 1, true) ~= nil then
+        if turn ~= nil or stamp > since or string.find(raw, key, 1, true) ~= nil then
             local ok, decoded = pcall(dmhub.FromJson, raw)
             if ok and decoded.success then
                 local e = decoded.result
                 if e.family == "reverted" then
                     if e.revertkey == key then
                         oldLines[#oldLines + 1] = k
+                    end
+                elseif turn ~= nil then
+                    if e.reverted == nil and e.encounter == turn.encounter and e.round == turn.round and e.turn == turn.turn then
+                        e.reverted = key
+                        changed[k] = e
+                        anyReverted = true
                     end
                 elseif e.reverted == key then
                     if e.t <= since then

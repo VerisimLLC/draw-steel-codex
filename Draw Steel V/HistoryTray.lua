@@ -2291,6 +2291,7 @@ local function BuildTurnFold(item)
             },
             Face(item.owner, 26),
             MiniFaces(item.tally),
+            item.reverted and Tag("historyRevertedTag", "Reverted") or nil,
         },
     }
 end
@@ -2326,12 +2327,22 @@ local function BuildTurnHead(item)
             lmargin = 7,
             halign = "left",
             valign = "center",
-            gui.Label{
-                classes = {"historyName"},
-                text = ShownName(item.owner),
+            gui.Panel{
+                flow = "horizontal",
                 width = "auto",
                 height = "auto",
                 halign = "left",
+                children = {
+                    gui.Label{
+                        classes = {"historyName"},
+                        text = ShownName(item.owner),
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                    },
+                    item.reverted and Tag("historyRevertedTag", "Reverted") or nil,
+                },
             },
             gui.Label{
                 classes = {"historySmallCaps"},
@@ -2389,7 +2400,11 @@ local g_builders = {
 --panel's children, so every panel in it takes the class, except its Reverted tag.
 local function BuildRow(item)
     local panel = g_builders[item.kind](item)
-    if (item.kind == "action" or item.kind == "line") and item.entry.reverted ~= nil then
+    local reverted = item.reverted
+    if item.kind == "action" or item.kind == "line" then
+        reverted = item.entry.reverted ~= nil
+    end
+    if reverted then
         for _, child in ipairs(panel.children) do
             child:SetClassTree("historyFaded", true)
         end
@@ -2982,14 +2997,26 @@ local function BuildSections(mapid)
             end
             if not entry.quiet then
                 local number = entry.turn or 0
-                if turn == nil or turn.number ~= number then
-                    turn = {id = string.format("%s-%d", section.id, number), number = number, entries = {}, keys = {}}
+                --after Revert Turn's line the turn is played again with the same number:
+                --that is a turn of its own, under its own heading.
+                if turn == nil or turn.number ~= number or turn.closed then
+                    local id = string.format("%s-%d", section.id, number)
+                    section.turnIds = section.turnIds or {}
+                    local seen = section.turnIds[id] or 0
+                    section.turnIds[id] = seen + 1
+                    if seen > 0 then
+                        id = string.format("%s-%d", id, seen)
+                    end
+                    turn = {id = id, number = number, entries = {}, keys = {}}
                     section.turns[#section.turns + 1] = turn
                 end
                 turn.owner = turn.owner or entry.owner
                 turn.entries[#turn.entries + 1] = entry
                 turn.keys[#turn.keys + 1] = key
                 section.entries[#section.entries + 1] = entry
+                if entry.family == "reverted" and entry.wholeturn then
+                    turn.closed = true
+                end
             end
         end
     end
@@ -3126,27 +3153,40 @@ local function AddTurnRows(items, turn, isNewest, nested)
         items[#items + 1] = {kind = "newmarker", key = "newmarker", sig = "newmarker"}
     end
     local toggle = Toggle(turn.id, isOpen)
+    --a turn whose every row was reverted (L39) has its heading struck through too.
+    local reverted = false
+    for _, entry in ipairs(turn.entries) do
+        if entry.family ~= "reverted" then
+            if entry.reverted == nil then
+                reverted = false
+                break
+            end
+            reverted = true
+        end
+    end
     if turn.owner ~= nil then
         if not isOpen then
             local tally = Tally(turn.entries, nested)
             items[#items + 1] = {
                 kind = "turnfold",
                 key = "fold-" .. turn.id,
-                sig = turn.owner.id .. TallySignature(tally),
+                sig = turn.owner.id .. TallySignature(tally) .. tostring(reverted),
                 number = turn.number,
                 owner = turn.owner,
                 tally = tally,
                 toggle = toggle,
+                reverted = reverted,
             }
             return
         end
         items[#items + 1] = {
             kind = "turnhead",
             key = "head-" .. turn.id,
-            sig = turn.owner.id,
+            sig = turn.owner.id .. tostring(reverted),
             number = turn.number,
             owner = turn.owner,
             toggle = toggle,
+            reverted = reverted,
         }
     end
     for i, entry in ipairs(turn.entries) do

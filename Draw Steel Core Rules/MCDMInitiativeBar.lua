@@ -418,6 +418,12 @@ end
 --Restores checkpoint, telling the user when it could not be done.
 --- @param checkpoint CombatCheckpoint
 function TurnCheckpoint.Revert(checkpoint)
+	--the turn being undone, read before the restore puts the queue back between turns.
+	local q = dmhub.initiativeQueue
+	local turn = nil
+	if q ~= nil and not q.hidden then
+		turn = {encounter = q.guid, round = q.round, turn = q.turnNumber}
+	end
 	local err = checkpoint:Restore()
 	if err ~= nil then
 		gui.ModalMessage{
@@ -430,7 +436,7 @@ function TurnCheckpoint.Revert(checkpoint)
 	--a record of play (History) marks what the turn did Reverted, on this client only.
 	local cur = TurnCheckpoint.current
 	if cur ~= nil and cur.checkpoint == checkpoint then
-		GameSystem.NotifyPlayObservers("turnreverted", {since = cur.t})
+		GameSystem.NotifyPlayObservers("turnreverted", {since = cur.t, turn = turn})
 	end
 end
 

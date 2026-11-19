@@ -1969,6 +1969,9 @@ local function BuildLine(item)
     }
 end
 
+--How far in a round under a Combat heading starts.
+local SUB_INDENT = 28
+
 local function BuildRoundHead(item)
     local title = {}
     if item.toggle ~= nil then
@@ -2012,7 +2015,8 @@ local function BuildRoundHead(item)
             flow = "none",
             width = "100%",
             height = 30,
-            hpad = 12,
+            lpad = item.sub and SUB_INDENT or 12,
+            rpad = 12,
             borderBox = true,
             valign = "center",
             children = head,
@@ -2038,7 +2042,9 @@ local function BuildRoundFold(item)
             flow = "horizontal",
             width = "100%",
             height = 32,
-            hpad = 12,
+            --a round under a Combat heading sits one step in.
+            lpad = item.sub and SUB_INDENT or 12,
+            rpad = 12,
             borderBox = true,
             Caret(false),
             gui.Label{
@@ -2769,6 +2775,7 @@ local function BuildSections(mapid)
                     id = outside and ("out-" .. key) or groupid,
                     round = entry.round,
                     mode = outside and (entry.mode or "exploration") or nil,
+                    encounter = not outside and entry.encounter or nil,
                     turns = {},
                     entries = {},
                 }
@@ -2980,7 +2987,9 @@ local function AddTurnRows(items, turn, isNewest, nested)
     end
 end
 
-local function AddSectionRows(items, section, isNewest, nested)
+--- A section's rows: its heading or fold line, then its turns. sub: a round inside a
+--- Combat heading, drawn one step in.
+local function AddSectionRows(items, section, isNewest, nested, sub)
     --the first turn this user has not seen, if the section has one.
     local firstNew = nil
     if not g_searchOpen then
@@ -3004,9 +3013,10 @@ local function AddSectionRows(items, section, isNewest, nested)
         items[#items + 1] = {
             kind = "roundfold",
             key = "fold-" .. section.id,
-            sig = title .. TallySignature(tally),
+            sig = title .. TallySignature(tally) .. (sub and "sub" or ""),
             text = title,
             tally = tally,
+            sub = sub,
             toggle = Toggle(section.id, isOpen),
         }
         return
@@ -3021,9 +3031,10 @@ local function AddSectionRows(items, section, isNewest, nested)
     items[#items + 1] = {
         kind = "roundhead",
         key = "head-" .. section.id,
-        sig = title .. (right or ""),
+        sig = title .. (right or "") .. (sub and "sub" or ""),
         text = title,
         right = right,
+        sub = sub,
         toggle = (not g_searchOpen and (not isNewest or g_open[section.id] == false)) and Toggle(section.id, isOpen) or nil,
     }
 
@@ -3069,6 +3080,56 @@ local function AddSectionRows(items, section, isNewest, nested)
     end
     for i = first, #turns do
         AddTurnRows(items, turns[i], isNewest and i == #turns, nested)
+    end
+end
+
+--A combat's rounds, sections[first] to sections[last], under one Combat heading. An older
+--combat folds to "Combat - Rounds 1-3", like a round; the newest, or one with turns this
+--user has not seen, stays open.
+local function AddCombatRows(items, sections, first, last, isNewest, nested)
+    local id = "combat-" .. sections[first].id
+    local hasNew = false
+    if not g_searchOpen then
+        for i = first, last do
+            for _, turn in ipairs(sections[i].turns) do
+                hasNew = hasNew or TurnIsNew(turn)
+            end
+        end
+    end
+    local isOpen = g_open[id]
+    if isOpen == nil or g_searchOpen then
+        isOpen = g_searchOpen or isNewest or hasNew or (g_frozen and g_lastOpen[id] == true)
+    end
+    if not isOpen then
+        local entries = {}
+        for i = first, last do
+            for _, entry in ipairs(sections[i].entries) do
+                entries[#entries + 1] = entry
+            end
+        end
+        local a, b = sections[first].round, sections[last].round
+        local text = "Combat" .. DOT .. (a == b and string.format("Round %d", a) or string.format("Rounds %d%s%d", a, EN_DASH, b))
+        local tally = Tally(entries, nested)
+        items[#items + 1] = {
+            kind = "roundfold",
+            key = "fold-" .. id,
+            sig = text .. TallySignature(tally),
+            text = text,
+            tally = tally,
+            toggle = Toggle(id, isOpen),
+        }
+        return
+    end
+    g_nowOpen[id] = true
+    items[#items + 1] = {
+        kind = "roundhead",
+        key = "head-" .. id,
+        sig = "Combat",
+        text = "Combat",
+        toggle = (not g_searchOpen and (not isNewest or g_open[id] == false)) and Toggle(id, isOpen) or nil,
+    }
+    for i = first, last do
+        AddSectionRows(items, sections[i], isNewest and i == last, nested, true)
     end
 end
 
@@ -3155,8 +3216,20 @@ local function BuildItems(mapid, frozen)
     if g_searchOpen then
         sections, matches = SearchSections(sections, nested)
     end
-    for i, section in ipairs(sections) do
-        AddSectionRows(items, section, i == #sections, nested)
+    local i = 1
+    while i <= #sections do
+        local encounter = sections[i].encounter
+        if encounter == nil then
+            AddSectionRows(items, sections[i], i == #sections, nested)
+            i = i + 1
+        else
+            local last = i
+            while last < #sections and sections[last + 1].encounter == encounter do
+                last = last + 1
+            end
+            AddCombatRows(items, sections, i, last, last == #sections, nested)
+            i = last + 1
+        end
     end
     --a search opens everything, which is not what to keep once it ends.
     if not g_searchOpen then
@@ -4629,6 +4702,31 @@ end
 local g_unseen = nil
 local g_unseenAt = -1
 
+--- The index of the newest combat's first entry among keys[first..], when that combat began
+--- after keys[first] (so something unseen came before it); nil otherwise. Entries this user
+--- may not read are skipped when finding what came before.
+--- @param mapid string
+--- @param keys string[]
+--- @param first integer
+--- @return integer|nil
+local function CombatStart(mapid, keys, first)
+    for i = #keys, first + 1, -1 do
+        local entry = History.Entry(mapid, keys[i])
+        if entry ~= nil and entry.encounter ~= nil then
+            for j = i - 1, first, -1 do
+                local before = History.Entry(mapid, keys[j])
+                if before ~= nil then
+                    if before.encounter ~= entry.encounter then
+                        return i
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return nil
+end
+
 --- What this user has not seen yet, across the maps they can follow.
 --- @return HistoryUnseen
 local function Unseen()
@@ -4657,6 +4755,12 @@ local function Unseen()
             local first = #keys + 1
             while first > 1 and keys[first - 1] > last do
                 first = first - 1
+            end
+            --a combat that began since: what came before it counts as seen (James, 2026-11-19).
+            local start = CombatStart(mapid, keys, first)
+            if start ~= nil then
+                baselines[mapid] = keys[start - 1]
+                first = start
             end
             for i = first, #keys do
                 local entry = History.Entry(mapid, keys[i])

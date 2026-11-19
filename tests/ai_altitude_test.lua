@@ -10,7 +10,7 @@ local function noop() end
 ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = noop, noop, noop, noop, noop, noop
 MonsterAI = {TokenIsLiveCombatant = function(t) return t and t.valid end,
     TokenLogName = tostring, TargetsLogName = tostring, AbilityActionLogName = tostring,
-    LogDecision = noop}
+    LogDecision = noop, AIMonsterTypes = function() return {} end}
 --Planning answers are not remembered between calls here.
 function MonsterAI:PlanningMemo() return {filters = {}, lineOfSight = {}, chargeProbes = {}, chargeRoutes = false} end
 dmhub = {unitsPerSquare = 1}
@@ -94,12 +94,21 @@ assert(#targets == 2, "map-wide effects remain unlimited")
 assert(ai:ExecuteAbility(goblin, ability, {{token = pixie}}, {targetArea = {}, telegraphArea = false}),
     "placed area membership is independent of direct creature range")
 assert(load(section("function MonsterAI:HandlePrompt", "--AI actions yield")))()
+assert(load(section("function MonsterAI.PromptBelongsToLocalHero", "function MonsterAI:HandlePrompt")))()
+local controllers = {}
+TokenPromptControllerId = function(t) return controllers[t] end
 function goblin.properties:try_get(_, default) return default end
 goblin.charid = "goblin"
 ai.prompts = {[ability.name] = {handler = function() return {targets = {{token = pixie}}} end}}
 assert(ai:HandlePrompt(goblin, goblin, ability, {}, {}) == "prompt", "invalid custom prompt defers to Director")
 dmhub.directorlessPlay = true
 assert(ai:HandlePrompt(goblin, goblin, ability, {}, {}) == "skip", "with no Director the unanswered prompt is skipped")
+--With no Director, a hero's prompt goes to its player when they play here, and is skipped when they play elsewhere.
+local hero = token(1, 2)
+hero.playerControlled = true
+assert(ai:HandlePrompt(goblin, hero, ability, {}, {}) == "prompt", "a local hero's prompt goes to its player")
+controllers[hero] = "remote-player"
+assert(ai:HandlePrompt(goblin, hero, ability, {}, {}) == "skip", "the host never chooses for a remote player's hero")
 dmhub.directorlessPlay = nil
 pixie.loc.altitude = 3
 local options = {}

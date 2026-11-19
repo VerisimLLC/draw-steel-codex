@@ -525,6 +525,9 @@ local function AddTitles(ctx)
     end)
     --- @type table<string, HeroSkillsDraft>
     local drafts = {}
+    --Both loops below ask about the same titles: each is walked only once.
+    --- @type table<string, HeroSheetTitleWalk>
+    local walks = {}
     --- @param name string
     --- @return nil|string todo the title's id when a pick is still to make
     --- @return table[] benefits the picked benefit features
@@ -533,67 +536,75 @@ local function AddTitles(ctx)
         if title == nil then
             return nil, {}
         end
-        local walk = HeroSheetWindows.TitleWalk(title, ctx.creature, ctx.levelChoices, drafts)
+        local walk = walks[name]
+        if walk == nil then
+            walk = HeroSheetWindows.TitleWalk(title, ctx.creature, ctx.levelChoices, drafts)
+            walks[name] = walk
+        end
         return cond(walk.todo, title.id, nil), walk.benefits
     end
-    for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
-        if entry.name ~= nil and not ctx.titled[entry.name] then
-            ctx.titled[entry.name] = true
-            local todo, benefits = TitleBenefits(entry.name)
-            local names = {}
-            local text = OwnText(entry)
-            local abilities = {}
-            local grants = {}
-            for _, benefit in ipairs(benefits) do
-                for _, ability in ipairs(GrantedAbilities(benefit)) do
-                    abilities[#abilities+1] = ability
+    --Build the rules once for every title here: a title with a skill or
+    --language pick reads the build's rows, which is slow.
+    HeroBuild.main.Cached(function()
+        for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
+            if entry.name ~= nil and not ctx.titled[entry.name] then
+                ctx.titled[entry.name] = true
+                local todo, benefits = TitleBenefits(entry.name)
+                local names = {}
+                local text = OwnText(entry)
+                local abilities = {}
+                local grants = {}
+                for _, benefit in ipairs(benefits) do
+                    for _, ability in ipairs(GrantedAbilities(benefit)) do
+                        abilities[#abilities+1] = ability
+                    end
+                    for _, grant in ipairs(Grants(benefit)) do
+                        grants[#grants+1] = grant
+                    end
+                    local benefitName = nil
+                    pcall(function() benefitName = benefit.name end)
+                    if benefitName ~= nil and benefitName ~= entry.name then
+                        names[#names+1] = benefitName
+                    end
+                    local words = ""
+                    pcall(function() words = Clean(benefit:GetDescription()) end)
+                    if words ~= "" then
+                        text = cond(text ~= "", text .. "\n\n" .. words, words)
+                    end
                 end
-                for _, grant in ipairs(Grants(benefit)) do
-                    grants[#grants+1] = grant
-                end
-                local benefitName = nil
-                pcall(function() benefitName = benefit.name end)
-                if benefitName ~= nil and benefitName ~= entry.name then
-                    names[#names+1] = benefitName
-                end
-                local words = ""
-                pcall(function() words = Clean(benefit:GetDescription()) end)
-                if words ~= "" then
-                    text = cond(text ~= "", text .. "\n\n" .. words, words)
-                end
-            end
-            ctx.Add("title", {
-                titleChoose = todo,
-                key = tostring(entry.guid or entry.name),
-                name = entry.name,
-                sub = cond(#names > 0, table.concat(names, DOT), nil),
-                text = text,
-                pillars = {},
-                core = false,
-                custom = false,
-                abilities = abilities,
-                search = "",
-                feature = entry.feature,
-                grants = grants,
-            })
-        end
-    end
-    --A title the shared read listed can still owe a pick: some titles have two
-    --choices, and the read lists the benefit of the one already made. The
-    --title's first card carries the plate.
-    local section = ctx.model.sections.title
-    local checked = {}
-    for _, item in ipairs((section ~= nil and section.items) or {}) do
-        if not checked[item.name] then
-            checked[item.name] = true
-            if item.titleChoose == nil then
-                item.titleChoose = (TitleBenefits(item.name))
-                if item.titleChoose ~= nil then
-                    section.need = section.need + 1
-                end
+                ctx.Add("title", {
+                    titleChoose = todo,
+                    key = tostring(entry.guid or entry.name),
+                    name = entry.name,
+                    sub = cond(#names > 0, table.concat(names, DOT), nil),
+                    text = text,
+                    pillars = {},
+                    core = false,
+                    custom = false,
+                    abilities = abilities,
+                    search = "",
+                    feature = entry.feature,
+                    grants = grants,
+                })
             end
         end
-    end
+        --A title the shared read listed can still owe a pick: some titles have two
+        --choices, and the read lists the benefit of the one already made. The
+        --title's first card carries the plate.
+        local section = ctx.model.sections.title
+        local checked = {}
+        for _, item in ipairs((section ~= nil and section.items) or {}) do
+            if not checked[item.name] then
+                checked[item.name] = true
+                if item.titleChoose == nil then
+                    item.titleChoose = (TitleBenefits(item.name))
+                    if item.titleChoose ~= nil then
+                        section.need = section.need + 1
+                    end
+                end
+            end
+        end
+    end)
 end
 
 --Complications: one card each, its own Benefit and Drawback words. Its

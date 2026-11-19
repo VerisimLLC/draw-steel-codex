@@ -102,8 +102,12 @@ local PICK_WORDS = {"one", "two", "three", "four"}
 --- @field benefits table[] the picked benefit features
 --- @field todo boolean some pick is still to make
 
---- The grant row of a skill or language choice. Rows are slow to read, so the
---- caller's drafts table keeps each kind's for one fill.
+--Stops a malformed title (a choice that contains itself) from recursing
+--forever. Real titles are at most three picks deep.
+local MAX_PICK_DEPTH = 6
+
+--- The grant row of a skill or language choice. Reading rows is slow, so
+--- drafts keeps one read per kind (skill, language) for the length of one fill.
 --- @param choice CharacterChoice
 --- @param creature creature
 --- @param drafts table<string, HeroSkillsDraft>
@@ -139,7 +143,7 @@ function HeroSheetWindows.TitleWalk(title, creature, levelChoices, drafts)
     --- @param depth integer
     --- @param top boolean
     local function Walk(feature, depth, top)
-        if feature == nil or depth > 6 then
+        if feature == nil or depth > MAX_PICK_DEPTH then
             return
         end
         local typeName = nil
@@ -158,8 +162,9 @@ function HeroSheetWindows.TitleWalk(title, creature, levelChoices, drafts)
                     end
                 end
             end
-            --no pick, or one the title no longer offers (it was edited).
-            if not matched then
+            --no pick, or one the title no longer offers (it was edited). A
+            --choice with no options at all has nothing to pick, so it is done.
+            if not matched and #options > 0 then
                 result.todo = true
             end
         elseif typeName == "CharacterFeatureList" then
@@ -847,7 +852,7 @@ function HeroSheetWindows.OpenTitles(focusid)
         local held = Held(creature)
         local children = {}
         drafts = {}
-        --Cached: the build rules read once for the whole list.
+        --Build the rules once for the whole list, not once per title.
         HeroBuild.main.Cached(function()
             for _, title in ipairs(held) do
                 children[#children+1] = HeldCard(title, creature)

@@ -7,16 +7,18 @@ CreatureFilter = {Register = function() end}
 GameSystem = {RegisterGoblinScriptField = function() end}
 dofile("Draw Steel Core Rules/DSRuleUtils.lua")
 
---The Hidden part of the real targeting rule, using the real helper.
-function GameSystem.AllowTargeting(casterToken, targetToken)
+--The Hidden part of the real targeting rule, using the real helper. A local first, so its
+--fake tokens are not checked against the real function's CharacterToken parameters.
+local function allowTargeting(casterToken, targetToken)
     if targetToken.properties.hidden and not RuleUtils.SeesPastHidden(casterToken, targetToken) then
         return false, "Cannot target a hidden creature with a strike", "hidden"
     end
     return true
 end
+GameSystem.AllowTargeting = allowTargeting
 
-local f = assert(io.open("Monster AI/MonsterAI.lua"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+local file = assert(io.open("Monster AI/MonsterAI.lua"))
+local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
 local function extract(startText)
     local first = assert(source:find(startText, 1, true), startText)
     local last = assert(source:find("\nend\n", first, true), startText)

@@ -9579,6 +9579,9 @@ function PanelDocument:CreateInterface(args)
     local contentArea
     local hairline
     local header
+    --the active tab's own header control (reg.headerControl); see SyncHeaderControl.
+    local headerSlot
+    local SyncHeaderControl
 
     local m_shaded = false
     local m_savedHeight = nil
@@ -9926,6 +9929,9 @@ function PanelDocument:CreateInterface(args)
             if t.chip ~= nil and t.chip.valid then
                 t.chip:SetClass("selected", t.key == key)
             end
+        end
+        if SyncHeaderControl ~= nil then
+            SyncHeaderControl()
         end
         --the one visible label rides the active tab, so every switch
         --moves it -- and the width swap can change the header's row
@@ -10401,19 +10407,98 @@ function PanelDocument:CreateInterface(args)
         end
     end
 
+    --leaves room for the right-side chrome: headerControls floats at
+    --x -6 and runs about 40px wide (pin 14 + its 6 margin + x 18),
+    --so 52 clears it with a small gap. The popout button adds itself
+    --to the same row (16 + its 6 margin), so allow 22 more when the
+    --hosting flow supplies that gesture.
+    local stripReserve = cond(args.popout ~= nil, 74, 52)
+
     tabStrip = gui.Panel{
-        --leaves room for the right-side chrome: headerControls floats at
-        --x -6 and runs about 40px wide (pin 14 + its 6 margin + x 18),
-        --so 52 clears it with a small gap. The popout button adds itself
-        --to the same row (16 + its 6 margin), so allow 22 more when the
-        --hosting flow supplies that gesture.
-        width = cond(args.popout ~= nil, "100%-74", "100%-52"),
+        width = string.format("100%%-%d", stripReserve),
         height = "auto",
         flow = "horizontal",
         wrap = true,
         halign = "left",
         valign = "center",
     }
+
+    --A panel can put one control of its own in the title row, between its
+    --tab chip and the window buttons: registration field
+    --headerControl = function() return panel end, called once, when its
+    --tab is first active. The panel must have a numeric width (the strip
+    --gives up exactly that much); with nothing to offer it sets that width
+    --to 0, and fires "syncHeaderControl" on its parents whenever it changes.
+    --Only the active tab's control shows. History's map switcher uses it.
+    local m_headerControls = {}
+    --floats in the header (like headerControls) just past the last chip, as
+    --far from the chip's edge as the title is (6px), so it reads as part of
+    --the title. Not inside the tab strip: that strip wraps, and a floating
+    --child there was placed on a second row, below the header.
+    headerSlot = gui.Panel{
+        floating = true,
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        syncHeaderControl = function(element)
+            SyncHeaderControl()
+        end,
+    }
+
+    --Moves the slot to the end of the chips. Measured, so it runs after a
+    --layout pass (syncPanelHeader); chip widths change on every tab switch.
+    local function PlaceHeaderSlot()
+        if headerSlot == nil or not headerSlot.valid then
+            return
+        end
+        local x = 0
+        for _, t in ipairs(m_tabs) do
+            if t.chip ~= nil and t.chip.valid then
+                x = x + (t.chip.renderedWidth or 0) + 2
+            end
+        end
+        headerSlot.x = x + 6
+    end
+
+    SyncHeaderControl = function()
+        if headerSlot == nil or not headerSlot.valid then
+            return
+        end
+        local active = FindTab(m_activeKey)
+        if active ~= nil and active.reg.headerControl ~= nil and m_headerControls[active.key] == nil then
+            local control = active.reg.headerControl()
+            if control ~= nil then
+                --a holder per tab, so the window's show/hide never fights
+                --the control's own collapsed class.
+                m_headerControls[active.key] = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    control,
+                }
+                headerSlot:AddChild(m_headerControls[active.key])
+            end
+        end
+        local reserve = stripReserve
+        for key, holder in pairs(m_headerControls) do
+            if holder.valid then
+                local shown = active ~= nil and key == active.key
+                holder:SetClass("collapsed", not shown)
+                local control = holder.children[1]
+                if shown and control ~= nil and type(control.selfStyle.width) == "number" and control.selfStyle.width > 0 then
+                    reserve = reserve + control.selfStyle.width + 6
+                end
+            end
+        end
+        if tabStrip ~= nil and tabStrip.valid then
+            tabStrip.selfStyle.width = string.format("100%%-%d", reserve)
+        end
+        if header ~= nil and header.valid then
+            header:ScheduleEvent("syncPanelHeader", 0.05)
+        end
+    end
 
     header = gui.Panel{
         classes = {"panelDocumentHeader"},
@@ -10441,6 +10526,7 @@ function PanelDocument:CreateInterface(args)
                 element:ScheduleEvent("syncPanelHeader", 0.05)
                 return
             end
+            PlaceHeaderSlot()
             local h = HeaderHeight()
             if contentArea ~= nil and contentArea.valid then
                 contentArea.selfStyle.height = string.format("100%%-%d", h + 1)
@@ -10451,6 +10537,7 @@ function PanelDocument:CreateInterface(args)
         end,
 
         tabStrip,
+        headerSlot,
         headerControls,
     }
 

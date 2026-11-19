@@ -485,6 +485,7 @@ After James tested 5.1h (2026-11-19): a choice table (Conduit Prayer Choice) nam
 
 ### Stage 6 notes
 
+- **6.1 done 2026-11-19, checked by James.** History follows the map last clicked (pressing a map window makes it current), held while the pointer is on History or a card is open. The switcher is a dropdown in the window's title row (COPY L95), shown while two or more maps the user can see are in combat; it uses a new generic rail-window hook, `headerControl` on a panel registration (`PanelDocument:CreateInterface`), floated in the header 6 px past the last tab chip (inside the tab strip it wrapped below the header). A Sidebar Preview row from another map now opens History on that map. `Tabletop.MapName` is exported for the switcher. Not tried: History sharing a window with Chat as tabs; reaching a map not in combat after opening another map's row (close and reopen History).
 - **6.4 checklist, Encounter of the Week:** its interface replaces the rail and keeps a corner strip of buttons named in `EncounterOfTheWeek/EncounterOfTheWeekHud.lua` (`CreateCornerButtonsPanel`): Journal, Chat, Action Log. History was added beside the Action Log on 2026-11-19, shown while `historyenabled` is on. At the switch-over, take "Action Log" out of that list and drop the `History.Enabled` check. Not yet seen running: the button is built with the strip, so turning History on mid-game needs the interface rebuilt.
 - **5.1e left out (James, 2026-11-19):** delve turns and chest rolls write nothing.
 

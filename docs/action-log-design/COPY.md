@@ -650,3 +650,12 @@ with the eye-off icon. Monster Info reveals write nothing.
 | ID | What | Line | Cause line |
 |---|---|---|---|
 | L94 | A hidden modifier revealed | {Creature} {Modifier} revealed ({Modifier} revealed with no creature) | the modifier's description, in full |
+
+## Round 23: several maps (6.1, signed off 2026-11-19)
+
+The map switcher sits in History's title row while two or more maps you can see are in combat. It
+shows the map on show, cut short when long; its menu lists those maps by name, the shown one ticked.
+
+| ID | What | Line |
+|---|---|---|
+| L95 | Tooltip on the map switcher | Display history for another map |

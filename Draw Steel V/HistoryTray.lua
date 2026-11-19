@@ -60,11 +60,14 @@ local TAIL_DOWN = 26
 --The icon rail runs down the screen's left edge; a card can't go under it.
 local RAIL_LEFT = 62
 
---The open tray: {face, Refresh, Select, SetSearch, ShowEntry}.
+--The open tray: {face, Refresh, Select, SetSearch, ShowEntry, ShowMap, MapId}.
 local g_tray = nil
 --A row to show once the window is built: the Sidebar Preview's click opens History on it.
 --- @type string|nil
 local g_showOnOpen = nil
+--That row's map, which can be one the user is not on (6.1).
+--- @type string|nil
+local g_showMapOnOpen = nil
 
 local function Styles()
     return {
@@ -129,6 +132,25 @@ local function Styles()
             selectors = {"label", "historyButton", "hover"},
             color = "@fgStrong",
             borderColor = "@fgMuted",
+        },
+        --the map switcher in the title row (6.1), drawn like the tray's other buttons.
+        {
+            selectors = {"historyMapSwitcher"},
+            bgcolor = "clear",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"historyMapSwitcher", "hover"},
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyMapName"},
+            fontSize = 12,
+            color = "@fg",
+        },
+        {
+            selectors = {"historyMapIcon"},
+            bgcolor = "@fgMuted",
         },
         --floats over the rows, so it needs a fill of its own.
         {
@@ -3533,6 +3555,18 @@ end
 
 --Room for the chips under the search field, while there is a search.
 local CHIP_ROW_HEIGHT = 26
+--The maps whose fights this user can follow: all of them for the Director; for a player
+--the ones shared with them, and the one they are on.
+local function VisibleMaps()
+    local ids = {}
+    for _, map in ipairs(game.maps) do
+        if dmhub.isDM or map.playerViewable or map.id == game.currentMapId then
+            ids[#ids + 1] = map.id
+        end
+    end
+    return ids
+end
+
 
 --What the search is called in S5: the chips, then the typed words.
 local function SearchLabel()
@@ -3885,9 +3919,17 @@ local function CreateFace()
         away = (scrollable and (not AtBottom() or loadedOlder)) or next(g_open) ~= nil
         UpdateNewBelow()
     end
-    local mapid = game.currentMapId
-    --what was seen before this opening: kept by the rail's mark if that came first.
-    if g_sinceAtOpen ~= nil then
+    --The map History shows: the one last clicked (6.1), held while someone reads; the
+    --switcher or a preview row from another map can show another until the next click.
+    local mapid = g_showMapOnOpen or game.currentMapId
+    --the map last clicked, as last seen: a change to it is a new click to follow.
+    local followed = game.currentMapId
+    g_showMapOnOpen = nil
+    --what was seen before this opening: kept by the rail's mark if that came first. The
+    --rail's mark is for the map you are on, so opening on another map shows no marker.
+    if mapid ~= game.currentMapId then
+        g_since = nil
+    elseif g_sinceAtOpen ~= nil then
         g_since = g_sinceAtOpen or nil
     else
         g_since = History.LastLooked(mapid)
@@ -4795,6 +4837,29 @@ local function CreateFace()
         end,
     }
 
+    --Shows another map's History: the view starts fresh there, as it does on opening.
+    --- @param id string
+    local function ShowMap(id)
+        if id == mapid then
+            return
+        end
+        mapid = id
+        g_since = nil
+        g_open = {}
+        rowsWanted = ROWS_CHUNK
+        loadedOlder = false
+        Select(nil)
+        face.monitorGame = History.DocPath(mapid)
+        Refresh()
+    end
+
+    --someone reading: the pointer on History, or a card open. History holds its map then,
+    --so a click on another map window does not swap the rows out from under them.
+    local function Reading()
+        local point = face.mousePoint
+        return selected ~= nil or (point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1)
+    end
+
     --No background of its own: the rail window's frame shows through.
     face = gui.Panel{
         classes = {"historyTray"},
@@ -4810,17 +4875,13 @@ local function CreateFace()
             Refresh(true)
         end,
 
-        --the tray shows the map you are on; following the last clicked map is chunk 6.1.
+        --follows the map last clicked (pressing a map window makes it the current map),
+        --once no one is reading; until then the click waits.
         thinkTime = 1,
         think = function(element)
-            if game.currentMapId ~= mapid then
-                mapid = game.currentMapId
-                g_open = {}
-                rowsWanted = ROWS_CHUNK
-                loadedOlder = false
-                Select(nil)
-                element.monitorGame = History.DocPath(mapid)
-                Refresh()
+            if game.currentMapId ~= followed and not Reading() then
+                followed = game.currentMapId
+                ShowMap(followed)
             end
             heroRow:FireEvent("heroes")
             KeepCardPlaced()
@@ -4876,7 +4937,8 @@ local function CreateFace()
         list:ScheduleEvent("toEntry", 0.1)
     end
 
-    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry}
+    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry, ShowMap = ShowMap,
+        MapId = function() return mapid end}
     list.vscrollPosition = 0
     Refresh()
     if g_showOnOpen ~= nil then
@@ -4886,18 +4948,134 @@ local function CreateFace()
     return face
 end
 
---- Shows one row of the current map's History with its card open, once the window is up.
+--- Shows one row of a map's History with its card open, once the window is up. The row's
+--- map can be one the user is not on: History shows it until the next map click.
 --- @param mapid string
 --- @param key string The row's entry key.
 function History.ShowEntry(mapid, key)
-    if mapid ~= game.currentMapId then
-        return
-    end
     if g_tray ~= nil and g_tray.face.valid then
+        g_tray.ShowMap(mapid)
         g_tray.ShowEntry(key)
     else
+        g_showMapOnOpen = mapid
         g_showOnOpen = key
     end
+end
+
+--The map switcher's width in the title row, when it shows.
+local SWITCHER_WIDTH = 170
+
+--- The map switcher in History's title row (6.1): the shown map's name, cut short when long,
+--- with a menu of every map in combat. It takes no room until two or more of the maps this
+--- user can see are in combat. Built once per window by the rail window's headerControl hook.
+--- @return Panel
+function History.MapSwitcher()
+    local sig = nil
+
+    --the maps to offer and the one on show (the map you are on while History is building).
+    local function Maps()
+        local ids = {}
+        for _, id in ipairs(VisibleMaps()) do
+            if Tabletop.MapInCombat(id) then
+                ids[#ids + 1] = id
+            end
+        end
+        local shown = game.currentMapId
+        if g_tray ~= nil and g_tray.face.valid then
+            shown = g_tray.MapId()
+        end
+        return ids, shown
+    end
+
+    local nameLabel = gui.Label{
+        classes = {"historyMapName"},
+        text = "",
+        width = SWITCHER_WIDTH - 44,
+        height = "auto",
+        lmargin = 5,
+        textWrap = false,
+        textOverflow = "ellipsis",
+        valign = "center",
+    }
+
+    local button = gui.Panel{
+        classes = {"historyMapSwitcher", "collapsed"},
+        bgimage = "panels/square.png",
+        flow = "horizontal",
+        width = SWITCHER_WIDTH,
+        height = 22,
+        hpad = 6,
+        borderBox = true,
+        borderWidth = 1,
+        cornerRadius = 4,
+        valign = "center",
+        hover = function(element)
+            gui.Tooltip{text = "Display history for another map", fontSize = 13}(element)
+        end,
+        click = function(element)
+            local ids, shown = Maps()
+            local entries = {}
+            for _, id in ipairs(ids) do
+                entries[#entries + 1] = {
+                    text = Tabletop.MapName(id),
+                    check = id == shown,
+                    click = function()
+                        element.popup = nil
+                        if g_tray ~= nil and g_tray.face.valid then
+                            g_tray.ShowMap(id)
+                        end
+                    end,
+                }
+            end
+            element.tooltip = nil
+            element.popup = gui.ContextMenu{entries = entries}
+        end,
+        gui.Panel{
+            classes = {"historyMapIcon"},
+            bgimage = "phosphor/map-trifold.png",
+            width = 14,
+            height = 14,
+            valign = "center",
+        },
+        nameLabel,
+        gui.Panel{
+            classes = {"historyMapIcon"},
+            bgimage = "phosphor/caret-down-fill.png",
+            width = 10,
+            height = 10,
+            halign = "right",
+            valign = "center",
+        },
+    }
+
+    --The holder never collapses (a collapsed panel stops thinking); it shrinks to nothing
+    --instead, and tells the title row so the tab chip gets the room back.
+    return gui.Panel{
+        styles = ThemeEngine.MergeStyles(Styles()),
+        width = 0,
+        height = 22,
+        valign = "center",
+        thinkTime = 1,
+        create = function(element)
+            element:FireEvent("think")
+        end,
+        think = function(element)
+            local ids, shown = Maps()
+            local now = table.concat(ids, "|") .. "/" .. tostring(shown)
+            if now == sig then
+                return
+            end
+            sig = now
+            local show = #ids >= 2
+            nameLabel.text = Tabletop.MapName(shown)
+            if button:HasClass("collapsed") == show then
+                button:SetClass("collapsed", not show)
+                element.selfStyle.width = show and SWITCHER_WIDTH or 0
+                element:FireEventOnParents("syncHeaderControl")
+            end
+        end,
+        button,
+    }
 end
 
 --The tray's styles, for History panels built outside the window (the rail's hover card).
@@ -4972,18 +5150,6 @@ local function SetLooked(marks)
         all[dmhub.gameid] = game
         dmhub.SetSettingValue("history:lastlooked", all)
     end
-end
-
---The maps whose fights this user can follow: all of them for the Director; for a player
---the ones shared with them, and the one they are on.
-local function VisibleMaps()
-    local ids = {}
-    for _, map in ipairs(game.maps) do
-        if dmhub.isDM or map.playerViewable or map.id == game.currentMapId then
-            ids[#ids + 1] = map.id
-        end
-    end
-    return ids
 end
 
 --Whether a creature is this user's own: a player's controlled heroes; for the Director, the
@@ -5430,6 +5596,10 @@ DockablePanel.Register{
     --looked up on each hover, so a reloaded HistoryTray's card is the one shown.
     railHover = function(element, placement)
         History.ShowSincePreview(element, placement)
+    end,
+    --the map switcher in the window's title row (6.1).
+    headerControl = function()
+        return History.MapSwitcher()
     end,
 }
 

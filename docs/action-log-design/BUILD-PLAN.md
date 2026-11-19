@@ -469,7 +469,9 @@ After James tested 5.1h (2026-11-19): a choice table (Conduit Prayer Choice) nam
 
 5.2 decided 2026-11-19 (COPY Round 22, L86-L94). Build order, one commit each: 5.2a right-click tools (Hide/Reveal, Delete entry, Clear History with its confirmation); 5.2b hand edits (who made them, Stamina set by hand, the Director's gold for players' edits); 5.2c reinforcements; 5.2d villain action tag; 5.2e overrides; 5.2f reveals.
 
-5.2 done 2026-11-19, all six tested by James: 5.2a 04666850 + 5a6a9bb8, 5.2b 72f0354d, 5.2c ed86472b, 5.2d bae93fc3 + 188b93a6 (popout face 7ba06541), 5.2e bb3fb0f0 + 4a4594ab, 5.2f b114104f (reveals; tested on Devil Jurist 1 with a hand-added {#Soft Underbelly} trait, no compendium monster has one). Next: 5.3.
+5.2 done 2026-11-19, all six tested by James: 5.2a 04666850 + 5a6a9bb8, 5.2b 72f0354d, 5.2c ed86472b, 5.2d bae93fc3 + 188b93a6 (popout face 7ba06541), 5.2e bb3fb0f0 + 4a4594ab, 5.2f b114104f (reveals; tested on Devil Jurist 1 with a hand-added {#Soft Underbelly} trait, no compendium monster has one).
+
+5.3 done 2026-11-19, tested by James: 03127a9d (Reverted rows, the Turn reverted line, out of the totals; Turn Rewind's steps in a turn share one line and rolling forward clears the mark, as James agreed) + 13955649 (struck through as well as faded, James's ask) + f643ca0e (Revert Turn marks the whole turn by encounter, round and turn, since a player's client stamps with a server time that can run behind the Director's checkpoint; a fully reverted turn's heading is tagged and struck; the replayed turn gets its own heading). Stage 5 complete. Next: 6.1.
 
 
 ## Stage 6: finish and switch over

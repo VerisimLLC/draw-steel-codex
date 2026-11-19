@@ -1841,6 +1841,58 @@ local function OnWaveDeployed(info)
     History.Write(entry)
 end
 
+--The current map's reveal lines for one spoilered modifier (L94).
+local function RevealEntries(key)
+    local mapid = game.currentMapId
+    local found = {}
+    for _, k in ipairs(History.Keys(mapid)) do
+        local e = History.Entry(mapid, k)
+        if e ~= nil and e.family == "reveal" and e.spoilerkey == key then
+            found[#found + 1] = e
+        end
+    end
+    return found
+end
+
+--The Director revealed a spoilered modifier (L94): who it belongs to, its name and what it
+--does. Revealing it again after hiding it shows the same line again, not another one.
+--info: {key, name, description, tokenid}.
+local function OnSpoilerRevealed(info)
+    if not History.Enabled() or #RevealEntries(info.key) > 0 then
+        return
+    end
+    local token = (info.tokenid ~= nil and info.tokenid ~= "") and dmhub.GetCharacterById(info.tokenid) or nil
+    local description = PowerRollSpoilers.Strip(info.description or "")
+    local entry = {
+        kind = "line",
+        family = "reveal",
+        map = token ~= nil and token.mapid or game.currentMapId,
+        who = token ~= nil and History.Creature(token) or nil,
+        name = PowerRollSpoilers.Strip(info.name or ""),
+        causetext = description ~= "" and description or nil,
+        spoilerkey = info.key,
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--The Director's eye on a revealed modifier: its line follows it, so hiding the modifier
+--again hides the line from players (the Director keeps it, with the eye-off icon).
+local function OnSpoilerVisibility(key, revealed)
+    if not History.Enabled() then
+        return
+    end
+    local change = {}
+    for _, e in ipairs(RevealEntries(key)) do
+        if (e.hiddenfromplayers == true) == revealed then
+            change[#change + 1] = e
+        end
+    end
+    if #change > 0 then
+        History.SetHiddenFromPlayers(change, not revealed)
+    end
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1901,6 +1953,8 @@ GameSystem.RegisterPlayObserver("history", {
     temporarystamina = OnTemporaryStamina,
     staminaset = OnStaminaSet,
     wavedeployed = OnWaveDeployed,
+    spoilerrevealed = OnSpoilerRevealed,
+    spoilervisibility = OnSpoilerVisibility,
     resource = OnResource,
     globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,

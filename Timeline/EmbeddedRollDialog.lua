@@ -495,6 +495,8 @@ function PowerRollSpoilers.SetRevealed(key, value)
     revealed[key] = value
     doc.data.revealed = revealed
     doc:CompleteChange("Reveal spoiler to players", {undoable = false})
+    --a record of play (History) keeps its reveal line shown or hidden with the eye.
+    GameSystem.NotifyPlayObservers("spoilervisibility", key, value == true)
 end
 
 --- Format text containing spoiler markup for display. Unrevealed spoilers
@@ -514,6 +516,8 @@ end
 --- info: { key, name, description, tokenid }
 function PowerRollSpoilers.Reveal(info)
     PowerRollSpoilers.SetRevealed(info.key, true)
+    --a record of play (History) notes the reveal, on the Director's client that made it.
+    GameSystem.NotifyPlayObservers("spoilerrevealed", info)
     chat.SendCustom(SpoilerRevealChatMessage.new{
         spoilerKey = info.key,
         spoilerName = info.name or "",

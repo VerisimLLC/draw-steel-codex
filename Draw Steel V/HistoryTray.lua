@@ -1802,6 +1802,12 @@ local function LineWords(entry)
         return "<b>Montage ended</b>"
     elseif family == "montagecounter" then
         return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
+    elseif family == "reveal" then
+        --"Basilisk Soft Underbelly revealed"; a modifier with no creature behind it names itself.
+        if entry.who == nil then
+            return string.format("<b>%s</b> revealed", entry.name or "")
+        end
+        return string.format("%s %s revealed", name, entry.name or "")
     elseif family == "reinforcements" then
         return string.format("<b>%s</b> arrived", entry.name or "Reinforcements")
     elseif family == "staminaset" then

@@ -215,7 +215,7 @@ end
 
 ---@param ward table
 ---@param key string
----@return {title: string, intro: string, lines: string[]}|nil
+---@return WardPage|nil
 local function PageFor(ward, key)
     local kind, n = key:sub(1, 1), math.tointeger(tonumber(key:sub(2)))
     if n == nil then
@@ -1214,10 +1214,19 @@ local function Render(ctx)
         else
             children[#children + 1] = Label(string.format("At the seal: %s.", table.concat(names, ", ")), {"sizeM"})
         end
-        children[#children + 1] = Label("Waiting for others. Anyone can press Begin.", {"sizeS", "fgMuted"})
         if m_ctx.isDirector then
-            children[#children + 1] = Label("Directors are not dealt a part.", {"sizeS", "fgMuted"})
+            --what Begin will do from here (Deal): the Director is never dealt a part.
+            local line
+            if #players == 0 then
+                line = "Press Begin to try it yourself. You see the ward and all its instructions."
+            elseif #players == 1 then
+                line = string.format("If you begin now, %s faces the ward alone, with all its instructions. Wait for more players to split it between them.", names[1])
+            else
+                line = "Begin deals the parts: one player gets the ward, the others get its instructions. You are not dealt a part."
+            end
+            children[#children + 1] = Label(line, {"sizeS", "fgMuted"})
         else
+            children[#children + 1] = Label("Waiting for others. Anyone can press Begin.", {"sizeS", "fgMuted"})
             children[#children + 1] = gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto", tmargin = 6,
                 Label("I'd rather:", {"sizeS"}, { valign = "center", hmargin = 4 }),
@@ -1256,7 +1265,11 @@ local function Render(ctx)
             end
         end
         if m_confirmSolo then
-            children[#children + 1] = Label("You alone will see the ward and its instructions. Begin?", {"sizeM"}, { tmargin = 6 })
+            local soloText = "You alone will see the ward and its instructions. Begin?"
+            if m_ctx.isDirector and #players == 1 then
+                soloText = string.format("%s alone will see the ward and its instructions. Begin?", names[1])
+            end
+            children[#children + 1] = Label(soloText, {"sizeM"}, { tmargin = 6 })
             children[#children + 1] = gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto",
                 gui.Button{ classes = Classes{"sizeS"}, text = "Begin alone", width = 120, hmargin = 4,
@@ -1339,7 +1352,7 @@ local function Render(ctx)
     ---@return string
     local function DialWords(i, m)
         local pos = math.tointeger(tonumber(Act(State(), i).pos)) or m.waking
-        return string.format("Sigil dial: woke on %s, now shows %s.", PuzzleRunes.Name(m.waking), PuzzleRunes.Name(pos))
+        return string.format("Sigil dial: started on %s, now shows %s.", PuzzleRunes.Name(m.waking), PuzzleRunes.Name(pos))
     end
 
     --one line for the chat that says everything the hands sees on a module.
@@ -1371,14 +1384,54 @@ local function Render(ctx)
         return Label(text, classes, extra)
     end
 
+    --The ward's face drawn as a disc: the rim rune set into the ring at the top,
+    --and the five candles standing around the bottom, lit or not.
     local function WardFace(canAct)
         local face = State().ward.face
         local words = string.format("Rim: %s. Candles lit: %d.", PuzzleRunes.Name(face.rim), face.candles)
+        local disc = Art(104)
+        local ring = Art(14)
+        local box = disc + Art(36)
+        ---@param size number
+        ---@param color string
+        ---@param x number
+        ---@param y number
+        ---@return Panel
+        local function Circle(size, color, x, y)
+            return gui.Panel{
+                floating = true, halign = "center", valign = "center", x = x, y = y,
+                width = size, height = size, interactable = false,
+                bgimage = "game-icons/plain-circle.png", bgcolor = color,
+            }
+        end
+        local children = {
+            Circle(disc, C.border, 0, 0),
+            Circle(disc - 2 * ring, C.bg, 0, 0),
+        }
+        --the rim rune, on the ring at twelve o'clock.
+        local top = -(disc / 2 - ring / 2)
+        children[#children + 1] = Circle(Art(36), C.bg, 0, top)
+        children[#children + 1] = gui.Panel{
+            floating = true, halign = "center", valign = "center", x = 0, y = top,
+            width = Art(26), height = Art(26), interactable = false,
+            bgimage = PuzzleRunes.list[face.rim].icon, bgcolor = C.rune,
+        }
+        --the candles, evenly along the lower arc just outside the ring.
+        local radius = disc / 2 + Art(9)
+        for k = 1, 5 do
+            local angle = math.rad(150 - (k - 1) * 30)
+            local lit = k <= face.candles
+            children[#children + 1] = Circle(Art(lit and 11 or 8), lit and C.lit or C.border,
+                math.floor(radius * math.cos(angle) + 0.5), math.floor(radius * math.sin(angle) + 0.5))
+        end
         return gui.Panel{
             flow = "horizontal", width = "auto", height = "auto", vmargin = 4,
-            Label("Rim:", {"sizeM"}, { valign = "center" }),
-            RuneIcon(face.rim, Art(28)),
-            Quotable(string.format("%s.   Candles lit: %d", PuzzleRunes.Name(face.rim), face.candles), words, {"sizeM"}, { valign = "center", hmargin = 6 }, canAct),
+            gui.Panel{ width = box, height = box, valign = "center", interactable = false, children = children },
+            gui.Panel{
+                flow = "vertical", width = "auto", height = "auto", valign = "center", hmargin = 8,
+                Quotable(string.format("Rim: %s", PuzzleRunes.Name(face.rim)), words, {"sizeM"}, nil, canAct),
+                Quotable(string.format("Candles lit: %d of 5", face.candles), words, {"sizeM"}, nil, canAct),
+            },
         }
     end
 
@@ -1457,7 +1510,7 @@ local function Render(ctx)
         end
         local here = Cursor(i, 0)
         local rows = {
-            Quotable(string.format("Woke on %s.", PuzzleRunes.Name(m.waking)), words, {"sizeS"}, nil, canAct),
+            Quotable(string.format("Started on %s.", PuzzleRunes.Name(m.waking)), words, {"sizeS"}, nil, canAct),
             gui.Panel{
                 flow = "horizontal", width = "auto", height = "auto", vmargin = 2,
                 live and gui.Button{ classes = Classes{"sizeXs"}, text = "-", width = H(30), height = H(24), valign = "center",
@@ -1742,6 +1795,105 @@ local function Render(ctx)
         return gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 2, children = controls }
     end
 
+    --A rune's icon and name for the reader pages, struck through and muted
+    --when penciled out (as a rule line is).
+    ---@param rune integer
+    ---@param width number|string
+    ---@param out boolean
+    ---@return Panel
+    local function RuneCell(rune, width, out)
+        local name = PuzzleRunes.Name(rune)
+        return gui.Panel{
+            flow = "horizontal", width = width, height = "auto", vmargin = 1, interactable = false,
+            gui.Panel{
+                width = H(14), height = H(14), valign = "center", rmargin = 4,
+                bgimage = PuzzleRunes.list[rune].icon, interactable = false,
+                --a panel property takes no @token, so resolve it here.
+                bgcolor = ThemeEngine.ResolveTokens(out and "@fgMuted" or "@fg"),
+            },
+            Label(out and ("<s>" .. name .. "</s>") or name, {"sizeXs", out and "fgMuted" or "fg"}, { valign = "center", interactable = false }),
+        }
+    end
+
+    --The Glyphs page's columns, side by side, each read top to bottom. Click a
+    --column to pencil it out, as with a rule.
+    ---@param key string
+    ---@param columns integer[][]
+    ---@param pencil table<string, boolean>
+    ---@return Panel
+    local function GlyphColumns(key, columns, pencil)
+        local large = m_ctx:Assist("text")
+        --wide enough for "Hourglass" beside its icon.
+        local colWidth = large and 128 or 98
+        local panels = {}
+        for c, col in ipairs(columns) do
+            local mark = key .. ":c" .. c
+            local out = pencil[mark] == true
+            local cells = {
+                Label(tostring(c), {"sizeS", "bold"}, { halign = "center", vmargin = 2, interactable = false }),
+            }
+            for _, rune in ipairs(col) do
+                cells[#cells + 1] = RuneCell(rune, "100%", out)
+            end
+            panels[c] = gui.Panel{
+                classes = {"bordered"},
+                flow = "vertical", width = colWidth, height = "auto", hmargin = 2, vmargin = 2, pad = 4,
+                borderBox = true,
+                children = cells,
+                press = function()
+                    pencil[mark] = (not out) or nil
+                    Refresh()
+                end,
+            }
+        end
+        --one row of six; larger text, two rows of three.
+        return gui.Panel{
+            flow = "horizontal", wrap = large, width = large and 3 * (colWidth + 4) or "auto", height = "auto", tmargin = 4,
+            children = panels,
+        }
+    end
+
+    --The Sigil dial's table: a header row, then one row per starting rune. Click
+    --a row to pencil it out.
+    ---@param key string
+    ---@param lookup {headers: string[], rows: integer[][]}
+    ---@param pencil table<string, boolean>
+    ---@return Panel
+    local function DialTable(key, lookup, pencil)
+        local large = m_ctx:Assist("text")
+        local cellWidth = large and 200 or 154
+        local headerCells = {}
+        for k, header in ipairs(lookup.headers) do
+            headerCells[k] = Label(header, {"sizeXs", "bold"}, { width = cellWidth, interactable = false })
+        end
+        local rows = {
+            gui.Panel{ flow = "horizontal", width = "auto", height = "auto", vmargin = 2, interactable = false, children = headerCells },
+        }
+        for r, runes in ipairs(lookup.rows) do
+            local mark = key .. ":r" .. r
+            local out = pencil[mark] == true
+            local cells = {}
+            for k, rune in ipairs(runes) do
+                cells[k] = RuneCell(rune, cellWidth, out)
+            end
+            rows[#rows + 1] = gui.Panel{
+                flow = "horizontal", width = "auto", height = "auto", vmargin = 1,
+                bgimage = "panels/square.png", bgcolor = "#00000001",
+                children = cells,
+                press = function()
+                    pencil[mark] = (not out) or nil
+                    Refresh()
+                end,
+            }
+        end
+        return gui.Panel{
+            classes = {"bordered"},
+            flow = "vertical", width = "auto", height = "auto", tmargin = 4, pad = 6,
+            borderBox = true,
+            children = rows,
+        }
+    end
+
     --A codex page: click a rule to pencil it out (only you see it).
     local function PageView(key)
         local page = PageFor(State().ward, key)
@@ -1760,7 +1912,7 @@ local function Render(ctx)
             Label(page.intro, {"sizeS", "fgMuted"}),
         }
         local marks = State().studyMarks or {}
-        if key:sub(1, 1) == "m" then
+        if key:sub(1, 1) == "m" and not page.single then
             children[#children + 1] = Label(PuzzleWardGen.pageHeader, {"sizeS", "bold"})
         end
         for n, line in ipairs(page.lines) do
@@ -1776,6 +1928,12 @@ local function Render(ctx)
                     Refresh()
                 end,
             }
+        end
+        if page.columns ~= nil then
+            children[#children + 1] = GlyphColumns(key, page.columns, pencil)
+        end
+        if page.lookup ~= nil then
+            children[#children + 1] = DialTable(key, page.lookup, pencil)
         end
         return gui.Panel{ flow = "vertical", width = "auto", height = "auto", tmargin = 8, children = children }
     end

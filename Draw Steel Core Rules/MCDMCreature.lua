@@ -778,6 +778,21 @@ function creature:LoseHidden()
     self:InflictCondition(g_conditionHiddenId, {purge = true})
 end
 
+--- Takes away every benefit of being hidden for the rest of the current turn: removes
+--- Hidden and makes Hidden This Turn read false, so later rolls this turn get no hidden
+--- edge. A roll that is already open keeps the edge it counted; a trigger takes that off
+--- with removeModifiers (Shoot First, Ask Questions Later). The turn stamp is a saved
+--- field, so every client sees it, unlike the local stamp Hidden This Turn normally
+--- reads. Call inside token:ModifyProperties.
+function creature:LoseHiddenBenefits()
+    self:LoseHidden()
+
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        self.hiddenBenefitsLostTurnId = queue:GetTurnId()
+    end
+end
+
 --- True when this creature has the Hidden condition, whatever applied it.
 --- @return boolean
 function creature:IsHidden()

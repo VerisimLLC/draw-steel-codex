@@ -729,6 +729,7 @@ local function WasHiddenThisTurn(token)
     local queue = dmhub.initiativeQueue
     return queue ~= nil and not queue.hidden
         and token.properties:try_get("_tmp_hiddenTurnId") == queue:GetTurnId()
+        and token.properties:try_get("hiddenBenefitsLostTurnId") ~= queue:GetTurnId()
 end
 
 -- The 2 Malice mode tests Intuition at one higher potency instead of Agility,

@@ -3497,6 +3497,18 @@ function MonsterAI:TelegraphAreaAbility(ability, area, symbols)
     end
 end
 
+--- True when a prompt the AI could not answer belongs to a hero played on
+--- this machine, so it should be shown here even with no Director.
+--- A hero played on another machine gets the prompt on that machine, and
+--- the host must never choose for someone else's hero.
+--- @param casterToken nil|CharacterToken
+--- @return boolean
+function MonsterAI.PromptBelongsToLocalHero(casterToken)
+    return casterToken ~= nil and casterToken.valid == true
+        and casterToken.playerControlled == true
+        and TokenPromptControllerId(casterToken) == nil
+end
+
 function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
     local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
     self:LogDecision("PROMPT RECEIVED", {
@@ -3633,6 +3645,16 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     --retaliatory strike to choose (R6ATBX7P). Skip the choice instead; the
     --invoke ends as if it were declined.
     if dmhub.directorlessPlay == true then
+        --A hero played on this machine is the exception: that choice belongs
+        --to the hero's player, not to the Director.
+        if MonsterAI.PromptBelongsToLocalHero(casterToken) then
+            self:LogDecision("PROMPT DEFERRED", {
+                ability = abilityClone.name,
+                actor = self.TokenLogName(casterToken),
+                result = "prompt: the caster is a hero played on this machine",
+            })
+            return "prompt"
+        end
         self:LogDecision("PROMPT SKIPPED", {
             ability = abilityClone.name,
             prompt = #attemptedHandlers > 0 and table.concat(attemptedHandlers, ", ")

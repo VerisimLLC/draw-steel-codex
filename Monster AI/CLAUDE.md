@@ -371,6 +371,11 @@ Director (`dmhub.directorlessPlay`): there the Director prompt would go to the
 host, a player, so `HandlePrompt` logs `PROMPT SKIPPED` and returns `"skip"`,
 and `ExecuteInvoke` ends the invoke unused, as a declined prompt does
 (R6ATBX7P: the host was asked to pick the Minotaur's retaliatory strike).
+The exception is a hero played on this machine (`MonsterAI.PromptBelongsToLocalHero`):
+its prompt is its player's choice, not the Director's, so `HandlePrompt`
+returns `"prompt"` (a grabbed hero's tier 2 free strike against an AI grabber,
+58E34CRD). A hero played on another machine already gets the prompt through
+`runOnController`, and the host is never asked to choose for it.
 
 It asks for the invoker's token first. When a hero's ability invokes a prompt
 on a monster, the monster is the caster, and the AI answers for it only if the

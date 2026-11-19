@@ -516,3 +516,57 @@ Click to jump to {hero}.]])
 
 --The tooltip on the X that removes a card, when the screen gives none.
 text("herocard.dismiss.tooltip", [[Dismiss]])
+
+--THE BACK OF THE HERO CARD
+--The tabs along the top of a turned-over hero card.
+text("herocard.back.tab.combat", [[Combat]])
+text("herocard.back.tab.montage", [[Montage]])
+text("herocard.back.tab.negotiation", [[Negotiation]])
+text("herocard.back.tab.downtime", [[Downtime]])
+--The tooltip on the green dot that marks the tab for what the party is doing now.
+text("herocard.back.tab.current", [[The current scene]])
+
+--The second row of tabs under Combat. {resource} is the class's heroic
+--resource (Ferocity, Wrath, ...) and {value} how much the hero has.
+text("herocard.back.sub.basics", [[Basics]])
+text("herocard.back.sub.abilities", [[Abilities]])
+text("herocard.back.sub.triggers", [[Triggers]])
+text("herocard.back.sub.resource", [[{resource} {value}]])
+
+--The folding groups on the Abilities tab.
+text("herocard.back.bucket.signature", [[Signature]])
+text("herocard.back.bucket.heroic", [[Heroic]])
+text("herocard.back.bucket.main", [[Main actions]])
+text("herocard.back.bucket.maneuver", [[Maneuvers]])
+text("herocard.back.bucket.other", [[Other]])
+text("herocard.back.bucket.freestrike", [[Free strikes]])
+text("herocard.back.bucket.standard", [[Standard actions]])
+text("herocard.back.abilities.none", [[No abilities]])
+
+--The Triggers tab. {trigger} is what sets the triggered action off.
+text("herocard.back.triggers.ready", [[Triggered action ready this round]])
+text("herocard.back.triggers.used", [[Triggered action used this round]])
+text("herocard.back.triggers.none", [[No triggered actions]])
+text("herocard.back.trigger.when", [[<b>When:</b> {trigger}]])
+
+--The heroic resource tab. {resource} is the resource's name; {count} is a number.
+text("herocard.back.resource.spend", [[Spend {resource}]])
+text("herocard.back.resource.epic", [[{resource} (epic)]])
+text("herocard.back.growth.needs", [[Needs {count} more.]])
+
+--Labels on the Montage, Negotiation and Downtime tabs.
+text("herocard.back.label.hero_tokens", [[Hero Tokens]])
+text("herocard.back.label.renown", [[Renown]])
+text("herocard.back.label.wealth", [[Wealth]])
+text("herocard.back.label.victories", [[Victories]])
+text("herocard.back.label.xp", [[XP]])
+text("herocard.back.label.languages", [[Languages]])
+text("herocard.back.label.perks", [[Perks]])
+text("herocard.back.label.notes", [[Notes]])
+text("herocard.back.label.recoveries", [[Recoveries]])
+text("herocard.back.label.downtime", [[Downtime Activities]])
+text("herocard.back.label.projects", [[Projects]])
+text("herocard.back.negotiation.trained", [[Trained]])
+text("herocard.back.negotiation.untrained", [[Untrained]])
+text("herocard.back.skills.none", [[No skills]])
+text("herocard.back.empty", [[Nothing to show here yet]])

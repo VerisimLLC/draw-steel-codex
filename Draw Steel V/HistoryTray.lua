@@ -1205,6 +1205,44 @@ local function RollRow(entry)
     }
 end
 
+--How an opposed power roll came out against one target: "Succeeded - 14 against 9".
+--showTotals: this viewer may read the totals. named: several targets, so say which.
+local function OpposedRow(who, showTotals, named)
+    local opposed = who.opposed
+    local words = "Tied"
+    local class = "historyTriggerResult"
+    if opposed.attacker > opposed.defender then
+        words = "Succeeded"
+    elseif opposed.attacker < opposed.defender then
+        words = "Failed"
+    end
+    if showTotals then
+        words = words .. DOT .. string.format("%d against %d", opposed.attacker, opposed.defender)
+    end
+    --- @type Panel[]
+    local children = {}
+    if named then
+        children[1] = Face(who, 20)
+    end
+    children[#children + 1] = gui.Label{
+        classes = {class},
+        text = words,
+        width = "auto",
+        height = "auto",
+        lmargin = named and 6 or 0,
+        textWrap = false,
+        halign = "left",
+        valign = "center",
+    }
+    return gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        vmargin = 1,
+        children = children,
+    }
+end
+
 local function TriggerRow(index, entry)
     local tagText = cond(entry.ability.free, "Free", "Triggered")
     local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
@@ -1458,8 +1496,20 @@ local function BuildAction(item)
     for i, kid in ipairs(triggers) do
         triggerRows[i] = TriggerRow(i, kid)
     end
-    for _, kid in ipairs(rolls) do
-        triggerRows[#triggerRows + 1] = RollRow(kid)
+    --an opposed power roll reads as its outcome; the card has each side's dice. A row from
+    --before the outcome was recorded keeps its two rolls.
+    local showTotals = History.OpposedTotalsShown(item.triggers)
+    local outcomes = 0
+    for _, who in ipairs(targets) do
+        if who.opposed ~= nil then
+            outcomes = outcomes + 1
+            triggerRows[#triggerRows + 1] = OpposedRow(who, showTotals, #targets > 1)
+        end
+    end
+    if outcomes == 0 then
+        for _, kid in ipairs(rolls) do
+            triggerRows[#triggerRows + 1] = RollRow(kid)
+        end
     end
 
     local opens = OpensCard(item)

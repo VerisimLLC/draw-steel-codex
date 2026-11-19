@@ -472,6 +472,24 @@ local function AddKid(rows, kid)
     end
 end
 
+--- Whether this viewer may read the totals of an opposed power roll: the Director always,
+--- a player only when both sides' rolls reached them unhidden (a GM-only roll's line never
+--- arrives; a Dice Tower roll arrives without its result).
+--- @param kids HistoryEntry[]|nil The entries nested under the action.
+--- @return boolean
+function History.OpposedTotalsShown(kids)
+    if dmhub.isDM then
+        return true
+    end
+    local seen = 0
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll then
+            seen = seen + 1
+        end
+    end
+    return seen >= 2
+end
+
 --- What happened, one row per creature, the result first (COPY N2).
 --- @param entry HistoryEntry An action, or the closing line of an encounter.
 --- @param kids? HistoryEntry[] What is nested under it.
@@ -523,6 +541,25 @@ function History.Story(entry, kids)
     end
     for _, kid in ipairs(kids) do
         AddKid(rows, kid)
+    end
+
+    --an opposed power roll: how the user's total compared with each target's.
+    local showTotals = History.OpposedTotalsShown(kids)
+    for _, who in ipairs(entry.targets or {}) do
+        local opposed = who.opposed
+        if opposed ~= nil and entry.actor ~= nil then
+            local user, target = History.ShownName(entry.actor), History.ShownName(who)
+            local text
+            if opposed.attacker == opposed.defender then
+                text = showTotals and string.format("%s and %s both rolled %d. A tie changes nothing.", user, target, opposed.attacker)
+                    or string.format("%s and %s tied. A tie changes nothing.", user, target)
+            else
+                local outcome = opposed.attacker > opposed.defender and "succeeded" or "failed"
+                text = showTotals and string.format("%s rolled %d against %s's %d and %s.", user, opposed.attacker, target, opposed.defender, outcome)
+                    or string.format("%s %s against %s.", user, outcome, target)
+            end
+            rows[#rows + 1] = {who = {entry.actor}, text = text}
+        end
     end
 
     if #rows == 0 and entry.actor ~= nil then

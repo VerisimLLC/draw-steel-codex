@@ -1060,7 +1060,8 @@ local function SaveAsDialog(onSaved)
         width = "100%",
         height = 28,
         fontSize = 14,
-        text = studio.name,
+        --a copy of an existing tabletop starts with that tabletop's name.
+        text = studio.name ~= "" and studio.name or T("tablestudio.preset." .. studio.preset),
     }
     Modal(T("tablestudio.saveas"), {
         {
@@ -1135,6 +1136,10 @@ local function CreateTableStudioPanel()
         local textureRows = {}
         for _, slot in ipairs(studio:GetTextures()) do
             local key = def.textures[slot.prop]
+            --Felt is a Playmat too, but its texture is cloth, not leather.
+            if typeid == "playmat" and studio.preset == "felt" and slot.prop == "_MainTex" then
+                key = "tablestudio.tex.cloth"
+            end
             --logo slots wait for the own-logo step (phase 1c).
             if key ~= nil and slot.kind ~= "logo" then
                 if #textureRows > 0 then
@@ -1216,34 +1221,56 @@ local function CreateTableStudioPanel()
         sections.children = children
     end
 
-    --The table dropdown: the tables saved here, plus the one being edited if it isn't saved yet.
+    --The table dropdown: the existing tabletops first ("builtin:<id>"; each opens as a copy that
+    --saves as a new table), then the tables saved here (by name; a folder name can't hold ':').
+    --A copy not saved yet shows as the tabletop it came from.
+    local function CurrentEntry()
+        if not studio.hasTable then
+            return ""
+        elseif studio.name == "" then
+            return "builtin:" .. studio.preset
+        end
+        return studio.name
+    end
+
     local tableDropdown = gui.Dropdown{
         width = 230,
         height = 28,
         options = {},
         idChosen = "",
         refreshFile = function(element)
-            --the entry for "" is the table not saved yet, or blank while none is open.
-            local options = {
-                { id = "", text = studio.hasTable and studio.name == "" and T("tablestudio.newtable") or "" },
-            }
+            local options = {}
+            if not studio.hasTable then
+                --blank while nothing is open.
+                options[#options + 1] = { id = "", text = "" }
+            end
+            for _, preset in ipairs(studio:GetPresets()) do
+                options[#options + 1] = { id = "builtin:" .. preset.id, text = T("tablestudio.preset." .. preset.id) }
+            end
             for _, name in ipairs(studio:GetLocalTables()) do
                 options[#options + 1] = { id = name, text = name }
             end
             element.options = options
-            element.idChosen = studio.name
+            element.idChosen = CurrentEntry()
         end,
         change = function(element)
-            --the ids are table names.
             local id = tostring(element.idChosen or "")
-            if id == "" or id == studio.name then
+            local current = CurrentEntry()
+            --the dropdown keeps showing the open table until the switch happens (and stays put
+            --if the unsaved prompt is cancelled).
+            element.idChosen = current
+            if id == "" or id == current then
                 return
             end
             GuardUnsaved(function()
-                studio:Load(id)
+                local presetId = string.match(id, "^builtin:(.+)$")
+                if presetId ~= nil then
+                    studio:NewTable(presetId)
+                else
+                    studio:Load(id)
+                end
                 root:FireEvent("tableChanged")
             end)
-            element.idChosen = studio.name
         end,
     }
 

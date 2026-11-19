@@ -194,6 +194,12 @@ text("herobuilder.kit.companion_undo", [[Choose companion melee bonus]])
 
 --The Class page's heading over each Level's choices. {ordinal} is "2nd" and so on.
 text("herobuilder.class.level_heading", [[{ordinal}-Level Features]])
+--A link on a choice that a module's own step now handles; it opens that step.
+--{step} is the step's name.
+text("herobuilder.moved.link", [[Go to {step}]])
+--The done row left where a choice was, when the step that took it gives no text
+--of its own. {step} is the step's name.
+text("herobuilder.moved.placeholder", [[Made in the {step} step]])
 
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: You gain (what a step gives without a choice)

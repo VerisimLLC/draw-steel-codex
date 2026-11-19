@@ -21,6 +21,91 @@ local function LocKey(loc)
     return loc.xyfloorOnly.str
 end
 
+--------------------------------------------------------------------------------
+-- The undead voice: every creature with the Undead keyword speaks Caelian when
+-- it knows no language, in creepy one-word lines. Lines are kept together here
+-- so they are easy to revise after playtests.
+--------------------------------------------------------------------------------
+
+local undeadSpeech = {
+    --Said by every undead, on top of its family's lines.
+    common = {"Die!", "Join us.", "Rot.", "Dust.", "Down.", "Mine.", "Cold..."},
+    families = {
+        flesh = {"Flesh...", "Meat.", "Hungry...", "Eat.", "Warm..."},
+        bones = {"Bones.", "Break.", "Hollow."},
+        spirit = {"Leave.", "Stay.", "Forgotten...", "Mine..."},
+        vampire = {"Blood.", "Thirst.", "Kneel.", "Drink."},
+        mummy = {"Defiler.", "Curse.", "Tomb."},
+        knight = {"Kneel.", "Yield.", "Ruin."},
+    },
+    charge = {"Die!"},
+    retreat = {"Back... to the dark."},
+    squadCall = {"Feed.", "Rise.", "Now."},
+    squadAnswer = {"Flesh...", "Die...", "Rot..."},
+}
+
+--monster_type -> family in undeadSpeech.families. Types not listed use the
+--common lines only.
+local undeadFamilies = {
+    ["Ghoul"] = "flesh", ["Ghoul Craver"] = "flesh", ["Phase Ghoul"] = "flesh",
+    ["Zombie"] = "flesh", ["Rotting Zombie"] = "flesh", ["Winded Rotting Zombie"] = "flesh",
+    ["Zombie Titan"] = "flesh", ["Zombie Lumberer"] = "flesh", ["Zombie Mine"] = "flesh",
+    ["Giant Zombie"] = "flesh", ["Giant Zombie Shambler"] = "flesh",
+    ["Fleshflayed Shambler Zombie"] = "flesh", ["Husk"] = "flesh",
+    ["Skeleton"] = "bones", ["Decrepit Skeleton"] = "bones", ["Skeleton Knight"] = "bones",
+    ["Bonecage"] = "bones", ["Hollowbone Launcher"] = "bones",
+    ["Ghost"] = "spirit", ["Specter"] = "spirit", ["Wraith"] = "spirit", ["Wraith Skulker"] = "spirit",
+    ["Shade"] = "spirit", ["Stalker Shade"] = "spirit", ["Haunt"] = "spirit",
+    ["Unquiet Spirit"] = "spirit", ["Phantom of the Ripper"] = "spirit", ["Faded Echo"] = "spirit",
+    ["Vampire"] = "vampire", ["Vampire Spawn"] = "vampire", ["Vampire Rebel"] = "vampire",
+    ["Blood-Starved Vampire"] = "vampire", ["False Vampire"] = "vampire",
+    ["Mummy"] = "mummy", ["Mummy Rotwrap"] = "mummy", ["Accursed Mummy"] = "mummy", ["Mummy Lord"] = "mummy",
+    ["Wight"] = "knight", ["Soulwight"] = "knight", ["Armored Soulwight"] = "knight", ["Grave Knight"] = "knight",
+}
+
+--Named villains keep the framework's ordinary lines (and Cryx his own) rather
+--than the one-word style. They still speak Caelian.
+local undeadNamedVillains = {
+    ["Captain Cryx"] = true,
+    ["Count Rhodar Von Glauer"] = true,
+    ["Dame Cornelia"] = true,
+    ["Vampire Lord"] = true,
+}
+
+local function UndeadStrikeLines(monsterType)
+    local family = undeadSpeech.families[undeadFamilies[monsterType] or ""]
+    if family == nil then
+        return undeadSpeech.common
+    end
+    local lines = {}
+    for _,line in ipairs(undeadSpeech.common) do
+        lines[#lines+1] = line
+    end
+    for _,line in ipairs(family) do
+        lines[#lines+1] = line
+    end
+    return lines
+end
+
+MonsterAI:RegisterVoice{
+    id = "Undead",
+    match = function(token)
+        return token.properties:Keywords()["Undead"] == true
+    end,
+    language = "Caelian",
+    strikeChance = 0.35,
+    lines = function(token, situation)
+        local monsterType = MonsterAI.AIMonsterType(token.properties)
+        if undeadNamedVillains[monsterType] then
+            return nil
+        end
+        if situation == "strike" or situation == "knockback" or situation == "grab" or situation == "aidAttack" then
+            return UndeadStrikeLines(monsterType)
+        end
+        return undeadSpeech[situation]
+    end,
+}
+
 --Maps can hold props and bystanders who are not in the fight.
 local function InCombat(token)
     local queue = dmhub.initiativeQueue

@@ -32,7 +32,7 @@
 --- @field defaultMarkup string id of the shared markup set the pack makes this map's default (added with the map unless AddMapToGame passes markupId = "none"); "" when the map has none
 --- @field fullScene boolean the map is a full scene (walls, doors, lights, sounds and floors already set up, converted from a Foundry scene) rather than just a picture
 --- @field sceneStats MapPackSceneStats|nil what a full scene carries; nil when fullScene is false
-
+---
 --- @class MapPackSceneStats What a full-scene map carries, counted over that appearance.
 --- @field floors integer storeys, not counting map layers
 --- @field walls integer wall segments, doors included
@@ -76,6 +76,7 @@
 --- @class mappacks
 --- @field synced boolean Whether the index has been synced at least once this session. (Read-only)
 --- @field syncing boolean Whether a sync is currently in progress. (Read-only)
+--- @field version number A number that changes whenever a sync changes the index's entries (a pack added, removed or republished) and stays the same across syncs that change nothing. Search results built from one version can be kept while it holds; the owned/objectsOwned flags can still change with the account's pledges and purchases, so key a cache on those too (see GetPackAccess). (Read-only)
 --- @field count number The number of variant entries across every synced pack. (Read-only)
 --- @field currentMapObjects MapPackMapObjects|nil The "Objects for this map" set of the current map, or nil when the current map did not come from a map pack, ships no objects, or this client is not the Director. While status is "loaded" the set's objects are in the asset tree under the folder folderid, ready to place; placing one copies its record into the game. "locked" means the account lacks the map or the pack's objects tier (tier/tierName say which pledge). (Read-only)
 --- @field packs MapPackInfo[] The synced packs: one record per /MapPackIndex pointer, with the module fullid as id. org is the creator organization whose Patreon unlocks tiered appearances; premium says the pack module is premium; prelaunch marks a hidden pre-launch pack, which only admin accounts receive. (Read-only)

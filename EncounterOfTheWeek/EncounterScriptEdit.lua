@@ -1387,13 +1387,14 @@ function E.NegotiationBeatBlock()
         end
         block[#block + 1] = ""
     end
+    local say = T("author.script_edit.starter.negotiation.say")
     Add(E.NegotiationTraitBlock("motivation", "Greed", T("author.script_edit.starter.negotiation.clue_greed")))
     Add(E.NegotiationTraitBlock("motivation", "Protection", T("author.script_edit.starter.negotiation.clue_protection")))
     Add(E.NegotiationTraitBlock("pitfall", "Higher Authority", T("author.script_edit.starter.negotiation.clue_authority")))
-    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_greed"), appeals = "Greed", attr = "Presence (Persuade)" })
-    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_protection"), appeals = "Protection", attr = "Reason (Lead)" })
-    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_authority"), appeals = "Higher Authority", attr = false })
-    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_neutral"), appeals = "Nothing", attr = "Presence (Flirt)" })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_greed"), say = say, appeals = "Greed", attr = "Presence (Persuade)" })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_protection"), say = say, appeals = "Protection", attr = "Reason (Lead)" })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_authority"), say = say, appeals = "Higher Authority", attr = false })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_neutral"), say = say, appeals = "Nothing", attr = "Presence (Flirt)" })
     for interest = 0, #EncounterScript.NEGOTIATION_OFFERS - 1 do
         Add(E.NegotiationOfferBlock(interest, T("author.script_edit.starter.negotiation.offer")))
     end

@@ -127,6 +127,14 @@ local function MinionSkullState(token, ignoreTriggers)
     return true, isDirectTarget, squad.num_recently_damaged > 0
 end
 
+--- True if the squad's damage owes this minion a death it may take: it shows the red death
+--- skull, or would but for an offered trigger. Loyalty collars (ModifierLoyaltyCollar.lua) use it.
+--- @param token CharacterToken
+--- @return boolean
+function TokenHud.MinionDeathOwed(token)
+    return (MinionSkullState(token, true))
+end
+
 --Minions showing a clickable (not yet confirmed) death skull on this client:
 --charid -> {token, panel}. Only used to give a skull its pending look at once
 --when "Choose for me" kills its minion; the notice finds owed deaths itself.
@@ -913,6 +921,13 @@ TokenHud.RegisterPanel{
                         --the Director may do that deliberately.
                         local initiativeid = dmhub.initiativeQueue.GetInitiativeId(token)
                         if dmhub.initiativeQueue:HasHadTurn(initiativeid) and not dmhub.isDM then
+                            return
+                        end
+
+                        --A second press while the swords fade out (URCDUY77) must not start the
+                        --same turn again: that re-runs BeginTurn and every start-of-turn trigger.
+                        --HasHadTurn can't catch it, since the round only advances at turn end.
+                        if dmhub.initiativeQueue.currentTurn == initiativeid then
                             return
                         end
 

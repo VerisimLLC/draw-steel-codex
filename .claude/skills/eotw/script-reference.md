@@ -100,16 +100,19 @@ dialog, log). Use it for hidden mechanics.
 | `you surprise the enemy` / `the enemies are surprised` | heroes go first; monsters Surprised at combat start |
 | `you win initiative` / `you lose initiative` | forced initiative, no die |
 | `you cannot be surprised` / `the party is immune to surprise` | Surprised withheld from heroes (and lifted); a later surprise still loses initiative |
+| `PC is surprised` / `the hero is surprised` / `you alone are surprised` | Surprised on the acting hero only (in an `Everyone rolls:` test, each hero who lands it). Initiative is rolled as normal, unless every creature on the heroes' side ends up surprised: then the monsters go first. `you cannot be surprised` and a fair roll cancel it |
 | `the encounter begins with a fair roll` / `you roll for initiative normally` / `you are no longer surprised` | cancels what went AGAINST the party (their Surprised, a lose/surprised outcome); keeps anything in their favour |
 | `you know the stamina of goblins` / `the party learns the stamina of every undead` | exact Stamina shown for monsters with that stat-block keyword |
 | `reveal traps` / `reveal the trap zones during the next combat` / `traps are revealed` | that zone type becomes visible to players at the encounter beat |
 | `unlock Interrogate the Goblin` / `you unlock ...` | a `(Locked)` entry joins the board |
 | `you gain an edge on Climb the Cliff` / `the party has a double bane on Sneak Past` | standing edge/bane on that `###` option's test for whoever takes it |
 | `the party has a bane on Investigate the Corpse: the body is charred` | the same, with a reason after the colon: the option card shows "Bane: the body is charred" (and the roll chip says it) instead of "Bane: earned at <section>". The reason ends with the clause, so no `. , ; ! ?` in it. Usually braced: `{The party has a bane on X: why}` |
+| `the party has a bane on Sense the Spectre: Distracted (you were distracted by the skeletons)` | a short reason with the longer explanation in brackets: the card and roll chip say "Bane: Distracted", and hovering the card line (or the roll chip) shows the bracketed words |
 | `roll twice on Tinkerer's Wares` / `roll on Herb Pouch` / `you roll 3 times on X` | rolls the entry's own dice table (see "Dice tables in an entry") that many times on the host and applies each row landed on |
 | `your rolled damage is increased by 1` / `+1 to rolled damage` / `each party member's rolled damage is increased by 1` | +N to the damage of every damaging power roll, until the next respite |
 | `your maximum Stamina is reduced by 5` / `you lose 5 maximum stamina` / `each party member's maximum stamina is reduced by 5` | Stamina maximum curse, until the next respite |
 | `you lose a consumable` / `each party member loses a consumable` | one random consumable item leaves the inventory; a hero carrying none silently loses 1 Recovery instead |
+| `one of the fleeing monsters is destroyed` / `you kill one of the fleeing undead` | in a series part: one fewer of the monsters that fled an earlier part joins this part's fight (a random one; see Monsters that fled the last fight below). Usually braced: `{One of the fleeing monsters is destroyed}` |
 | `the Start2 zone becomes a starting area` / `you may also start in the Start2 zone` | that zone type joins the Start zone for pre-combat confinement (heroes may stand there before the fight; it is revealed at the encounter beat) |
 | `reveal the Treasure Chest object` / `the Treasure Chest object is revealed` | a map object the author left INACTIVE (Object Properties -> deactivate) is switched on at the encounter beat. The word "object" is required |
 | `you fail ...`, `you succeed ...`, `nothing happens` | narrative only (recognized, no effect) |
@@ -351,8 +354,8 @@ and starts a scripted scene; each non-blank line after it is one step:
   must itself be a monster name.
 - `Name: text` = speech (PC, or a character who enters in this entry).
   `Name: (in Hyrallic) text` is garbled for anyone whose hero does not speak it.
-- Emotes: `Witch is alert` / `alarmed` / `scared` / `angry`, or `Goblin (scared): text`.
-  `scared` trembles, `angry` shakes harder; `alert` and `alarmed` put a mark over the head.
+- Emotes: `Witch is alert` / `alarmed` / `scared` / `angry` / `pleased`, or `Goblin (scared): text`.
+  `scared` trembles, `angry` shakes harder; `alert`, `alarmed` and `pleased` (a heart) put a mark over the head.
 - Off-stage voice: `??? (offstage): Who goes there?` / `Guard (offstage): Halt!`
   -- a speaker who never enters: their name shows over the line, no portrait.
   Without `(offstage)`, a speaker who never entered is plain narration.
@@ -540,6 +543,18 @@ Arrows hiss from the trees. Draw steel!
   option routes: the party leaves by the section's exit once everyone has
   rolled (a player who never rolls is rolled for by the host after 4 minutes;
   `/eotwnarrative force` rolls for everyone left).
+- **Party result.** Add the paragraph `Party result: median` to an
+  `Everyone rolls:` section and the party shares ONE result instead: once
+  everyone has rolled, the middle tier of the rolls (for an even party, the
+  lower of the two middle ones) applies once, as the hero with the highest
+  total (so `You gain 1 Healing Potion` goes to them). Each hero's own roll
+  still shows, without its own effects.
+- **Options the story offers.** `When <condition>:` with nothing after the
+  colon, under a narrative option's `###` heading, offers that option only
+  while a series story condition holds (`When the previous part had 1 or
+  more retreats:`). Otherwise nobody sees it. Put a story-gated option after
+  an ungated one, so a section always has something to choose. Story text
+  in the section (`If ...:` ... `End`) can say why it is there.
 - `Unlock: Intelligence` (a paragraph in a narrative beat or section) turns on
   the Intelligence pool and the Tactical Preparation screen for the rest of the
   game; earn it with `+N intelligence` clauses. With it on, the party starts
@@ -590,6 +605,7 @@ Fails: The baron is three days away and I am standing right here.
 
 ## Argument: Share a drink with his crew
 Appeals: Nothing
+PC: Long night on a cold bridge.
 |Test: Presence (Flirt)
 Lands: Ha! That earns you a hearing.
 Falls short: Drink your own.
@@ -611,11 +627,16 @@ You may cross, for 20 gold a head.
   anything. `Start:` is `Hidden`, `Known` or `Unlocked by <label>`; a montage or
   narrative clause `You uncover <label>` unlocks it.
 - **Arguments:** `Appeals:` names a motivation, a pitfall or `Nothing`, and is
-  never shown. Every argument needs a test except a pitfall, which fails
-  whatever is rolled. Riders work as in montages, and `|Allow:` makes an argument
-  secret to the heroes who qualify. Replies are `Lands:`, `Falls short:` and
+  never shown. `PC:` is what the hero says out loud when the argument is
+  chosen; the validator asks for one on every argument. Every argument needs a
+  test except a pitfall, which fails whatever is rolled. Riders work as in montages. `|Allow:` makes a knack argument: it
+  shows (in purple, naming who can make it) only while someone in the party
+  qualifies, and only they can make it. It has no edge unless an `|Edge:`
+  rider gives one. Replies are `Lands:`, `Falls short:` and
   `Backfires:` (`Fails:` is the same line on a pitfall). A missing reply uses a
-  stock line.
+  stock line. On the stage the hero steps on and says the `PC:` line, then the
+  NPC replies and reacts: `pleased` when interest rises, `angry` when it falls
+  or a pitfall is hit, `alarmed` when only patience is lost.
 - **Offers:** `## Offer: No, and`, `No`, `No, but`, `Yes, but`, `Yes`, `Yes, and`,
   for interest 0 to 5. `|` lines are effect clauses, applied to the whole party
   if the party takes that deal. `No, and` applies when interest reaches 0.
@@ -713,6 +734,18 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   is re-levelled when heroes join late, and monsters an enemy summons
   mid-fight move by the difference rounded (a 1.5 party in a Level 1
   encounter meets Level 2 summons). Each part of a series reads its own line.
+- **Monsters that fled the last fight**: not a script line. Attach the
+  **Monsters Fled from Last Fight** Encounter Script (built-in) to the part's
+  opening encounter in the encounter builder, then draw its **Stragglers
+  Zone** (the button appears under the Start zone once the script is on).
+  The monsters that escaped the previous part's fight through its Retreat
+  Zone (its result's `retreated` list) spawn with the opening fight, one
+  initiative group per monster type, on the Stragglers Zone's tiles, less one
+  for each `one of the fleeing monsters is destroyed` clause this part
+  applied. Levelled like the rest of the fight. A part recorded with a count
+  but no list (Test Encounter's Story so far) takes the missing ones from
+  that part's own opening fight, non-minions first. Part 1, or a game outside
+  a series, brings nobody.
 - **Reinforcements**: a `## Reinforcements: <Name>` section, written AFTER the
   opening `[[encounter]]` and after every setup line (everything below it
   belongs to it until the next `##` or `#`):
@@ -748,6 +781,17 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
     round 4). A section with no `Arrive:` or no island warns and never comes.
   - `/eotwreinforce` lists what the script will send and what has arrived;
     `/eotwreinforce arrive 1` brings section 1's next group in now.
+- **Reinforcement waves in the encounter builder** also work, with no script
+  lines: "Add Reinforcements" in the opening `[[encounter]]`'s combat builder
+  makes a wave (a name and Round 2-6 or Every round) and its groups. The EotW
+  host brings a wave in at the START of its round (they act that round) at
+  the groups' saved positions, scaled and levelled like the opening fight;
+  "Every round" sends the wave again at the start of every round from round
+  2. A group with no saved positions comes in beside the wave's (or the
+  fight's) first saved position. Waves have no `Enter:` zone, no `Shout:` and
+  no taking turns between groups -- use a `## Reinforcements:` section for
+  those. Until a wave arrives its monsters count toward the encounter's own
+  victory condition (as monsters still to defeat).
 
 ## Series: several encounters, one after another
 
@@ -786,7 +830,11 @@ time).
   `Coming soon at the Town Gate: <text>`) locks the part at the Gate, where the
   weekly Encounter of the Week is played, but the Proving Pits can play it,
   unlocked by a Pits win of the part before as usual. Use it to test later
-  parts in the Pits before they release at the Gate. The publisher treats the
+  parts in the Pits before they release at the Gate. This holds while the
+  series is (or was) the Encounter of the Week too: the Pits then list the
+  series with only those parts playable, the parts before them stay at the
+  Gate, and a Gate win of the part before unlocks the first of them. Their
+  votes are filed per part (`<key>#<n>`), apart from the series. The publisher treats the
   part as playable (a missing `# Encounter` is an error), and apps older than
   this feature still show it locked on both boards.
 - **Rests and later parts**: by default a part is playable only while the
@@ -904,9 +952,14 @@ parentheses; comparisons are `2 or more` / `or higher` / `at least 2`,
   joined someone else's party for it). Every other condition about that part is
   false and its track shares count 0. The parser nudges you to handle it.
 - `Part 1 scored 0.5 or more`, `Part 1's fight lasted 5 or more rounds`
+- `Part 2 had 2 or more retreats` (also `had 2 or more monsters retreat`): how
+  many monsters escaped through the Retreat Zone in that part's fight (each
+  creature counts, minions too). The part's result also keeps who they were
+  (`seriesResult.retreated`: name, monster type, keywords, minion).
 - `the previous part ...` works in place of `Part n ...`
 - in `# Results` only, about this part: `total success`, `partial success`,
-  `failure`, `score 0.5 or more`, `the fight lasted 5 or more rounds`
+  `failure`, `score 0.5 or more`, `the fight lasted 5 or more rounds`,
+  `2 or more monsters retreated` / `there were 2 or more retreats`
 
 Where they go:
 

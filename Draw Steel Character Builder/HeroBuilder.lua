@@ -760,6 +760,7 @@ local CARD_HEIGHTS = {text = 46, cards = 38, kits = 88, wide = 88}
 --- @field link nil|boolean You gain has choices to make: the link to Skills & Languages shows
 --- @field stale nil|HeroBuilderStale picks no longer offered
 --- @field kept nil|HeroBuilderKept[] picks kept for one higher Level; such a section has no cards
+--- @field movedTo nil|string a choice a registered step took over: that step's id, linked from the heading
 
 --- @class HeroBuilderStale
 --- @field ids string[] the picked ids no longer offered
@@ -1852,6 +1853,7 @@ local function RowSection(token, stepid, row, taken, rowOptions)
         result = result,
         search = search,
         stale = StalePicks(stepid, row.stale),
+        movedTo = info.movedTo,
     }
 end
 
@@ -1869,7 +1871,8 @@ end
 --- (a subclass's features, a kit's signature ability, a complication's
 --- features), tagged with the pick, then outright skills and languages. The
 --- features are read with no picks applied, so a choice's picks never show
---- here (they are the pane's other blocks).
+--- here (they are the pane's other blocks). A feature whose prerequisites the
+--- Hero does not meet (such as a domain they did not pick) is left out.
 --- @param token CharacterToken
 --- @param stepid string
 --- @return HeroBuilderPaneLine[]
@@ -1886,7 +1889,7 @@ local function StepGains(token, stepid)
             --features list in FeatureStack shows one instead).
             local isChoice = true
             pcall(function() isChoice = feature.IsDerivedFrom("CharacterChoice") end)
-            if feature ~= nil and not isChoice then
+            if feature ~= nil and not isChoice and Engine().hero.PrerequisitesMet(hero, feature) then
                 found[#found+1] = {feature = feature, tag = tag, shown = Engine().FeatureShown(feature), level = tonumber((entry.levels or {})[1]) or 1}
             end
         end
@@ -1913,9 +1916,10 @@ local function StepGains(token, stepid)
             end
         elseif stepid == "class" then
             local extra = hero:ExtraLevelInfo()
+            --the hero's own gains: content ticked for the companion is not the hero's.
             for i, entry in ipairs(hero:GetClassesAndSubClasses()) do
                 local details = {}
-                entry.class:FillFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
+                entry.class:FillHeroFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
                 Add(details, cond(i == 1, nil, entry.class.name))
             end
         elseif stepid == "complication" then
@@ -2543,9 +2547,6 @@ function HeroBuilder.DetailCard(spec, pinned, close)
                 if not scroller.valid or not body.valid then
                     return
                 end
-                if body.renderedHeight > scroller.renderedHeight + 0.5 then
-                    scroller.vscroll = true
-                end
                 scroller.vscrollPosition = 1
             end)
         end
@@ -2557,12 +2558,15 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         halign = "left",
         children = children,
     }
+    --scrolls from the start, as every scroll in the app should: the engine
+    --wires a scroll bar only on the panel's first frame, so one turned on
+    --later drags its handle but not the text. A card that fits shows no bar.
     scroller = gui.Panel{
         width = POPUP_INNER,
         height = "auto",
         maxHeight = POPUP_BODY_MAX,
         flow = "vertical",
-        vscroll = false,
+        vscroll = true,
         body,
     }
     local hint = gui.Label{
@@ -2573,13 +2577,12 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         height = "auto",
         tmargin = 8,
     }
-    --a card taller than it may be scrolls (pinned) or says how to read it.
+    --an unpinned card too tall to show whole tells the player to pin it to read the rest.
     HeroSheetWindow.AfterLayout(function()
         if not scroller.valid or not body.valid then
             return
         end
         if body.renderedHeight > scroller.renderedHeight + 0.5 then
-            scroller.vscroll = true
             hint:SetClass("collapsed", pinned)
         end
     end)
@@ -3779,6 +3782,9 @@ function HeroBuilder.Create(args)
     --Other choices shows only while something asks for one; Paint
     --keeps this up to date, and the pills, Back and Next follow it.
     local otherShown = false
+    --Registered steps this Hero does not have (Engine().StepShown); Paint
+    --keeps this up to date like otherShown.
+    local hiddenSteps = {}
     --the stepper row's width, for refitting the pills when a step shows or hides.
     local pillRowW = 1300
 
@@ -3796,6 +3802,9 @@ function HeroBuilder.Create(args)
             if stepid == REVIEW then
                 return args.review ~= nil
             end
+        end
+        if hiddenSteps[stepid] then
+            return false
         end
         return stepid ~= OTHER or otherShown
     end
@@ -4020,14 +4029,16 @@ function HeroBuilder.Create(args)
         pageNote,
         pageContent,
     }
-    --scrolls only once the page is taller than it: a scrolling panel lays out
-    --everything in it on every change, which costs time on a long page.
+    --scrolls from the start: the engine wires a scroll bar only on the panel's
+    --first frame, so one turned on later drags its handle but not the page.
     local pageScroll = gui.Panel{
         width = "100%",
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
+        --cards well outside the view are skipped, so a long page scrolls faster.
+        hideObjectsOutOfScroll = true,
         pageBody,
     }
     local page = gui.Panel{
@@ -4083,7 +4094,7 @@ function HeroBuilder.Create(args)
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -4178,30 +4189,6 @@ function HeroBuilder.Create(args)
         paneScroll,
         paneArt,
     }
-
-    --Turns a scrolling column's scroll on once its content is taller than it,
-    --and off again when it fits, after the content has laid out.
-    --- @param scroller Panel
-    local function FitScroll(scroller)
-        HeroSheetWindow.AfterLayout(function()
-            if not scroller.valid then
-                return
-            end
-            local content = scroller.children[1]
-            if content == nil or not content.valid then
-                return
-            end
-            local over = content.renderedHeight > scroller.renderedHeight + 0.5
-            if (scroller.vscroll == true) ~= over then
-                scroller.vscroll = over
-            end
-            --the engine then skips cards well outside the view, so a long page scrolls
-            --faster. Set only once the scroll view exists: before that the engine errors.
-            if over and scroller == pageScroll and not scroller.hideObjectsOutOfScroll then
-                scroller.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     --The art showcase's tile: {stepid, key, card}, or nil.
     local showcase = nil
@@ -4776,10 +4763,11 @@ function HeroBuilder.Create(args)
     --- @param title string
     --- @param right nil|Panel replaces the state plate at the heading's right
     --- @param before nil|Panel sits just before the state plate (a list's search)
+    --- @param beside nil|Panel sits just after the name and note (a link to another step)
     --- @return Panel[] the heading and its rule, to start the section with
     --- @return Panel status the state plate
     --- @return Panel note
-    local function SectionHead(title, right, before)
+    local function SectionHead(title, right, before, beside)
         local status = gui.Label{
             classes = {"heroBuilderStatus"},
             bgimage = "panels/square.png",
@@ -4834,6 +4822,9 @@ function HeroBuilder.Create(args)
             before.selfStyle.valign = "center"
             before.selfStyle.rmargin = 10
             row = {caps, note, before, status}
+        end
+        if beside ~= nil then
+            table.insert(row, 3, beside)
         end
         return {
             gui.Panel{
@@ -5609,7 +5600,34 @@ function HeroBuilder.Create(args)
                 end,
             }
         end
-        local children, status, note = SectionHead(section.title, nil, search)
+        --a choice another step took over links to that step, beside its name.
+        local movedLink = nil
+        if section.movedTo ~= nil then
+            local target = section.movedTo --[[@as string]]
+            local targetStep = Engine().STEP_BY_ID[target]
+            movedLink = gui.Label{
+                classes = {"heroSheetFeatLink", "hoverable"},
+                text = T("herobuilder.moved.link", {step = targetStep ~= nil and targetStep.title or target}),
+                fontSize = 13,
+                underline = true,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 12,
+                textWrap = false,
+                click = function()
+                    --Level up's pages are Levels, not steps: open the Builder on the step instead.
+                    local heroSheet = rawget(_G, "HeroSheet")
+                    if stepIndex[target] == nil and heroSheet ~= nil then
+                        heroSheet.OpenBuilderAt(target)
+                        return
+                    end
+                    GoTo(target)
+                end,
+            }
+        end
+        local children, status, note = SectionHead(section.title, nil, search, movedLink)
         local stale = StaleRow(stepid, section.key)
         children[#children+1] = stale.panel
         --no chosen card above the tiles: the pane's top card shows the pick,
@@ -6098,7 +6116,7 @@ function HeroBuilder.Create(args)
         local skillsSection = levelSkills ~= nil and levelSkills.sections[key] or nil
         if parts == nil and entry ~= nil and skillsSection ~= nil and levelSkills ~= nil then
             Flash(skillsSection)
-            if pageScroll.vscroll ~= true or pageScroll.renderedHeight <= 0 then
+            if pageScroll.renderedHeight <= 0 then
                 return
             end
             local range = pageBody.renderedHeight - pageScroll.renderedHeight
@@ -6118,7 +6136,7 @@ function HeroBuilder.Create(args)
             return
         end
         Flash(parts.panel)
-        if pageScroll.vscroll ~= true or pageScroll.renderedHeight <= 0 then
+        if pageScroll.renderedHeight <= 0 then
             return
         end
         local scale = pageScroll.renderedHeight / pageScrollHeight
@@ -6389,11 +6407,6 @@ function HeroBuilder.Create(args)
                 --the chips fill in over the next frames, so the page opens
                 --without a pause.
                 slice = true,
-                onBuilt = function()
-                    if shownPage == entry then
-                        FitScroll(pageScroll)
-                    end
-                end,
                 onChange = function(changedDraft)
                     PaintStatus()
                     if not HeroSkillsLanguages.Changed(changedDraft) then
@@ -6530,10 +6543,11 @@ function HeroBuilder.Create(args)
             end
             entry.modelKey = modelKey
             --with choices from more than one Level, the Class step groups
-            --them under "1st-Level Features"... headers.
+            --them under "1st-Level Features"... headers, and so does a step a
+            --module registered (its rows can come from class features too).
             local grouped = false
             --Level up shows one Level, so it needs no groups.
-            if stepid == "class" and stepStatus.levelUp == nil then
+            if (stepid == "class" or Engine().extraSteps[stepid] ~= nil) and stepStatus.levelUp == nil then
                 for _, section in ipairs(model.sections) do
                     grouped = grouped or (section.kept == nil and (section.level or 1) > 1)
                 end
@@ -6711,8 +6725,6 @@ function HeroBuilder.Create(args)
         else
             paneStatus:SetClass("collapsed", true)
         end
-        FitScroll(pageScroll)
-        FitScroll(paneScroll)
     end
 
     --Builds a step's page ahead of a click while the pointer rests on its
@@ -7441,15 +7453,10 @@ function HeroBuilder.Create(args)
             height = "auto",
             maxHeight = FILL_LIST_MAX,
             flow = "vertical",
-            vscroll = false,
+            vscroll = true,
             tmargin = 6,
             body,
         }
-        HeroSheetWindow.AfterLayout(function()
-            if scroller.valid and body.valid and body.renderedHeight > scroller.renderedHeight + 0.5 then
-                scroller.vscroll = true
-            end
-        end)
         local kept = T("herobuilder.fill.note_kept")
         local note
         if anyStar then
@@ -7919,9 +7926,6 @@ function HeroBuilder.Create(args)
                 parts = true,
                 stars = true,
                 slice = true,
-                onBuilt = function()
-                    FitScroll(pageScroll)
-                end,
                 onChange = function(changedDraft)
                     if not HeroSkillsLanguages.Changed(changedDraft) then
                         return
@@ -8246,6 +8250,21 @@ function HeroBuilder.Create(args)
                 state.step = FirstOpenStep(status)
             end
         end
+        --true or nil (never false), so an unchanged Hero compares equal to hiddenSteps.
+        local hidden, hiddenChanged = {}, false
+        for _, step in ipairs(steps) do
+            hidden[step.id] = not Engine().StepShown(hero, step.id) or nil
+            if hidden[step.id] ~= hiddenSteps[step.id] then
+                hiddenChanged = true
+            end
+        end
+        if hiddenChanged then
+            hiddenSteps = hidden
+            FitPills(pillRowW)
+            if hiddenSteps[state.step] then
+                state.step = FirstOpenStep(status)
+            end
+        end
         local number = 0
         for _, step in ipairs(steps) do
             if StepShown(step.id) then
@@ -8380,7 +8399,6 @@ function HeroBuilder.Create(args)
             if (built.skills ~= nil and shownPage == built.skills) or levelSkills ~= nil then
                 Paint()
             end
-            FitScroll(pageScroll)
         end
     end
 
@@ -8482,17 +8500,13 @@ function HeroBuilder.Create(args)
             if frameBlock ~= nil then
                 Host().drawn(frameBlock)
             end
-            --once the step's page is laid out, scroll to the choice and flash
-            --it. A page built just now turns its scrolling on only after its
-            --first layout (FitScroll), so the scroll waits a layout more.
+            --once the step's page is laid out, scroll to the choice and flash it.
             if at ~= nil and at.section ~= nil and state.step == at.step then
                 local step, section = at.step --[[@as string]], at.section --[[@as string]]
                 HeroSheetWindow.AfterLayout(function()
-                    HeroSheetWindow.AfterLayout(function()
-                        if not mod.unloaded and state.step == step then
-                            ScrollToSection(step, section)
-                        end
-                    end)
+                    if not mod.unloaded and state.step == step then
+                        ScrollToSection(step, section)
+                    end
                 end)
             end
         end,

@@ -748,12 +748,15 @@ end
 
 --Remove all instant duration effects and clear tracking. Called when casting ends.
 local function ClearCastingDurationEffects()
-    for behavior, entry in pairs(g_castingDurationEffects) do
+    --Take the list before running it: a destructor calls game.Refresh, which can re-enter
+    --this function (via restoreFromBackup -> cancelCasting) and must find nothing left to run.
+    local effects = g_castingDurationEffects
+    g_castingDurationEffects = {}
+    for behavior, entry in pairs(effects) do
         if entry.destructor ~= nil then
             entry.destructor()
         end
     end
-    g_castingDurationEffects = {}
 end
 
 function IsCurrentlyUsingAbility()
@@ -926,8 +929,8 @@ local function OverviewAbilityFacets(ability)
     --Field test 21 (Ghoul Leap): effects can hide one level down - an
     --InvokeAbilityBehavior whose customAbility carries the real rule (Leap:
     --"1 damage; prone" in a nested DrawSteelCommandBehavior). The scanner
-    --recurses one level into invoked custom abilities and parses bare rule
-    --commands with the same tier-text parser.
+    --looks up to two levels into the abilities invokes hold (custom or a
+    --module's registered type) and parses bare rule commands with the same tier-text parser.
     local scanBehaviors
     scanBehaviors = function(behaviorList, depth)
         for _, behavior in ipairs(behaviorList or {}) do
@@ -1020,7 +1023,10 @@ local function OverviewAbilityFacets(ability)
                     end
                 end
             elseif tn == "ActivatedAbilityInvokeAbilityBehavior" and depth < 3 then
-                local invoked = behavior:try_get("customAbility")
+                --HeldAbility, not customAbility: it also covers module-registered invoke
+                --types, and ignores a leftover customAbility once the type was changed.
+                --The bound caster (when the bar's list bound one) lets a module's preview see who uses it.
+                local invoked = behavior:HeldAbility(ability:try_get("_tmp_boundCaster"))
                 if invoked ~= nil then
                     scanBehaviors(invoked:try_get("behaviors"), depth + 1)
                 end
@@ -10401,6 +10407,112 @@ local function MoveTargetLocRejected(targetingType, loc)
     return g_forcedMoveLegalLocs[loc.xyfloorOnly.str] ~= true
 end
 
+--- MarkMovementArrow options for a straight-line move by g_token with the current ability
+--- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They are the
+--- options the real move passes to Move (ActivatedAbility:RelocateMoveOptions), and with a
+--- movement type the engine knows (a willing Direct Path move is a "walk") MarkMovementArrow
+--- plans the line with the real move's own planner, so the hover arrow and the Direct Path
+--- highlight show where the creature ends up. Known difference from the real move: flight
+--- altitude is not sent.
+--- Lives on the module table because this file's main chunk is at Lua's 200-local limit.
+--- @param targetingType string
+--- @return table options, boolean hasCharge true when charge-jump options were merged in
+function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
+    ---@cast g_token -nil
+    ---@cast g_currentAbility -nil
+    local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+    --Teleports, jumps and relocates are not walked or pushed along the line by the cast.
+    if movementType == "teleport" or movementType == "relocate" or movementType == "jump" then
+        movementType = nil
+    end
+    local options = g_currentAbility:RelocateMoveOptions(g_token, g_currentSymbols, movementType)
+    local chargeOptions = g_currentAbility:GetChargeJumpOptions(g_token, g_currentSymbols, g_abilities)
+    if chargeOptions ~= nil then
+        for key, value in pairs(chargeOptions) do
+            options[key] = value
+        end
+    end
+    return options, chargeOptions ~= nil
+end
+
+--- The line the prompt adds when an invoked ability that targets creatures (the strike a
+--- rush or charge makes after moving) has no creature it may target and none chosen.
+--- nil when there is at least one, or for any other prompt.
+--- @param ability ActivatedAbility
+--- @param symbols table
+--- @param potentialTargetTokens CharacterToken[] the tokens CalculateSpellTargetFocusing armed
+--- @param chosenCount integer
+--- @return nil|string
+function DrawSteelActionBar.NoValidTargetPromptHint(ability, symbols, potentialTargetTokens, chosenCount)
+    if symbols.invoked ~= true or ability.targetType ~= "target" or chosenCount > 0 then
+        return nil
+    end
+    for _, tok in ipairs(potentialTargetTokens or {}) do
+        if tok.valid and tok.sheet ~= nil and tok.sheet.data.targetValid then
+            return nil
+        end
+    end
+    return string.format(tr("No creature is in reach. Choose Skip to end %s."), ability.name)
+end
+
+--- True for a "Direct Path" move: a straight-path move to a chosen space (e.g. Charge).
+--- @param ability ActivatedAbility
+--- @return boolean
+function DrawSteelActionBar.IsDirectPathMove(ability)
+    local targetingType = ability:try_get("targeting", "direct")
+    return (targetingType == "straightpath" or targetingType == "straightpathignorecreatures")
+        and (ability.targetType == "emptyspace" or ability.targetType == "anyspace")
+end
+
+--- For a "Direct Path" move (see IsDirectPathMove), returns a predicate that is true only
+--- for squares the straight move actually reaches. The plain range circle also lights
+--- squares behind walls or blockers, where the move would stop short. The predicate takes
+--- the square the mover's corner lands on, so shift a large creature's centre square first
+--- (TeleportAnchorLoc). Returns nil for any other move, or for very long ranges where
+--- testing every square would stall the client.
+--- @param range nil|number the ability's range in native units
+--- @return nil|fun(loc: Loc): boolean
+function DrawSteelActionBar.StraightPathReachFilter(range)
+    if g_currentAbility == nil or g_token == nil or (not g_token.valid) then
+        return nil
+    end
+    if not DrawSteelActionBar.IsDirectPathMove(g_currentAbility) then
+        return nil
+    end
+    --Each square in range gets its own path test: 12 squares is about 625 of them.
+    --Longer ranges skip the check and show the plain circle.
+    local maxReachTestSquares = 12
+    if range == nil or range > maxReachTestSquares * dmhub.unitsPerSquare then
+        return nil
+    end
+
+    local token = g_token
+    local options, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(g_currentAbility:try_get("targeting", "direct"))
+    --Test each square with its own hidden arrow so the arrow under the mouse isn't redrawn.
+    options.separate = true
+    --Tier rings can ask about the same square more than once; remember each answer.
+    local reachedBySquare = {}
+    return function(loc)
+        local known = reachedBySquare[loc.str]
+        if known ~= nil then
+            return known
+        end
+        local reached = false
+        local info = token:MarkMovementArrow(loc, options)
+        ---@cast info nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean}
+        if info ~= nil then
+            if info.marker ~= nil then
+                info.marker:Destroy()
+            end
+            local dest = info.path ~= nil and info.path.destination or nil
+            reached = dest ~= nil and dest.x == loc.x and dest.y == loc.y
+                and ((not hasCharge) or info.validCharge == true)
+        end
+        reachedBySquare[loc.str] = reached
+        return reached
+    end
+end
+
 
 local g_castingEmoteSet = nil
 
@@ -10457,9 +10569,9 @@ function DrawSteelActionBar.IsTeleportPick()
     return ability:GetMovementType(g_token, g_currentSymbols) == "teleport"
 end
 
---- The loc a teleport pick lands the mover on for the hovered loc. An odd-sized
---- large creature is anchored on its south-west square (mappress shifts the
---- same way before casting); altitude is kept.
+--- The loc a teleport or straight-move pick lands the mover on for the hovered loc.
+--- An odd-sized large creature is aimed by its centre square but anchored on its
+--- south-west square (a map click shifts the same way before casting); altitude is kept.
 --- @param mover CharacterToken
 --- @param loc Loc
 --- @return Loc
@@ -12928,11 +13040,12 @@ CreateAbilityController = function()
 
             ClearCastingDurationEffects()
 
-            for _, destructor in ipairs(g_castingDestructors) do
+            --Taken before running for the same re-entrancy reason as ClearCastingDurationEffects.
+            local destructors = g_castingDestructors
+            g_castingDestructors = {}
+            for _, destructor in ipairs(destructors) do
                 destructor()
             end
-
-            g_castingDestructors = {}
 
             if g_invokerInfo ~= nil and g_invokerInfo.oncancel ~= nil then
                 g_invokerInfo.oncancel()
@@ -13153,7 +13266,7 @@ CreateAbilityController = function()
             --the life of the chooser so the bar shows it; popped in destroy.
             local pushedSourceToken = false
             if options.sourceToken ~= nil and options.sourceToken.valid then
-                local shownToken = g_token
+                local shownToken = g_token --[[@as nil|CharacterToken]]
                 if #g_casterTokenStack == 0 then
                     shownToken = DrawSteelActionBar._operate.SelectedBoardToken()
                 end
@@ -13842,16 +13955,6 @@ CreateAbilityController = function()
 
                     g_currentSymbols.waypoints = waypoints
 
-                    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
-                    local reboundOptions = g_token.properties:GetForcedPushOptions()
-                    --pass forcedMovementDistance so the preview cost function treats "blocks forced movement"
-                    --walls as blocking (same flag the real cast sets in AbilityRelocateCreature.lua).
-                    --only applies to the straightline (forced-movement) targeting variant.
-                    local previewForcedDist = 0
-                    if targetingType == "straightline" then
-                        previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
-                    end
-
                     --[STRICTMOVE] diagnostic: once per hovered square, report whether the
                     --hovered tile is in the captured legal-tile set (the exact tiles the
                     --forced-move radius highlights) and whether enforcement is active.
@@ -13875,20 +13978,7 @@ CreateAbilityController = function()
                     --captured from the identical engine computation that draws the radius).
                     local movementInfo = nil
                     if not MoveTargetLocRejected(targetingType, loc) then
-                        local markOptions = {
-                            straightline = true,
-                            ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
-                            rebound = reboundOptions.rebound,
-                            maxBounces = reboundOptions.maxBounces,
-                            forcedMovementDistance = previewForcedDist,
-                            slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
-                        }
-                        local chargeOptions = g_currentAbility:GetChargeJumpOptions(g_token, g_currentSymbols, g_abilities)
-                        if chargeOptions ~= nil then
-                            for key, value in pairs(chargeOptions) do
-                                markOptions[key] = value
-                            end
-                        end
+                        local markOptions, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
                         --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
                         movementInfo = g_token:MarkMovementArrow(
                             cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
@@ -13897,11 +13987,11 @@ CreateAbilityController = function()
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
                         ---@cast movementInfo nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean, requiresRoll: nil|boolean, requiredTier: nil|integer, guaranteedTier: nil|integer, jumpLabelLoc: nil|Loc, tierOutcomes: nil|table<integer, table>}
-                        if chargeOptions ~= nil and (movementInfo == nil or movementInfo.validCharge ~= true) then
+                        if hasCharge and (movementInfo == nil or movementInfo.validCharge ~= true) then
                             g_pointTargeting.chargeJumpUnreachable = true
                             movementInfo = nil
                         end
-                        if chargeOptions ~= nil and movementInfo ~= nil and movementInfo.jumpLabelLoc ~= nil then
+                        if hasCharge and movementInfo ~= nil and movementInfo.jumpLabelLoc ~= nil then
                             --The cross-section still treats the composite path as walking.
                             --The map arrow renders the actual jump segment for this charge.
                             ClearMovementDiagram()
@@ -14220,7 +14310,7 @@ CreateAbilityController = function()
                         end
 
                         --show damage indicators on creatures passed through.
-                        if throughCreatures and path.steps ~= nil then
+                        if g_currentAbility:try_get("forcedMovementThroughCreatures", false) and path.steps ~= nil then
                             local throughTextLabels = {}
                             local throughShapes = {}
                             local hitIds = {}
@@ -15861,6 +15951,19 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             g_potentialTargetTokens = CalculateSpellTargetFocusing(g_currentSymbols)
 
+            --An invoked strike with nobody in reach (the strike after a rush that was
+            --stopped short) would otherwise sit with nothing clickable and no word why.
+            local noTargetHint = DrawSteelActionBar.NoValidTargetPromptHint(g_currentAbility, g_currentSymbols, g_potentialTargetTokens, #targets)
+            if noTargetHint ~= nil then
+                local shownPrompt = g_castMessage.data.promptText
+                if shownPrompt == nil or shownPrompt == "" then
+                    g_castMessage.data.promptText = noTargetHint
+                else
+                    g_castMessage.data.promptText = shownPrompt .. "\n" .. noTargetHint
+                end
+                g_castMessage:FireEvent("refresh")
+            end
+
             --refresh the radius marker.
             if g_currentAbility.targetType == "line" then
                 ClearRadiusMarkers()
@@ -15937,6 +16040,20 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 if customLocs == nil then
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
+
+                    --Direct Path moves: light only squares the straight move reaches, not
+                    --ones behind a wall or creature where it would stop short.
+                    if DrawSteelActionBar.IsDirectPathMove(g_currentAbility) then
+                        local reachFilter = DrawSteelActionBar.StraightPathReachFilter(range)
+                        local baseFilter = filterTargetPredicate
+                        local mover = g_token
+                        --A creature bigger than one square is aimed by its centre square but moves by its
+                        --corner square, so shift each square the same way a click does before testing it.
+                        filterTargetPredicate = function(squareLoc)
+                            local anchor = DrawSteelActionBar.TeleportAnchorLoc(mover, squareLoc)
+                            return (baseFilter == nil or baseFilter(anchor)) and (reachFilter == nil or reachFilter(anchor))
+                        end
+                    end
 
                     local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
                     if tierRadii ~= nil then

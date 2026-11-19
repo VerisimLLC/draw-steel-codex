@@ -933,7 +933,7 @@ local function CreateMonsterAITab()
                 text = "Monster AI",
             },
 
-            BodyLabel("Pick a monster this one is similar to, and the AI plays it with that monster's hand-written AI: every move, trigger and villain action written for that monster applies to the abilities the two share by name. Use it for a reskinned or homebrew monster built from a book stat block.",
+            BodyLabel("Pick a monster this one is similar to, and the AI plays it with that monster's hand-written AI: every move, trigger, villain action and band Malice ability written for that monster applies to the abilities the two share by name. Use it for a reskinned or homebrew monster built from a book stat block.",
                 { tmargin = 6, bmargin = 10 }),
 
             gui.Panel {

@@ -55,7 +55,7 @@ shadow-elves.lua
    Then score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
 4. For each token in that initiative entry:
    - If the actual actor is outside the usable map view, pan and sync the camera before it begins. Shared initiative entries can therefore pan again as each distinct monster acts without recentering monsters that are already visible.
-   - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`). The squad moves as one: every member is planned before any moves, with the squares and charge lanes already claimed by squad-mates held in a reservation table (`ReserveSquadOption` / `SquadOptionIsFree`) so no two members end on one square or charge through each other. The captain (or a member) calls the attack and two or three members shout back (`AnnounceSquadStrike`, which writes bubbles directly through `SpeakNow`), then all members move side by side, each starting `squadMoveStagger` (0.2s) after the last (`RunConcurrently`). Chargers move to their charge start, then all shout "Charge!" and charge together. Each member's plan is checked after movement; a second round re-plans members that advanced, failed, or gained a target slot from a fallen squad-mate. Run `../dependencies/lua/bin/lua.exe tests/ai_squad_volley_test.lua`. Reassess members who advanced before firing so they can join the same volley, including sharing targets within the normal limit. The rules layer spends the action for every active squad member, including nonparticipants. Reconsider up to 6 action cycles so critical-hit extra actions are used. Each cycle selects a surviving member with an affordable signature; only affordable members join its target pairs, and movement uses the remaining turn budget.
+   - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`). The squad moves as one: every member is planned before any moves, with the squares and charge lanes already claimed by squad-mates held in a reservation table (`ReserveSquadOption` / `SquadOptionIsFree`) so no two members end on one square or charge through each other. The captain (or a member) calls the attack and two or three members shout back (`AnnounceSquadStrike`, which writes bubbles directly through `SpeakNow`), then all members move side by side, each starting `squadMoveStagger` (0.2s) after the last (`RunConcurrently`). Chargers move to their charge start, then all shout "Charge!" and charge together. A member whose move or charge errors (or who dies before its charge, which `ExecuteChargeMovement` reports as not surviving) is logged as `MINION MOVE ERROR` and dropped; the rest still strike (2026-11-16 playtest N2). Each member's plan is checked after movement; a second round re-plans members that advanced, failed, or gained a target slot from a fallen squad-mate. Run `../dependencies/lua/bin/lua.exe tests/ai_squad_volley_test.lua`. Reassess members who advanced before firing so they can join the same volley, including sharing targets within the normal limit. The rules layer spends the action for every active squad member, including nonparticipants. Reconsider up to 6 action cycles so critical-hit extra actions are used. Each cycle selects a surviving member with an affordable signature; only affordable members join its target pairs, and movement uses the remaining turn budget.
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. A scoring or execution error quarantines that move for the actor; `"failed"` continues to another cycle, while `"none"` or `"unsafe"` stops the actor.
 5. After all tokens act, initiative advances automatically. Before each actor, right before each chosen move executes (`TurnTakenBeforeMove`, including a minion squad's moves and strike), and after each move cycle, the turn checks that its entry is still the current one. If something else took the turn (a hero's turn-grab ability, a host clicking the initiative bar), it stops with `TURN PAUSED` and does **not** advance, because `NextInitiative` would end the new entry's turn.
 
@@ -68,6 +68,9 @@ over this fallback. If ordinary movement cannot advance it further, it casts
 `Use Move Action` in Advance mode for another speed's worth of movement, provided
 the main action is affordable and a route exists. Minions without a reachable
 signature target use the same fallback; squad target caps still take priority.
+A monster that made a ranged strike this turn does not advance ("keeps its
+distance"), unless its signature is melee-only (`MonsterAI.SignatureReach`), in
+which case it closes in so the signature reaches next turn.
 
 A monster that is Hidden at this point (it hid this turn: Hide in Concealment)
 never advances, because walking toward the enemy takes it out of cover and
@@ -88,7 +91,7 @@ Run `../dependencies/lua/bin/lua.exe tests/ai_advance_test.lua` and
 `../dependencies/lua/bin/lua.exe tests/ai_minion_critical_test.lua` from the codex
 root to check route selection, action economy, attack priority, and squad retries.
 
-### Zone directives (Avoid, Force Into, Hold)
+### Zone directives (Avoid, Force Into, Hold, Retreat)
 
 A zone type (Environmental Keyword) can carry "Monster AI Directives": a list
 of entries edited in the keyword editor ("Add Monster AI Directive..."), stored
@@ -120,6 +123,38 @@ checked), cached per frame.
   shifts) asks `MonsterAI.HoldPermits(token, loc)`; `MonsterAI.Holds`,
   `MonsterAI.InHoldZone` and `MonsterAI.HoldSquares` are the other helpers.
   The Angulotl Daybringer holds the Ritual Basin in Aixco Hollow this way.
+- **Retreat**: where monsters run to once an Encounter Script says they want
+  to retreat; see "Retreating" below. The encounter's own Retreat Zone (drawn
+  with the Retreat Zone badge in the encounter builder, stored as
+  `Encounter.retreatLocs`) counts for every creature, as do zone types with
+  this directive (filter checked on the creature that flees).
+
+### Retreating
+
+Monsters never retreat unless an Encounter Script on the encounter has a
+`retreat = function(ctx, token)` that returns true for them (the "Retreat"
+built-in in `MCDMEncounter.lua`, with "Retreat When: When Outnumbered" etc.,
+latches once the heroes outnumber the monsters, a minion squad counting as
+one). `MonsterAI.WantsToRetreat(token)` asks it, and only when the creature
+has somewhere to go (`MonsterAI.RetreatSquares`). `PlayTurnCoroutine` then
+runs `ExecuteRetreat` for the actor (or every member of a squad) instead of
+the normal move cycles:
+
+- It shouts once per combat ("Retreat!", "Run!", "I need to get out of
+  here!": `MonsterAI.retreatSpeech`).
+- `PlanRetreat` compares walking, dashing (main action as a move) and
+  Disengage plus a dash, routes each to the reachable Retreat square (checked
+  with `MarkMovementArrow`, `MonsterAI.retreatRouteTries` routes), and ranks
+  them by: reaches the zone, then fewer opportunity attacks along the route
+  (`OpportunityAttacksAlongRoute`), then keeps the main action, then shorter.
+- With the main action kept, it first takes a parting strike from where it
+  stands (`RetreatStrikeInPlace`: strike moves only, no charge, no moving;
+  minions never), then moves.
+- A creature in a Retreat square leaves the map (`ExitThroughRetreatZone`:
+  `token.despawned`, logged `RETREAT ESCAPED`) and is recorded with
+  `LiveEncounter:RecordRetreat` (`live:GetRetreated()`), which Encounter of the
+  Week stores with the part's result (`retreats`, `retreated`).
+- A creature with no route at all fights on as normal.
 
 ### Player reactions during AI movement
 
@@ -182,6 +217,21 @@ the two initiative writes used to cross, leaving the claimant's entry current
 with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
 never plays a current entry that `IsEntryPlayer` says is the players' (it logs
 `TURN REFUSED` once and leaves it to its player).
+
+Two more holds keep the thread from spinning (2026-11-13 playtest, where it
+replayed one monster turn over a thousand times after an EotW defeat):
+
+- **No heroes left.** `MonsterAI.PlayersSideGone(queue)` is true when the queue
+  has players' entries but none of them has a live creature (all dead, or off
+  the map). The thread then plays no monster turns and logs `TURNS HELD` once.
+  A queue with no players' entries at all (monster versus monster) never counts.
+- **Turn did not advance.** After a turn that ran to its end (no
+  `_tmp_abortTurn`), the thread remembers `<entry>|<round>|<queue.turn>`. If that
+  same turn is still current next time, `NextInitiative` did nothing (it is a
+  silent no-op when the HUD has no `currentInitiativeId`), so the thread does not
+  replay it and logs `TURN NOT ADVANCED` once. A `TURN PAUSED` turn may still be
+  played again, and the memory clears whenever initiative is back to choosing
+  (so Revert Turn replays normally).
 
 Once the AI has picked a group, it also waits for that turn's start to play out
 before acting. It calls `creature:BeginTurn{aiActivityId, onComplete}` with a
@@ -322,6 +372,45 @@ host, a player, so `HandlePrompt` logs `PROMPT SKIPPED` and returns `"skip"`,
 and `ExecuteInvoke` ends the invoke unused, as a declined prompt does
 (R6ATBX7P: the host was asked to pick the Minotaur's retaliatory strike).
 
+It asks for the invoker's token first. When a hero's ability invokes a prompt
+on a monster, the monster is the caster, and the AI answers for it only if the
+prompt is registered with `answersForCaster` (To the Death!'s free strike).
+Every other choice stays with the hero's player: a push on an AI-run monster
+once had its squares picked by the AI (WR3ESYAG).
+
+Optional triggers follow the same rule. The AI thread's trigger poll
+(`MonsterAIPanel.lua`) offers each open trigger of a Director-run creature to
+`HandleAvailableTrigger`; one with no `MonsterAI:RegisterTrigger` handler used to
+stay as a prompt for the Director. In directorless play that prompt sat on the
+host forever (N5: the Iron Orb's Abyssal Aura lit up and nothing happened). Now
+`MonsterAI.DismissUnhandledDirectorlessTrigger` dismisses it and logs
+`TRIGGER SKIPPED`. A trigger that has a handler is left alone even when the
+handler returned no decision, and with a Director at the table nothing changes.
+Only the poll does this: the minion-death wait (`AnswerMinionTriggersDuringWait`)
+and the gnoll path still call `HandleAvailableTrigger` alone. Run
+`../dependencies/lua/bin/lua.exe tests/ai_directorless_trigger_test.lua`.
+
+Death triggers set to "Fire after other abilities finish" (every War Dog's
+Loyalty Collar) keep their creature on the map at 0 Stamina and prompt on it
+once the killing abilities finish. So the poll also checks creatures for which
+`MonsterAI.TokenIsDyingOnMap` holds, and `ai:ResolveDyingCreatureTriggers()`
+answers such prompts mid-turn: `ExecuteAbility` and `MoveToken` call it before
+returning, so the blast lands before the AI acts again. Both call it only when no
+AI cast is in progress (`creature.GetAIActivityInProgress()`), since a collar
+queued behind a running cast cannot go off until that cast ends; the outermost
+cast's own call picks it up. It returns at once when no dying creature has a
+prompt open or queued (`ActivatedAbility.HasDeferredCastFor`).
+`TokenIsDyingOnMap` is also true for bodies left on the map, so on those the
+AI answers only prompts younger than the prompt expiry age
+(`MonsterAI.IsRecentPrompt`), leaving old ones the Director ignored.
+The collar is `hostile`, which `HandleAvailableTrigger` always accepts, so it
+needs no `RegisterTrigger` handler, and `AssessSupport` counts it as automatic.
+
+Fodder Run's runners are moved by the ability's own Shift prompts. The AI puts
+each runner's square in `MonsterAI.plannedShiftDestinations[charid]` before the
+cast and clears it after; the generic `Shift` prompt (`MonsterAIPrompts.lua`)
+uses a planned square when one is set, so it works for any caster type.
+
 ### "AI is running" status for every client
 
 The AI runs only on the hosting machine. So other clients can tell, `MonsterAI.lua`
@@ -394,7 +483,7 @@ A **move** is a scoreable, executable action the AI can take on its turn. Each m
 - Optionally lists `monsters` -- an array of `monster_type` strings. If present, the move only applies to those monsters. If omitted, the move is **generic** (applies to all monsters)
 - Has a `score(self, ai, token, ability1, ability2, ...)` function that returns `{score = N, loc = destLoc, ...}` or `nil`
 - Has an `execute(self, ai, token, scoringInfo, ability1, ability2, ...)` function that performs the move
-- Optionally declares `maxScore`, the highest score `score()` can return. Moves with a `maxScore` are scored after the others, and are not scored at all once the best move found already scores at least that much (a tie never replaces the best). The generic fallbacks `Charge and Free Strike` and `Ranged Free Strike` use it: they always score exactly 0.2
+- Optionally declares `maxScore`, the highest score `score()` can return. Moves with a `maxScore` are scored after the others, and are not scored at all once the best move found already scores at least that much (a tie never replaces the best). The generic fallbacks `Charge and Free Strike` and `Ranged Free Strike` use it: `maxScore` 0.2, and they score 0.2, except that the one that does not suit the monster's signature (`MonsterAI.SignatureReach`: a melee-only signature disfavours the ranged free strike, a ranged-only one the charge) scores 0.19, so the tie goes to the suitable one
 
 #### 2. Malice abilities (`MonsterAI:RegisterMaliceAbility{}`)
 
@@ -442,6 +531,7 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 - `{targets = {}}` does not decline an ability chooser (`Invoked Ability`): with one ability on offer the invoke casts it anyway, with no targets, and any prompt inside it still comes up. The Minotaur's retaliation once declined its Charge this way, so the strike prompt inside Charge found no target and went to a person (R6ATBX7P)
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 - `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
+- `answersForCaster` -- optional registration flag. When a hero's ability invokes this prompt on an AI-run monster (the monster is the caster), the AI answers it instead of the hero's player. Only for prompts where the monster acts on its own (To the Death!'s free strike); forced movement and other choices about the target stay with the invoker (`MonsterAI.PromptAnswersForCaster`)
 
 The generic `Adjacent Enemy Free Strike Me` handler uses `resolvesInvokedAbility`.
 That standard ability is the "one ally adjacent to the target can make a free
@@ -518,7 +608,7 @@ The handler receives `(ai, token, triggerInfo)` and returns one of:
 - `{activate = true, mode = N}` -- accept using the one-based ability mode.
 - `{activate = true, retargetid = charid}` -- for a power roll trigger that changes the strike's target (`changeTarget`), the creature it picks, as the trigger panel's picker would (the Bendrak's Warp Perceptions split).
 - `{dismiss = true}` -- dismiss the trigger.
-- `nil` -- leave the trigger for the Director.
+- `nil` -- leave the trigger for the Director. With no handler at all, a directorless game dismisses the trigger instead (see "Rolls of the monsters the AI plays").
 
 It can also return `expectedPrompt = {targets = ..., casterid = ..., sleep = ...}` to pre-seed one nested targeting prompt. Registered prompt handlers remain available while the out-of-turn triggered cast resolves.
 
@@ -892,9 +982,12 @@ The helpers are at the "Similar to" section of `MonsterAI.lua`:
 - `AssessSupport` counts the similar type's registrations as the monster's
   own, and never reports them as stale. Its result carries `similarTo`.
 
-Not covered: `monsterGroups` Malice registrations match the monster's own
-group, so a reskin in a different monster group does not use the base's band
-Malice. Run `../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`
+Band Malice (`monsterGroups` registrations) matches the monster's own group or
+the group of the bestiary monster it is similar to
+(`MonsterAI.SimilarMonsterGroup`, remembered for
+`MonsterAI.similarGroupCacheSeconds`), so a reskin filed in a homebrew group
+still spends the base band's Malice. It can only spend Malice it has, though:
+the abilities come from its own monster group's data, matched by name. Run `../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`
 and `tests/ai_support_assessment_test.lua` for coverage.
 
 ## Bestiary support assessment

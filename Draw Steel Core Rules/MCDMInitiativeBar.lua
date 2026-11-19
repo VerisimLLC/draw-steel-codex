@@ -1093,7 +1093,10 @@ dmhub.RegisterEventHandler("restoreFromBackup", function(info)
 	--never arrived) is ignored after a few seconds.
 	local forward = TurnRewind.restoreForward and dmhub.Time() - TurnRewind.restoreTime < 5
 	TurnRewind.restoreForward = false
-	dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	--Settings > Accessibility can turn the distortion off; the label below still shows.
+	if not dmhub.GetSettingValue("accessibility:norewindeffect") then
+		dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	end
 	local ok, err = pcall(ShowRewindOsd, forward)
 	if not ok then
 		print("TurnRewind:: rewind label failed:", err)
@@ -6817,6 +6820,28 @@ GameHud.RegisterBetweenTurnHandler{
 	end,
 }
 
+--The current queue if it is still the combat `queue` belongs to, else nil
+--(combat ended, or the map changed). Match on guid, not the object: a
+--reconnect re-sends the whole game and rebuilds dmhub.initiativeQueue as a new
+--object for the same combat. The handoff took that for the turn moving on and
+--never advanced initiative, so the Monster AI stalled (SASGFH6V).
+---@param queue InitiativeQueue|nil
+---@return InitiativeQueue|nil
+function GameHud.LiveInitiativeQueue(queue)
+	local live = dmhub.initiativeQueue
+	if queue == nil or live == nil then
+		return nil
+	end
+	if live == queue then
+		return live
+	end
+	local guid = queue:try_get("guid")
+	if guid ~= nil and guid == live:try_get("guid") then
+		return live
+	end
+	return nil
+end
+
 function GameHud:NextInitiative(oncomplete)
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.choiceInitiativeBar
@@ -6866,11 +6891,18 @@ function GameHud:NextInitiative(oncomplete)
 				endedTokens = tokens,
 			}
 			for _,handler in ipairs(handlers) do
+				--A reconnect during an earlier handler may have rebuilt the queue.
+				context.initiativeQueue = GameHud.LiveInitiativeQueue(context.initiativeQueue) or context.initiativeQueue
 				RunBetweenTurnHandler(handler, context)
 			end
 
 			local newRound = false
-			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
+			local liveQueue = GameHud.LiveInitiativeQueue(initiativeQueue)
+			if liveQueue ~= nil and liveQueue ~= initiativeQueue then
+				print(string.format("ENDTURN:: initiative queue reloaded during the handoff of %s (reconnect); advancing the reloaded queue", tostring(currentInitiativeId)))
+				initiativeQueue = liveQueue
+			end
+			if liveQueue ~= nil and initiativeQueue.entries[currentInitiativeId] ~= nil then
 				local claimedBy = initiativeQueue:try_get("currentTurn")
 				if claimedBy and claimedBy ~= currentInitiativeId then
 					--another entry took the turn while the handlers above held the
@@ -7023,8 +7055,16 @@ function GameHud.WaitForHeroTriggerPrompts(context)
 	local wait = nil
 	local result = nil
 	while result == nil do
-		local claimedBy = q ~= nil and q:try_get("currentTurn") or nil
-		if q == nil or dmhub.initiativeQueue ~= q or q.hidden
+		--Follow the queue across a reconnect, which rebuilds it (SASGFH6V).
+		local live = GameHud.LiveInitiativeQueue(q)
+		if live ~= nil and live ~= q then
+			q = live
+			if context ~= nil then
+				context.initiativeQueue = live
+			end
+		end
+		local claimedBy = live ~= nil and live:try_get("currentTurn") or nil
+		if live == nil or live.hidden
 			or (claimedBy and claimedBy ~= endedId) then
 			--Combat ended, or a hero claimed the turn during the hold
 			--(Hesitation Is Weakness): NextInitiative handles both.

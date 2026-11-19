@@ -117,7 +117,7 @@ setting{
 
 setting{
 	id = dockablePanelsDMSetting,
-	description = "Dockable Panels set up for Director view.",
+	description = "Dockable Panels set up for " .. UIText.Term("director") .. " view.",
 	help = "",
 	storage = "pergamepreference",
 	default = {

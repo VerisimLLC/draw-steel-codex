@@ -402,12 +402,24 @@ mod.shared.GetMapPackCreator = function(entry, callback)
 	end
 	g_creatorWaiting[id] = { callback }
 
-	local function finish(info)
-		g_creators[id] = info
+	--a failed lookup is not cached, so the next caller asks again rather than
+	--showing the bare id for the rest of the session. Each waiter runs under
+	--pcall: one that errors must not leave the others waiting forever.
+	local function finish(info, cache)
+		if cache then
+			g_creators[id] = info
+		end
 		local queue = g_creatorWaiting[id]
 		g_creatorWaiting[id] = nil
+		local firstError = nil
 		for _, fn in ipairs(queue or {}) do
-			fn(info)
+			local ok, err = pcall(fn, info)
+			if not ok and firstError == nil then
+				firstError = err
+			end
+		end
+		if firstError ~= nil then
+			error(firstError, 0)
 		end
 	end
 
@@ -421,10 +433,12 @@ mod.shared.GetMapPackCreator = function(entry, callback)
 				url = rawget(info, "url"),
 				campaignUrl = campaign ~= nil and rawget(campaign, "url") or nil,
 				campaignName = campaign ~= nil and rawget(campaign, "name") or nil,
-			})
+			}, true)
 		end,
 		failure = function(msg)
-			finish({ displayName = id, logo = nil })
+			--a creator with no record stays that way, so cache it; anything
+			--else was the network and is worth asking again.
+			finish({ displayName = id, logo = nil }, msg == "Organization not found.")
 		end,
 	}
 end
@@ -559,7 +573,12 @@ mod.shared.MapPackEntryBoost = function(entry, markup, stats)
 end
 
 --entries: one per map (the grid's no-search list). Returns them reordered.
-mod.shared.RankMapPackEntriesForBrowsing = function(entries, markup, stats)
+--limit (optional): make only the first limit picks; the rest follow in plain
+--score order. Each pick depends only on the ones before it, so ranking again
+--with a larger limit keeps those picks and continues from them. The grid
+--ranks just the tiles it shows (ranking all ~1500 maps took ~100 ms).
+---@param limit? integer
+mod.shared.RankMapPackEntriesForBrowsing = function(entries, markup, stats, limit)
 	local seed = tostring(dmhub.userid or "") .. os.date("%Y-%m-%d")
 
 	--keyword rarity: log(maps / maps carrying the keyword).
@@ -614,12 +633,18 @@ mod.shared.RankMapPackEntriesForBrowsing = function(entries, markup, stats)
 
 	local picked = {}
 	local result = {}
-	while #remaining > 0 do
+	while #remaining > 0 and (limit == nil or #result < limit) do
 		local bestIndex = 1
 		local bestScore = nil
 		for i = 1, math.min(#remaining, BROWSE_CANDIDATES) do
 			local c = remaining[i]
 			local score = c.score
+			--remaining is sorted by base score and penalties only subtract,
+			--so once a base score cannot beat the best, no later one can.
+			--Same picks as checking all of them, several times faster.
+			if bestScore ~= nil and score <= bestScore then
+				break
+			end
 			for back = 1, math.min(#picked, BROWSE_SERIES_WINDOW) do
 				local p = picked[#picked - back + 1]
 				if back <= BROWSE_CREATOR_WINDOW and p.creator == c.creator then
@@ -642,6 +667,9 @@ mod.shared.RankMapPackEntriesForBrowsing = function(entries, markup, stats)
 		local choice = table.remove(remaining, bestIndex)
 		picked[#picked + 1] = choice
 		result[#result + 1] = choice.entry
+	end
+	for _, c in ipairs(remaining) do
+		result[#result + 1] = c.entry
 	end
 	return result
 end
@@ -767,7 +795,7 @@ local MAP_PACK_FEATURES = {
 	{key = "weather", one = "Weather"},
 	{key = "sheltered", one = "Sheltered areas"},
 	{key = "darkness", one = "1 area of magical darkness", many = "%d areas of magical darkness"},
-	{key = "notes", one = "1 Director note", many = "%d Director notes"},
+	{key = "notes", one = "1 " .. UIText.Term("director") .. " note", many = "%d " .. UIText.Term("director") .. " notes"},
 }
 
 --The lines listing what a Full Scene map comes with ("3 floors", "Weather"),

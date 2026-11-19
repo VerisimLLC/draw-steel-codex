@@ -839,6 +839,301 @@ local function ScaleDimensionsToFill(dim)
     return dim * math.max(a/b, b/a)
 end
 
+--Text for a loading-screen quote: the quote in italics. The speaker is shown
+--by a separate label under it (see LoadingQuoteSpeaker).
+local function FormatLoadingQuote(quote)
+    if quote == nil then
+        return ""
+    end
+    return string.format("<i>%s</i>", quote.quote)
+end
+
+--The attribution under a loading-screen quote, or "" for none. A speaker may
+--span several lines (a newline in the speaker string); each line stacks.
+local function LoadingQuoteSpeaker(quote)
+    if quote == nil or quote.speaker == nil then
+        return ""
+    end
+    return quote.speaker
+end
+
+--imageLoaded handler for the loading-screen art panel: crops the art so it
+--fills the panel without stretching.
+local function FitLoadingScreenArt(element)
+    if element.bgsprite == nil then
+        return
+    end
+
+    local src_w = element.bgsprite.dimensions.x
+    local src_h = element.bgsprite.dimensions.y
+
+    local dst_w = ScaleDimensionsToFill(1920)
+    local dst_h = ScaleDimensions(1080)
+
+
+    if dst_w/dst_h > src_w/src_h then
+        --the destination is wider than the source. Fit to width.
+        local new_src_h = src_w * (dst_h / dst_w)
+        local letterbox = 1 - new_src_h/src_h
+
+        local rect = {
+            x1 = 0,
+            y1 = letterbox*0.5,
+            x2 = 1,
+            y2 = 1 - letterbox*0.5,
+        }
+
+        element.selfStyle.imageRect = rect
+
+    elseif dst_w/dst_h < src_w/src_h then
+        --the destination is taller than the source. Fit to height.
+        local new_src_w = src_h * (dst_w / dst_h)
+        local letterbox = 1 - new_src_w/src_w
+        local rect = {
+            x1 = letterbox*0.5,
+            y1 = 0,
+            x2 = 1 - letterbox*0.5,
+            y2 = 1,
+        }
+
+        element.selfStyle.imageRect = rect
+    else
+        element.selfStyle.imageRect = {
+            x1 = 0,
+            y1 = 0,
+            x2 = 1,
+            y2 = 1,
+        }
+    end
+end
+
+--The quote banner along the bottom of the loading screen, for a CodexQuotes
+--entry (or nil). Fire "setLoadingQuote" on it with another entry to swap it.
+local function CreateLoadingQuoteBanner(quote)
+    -- Viewport-sized container so the loading-quote banner stays
+    -- in the visible screen area at any aspect ratio. loadingScreen
+    -- is oversized by ScaleDimensionsToFill on widescreens, which
+    -- would otherwise push this bottom-anchored banner below the
+    -- screen. (Mirrors the ProgressDice container in beginLoading.)
+    return gui.Panel {
+        floating = true,
+        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
+        height = 1080,
+        halign = "center",
+        valign = "center",
+
+        gui.Panel {
+            flow = "vertical",
+            width = 1200,
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            bmargin = 80,
+
+            -- Sits just above the banner's dark fill, mirroring the
+            -- bottom divider. Overlapping it hides the line under
+            -- the banner, which draws later.
+            gui.Divider {
+                vmargin = 0,
+                height = 2,
+                y = -0.5,
+            },
+
+            gui.Panel {
+                classes = { "loadingQuoteBanner" },
+                -- Theme-aware banner: the scheme's @bg paints in the
+                -- middle of a horizontal alpha mask, darkening the
+                -- cover art behind the quote and fading smoothly to
+                -- clear at the edges. Label color falls through to the theme
+                -- default ({label} -> @fgStrong) for legibility.
+                styles = ThemeEngine.MergeStyles{
+                    {
+                        selectors = { "loadingQuoteBanner" },
+                        bgimage = "panels/square.png",
+                        bgcolor = "@bg",
+                        gradient = LoadingQuoteFadeGradient(),
+                    },
+                },
+
+                halign = "center",
+                height = "auto",
+                vpad = 15,
+                minHeight = 60,
+                vmargin = 0,
+                width = "68%",
+
+                --Quote and attribution as one block: the attribution sits
+                --under the quote at its right edge, its lines left-aligned.
+                gui.Panel {
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+
+                    gui.Label {
+                        text = FormatLoadingQuote(quote),
+                        fontSize = 20,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "left",
+                        halign = "left",
+                        maxWidth = 600,
+                        markdown = true,
+                        setLoadingQuote = function(element, newQuote)
+                            element.text = FormatLoadingQuote(newQuote)
+                        end,
+                    },
+
+                    gui.Label {
+                        text = LoadingQuoteSpeaker(quote),
+                        fontSize = 20,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "left",
+                        halign = "right",
+                        tmargin = 4,
+                        maxWidth = 600,
+                        classes = { cond(LoadingQuoteSpeaker(quote) == "", "collapsed", nil) },
+                        setLoadingQuote = function(element, newQuote)
+                            local speaker = LoadingQuoteSpeaker(newQuote)
+                            element.text = speaker
+                            element:SetClass("collapsed", speaker == "")
+                        end,
+                    },
+                },
+            },
+
+            gui.Divider {
+                vmargin = 0,
+                height = 2,
+                y = -3.5,
+            },
+        },
+    }
+end
+
+--Developer > Loading Screen Quotes: a full-screen copy of the loading screen
+--for stepping through every quote, in the order the quote files register them.
+LoadingQuotesPreview = {}
+
+function LoadingQuotesPreview.Show()
+    local quotes = rawget(_G, "CodexQuotes")
+    if quotes == nil or quotes.ordered == nil or #quotes.ordered == 0 then
+        print("LoadingQuotesPreview: no quotes registered")
+        return
+    end
+    local ids = quotes.ordered
+
+    --The real loading screen shows the cover art of the game being entered;
+    --use this game's art, else the Encounter of the Week loading art.
+    local art = nil
+    pcall(function() art = game.coverart end)
+    if type(art) ~= "string" or art == "" then
+        art = "panels/backgrounds/delian-tomb-bg.png"
+    end
+
+    local index = 1
+    local modalLayer = nil
+    local banner = CreateLoadingQuoteBanner(nil)
+    local counterLabel
+
+    local function Close()
+        if modalLayer ~= nil then
+            gui.CloseModalInLayer(modalLayer)
+            modalLayer = nil
+        end
+    end
+
+    local function ShowQuote(i)
+        index = ((i - 1) % #ids) + 1
+        local id = ids[index]
+        banner:FireEventTree("setLoadingQuote", quotes.quotes[id])
+        counterLabel.text = string.format("%d / %d   %s", index, #ids, id)
+    end
+
+    counterLabel = gui.Label {
+        text = "",
+        fontSize = 18,
+        width = 320,
+        height = "auto",
+        textAlignment = "center",
+        valign = "center",
+        hmargin = 12,
+    }
+
+    local backdrop = gui.Panel {
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000ff",
+        styles = ThemeEngine.GetStyles(),
+        escape = function(element)
+            Close()
+        end,
+        escapeActivates = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+
+        gui.Panel {
+            floating = true,
+            width = ScaleDimensionsToFill(1920),
+            height = ScaleDimensionsToFill(1080),
+            halign = "center",
+            valign = "center",
+            bgimage = art,
+            bgimageAlpha = "panels/gamescreen/loadingscreen4.png",
+            bgcolor = "#ffffffff",
+            --The loading screen's resting state once its fade-in finishes.
+            alphaThreshold = 1,
+            alphaThresholdFade = 0.1,
+            imageLoaded = FitLoadingScreenArt,
+        },
+
+        banner,
+
+        gui.Panel {
+            floating = true,
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            tmargin = 40,
+            pad = 10,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#000000cc",
+
+            gui.Button {
+                text = "Previous",
+                valign = "center",
+                click = function(element)
+                    ShowQuote(index - 1)
+                end,
+            },
+            counterLabel,
+            gui.Button {
+                text = "Next",
+                valign = "center",
+                click = function(element)
+                    ShowQuote(index + 1)
+                end,
+            },
+            gui.Button {
+                text = "Close",
+                valign = "center",
+                lmargin = 24,
+                click = function(element)
+                    Close()
+                end,
+            },
+        },
+    }
+
+    modalLayer = gui.ShowModal(backdrop)
+    ShowQuote(1)
+end
+
 local resistanceCurve = function(x)
     x = x * 2
     local negative = x < 0
@@ -3599,10 +3894,17 @@ local function MakeGamePanel(gameIndex)
 
         refreshGames = function(element, orderedGames, baseIndex)
             local index = baseIndex + gameIndex
+            --a campaign still downloading shows loadingPanel instead.
+            local loading = CampaignRearrange.IsPlaceholder(orderedGames[index])
             m_game = orderedGames[index]
+            if loading then
+                --nil while the card is hidden, as its declaration says.
+                ---@diagnostic disable-next-line: cast-local-type
+                m_game = nil
+            end
             if m_game == nil then
                 element:SetClass("hidden", true)
-                addGameButton:SetClass("hidden", #lobby.games >= MaxGamesAllowed())
+                addGameButton:SetClass("hidden", loading or #lobby.games >= MaxGamesAllowed())
                 element:HaltEventPropagation()
                 return
             end
@@ -4097,12 +4399,40 @@ local function MakeGamePanel(gameIndex)
 
     }
 
+    --Holds the slot of a campaign whose summary is still downloading, so the
+    --pages keep their positions while the list fills in.
+    local loadingPanel = gui.Panel {
+        classes = { "hidden" },
+        bgimage = true,
+        bgcolor = "black",
+        opacity = 0.9,
+        width = "100%",
+        height = "100%",
+
+        refreshGames = function(element, orderedGames, baseIndex)
+            local entry = (orderedGames or {})[(baseIndex or 0) + gameIndex]
+            element:SetClass("hidden", not CampaignRearrange.IsPlaceholder(entry))
+        end,
+
+        gui.Label {
+            classes = { "fgMuted" },
+            text = "Loading...",
+            fontSize = 20,
+            fontFace = "newzald",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
     local resultPanel = gui.Panel {
         width = "100%",
         height = 176,
         bmargin = 10,
         gamePanel,
         addGameButton,
+        loadingPanel,
     }
 
     return resultPanel
@@ -7740,11 +8070,7 @@ function CreateTitlescreen(dialog, options)
                     element.data.loadingScreen = nil
                 end
 
-                local quote = CodexQuotes.SelectQuote()
-                local quoteText = ""
-                if quote ~= nil then
-                    quoteText = string.format("<i>%s</i>\n- %s", quote.quote, quote.speaker)
-                end
+                local loadingQuote = CodexQuotes.SelectQuote()
 
                 -- Show an error with Retry/Cancel if the load stalls past this many seconds.
                 -- The outer watcher panel must stay active (no "hidden" class) so its think
@@ -7875,57 +8201,7 @@ function CreateTitlescreen(dialog, options)
                     width = ScaleDimensionsToFill(1920),
                     height = ScaleDimensionsToFill(1080),
 
-                    imageLoaded = function(element)
-                        if element.bgsprite == nil then
-                            return
-                        end
-
-                        local src_w = element.bgsprite.dimensions.x
-                        local src_h = element.bgsprite.dimensions.y
-
-                        local dst_w = ScaleDimensionsToFill(1920)
-                        local dst_h = ScaleDimensions(1080)
-
-                        print("ASPECT::", dst_w/dst_h, "vs", src_w/src_h)
-
-                        if dst_w/dst_h > src_w/src_h then
-                            --the destination is wider than the source. Fit to width.
-                            local new_src_h = src_w * (dst_h / dst_w)
-                            local letterbox = 1 - new_src_h/src_h
-
-                            local rect = {
-                                x1 = 0,
-                                y1 = letterbox*0.5,
-                                x2 = 1,
-                                y2 = 1 - letterbox*0.5,
-                            }
-
-                            element.selfStyle.imageRect = rect
-
-                        elseif dst_w/dst_h < src_w/src_h then
-                            --the destination is taller than the source. Fit to height.
-                            local new_src_w = src_h * (dst_w / dst_h)
-                            local letterbox = 1 - new_src_w/src_w
-                            local rect = {
-                                x1 = letterbox*0.5,
-                                y1 = 0,
-                                x2 = 1 - letterbox*0.5,
-                                y2 = 1,
-                            }
-
-                            element.selfStyle.imageRect = rect
-                        else
-                            element.selfStyle.imageRect = {
-                                x1 = 0,
-                                y1 = 0,
-                                x2 = 1,
-                                y2 = 1,
-                            }
-                        end
-
-
-
-                    end,
+                    imageLoaded = FitLoadingScreenArt,
                     halign = "center",
                     valign = "center",
                     floating = true,
@@ -7962,78 +8238,7 @@ function CreateTitlescreen(dialog, options)
                     },
 
 
-                    -- Viewport-sized container so the loading-quote banner stays
-                    -- in the visible screen area at any aspect ratio. loadingScreen
-                    -- is oversized by ScaleDimensionsToFill on widescreens, which
-                    -- would otherwise push this bottom-anchored banner below the
-                    -- screen. (Mirrors the ProgressDice container below.)
-                    gui.Panel {
-                        floating = true,
-                        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
-                        height = 1080,
-                        halign = "center",
-                        valign = "center",
-
-                    gui.Panel {
-                        flow = "vertical",
-                        width = 1200,
-                        height = "auto",
-                        halign = "center",
-                        valign = "bottom",
-                        bmargin = 80,
-
-                        -- Sits just above the banner's dark fill, mirroring the
-                        -- bottom divider. Overlapping it hides the line under
-                        -- the banner, which draws later.
-                        gui.Divider {
-                            vmargin = 0,
-                            height = 2,
-                            y = -0.5,
-                        },
-
-                        gui.Panel {
-                            classes = { "loadingQuoteBanner" },
-                            -- Theme-aware banner: the scheme's @bg paints in the
-                            -- middle of a horizontal alpha mask, darkening the
-                            -- cover art behind the quote and fading smoothly to
-                            -- clear at the edges. Label color falls through to the theme
-                            -- default ({label} -> @fgStrong) for legibility.
-                            styles = ThemeEngine.MergeStyles{
-                                {
-                                    selectors = { "loadingQuoteBanner" },
-                                    bgimage = "panels/square.png",
-                                    bgcolor = "@bg",
-                                    gradient = LoadingQuoteFadeGradient(),
-                                },
-                            },
-
-                            halign = "center",
-                            height = "auto",
-                            vpad = 15,
-                            minHeight = 60,
-                            vmargin = 0,
-                            width = "68%",
-
-                            gui.Label {
-                                text = quoteText,
-                                fontSize = 20,
-                                width = "auto",
-                                height = "auto",
-                                textAlignment = "left",
-                                halign = "center",
-                                valign = "center",
-                                maxWidth = 600,
-                                markdown = true,
-                            },
-                        },
-
-                        gui.Divider {
-                            vmargin = 0,
-                            height = 2,
-                            y = -3.5,
-                        },
-                    },
-                    },
+                    CreateLoadingQuoteBanner(loadingQuote),
 
                     -- Viewport-sized container so the ProgressDice stays
                     -- in the visible screen area at any aspect ratio.
@@ -9814,10 +10019,17 @@ function CreateTitlescreen(dialog, options)
                             local orderedGames = {}
                             local directorMode = DirectorMode()
 
-                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
-                            for _, game in ipairs(viewGames) do
-                                if m_currentSearch == nil or game:MatchesSearch(m_currentSearch) then
-                                    orderedGames[#orderedGames + 1] = game
+                            --campaigns still downloading keep their slot as a
+                            --placeholder; a search cannot match them yet.
+                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewEntries(directorMode), directorMode)
+                            for _, entry in ipairs(viewGames) do
+                                if m_currentSearch == nil then
+                                    orderedGames[#orderedGames + 1] = entry
+                                elseif not CampaignRearrange.IsPlaceholder(entry) then
+                                    local game = entry --[[@as LuaGameInfo]]
+                                    if game:MatchesSearch(m_currentSearch) then
+                                        orderedGames[#orderedGames + 1] = game
+                                    end
                                 end
                             end
 

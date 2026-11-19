@@ -66,6 +66,95 @@ function GameHud.Refresh(self)
 	end
 end
 
+--Codex Callouts: boxed notes with the Codex logo that explain how to operate the Codex
+--("Hold Ctrl while moving to teleport.") as opposed to game rules. Drawn under the
+--movement tooltip text from args.codexCallouts (a list of strings), rebuilt when that
+--list changes. Same look as the character builder's Codex Note.
+--The frame is two rounded fills (frame colour, then the body inset 1px) rather than
+--`border`: the rounded border shader leaves stray ticks where each corner curve meets
+--a straight edge, while rounded fills draw cleanly.
+local g_codexCalloutStyles = {
+    {
+        selectors = {"codexCallout"},
+        width = 300,
+        height = "auto",
+        halign = "center",
+        bgimage = true,
+        bgcolor = "@fgStrong",
+        cornerRadius = 8,
+        pad = 1,
+        borderBox = true,
+        tmargin = 6,
+    },
+    {
+        selectors = {"codexCalloutBody"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        cornerRadius = 7,
+        hpad = 14,
+        vpad = 4,
+        borderBox = true,
+    },
+    {
+        selectors = {"codexCalloutLogo"},
+        width = 16,
+        height = 16,
+        valign = "center",
+        bgcolor = "white",
+    },
+    {
+        selectors = {"codexCalloutText"},
+        width = "100%-22",
+        height = "auto",
+        lmargin = 6,
+        valign = "center",
+        fontSize = 14,
+        color = "@fg",
+    },
+}
+
+function GameHud.CreateCodexCalloutsPanel()
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        --@tokens only resolve when routed through ThemeEngine.
+        styles = ThemeEngine.MergeTokens(g_codexCalloutStyles),
+        data = { key = nil },
+        args = function(element, args)
+            --args fires as the cursor moves; only rebuild when the notes change.
+            local key = table.concat(args.codexCallouts or {}, "\n")
+            if element.data.key == key then
+                return
+            end
+            element.data.key = key
+
+            local children = {}
+            for _,text in ipairs(args.codexCallouts or {}) do
+                children[#children+1] = gui.Panel{
+                    classes = {"codexCallout"},
+                    gui.Panel{
+                        classes = {"codexCalloutBody"},
+                        gui.Panel{
+                            classes = {"codexCalloutLogo"},
+                            bgimage = "ui-icons/codex-logo.png",
+                        },
+                        gui.Label{
+                            classes = {"codexCalloutText"},
+                            text = text,
+                        },
+                    },
+                }
+            end
+            element.children = children
+        end,
+    }
+end
+
 --function which can be called by dmhub to present a tooltip on the map.
 function GameHud.ShowTooltipNearLoc(self, loc, text, options)
 	options = options or {}
@@ -136,6 +225,128 @@ function GameHud.SetTooltipsSuppressed(key, suppressed)
 	--the engine setter also dismisses any tooltip already on screen, so a
 	--suppression that starts under a resting mouse takes effect immediately.
 	dmhub.tooltipsSuppressed = active
+end
+
+-------------------------------------------------------------------------------
+-- Stacked-creature cross-section.
+--
+-- When the mouse rests on a square holding two or more creatures, the engine
+-- (TokenStackHover.cs) renders a side-on diagram of that square -- the
+-- "#StackCrossSection" bgimage, each creature with a number badge; creatures
+-- that may not share a space are drawn stacked one on another -- and calls
+-- ShowStackCrossSection. Pressing a number picks that creature out (engine
+-- side: top of its stack, drawn on top, selected if you control it). See
+-- MOVEMENT_CROSS_SECTION_REFERENCE.md ("Stacked creatures").
+-------------------------------------------------------------------------------
+
+--one table rather than several file-level locals; this chunk is close to Lua's
+--200-local ceiling.
+local g_stackCrossSection = {
+	tooltip = nil,     --the TooltipFrame we installed, while it is up.
+	maxWidth = 340,
+	maxHeight = 260,
+	maxScale = 0.75,   --the image renders at 64 px per tile; 48 is plenty on screen.
+}
+
+--- Called by the engine to show the stack diagram near `loc`. Returns true if shown;
+--- false when tooltips are off or another map tooltip is up (that one wins).
+---@param loc Loc the square.
+---@param args {width: number, height: number, entries: {number: integer, token: CharacterToken, altitude: integer, raised: boolean, stacked: boolean}[]}
+---@return boolean
+function GameHud:ShowStackCrossSection(loc, args)
+	local state = g_stackCrossSection
+	local sheet = self.dialog.sheet
+	if GameHud.TooltipsSuppressed() or not dmhub.GetSettingValue("maptooltips") or not dmhub.GetSettingValue("showmovementcrosssection") then
+		return false
+	end
+	local current = sheet.tooltip
+	if current ~= nil and current.valid and current ~= state.tooltip then
+		return false
+	end
+
+	local scale = math.min(state.maxScale, state.maxWidth / args.width, state.maxHeight / args.height)
+
+	local children = {
+		gui.Panel{
+			bgimage = "#StackCrossSection",
+			bgcolor = "white",
+			width = math.floor(args.width * scale),
+			height = math.floor(args.height * scale),
+			halign = "center",
+			vmargin = 2,
+			interactable = false,
+		},
+	}
+
+	for _,entry in ipairs(args.entries or {}) do
+		local token = entry.token
+		local name = "Unknown creature"
+		if token ~= nil and token.canLocalPlayerSeeName and token.name ~= nil and token.name ~= "" then
+			name = token.name
+		end
+		--a stacked creature is drawn on top of another, above its real altitude.
+		local format = tr("%d   %s   (altitude %d)")
+		if entry.stacked then
+			format = tr("%d   %s   (altitude %d, stacked)")
+		end
+		children[#children+1] = gui.Label{
+			text = string.format(format, entry.number, name, entry.altitude),
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			fontSize = 14,
+			color = cond(entry.raised, "#f2c240", "white"),
+			interactable = false,
+		}
+	end
+
+	children[#children+1] = gui.Label{
+		text = tr("Press a number to pick a creature."),
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		tmargin = 4,
+		fontSize = 12,
+		color = "#bbbbbb",
+		interactable = false,
+	}
+
+	local tooltip = gui.TooltipFrame(
+		gui.Panel{
+			flow = "vertical",
+			width = "auto",
+			height = "auto",
+			interactable = false,
+			children = children,
+		},
+		{
+			interactable = false,
+			halign = "right",
+			valign = "top",
+		}
+	)
+
+	sheet:FloatTooltipNearTile(loc, tooltip)
+	state.tooltip = sheet.tooltip
+	return true
+end
+
+--- Called by the engine when the mouse leaves the stack. Clears only our own tooltip.
+function GameHud:ClearStackCrossSection()
+	local state = g_stackCrossSection
+	local sheet = self.dialog.sheet
+	if state.tooltip ~= nil and sheet.tooltip == state.tooltip then
+		sheet.tooltip = nil
+	end
+	state.tooltip = nil
+end
+
+--- Called by the engine: is our stack tooltip still the one on screen?
+---@return boolean
+function GameHud:IsStackCrossSectionShown()
+	local state = g_stackCrossSection
+	local tooltip = state.tooltip
+	return tooltip ~= nil and tooltip.valid and self.dialog.sheet.tooltip == tooltip
 end
 
 -------------------------------------------------------------------------------
@@ -1776,6 +1987,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 								floorDeltaArrow,
 								m_tilelabel,
 							},
+							GameHud.CreateCodexCalloutsPanel(),
 							CreateMovementDiagramPanel(),
 						},
 						{
@@ -2303,7 +2515,7 @@ function GameHud:DMGameControlsPanel()
 			end
 		end,
 		hover = function(element)
-			gui.Tooltip(string.format('Director Darkvision: %s', cond(dmhub.GetSettingValue("dmillumination"), 'on', 'off')))(element)
+			gui.Tooltip(string.format('%s Darkvision: %s', UIText.Term("director"), cond(dmhub.GetSettingValue("dmillumination"), 'on', 'off')))(element)
 		end,
 	}
 

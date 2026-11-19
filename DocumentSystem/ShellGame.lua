@@ -331,6 +331,14 @@ end
 GameOfChance.Register{
     id = "shellgame",
     name = "Shell game",
+    howToPlay = [[
+The dealer hides a pea under one of three cups and shuffles. Bet on where it ends up. Win enough rounds to win the game.
+
+Press Deal, then watch. Better Intuition slows the shuffle for you.
+
+Click a cup to show the party your guess. When you agree, press Place the bet.
+
+Once per hero each round: Watch closely shows where the pea went, and Watch the dealer checks for cheating. Catch a cheat and Call it out to win the round, or Pull the stake to walk away.]],
     perception = "inu",
     test = {
         id = "follow",

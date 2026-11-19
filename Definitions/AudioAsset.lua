@@ -16,4 +16,8 @@
 --- @field normalizeGainTrimDb number
 --- @field color number
 --- @field category string
+--- @field source string
+--- @field sourceId string
+--- @field sourceCredit string
+--- @field sourceUrl string
 AudioAsset = {}

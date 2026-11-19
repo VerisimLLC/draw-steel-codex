@@ -26,6 +26,7 @@
 --- @field loadingScreenHeld boolean (Read-only) True while a Lua hold keeps the game loading screen up. See HoldLoadingScreen.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
+--- @field gameSystem nil|string The game system id of the current game (an entry of dmhub.availableGameSystems, e.g. 'dmhub-legacy', 'dmhub-dnd2024'), with an empty record read as the white label's default ('mcdm-drawsteel' or 'dmhub-legacy'). Readable while code mods load, so rules code can branch on it at load time. nil when no game is loaded.
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
@@ -1527,6 +1528,17 @@ function dmhub.RunSteamHandoffDiagnostic(variant, onComplete) end
 --- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete) end
 
+--- Reads a secret stored on this machine only with @see SetLocalSecret (Windows: DPAPI for this Windows user; macOS: the keychain). Returns nil when there is none. Keys are [a-z0-9_-], at most 64 characters.
+--- @param key string
+--- @return nil|string
+function dmhub.GetLocalSecret(key) end
+
+--- Stores a secret on this machine only, never in the cloud, logs or settings files: for credentials such as a partner's device token. nil or an empty string removes it. Returns false when it could not be stored.
+--- @param key string
+--- @param value nil|string
+--- @return boolean
+function dmhub.SetLocalSecret(key, value) end
+
 --- Open the given URL in a web browser. Only links to certain approved domains will be allowed for security reasons.
 --- @param url? string
 function dmhub.OpenURL(url) end
@@ -2152,10 +2164,6 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
---- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
---- @param enabled? boolean
-function dmhub.PanelNursery(enabled) end
-
 --- Diagnostic: how the style cascade finds the rules of each ancestor's styles list that match a panel. 0 = test every rule (the original walk), 1 = test only the rules an index says the panel could match (default), 2 = verify: do both, keep the original result and count any difference. Pass -1 to leave the mode as it is; pass reset=true to zero the counters. Returns the counters. --style-index off|on|verify at startup sets the same switch.
 --- @param mode? integer
 --- @param reset? boolean
@@ -2177,6 +2185,10 @@ function dmhub.PanelMaterialSharing(mode, reset) end
 --- Diagnostic: the renderer's per-frame counters -- SetPass calls, draw calls, batches, vertices -- averaged over the frames recorded so far (up to the last 60). Recording starts on the first call, so call once, let a second pass, and call again.
 --- @return string
 function dmhub.RenderStats() end
+
+--- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
+--- @param enabled? boolean
+function dmhub.PanelNursery(enabled) end
 
 --- Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
 --- @param enabled? boolean
@@ -2446,7 +2458,7 @@ function dmhub.CreateWeatherShelter(options) end
 --- @return ParticleSystemHandleLua|nil
 function dmhub.CreateParticleSystem(options) end
 
---- Spawns a named particle effect (any effect in the token or dice effect libraries, e.g. "Fire Loop sim 3") at a map location, not attached to any token. Args: id (effect name), loc (Loc; the effect sits at the square's center on the Loc's floor), scale (number, default 1), rotation (degrees about Z, or an {x,y,z} euler table), tint (Color), looping (boolean), ttl (seconds; a looping effect with a ttl stops itself after it), sortingOrder (number added to the effect's authored order, default 0). The effect draws above map objects and below tokens. A looping effect whose prefab is not loaded yet spawns as soon as it loads. The effect is client-local (call it on every client that should see it) and is removed by handle:Stop(), its natural end, or when this client changes maps.
---- @param args {id: string, loc: Loc, scale: nil|number, rotation: nil|number|{x: number, y: number, z: number}, tint: nil|ColorArg, looping: nil|boolean, ttl: nil|number, sortingOrder: nil|number}
+--- Spawns a named particle effect (any effect in the token or dice effect libraries, e.g. "Fire Loop sim 3") at a map location, not attached to any token. Args: id (effect name), loc (Loc; the effect sits at the square's center on the Loc's floor), pos (optional Vector2 world position, e.g. token.pos, to place the effect exactly there instead of at the square's center; loc still gives the floor), scale (number, default 1), rotation (degrees about Z, or an {x,y,z} euler table), tint (Color), looping (boolean), ttl (seconds; a looping effect with a ttl stops itself after it), sortingOrder (number added to the effect's authored order, default 0). The effect draws above map objects and below tokens. A looping effect whose prefab is not loaded yet spawns as soon as it loads. The effect is client-local (call it on every client that should see it) and is removed by handle:Stop(), its natural end, or when this client changes maps.
+--- @param args {id: string, loc: Loc, pos: nil|Vector2Arg, scale: nil|number, rotation: nil|number|{x: number, y: number, z: number}, tint: nil|ColorArg, looping: nil|boolean, ttl: nil|number, sortingOrder: nil|number}
 --- @return EffectHandleLua
 function dmhub.PlayEffect(args) end

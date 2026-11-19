@@ -32,6 +32,7 @@ local mod = dmhub.GetModLoading()
 --- @field climbersOnly? boolean With climbable, restricts climbing to natural climbers; read with try_get.
 --- @field stepped? boolean Stepped Terrain: a 1-square height change whose higher tile is in the area is a sharp step for forced movement, not a slope (AuraInstance:GetStepped); read with try_get.
 --- @field entryEffectRule? string Flat effect rule text applied to creatures entering or starting a turn in the area (Aura:GetSimpleEntryEffectTrigger); read with try_get.
+--- @field hideFromPlayers? boolean If true, only the Director sees this aura in aura-listing UI (chips, action bar). Distinct from AuraInstance.hiddenFromPlayers, which hides a Map Markup zone on the map. Set in data; read with try_get.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
 Aura.TriggerConditions = {
@@ -1886,7 +1887,23 @@ end
 
 --Whether aura-listing UI should skip this aura (see hideFromAuraLists).
 function AuraInstance:IsHiddenFromAuraLists()
-    return self:try_get("hideFromAuraLists", false) == true
+    if self:try_get("hideFromAuraLists", false) == true then
+        return true
+    end
+    --hideFromPlayers on the Aura definition: only the Director sees it in aura lists.
+    return (not dmhub.isDM) and self.aura:try_get("hideFromPlayers", false) == true
+end
+
+--Key used to merge identical aura chips (several casters giving the same aura, e.g. each
+--wyvern's Tenacious Hunter). Returns nil when merging is unsafe: no name, or the default
+--"Aura" name that every map-object aura shares.
+--- @return string|nil
+function AuraInstance:ChipDedupeKey()
+    local name = rawget(self, "name")
+    if name == nil or name == "" or name == Aura.name then
+        return nil
+    end
+    return name .. "|" .. tostring(self.aura:try_get("description", ""))
 end
 
 --- True when the aura's only effect is granting activated abilities to creatures in it

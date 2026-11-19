@@ -294,6 +294,11 @@ local BEHAVIOR_METADATA = {
         tags = {"audio", "sfx", "sound", "music"},
         group = "narrative",
     },
+    loyalty_collar_explosion = {
+        description = "Blow up the caster's loyalty collar.",
+        tags = {"collar", "war dog", "explosion", "explode"},
+        group = "narrative",
+    },
     show_journal = {
         description = "Display a journal entry to the player.",
         tags = {"journal", "document", "show", "read", "note"},

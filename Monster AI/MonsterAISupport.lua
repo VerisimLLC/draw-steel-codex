@@ -247,7 +247,10 @@ local function CollectTriggers(props)
                     fired[#fired + 1] = {
                         name = triggered.name,
                         guid = triggered:try_get("guid"),
-                        mandatory = mandatory == true or mandatory == "local",
+                        --Hostile prompts (Loyalty Collar) count as automatic:
+                        --the AI always accepts them.
+                        mandatory = mandatory == true or mandatory == "local"
+                            or triggered:try_get("hostile", false) == true,
                     }
                 end
             elseif behavior == "powertabletrigger" then
@@ -470,7 +473,11 @@ function MonsterAI.AssessSupport(props)
     for _, registration in pairs(ai.maliceAbilities) do
         local name = (registration.abilities or {})[1]
         if name ~= nil and ai.MaliceAbilityMatchesMonster(fakeToken, registration, true) then
-            maliceFor[name] = registration
+            --a band's own registration outranks a generic one (Solo Action has both).
+            local existing = maliceFor[name]
+            if existing == nil or (existing.monsters == nil and existing.monsterGroups == nil) then
+                maliceFor[name] = registration
+            end
         end
     end
 

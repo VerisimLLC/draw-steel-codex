@@ -649,7 +649,9 @@ end
 ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
     additionFunction = additionFunction or function(a,b) return a + b end
 
-	-- Recursively find all power roll behaviors in nested invoke abilities
+    --willModifyAbility only reads kitType, so this stands in for the kit's modifier.
+    local kitModifierShape = {kitType = kit.type}
+	-- Recursively find the power roll behaviors, in this ability and nested invokes, that take this kit's bonus now
     local function findAllPowerRollBehaviors(currentAbility, foundBehaviors, foundAbilities)
         local countAbility = false
         for _, behavior in ipairs(currentAbility.behaviors) do
@@ -659,7 +661,11 @@ ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
             --A registered type's ability gets these bonuses when it is cast; any customAbility it stores is never cast.
             elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and not behavior:UsesRegisteredType() then
                 local invokeAbility = behavior.customAbility
-                if invokeAbility ~= nil then
+                --A custom invoke gives its ability the invoker's kit bonus when it is cast, so skip any this
+                --kit will modify then. Adding it here as well gave them the bonus twice.
+                local bonusAddedAtCast = invokeAbility ~= nil and behavior:CastsAsCustom()
+                    and CharacterModifier.TypeInfo.kitmodifyability.willModifyAbility(kitModifierShape, nil, invokeAbility)
+                if invokeAbility ~= nil and not bonusAddedAtCast then
                     findAllPowerRollBehaviors(invokeAbility, foundBehaviors, foundAbilities)
                 end
             end

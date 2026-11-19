@@ -4888,7 +4888,7 @@ local function BubbleRows(mapid, keys)
         end
     end
 
-    local rows = {}
+    local wantedRows = {}
     for _, item in ipairs(batch) do
         local entry = item.entry
         local owner
@@ -4922,15 +4922,22 @@ local function BubbleRows(mapid, keys)
             args = {title = History.ShownName(entry.actor) .. History.DOT .. entry.ability.name, rows = story}
         end
         if args ~= nil then
-            args.width = BUBBLE_ROW_WIDTH
-            local key = item.key
-            rows[#rows + 1] = {
-                contents = History.CreateBubbleContents(args),
-                click = function()
-                    History.ShowEntry(mapid, key)
-                end,
-            }
+            wantedRows[#wantedRows + 1] = {args = args, key = item.key}
         end
+    end
+    --the bubble keeps only its newest few rows; building the rest would show a big batch
+    --(an award to every Hero) at full size for a moment, then leave its panels unattached.
+    local rows = {}
+    for i = math.max(1, #wantedRows - PanelDocument.CHAT_BUBBLE_MAX_ROWS + 1), #wantedRows do
+        local args = wantedRows[i].args
+        local key = wantedRows[i].key
+        args.width = BUBBLE_ROW_WIDTH
+        rows[#rows + 1] = {
+            contents = History.CreateBubbleContents(args),
+            click = function()
+                History.ShowEntry(mapid, key)
+            end,
+        }
     end
     return rows
 end

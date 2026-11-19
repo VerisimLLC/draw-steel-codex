@@ -17357,11 +17357,8 @@ function PanelDocument.ShowRailBubble(args)
     if bubble == nil then
         return false
     end
-    --rows past the cap would shed as soon as they landed, so a big batch (an award to every
-    --Hero) would show at full size for a moment first. Only the newest ones go in.
-    local first = math.max(1, #args.rows - PanelDocument.CHAT_BUBBLE_MAX_ROWS + 1)
-    for i = first, #args.rows do
-        bubble:FireEvent("addBubbleRow", args.rows[i].contents, args.rows[i].click)
+    for _, row in ipairs(args.rows) do
+        bubble:FireEvent("addBubbleRow", row.contents, row.click)
     end
     return true
 end

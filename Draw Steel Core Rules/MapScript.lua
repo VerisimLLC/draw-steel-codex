@@ -1623,7 +1623,7 @@ function MapScript.CreateSettingsPanel(options)
                 halign = "left",
                 lmargin = 6,
                 confirm = function(element)
-                    CommitParamValue(rec.guid, param.id, tostring(element.value))
+                    CommitParamValue(rec.guid, param.id, element.value.tostring)
                 end,
             }
         elseif param.type == "number" then

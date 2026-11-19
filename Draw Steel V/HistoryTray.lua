@@ -576,6 +576,10 @@ History.ACTION_WORDS = ACTION_WORDS
 --- @type Panel|nil
 local g_faceHovered = nil
 
+--When the Director last chose from a row's menu. The same click goes on to the row under
+--the menu, which must not open its card.
+local g_menuChosenAt = -1
+
 --The creature's token, if it is on the map shown and this user can see it there. History
 --must not point at a creature the user could not find by looking.
 --- @param who HistoryCreature
@@ -1131,17 +1135,87 @@ History.ResourceWords = ResourceWords
 local function OpensCard(item)
     return {
         linger = function(element)
-            if g_faceHovered ~= nil and g_faceHovered.valid then
+            --a face shows its own hover; the Director's menu must not be covered.
+            if (g_faceHovered ~= nil and g_faceHovered.valid) or element.popup ~= nil then
                 return
             end
             gui.Tooltip{text = "Open the detail", fontSize = 13}(element)
         end,
         click = function(element)
             element.tooltip = nil
+            if dmhub.Time() - g_menuChosenAt < 0.3 then
+                return
+            end
             if g_tray ~= nil then
                 g_tray.Select(item)
             end
         end,
+    }
+end
+
+--The Director's right-click on a row (L41, L86): hide it from players or show it again,
+--delete it, or clear the map's History. sources: the entries the row stands for, with
+--everything nested under them. Nil (no menu) for players.
+--- @param sources HistoryEntry[]|nil
+--- @return nil|fun(element: Panel)
+local function DirectorMenu(sources)
+    if not dmhub.isDM or sources == nil or #sources == 0 then
+        return nil
+    end
+    return function(element)
+        local mapid = sources[1].map
+        local hidden = sources[1].hiddenfromplayers == true
+        --the row's "Open the detail" hover would sit on top of the menu.
+        element.tooltip = nil
+        element.popup = gui.ContextMenu{
+            entries = {
+                {
+                    text = hidden and "Reveal to players" or "Hide from players",
+                    click = function()
+                        g_menuChosenAt = dmhub.Time()
+                        element.popup = nil
+                        History.SetHiddenFromPlayers(sources, not hidden)
+                    end,
+                },
+                {
+                    text = "Delete entry",
+                    click = function()
+                        g_menuChosenAt = dmhub.Time()
+                        element.popup = nil
+                        History.Delete(mapid, sources)
+                    end,
+                },
+                {
+                    text = "Clear History",
+                    click = function()
+                        g_menuChosenAt = dmhub.Time()
+                        element.popup = nil
+                        gui.ModalMessage{
+                            title = "Clear History?",
+                            message = "This removes every entry on this map for everyone. It can't be undone.",
+                            options = {
+                                {text = "Clear History", execute = function() History.Clear(mapid) end},
+                                {text = "Cancel"},
+                            },
+                            owner = element,
+                        }
+                    end,
+                },
+            },
+        }
+    end
+end
+
+--The Director's eye-off beside a row hidden from players (L28).
+local function HiddenEye()
+    return gui.VisibilityPanel{
+        visible = false,
+        width = 14,
+        height = 14,
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+        linger = gui.Tooltip("Hidden from players"),
     }
 end
 
@@ -1225,6 +1299,7 @@ local function RollRow(entry)
         width = "100%",
         height = "auto",
         vmargin = 1,
+        rightClick = DirectorMenu({entry}),
         children = children,
     }
 end
@@ -1397,6 +1472,7 @@ local function TriggerRow(index, entry)
         lpad = 9,
         vmargin = 2,
         borderBox = true,
+        rightClick = DirectorMenu({entry.source or entry}),
         children = children,
     }
 end
@@ -1431,6 +1507,9 @@ local function BuildAction(item)
     }
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier)
+    end
+    if dmhub.isDM and entry.hiddenfromplayers then
+        titleChildren[#titleChildren + 1] = HiddenEye()
     end
     if entry.costs ~= nil then
         local names = {}
@@ -1480,6 +1559,7 @@ local function BuildAction(item)
             tableRolls[#tableRolls + 1] = kid
         elseif kid.family == "resource" then
             triggers[#triggers + 1] = {
+                source = kid,
                 actor = kid.who,
                 ability = {name = kid.causetext or ""},
                 result = string.format("%s %+d", kid.name, kid.amount),
@@ -1551,6 +1631,7 @@ local function BuildAction(item)
         height = "auto",
         linger = opens.linger,
         click = opens.click,
+        rightClick = DirectorMenu(item.sources),
         Rule(),
         gui.Panel{
             flow = "vertical",
@@ -1870,16 +1951,8 @@ local function BuildLine(item)
     }
     top[2] = tag
     --an effect hidden from enemies: players don't get this line, or these names (2.4).
-    if dmhub.isDM and (entry.secret or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
-        top[#top + 1] = gui.VisibilityPanel{
-            visible = false,
-            width = 14,
-            height = 14,
-            lmargin = 5,
-            halign = "left",
-            valign = "center",
-            linger = gui.Tooltip("Hidden from players"),
-        }
+    if dmhub.isDM and (entry.secret or entry.hiddenfromplayers or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
+        top[#top + 1] = HiddenEye()
     end
 
     local words = {
@@ -1973,6 +2046,7 @@ local function BuildLine(item)
         borderBox = true,
         linger = opens ~= nil and opens.linger or nil,
         click = opens ~= nil and opens.click or nil,
+        rightClick = DirectorMenu(item.sources),
         children = children,
     }
 end
@@ -2836,13 +2910,18 @@ end
 
 --A trigger with no action to nest under reads as lines naming the feature, one for
 --each thing it did. These are the same words as any other line.
-local function AddLoneTrigger(items, entry, key)
+local function AddLoneTrigger(items, entry, key, kids)
     local causetext = entry.ability.name
     if entry.landedby ~= nil then
         causetext = string.format("Landed on by %s", ShownName(entry.landedby))
     end
+    --each line the trigger becomes stands for the trigger and what is nested under it.
+    local sources = {entry}
+    for _, kid in ipairs(kids or {}) do
+        sources[#sources + 1] = kid
+    end
     for i, who in ipairs(entry.targets) do
-        local base = {kind = "line", who = who, causetext = causetext}
+        local base = {kind = "line", who = who, causetext = causetext, hiddenfromplayers = entry.hiddenfromplayers}
         local parts = {}
         if (who.taken or 0) > 0 then
             parts[#parts + 1] = {family = "damage", taken = who.taken, soaked = who.soaked, damagetype = OnlyType(who)}
@@ -2882,6 +2961,7 @@ local function AddLoneTrigger(items, entry, key)
                 key = string.format("%s-%d-%d", key, i, j),
                 sig = entry,
                 entry = part,
+                sources = sources,
             }
         end
     end
@@ -2973,12 +3053,14 @@ local function AddTurnRows(items, turn, isNewest, nested)
             for _, name in ipairs(entry.names) do
                 names[#names + 1] = name
             end
-            last.entry = {family = "ended", kind = "line", who = entry.who, causetext = entry.causetext, names = names}
-            last.sig = table.concat(names, ",")
+            last.entry = {family = "ended", kind = "line", who = entry.who, causetext = entry.causetext, names = names,
+                hiddenfromplayers = last.entry.hiddenfromplayers}
+            last.sig = table.concat(names, ",") .. tostring(last.entry.hiddenfromplayers)
+            last.sources[#last.sources + 1] = entry
         elseif entry.kind == "line" then
-            items[#items + 1] = {kind = "line", key = turn.keys[i], sig = entry, entry = entry}
+            items[#items + 1] = {kind = "line", key = turn.keys[i], sig = entry, entry = entry, sources = {entry}}
         elseif entry.kind == "trigger" then
-            AddLoneTrigger(items, entry, turn.keys[i])
+            AddLoneTrigger(items, entry, turn.keys[i], nested[entry.id])
         else
             local triggers = nested[entry.id]
             local sig = entry
@@ -2989,11 +3071,16 @@ local function AddTurnRows(items, turn, isNewest, nested)
                 end
                 sig = table.concat(ids, ",")
             end
+            local sources = {entry}
+            for _, kid in ipairs(triggers or {}) do
+                sources[#sources + 1] = kid
+            end
             items[#items + 1] = {
                 kind = "action",
                 key = turn.keys[i],
                 sig = sig,
                 entry = entry,
+                sources = sources,
                 triggers = triggers,
                 showActor = turn.owner == nil or entry.actor.id ~= turn.owner.id,
             }

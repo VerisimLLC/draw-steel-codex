@@ -47,6 +47,7 @@ local mod = dmhub.GetModLoading()
 --- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
 --- @field playercause? string On a negotiation line: the cause text players read when raw is false.
 --- @field directoronly? boolean On a negotiation line: players get no line.
+--- @field hiddenfromplayers? boolean The Director chose Hide from players (L41): players get no row.
 --- @field trait? string On a negotiation line: the motivation or pitfall it is about.
 --- @field text? string On a negotiation argument: what the Hero said.
 --- @field cue? string On a negotiation argument: the stage's cue for how it landed.
@@ -412,6 +413,9 @@ end
 --- @param entry HistoryEntry
 --- @return HistoryEntry|nil
 local function ForPlayers(entry)
+    if entry.hiddenfromplayers then
+        return nil
+    end
     --effects hidden from enemies, on a creature off the heroes' side.
     if entry.family == "condition" and entry.secret then
         return nil
@@ -651,6 +655,38 @@ History.quiet = {}
 function History.RewriteQuietly(entry)
     History.Write(entry)
     History.quiet[entry.id] = true
+end
+
+--- An entry's key in its map's History.
+--- @param entry HistoryEntry
+--- @return string
+function History.KeyOf(entry)
+    return EntryKey(entry)
+end
+
+--- Removes entries from a map's History, for everyone (the Director's Delete entry, L41).
+--- @param mapid string
+--- @param entries HistoryEntry[]
+function History.Delete(mapid, entries)
+    local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
+    doc:BeginChange()
+    if type(doc.data.entries) == "table" then
+        for _, entry in ipairs(entries) do
+            doc.data.entries[EntryKey(entry)] = nil
+        end
+    end
+    doc:CompleteChange("Delete History entry", {undoable = false})
+end
+
+--- Hides entries from players, or shows them again (the Director's Hide from players /
+--- Reveal to players, L41). The Director still sees them.
+--- @param entries HistoryEntry[]
+--- @param hidden boolean
+function History.SetHiddenFromPlayers(entries, hidden)
+    for _, entry in ipairs(entries) do
+        entry.hiddenfromplayers = hidden or nil
+        History.Rewrite(entry)
+    end
 end
 
 --- Empties a map's History, for everyone.

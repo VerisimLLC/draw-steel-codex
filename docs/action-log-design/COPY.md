@@ -600,3 +600,53 @@ outside 5.1. Dev and debug macros write nothing.
 | L83 | /giveitem | {Hero} received {Item} [x{n}] | Director / {player} |
 | L84 | /granttitle | {Hero} earned the title {Title} | Director / {player} |
 | L85 | /awardrenown, /awardwealth | {Hero} Renown {b} to {n} / Wealth {b} to {n} | Director |
+
+## Round 22: Director actions (5.2)
+
+**Category 1, the Director's tools on rows (signed off 2026-11-19).** Director only; any line or action row,
+nested lines included. Hide from players hides the row and everything nested under it (the Director keeps
+it, with the eye-off icon, L28). Delete entry removes the row and what is nested under it at once, no
+confirmation. Clear History clears this map's History for everyone, after a confirmation.
+| ID | What | Wording |
+|---|---|---|
+| L86 | Clear History confirmation | Title: Clear History? / Body: This removes every entry on this map for everyone. It can't be undone. / Buttons: Clear History, Cancel |
+
+**Category 2, hand edits (signed off 2026-11-19).** Stamina (damage, heal, set, temporary), conditions added or
+removed, and the resources History follows (Heroic Resource, surges, Recoveries, Malice). The hand-edit controls
+mark their change; the line is the usual one with who made it under it. Players see it under the usual rules.
+A player's hand edit turns the Director's badge gold.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L87 | Any hand edit | the existing line | Director / {player} |
+| L88 | Stamina set by hand | {Creature} Stamina {b} to {n} | Director / {player} |
+
+**Category 3, reinforcements (signed off 2026-11-19).** One line per deployed wave, written by the client that
+deployed it (Director button or encounter script); dismissing a wave writes nothing. Names follow the usual name
+rules; if any arrival is hidden from players when it lands, the line is Director-only. It sits in the round and
+turn it happened.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L89 | A wave deployed | {Wave name} arrived | the arrivals: {Monster} x{n} · {Monster} (a minion squad counts its members) |
+
+**Category 4, villain actions (signed off 2026-11-19).** The action row and its card header carry a tag; no
+line for the per-round budget; players see it as any action.
+| ID | What | Wording |
+|---|---|---|
+| L90 | Tag on a villain action's row and card header | Villain Action {n} (the slot as the stat block names it) |
+
+**Category 5, overrides (signed off 2026-11-19).** Anyone driving the roll dialog may override a tier (not under
+Strictly Enforce Rolls, never the Monster AI). The action row is tagged; the card shows the final tier and replaces
+the tier explanation with who overrode it and what the dice gave; a test line's cause ends "Overridden". Tables
+keep L78.
+| ID | What | Wording |
+|---|---|---|
+| L91 | Tag on an overridden action row | Overridden |
+| L92 | The card's Why line in place of the tier explanation | {Who} overrode the result: Tier {n}. The dice gave Tier {m}. |
+| L93 | A test line overridden | cause: {Test} · Tier {n} · Overridden |
+
+**Category 6, reveals (signed off 2026-11-19).** One line when the Director reveals a spoilered modifier, written
+by the Director's client. It follows the eye: while hidden again, players get no line and the Director keeps it
+with the eye-off icon. Monster Info reveals write nothing.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L94 | A hidden modifier revealed | {Creature} {Modifier} revealed ({Modifier} revealed with no creature) | the modifier's description, in full |

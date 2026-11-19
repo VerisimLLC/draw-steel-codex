@@ -467,6 +467,9 @@ After James tested 5.1h (2026-11-19): a choice table (Conduit Prayer Choice) nam
 | 5.2 | F9 Director actions: reinforcements, villain actions, overrides, hand edits, reveals; right-click Hide/Reveal, Delete entry, Clear History | M |
 | 5.3 | Revert Turn and Turn Rewind: Reverted rows, the Turn reverted line, out of the totals | M |
 
+5.2 decided 2026-11-19 (COPY Round 22, L86-L94). Build order, one commit each: 5.2a right-click tools (Hide/Reveal, Delete entry, Clear History with its confirmation); 5.2b hand edits (who made them, Stamina set by hand, the Director's gold for players' edits); 5.2c reinforcements; 5.2d villain action tag; 5.2e overrides; 5.2f reveals.
+
+
 ## Stage 6: finish and switch over
 
 | Chunk | What | Size |

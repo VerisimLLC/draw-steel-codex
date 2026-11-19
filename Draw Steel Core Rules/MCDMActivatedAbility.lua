@@ -5826,6 +5826,58 @@ ActivatedAbility.RegisterProperty {
 --creatures, and an enemy standing in the way with "Block Enemy Line of Effect". Both return
 --a reason, so the action bar greys the target out with a tooltip instead of hiding it.
 local g_baseTargetPassesFilter = ActivatedAbility.TargetPassesFilter
+
+--Which creatures the last area included. The action bar checks every creature in an area,
+--so this works the answer out once per area, not once per creature.
+local g_includedInAreaCache = {}
+
+--- The charids an ability already targets, for line-of-effect auras that only block
+--- abilities leaving their owner out (the Doomthief's Doom Magnet). An area includes
+--- every creature in it the ability can target; a pick-your-targets ability includes the
+--- ones picked so far (the action bar puts them in symbols.targetsChosen).
+--- Returns nil, skipping the work, unless an enemy of the caster has such an aura.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @param floorIndex nil|number the floor line of effect is measured on (the area's, for an area)
+--- @return nil|table<string, boolean>
+local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
+    if symbols == nil or not RuleUtils.HostileLineOfEffectAura(casterToken, floorIndex) then
+        return nil
+    end
+
+    local included = nil
+
+    local targetArea = symbols.targetArea
+    if targetArea ~= nil then
+        local cache = g_includedInAreaCache
+        if cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
+            local charids = {}
+            for _, tok in pairs(dmhub.tokenInfo.TokensInShape(targetArea) or {}) do
+                if tok.valid and tok.properties ~= nil and g_baseTargetPassesFilter(ability, casterToken, tok, symbols) then
+                    charids[tok.charid] = true
+                end
+            end
+            cache.area, cache.ability, cache.caster, cache.charids = targetArea, ability, casterToken, charids
+        end
+        included = cache.charids
+    end
+
+    local chosen = symbols.targetsChosen
+    if type(chosen) == "table" and #chosen > 0 then
+        local merged = {}
+        for charid, _ in pairs(included or {}) do
+            merged[charid] = true
+        end
+        for _, charid in ipairs(chosen) do
+            merged[charid] = true
+        end
+        included = merged
+    end
+
+    return included
+end
+
 function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
     local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
     if not result then
@@ -5865,7 +5917,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         originLoc = targetArea.origin
     end
 
-    local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc)
+    local floorIndex = (originLoc ~= nil and originLoc.valid) and originLoc.floor or nil
+    local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc,
+        IncludedTargetCharids(self, casterToken, symbols, floorIndex))
     if blocker == nil then
         return result, reason
     end

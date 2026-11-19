@@ -15949,6 +15949,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             g_currentSymbols.range = range
             g_range = range
 
+            --Some auras (Doom Magnet) stop blocking once their owner is picked, so the
+            --target filter needs to know who is picked already.
+            g_currentSymbols.targetsChosen = g_targetsChosen
             g_potentialTargetTokens = CalculateSpellTargetFocusing(g_currentSymbols)
 
             --An invoked strike with nobody in reach (the strike after a rush that was

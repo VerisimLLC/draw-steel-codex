@@ -4510,7 +4510,7 @@ local function ArtWindow(target)
         end
         local top = 0
         local range = total - ART_GRID_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -6613,7 +6613,7 @@ local function AnthemWindow()
         end
         local top = 0
         local range = #ids * ANTHEM_ROW_H - ANTHEM_LIST_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -10199,7 +10199,7 @@ local function BuildBody(state, bus)
     bus.RevealArt = function()
         Show("look")
         dmhub.Schedule(0.05, function()
-            if mod.unloaded or not holder.valid or holder.vscroll ~= true then
+            if mod.unloaded or not holder.valid then
                 return
             end
             local range = content.renderedHeight - holder.renderedHeight

@@ -3286,6 +3286,23 @@ function Series.NoteOutcome(live, outcome)
             OfferAbsentOutcomes(outcome)
         end
     end
+    --and in the game itself, so a client that quits after the fight and
+    --resumes the game (combat already torn down, nothing left in memory)
+    --still reaches the conclusion: the next-part offer or the trip home
+    --(J8N2HK6N). Keyed by run, so a part played on in this game starts
+    --undecided. An authoring test is reset by EndTest instead.
+    if outcome ~= nil and not EncounterOfTheWeekGame.IsTestPlayer() then
+        pcall(function()
+            local runId = Series.RunId()
+            local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+            local decided = doc.data.decided
+            if type(decided) ~= "table" or decided.runId ~= runId or decided.outcome ~= outcome then
+                doc:BeginChange()
+                doc.data.decided = { runId = runId, outcome = outcome }
+                doc:CompleteChange("Encounter of the Week: encounter decided", {undoable = false})
+            end
+        end)
+    end
     --the Victory has landed: note it for the town now, not only on the
     --way out, so a crash on the victory screen does not lose it. A
     --defeat waits for the way out: a hero's Recovery on Death prompt can
@@ -3320,6 +3337,21 @@ local function UpdateEncounterConclusion()
             end
         end)
         return
+    end
+
+    --a resumed game whose fight was decided before this client left: the
+    --outcome and this player's Proceed were only in memory, so take them
+    --back from the state doc and carry on to the conclusion (J8N2HK6N).
+    if not m_outcomeSeen and not testing then
+        local decided = nil
+        pcall(function() decided = mod:GetDocumentSnapshot(STATE_DOC_ID).data.decided end)
+        if type(decided) == "table" and decided.runId == Series.RunId()
+            and (decided.outcome == "victory" or decided.outcome == "defeat") then
+            printf("EotW: resumed after the encounter was decided (%s); picking up at its conclusion", decided.outcome)
+            m_outcomeSeen = true
+            m_outcomeKind = decided.outcome
+            m_localProceeded = true
+        end
     end
 
     --a won fight with script beats after it: they play on the stage first,

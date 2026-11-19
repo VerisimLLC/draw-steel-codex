@@ -365,6 +365,8 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_bystanders", { label = tostring(ins.label), names = table.concat(ins.names or {}, ", ") }))
             elseif ins.kind == "victory" then
                 Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+            elseif ins.kind == "mark" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_mark", { who = tostring(ins.whoText) }))
             elseif ins.kind == "parallax" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
             elseif ins.kind == "herolevel" then

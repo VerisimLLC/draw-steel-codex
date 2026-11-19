@@ -1574,6 +1574,42 @@ function EncounterScript.ParseVictoryInstruction(text)
     return { kind = "victory", condition = "clearmap", who = singular, whoText = shown }
 end
 
+--Labels of the "Mark:" line (lower-case).
+EncounterScript.MARK_LABELS = { mark = true, marks = true, marked = true, target = true, targets = true }
+
+--Words that name nobody on their own, so "Mark: The" marks nothing.
+local MARK_FILLER_WORDS = { the = true, every = true, each = true, all = true }
+
+--"Mark: <who>" under "# Encounter": the creatures the heroes must deal with,
+--each pointed out by a red arrow during the fight.
+--  "Mark: The Choir"  (a "## Reinforcements: The Choir" section, or a name)
+--  "Mark: Chorister and Bone Singer"  /  "Mark: every Cultist"
+--Each name matches a reinforcement section's name, a token's name (or
+--"<name> 2"), a monster keyword or a word of the bestiary type.
+--Returns { kind = "mark", names = { {text, singular}, ... }, whoText } or nil.
+function EncounterScript.ParseMarkInstruction(text)
+    local shown = trim(text or "")
+    shown = trim((string.gsub(shown, "[%.!]+$", "")))
+    local work = string.gsub(shown, "%s+[aA][nN][dD]%s+", ",")
+    work = string.gsub(work, "%s+[oO][rR]%s+", ",")
+    local names = {}
+    for part in string.gmatch(work, "[^,]+") do
+        local name = lower(trim(part))
+        for _, prefix in ipairs({ "every ", "each ", "all of the ", "all the ", "all ", "the " }) do
+            if string.sub(name, 1, #prefix) == prefix then
+                name = trim(string.sub(name, #prefix + 1))
+            end
+        end
+        if name ~= "" and not MARK_FILLER_WORDS[name] then
+            names[#names + 1] = { text = name, singular = SingularCreature(name) }
+        end
+    end
+    if #names == 0 then
+        return nil
+    end
+    return { kind = "mark", names = names, whoText = shown }
+end
+
 --"Parallax: <level>" under "# Encounter": the game's Parallax setting
 --(parallaxratio) while this encounter or series part is played, from the
 --moment the heroes arrive. The levels are the setting's own dropdown values
@@ -5339,6 +5375,12 @@ function EncounterScript.Parse(text)
                     local instruction
                     if lower(trim(label)) == "victory" then
                         instruction = EncounterScript.ParseVictoryInstruction(rest)
+                    elseif EncounterScript.MARK_LABELS[lower(trim(label))] then
+                        instruction = EncounterScript.ParseMarkInstruction(rest)
+                        if instruction == nil then
+                            Warn(lineIndex, "%s", T("author.script.encounter.mark_not_understood"))
+                            instruction = { kind = "unknown" }
+                        end
                     elseif lower(trim(label)) == "parallax" then
                         instruction = EncounterScript.ParseParallaxInstruction(rest)
                         if instruction == nil then
@@ -7271,6 +7313,8 @@ function EncounterScript.Describe(parse)
                     line("  setup %s: bystanders (no initiative): %s", ins.label, table.concat(ins.names, ", "))
                 elseif ins.kind == "victory" then
                     line("  %s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+                elseif ins.kind == "mark" then
+                    line("  %s: marked on the map: %s", ins.label, ins.whoText)
                 elseif ins.kind == "aibehavior" then
                     line("  setup %s: %s", ins.label, EncounterScript.DescribeAIBehavior(ins))
                 elseif ins.kind == "parallax" then

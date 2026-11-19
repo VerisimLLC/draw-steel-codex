@@ -41,7 +41,8 @@ local mod = dmhub.GetModLoading()
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
---- "negotiation", "downtime", "table", "award" or "staminaset".
+--- "negotiation", "downtime", "table", "award", "staminaset" or "reinforcements".
+--- @field arrivals? {who: HistoryCreature, name: string, count: integer}[] On a reinforcements line: who arrived, counted by stat block name (L89).
 --- @field byplayer? boolean On a line: a player made this change by hand (L87); it turns the Director's badge gold.
 --- @field counter? string On a montagecounter line: "successes" or "failures".
 --- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed". On an award line: "victories", "item", "title", "renown" or "wealth".
@@ -78,7 +79,7 @@ local mod = dmhub.GetModLoading()
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
---- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title.
+--- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title. On a reinforcements line: the wave.
 --- @field names? string[] On an ended line: what ended.
 --- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.

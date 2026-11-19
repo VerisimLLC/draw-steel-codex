@@ -34,6 +34,8 @@ local g_playObservers = {}
 ---   temporarystamina(creature, before, after, note): the pool grew.
 ---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
 ---     or healed (a sheet field, a Set Stamina step).
+---   wavedeployed(info): reinforcements arrived. info: name (the wave's), tokens (the
+---     tokens spawned). Only on the client that deployed them.
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.

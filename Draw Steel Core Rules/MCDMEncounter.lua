@@ -5250,6 +5250,22 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
         self:RecordOnsetMonsterGroups(spawnedTokenIds)
     end
 
+    --a record of play (History) hears which wave arrived and who came with it, on the
+    --client that deployed it.
+    if #mountEntries > 0 then
+        local waveName = nil
+        for _, wave in ipairs(self.waves or {}) do
+            if wave.id == waveid then
+                waveName = wave.name
+            end
+        end
+        local arrived = {}
+        for _, spawned in ipairs(mountEntries) do
+            arrived[#arrived + 1] = spawned.token
+        end
+        GameSystem.NotifyPlayObservers("wavedeployed", {name = waveName, tokens = arrived})
+    end
+
     self:MarkWaveDeployed(waveid)
     return spawnedCount
 end

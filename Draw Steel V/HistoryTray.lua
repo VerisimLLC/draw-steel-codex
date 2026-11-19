@@ -1756,6 +1756,8 @@ local function LineWords(entry)
         return "<b>Montage ended</b>"
     elseif family == "montagecounter" then
         return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
+    elseif family == "reinforcements" then
+        return string.format("<b>%s</b> arrived", entry.name or "Reinforcements")
     elseif family == "staminaset" then
         return string.format("%s Stamina %d to %d", name, entry.before, entry.after)
     elseif family == "award" then
@@ -1898,6 +1900,15 @@ local function BuildLine(item)
         return BuildDrawSteel(entry)
     end
     local cause = entry.causetext
+    --a wave's arrivals, named as this viewer knows them: "Goblin Sniper x3 - Goblin Assassin".
+    if entry.family == "reinforcements" then
+        local parts = {}
+        for _, group in ipairs(entry.arrivals or {}) do
+            local shown = ShownName({name = group.name or group.who.name, secret = group.who.secret})
+            parts[#parts + 1] = shown .. (group.count > 1 and string.format(" x%d", group.count) or "")
+        end
+        cause = table.concat(parts, DOT)
+    end
     if entry.recovered ~= nil then
         local recovered = string.format("No longer %s", entry.recovered)
         cause = cause ~= nil and (cause .. DOT .. recovered) or recovered

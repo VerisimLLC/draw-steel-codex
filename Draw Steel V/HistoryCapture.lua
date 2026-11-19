@@ -1772,6 +1772,55 @@ local function OnStaminaSet(creature, before, after, note)
     WriteLine(token, "staminaset", NoteHand{before = before, after = after, causetext = Cause(note)})
 end
 
+--A wave of reinforcements arrived (L89): one line naming the wave, with who came under it,
+--counted by name. If any arrival was hidden from players as it landed, players get no line
+--until the Director reveals it.
+local function OnWaveDeployed(info)
+    if not History.Enabled() then
+        return
+    end
+    local arrivals = {}
+    local byName = {}
+    local hidden = false
+    local map = nil
+    for _, token in ipairs(info.tokens) do
+        if token.valid then
+            map = map or token.mapid
+            local who = History.Creature(token)
+            --tokens are numbered ("Goblin Sniper 2"), so arrivals count by stat block; a
+            --creature whose name players may not see counts apart from one they may.
+            local kind = token.properties:try_get("monster_type")
+            if type(kind) ~= "string" or kind == "" then
+                kind = who.name
+            end
+            local key = (who.secret and "?" or "") .. kind
+            local group = byName[key]
+            if group == nil then
+                group = {who = who, name = kind, count = 0}
+                byName[key] = group
+                arrivals[#arrivals + 1] = group
+            end
+            group.count = group.count + 1
+            if token.invisibleToPlayers or token.properties:IsHidden() then
+                hidden = true
+            end
+        end
+    end
+    if #arrivals == 0 then
+        return
+    end
+    local entry = {
+        kind = "line",
+        family = "reinforcements",
+        map = map or game.currentMapId,
+        name = info.name or "Reinforcements",
+        arrivals = arrivals,
+        hiddenfromplayers = hidden or nil,
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1831,6 +1880,7 @@ GameSystem.RegisterPlayObserver("history", {
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
     staminaset = OnStaminaSet,
+    wavedeployed = OnWaveDeployed,
     resource = OnResource,
     globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,

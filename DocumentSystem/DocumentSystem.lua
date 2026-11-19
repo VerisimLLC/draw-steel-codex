@@ -9875,6 +9875,10 @@ function PanelDocument:CreateInterface(args)
             end
             dialog.data.panelTabs = keys
         end
+        --one tab or several decides where a header control sits.
+        if SyncHeaderControl ~= nil and not m_constructing then
+            SyncHeaderControl()
+        end
     end
 
     local function SwitchTab(key)
@@ -10453,6 +10457,11 @@ function PanelDocument:CreateInterface(args)
         if headerSlot == nil or not headerSlot.valid then
             return
         end
+        if not headerSlot.floating then
+            --its own row: in line with the first chip's icon (1 + 6 inset).
+            headerSlot.x = 7
+            return
+        end
         local x = 0
         for _, t in ipairs(m_tabs) do
             if t.chip ~= nil and t.chip.valid then
@@ -10482,15 +10491,27 @@ function PanelDocument:CreateInterface(args)
             end
         end
         local reserve = stripReserve
+        local controlWidth = 0
         for key, holder in pairs(m_headerControls) do
             if holder.valid then
                 local shown = active ~= nil and key == active.key
                 holder:SetClass("collapsed", not shown)
                 local control = holder.children[1]
                 if shown and control ~= nil and type(control.selfStyle.width) == "number" and control.selfStyle.width > 0 then
-                    reserve = reserve + control.selfStyle.width + 6
+                    controlWidth = control.selfStyle.width
                 end
             end
+        end
+        --one tab: the control sits in the title row beside its chip, and
+        --the strip gives up its width. Several tabs: the chips keep the
+        --whole row and the control takes a row of its own below them,
+        --lined up with the first chip's icon. With nothing showing it
+        --floats, so it takes no room either way.
+        local ownRow = controlWidth > 0 and #m_tabs > 1
+        headerSlot.floating = not ownRow
+        headerSlot.selfStyle.bmargin = ownRow and 4 or 0
+        if controlWidth > 0 and not ownRow then
+            reserve = reserve + controlWidth + 6
         end
         if tabStrip ~= nil and tabStrip.valid then
             tabStrip.selfStyle.width = string.format("100%%-%d", reserve)
@@ -10505,7 +10526,9 @@ function PanelDocument:CreateInterface(args)
         width = "100%",
         height = "auto",
         minHeight = g_panelDocumentHeaderHeight,
-        flow = "horizontal",
+        --vertical for the header control's own row (headerSlot) under the
+        --chips; the chips and window buttons share topRow.
+        flow = "vertical",
         bgimage = true,
         --NO swallowPress here: the press must propagate to the dialog,
         --whose draggable is what makes the window movable by its bar.
@@ -10536,9 +10559,15 @@ function PanelDocument:CreateInterface(args)
             end
         end,
 
-        tabStrip,
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            minHeight = g_panelDocumentHeaderHeight,
+            flow = "horizontal",
+            tabStrip,
+            headerControls,
+        },
         headerSlot,
-        headerControls,
     }
 
     hairline = gui.Panel{

@@ -472,6 +472,11 @@ Also 2026-11-19, from the review: the Draw Steel banner (T10, `combatbegan`), a 
 | 6.3 | Font Size and narrow windows (the responsive-panel checks); full performance pass | S |
 | 6.4 | Switch-over: History on for everyone; old log off the rail; the built-in Views give History its own button; stored rail layouts repaired (`g_railRenamedPanels`); tooltip "History (was Action Log)"; old messages keep posting, because other code reads them | M |
 
+### Stage 6 notes
+
+- **6.4 checklist, Encounter of the Week:** its interface replaces the rail and keeps a corner strip of buttons named in `EncounterOfTheWeek/EncounterOfTheWeekHud.lua` (`CreateCornerButtonsPanel`): Journal, Chat, Action Log. History was added beside the Action Log on 2026-11-19, shown while `historyenabled` is on. At the switch-over, take "Action Log" out of that list and drop the `History.Enabled` check. Not yet seen running: the button is built with the strip, so turning History on mid-game needs the interface rebuilt.
+- **5.1e left out (James, 2026-11-19):** delve turns and chest rolls write nothing.
+
 ## Risks
 
 - **Performance of two encounters (0.1).** Today's log keeps about 140 messages and that has drawn

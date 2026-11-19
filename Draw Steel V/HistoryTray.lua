@@ -3102,10 +3102,41 @@ end
 --user has not seen, stays open.
 local function AddCombatRows(items, sections, first, last, isNewest, nested)
     local id = "combat-" .. sections[first].id
+    --its rounds: the sections between first and last that belong to this combat. A round
+    --that picks up again after a skipped section joins the one before it.
+    local rounds = {}
+    for i = first, last do
+        local section = sections[i]
+        local prev = rounds[#rounds]
+        if section.encounter ~= sections[first].encounter then
+            --a skipped section: no rows.
+        elseif prev ~= nil and prev.round == section.round then
+            for _, turn in ipairs(section.turns) do
+                local tail = prev.turns[#prev.turns]
+                if tail ~= nil and tail.number == turn.number then
+                    for k, entry in ipairs(turn.entries) do
+                        tail.entries[#tail.entries + 1] = entry
+                        tail.keys[#tail.keys + 1] = turn.keys[k]
+                    end
+                else
+                    prev.turns[#prev.turns + 1] = turn
+                end
+            end
+            for _, entry in ipairs(section.entries) do
+                prev.entries[#prev.entries + 1] = entry
+            end
+            if section.maliceAfter ~= nil then
+                prev.maliceBefore = prev.maliceBefore or section.maliceBefore
+                prev.maliceAfter = section.maliceAfter
+            end
+        else
+            rounds[#rounds + 1] = section
+        end
+    end
     local hasNew = false
     if not g_searchOpen then
-        for i = first, last do
-            for _, turn in ipairs(sections[i].turns) do
+        for _, round in ipairs(rounds) do
+            for _, turn in ipairs(round.turns) do
                 hasNew = hasNew or TurnIsNew(turn)
             end
         end
@@ -3116,8 +3147,8 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
     end
     if not isOpen then
         local entries = {}
-        for i = first, last do
-            for _, entry in ipairs(sections[i].entries) do
+        for _, round in ipairs(rounds) do
+            for _, entry in ipairs(round.entries) do
                 entries[#entries + 1] = entry
             end
         end
@@ -3142,8 +3173,8 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
         text = "Combat",
         toggle = (not g_searchOpen and (not isNewest or g_open[id] == false)) and Toggle(id, isOpen) or nil,
     }
-    for i = first, last do
-        AddSectionRows(items, sections[i], isNewest and i == last, nested, true, first == last)
+    for i, round in ipairs(rounds) do
+        AddSectionRows(items, round, isNewest and i == #rounds, nested, true, #rounds == 1)
     end
 end
 
@@ -3230,18 +3261,30 @@ local function BuildItems(mapid, frozen)
     if g_searchOpen then
         sections, matches = SearchSections(sections, nested)
     end
+    --a section with no rows holds only a Director's quiet Malice line: it is not shown, and a
+    --combat reads on across it (combat's end resets Malice just before "Encounter ended").
+    local lastShown = #sections
+    while lastShown > 1 and #sections[lastShown].turns == 0 do
+        lastShown = lastShown - 1
+    end
     local i = 1
     while i <= #sections do
         local encounter = sections[i].encounter
         if encounter == nil then
-            AddSectionRows(items, sections[i], i == #sections, nested)
+            if #sections[i].turns > 0 then
+                AddSectionRows(items, sections[i], i >= lastShown, nested)
+            end
             i = i + 1
         else
             local last = i
-            while last < #sections and sections[last + 1].encounter == encounter do
-                last = last + 1
+            local j = i + 1
+            while j <= #sections and (sections[j].encounter == encounter or (sections[j].encounter == nil and #sections[j].turns == 0)) do
+                if sections[j].encounter == encounter then
+                    last = j
+                end
+                j = j + 1
             end
-            AddCombatRows(items, sections, i, last, last == #sections, nested)
+            AddCombatRows(items, sections, i, last, last >= lastShown, nested)
             i = last + 1
         end
     end

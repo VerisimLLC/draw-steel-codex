@@ -969,6 +969,12 @@ function GameHud:RequireRollListenerPanel()
                                         --RollProperties has no table-aware CustomPanel.
                                         rollProperties = RollOnTableProperties.new{}
                                         rollProperties.tableRef = check.tableRef
+                                    elseif check.type == "opposed_power_roll" then
+                                        --An opposed roll has no tiers. The type tells the engine a
+                                        --double edge or bane is +4 or -4, not a tier shift.
+                                        rollProperties = RollProperties.new{
+                                            type = "opposed_power_roll",
+                                        }
                                     end
 
 									local autoroll = nil

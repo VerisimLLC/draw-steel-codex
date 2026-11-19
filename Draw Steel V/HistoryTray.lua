@@ -185,10 +185,15 @@ local function Styles()
             selectors = {"label", "historyUndone"},
             color = "@fgMuted",
         },
-        --a row Revert Turn or Turn Rewind undid (L39): every panel in it fades but its tag.
+        --a row Revert Turn or Turn Rewind undid (L39): every panel in it fades and its
+        --words are struck through, all but its Reverted tag.
         {
             selectors = {"historyFaded"},
             opacity = 0.45,
+        },
+        {
+            selectors = {"label", "historyFaded"},
+            strikethrough = true,
         },
         {
             selectors = {"label", "historyRevertedTag"},

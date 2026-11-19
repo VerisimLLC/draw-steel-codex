@@ -1352,6 +1352,7 @@ function EotwRoster.Refresh()
                 end
             end
             EotwRoster.SetListedLeads(result.leads, result.carouse)
+            EotwPlayerTags.Apply(result.tags)
             Bump()
             SyncWorkingCopies()
             FlushPendingHall()
@@ -3173,6 +3174,7 @@ function EotwRoster.GuildPanel(host)
                     ShowRecruitPicker(host)
                 end,
             },
+            EotwPlayerTags.GuildButton(host),
             gui.Button{
                 classes = { "collapsed" },
                 text = T("guild.project_button"),
@@ -3802,6 +3804,8 @@ function EotwRoster.HallPanel(host)
             end
             loading = false
             for _,e in ipairs(result.entries or {}) do
+                --the players' Player Tags, as the city reported them with this page.
+                e.playerTags = type(result.tags) == "table" and result.tags or {}
                 entries[#entries+1] = e
             end
             more = result.more == true
@@ -3839,8 +3843,9 @@ function EotwRoster.HallPanel(host)
             end
         end
         local playerNames = {}
+        local playerTags = type(e.playerTags) == "table" and e.playerTags or {}
         for _,p in ipairs(summary.players or {}) do
-            playerNames[#playerNames+1] = p.name or "?"
+            playerNames[#playerNames+1] = (p.name or "?") .. EotwPlayerTags.Inline(p.userid ~= nil and playerTags[p.userid] or nil)
             if p.userid == dmhub.loginUserid then
                 mine = true
             end

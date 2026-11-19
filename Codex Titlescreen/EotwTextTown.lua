@@ -1912,3 +1912,36 @@ text("moderation.ban.length_days.other", [[for {count} more days]])
 text("moderation.ban.come_back_note", [[You are welcome back in town once the ban ends.]])
 --The button that closes it. Short: a button.
 text("moderation.ban.ok_button", [[OK]])
+
+----------------------------------------------------------------------------
+-- PLAYER TAGS: badges players earn and show beside their name
+-- (EotwPlayerTags.lua; the tags themselves are in EotwPlayerTagDefs.lua)
+----------------------------------------------------------------------------
+
+--The Hero's Guild button that opens the tag picker. Short: a button.
+text("tags.guild_button", [[Tags]])
+--Its tooltip.
+text("tags.guild_tooltip", [[Choose the tag shown beside your name.]])
+--The picker's heading and the line under it.
+text("tags.picker.title", [[Your Tags]])
+text("tags.picker.subtitle", [[Choose the tag shown beside your name.]])
+--The first row of the picker: show no tag at all.
+text("tags.picker.none", [[Show no tag]])
+--Beside the tag being shown.
+text("tags.picker.showing", [[Showing]])
+--Beside a tag not yet earned (only you see these).
+text("tags.picker.locked", [[Locked]])
+--When nothing has been earned yet.
+text("tags.picker.empty", [[You have not earned any tags yet. Win encounters and help build the town to earn them.]])
+--The button that closes the picker. Short: a button.
+text("tags.picker.close_button", [[Close]])
+--When the town could not change the shown tag.
+text("tags.select_failed", [[Couldn't change your tag. Try again.]])
+--The banner when one tag is earned: its heading (the tag's description is shown under it).
+text("tags.banner.title_one", [[Tag Earned]])
+--The banner when several are earned at once.
+text("tags.banner.title_many", [[{count} Tags Earned]])
+--The banner's buttons. Short: buttons.
+text("tags.banner.show_button", [[Show This Tag]])
+text("tags.banner.choose_button", [[Choose a Tag]])
+text("tags.banner.later_button", [[Later]])

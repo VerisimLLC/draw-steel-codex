@@ -5671,7 +5671,7 @@ CreateScreen = function(args)
                     height = "auto",
                 },
                 gui.Label{
-                    text = T("eotw.party.row_byline", { host = record.hostName or "?", filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
+                    text = T("eotw.party.row_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
                     fontSize = 18,
                     color = Styles.textColor,
                     opacity = 0.8,
@@ -6077,7 +6077,7 @@ CreateScreen = function(args)
 
         local ownerText = nil
         if params.ownerName ~= nil then
-            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName })
+            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName .. EotwPlayerTags.Inline(params.ownerTag) })
         end
 
         local chipText = nil
@@ -6268,13 +6268,13 @@ CreateScreen = function(args)
         local memberNames = {}
         if record.players ~= nil then
             for _,player in pairs(record.players) do
-                memberNames[#memberNames+1] = player.name or "?"
+                memberNames[#memberNames+1] = (player.name or "?") .. EotwPlayerTags.Inline(player.tag)
             end
         end
         table.sort(memberNames)
         children[#children+1] = gui.Label{
-            text = #memberNames > 0 and T("eotw.party.view_byline", { host = record.hostName or "?", players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
-                or T("eotw.party.view_byline_no_players", { host = record.hostName or "?", encounter = EncounterSuffix(record) }),
+            text = #memberNames > 0 and T("eotw.party.view_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
+                or T("eotw.party.view_byline_no_players", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), encounter = EncounterSuffix(record) }),
             fontSize = 18,
             color = Styles.textColor,
             opacity = 0.8,
@@ -6358,6 +6358,7 @@ CreateScreen = function(args)
                     gameid = gameid,
                     heroEntry = heroEntry,
                     ownerName = player.name,
+                    ownerTag = player.tag,
                     ownerUserid = userid,
                     myIndex = myIndex,
                     kickUserid = kickUserid,
@@ -7678,7 +7679,7 @@ CreateScreen = function(args)
         if m_viewGameid ~= nil and m_chatTab == "game" then
             local record = m_conn:GetPath("/state/games/" .. m_viewGameid)
             for userid,player in pairs(record ~= nil and record.players or {}) do
-                local name = ChatPlain(player.name or "?")
+                local name = ChatPlain(player.name or "?") .. EotwPlayerTags.Inline(player.tag)
                 if presence == nil or presence[userid] == nil then
                     name = name .. " <color=#ffffff80>" .. T("eotw.chat.presence_away") .. "</color>"
                 end
@@ -7690,7 +7691,7 @@ CreateScreen = function(args)
         end
         if presence ~= nil then
             for _,entry in pairs(presence) do
-                names[#names+1] = entry.name or "?"
+                names[#names+1] = (entry.name or "?") .. EotwPlayerTags.Inline(entry.tag)
             end
         end
         table.sort(names)
@@ -7821,7 +7822,7 @@ CreateScreen = function(args)
                 stamp = string.format("<color=#ffffff80><size=80%%>%s</size></color>  ", FormatChatTime(ts))
             end
             --messages bridged in from the Discord channel carry a tag.
-            local name = string.format("<b>%s:</b>", ChatPlain(msg.name or "?"))
+            local name = string.format("<b>%s</b>%s:", ChatPlain(msg.name or "?"), EotwPlayerTags.Inline(msg.tag))
             if msg.source == "discord" then
                 name = string.format("<color=#8c9eff><b>%s</b> <size=70%%>%s</size>:</color>", ChatPlain(msg.name or "?"), T("eotw.chat.discord_tag"))
             end
@@ -12880,6 +12881,7 @@ CreateScreen = function(args)
                     reveal()
                 end
                 EotwRoster.AnnounceReturns(resultPanel)
+                EotwPlayerTags.AnnounceEarned(resultPanel)
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()

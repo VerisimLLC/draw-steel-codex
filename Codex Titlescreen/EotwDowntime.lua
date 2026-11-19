@@ -3322,7 +3322,8 @@ local function StoneBox(heading, subtitle, stone)
 end
 
 --One ranked builder: place, name and points; hovering lists their heroes.
-local function BuilderRow(rank, builder)
+---@param tagid string|nil the builder's Player Tag (list-project-builders' tags map)
+local function BuilderRow(rank, builder, tagid)
     local lines = { T("tribute.heroes_heading") }
     for _, hero in ipairs(builder.heroes or {}) do
         lines[#lines+1] = TP("tribute.hero_line", tonumber(hero.points) or 0, { hero = BuilderHeroName(hero.name) })
@@ -3344,7 +3345,14 @@ local function BuilderRow(rank, builder)
         vmargin = 2,
         hover = gui.Tooltip(table.concat(lines, "\n")),
         gui.Label{ text = string.format("#%d", rank), fontSize = 17, bold = true, color = cond(rank <= 3, GOLD, DIM), width = 54, height = "auto", valign = "center" },
-        gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "100%-190", height = "auto", valign = "center" },
+        gui.Panel{
+            width = "100%-190",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "auto", maxWidth = 260, height = "auto", valign = "center", textWrap = false, textOverflow = "ellipsis" },
+            EotwPlayerTags.Badge(tagid, { fontSize = 12, maxWidth = 160 }) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
+        },
         gui.Label{ text = TP("tribute.points", tonumber(builder.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
     }
 end
@@ -3522,8 +3530,9 @@ function EotwDowntime.ShowTribute(host, projectid)
                 end
                 rows[#rows+1] = gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", tmargin = 12, bmargin = 4 }
             end
+            local tags = type(result.tags) == "table" and result.tags or {}
             for i, builder in ipairs(builders) do
-                rows[#rows+1] = BuilderRow(i, builder)
+                rows[#rows+1] = BuilderRow(i, builder, tags[builder.userid])
             end
             local more = (tonumber(result.builderCount) or #builders) - #builders
             if more > 0 then

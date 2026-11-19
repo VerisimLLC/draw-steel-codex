@@ -83,12 +83,19 @@ function History.Creature(token)
     if name == nil or name == "" then
         name = token.description
     end
+    local img = token.portrait
     local rect = token.portraitRect
+    --a popout token's portrait is a cut-out figure whose token crop lands on empty space;
+    --its face is the off-token portrait, cropped square, as the character sheet draws it.
+    if token.popoutPortrait then
+        img = token.offTokenPortrait
+        rect = token:GetPortraitRectForAspect(1, img)
+    end
     local props = token.properties
     return {
         id = token.charid,
         name = name,
-        img = token.portrait,
+        img = img,
         rect = rect ~= nil and {rect.x1, rect.y1, rect.x2, rect.y2} or nil,
         hero = token.playerControlled or (props ~= nil and props:IsHero()),
         secret = token.namePrivate or nil,

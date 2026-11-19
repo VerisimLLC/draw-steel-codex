@@ -738,11 +738,18 @@ local g_resting = setmetatable({}, {__mode = "k"})
 local function RespiteFacts(props)
     local used = props:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
     local max = props:GetResources()[CharacterResource.recoveryResourceId] or 0
+    --A Level set by hand can leave the stored XP below what that Level implies; the rest
+    --counts from the Level's own XP then (creature:Rest), so the line does too.
+    local level = props:CharacterLevel()
+    local perLevel = toint(dmhub.GetSettingValue("xpperlevel") or 16)
+    if perLevel == 0 then
+        perLevel = 16
+    end
     return {
         stamina = props:CurrentHitpoints(),
         recoveries = max - used,
-        xp = props:try_get("xp", 0),
-        level = props:CharacterLevel(),
+        xp = math.max(props:try_get("xp", 0), (level - 1) * perLevel),
+        level = level,
     }
 end
 
@@ -769,9 +776,11 @@ local function OnRested(creature)
             parts[#parts + 1] = string.format("%s %d to %d", fact[2], was, now)
         end
     end
-    WriteLine(token, "respite", {causetext = #parts > 0 and table.concat(parts, History.DOT) or "Respite"})
+    --stamped a millisecond apart, so the Level line always sorts after the respite's.
+    local now = dmhub.serverTimeMilliseconds
+    WriteLine(token, "respite", {t = now, causetext = #parts > 0 and table.concat(parts, History.DOT) or "Respite"})
     if after.level > before.level then
-        WriteLine(token, "levelup", {level = after.level, causetext = "Respite"})
+        WriteLine(token, "levelup", {t = now + 1, level = after.level, causetext = "Respite"})
     end
 end
 

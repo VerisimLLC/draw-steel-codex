@@ -3384,6 +3384,8 @@ local function CreateFace()
     local newBelow = 0
     --True once the view has left the default (see UpdateLatest).
     local away = false
+    --the reader scrolled to the top of a list that scrolls, and older rows were built.
+    local loadedOlder = false
     --- @type Panel|nil
     local newBelowButton = nil
     local rowsPanel
@@ -3433,7 +3435,10 @@ local function CreateFace()
         if list == nil or not list.valid then
             return
         end
-        away = list.vscrollPosition > 0.02 or rowsWanted > ROWS_CHUNK or next(g_open) ~= nil
+        --a list too short to scroll reports a position that means nothing, and fills its
+        --own spare room with older rows: neither is the reader moving away.
+        local scrollable = rowsPanel ~= nil and (rowsPanel.renderedHeight or 0) - (list.renderedHeight or 0) > 1
+        away = (scrollable and (list.vscrollPosition > 0.02 or loadedOlder)) or next(g_open) ~= nil
         UpdateNewBelow()
     end
     local mapid = game.currentMapId
@@ -3875,6 +3880,9 @@ local function CreateFace()
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
                 anchorTries = 0
+                if (rowsPanel.renderedHeight or 0) - (element.renderedHeight or 0) > 1 then
+                    loadedOlder = true
+                end
                 rowsWanted = rowsWanted + ROWS_CHUNK
                 Refresh()
                 element:ScheduleEvent("anchorOlder", 0.05)
@@ -3927,6 +3935,7 @@ local function CreateFace()
         UpdateSearchKey()
         Select(nil)
         rowsWanted = ROWS_CHUNK
+        loadedOlder = false
         chipRow:FireEvent("rebuild")
         chipRow:SetClass("collapsed", not Searching())
         heroRow:FireEvent("searchChanged")
@@ -4281,6 +4290,7 @@ local function CreateFace()
             --Latest: back to the default folds, scrolled to the newest row.
             g_open = {}
             rowsWanted = ROWS_CHUNK
+            loadedOlder = false
             --at the bottom first: a rebuild while scrolled up holds the row at the top of
             --the view in place, which would undo the jump.
             list.vscrollPosition = 0
@@ -4312,6 +4322,7 @@ local function CreateFace()
                 mapid = game.currentMapId
                 g_open = {}
                 rowsWanted = ROWS_CHUNK
+                loadedOlder = false
                 Select(nil)
                 element.monitorGame = History.DocPath(mapid)
                 Refresh()

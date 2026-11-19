@@ -5999,12 +5999,12 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
     return included
 end
 
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
-    local result, reason, warningKind = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
-    --A Hidden target still gets the line-of-effect checks below: "no line of effect"
-    --matters more than "hidden", so it is the reason the player sees.
-    if not result and warningKind ~= "hidden" then
-        return result, reason
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
+    local result, reason, warningKind = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride, rankReasons)
+    --When the reason will be shown, a Hidden target still gets the line-of-effect checks
+    --below: "no line of effect" matters more than "hidden", so it is the reason the player sees.
+    if not result and (warningKind ~= "hidden" or not rankReasons) then
+        return result, reason, warningKind
     end
 
     if casterToken == nil or targetToken == nil or targetToken.isObject then

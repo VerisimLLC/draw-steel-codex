@@ -1693,8 +1693,9 @@ end
 --- @param targetToken CharacterToken
 --- @param symbols table
 --- @param filterOverride nil|string
+--- @param rankReasons nil|boolean True when the caller shows the reason to the user (the action bar). A target with only a warning, such as Hidden, then still runs every other check, so a more important reason replaces the warning. Without it the warning is returned at once, which keeps yes/no callers like the Monster AI cheap.
 --- @return boolean, nil|string, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter. The third is "hidden" when that reason is only the Hidden warning (see GameSystem.AllowTargeting).
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
 
 	local conditionid = self:PrimaryConditionID()
 
@@ -1713,10 +1714,16 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	end
 
 	--A refusal with a reason (a Hidden enemy) is a warning the Director or a player may
-	--override. Keep checking so any hard refusal below still wins, and return it at the end.
+	--override. When the reason will be shown, keep checking so any hard refusal below still
+	--wins, and return the warning at the end.
 	local allowed, warningReason, warningKind = GameSystem.AllowTargeting(casterToken, targetToken, self)
-	if not allowed and warningReason == nil then
-		return false
+	if not allowed then
+		if warningReason == nil then
+			return false
+		end
+		if not rankReasons then
+			return false, warningReason, warningKind
+		end
 	end
 
 	--An ability an object grants to the creatures adjacent to it (a Field

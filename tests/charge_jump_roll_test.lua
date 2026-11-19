@@ -20,6 +20,10 @@ function ExecuteGoblinScript(s, lookup)
 end
 dofile("draw-steel-codex/Draw Steel Ability Behaviors/AbilityJump.lua")
 dofile("draw-steel-codex/DMHub Game Rules/AbilityRelocateCreature.lua")
+--The real RuleUtils.SeesPastHidden decides the hidden cases below; these are all it needs to load.
+CreatureFilter = {Register = function() end}
+GameSystem = {RegisterGoblinScriptField = function() end}
+dofile("draw-steel-codex/Draw Steel Core Rules/DSRuleUtils.lua")
 local checks = 0
 local function check(v, name) assert(v, name); checks = checks + 1 end
 local function loc(x)
@@ -92,12 +96,12 @@ function attack:HasKeyword(keyword) return keyword == "Strike" end
 function attack:try_get() return nil end
 function attack:AbilityFilterFailureMessage() return nil end
 function attack:GetCost() return {canAfford = true} end
-function attack:GetRange() return 5 end
-function attack:TargetPassesFilter(_, target, symbols)
+local attackRange
+function attack:GetRange() return attackRange end
+function attack:TargetPassesFilter(caster, target, symbols)
     assert(symbols.targetArea == nil and symbols.cast == nil, "fresh attack symbols")
-    --Stands in for the Hidden rule the real TargetPassesFilter applies: the range is in squares.
-    local ignoreRange = props.attrs["Ignore Hidden Within Range"] * dmhub.unitsPerSquare
-    if target.properties.hidden and tok:Distance(target) > ignoreRange then
+    --The Hidden part of the real TargetPassesFilter, using the real helper.
+    if target.properties.hidden and not RuleUtils.SeesPastHidden(caster, target) then
         return false
     end
     return legalTarget and target.id == "enemy"
@@ -110,6 +114,7 @@ function dmhub.GetTable(name)
 end
 local enemyProperties = {hidden = false}
 function enemyProperties:HasNamedCondition(name) return name == "Hidden" and self.hidden end
+function enemyProperties:CalculateNamedCustomAttribute() return 0 end
 dmhub.allTokens = {{id = "enemy", valid = true, loc = loc(6), altitude = 0, properties = enemyProperties}}
 CharacterPanel = {
     AcquireAbilityRollDialog = function(_, rolledAbility)
@@ -133,6 +138,8 @@ local function reset()
     props.attrs["Charge Allows Jump"], props.attrs["Charge Uses Jump"] = 1, 0
     props.attrs["Ignore Hidden Within Range"] = 0
     enemyProperties.hidden = false
+    dmhub.allTokens[1].altitude = 0
+    attackRange = 5
     tok.loc = loc(0)
 end
 local function execute()
@@ -165,6 +172,13 @@ reset(); selectedTier = 2; enemyProperties.hidden = true; options = execute()
 check(options.abort and options.stopProcessing, "only hidden target does not open charge attack selector")
 reset(); selectedTier = 2; enemyProperties.hidden = true; props.attrs["Ignore Hidden Within Range"] = 1; options = execute()
 check(not options.abort, "ignore-hidden range allows a nearby hidden charge target")
+--The landing is 1 square across from an enemy 2 squares up: the attack's 10 ft reaches it,
+--so only the Hidden rule (range 1, measured with height) can refuse it.
+reset(); selectedTier = 2; attackRange = 10; dmhub.allTokens[1].altitude = 2; options = execute()
+check(not options.abort, "an enemy 2 squares up is in the attack's reach")
+reset(); selectedTier = 2; attackRange = 10; dmhub.allTokens[1].altitude = 2
+enemyProperties.hidden = true; props.attrs["Ignore Hidden Within Range"] = 1; options = execute()
+check(options.abort and options.stopProcessing, "hidden target 2 squares up is beyond an ignore-hidden range of 1")
 reset(); selectedTier = 2; reaction = function(n) if n == 2 then props._tmp_prone = true end end; options = execute()
 check(not options.abort and #moves == 2, "prone landing may attack with ordinary bane")
 reset(); cancelRoll = true; options = execute()

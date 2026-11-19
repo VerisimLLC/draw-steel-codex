@@ -1357,17 +1357,17 @@ DrawSteelActionBar._hiddenWatch = {
     pending = false, --a rebuild is already scheduled
 }
 
---- Lists every creature on the map that is Hidden or invisible to this client, as one
---- string, so two calls can be compared to see whether anyone's Hidden state changed.
+--- Lists every creature on the map that is Hidden ("h") or invisible to this client ("!"),
+--- as one string, so two calls can be compared to see whether either changed for anyone.
 --- @return string
 function DrawSteelActionBar._hiddenWatch.Signature()
     local parts = {}
     for _, token in ipairs(dmhub.allTokens) do
         if token.valid and not token.isObject and token.properties ~= nil then
-            if token.hiddenFromLocalViewer then
-                parts[#parts + 1] = token.charid .. "!"
-            elseif token.properties:IsHidden() then
-                parts[#parts + 1] = token.charid
+            local hidden = token.properties:IsHidden()
+            local invisible = token.hiddenFromLocalViewer
+            if hidden or invisible then
+                parts[#parts + 1] = token.charid .. (hidden and "h" or "") .. (invisible and "!" or "")
             end
         end
     end
@@ -1395,18 +1395,17 @@ function DrawSteelActionBar._hiddenWatch.CreateWatcher()
             if g_currentAbility == nil or watch.pending or watch.signature == nil then
                 return
             end
-            if watch.Signature() == watch.signature then
-                return
-            end
             watch.pending = true
-            --Waits a moment: the engine works out who this client can see in its own token
-            --refresh, which may run after this change arrives.
+            --Compares a moment later, not now: the engine decides who this client can see in
+            --its own token refresh, which can run after this change arrives.
             dmhub.Schedule(0.1, function()
                 watch.pending = false
-                if mod.unloaded then
+                if mod.unloaded or g_currentAbility == nil or watch.signature == nil then
                     return
                 end
-                watch.Rebuild()
+                if watch.Signature() ~= watch.signature then
+                    watch.Rebuild()
+                end
             end)
         end,
     }
@@ -16251,7 +16250,8 @@ local function CalculateSpellTargetFocusing(symbols)
                     blocked = true
                 elseif canTarget then
                     local warningKind
-                    canTarget, failReason, warningKind = spell:TargetPassesFilter(g_token, targetToken, symbols)
+                    --true: the player sees the reason, so rank it against the other checks.
+                    canTarget, failReason, warningKind = spell:TargetPassesFilter(g_token, targetToken, symbols, nil, true)
                     if failReason ~= nil then
                         canTarget = true
                     end

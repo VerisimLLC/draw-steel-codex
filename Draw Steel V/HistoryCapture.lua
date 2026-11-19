@@ -1253,6 +1253,63 @@ local function OnCombatBegan(info)
     History.Write(entry)
 end
 
+local function Count(n, one, many)
+    return string.format("%d %s", n, n == 1 and one or many)
+end
+
+--Montages (5.1e, L58-L61). info.kind: "test" (an Encounter of the Week test), "threat" (one
+--whose consequence landed), "ended", or "counter" (the Director moved a journal montage's
+--successes or failures). Written by the host, or the Director who moved the counter.
+local function OnMontage(info)
+    if not History.Enabled() then
+        return
+    end
+    local map = game.currentMapId
+    if info.kind == "test" then
+        local token = info.heroid ~= nil and dmhub.GetCharacterById(info.heroid) or nil
+        if token == nil then
+            return
+        end
+        --a roster Hero may stand on no map, or another: the line belongs to the map shown.
+        WriteLine(token, "montagetest", {
+            map = map,
+            total = info.total,
+            tier = info.tier,
+            causetext = string.format("%s: %s%sTier %d", info.entry or "", info.option or "", History.DOT, math.min(info.tier, 3)),
+        })
+        return
+    end
+    local entry = {kind = "line", map = map}
+    if info.kind == "threat" then
+        entry.family = "montagethreat"
+        entry.name = info.name
+        local applied = {}
+        for _, text in ipairs(info.applied or {}) do
+            applied[#applied + 1] = tostring(text)
+        end
+        entry.causetext = #applied > 0 and table.concat(applied, History.DOT) or nil
+    elseif info.kind == "ended" then
+        entry.family = "montageend"
+        entry.causetext = table.concat({
+            Count(info.successes or 0, "success", "successes"),
+            Count(info.failures or 0, "failure", "failures"),
+            Count(info.unvanquished or 0, "threat not vanquished", "threats not vanquished"),
+        }, History.DOT)
+    elseif info.kind == "counter" then
+        entry.family = "montagecounter"
+        entry.name = info.name
+        entry.counter = info.counter
+        entry.before = info.before
+        entry.after = info.after
+        entry.limit = info.limit
+        entry.causetext = "Montage"
+    else
+        return
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
 local function OnEncounterEnded(creature)
     local token = dmhub.LookupToken(creature)
     if History.Enabled() and token ~= nil then
@@ -1575,6 +1632,7 @@ GameSystem.RegisterPlayObserver("history", {
     diceroll = OnDiceRoll,
     persistenceended = OnPersistenceEnded,
     combatbegan = OnCombatBegan,
+    montage = OnMontage,
     resting = OnResting,
     rested = OnRested,
     encounterended = OnEncounterEnded,

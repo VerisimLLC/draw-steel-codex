@@ -194,6 +194,22 @@ local function Styles()
             borderColor = "@fgMuted",
         },
         {
+            selectors = {"label", "historySuccessTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@bg",
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"label", "historyFailureTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@bg",
+            bgcolor = "@danger",
+        },
+        {
             selectors = {"label", "historyActiveTag"},
             fontSize = 11,
             bold = true,
@@ -1623,6 +1639,14 @@ local function LineWords(entry)
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
+    elseif family == "montagetest" then
+        return string.format("%s rolled %d", name, entry.total)
+    elseif family == "montagethreat" then
+        return string.format("<b>%s</b> was not vanquished", entry.name or "A threat")
+    elseif family == "montageend" then
+        return "<b>Montage ended</b>"
+    elseif family == "montagecounter" then
+        return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
     elseif family == "respite" then
         return name .. " took a respite"
     elseif family == "levelup" then
@@ -1771,6 +1795,10 @@ local function BuildLine(item)
         tag = Tag("historyEndedTag", "Ended")
     elseif entry.family == "save" and not entry.passed then
         tag = Tag("historyActiveTag", "Active")
+    elseif entry.family == "montagetest" and entry.tier ~= nil and entry.tier >= 3 then
+        tag = Tag("historySuccessTag", "Success")
+    elseif entry.family == "montagetest" and entry.tier == 1 then
+        tag = Tag("historyFailureTag", "Failure")
     elseif entry.family == "condition" and entry.who ~= nil then
         --a lone trigger's line carries the target's own start (AddLoneTrigger).
         local start = entry.start or entry

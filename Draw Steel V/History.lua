@@ -40,7 +40,9 @@ local mod = dmhub.GetModLoading()
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
---- "respite" or "levelup".
+--- "respite", "levelup", "montagetest", "montagethreat", "montageend" or "montagecounter".
+--- @field counter? string On a montagecounter line: "successes" or "failures".
+--- @field limit? number On a montagecounter line: how many the montage needs.
 --- @field level? integer On a levelup line: the Level reached.
 --- @field heroesFirst? boolean On a drawsteel line: the heroes go first.
 --- @field rolled? number On a drawsteel line: the Draw Steel die, when one was rolled.
@@ -314,6 +316,9 @@ local function Flush()
     end
 end
 
+--The last stamp History.Write gave an entry on this client.
+local g_lastStamp = 0
+
 --- Adds an entry to its map's History on the next frame. Fills in id and t if they are
 --- missing. Whoever calls this is the one client that writes the entry: call it from
 --- code that runs on exactly one client. Safe from hot combat code: it can fail, the
@@ -325,7 +330,16 @@ function History.Write(entry)
         return false
     end
     entry.id = entry.id or dmhub.GenerateGuid()
-    entry.t = entry.t or dmhub.serverTimeMilliseconds
+    --entries sort by their stamp, so two written in the same millisecond would fall in a
+    --random order: each new stamp is at least one past the last this client gave out.
+    if entry.t == nil then
+        local now = dmhub.serverTimeMilliseconds
+        if now <= g_lastStamp then
+            now = g_lastStamp + 1
+        end
+        g_lastStamp = now
+        entry.t = now
+    end
     g_waiting[#g_waiting + 1] = entry
     if #g_waiting == 1 then
         dmhub.Schedule(0.01, Flush)

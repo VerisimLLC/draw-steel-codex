@@ -881,7 +881,7 @@ local function Header(entry, width, inTray, close)
             height = "auto",
             halign = "left",
             meta,
-            History.Tag("historyVillainTag", villainAction),
+            History.Tag("historyVillainTag", "Villain Action"),
         }
     end
     children[#children + 1] = gui.Panel{

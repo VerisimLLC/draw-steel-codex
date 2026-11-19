@@ -1489,8 +1489,10 @@ local function BuildAction(item)
     end
 
     local titleChildren = {}
+    --the face stands beside the words, so words that wrap stay clear of it.
+    local actorFace = nil
     if item.showActor then
-        titleChildren[#titleChildren + 1] = Face(entry.actor, 22)
+        actorFace = Face(entry.actor, 22)
         titleChildren[#titleChildren + 1] = gui.Label{
             classes = {"historyName"},
             text = History.SearchMark(ShownName(entry.actor)) .. DOT,
@@ -1510,7 +1512,7 @@ local function BuildAction(item)
         valign = "center",
     }
     if entry.ability.villainaction ~= nil then
-        titleChildren[#titleChildren + 1] = Tag("historyVillainTag", entry.ability.villainaction)
+        titleChildren[#titleChildren + 1] = Tag("historyVillainTag", "Villain Action")
     end
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier)
@@ -1656,12 +1658,22 @@ local function BuildAction(item)
                 bmargin = 4,
                 gui.Panel{
                     flow = "horizontal",
-                    wrap = true,
                     width = inner - ACTION_WORDS_WIDTH,
                     height = "auto",
                     halign = "left",
                     valign = "center",
-                    children = titleChildren,
+                    children = {
+                        actorFace or gui.Panel{width = 0, height = 0},
+                        gui.Panel{
+                            flow = "horizontal",
+                            wrap = true,
+                            width = inner - ACTION_WORDS_WIDTH - (actorFace ~= nil and 22 or 0),
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            children = titleChildren,
+                        },
+                    },
                 },
                 action ~= nil and gui.Label{
                     classes = {"historyMuted"},

@@ -632,7 +632,7 @@ turn it happened.
 line for the per-round budget; players see it as any action.
 | ID | What | Wording |
 |---|---|---|
-| L90 | Tag on a villain action's row and card header | Villain Action {n} (the slot as the stat block names it) |
+| L90 | Tag on a villain action's row and card header | Villain Action (changed 2026-11-19, James: the slot number is dropped) |
 
 **Category 5, overrides (signed off 2026-11-19).** Anyone driving the roll dialog may override a tier (not under
 Strictly Enforce Rolls, never the Monster AI). The action row is tagged; the card shows the final tier and replaces

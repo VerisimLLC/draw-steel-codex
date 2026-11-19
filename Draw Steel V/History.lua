@@ -31,7 +31,7 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil} What was used; villainaction is the stat block slot, "Villain Action 1" (L90).
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil} What was used; villainaction is the stat block slot, "Villain Action 1"; the tag reads only "Villain Action" (L90).
 --- @field player? string On an action: the player who used it. Nil means the Director.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil} The power roll. hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it. On a test or table line: the ability that asked for the roll, whose row it goes under.

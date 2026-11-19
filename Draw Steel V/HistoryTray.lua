@@ -1623,6 +1623,10 @@ local function LineWords(entry)
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
+    elseif family == "respite" then
+        return name .. " took a respite"
+    elseif family == "levelup" then
+        return string.format("%s reached Level %d", name, entry.level)
     elseif family == "drawsteel" then
         local words = "<b>Draw Steel!</b>" .. DOT .. cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
         if entry.rolled ~= nil then

@@ -13988,15 +13988,18 @@ end
 --a respite begins, and also from Rest() for instant-respite flows.
 function creature:RemoveOngoingEffectsOnRest(restType)
 	if self:has_key("ongoingEffects") then
-		local newOngoingEffects = {}
-		for _,effectInstance in ipairs(self.ongoingEffects) do
-			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
-			if not remove then
-				newOngoingEffects[#newOngoingEffects+1] = effectInstance
+		--EndingEffects tells play observers (History) what this took off, with the cause "rest".
+		self:EndingEffects("rest", function()
+			local newOngoingEffects = {}
+			for _,effectInstance in ipairs(self.ongoingEffects) do
+				local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
+				if not remove then
+					newOngoingEffects[#newOngoingEffects+1] = effectInstance
+				end
 			end
-		end
 
-		self.ongoingEffects = newOngoingEffects
+			self.ongoingEffects = newOngoingEffects
+		end)
 	end
 end
 
@@ -14008,6 +14011,12 @@ end
 --the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
 function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
+
+	--Play observers (History) note what the creature has before a long rest, and what
+	--changed once it is over ("rested", at the end of this function).
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("resting", self)
+	end
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
@@ -14055,6 +14064,9 @@ function creature:Rest(restType, keepOngoingEffects, keepLevel)
 		self:RemoveOngoingEffectsOnRest(restType)
 	end
 
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("rested", self)
+	end
 end
 
 function creature:HasConcentration()

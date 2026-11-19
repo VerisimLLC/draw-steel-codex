@@ -39,7 +39,9 @@ local mod = dmhub.GetModLoading()
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
---- "resource", "malice", "globalresource", "moved", "test", "dice" or "drawsteel".
+--- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
+--- "respite" or "levelup".
+--- @field level? integer On a levelup line: the Level reached.
 --- @field heroesFirst? boolean On a drawsteel line: the heroes go first.
 --- @field rolled? number On a drawsteel line: the Draw Steel die, when one was rolled.
 --- @field total? number On a test or dice line: what the roll came to.

@@ -730,8 +730,57 @@ end
 local g_recoveryHeal = nil
 local RECOVERY_WINDOW_MS = 1000
 
+--Heroes in the middle of a respite, with what they had when it began (L53). Weak keys:
+--a creature that never finishes resting is forgotten with it.
+local g_resting = setmetatable({}, {__mode = "k"})
+
+--What a respite can change on a Hero.
+local function RespiteFacts(props)
+    local used = props:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+    local max = props:GetResources()[CharacterResource.recoveryResourceId] or 0
+    return {
+        stamina = props:CurrentHitpoints(),
+        recoveries = max - used,
+        xp = props:try_get("xp", 0),
+        level = props:CharacterLevel(),
+    }
+end
+
+local function OnResting(creature)
+    if History.Enabled() and creature:IsHero() then
+        g_resting[creature] = RespiteFacts(creature)
+    end
+end
+
+--The respite is over: one line per Hero saying only what changed (L53, L54), and one more
+--when it raised their Level (L55).
+local function OnRested(creature)
+    local before = g_resting[creature]
+    g_resting[creature] = nil
+    local token = dmhub.LookupToken(creature)
+    if before == nil or token == nil or not History.Enabled() then
+        return
+    end
+    local after = RespiteFacts(creature)
+    local parts = {}
+    for _, fact in ipairs({{"stamina", "Stamina"}, {"recoveries", "Recoveries"}, {"xp", "XP"}}) do
+        local was, now = before[fact[1]], after[fact[1]]
+        if was ~= now then
+            parts[#parts + 1] = string.format("%s %d to %d", fact[2], was, now)
+        end
+    end
+    WriteLine(token, "respite", {causetext = #parts > 0 and table.concat(parts, History.DOT) or "Respite"})
+    if after.level > before.level then
+        WriteLine(token, "levelup", {level = after.level, causetext = "Respite"})
+    end
+end
+
 local function OnHeal(creature, regained, note, recovered)
     if not History.Enabled() then
+        return
+    end
+    --a respite's healing is part of its own line (L53).
+    if g_resting[creature] ~= nil then
         return
     end
     local token = dmhub.LookupToken(creature)
@@ -1245,6 +1294,8 @@ local function OnEffectsEnded(creature, ended, cause)
         causetext = "End of round"
     elseif cause == "dying" then
         causetext = History.Creature(token).name .. " is dying"
+    elseif cause == "rest" then
+        causetext = "Respite began"
     end
 
     if causetext == nil then
@@ -1515,6 +1566,8 @@ GameSystem.RegisterPlayObserver("history", {
     diceroll = OnDiceRoll,
     persistenceended = OnPersistenceEnded,
     combatbegan = OnCombatBegan,
+    resting = OnResting,
+    rested = OnRested,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,

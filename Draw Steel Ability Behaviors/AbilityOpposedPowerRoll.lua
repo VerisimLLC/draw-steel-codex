@@ -142,6 +142,7 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		checks = checks,
 		silent = self.silent,
 		tokens = tokenInfo,
+		castid = options.symbols ~= nil and options.symbols.castid or "",
 	})
 	ActivatedAbility.TrackCastActionRequest(actionid)
 

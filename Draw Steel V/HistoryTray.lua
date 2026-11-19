@@ -1159,6 +1159,52 @@ end
 --"{Owner} . {trigger}", then after a caret what it did. The name shortens with "..." so the
 --result stays in view; hovering the name shows it whole, and the card has the full sentence.
 --entry.result is a change to the owner itself, such as "Clarity +1".
+--One side's roll under the action that asked for it: face, "Gordon rolled 14", then the
+--test's name, muted. The same words as the line a test gets on its own.
+local function RollRow(entry)
+    --- @type Panel[]
+    local children = {}
+    local name = ""
+    if entry.who ~= nil then
+        children[1] = Face(entry.who, 20)
+        name = string.format("<b>%s</b> ", ShownName(entry.who))
+    end
+    --a Dice Tower roll: players saw it happen, not what it came to (L79).
+    local words = "rolled in secret"
+    if not entry.secretroll and entry.total ~= nil then
+        words = string.format("rolled %d", entry.total)
+    end
+    children[#children + 1] = gui.Label{
+        classes = {"historyTriggerResult"},
+        text = History.SearchMark(name .. words),
+        width = "auto",
+        height = "auto",
+        lmargin = 6,
+        textWrap = false,
+        halign = "left",
+        valign = "center",
+    }
+    if entry.causetext ~= nil then
+        children[#children + 1] = gui.Label{
+            classes = {"historyMuted"},
+            text = entry.causetext,
+            width = "auto",
+            height = "auto",
+            lmargin = 6,
+            textWrap = false,
+            halign = "left",
+            valign = "center",
+        }
+    end
+    return gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        vmargin = 1,
+        children = children,
+    }
+end
+
 local function TriggerRow(index, entry)
     local tagText = cond(entry.ability.free, "Free", "Triggered")
     local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
@@ -1357,12 +1403,16 @@ local function BuildAction(item)
     local extra = {}
     local triggers = {}
     local minions = {}
+    --rolls the ability asked for: each side of an opposed power roll.
+    local rolls = {}
     for _, kid in ipairs(item.triggers or {}) do
         if kid.kind == "trigger" then
             triggers[#triggers + 1] = kid
             for _, who in ipairs(kid.targets) do
                 extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
             end
+        elseif kid.family == "test" then
+            rolls[#rolls + 1] = kid
         elseif kid.family == "resource" then
             triggers[#triggers + 1] = {
                 actor = kid.who,
@@ -1407,6 +1457,9 @@ local function BuildAction(item)
     local triggerRows = {}
     for i, kid in ipairs(triggers) do
         triggerRows[i] = TriggerRow(i, kid)
+    end
+    for _, kid in ipairs(rolls) do
+        triggerRows[#triggerRows + 1] = RollRow(kid)
     end
 
     local opens = OpensCard(item)

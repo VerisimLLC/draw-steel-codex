@@ -1375,7 +1375,10 @@ local function OnTested(creature, info)
         total = info.total,
         roll = roll,
         privacy = privacy,
-        causetext = string.format("%s%sTier %d", info.name, History.DOT, info.tier),
+        --a roll an ability asked for (an opposed power roll) goes under that ability's row;
+        --its total is compared with the other side's, so it has no tier of its own.
+        cause = info.cause,
+        causetext = info.cause ~= nil and info.name or string.format("%s%sTier %d", info.name, History.DOT, info.tier),
     })
 end
 

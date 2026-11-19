@@ -452,7 +452,8 @@ end
 --- @param rollInfo table The finished roll.
 --- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
 --- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
-function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic)
+--- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
     local value = nil
     for id, info in pairs(creature.attributesInfo) do
         if characteristic ~= nil and info.description == characteristic then
@@ -478,6 +479,7 @@ function RollUtils.NotifyTested(props, testName, rollInfo, details, characterist
         characteristic = value ~= nil and {name = characteristic, value = value} or nil,
         sources = details ~= nil and details.edgeSources or nil,
         privacy = RollUtils.RollPrivacy(rollInfo, details),
+        cause = causeCastId,
     })
 end
 

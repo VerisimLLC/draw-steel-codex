@@ -99,6 +99,9 @@ RollRequest.dicetower = false
 --Set when the Director asked for the rolls from Request Rolls, not an ability: each test
 --then gets its own History line (an ability's go on its row).
 RollRequest.director = false
+--Set when an ability asked for the rolls (an opposed power roll): the id of its cast, so
+--each roll's History line goes under that ability's row. "" when no ability did.
+RollRequest.castid = ""
 
 --Directorless pause on the group roll board: the Monster AI sets
 --awaitingContinue once every roll is in and waits; any player's Continue sets
@@ -1094,6 +1097,8 @@ function GameHud:RequireRollListenerPanel()
 										completeRoll = function(rollInfo, details)
 											if rollType == "test_power_roll" and request.info.director then
 												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
+											elseif request.info.castid ~= "" then
+												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text, request.info.castid)
 											end
 											local req = dmhub.GetPlayerActionRequest(k)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then

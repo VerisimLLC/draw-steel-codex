@@ -5793,7 +5793,16 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
                 end
             end
 
-            if dist <= range then
+            --The filter above checked a Hidden enemy from where this creature stands now. A strike
+            --made after moving or charging needs the Hidden rule to allow it from that square too.
+            local inReach = dist <= range
+            if inReach and enemy.properties:HasNamedCondition("Hidden") then
+                self:ExecuteWithTheoreticalMovementLoc(token, chargeLoc or loc, function()
+                    inReach = GameSystem.AllowTargeting(token, enemy, ability) == true
+                end)
+            end
+
+            if inReach then
                 local los = sightFromLoc[enemy]
                 if los == nil then
                     local losProf = ProfBegin("engine: GetLineOfSight")

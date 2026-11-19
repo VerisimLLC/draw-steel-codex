@@ -640,6 +640,14 @@ end
 --- @param rollInfo table The finished roll. The roll dialog adds rolledTotal and overrideMessage when the result was overridden.
 --- @param extra nil|{cause: nil|string, project: nil|string} cause: the cast id of the ability that asked for the roll. project: the downtime project whose event the Director rolled.
 function RollOnTableProperties.NotifyRolled(roller, tableRef, rollInfo, extra)
+    --a choice table (the Conduit's Pray / Do Not Pray) hands the dice to the table chosen;
+    --the roll's own properties name the table they landed on.
+    pcall(function()
+        local rolledOn = rollInfo.properties ~= nil and rollInfo.properties:try_get("tableRef") or nil
+        if rolledOn ~= nil and rolledOn:GetTable() ~= nil then
+            tableRef = rolledOn
+        end
+    end)
     local t = tableRef:GetTable()
     if t == nil or rollInfo == nil or rollInfo.total == nil then
         return

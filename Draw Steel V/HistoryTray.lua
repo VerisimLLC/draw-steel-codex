@@ -1514,6 +1514,10 @@ local function BuildAction(item)
     if entry.ability.villainaction ~= nil then
         titleChildren[#titleChildren + 1] = Tag("historyVillainTag", "Villain Action")
     end
+    --a tier chosen after the dice landed (L91); the card says who and what the dice gave.
+    if entry.roll ~= nil and entry.roll.overridden ~= nil then
+        titleChildren[#titleChildren + 1] = Tag("historyEndedTag", "Overridden")
+    end
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier)
     end

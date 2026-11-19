@@ -480,6 +480,11 @@ function RollUtils.NotifyTested(props, testName, rollInfo, details, characterist
         sources = details ~= nil and details.edgeSources or nil,
         privacy = RollUtils.RollPrivacy(rollInfo, details),
         cause = causeCastId,
+        --a tier someone chose after the dice landed: who, and what the dice gave.
+        overridden = overrideTier ~= nil and {
+            by = rollInfo.properties:try_get("overrideBy"),
+            dicetier = RollUtils.DiceResultToTier(rollInfo),
+        } or nil,
     })
 end
 
@@ -1077,6 +1082,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_tierFinished = i
                     rollProperties.overrideTier = i
                     rollProperties.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                    --who did it, for a record of play (History): the Director, or the player's name.
+                    rollProperties.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                     m_rollInfo:UploadProperties(rollProperties)
 
                     element.parent:FireEventTree("tier", i, true)
@@ -2215,6 +2222,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
+    --an overridden tier: who chose it and what the dice gave, for a record of play (History).
+    if rollProperties:try_get("overrideTier") ~= nil then
+        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+        options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -3734,6 +3746,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                                    self.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                                     message:UploadProperties(self)
 
                                     for j,row in ipairs(m_rows) do

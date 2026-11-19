@@ -1916,6 +1916,14 @@ local function SecretRollRow(entry, width)
     }
 end
 
+--What an overridden roll's card says in place of explaining its tier (L92).
+--- @param roll table A roll with overridden = {by, dicetier}.
+--- @return string
+local function OverrideWords(roll)
+    return string.format("%s overrode the result: Tier %d. The dice gave Tier %d.",
+        roll.overridden.by or "Director", roll.tier, roll.overridden.dicetier)
+end
+
 --A roll on a table: its dice, any bonus, the total, then the row it landed on in full and,
 --when the result was overridden, the roll dialog's message saying who changed it.
 local function AddTableLines(rows, width, entry)
@@ -2018,6 +2026,10 @@ local function NumbersRows(entry, kids, width)
             badge = nil
         end
         rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
+        --a test's card has no Why, so its numbers say who set the tier (L92).
+        if entry.family == "test" and roll.overridden ~= nil then
+            rows[#rows + 1] = ReceiptNote(width, OverrideWords(roll), "historyReceiptMore")
+        end
     end
 
     --a table the ability rolled on, under its roller's name, as the table line's own card has it.
@@ -2873,7 +2885,10 @@ function History.Why(entry, kids)
     --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
     --of its own moved; targets whose lines read the same share one.
     local roll = entry.roll
-    if roll ~= nil then
+    if roll ~= nil and roll.overridden ~= nil then
+        --the dice did not decide the tier, so the parts that moved it explain nothing.
+        rows[#rows + 1] = {text = OverrideWords(roll)}
+    elseif roll ~= nil then
         local main, lines = TierLines(roll, targets)
         if main ~= nil then
             rows[#rows + 1] = {lead = string.format("Tier %d%s", main.tier, main.qualifier), text = main.text}

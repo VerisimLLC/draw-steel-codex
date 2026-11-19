@@ -3122,6 +3122,7 @@ end
 --- @field multitargets? table[] Per-target state of a roll against several targets ({tokenid, boons, banes, surges, modifiersUsed, ...}); set by the roll dialog.
 --- @field castid? string Id of the ability cast this roll belongs to; set by the roll dialog.
 --- @field overrideMessage? string Why the result was overridden (e.g. "X overrode the result"); shown on the chat card.
+--- @field overrideBy? string Who overrode the result: "Director" or the player's name, for a record of play (History).
 --- @field overrideOutcome? table An outcome entry ({outcome = "Hit", value = 8, ...}) that GetOutcome returns instead of matching the roll.
 --- Properties attached to a dice roll result to control outcome display and resolution.
 RollProperties = RegisterGameType("RollProperties")

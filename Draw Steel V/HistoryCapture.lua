@@ -493,6 +493,11 @@ local function AddRoll(entry, cast, ability, caster)
         tier = cast.tier,
         hidden = cast:try_get("hiddenRoll"),
     }
+    --a tier chosen after the dice landed (5.2e): who chose it and what the dice gave.
+    local diceTier = cast:try_get("diceTier")
+    if diceTier ~= nil then
+        entry.roll.overridden = {by = cast:try_get("overrideBy"), dicetier = diceTier}
+    end
     --what the dice add up to and what is added to them, for the receipt (2.2). The rest of
     --the total past the dice, the characteristic and an edge or bane is a flat bonus.
     local natural = cast:try_get("naturalRoll")
@@ -1633,6 +1638,7 @@ local function OnTested(creature, info)
         natural = info.natural,
         characteristic = info.characteristic,
         sources = info.sources ~= nil and EdgeSources(info.sources) or nil,
+        overridden = info.overridden,
     }
     if #info.dice == 2 then
         roll.low = math.min(info.dice[1], info.dice[2])
@@ -1661,7 +1667,8 @@ local function OnTested(creature, info)
         --a roll an ability asked for (an opposed power roll) goes under that ability's row;
         --its total is compared with the other side's, so it has no tier of its own.
         cause = info.cause,
-        causetext = info.cause ~= nil and info.name or string.format("%s%sTier %d", info.name, History.DOT, info.tier),
+        causetext = (info.cause ~= nil and info.name or string.format("%s%sTier %d", info.name, History.DOT, info.tier))
+            .. (info.overridden ~= nil and (History.DOT .. "Overridden") or ""),
     })
 end
 

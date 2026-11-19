@@ -2168,6 +2168,26 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
     end
 
+    --Edges/banes for the use_ability analytics event (ActivatedAbility:RecordAbilityUsage).
+    --Uses the first target's effective roll, so per-target edges such as flanking count.
+    --Only the ability's first power roll is recorded.
+    if followUpDice == nil and options.usageAnalytics == nil then
+        local effective = m_result
+        local multitargets = m_rollInfo ~= nil and m_rollInfo.properties:try_get("multitargets") or nil
+        for _,target in ipairs(multitargets or {}) do
+            if target.tokenid then
+                effective = RollUtils.EffectiveRollForTarget(m_result, target)
+                break
+            end
+        end
+        options.usageAnalytics = {
+            powerRoll = true,
+            edges = effective.boons or 0,
+            banes = effective.banes or 0,
+            strike = ability.keywords["Strike"] and true or false,
+        }
+    end
+
     --Allow modifiers to modify the casting of the power roll.
     --Limited to cost changes
     for _, mod in ipairs(modifiersApplied or {}) do

@@ -1893,6 +1893,24 @@ local function OnSpoilerVisibility(key, revealed)
     end
 end
 
+--Revert Turn or Turn Rewind restored the board (L39, L40). History is not part of the
+--checkpoint, so nothing is erased: what came after it is marked Reverted, under one
+--"Turn reverted" line. info: {since, turnkey}; turnkey only for Turn Rewind.
+local function OnTurnReverted(info)
+    if not History.Enabled() or info.since == nil then
+        return
+    end
+    local mapid = game.currentMapId
+    local line = {
+        kind = "line",
+        family = "reverted",
+        map = mapid,
+        causetext = dmhub.isDM and "By the Director" or ("By " .. dmhub.userDisplayName),
+    }
+    History.AddCombatFacts(line)
+    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line)
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1955,6 +1973,7 @@ GameSystem.RegisterPlayObserver("history", {
     wavedeployed = OnWaveDeployed,
     spoilerrevealed = OnSpoilerRevealed,
     spoilervisibility = OnSpoilerVisibility,
+    turnreverted = OnTurnReverted,
     resource = OnResource,
     globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,

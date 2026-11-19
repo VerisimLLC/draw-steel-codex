@@ -870,18 +870,25 @@ local function Header(entry, width, inTray, close)
         height = "auto",
         textAlignment = "left",
     }
-    --a villain action carries its tag beside the round and turn, as its row does (L90).
+    --a villain action (L90) or a reverted row (L39) carries its tag beside the round and
+    --turn, as its row does.
     local villainAction = entry.ability ~= nil and entry.ability.villainaction or nil
-    if villainAction ~= nil then
+    if villainAction ~= nil or entry.reverted ~= nil then
         meta.selfStyle.width = "auto"
         meta.selfStyle.halign = "left"
+        local parts = {meta}
+        if villainAction ~= nil then
+            parts[#parts + 1] = History.Tag("historyVillainTag", "Villain Action")
+        end
+        if entry.reverted ~= nil then
+            parts[#parts + 1] = History.Tag("historyRevertedTag", "Reverted")
+        end
         meta = gui.Panel{
             flow = "horizontal",
             width = "100%",
             height = "auto",
             halign = "left",
-            meta,
-            History.Tag("historyVillainTag", "Villain Action"),
+            children = parts,
         }
     end
     children[#children + 1] = gui.Panel{

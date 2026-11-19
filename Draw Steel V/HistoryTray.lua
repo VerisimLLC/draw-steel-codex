@@ -185,6 +185,20 @@ local function Styles()
             selectors = {"label", "historyUndone"},
             color = "@fgMuted",
         },
+        --a row Revert Turn or Turn Rewind undid (L39): every panel in it fades but its tag.
+        {
+            selectors = {"historyFaded"},
+            opacity = 0.45,
+        },
+        {
+            selectors = {"label", "historyRevertedTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@fgMuted",
+            bgcolor = "clear",
+            borderColor = "@fgMuted",
+        },
         {
             selectors = {"label", "historyLineButton"},
             fontSize = 11,
@@ -720,7 +734,7 @@ local function Tag(style, text)
         hpad = 4,
         borderBox = true,
         cornerRadius = 3,
-        borderWidth = cond(style == "historyEndedTag" or style == "historyVillainTag", 1, 0),
+        borderWidth = cond(style == "historyEndedTag" or style == "historyVillainTag" or style == "historyRevertedTag", 1, 0),
         lmargin = 5,
         halign = "left",
         valign = "center",
@@ -1538,6 +1552,9 @@ local function BuildAction(item)
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier, entry.roll ~= nil and entry.roll.overridden ~= nil)
     end
+    if entry.reverted ~= nil then
+        titleChildren[#titleChildren + 1] = Tag("historyRevertedTag", "Reverted")
+    end
     if dmhub.isDM and entry.hiddenfromplayers then
         titleChildren[#titleChildren + 1] = HiddenEye()
     end
@@ -1808,6 +1825,8 @@ local function LineWords(entry)
             return string.format("<b>%s</b> revealed", entry.name or "")
         end
         return string.format("%s %s revealed", name, entry.name or "")
+    elseif family == "reverted" then
+        return "<b>Turn reverted</b>"
     elseif family == "reinforcements" then
         return string.format("<b>%s</b> arrived", entry.name or "Reinforcements")
     elseif family == "staminaset" then
@@ -2009,6 +2028,9 @@ local function BuildLine(item)
         },
     }
     top[2] = tag
+    if entry.reverted ~= nil then
+        top[#top + 1] = Tag("historyRevertedTag", "Reverted")
+    end
     --an effect hidden from enemies: players don't get this line, or these names (2.4).
     if dmhub.isDM and (entry.secret or entry.hiddenfromplayers or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
         top[#top + 1] = HiddenEye()
@@ -2358,6 +2380,21 @@ local g_builders = {
     line = BuildLine,
 }
 
+--A row from its builder. A reverted one (L39) fades whole: opacity does not reach a
+--panel's children, so every panel in it takes the class, except its Reverted tag.
+local function BuildRow(item)
+    local panel = g_builders[item.kind](item)
+    if (item.kind == "action" or item.kind == "line") and item.entry.reverted ~= nil then
+        for _, child in ipairs(panel.children) do
+            child:SetClassTree("historyFaded", true)
+        end
+        for _, tag in ipairs(panel:GetChildrenWithClassRecursive("historyRevertedTag")) do
+            tag:SetClass("historyFaded", false)
+        end
+    end
+    return panel
+end
+
 --What the user has opened or closed by hand, by section or turn id. A section or turn
 --with no entry here follows the default: only the newest stays open.
 local g_open = {}
@@ -2395,6 +2432,10 @@ local function Tally(entries, nested)
         row.healed = row.healed + (healed or 0)
     end
     local function AddEntry(entry)
+        --what a revert undid never happened: it stays out of the fold's totals (L39).
+        if entry.reverted ~= nil then
+            return
+        end
         if entry.kind == "line" then
             Add(entry.who, entry.taken, entry.healed)
         else
@@ -2929,7 +2970,8 @@ local function BuildSections(mapid)
                 sections[#sections + 1] = section
                 turn = nil
             end
-            if entry.family == "malice" then
+            --a reverted Malice change did not happen, so the heading's range leaves it out.
+            if entry.family == "malice" and entry.reverted == nil then
                 section.maliceBefore = section.maliceBefore or entry.before
                 section.maliceAfter = entry.after
             end
@@ -2980,7 +3022,7 @@ local function AddLoneTrigger(items, entry, key, kids)
         sources[#sources + 1] = kid
     end
     for i, who in ipairs(entry.targets) do
-        local base = {kind = "line", who = who, causetext = causetext, hiddenfromplayers = entry.hiddenfromplayers}
+        local base = {kind = "line", who = who, causetext = causetext, hiddenfromplayers = entry.hiddenfromplayers, reverted = entry.reverted}
         local parts = {}
         if (who.taken or 0) > 0 then
             parts[#parts + 1] = {family = "damage", taken = who.taken, soaked = who.soaked, damagetype = OnlyType(who)}
@@ -3106,14 +3148,14 @@ local function AddTurnRows(items, turn, isNewest, nested)
         local last = items[#items]
         if entry.kind == "line" and entry.family == "ended" and last ~= nil and last.kind == "line"
             and last.entry.family == "ended" and last.entry.who.id == entry.who.id
-            and last.entry.causetext == entry.causetext then
+            and last.entry.causetext == entry.causetext and last.entry.reverted == entry.reverted then
             --ended a moment apart, for the same reason: one line (L8).
             local names = table.shallow_copy(last.entry.names)
             for _, name in ipairs(entry.names) do
                 names[#names + 1] = name
             end
             last.entry = {family = "ended", kind = "line", who = entry.who, causetext = entry.causetext, names = names,
-                hiddenfromplayers = last.entry.hiddenfromplayers}
+                hiddenfromplayers = last.entry.hiddenfromplayers, reverted = entry.reverted}
             last.sig = table.concat(names, ",") .. tostring(last.entry.hiddenfromplayers)
             last.sources[#last.sources + 1] = entry
         elseif entry.kind == "line" then
@@ -4101,7 +4143,7 @@ local function CreateFace()
                 row.sig = item.sig
             end
             if row == nil or row.sig ~= item.sig or not row.panel.valid then
-                row = {panel = g_builders[item.kind](item), sig = item.sig}
+                row = {panel = BuildRow(item), sig = item.sig}
             end
             kept[item.key] = row
             children[#children + 1] = row.panel

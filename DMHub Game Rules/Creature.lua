@@ -39,6 +39,9 @@ local g_playObservers = {}
 ---   spoilerrevealed(info): the Director revealed a spoilered roll modifier to players.
 ---     info: key, name, description, tokenid (whose modifier, or nil).
 ---   spoilervisibility(key, revealed): the Director's eye shows or hides such a modifier.
+---   turnreverted(info): Revert Turn or Turn Rewind restored the board, on the client that
+---     did it. info: since (server ms the checkpoint was taken), turnkey (Turn Rewind only:
+---     the turn, so stepping back and forward within it is one record).
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.

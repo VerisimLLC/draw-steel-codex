@@ -7586,6 +7586,9 @@ function CreateSettingsScreen(dialog, args)
 						text = "Audio",
 					},
 					CreateTab{
+						text = "Accessibility",
+					},
+					CreateTab{
 						text = "Game",
 						dmonly = true,
 					},
@@ -7785,6 +7788,12 @@ function CreateSettingsScreen(dialog, args)
 						end,
 					},
 
+					SettingGroup{
+						group = "Accessibility",
+						build = function() return {
+							SettingsSection("Accessibility"),
+						} end,
+					},
 
 					SettingGroup{
 						group = "Game",

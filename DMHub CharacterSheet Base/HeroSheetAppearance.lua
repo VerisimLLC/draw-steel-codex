@@ -6868,19 +6868,25 @@ local function AnthemWindow()
     --each MGS genre folder row's words, by "<kind>|<genre>".
     --- @type table<string, {label: string, count: integer, owned: integer}>
     local mgsHeaders = {}
+    --a search's matches your account lacks, counted for their heading row.
+    local mgsLockedCount = 0
 
     --- The Michael Ghelfi Studios rows after the game's own: "mgs:<track id>" for a
     --- track, "mgshdr:<kind>|<genre>" for a genre folder, "mgsnote:<what>" for a note.
     --- The whole library, connected or not: with no search in a folder per genre, with
-    --- a search as one list. Tracks your account includes come first in each.
+    --- a search as one list. Tracks your account includes come first in each; in a
+    --- search the rest sit after everything usable, under an "mgsnote:locked" heading.
     --- @param list string[]
     local function AppendMGS(list)
+        mgsLockedCount = 0
         local kinds = AnthemMGS.TAB_KINDS[tab]
         if kinds == nil then
             return
         end
         local state = MGSAudio.State()
-        if not MGSAudio.IsConnected() then
+        local connected = MGSAudio.IsConnected()
+        --a search puts the connect note under the locked heading instead.
+        if not connected and (search == "" or #MGSAudio.Tracks() == 0) then
             list[#list+1] = "mgsnote:connect"
         end
         local tracks = MGSAudio.Tracks()
@@ -6921,6 +6927,13 @@ local function AnthemWindow()
             table.sort(locked, ByTitle)
             for _, track in ipairs(owned) do
                 list[#list+1] = "mgs:" .. track.id
+            end
+            if #locked > 0 then
+                mgsLockedCount = #locked
+                list[#list+1] = "mgsnote:locked"
+                if not connected then
+                    list[#list+1] = "mgsnote:connect"
+                end
             end
             for _, track in ipairs(locked) do
                 list[#list+1] = "mgs:" .. track.id
@@ -7134,6 +7147,16 @@ local function AnthemWindow()
                 textWrap = false,
             },
         }
+        --the line under a section heading row.
+        local rule = gui.Panel{
+            classes = {"heroSheetDivider", "collapsed"},
+            bgimage = "panels/square.png",
+            floating = true,
+            width = "100%",
+            height = 1,
+            valign = "bottom",
+            interactable = false,
+        }
         local playSlot = gui.Panel{
             width = 30,
             height = 30,
@@ -7225,7 +7248,17 @@ local function AnthemWindow()
             },
             mark,
             action,
+            rule,
         }
+        --- Paint the row as a plain heading with a line under it, or as a tile.
+        --- @param on boolean
+        local function SetSection(on)
+            row:SetClass("heroLookTile", not on)
+            row:SetClass("hoverable", not on)
+            row:SetClass("heroLookSection", on)
+            row.selfStyle.border = cond(on, 0, 1)
+            rule:SetClass("collapsed", not on)
+        end
         --- Show the right side's button with these words, or hide it (nil).
         --- @param text nil|string
         local function ShowAction(text)
@@ -7256,6 +7289,12 @@ local function AnthemWindow()
                     words = string.format("%s \xC2\xB7 %d in your account", words, info.owned)
                 end
                 sub.text = words
+                return
+            end
+            if id == "mgsnote:locked" then
+                SetSection(true)
+                name.text = "Needs Michael Ghelfi Studios access"
+                sub.text = string.format("%d %s", mgsLockedCount, cond(mgsLockedCount == 1, "track", "tracks"))
                 return
             end
             if prefix == "mgsnote" then
@@ -7299,6 +7338,7 @@ local function AnthemWindow()
             if id == nil then
                 return
             end
+            SetSection(false)
             if string.sub(id, 1, 3) == "mgs" then
                 PaintMGS(id)
                 return

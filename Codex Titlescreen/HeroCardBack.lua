@@ -1180,9 +1180,9 @@ local function SceneState(moduleName)
     return state
 end
 
---- The tab that fits what the party is doing now. Nothing more specific
---- running means Combat.
---- @return string
+--- The tab that fits what the party is doing now, or nil when nothing is
+--- running: the card then opens on Combat with no current-scene dot.
+--- @return string|nil
 local function CurrentMode()
     local q = dmhub.initiativeQueue
     if q ~= nil and not q.hidden then
@@ -1215,7 +1215,7 @@ local function CurrentMode()
             return "downtime"
         end
     end
-    return "combat"
+    return nil
 end
 
 local function InCombat()
@@ -2293,7 +2293,7 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
         showBack = function(element, show)
             element:SetClass("turned", show)
             if show then
-                state.tab = CurrentMode()
+                state.tab = CurrentMode() or "combat"
                 state.sub = g_lastSubTab[charid] or "basics"
                 state.abilities = nil
                 scroller.vscrollPosition = 1

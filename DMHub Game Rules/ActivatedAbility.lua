@@ -37,6 +37,7 @@ end
 --- @field excludedTargetTokenIds nil|table<string, boolean> Charids this clone may not target (the creatures the first use already hit).
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
+--- @field _tmp_forcedMoveStability nil|{requested: number, stability: number, ignored: boolean} On a forced-movement clone: the push before stability and what stability took off, for play observers (see ActivatedAbilityInvokeAbilityBehavior.NoteStability).
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
 --- @field stolenStamp nil|string Fresh guid on each ability copied by Steal Ability, so the action bar flags every steal as new.
 --- @field lineDistance number|string Length for line-area targeting: a number or a GoblinScript formula.

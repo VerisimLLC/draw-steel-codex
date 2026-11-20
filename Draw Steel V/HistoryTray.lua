@@ -1095,13 +1095,28 @@ end
 local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid", teleport = "teleported"}
 History.MOVED_VERBS = MOVED_VERBS
 
---"Push 3", with "fell 4" after a dot when it fell too (T14). vertical_push reads "Vertical push".
+--"Push 3", then after dots what stability took off, walls broken and a fall (T14, L97,
+--L98, L103): "Push 2 · Stability 1 · Broke 1 wall · fell 4". vertical_push reads "Vertical push".
 local function MovedWords(moved)
     local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
-    if moved.distance <= 0 then
+    local words
+    if moved.stopped then
+        words = string.format("%s stopped", kind)
+    elseif moved.distance <= 0 and moved.fell <= 0 then
+        --blocked before it moved a square (L105).
+        words = string.format("%s blocked", kind)
+    elseif moved.distance <= 0 then
         return string.format("Fell %d", moved.fell)
+    else
+        words = string.format("%s %d", kind, moved.distance)
     end
-    local words = string.format("%s %d", kind, moved.distance)
+    if (moved.stability or 0) > 0 then
+        words = words .. DOT .. string.format("Stability %d", moved.stability)
+    end
+    local walls = moved.walls or 0
+    if walls > 0 then
+        words = words .. DOT .. string.format("Broke %d %s", walls, walls == 1 and "wall" or "walls")
+    end
     if moved.fell > 0 then
         words = words .. DOT .. string.format("fell %d", moved.fell)
     end
@@ -2016,8 +2031,24 @@ local function LineWords(entry)
         return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
     elseif family == "moved" then
         local moved = entry.moved
+        if moved.stopped then
+            return string.format("%s held its ground: stability %d stopped the %s", name, moved.stability,
+                (string.gsub(moved.kind, "vertical_", "")))
+        end
         local verb = MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or "moved"
         local words = string.format("%s was %s %d %s", name, verb, moved.distance, cond(moved.distance == 1, "square", "squares"))
+        if moved.distance <= 0 and moved.fell <= 0 then
+            words = string.format("%s was blocked and didn't move", name)
+            if (moved.stability or 0) > 0 then
+                words = words .. string.format(" (stability %d)", moved.stability)
+            end
+        elseif (moved.stability or 0) > 0 and (moved.requested or 0) > moved.distance then
+            words = string.format("%s was %s %d of %d squares (stability %d)", name, verb, moved.distance, moved.requested, moved.stability)
+        end
+        local walls = moved.walls or 0
+        if walls > 0 then
+            words = words .. string.format(", breaking through %s", walls == 1 and "a wall" or string.format("%d walls", walls))
+        end
         if moved.fell > 0 then
             words = words .. string.format(", it fell %d %s", moved.fell, cond(moved.fell == 1, "square", "squares"))
         end

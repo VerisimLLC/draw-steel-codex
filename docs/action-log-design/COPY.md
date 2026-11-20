@@ -665,3 +665,20 @@ shows the map on show, cut short when long; its menu lists those maps by name, t
 | ID | What | Line |
 |---|---|---|
 | L96 | History on a map with nothing recorded yet | Nothing has happened on this map yet. |
+
+## Round 25: stability and wall breaks (6.5, signed off 2026-11-20)
+
+"Push" stands for the kind: Pull, Slide, Vertical push and Vertical pull read the same way.
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L97 | Caption, stability shortened it | {Push} {moved} · Stability {s} | Push 2 · Stability 1 |
+| L98 | Caption, stability stopped it | {Push} stopped · Stability {s} | Push stopped · Stability 1 |
+| L99 | Card sentence, shortened | ... was pushed {moved} of {n} squares (stability {s}). | Goblin 3 was pushed 2 of 3 squares (stability 1). |
+| L100 | Card sentence, stopped | ... held its ground: stability {s} stopped the push. | Goblin 3 held its ground: stability 1 stopped the push. |
+| L101 | The numbers | Push {n} / Stability -{s} / Moved {moved} | Push 3 / Stability -1 / Moved 2 |
+| L102 | The numbers, the attacker ignores stability | Stability ignored | |
+| L103 | Caption, wall break | Broke {n} wall / Broke {n} walls | Push 3 · Broke 1 wall |
+| L104 | Card sentence, wall break | ..., breaking through {n} wall(s). | Goblin 3 was pushed 3 squares, breaking through a wall. |
+| L105 | Caption, blocked before it moved a square | {Push} blocked | Push blocked · Stability 2 |
+| L106 | Card sentence, blocked | ... was blocked and didn't move (stability {s}). | Devil High Judge was blocked and didn't move (stability 2). |

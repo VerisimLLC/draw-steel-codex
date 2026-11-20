@@ -680,8 +680,10 @@ local g_rulePatterns = {
             if match.ignorestabilityifally then
                 ignoreForAlly = casterToken:IsFriend(targetToken)
             end
+            local stabilityIgnored = false
             if stability ~= 0 and (match.ignorestability or ignoreForCompanion or ignoreForAlly or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
                 stability = 0
+                stabilityIgnored = true
                 adjustments[#adjustments+1] = "Ignoring Stability"
             else
                 --Monster Info: a hero pushing, pulling or sliding a monster
@@ -722,6 +724,11 @@ local g_rulePatterns = {
                 ShowFailMessage("Forced Movement Negated")
                 return
             end
+
+            --History hears what stability did; a push it stops entirely is reported now.
+            local stabilityFacts = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken,
+                cond(match.vertical, "vertical_", "") .. match.movement,
+                tonumber(match.distance) + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 
             if range <= 0 then
                 --don't execute forced movement of 0?
@@ -814,6 +821,7 @@ local g_rulePatterns = {
                     end
                 end
                 abilityClone.forcedMovementStraightUp = true
+                abilityClone._tmp_forcedMoveStability = stabilityFacts
 
                 options.targetArgs = {
                     {
@@ -831,6 +839,7 @@ local g_rulePatterns = {
                 for k,v in pairs(abilityAttr) do
                     abilityClone[k] = v
                 end
+                abilityClone._tmp_forcedMoveStability = stabilityFacts
 
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil

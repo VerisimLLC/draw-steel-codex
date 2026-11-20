@@ -117,12 +117,32 @@ end
 
 --What moved it. A push, a fall or both: the fall reads "it fell" (W15, D9).
 --afterDamage: it follows a colon, so it needs no "was".
+--Stability (L99, L100) and walls broken (L104) go with the push they changed.
 local function MovedWords(moved, afterDamage)
-    local verb = History.MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or "moved"
+    local kind = string.gsub(moved.kind, "vertical_", "")
+    if moved.stopped then
+        return string.format("held its ground: stability %d stopped the %s", moved.stability, kind)
+    end
+    local verb = History.MOVED_VERBS[kind] or "moved"
+    if moved.distance <= 0 and moved.fell <= 0 then
+        --blocked before it moved a square (L106).
+        local words = "was blocked and didn't move"
+        if (moved.stability or 0) > 0 then
+            words = string.format("%s (stability %d)", words, moved.stability)
+        end
+        return words
+    end
     if moved.distance <= 0 then
         return string.format("fell %s", Squares(moved.fell))
     end
     local words = string.format("%s %s", verb, Squares(moved.distance))
+    if (moved.stability or 0) > 0 and (moved.requested or 0) > moved.distance then
+        words = string.format("%s %d of %d squares (stability %d)", verb, moved.distance, moved.requested, moved.stability)
+    end
+    local walls = moved.walls or 0
+    if walls > 0 then
+        words = string.format("%s, breaking through %s", words, walls == 1 and "a wall" or string.format("%d walls", walls))
+    end
     if moved.fell > 0 then
         words = string.format("%s, it fell %s", words, Squares(moved.fell))
     end
@@ -1842,11 +1862,29 @@ local function AddTargetLines(rows, width, entry, who, count)
         rows[#rows + 1] = ReceiptLine(width, {label = source, value = tostring(healed)})
         rows[#rows + 1] = ReceiptLine(width, {label = "Regained", value = tostring(healed), valueClass = "historyHealed", total = true})
     end
+
+    --a push that stability shortened or stopped, or that ignored it (L101, L102).
+    local moved = who.moved
+    if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
+        local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
+        rows[#rows + 1] = ReceiptLine(width, {label = kind, value = tostring(moved.requested)})
+        if moved.ignored then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Stability ignored", value = ""})
+        else
+            rows[#rows + 1] = ReceiptLine(width, {label = "Stability", value = Signed(-moved.stability)})
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Moved", value = tostring(moved.distance), total = true})
+    end
 end
 
 --Targets with the same numbers share one sum ("Goblin 1-4", "Taken, each").
 local function ReceiptKey(who)
-    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil then
+    local moved = who.moved
+    local stability = ""
+    if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
+        stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
+    end
+    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" then
         return nil
     end
     local types = {}
@@ -1870,8 +1908,8 @@ local function ReceiptKey(who)
         parts[#parts + 1] = string.format("%s/%s/%s/%d/%s", part.kind, part.name or "", part.who ~= nil and part.who.id or "",
             part.amount, part.damagetype or "")
     end
-    return string.format("%s|%d|%d|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
-        table.concat(parts, ","))
+    return string.format("%s|%d|%d|%s|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
+        table.concat(parts, ","), stability)
 end
 
 --"Rolled in secret." for a roll hidden from players. The Director's copy carries an eye that

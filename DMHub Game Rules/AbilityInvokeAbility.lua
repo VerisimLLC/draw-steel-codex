@@ -1464,8 +1464,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
 
                             local stability = target.token.properties:Stability()
+                            local stabilityIgnored = false
                             if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
                                 stability = 0
+                                stabilityIgnored = true
                                 adjustments[#adjustments+1] = "Ignoring Stability"
                             end
 
@@ -1491,6 +1493,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             if stability > 0 then
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
                             end
+                            abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
+                                baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
@@ -1654,6 +1658,34 @@ function ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
         return "none"
     end
     return string.format("%s:%s:%s", tostring(q.round), tostring(q.turn), tostring(q.currentTurn))
+end
+
+--- What stability did to a forced move, for play observers (History). Put what it returns on
+--- the forced-movement clone as _tmp_forcedMoveStability, so the move reports it when it
+--- lands. A move stability stops entirely never happens, so that one is reported here.
+--- @param targetToken CharacterToken The creature being moved.
+--- @param kind string "push", "vertical_pull" and so on.
+--- @param requested number Squares before stability.
+--- @param stability number What stability took off (0 when ignored).
+--- @param ignored boolean The mover ignores stability.
+--- @return nil|{requested: number, stability: number, ignored: boolean}
+function ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, kind, requested, stability, ignored)
+    if stability <= 0 and not ignored then
+        return nil
+    end
+    local facts = {requested = requested, stability = stability, ignored = ignored}
+    if stability > 0 and requested > 0 and requested <= stability then
+        GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+            kind = kind,
+            distance = 0,
+            stopped = true,
+            requested = requested,
+            stability = stability,
+            collision = 0,
+            walls = 0,
+        })
+    end
+    return facts
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
@@ -2982,8 +3014,10 @@ function AbilityInvocation:Invoke()
 		-- Big Versus Little check
 
 		local stability = targetToken.properties:Stability()
+		local stabilityIgnored = false
 		if stability ~= 0 and pusherToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
 			stability = 0
+			stabilityIgnored = true
 			adjustments[#adjustments+1] = "Ignoring Stability"
 		end
 
@@ -3009,6 +3043,8 @@ function AbilityInvocation:Invoke()
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
 		end
+		abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
+			baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare
 		local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")

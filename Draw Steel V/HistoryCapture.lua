@@ -39,7 +39,7 @@ local mod = dmhub.GetModLoading()
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move.
 --- @field landedon? boolean On a target: a creature fell on it.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
@@ -866,7 +866,11 @@ end
 
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
-    if not History.Enabled() or token == nil or (info.distance <= 0 and not info.falling) then
+    --a push that went nowhere is still worth a line when stability stopped it (L98), it was
+    --blocked by a collision, or stability shortened it first (L105); a fall always is.
+    local wentNowhere = info.distance <= 0 and not info.falling and not info.stopped
+        and (info.collision or 0) <= 0 and info.stability == nil
+    if not History.Enabled() or token == nil or wentNowhere then
         return
     end
     local moved = {
@@ -877,6 +881,14 @@ local function OnForcedMove(creature, info)
         walls = info.walls,
         path = info.path,
     }
+    --what stability did (6.5): stopped comes straight from the setup, the rest with the move.
+    local stability = info.stopped and info or info.stability
+    if stability ~= nil then
+        moved.requested = stability.requested
+        moved.stability = stability.stability
+        moved.ignored = stability.ignored or nil
+        moved.stopped = info.stopped or nil
+    end
     local state = OpenCast(info.cast)
     if state == nil then
         local entry = WriteLine(token, "moved", {moved = moved, causetext = Cause(nil)})

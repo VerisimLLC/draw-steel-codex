@@ -903,6 +903,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,
                         cast = options.symbols.cast,
+                        --what stability took off, from the ability that set this move up (NoteStability).
+                        stability = ability:try_get("_tmp_forcedMoveStability"),
                     })
                 end
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)

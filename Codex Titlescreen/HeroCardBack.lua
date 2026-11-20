@@ -105,8 +105,6 @@ local function TipFrame(text)
         borderBox = true,
         bgimage = "panels/square.png",
         bgcolor = "#151515f8",
-        border = 1,
-        borderColor = "#6fa8ffcc",
         gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long },
     }, { halign = "right", valign = "center" })
 end

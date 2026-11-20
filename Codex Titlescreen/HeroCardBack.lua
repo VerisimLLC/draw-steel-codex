@@ -193,7 +193,25 @@ local function HistoryTip(tok, resourceid, description)
     if entries == nil or #entries == 0 then
         return nil
     end
-    return gui.StatsHistoryTooltip{ description = description, entries = entries }
+    --as gui.StatsHistoryTooltip reads it: only the latest refresh's changes,
+    --in its words, but in the card's own hover box.
+    local latest, refreshid = {}, nil
+    for _, entry in ipairs(entries) do
+        if entry.refreshid ~= refreshid then
+            latest = {}
+        end
+        latest[#latest+1] = entry
+        refreshid = entry.refreshid
+    end
+    local lines = { "Recent changes to " .. description }
+    for _, entry in ipairs(latest) do
+        local value = entry.value
+        if tonumber(value) ~= nil then
+            value = round(tonumber(value))
+        end
+        lines[#lines+1] = string.format("Set to <b>%s</b> by <b>%s</b> %s (%s)", tostring(value), tostring(entry.who), tostring(entry.when), entry.note or "")
+    end
+    return TipFrame(table.concat(lines, "\n"))
 end
 
 --- Where a hero's stat comes from: its base, then one line per source, as the

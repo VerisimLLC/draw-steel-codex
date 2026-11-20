@@ -91,22 +91,26 @@ end
 
 --- Hovers --------------------------------------------------------------------
 
---- Text in a framed hover box, like the ability rows' hovers: a bare
---- gui.Tooltip draws no background over the card's face. Long text wraps.
+--- Text in a plain dark hover box: a bare gui.Tooltip draws no background
+--- over the card's face, and gui.TooltipFrame's faded edge reads as a blur.
+--- Long text wraps.
 --- @param text string
 --- @return Panel
 local function TipFrame(text)
     local long = #text > 70
-    return gui.TooltipFrame(gui.Panel{
+    return gui.Panel{
         width = "auto",
         height = "auto",
+        halign = "right",
+        valign = "center",
         hpad = 12,
         vpad = 8,
         borderBox = true,
         bgimage = "panels/square.png",
         bgcolor = "#151515f8",
-        gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long },
-    }, { halign = "right", valign = "center" })
+        interactable = false,
+        gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long, interactable = false },
+    }
 end
 
 --- Shows a hover built when hovered, so a rebuild of the back costs nothing:

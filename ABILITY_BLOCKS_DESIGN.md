@@ -266,6 +266,16 @@ silently.
 - With *Show GoblinScript* on, the follow-up step shows the generated plumbing
   ("Passed to it: damagedealt = <<Cast.DamageDealt>>, ...") for authors learning the engine.
 
+**Engine finding: nesting.** `AbilityUtils.ExtractAbilityParameters`, `SetDefaultParameters` and
+`DeepReplaceAbility` walk the *whole* copied child, including follow-ups nested inside it. So the
+outermost Invoke step fills every `<<name>>` at every depth, and blanks any name it does not set,
+before an inner Invoke step ever runs. Direct-parent piping for nested follow-ups therefore needs a
+small engine change: stop those three walks at a nested Invoke behaviour's `customAbility`. Only
+one existing ability nests parameters (`monsters/high-elf-zephyr.yaml`, *Sweeping Blade*: the
+innermost ability's `<<targetid>>` is filled by the outermost step); it would need its inner step to
+pass `targetid` after the change. Single-level follow-ups, nearly all content, work today. The
+prototype shows a non-blocking note when a nested follow-up uses parent information.
+
 Not yet covered: defaults (`<<name=3>>`), hand-offs into named or standard abilities (not built
 inline), and showing what a hand-off will be in the Test panel.
 
@@ -310,6 +320,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-20 | **Nested abilities: exploring A (inline)** before deciding. B (open with a breadcrumb) is a fallback; it confuses many users. | Seeing the follow-up in place keeps the whole ability readable in one stack. |
 | 2026-11-20 | ~~Hand-offs: a *Passes along* row on the follow-up step.~~ Superseded the same day by the row below. | |
 | 2026-11-20 | **Parent information is just available inside a follow-up.** No hand-off step: a follow-up's pickers offer *From <parent>* (its tier result, damage dealt, squares moved, number of targets; its first target, its target). The `<< >>` parameters are generated on save from whatever the follow-up uses. Authors never see the piping unless *Show GoblinScript* is on. | `<< >>` confuses people endlessly; the cleanest fix is that there is nothing to wire. |
+| 2026-11-20 | **Direct parent only.** A follow-up offers only its direct parent's information; the UI names it after that parent ("From Share the Spoils"). **Saved parameter names never use ability names:** they name the information (`tierresult`, `damagedealt`, `firsttarget`), and existing content keeps its own names. | Renaming an ability must not break anything stored; the label is display only. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

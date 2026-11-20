@@ -283,6 +283,7 @@ const SOURCES = [
   { id: "firsttarget", label: "First target", kind: "creature", expr: "Cast.PrimaryTarget.ID", desc: "The first creature it targeted." },
   { id: "targetid", label: "Target", kind: "creature", expr: "Target.ID", desc: "The creature it was targeting when it used this one." },
 ];
+const NESTED_NOTE = "A follow-up inside a follow-up uses its parent's information. Today the engine fills these values from the outermost ability, so this needs an engine change (stop parameter substitution at nested follow-ups) before it runs as shown.";
 const sourceFor = expr => SOURCES.find(y => norm(y.expr) === norm(expr || ""));
 const SCOPES = {};
 /* A formula box inside a follow-up ability uses the base description plus the hand-offs its
@@ -291,12 +292,14 @@ function docOf(key) {
   if (DOCS[key]) return DOCS[key];
   const [base, sid] = key.split("@");
   const st = SCOPES[sid];
-  return Object.assign({}, DOCS[base], { inFollowUp: true, loadedParams: st ? st.f.loadedParams || {} : {},
-    parentName: () => (typeof ab !== "undefined" && ab ? ab.name : "the parent ability") });
+  return Object.assign({}, DOCS[base], { inFollowUp: true, nestedFollowUp: !!(st && st.f.parentId), loadedParams: st ? st.f.loadedParams || {} : {},
+    // Only the direct parent's information is offered, matching how the engine substitutes parameters.
+    parentName: () => { const pid = st && st.f.parentId; if (pid && SCOPES[pid]) return SCOPES[pid].f.name; return typeof ab !== "undefined" && ab ? ab.name : "the parent ability"; } });
 }
 function rescope(o, scope, top) {
   if (!o || typeof o !== "object") return;
-  if (!top && o.type === "useNew" && o !== scope && o.slots) return;  // a nested follow-up keeps its own scope
+  // A nested follow-up keeps its own scope; remember which follow-up (if any) is its direct parent.
+  if (!top && o.type === "useNew" && o !== scope && o.slots) { o.f.parentId = scope ? scope.id : null; return; }
   if (typeof o.kind === "string" && typeof o.docs === "string") o.docs = o.docs.split("@")[0] + (scope ? "@" + scope.id : "");
   for (const k in o) rescope(o[k], scope, false);
 }
@@ -538,6 +541,8 @@ function holderFromText(kind, docs, text) {
 let problems = [];
 // While a follow-up compiles, every piece of parent information it uses is recorded here (id -> expression).
 let paramSink = null;
+// Non-blocking notes for the side panel (things that save fine but need engine work to run right).
+let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
 function rawPrec(src) { try { return astPrec(parseGS(src)); } catch (e) { return 0; } }
 function cHolder(h, minP) {
@@ -587,6 +592,7 @@ function cX(x, h) {
       let expr = src ? src.expr : f.expr;
       if (x.type === "parentExpr" && !f.expr) { bad(x.id, pn + " never sets this value (<<" + f.name + ">>), so it is always empty. Pick what it should be."); expr = ""; }
       if (paramSink && expr) paramSink[f.name] = expr;
+      if (d.nestedFollowUp && !notes.includes(NESTED_NOTE)) notes.push(NESTED_NOTE);
       if (x.type === "parentVal") return { s: "<<" + f.name + ">>", p: 10, prose: pn + "'s " + src.label.toLowerCase() };
       if (x.type === "parentExpr") return { s: "<<" + f.name + ">>", p: 10, prose: "the value " + pn + " passes (" + (f.expr || "nothing") + ")" };
       const r = role();
@@ -688,7 +694,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 function compileAbility() {
-  problems = [];
+  problems = []; notes = [];
   const range = cHolder(ab.range), num = cHolder(ab.numTargets), cost = cHolder(ab.cost);
   const tf = cHolder(ab.targetFilter);
   const reqs = ab.requirements.map(r => { const c = cHolder(r.h); if (c.empty) bad(r.h.id, "This requirement needs a test."); return { c, reason: r.reason }; });
@@ -957,6 +963,7 @@ function renderSide(c) {
   st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. Saves as an ordinary ability: the full editor can open it too."));
   side.appendChild(st);
   const adv = countOpaque(ab.steps);
+  notes.forEach(n => { const q = E("p", "note", n); q.style.borderLeft = "3px solid var(--warn)"; q.style.paddingLeft = "8px"; side.appendChild(q); });
   if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the full editor can change. They are kept as they are when you save."));
   if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 

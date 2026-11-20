@@ -2567,7 +2567,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 		idChosen = "eoe"
 	elseif duration == 0 then
 		idChosen = 'turn'
-	elseif duration == 'end_of_next_turn' or duration == 'until_rest' or duration == 'until_long_rest' or duration == 'endround' or duration =='endnextround' or duration == 'eoe' then
+	elseif duration == 'end_of_next_turn' or duration == 'until_rest' or duration == 'until_long_rest' or duration == 'endround' or duration =='endnextround' or duration == 'eoe' or duration == 'end_of_any_turn' then
 		idChosen = duration
 	elseif not duration then
 		idChosen = 'indefinite'
@@ -2624,7 +2624,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 					self.durationUntilEndOfTurn = (element.idChosen == 'rounds_end_turn')
 				elseif element.idChosen == 'momentary' then
 					self.duration = "momentary"
-				elseif element.idChosen == 'end_of_next_turn' or element.idChosen == 'until_rest' or element.idChosen == 'until_long_rest' or element.idChosen == 'endround' or element.idChosen == 'save_ends' or element.idChosen == "eoe_or_dying" or element.idChosen == "eoe" or element.idChosen == 'endnextround' or element.idChosen == 'eoe' then
+				elseif element.idChosen == 'end_of_next_turn' or element.idChosen == 'until_rest' or element.idChosen == 'until_long_rest' or element.idChosen == 'endround' or element.idChosen == 'save_ends' or element.idChosen == "eoe_or_dying" or element.idChosen == "eoe" or element.idChosen == 'endnextround' or element.idChosen == 'eoe' or element.idChosen == 'end_of_any_turn' then
 					self.duration = element.idChosen --[[@as string]]
 				else
 					self.duration = nil

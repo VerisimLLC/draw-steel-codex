@@ -111,6 +111,32 @@ Behaviour coverage strategy: hand-design blocks for the ~15 behaviours that cove
 text, aura, summon...). Every other behaviour gets a generic **opaque block**: its summary
 text, and a cog that opens the existing `EditorItems` form. Nothing is ever unsupported.
 
+## 4b. GoblinScript in the ability editor today (evidence for D2)
+
+Formula fields in the ability editor itself (`Draw Steel Ability Editor/AbilityEditor.lua`), each a
+`gui.GoblinScriptInput`:
+
+| Field | Output | Line |
+|---|---|---|
+| Mode condition, mode target condition | boolean | 2353, 2413 |
+| Resource cost (`resourceNumber`) | number | 2691 |
+| Max channel (`maxChannel`) | number | 2771 |
+| Range, radius, line distance, number of targets, proximity range | number | 3442, 3476, 3502, 3545, 3641 |
+| Target filter (`targetFilter`) | boolean | 3886 |
+| Ability filters, reasoned filters (formula + reason lists) | boolean | 3957, 3969 |
+
+Behaviour editors add more (`filterTarget` on every behaviour, damage/heal `roll`, the power
+roll formula; 20 inputs in `DMHub Compendium/ActivatedAbilityEditor.lua`, 63 files use
+`GoblinScriptInput` in total). Power roll tier text is a separate mini-language
+(DrawSteelCommand) with the same authoring problem.
+
+**Key finding:** every `GoblinScriptInput` is already given a `documentation` object with
+`output` (boolean / number / roll), `subject` (e.g. `creature.helpSymbols`, every creature field
+with its type), `symbols` (named, typed extras such as `Caster`, `Enemy`, `Target Number`) and
+worked `examples` (e.g. `_targetFilterDocs`, `AbilityEditor.lua:3079`). That is exactly the
+schema a block palette needs: the right blocks for each field can be generated from data the
+codebase already maintains, so plan step 2's "symbol schemas" largely exist.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -144,7 +170,8 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 
 | Date | Decision | Why |
 |---|---|---|
-| - | (none yet) | |
+| 2026-11-20 | **D1:** Build a new *simplified* ability editor alongside the existing one. Do not replace the old editor. | The full editor stays the power-user surface and the fallback for anything the simplified one cannot show. |
+| 2026-11-20 | **D2/scope:** Activated abilities first; triggered abilities later. GoblinScript is the main focus. | Users report GoblinScript as the hardest part of authoring. |
 
 ## 8. Out of scope / rejected
 

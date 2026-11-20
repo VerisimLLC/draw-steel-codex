@@ -113,6 +113,25 @@ local function TipFrame(text)
     }
 end
 
+--- A built card (an ability's, a trait's) in the same plain box as the text
+--- hovers, beside its row.
+--- @param card Panel
+--- @return Panel
+local function CardTip(card)
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        pad = 8,
+        borderBox = true,
+        bgimage = "panels/square.png",
+        bgcolor = COLOR_PLATE,
+        interactable = false,
+        card,
+    }
+end
+
 --- Shows a hover built when hovered, so a rebuild of the back costs nothing:
 --- build returns text (shown framed), a ready tooltip panel, or nil for none.
 --- @param element Panel
@@ -933,7 +952,7 @@ local function PersistentAbilities(c, tok)
                 row = WithHover(row, function()
                     for _, ability in ipairs(c:GetActivatedAbilities{ bindCaster = true }) do
                         if ability.name == name then
-                            return gui.TooltipFrame(ability:Render({ width = 420 }, { token = tok }), { halign = "right", valign = "center" })
+                            return CardTip(ability:Render({ width = 420 }, { token = tok }))
                         end
                     end
                     return nil
@@ -1149,7 +1168,7 @@ local function Row(name, meta, tooltip)
         hover = function(element)
             local ok, card = pcall(tooltip)
             if ok and card ~= nil then
-                element.tooltip = gui.TooltipFrame(card, { halign = "right", valign = "center" })
+                element.tooltip = CardTip(card)
             end
         end,
         --a click on a row is for reading it, not for turning the card.

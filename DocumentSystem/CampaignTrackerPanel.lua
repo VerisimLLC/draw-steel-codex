@@ -3013,9 +3013,9 @@ end)
 -- RichExit: the [[exit]] tag -- a scene card's exit block. Renders as
 -- a Director-only framed block proposing this exit's writes (each with
 -- a confirm checkbox; "ask" counters get a stepper); taking the exit
--- applies the confirmed writes to campaign state, appends the ledger
--- line, records the exit as taken, and queues the next scene on the
--- Run. Players never see it: exits are run furniture.
+-- applies the confirmed writes to campaign state, appends a Director-only
+-- ledger line, records the exit as taken, and queues the next scene on
+-- the Run. Players never see it: exits are run furniture.
 --
 -- Annotation fields (authored data):
 --  id       : string   stable guid; keys the taken-state in campaign state
@@ -3193,7 +3193,9 @@ function RichExit.CreateDisplay(self)
                 end
             end
 
-            CampaignState.Apply(writes, ledgerText)
+            --Director-only: the line names the next page and the exit's writes,
+            --which would spoil what comes next in the players' Intel Tracker.
+            CampaignState.Apply(writes, ledgerText, { director = true })
             RefreshTakenState()
         end,
     }

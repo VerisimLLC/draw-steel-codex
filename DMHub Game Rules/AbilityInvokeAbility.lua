@@ -1148,6 +1148,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 elseif self:try_get("promptCard", false) and self.abilityType == "standard" and target.token ~= nil and target.token.valid then
                     --Posts a red "!" card on the target so its controller chooses when to resolve the
                     --standard ability on themselves (e.g. Swooping Torment: take damage or fall prone).
+                    local casterSymbols = casterToken.properties:LookupSymbol{}
                     AbilityInvocation.PromptStandardAbility{
                         token = target.token,
                         invoker = casterToken,
@@ -1156,9 +1157,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         targeting = "self",
                         hostile = true,
                         prompt = self:try_get("promptCardTitle", ability.name),
-                        rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
+                        rules = StringInterpolateGoblinScript(self.promptText, casterSymbols),
                         activateText = tr("Choose"),
-                        castPrompt = self:try_get("castPromptText", self.promptText),
+                        castPrompt = StringInterpolateGoblinScript(self:try_get("castPromptText", self.promptText), casterSymbols),
                     }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
@@ -1891,12 +1892,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local monsterAI = rawget(_G, "MonsterAI")
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
-                --A hero's ability can make a monster act: To the Death! has its
-                --target free strike the hero. The monster is then the caster, and
-                --its choice is the AI's, not the hero's player's (SASGFH6V).
-                aiPromptCallback = fallback(invokerToken)
-                    or (casterToken ~= nil and casterToken ~= invokerToken and fallback(casterToken))
-                    or false
+                aiPromptCallback = fallback(invokerToken) or false
+                --When a hero's ability acts on a monster, the monster is the caster here, but
+                --the hero's player still chooses (where to push it). Only prompts marked
+                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and monsterAI.PromptAnswersForCaster(abilityClone) then
+                    aiPromptCallback = fallback(casterToken) or false
+                end
             end
         end
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", creature.IsTokenAIControlled(invokerToken.charid), "promptCallback =", aiPromptCallback, "for", abilityClone.name, coroutine.running())

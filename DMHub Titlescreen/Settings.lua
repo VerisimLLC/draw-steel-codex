@@ -281,6 +281,18 @@ setting{
     default = false,
 }
 
+--Read by the restoreFromBackup handler in MCDMInitiativeBar.lua, which skips the full-screen
+--"vcrRewind" effect when this is on (the REWIND label and sound still play).
+setting{
+    id = "accessibility:norewindeffect",
+    description = "Disable Rewind Visual Effect",
+    help = "Turns off the screen distortion when a turn is rewound.",
+    storage = "preference",
+    section = "Accessibility",
+    editor = "check",
+    default = false,
+}
+
 setting{
     id = "showmovementcrosssection",
     description = "Show Movement Cross-Section",

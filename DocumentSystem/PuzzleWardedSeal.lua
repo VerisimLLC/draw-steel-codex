@@ -1214,7 +1214,7 @@ local function Render(ctx)
         else
             children[#children + 1] = Label(string.format("At the seal: %s.", table.concat(names, ", ")), {"sizeM"})
         end
-        children[#children + 1] = Label("Waiting for the others. Anyone can begin; the parts are dealt then.", {"sizeS", "fgMuted"})
+        children[#children + 1] = Label("Waiting for others. Anyone can press Begin.", {"sizeS", "fgMuted"})
         if m_ctx.isDirector then
             children[#children + 1] = Label("Directors are not dealt a part.", {"sizeS", "fgMuted"})
         else
@@ -1529,7 +1529,7 @@ local function Render(ctx)
             children[#children + 1] = Label(m_contextActive
                 and ("Keys: Up and Down choose a part, Left and Right turn the dial, Enter acts, Q quotes it in the chat."
                     .. (m_ctx:Assist("confirm") and " Enter again says yes; N says no." or ""))
-                or "Click a part's name to quote it in the chat. Click the ward to play with the keyboard.",
+                or "Click a part's name to quote it. Click the ward for keyboard controls.",
                 {"sizeXs", "fgMuted"}, { tmargin = 6 })
         end
         return gui.Panel{
@@ -1945,7 +1945,7 @@ local function Render(ctx)
         local children = {}
         local card
         if role == "hands" then
-            card = "You are the hands. Only you can see the ward and act. Describe it; the others hold the rules."
+            card = "You are the hands. Describe the ward; the others have the rules."
         elseif role == "solo" then
             card = "You alone hold the ward and its instructions."
         elseif role == "reader" then
@@ -1954,15 +1954,15 @@ local function Render(ctx)
                 local page = PageFor(state.ward, key)
                 titles[k] = page ~= nil and page.title or key
             end
-            card = string.format("You hold the %s page%s. Ask the hands about what they see.", table.concat(titles, " and "), #pages > 1 and "s" or "")
+            card = string.format("You have the %s page%s. Ask the hands what they see.", table.concat(titles, " and "), #pages > 1 and "s" or "")
         elseif role == "director" then
-            card = "Director's view: you see the ward and every page. The players hold the parts."
+            card = "Director's view: the ward and every page."
         else
             card = "You are watching. The players hold the parts."
         end
         children[#children + 1] = Label(card, {"sizeM", "bold"})
         if state.away and state.parts ~= nil then
-            children[#children + 1] = Label(string.format("%s, the hands, is away. If they are gone for a minute, a reader takes the hands.",
+            children[#children + 1] = Label(string.format("%s (the hands) is away. After a minute, a reader takes over.",
                 Puzzle.UserName(state.parts.hands)), {"sizeS", "warning"})
         end
         for _, row in ipairs(PartsRows(role)) do

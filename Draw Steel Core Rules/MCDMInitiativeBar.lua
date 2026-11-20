@@ -1093,7 +1093,10 @@ dmhub.RegisterEventHandler("restoreFromBackup", function(info)
 	--never arrived) is ignored after a few seconds.
 	local forward = TurnRewind.restoreForward and dmhub.Time() - TurnRewind.restoreTime < 5
 	TurnRewind.restoreForward = false
-	dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	--Settings > Accessibility can turn the distortion off; the label below still shows.
+	if not dmhub.GetSettingValue("accessibility:norewindeffect") then
+		dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	end
 	local ok, err = pcall(ShowRewindOsd, forward)
 	if not ok then
 		print("TurnRewind:: rewind label failed:", err)

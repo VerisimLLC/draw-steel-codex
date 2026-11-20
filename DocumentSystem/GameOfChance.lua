@@ -137,7 +137,7 @@ local function LayerFields(game)
             { id = "medium", text = "Medium" },
             { id = "hard", text = "Hard" },
         } },
-        { id = "tests", type = "toggle", label = "Offer tests (Watch closely, Watch the dealer)", default = true, visible = IsCustom },
+        { id = "tests", type = "toggle", label = "Offer tests", default = true, visible = IsCustom },
         { id = "testAttr", type = "choice", label = "Tests use", default = "inu", visible = IsCustom, options = CHARACTERISTIC_OPTIONS },
         { id = "stake", type = "choice", label = "Stake", default = "none", visible = IsCustom, options = {
             { id = "none", text = "Nothing" },
@@ -567,7 +567,7 @@ local function ShowCheatPrompt(id, key, title)
             classes = {"sizeS"},
             width = 360,
             height = "auto",
-            text = "Only you see this. No answer in a few seconds plays the dealer's honesty setting.",
+            text = "Only you see this. If you don't choose, the dealer's honesty setting decides.",
         },
         gui.Panel{
             flow = "horizontal",
@@ -937,7 +937,7 @@ local function DealerText(tier, cheat, game)
         end
         return "Clean deal."
     elseif tier == 2 then
-        return "Something's off. You could pull the stake (the game ends)."
+        return "Something's off. You could pull the stake and leave."
     end
     return "You didn't see anything odd."
 end
@@ -1191,7 +1191,7 @@ local function Render(game, ctx)
             step = string.format("Dealing in %d...", math.ceil(view.countdown))
         elseif not view.viewDone then
             local _, slowed = MyViewFactor(game, eff)
-            step = cond(slowed, "Shuffling... (your Intuition slows the shuffle)", "Shuffling...")
+            step = cond(slowed, "Shuffling... (slowed by your Intuition)", "Shuffling...")
         elseif r.bet == nil and not betOpen then
             step = "Waiting for everyone to finish watching."
         elseif m_betting then
@@ -1261,7 +1261,7 @@ local function Render(game, ctx)
             if not covered then
                 betPrompt.text = string.format("%s can't cover the stake (%s).", who, stake or "")
             elseif choice == nil then
-                betPrompt.text = string.format("Betting as %s. Choose: press 1-%d or click.", who, #options)
+                betPrompt.text = string.format("Betting as %s. Pick one.", who)
             elseif stake ~= nil then
                 betPrompt.text = string.format("%s bets %s on %s?", who, stake, choice)
             else

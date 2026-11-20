@@ -3131,6 +3131,12 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         params.mapName = game.currentMap.description
     end
 
+    --Extra fields a game system's behaviors put on the cast, e.g. the power
+    --roll's edges and banes (Draw Steel's MCDMAbilityRollBehavior).
+    for k,v in pairs(options.usageAnalytics or {}) do
+        params[k] = v
+    end
+
     if dmhub.GetSettingValue("telemetry_enabled") ~= false then
         analytics.Event(params)
     end

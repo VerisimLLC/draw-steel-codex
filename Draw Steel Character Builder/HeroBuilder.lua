@@ -2547,9 +2547,6 @@ function HeroBuilder.DetailCard(spec, pinned, close)
                 if not scroller.valid or not body.valid then
                     return
                 end
-                if body.renderedHeight > scroller.renderedHeight + 0.5 then
-                    scroller.vscroll = true
-                end
                 scroller.vscrollPosition = 1
             end)
         end
@@ -2561,12 +2558,15 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         halign = "left",
         children = children,
     }
+    --scrolls from the start, as every scroll in the app should: the engine
+    --wires a scroll bar only on the panel's first frame, so one turned on
+    --later drags its handle but not the text. A card that fits shows no bar.
     scroller = gui.Panel{
         width = POPUP_INNER,
         height = "auto",
         maxHeight = POPUP_BODY_MAX,
         flow = "vertical",
-        vscroll = false,
+        vscroll = true,
         body,
     }
     local hint = gui.Label{
@@ -2577,13 +2577,12 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         height = "auto",
         tmargin = 8,
     }
-    --a card taller than it may be scrolls (pinned) or says how to read it.
+    --an unpinned card too tall to show whole tells the player to pin it to read the rest.
     HeroSheetWindow.AfterLayout(function()
         if not scroller.valid or not body.valid then
             return
         end
         if body.renderedHeight > scroller.renderedHeight + 0.5 then
-            scroller.vscroll = true
             hint:SetClass("collapsed", pinned)
         end
     end)
@@ -4030,14 +4029,16 @@ function HeroBuilder.Create(args)
         pageNote,
         pageContent,
     }
-    --scrolls only once the page is taller than it: a scrolling panel lays out
-    --everything in it on every change, which costs time on a long page.
+    --scrolls from the start: the engine wires a scroll bar only on the panel's
+    --first frame, so one turned on later drags its handle but not the page.
     local pageScroll = gui.Panel{
         width = "100%",
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
+        --cards well outside the view are skipped, so a long page scrolls faster.
+        hideObjectsOutOfScroll = true,
         pageBody,
     }
     local page = gui.Panel{
@@ -4093,7 +4094,7 @@ function HeroBuilder.Create(args)
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -4188,30 +4189,6 @@ function HeroBuilder.Create(args)
         paneScroll,
         paneArt,
     }
-
-    --Turns a scrolling column's scroll on once its content is taller than it,
-    --and off again when it fits, after the content has laid out.
-    --- @param scroller Panel
-    local function FitScroll(scroller)
-        HeroSheetWindow.AfterLayout(function()
-            if not scroller.valid then
-                return
-            end
-            local content = scroller.children[1]
-            if content == nil or not content.valid then
-                return
-            end
-            local over = content.renderedHeight > scroller.renderedHeight + 0.5
-            if (scroller.vscroll == true) ~= over then
-                scroller.vscroll = over
-            end
-            --the engine then skips cards well outside the view, so a long page scrolls
-            --faster. Set only once the scroll view exists: before that the engine errors.
-            if over and scroller == pageScroll and not scroller.hideObjectsOutOfScroll then
-                scroller.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     --The art showcase's tile: {stepid, key, card}, or nil.
     local showcase = nil
@@ -6139,7 +6116,7 @@ function HeroBuilder.Create(args)
         local skillsSection = levelSkills ~= nil and levelSkills.sections[key] or nil
         if parts == nil and entry ~= nil and skillsSection ~= nil and levelSkills ~= nil then
             Flash(skillsSection)
-            if pageScroll.vscroll ~= true or pageScroll.renderedHeight <= 0 then
+            if pageScroll.renderedHeight <= 0 then
                 return
             end
             local range = pageBody.renderedHeight - pageScroll.renderedHeight
@@ -6159,7 +6136,7 @@ function HeroBuilder.Create(args)
             return
         end
         Flash(parts.panel)
-        if pageScroll.vscroll ~= true or pageScroll.renderedHeight <= 0 then
+        if pageScroll.renderedHeight <= 0 then
             return
         end
         local scale = pageScroll.renderedHeight / pageScrollHeight
@@ -6430,11 +6407,6 @@ function HeroBuilder.Create(args)
                 --the chips fill in over the next frames, so the page opens
                 --without a pause.
                 slice = true,
-                onBuilt = function()
-                    if shownPage == entry then
-                        FitScroll(pageScroll)
-                    end
-                end,
                 onChange = function(changedDraft)
                     PaintStatus()
                     if not HeroSkillsLanguages.Changed(changedDraft) then
@@ -6753,8 +6725,6 @@ function HeroBuilder.Create(args)
         else
             paneStatus:SetClass("collapsed", true)
         end
-        FitScroll(pageScroll)
-        FitScroll(paneScroll)
     end
 
     --Builds a step's page ahead of a click while the pointer rests on its
@@ -7483,15 +7453,10 @@ function HeroBuilder.Create(args)
             height = "auto",
             maxHeight = FILL_LIST_MAX,
             flow = "vertical",
-            vscroll = false,
+            vscroll = true,
             tmargin = 6,
             body,
         }
-        HeroSheetWindow.AfterLayout(function()
-            if scroller.valid and body.valid and body.renderedHeight > scroller.renderedHeight + 0.5 then
-                scroller.vscroll = true
-            end
-        end)
         local kept = T("herobuilder.fill.note_kept")
         local note
         if anyStar then
@@ -7961,9 +7926,6 @@ function HeroBuilder.Create(args)
                 parts = true,
                 stars = true,
                 slice = true,
-                onBuilt = function()
-                    FitScroll(pageScroll)
-                end,
                 onChange = function(changedDraft)
                     if not HeroSkillsLanguages.Changed(changedDraft) then
                         return
@@ -8437,7 +8399,6 @@ function HeroBuilder.Create(args)
             if (built.skills ~= nil and shownPage == built.skills) or levelSkills ~= nil then
                 Paint()
             end
-            FitScroll(pageScroll)
         end
     end
 
@@ -8539,17 +8500,13 @@ function HeroBuilder.Create(args)
             if frameBlock ~= nil then
                 Host().drawn(frameBlock)
             end
-            --once the step's page is laid out, scroll to the choice and flash
-            --it. A page built just now turns its scrolling on only after its
-            --first layout (FitScroll), so the scroll waits a layout more.
+            --once the step's page is laid out, scroll to the choice and flash it.
             if at ~= nil and at.section ~= nil and state.step == at.step then
                 local step, section = at.step --[[@as string]], at.section --[[@as string]]
                 HeroSheetWindow.AfterLayout(function()
-                    HeroSheetWindow.AfterLayout(function()
-                        if not mod.unloaded and state.step == step then
-                            ScrollToSection(step, section)
-                        end
-                    end)
+                    if not mod.unloaded and state.step == step then
+                        ScrollToSection(step, section)
+                    end
                 end)
             end
         end,

@@ -415,7 +415,7 @@ local function ShareOrCopy(id, go)
     Ask("This puzzle already has a lock", {
         string.format("%s already locks: %s.", Puzzle.Title(id), table.concat(names, ", ")),
         "Share it: solving it at either lock solves both.",
-        "Make a copy: this lock gets its own puzzle, set up the same way.",
+        "Make a copy: a separate puzzle with the same setup.",
     }, {
         { text = "Make a copy", click = function() go(CopyPuzzle(id), true) end },
         { text = "Share", click = function() go(id, false) end },
@@ -476,7 +476,7 @@ local function LockTarget(id, target)
         if current ~= nil and Puzzle.Exists(current) then
             Ask(string.format("Replace the lock on the %s?", name), {
                 string.format("It is locked with %s.", Puzzle.Title(current)),
-                string.format("What it opens and its range move to %s, and %s loses this lock.", Puzzle.Title(useId), Puzzle.Title(current)),
+                string.format("%s takes over what it opens and its range.", Puzzle.Title(useId)),
                 "The door it opens stays.",
             }, {
                 { text = "Replace", click = function()
@@ -707,7 +707,7 @@ function PuzzlePlace.StartPlacing(id)
                 width = "100%-110",
                 height = "auto",
                 valign = "center",
-                text = string.format("Click an object to lock it with %s, a door to place a lock that opens it, or empty floor to place a lock there.", Puzzle.Title(id)),
+                text = string.format("Click an object or door to lock it with %s, or empty floor to place a lock.", Puzzle.Title(id)),
             },
             gui.Button{
                 classes = {"sizeS"},

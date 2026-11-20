@@ -687,7 +687,7 @@ function Puzzle.CreatePanel(id, opts)
                 return
             end
             local id = m_id --[[@as string]]
-            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "The table's progress will be lost, and the timer and hint start over." }, "Reset", function()
+            Puzzle.ConfirmWide(id, "Reset the puzzle?", { "Progress, timer and hint start over." }, "Reset", function()
                 if not mod.unloaded then
                     Puzzle.Reset(id)
                 end
@@ -707,7 +707,7 @@ function Puzzle.CreatePanel(id, opts)
                 return
             end
             local id = m_id --[[@as string]]
-            Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved, marked as bypassed." }, "Bypass", function()
+            Puzzle.ConfirmWide(id, "Bypass the puzzle?", { "It opens as if solved." }, "Bypass", function()
                 Puzzle.Bypass(id)
             end, { effects = "onSolve" })
         end),

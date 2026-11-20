@@ -2425,6 +2425,56 @@ mod.shared.ShowCreateMapDialog = function(options)
         if IsPatron() then
             rows[#rows + 1] = LibraryFilterItem("Your Maps", #FilterByKind(all, "owned"), nil, "owned", "phosphor/patreon-logo-fill.png")
         end
+        --a creator's sub-brand sits right under it: a creator whose name is
+        --another creator's name plus more words ("The MAD Cartographer
+        --Sci-Fi") moves to just after that creator's row. Re-run as each
+        --name arrives, since names come from the creator records.
+        local rowsPlaced = false
+        local function GroupSubBrands()
+            local children = libraryNav.children
+            local parentOf = {}
+            for _, row in ipairs(children) do
+                local name = row.data.creatorName
+                if name ~= nil then
+                    local best = nil
+                    for _, other in ipairs(children) do
+                        local otherName = other.data.creatorName
+                        if other ~= row and otherName ~= nil and #otherName < #name
+                            and name:sub(1, #otherName + 1) == otherName .. " "
+                            and (best == nil or #otherName > #best.data.creatorName) then
+                            best = other
+                        end
+                    end
+                    parentOf[row] = best
+                end
+            end
+            local followers = {}
+            local top = {}
+            for _, row in ipairs(children) do
+                local parent = parentOf[row]
+                if parent ~= nil then
+                    followers[parent] = followers[parent] or {}
+                    table.insert(followers[parent], row)
+                else
+                    top[#top + 1] = row
+                end
+            end
+            if next(followers) == nil then
+                return
+            end
+            local ordered = {}
+            local function Emit(row)
+                ordered[#ordered + 1] = row
+                for _, follower in ipairs(followers[row] or {}) do
+                    Emit(follower)
+                end
+            end
+            for _, row in ipairs(top) do
+                Emit(row)
+            end
+            libraryNav.children = ordered
+        end
+
         --one row per creator, named once the creator's record lands.
         --A creator with a wide logo (a wordmark) shows the logo alone,
         --left-aligned: the name would only repeat what the wordmark says. A
@@ -2440,6 +2490,10 @@ mod.shared.ShowCreateMapDialog = function(options)
                 end
                 if (record.displayName or "") ~= "" then
                     row.data.label.text = record.displayName
+                    row.data.creatorName = record.displayName
+                    if rowsPlaced then
+                        GroupSubBrands()
+                    end
                 end
                 local logo = record.logo or ""
                 if logo == "" then
@@ -2482,6 +2536,8 @@ mod.shared.ShowCreateMapDialog = function(options)
             end)
         end
         libraryNav.children = rows
+        rowsPlaced = true
+        GroupSubBrands()
         --the rows arrive after the dialog opened; when the library view
         --is already showing, light the row for the active filter.
         if m_mainMode == "library" then

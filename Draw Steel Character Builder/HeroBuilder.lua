@@ -4375,6 +4375,49 @@ function HeroBuilder.Create(args)
         return nil
     end
 
+    --The Builder names a Hero from their ancestry's name table, and names them
+    --again when an ancestry change (or a Revenant's former life) brings a new
+    --table, until the player types a name of their own. The Hero keeps the
+    --name it gave and the table it came from, {name, table}, under this field.
+    local AUTO_NAME_FIELD = "builderAutoName"
+
+    --- Wrap an ancestry-step change so it also gives the Hero a name when one
+    --- is due. Returns the wrapped change, and a function to call after it is
+    --- saved that writes the name to the token (the engine saves names apart).
+    --- @param token CharacterToken
+    --- @param change fun(hero: character)
+    --- @return fun(hero: character), fun()
+    local function WithAncestryName(token, change)
+        local typed = trim(token.name or "")
+        local name = nil
+        local function Wrapped(hero)
+            change(hero)
+            name = nil
+            local auto = hero:try_get(AUTO_NAME_FIELD)
+            local autoName = type(auto) == "table" and auto.name or nil
+            if typed ~= "" and typed ~= autoName then
+                return
+            end
+            local generator = nil
+            pcall(function() generator = hero:GetNameGeneratorTable() end)
+            if generator == nil or (typed ~= "" and auto.table == generator.id) then
+                return
+            end
+            name = Engine().GenerateName(hero)
+            if name ~= nil then
+                hero[AUTO_NAME_FIELD] = {name = name, table = generator.id}
+            end
+        end
+        local function Rename()
+            if name ~= nil then
+                Guard(function()
+                    Host().saveAppearance(function(editToken) editToken.name = name end)
+                end)
+            end
+        end
+        return Wrapped, Rename
+    end
+
     --A step's main pick: the change confirm first when picks hang on it.
     --- @param stepid string
     --- @param option HeroBuilderOption
@@ -4412,7 +4455,13 @@ function HeroBuilder.Create(args)
             return false
         end
         local function Apply()
-            Save(CHANGE_WORDS[stepid], change)
+            if stepid == "ancestry" then
+                local named, Rename = WithAncestryName(token, change --[[@as fun(hero: character)]])
+                Save(CHANGE_WORDS[stepid], named)
+                Rename()
+            else
+                Save(CHANGE_WORDS[stepid], change)
+            end
             if stepid ~= "culture" then
                 Track("build_change", {
                     changeType = stepid,
@@ -4480,6 +4529,16 @@ function HeroBuilder.Create(args)
             --clicking a pick drops it.
             Save(T("herobuilder.undo.drop_pick"), change)
             Track("ability_respec", {featureId = sectionKey, removedOptionId = option.id, removedOptionName = option.name, dailyLimit = 10})
+        elseif stepid == "ancestry" then
+            --a Revenant's former life can bring the name table.
+            local token = Host().token()
+            if token == nil then
+                return false
+            end
+            local named, Rename = WithAncestryName(token, change)
+            Save(T("herobuilder.undo.make_choice"), named)
+            Rename()
+            Track("builder_selection", {featureId = sectionKey, optionId = option.id, optionName = option.name, isFinal = true, dailyLimit = 20})
         else
             Save(T("herobuilder.undo.make_choice"), change)
             Track("builder_selection", {featureId = sectionKey, optionId = option.id, optionName = option.name, isFinal = true, dailyLimit = 20})
@@ -7317,6 +7376,7 @@ function HeroBuilder.Create(args)
         local all = fillOpen ~= nil and fillOpen.all == true
         CloseFill()
         local count = 0
+        local namedAs = nil
         --the name and art are the token's, not the build's: saved first, as
         --their own Undo step under the build's (the engine saves them apart).
         local look = plan.look
@@ -7325,6 +7385,7 @@ function HeroBuilder.Create(args)
                 Host().saveAppearance(function(editToken)
                     if look.name ~= nil and trim(editToken.name or "") == "" then
                         editToken.name = look.name
+                        namedAs = look.name
                         count = count + 1
                     end
                     if look.art ~= nil and not Engine().PortraitIsSet(editToken.portrait) then
@@ -7344,6 +7405,13 @@ function HeroBuilder.Create(args)
         if #plan.entries > 0 then
             Save(T("herobuilder.undo.fill"), function(hero)
                 count = count + Engine().hero.ApplyFill(hero, plan.entries)
+                --the name Fill gave counts as the Builder's, so a later
+                --ancestry change may replace it.
+                local generator = nil
+                pcall(function() generator = hero:GetNameGeneratorTable() end)
+                if namedAs ~= nil and generator ~= nil then
+                    hero[AUTO_NAME_FIELD] = {name = namedAs, table = generator.id}
+                end
             end)
         end
         local live = Host().token()

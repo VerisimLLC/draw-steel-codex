@@ -22,6 +22,7 @@
   --c-num: #3c8656;
   --c-test: #2c7391;
   --c-raw: #5b564e;
+  --c-pass: #2f6f6a;
   --card-bg: #f3ecdc;
   --card-fg: #2a2418;
   --card-rule: #b9a27a;
@@ -70,6 +71,17 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-act { --c: var(--c-act); }
 .cat-ctrl { --c: var(--c-ctrl); }
 .cat-raw { --c: var(--c-raw); }
+.inner.nested { background: color-mix(in srgb, var(--c-act) 14%, var(--bg)); padding: 8px 8px 8px 10px; border-left: 1px dashed rgba(255,255,255,.25); }
+.nest-title { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 6px; }
+.nest-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #fff; background: var(--c-head); border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 6px 10px; margin-bottom: 3px; }
+.mid.handoffs { flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; font-weight: 400; }
+.pass-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--c-pass); border: 1px dashed rgba(255,255,255,.7); border-radius: 999px; padding: 2px 4px 2px 9px; font-size: 12px; }
+.pass-chip.unused { opacity: .6; border-style: dotted; }
+.pass-chip .clear { display: inline-block; background: rgba(0,0,0,.25); border: none; color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; line-height: 1; cursor: pointer; padding: 0; }
+.pass-ico { font-weight: 700; }
+.x.passed { --c: var(--c-pass); outline: 1px dashed rgba(255,255,255,.75); outline-offset: -3px; }
+.x.test.passed { --c: color-mix(in srgb, var(--c-pass) 55%, var(--c-test)); }
+.mid.handoffs .add-btn { border-color: rgba(255,255,255,.45); color: #fff; padding: 3px 9px; }
 .step.cat-raw > .bar { background: repeating-linear-gradient(135deg, var(--c-raw) 0 10px, #545049 10px 20px); }
 .adv-tag { font: 600 10px var(--font-ui); text-transform: uppercase; letter-spacing: .08em; background: rgba(0,0,0,.35); padding: 3px 6px; border-radius: 3px; }
 .full-btn { background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 4px; height: 22px; padding: 0 8px; cursor: pointer; font-size: 12px; }
@@ -205,6 +217,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
     <label for="exSel" class="note">Open</label>
     <select id="exSel" class="btn">
       <option value="gouge">Gouge (hero strike)</option>
+      <option value="drain">Draining Strike (follow-up ability with passed-in information)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
       <option value="smoke">Smoke Bomb (has an advanced step)</option>
       <option value="blank">New ability</option>
@@ -263,6 +276,34 @@ const DOCS = {
   heal: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Healing", output: "roll", help: "How much Stamina the target regains.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["Recovery Value", "One recovery's worth."]] },
 };
+/* Hand-offs: information a parent ability passes to a follow-up ability it uses.
+   Saved as the engine's parameter pipe: the parent stores {name: "<<expression>>"} and the
+   follow-up's formulas say <<name>>. Authors never type either; they pick from this list. */
+const SOURCES = [
+  { group: "From this ability's result", label: "Tier result", kind: "number", expr: "Cast.Tier", desc: "1, 2 or 3: the tier this ability's power roll reached." },
+  { group: "From this ability's result", label: "Damage dealt", kind: "number", expr: "Cast.DamageDealt", desc: "The damage this ability dealt." },
+  { group: "From this ability's result", label: "Squares moved", kind: "number", expr: "Cast.SpacesMoved", desc: "How far this ability moved its target." },
+  { group: "From this ability's result", label: "Number of targets", kind: "number", expr: "Cast.TargetCount", desc: "How many creatures this ability targeted." },
+  { group: "A creature", label: "First target", kind: "creature", expr: "Cast.PrimaryTarget.ID", desc: "The first creature this ability targeted." },
+  { group: "A creature", label: "Current target", kind: "creature", expr: "Target.ID", desc: "The target this follow-up is used for." },
+  { group: "A creature", label: "You (the user)", kind: "creature", expr: "Caster.ID", desc: "The creature using this ability." },
+];
+const SOURCE_STATS = ["Might", "Agility", "Reason", "Intuition", "Presence", "Level"];
+const SCOPES = {};
+/* A formula box inside a follow-up ability uses the base description plus the hand-offs its
+   parent step provides. Keys look like "stepIf@s42": base description @ the follow-up step. */
+function docOf(key) {
+  if (DOCS[key]) return DOCS[key];
+  const [base, sid] = key.split("@");
+  const st = SCOPES[sid];
+  return Object.assign({}, DOCS[base], { handoffs: st ? st.f.handoffs : [], parentName: () => (typeof ab !== "undefined" && ab ? ab.name : "the parent"), followUp: st ? st.f.name : "" });
+}
+function rescope(o, scope, top) {
+  if (!o || typeof o !== "object") return;
+  if (!top && o.type === "useNew" && o !== scope && o.slots) return;  // a nested follow-up keeps its own scope
+  if (typeof o.kind === "string" && typeof o.docs === "string") o.docs = o.docs.split("@")[0] + (scope ? "@" + scope.id : "");
+  for (const k in o) if (k !== "f" || !(o.f && o.f.handoffs)) rescope(o[k], scope, false);
+}
 const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","No action"];
 const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","each enemy in the area","each creature in the area"];
 const DISTANCES = ["Melee","Ranged","Melee or ranged","Burst","Cube","Line","Self"];
@@ -302,6 +343,12 @@ const STEPS = {
     make: () => S("ifStep", {}, { cond: H("boolean", "stepIf") }, { then: [] }) },
   invoke: { label: "Use another ability", cat: "act", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
     make: () => S("invoke", { ability: "Free Strike" }) },
+  useNew: { label: "Use a new ability", cat: "act", ctx: ["main"], desc: "Build a follow-up ability right here, and pass it information.",
+    make: () => {
+      const st = S("useNew", { name: "Follow-up", targeting: "inherit", count: "creature", distance: "Ranged", handoffs: [] },
+        { num: H("number", "numTargets", "1"), range: H("number", "range", "5"), tf: H("boolean", "targetFilter") }, { steps: [] });
+      SCOPES[st.id] = st; rescope(st, st, true); return st;
+    } },
   // A behaviour the simple editor does not model (aura, summon, script...). Its record is kept as-is
   // and saved back untouched; only its position and any "Only if" around it are editable here.
   opaque: { label: "Advanced step", cat: "raw", ctx: ["main"], hidden: true, desc: "",
@@ -399,7 +446,7 @@ function subjectRole(docs) { return docs.roles.find(r => r.prefix === ""); }
 
 /* AST -> block for a given field description. wantBool picks test vs number blocks. */
 function astToX(n, wantBool, docs) {
-  const d = DOCS[docs];
+  const d = docOf(docs);
   const raw = () => X("raw", { src: printAst(n), bool: wantBool });
   const numKid = (x, kidDocs) => { const h = H("number", docs); if (x.k === "num") h.lit = x.v; else h.expr = astToX(x, false, docs); return h; };
   const boolKid = x => { const h = H("boolean", docs); h.expr = astToX(x, true, docs); return h; };
@@ -428,6 +475,15 @@ function astToX(n, wantBool, docs) {
       return X("math", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) });
     }
     case "cmp": {
+      // "Target.ID = <<struck>>" checks a creature handed in by the parent ability.
+      if (wantBool && n.op === "=") {
+        const [idSide, pSide] = n.l.k === "param" ? [n.r, n.l] : [n.l, n.r];
+        if (pSide.k === "param" && idSide.k === "id" && norm(idSide.path[idSide.path.length - 1]) === "id") {
+          const ho = (d.handoffs || []).find(x => norm(x.id) === norm(pSide.v) && x.kind === "creature");
+          const role = idSide.path.length === 1 ? subjectRole(d) : roleFor(d, idSide.path[0]);
+          if (ho && role) return X("isHanded", { role: role.label, name: ho.id, label: ho.label });
+        }
+      }
       // "X.Stamina <= X.MaximumStamina / 2" is the Draw Steel "winded" state.
       if (wantBool && n.op === "<=" && n.l.k === "id" && n.r.k === "bin" && n.r.op === "/" && n.r.r.k === "num" && n.r.r.v === "2" && n.r.l.k === "id") {
         const lp = n.l.path, rp = n.r.l.path;
@@ -445,6 +501,10 @@ function astToX(n, wantBool, docs) {
       return X(n.k === "and" ? "all" : "any", { items });
     }
     case "not": return wantBool ? X("not", {}, { a: boolKid(n.a) }) : raw();
+    case "param": {
+      const ho = (d.handoffs || []).find(x => norm(x.id) === norm(n.v));
+      return ho && (ho.kind === "number") !== wantBool ? X("handoff", { name: ho.id, label: ho.label }) : raw();
+    }
     case "has": {
       const l = n.l;
       if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path[l.path.length - 1]) === "conditions") {
@@ -488,7 +548,7 @@ function cHolder(h, minP) {
   return r;
 }
 function cX(x, h) {
-  const d = DOCS[h.docs], f = x.f;
+  const d = docOf(h.docs), f = x.f;
   const role = () => { const r = d.roles.find(r => r.label === f.role); if (!r) bad(x.id, f.role + " is not available in " + d.title.toLowerCase() + "."); return r || { prefix: f.role + ".", prose: f.role, poss: f.role + "'s" }; };
   const kidBool = (k, minP) => { const r = cHolder(x.kids[k], minP); if (r.empty) { bad(x.kids[k].id, "A test is missing."); return { s: "false", p: 10, prose: "(missing test)" }; } return r; };
   switch (x.type) {
@@ -519,6 +579,16 @@ function cX(x, h) {
       // "the target is a hero" reads better as "the target is not a hero" than "not (...)".
       const m = a.prose.match(/^(.*?) (is|are) (.*)$/);
       return { s: "not " + a.s, p: 7, prose: m && !/ (and|or) /.test(a.prose) ? m[1] + " " + m[2] + " not " + m[3] : "not (" + a.prose + ")" }; }
+    case "handoff": case "isHanded": {
+      const ho = (d.handoffs || []).find(y => y.id === f.name);
+      if (!d.handoffs) bad(x.id, "Passed-in information only exists inside a follow-up ability.");
+      else if (!ho) bad(x.id, "\u201c" + f.label + "\u201d is no longer passed in. Add it back with \u201c+ pass information\u201d on the follow-up, or remove this block.");
+      const label = ho ? ho.label : f.label;
+      if (x.type === "handoff") return { s: "<<" + f.name + ">>", p: 10, prose: label.toLowerCase() + " (passed in)" };
+      const r = role();
+      // Spell out "Target." even where the target is the subject, so the saved formula reads clearly.
+      return { s: (r.prefix || (r.label === "Target" ? "Target." : "")) + "ID = <<" + f.name + ">>", p: 5, prose: r.prose + (r.prose === "you" ? " are " : " is ") + "the " + label.toLowerCase().replace(/^you.*/, "user") };
+    }
     case "winded": { const r = role(); return { s: r.prefix + "Stamina <= " + r.prefix + "MaximumStamina / 2", p: 5, prose: r.prose + (r.prose === "you" ? " are" : " is") + " winded" }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
     case "raw": { let ok = true; try { parseGS(f.src); } catch (e) { ok = false; bad(x.id, "Formula does not parse: " + e.message); }
@@ -552,6 +622,22 @@ function compileSteps(list, filters, out, prose) {
       case "heal": { const a = cHolder(st.slots.amount);
         out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base));
         prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
+      case "useNew": {
+        const cb = [], cp = [];
+        compileSteps(st.branches.steps, [], cb, cp);
+        const child = { __typeName: "ActivatedAbility", name: f.name, behaviors: cb };
+        if (f.targeting === "prompt") { child.numTargets = cHolder(st.slots.num).s; child.range = cHolder(st.slots.range).s; }
+        if (f.targeting !== "self") { const t = cHolder(st.slots.tf); if (!t.empty) child.targetFilter = t.s; }
+        const params = {}; f.handoffs.forEach(y => params[y.id] = "<<" + y.expr + ">>");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "custom",
+          targeting: f.targeting, customAbility: child, standardAbilityParams: params }, base));
+        if (!cb.length) bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add a step inside it.");
+        const tgt = f.targeting === "self" ? "you" : f.targeting === "inherit" ? "the same targets" : cHolder(st.slots.num).prose + " " + f.count + " within " + cHolder(st.slots.range).prose;
+        const tfp = f.targeting !== "self" ? cHolder(st.slots.tf) : { empty: true };
+        const inner = (tfp.empty ? "" : "only creatures where " + tfp.prose + "; ") + cp.map(q => q.kind === "roll" ? "make a power roll" : q.text.charAt(0).toLowerCase() + q.text.slice(1)).join(", then ");
+        prose.push({ kind: "text", text: cap("then use " + f.name + " on " + tgt + fp + ": " + (inner || "nothing yet")) });
+        break;
+      }
       case "opaque": {
         // Pass the record through unchanged; an "Only if" around it is AND-ed onto its own filter.
         const rec = Object.assign({}, f.record);
@@ -649,19 +735,19 @@ function renderHolder(h, opts) {
     b.type = "button"; b.addEventListener("click", ev => { ev.stopPropagation(); openPicker(h, b); });
     w.appendChild(b);
   } else {
-    const i = E("input", "f num"); i.value = h.lit; i.spellcheck = false; i.setAttribute("aria-label", DOCS[h.docs].title);
+    const i = E("input", "f num"); i.value = h.lit; i.spellcheck = false; i.setAttribute("aria-label", docOf(h.docs).title);
     i.addEventListener("input", () => { h.lit = i.value; refreshSide(); });
     i.addEventListener("change", refresh);
     const fx = E("button", "fx", "fx"); fx.type = "button"; fx.title = "Build a formula";
-    fx.setAttribute("aria-label", "Build a formula for " + DOCS[h.docs].title);
+    fx.setAttribute("aria-label", "Build a formula for " + docOf(h.docs).title);
     fx.addEventListener("click", ev => { ev.stopPropagation(); openPicker(h, fx); });
     w.appendChild(i); w.appendChild(fx);
   }
   return w;
 }
 function renderX(x, h) {
-  const f = x.f, d = DOCS[h.docs];
-  const isTest = ["is", "winded", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
+  const f = x.f, d = docOf(h.docs);
+  const isTest = ["is", "isHanded", "winded", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
   const e = E("span", "x " + (x.type === "raw" ? "raw " : "") + (isTest ? "test" : "num") + (x.type === "all" || x.type === "any" ? " list" : ""));
   e.dataset.x = x.id; e.dataset.holderOf = h.id;
   const roles = d.roles.map(r => r.label);
@@ -697,6 +783,20 @@ function renderX(x, h) {
       e.appendChild(more);
       break;
     }
+    case "handoff": {
+      e.classList.add("passed"); add(E("span", "pass-ico", "\u2935"));
+      const opts = (d.handoffs || []).filter(y => y.kind === "number").map(y => [y.id, y.label]);
+      if (!opts.some(o => o[0] === f.name)) opts.unshift([f.name, f.label + " (missing)"]);
+      const sl = sel(f, "name", opts, null, "passed-in value"); sl.addEventListener("change", () => { const y = d.handoffs.find(z => z.id === f.name); if (y) f.label = y.label; refresh(); }); add(sl);
+      break;
+    }
+    case "isHanded": {
+      e.classList.add("passed"); add(sel(f, "role", roles, null, "creature")); add(lbl(verb() + " the"));
+      const opts = (d.handoffs || []).filter(y => y.kind === "creature").map(y => [y.id, y.label.toLowerCase()]);
+      if (!opts.some(o => o[0] === f.name)) opts.unshift([f.name, f.label.toLowerCase() + " (missing)"]);
+      add(E("span", "pass-ico", "\u2935")); add(sel(f, "name", opts, null, "passed-in creature"));
+      break;
+    }
     case "raw": { add(lbl("formula")); const i = inp(f, "src", "", "raw formula"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i);
       const conv = E("button", "clear", "↻"); conv.type = "button"; conv.title = "Try to turn this into blocks";
       conv.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, f.src); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; refresh(); });
@@ -713,7 +813,7 @@ function renderX(x, h) {
 /* GoblinScript line under a holder, visible when "Show GoblinScript" is on. */
 function gsLine(h) { const r = cHolder(h); const s = E("span", "gs-line", r.empty ? "" : r.s); return s; }
 
-function renderStep(st, list, ctx) {
+function renderStep(st, list, ctx, scope) {
   const def = STEPS[st.type];
   const e = E("div", "step cat-" + def.cat + (st.branches && Object.keys(st.branches).length ? " c" : ""));
   e.dataset.step = st.id;
@@ -730,6 +830,7 @@ function renderStep(st, list, ctx) {
     case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
     case "potency": add(lbl("If the target's")); add(sel(f, "ch", CHARS, null, "characteristic")); add(lbl("is below")); add(sel(f, "tier", POT, null, "potency")); break;
     case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
+    case "useNew": add(lbl("Then use a new ability:")); add(inp(f, "name", "name", "follow-up name")); break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
     case "opaque": {
@@ -740,7 +841,7 @@ function renderStep(st, list, ctx) {
     }
   }
   const mb = E("button", "menu-btn", "⋯"); mb.type = "button"; mb.setAttribute("aria-label", def.label + " options");
-  mb.addEventListener("click", ev => { ev.stopPropagation(); stepMenu(st, list, ctx, mb); });
+  mb.addEventListener("click", ev => { ev.stopPropagation(); stepMenu(st, list, ctx, mb, scope); });
   add(mb);
   if (problems.some(p => p.id === st.id)) { bar.style.boxShadow = "inset 0 0 0 2px var(--err)"; bar.title = problems.filter(p => p.id === st.id).map(p => p.msg).join("\n"); }
   e.appendChild(bar);
@@ -748,26 +849,42 @@ function renderStep(st, list, ctx) {
   if (st.type === "powerRoll") {
     [["t1", "11 or lower"], ["t2", "12 - 16"], ["t3", "17 +"]].forEach(([k, t], i) => {
       const mid = E("div", "mid"); mid.appendChild(E("span", null, ["Tier 1", "Tier 2", "Tier 3"][i])); mid.appendChild(E("span", "range", t)); e.appendChild(mid);
-      e.appendChild(mouth(st.branches[k], "tier"));
+      e.appendChild(mouth(st.branches[k], "tier", scope));
     });
     e.appendChild(E("div", "foot"));
+  } else if (st.type === "useNew") {
+    e.appendChild(handoffRow(st));
+    const m = E("div", "mouth"); m.appendChild(E("div", "spine"));
+    const inner = E("div", "inner nested");
+    inner.appendChild(E("div", "nest-title", "Inside \u201c" + st.f.name + "\u201d"));
+    const tg = E("div", "nest-row"); tg.appendChild(lbl("Targets"));
+    tg.appendChild(sel(st.f, "targeting", [["inherit", "the same targets"], ["self", "you"], ["prompt", "new targets:"]], null, "follow-up targets"));
+    if (st.f.targeting === "prompt") { tg.appendChild(renderHolder(st.slots.num)); tg.appendChild(sel(st.f, "count", TARGET_COUNTS, null, "target type")); tg.appendChild(lbl("within")); tg.appendChild(renderHolder(st.slots.range)); }
+    inner.appendChild(tg);
+    if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures where")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ add a test (optional)" })); inner.appendChild(tf); }
+    inner.appendChild(renderList(st.branches.steps, "main", st));
+    m.appendChild(inner); e.appendChild(m);
+    e.appendChild(E("div", "foot"));
   } else if (st.type === "potency" || st.type === "ifStep") {
-    e.appendChild(mouth(st.branches.then, ctx));
+    e.appendChild(mouth(st.branches.then, ctx, scope));
     e.appendChild(E("div", "foot"));
   }
   return e;
 }
-function mouth(list, ctx) {
+function mouth(list, ctx, scope) {
   const m = E("div", "mouth"); m.appendChild(E("div", "spine"));
-  const inner = E("div", "inner"); inner.appendChild(renderList(list, ctx)); m.appendChild(inner);
+  const inner = E("div", "inner"); inner.appendChild(renderList(list, ctx, scope)); m.appendChild(inner);
   return m;
 }
-function renderList(list, ctx) {
-  const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx;
-  list.forEach(st => s.appendChild(renderStep(st, list, ctx)));
+/* scope: the follow-up step a list belongs to (null for the ability itself). New and moved steps
+   take that scope so their formula boxes see the right passed-in information. */
+const listScopes = {};
+function renderList(list, ctx, scope) {
+  const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx; listScopes[s.dataset.list] = scope || null;
+  list.forEach(st => s.appendChild(renderStep(st, list, ctx, scope)));
   const row = E("div", "addrow");
   const b = E("button", "add-btn", ctx === "tier" ? "+ add result" : "+ add step"); b.type = "button";
-  b.addEventListener("click", ev => { ev.stopPropagation(); addMenu(list, ctx, b); });
+  b.addEventListener("click", ev => { ev.stopPropagation(); addMenu(list, ctx, b, scope); });
   row.appendChild(b); s.appendChild(row);
   return s;
 }
@@ -814,14 +931,14 @@ function renderMain() {
   main.appendChild(section("What happens"));
   main.appendChild(renderList(ab.steps, "main"));
 }
-function gsWrap(hs) { const w = E("span", "gs-line"); w.style.flexBasis = "100%"; w.style.padding = "0 0 0 2px"; w.textContent = hs.map(h => DOCS[h.docs].title + ": " + cHolder(h).s).join("   "); return w; }
+function gsWrap(hs) { const w = E("span", "gs-line"); w.style.flexBasis = "100%"; w.style.padding = "0 0 0 2px"; w.textContent = hs.map(h => docOf(h.docs).title + ": " + cHolder(h).s).join("   "); return w; }
 
 /* =====================================================================
    Side: the Draw Steel ability card, problems, saved data
    ===================================================================== */
 function renderSide(c) {
   side.innerHTML = "";
-  const pr = problems;
+  const seen = new Set(); const pr = problems.filter(q => { const k = q.id + q.msg; if (seen.has(k)) return false; seen.add(k); return true; });
   const st = E("div", "status " + (pr.length ? "bad" : "ok"));
   st.appendChild(E("span", "dot"));
   st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. Saves as an ordinary ability: the full editor can open it too."));
@@ -882,7 +999,7 @@ function place(el, anchor) {
    block keeps a dropdown to switch it afterwards. Items come from the slot's description, so each
    field only offers what is valid there. */
 function pickerOptions(h) {
-  const d = DOCS[h.docs], wantBool = h.kind === "boolean", groups = [];
+  const d = docOf(h.docs), wantBool = h.kind === "boolean", groups = [];
   const who = d.defaultRole;
   const r0 = d.roles.find(r => r.label === who) || d.roles[0];
   const is = r0.label === "You" ? "are" : "is";
@@ -929,12 +1046,22 @@ function pickerOptions(h) {
     ]]);
     if (h.kind === "roll") groups.push(["Roll dice", "Only damage and healing can roll.", [item("1d6", "Change the count and sides after.", () => X("dice", { n: "1", s: "6" }), "random d6 d10")]]);
   }
+  // Inside a follow-up ability, what the parent passes in comes first.
+  if (d.handoffs) {
+    const nums = d.handoffs.filter(y => y.kind === "number"), cre = d.handoffs.filter(y => y.kind === "creature");
+    const items = wantBool
+      ? cre.map(y => item(Who + " " + is + " the " + y.label.toLowerCase(), "Passed in from " + d.parentName() + ".", () => X("isHanded", { role: who, name: y.id, label: y.label }), "passed creature id", true))
+          .concat(nums.map(y => item("\u2935 " + y.label + " is at least [ ]", "Passed in from " + d.parentName() + ".", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("handoff", { name: y.id, label: y.label }) }), b: numH("1") }), "passed", true)))
+      : nums.map(y => item("\u2935 " + y.label, "Passed in from " + d.parentName() + ".", () => X("handoff", { name: y.id, label: y.label }), "passed"));
+    groups.unshift(["Passed in from " + d.parentName(), items.length ? "Information the ability using this one hands to it." : "Nothing is passed in yet. Use \u201c+ pass information\u201d on the follow-up step.", items]);
+    if (!items.length) groups[0][2] = [item("+ pass information", "Choose what " + d.parentName() + " hands to this ability.", null, "passed")];
+  }
   if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
   return groups.filter(g => g[2].length);
 }
 function openPicker(h, anchor) {
   closePopups();
-  const d = DOCS[h.docs];
+  const d = docOf(h.docs);
   const p = E("div", "picker"); p.setAttribute("role", "dialog"); p.setAttribute("aria-label", "Choose a block for " + d.title);
   p.addEventListener("click", ev => ev.stopPropagation());
   const ph = E("div", "ph");
@@ -959,7 +1086,8 @@ function openPicker(h, anchor) {
         const b = E("button", "opt"); b.type = "button";
         b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
         if (o.d) b.appendChild(E("span", "d", o.d));
-        b.addEventListener("click", () => { h.expr = o.make(); refresh(); flash(h.id); });
+        if (!o.make) { b.disabled = true; b.style.opacity = .6; }
+        else b.addEventListener("click", () => { h.expr = o.make(); refresh(); flash(h.id); });
         pb.appendChild(b); n++;
       }
       if (cap4) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button";
@@ -986,6 +1114,46 @@ function openPicker(h, anchor) {
 }
 function flash(hid) { const e = main.querySelector('[data-holder="' + hid + '"]'); if (e) { e.classList.add("flash"); setTimeout(() => e.classList.remove("flash"), 400); } }
 
+/* "Passes along" row on a follow-up step: one chip per hand-off, plus a menu to add more. */
+function handoffRow(st) {
+  const row = E("div", "mid handoffs");
+  row.appendChild(E("span", "lbl", "Passes along:"));
+  const used = JSON.stringify(st.branches.steps) + JSON.stringify(st.slots);
+  st.f.handoffs.forEach((y, i) => {
+    const c = E("span", "pass-chip"); c.appendChild(E("span", "pass-ico", "\u2935")); c.appendChild(E("span", null, y.label));
+    c.title = y.label + " = " + y.expr + "\nSaved as <<" + y.id + ">>";
+    if (!used.includes('"' + y.id + '"')) { c.classList.add("unused"); c.title += "\nNot used inside the follow-up yet."; }
+    const x = E("button", "clear", "\u00d7"); x.type = "button"; x.setAttribute("aria-label", "Stop passing " + y.label);
+    x.addEventListener("click", ev => { ev.stopPropagation(); st.f.handoffs.splice(i, 1); refresh(); });
+    c.appendChild(x); row.appendChild(c);
+  });
+  const add = E("button", "add-btn", "+ pass information"); add.type = "button";
+  add.addEventListener("click", ev => { ev.stopPropagation(); handoffMenu(st, add); });
+  row.appendChild(add);
+  return row;
+}
+function handoffMenu(st, anchor) {
+  closePopups();
+  const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation()); m.style.maxWidth = "320px";
+  const take = (label, kind, expr) => {
+    let id = label.toLowerCase().replace(/[^a-z]/g, ""), n = 2;  // the engine only allows letters in parameter names
+    while (st.f.handoffs.some(y => y.id === id)) id = id.replace(/[0-9]+$/, "") + (n++);
+    st.f.handoffs.push({ id, label, kind, expr }); refresh();
+  };
+  let grp = null;
+  for (const src of SOURCES) {
+    if (src.group !== grp) { grp = src.group; m.appendChild(E("div", "mh", grp)); }
+    const b = E("button"); b.type = "button"; const tx = E("span"); tx.appendChild(E("div", null, src.label)); tx.appendChild(E("div", "md", src.desc)); b.appendChild(tx);
+    b.addEventListener("click", () => take(src.label, src.kind, src.expr)); m.appendChild(b);
+  }
+  m.appendChild(E("div", "mh", "One of your stats"));
+  const wrap = E("div"); wrap.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:4px 8px 6px";
+  SOURCE_STATS.forEach(fl => { const b = E("button", "add-btn", "Your " + fl); b.type = "button"; b.style.width = "auto"; b.addEventListener("click", () => take("Your " + fl, "number", fl)); wrap.appendChild(b); });
+  m.appendChild(wrap);
+  place(m, anchor);
+  m.querySelector("button").focus();
+}
+
 /* Prototype stand-in for handing one step to the existing full editor. */
 function fullEditorNote(anchor, f) {
   closePopups();
@@ -995,7 +1163,7 @@ function fullEditorNote(anchor, f) {
 }
 
 /* Only steps that can be stored in this place are offered: tiers get tier-text steps only. */
-function addMenu(list, ctx, anchor) {
+function addMenu(list, ctx, anchor, scope) {
   closePopups();
   const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
   m.appendChild(E("div", "mh", ctx === "tier" ? "Add a tier result" : "Add a step"));
@@ -1004,26 +1172,32 @@ function addMenu(list, ctx, anchor) {
     const b = E("button"); b.type = "button";
     const sw = E("span", "sw"); sw.style.background = "var(--c-" + d.cat + ")"; b.appendChild(sw);
     const tx = E("span"); tx.appendChild(E("div", null, d.label)); tx.appendChild(E("div", "md", d.desc)); b.appendChild(tx);
-    b.addEventListener("click", () => { const st = d.make(ctx); list.push(st); refresh(); const h = st.slots.cond; if (h) { const el = main.querySelector('[data-holder="' + h.id + '"] button'); if (el) openPicker(h, el); } });
+    b.addEventListener("click", () => { const st = d.make(ctx); if (scope) rescope(st, scope, false); list.push(st); refresh(); const h = st.slots.cond; if (h) { const el = main.querySelector('[data-holder="' + h.id + '"] button'); if (el) openPicker(h, el); } });
     m.appendChild(b);
   }
   place(m, anchor);
   m.querySelector("button").focus();
 }
-function stepMenu(st, list, ctx, anchor) {
+function stepMenu(st, list, ctx, anchor, scope) {
   closePopups();
   const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
   const i = list.indexOf(st);
   const item = (t, fn, dis) => { const b = E("button", null, t); b.type = "button"; if (dis) b.disabled = true, b.style.opacity = .4; else b.addEventListener("click", () => { fn(); refresh(); }); m.appendChild(b); };
   item("Move up", () => { list.splice(i, 1); list.splice(i - 1, 0, st); }, i === 0);
   item("Move down", () => { list.splice(i, 1); list.splice(i + 1, 0, st); }, i === list.length - 1);
-  if (ctx === "main" && st.type !== "ifStep") item("Wrap in “Only if”", () => { const w = STEPS.ifStep.make(); w.branches.then.push(st); list.splice(i, 1, w); });
+  if (ctx === "main" && st.type !== "ifStep") item("Wrap in “Only if”", () => { const w = STEPS.ifStep.make(); rescope(w, scope, false); w.branches.then.push(st); list.splice(i, 1, w); });
   if (ctx === "tier" && st.type !== "potency") item("Wrap in potency check", () => { const w = STEPS.potency.make(); w.branches.then.push(st); list.splice(i, 1, w); });
   if (st.branches && st.branches.then && st.branches.then.length) item("Unwrap (keep the steps inside)", () => { list.splice(i, 1, ...st.branches.then); });
-  item("Duplicate", () => { list.splice(i + 1, 0, reid(JSON.parse(JSON.stringify(st)))); });
+  item("Duplicate", () => { const c = reid(JSON.parse(JSON.stringify(st))); registerScopes(c); rescope(c, scope, false); list.splice(i + 1, 0, c); });
   item("Delete", () => { list.splice(i, 1); });
   place(m, anchor);
   m.querySelector("button:not([disabled])").focus();
+}
+// A copied follow-up gets a new id, so its own formula boxes must point at the copy.
+function registerScopes(o) {
+  if (!o || typeof o !== "object") return;
+  for (const k in o) registerScopes(o[k]);
+  if (o.type === "useNew" && o.slots) { SCOPES[o.id] = o; rescope(o, o, true); }
 }
 function reid(o) { if (o && typeof o === "object") { if (o.id) o.id = o.id[0] + uid++; for (const k in o) reid(o[k]); } return o; }
 
@@ -1115,8 +1289,11 @@ document.addEventListener("pointerup", () => {
     let idx = d.target.idx;
     if (d.target.list === d.from && idx > fromIdx) idx--;
     d.from.splice(fromIdx, 1); d.target.list.splice(idx, 0, d.st);
+    rescope(d.st, listScopes[listId(d.target.list)], false);
   } else if (d.kind === "x" && d.target) {
     const old = d.target.expr; d.target.expr = d.x; d.h.expr = old || null;
+    const toScope = SCOPES[d.target.docs.split("@")[1]] || null, fromScope = SCOPES[d.h.docs.split("@")[1]] || null;
+    rescope(d.x, toScope, false); if (old) rescope(old, fromScope, false);
     if (d.x.type === "dice" && d.target.kind !== "roll") { d.h.expr = d.x; d.target.expr = old; }
   }
   refresh();
@@ -1156,6 +1333,27 @@ const EXAMPLES = {
     const cond = STEPS.condition.make(); cond.f.cond = "Dazed"; cond.f.dur = "EoT";
     const onlyIf = STEPS.ifStep.make(); onlyIf.slots.cond = holderFromText("boolean", "stepIf", "not Target.Hero"); onlyIf.branches.then.push(cond);
     a.steps.push(aura, onlyIf);
+    return a;
+  },
+  drain: () => {
+    // Stored the way content stores it today: the parent's params and the child's <<name>> text.
+    const saved = { params: { damagedealt: "<<Cast.Damage Dealt>>", firsttarget: "<<Cast.PrimaryTarget.ID>>" },
+      child: { name: "Share the Spoils", heal: "<<damagedealt>> / 2", targetFilter: "not (Target.ID = <<firsttarget>>)" } };
+    const a = newAbility();
+    Object.assign(a, { name: "Draining Strike", keywords: "Magic, Melee, Strike" });
+    const pr = STEPS.powerRoll.make();
+    ["5 + Might", "8 + Might", "11 + Might"].forEach((t, i) => { const s = STEPS.damage.make("tier"); s.f.dtype = "corruption"; s.slots.amount = holderFromText("roll", "tierDamage", t); pr.branches["t" + (i + 1)].push(s); });
+    const fu = STEPS.useNew.make();
+    fu.f.name = saved.child.name; fu.f.targeting = "prompt"; fu.f.count = "ally";
+    for (const [id, v] of Object.entries(saved.params)) {
+      const expr = v.replace(/^<<|>>$/g, "");
+      const src = SOURCES.find(y => norm(y.expr) === norm(expr));
+      fu.f.handoffs.push({ id, label: src ? src.label : id, kind: src ? src.kind : "number", expr: src ? src.expr : expr });
+    }
+    fu.slots.tf = holderFromText("boolean", "targetFilter@" + fu.id, saved.child.targetFilter);
+    const heal = STEPS.heal.make(); heal.slots.amount = holderFromText("roll", "heal@" + fu.id, saved.child.heal);
+    fu.branches.steps.push(heal);
+    a.steps.push(pr, fu);
     return a;
   },
   cleave: () => {

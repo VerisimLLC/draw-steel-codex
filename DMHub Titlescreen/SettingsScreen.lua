@@ -3883,6 +3883,34 @@ local function CreateCreatorOrganizationsSection()
 			children[#children+1] = titleLabel
 		end
 
+		--every member can open the org's hero module analytics on
+		--draw-steel-codex.com. orgAnalyticsLink (cloud-functions
+		--org-analytics.js) checks membership and returns a link that signs the
+		--browser in.
+		children[#children+1] = gui.Button{
+			width = 170,
+			height = 30,
+			fontSize = 14,
+			vmargin = 4,
+			text = "View Analytics",
+			click = function(element)
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/orgAnalyticsLink",
+					data = { orgid = org.id },
+					success = function(data)
+						if type(data) == "table" and data.ok and type(data.url) == "string" then
+							dmhub.OpenURL(data.url)
+						else
+							ErrorModal("View Analytics", type(data) == "table" and data.error or nil)
+						end
+					end,
+					error = function(msg)
+						ErrorModal("View Analytics", msg)
+					end,
+				}
+			end,
+		}
+
 		children[#children+1] = gui.Label{
 			width = "100%",
 			height = "auto",

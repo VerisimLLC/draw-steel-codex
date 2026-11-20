@@ -21,8 +21,11 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
   1. **6.5c done** (`634c498e`, James tested the surge half 2026-11-20): per-target edge
      sources in The numbers ("Edge for this target", no number); surge spends file under the
      cast through `GameSystem.ForCast`. Costs on rows are now icon + number (`208d0ab7`).
-     Seen while testing, not looked at: Mark: Benefit's Focus spend is still its own line,
-     and Battle Grace's numbers show "Tier 3: lightning 0" above "Tier 3 +24".
+     `07f04dfd`: a trigger's up-front cost joins its row (0.5 s wait), an action's own
+     gains go on its row as "+N" and in What happened ("{Hero} gained 6 surges.", signed by
+     James 2026-11-20), and zero damage type lines are dropped. Up-front costs and gains
+     not yet run on a real cast. Open question: Battle Grace showed "Cost: 2 surges" with
+     no surge damage part.
   2. **6.5d** the roll card folds into History (BRIEF "The S5 fold, built cheaply"): a ghost
      to the new row when History is open, to the History rail button when closed.
   3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,

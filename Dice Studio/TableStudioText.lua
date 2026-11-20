@@ -80,10 +80,43 @@ text("tablestudio.obsidian.shimmer", [[Shimmer]])
 text("tablestudio.obsidian.embers", [[Embers]])
 text("tablestudio.obsidian.emberrise", [[Ember Rise]])
 
+--Going live (phase 1b), signed off in the same mockup.
+text("tablestudio.upload", [[Upload]])
+text("tablestudio.version", [[Version {n}]])
+text("tablestudio.liveversion", [[Live: {n}]])
+text("tablestudio.setlive", [[Set Live]])
+text("tablestudio.notes", [[Version notes]])
+text("tablestudio.status.uploaded", [[Uploaded]])
+text("tablestudio.status.live", [[Live]])
+text("tablestudio.status.changed", [[Changed since upload]])
+text("tablestudio.status.local", [[Local only]])
+text("tablestudio.livereadonly", [[Live version. Editing starts version {n}.]])
+text("tablestudio.uploadfailed", [[Upload failed]])
+text("tablestudio.retry", [[Retry]])
+text("tablestudio.setlive.confirm", [[Set version {n} live?]])
+text("tablestudio.setlive.accessloss", [[Players without {dice} lose this table.]])
+text("tablestudio.sec.dice", [[Dice]])
+text("tablestudio.diceset", [[Dice Set]])
+text("tablestudio.dice.none", [[None]])
+text("tablestudio.sec.access", [[Who Gets It]])
+text("tablestudio.access.everyone", [[Everyone]])
+text("tablestudio.access.dice", [[Dice Owners]])
+text("tablestudio.viewasplayer", [[View as Player]])
+text("tablestudio.sec.menu", [[Menu]])
+text("tablestudio.menuname", [[Menu Name]])
+text("tablestudio.position", [[Position]])
+
 ----------------------------------------------------------------------
 --DRAFT (2026-11-19): written for the build, not yet signed off.
 
 text("tablestudio.tex.datamapuploaded", [[Data map, {size}, uploaded]])
+
+--Who gets each table, in the table list and the New picker (2026-11-20).
+text("tablestudio.tag.free", [[Free]])
+text("tablestudio.tag.dice", [[{dice} dice]])
+text("tablestudio.listentry", [[{name} ({tag})]])
+--A version in the version list, with its status.
+text("tablestudio.versionentry", [[{version} ({status})]])
 
 --The built-in tables' names in the New picker: copies of their names in the table menu
 --(TABLE_SURFACES in Tabletop.lua), which that file keeps local.

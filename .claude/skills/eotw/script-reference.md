@@ -41,7 +41,7 @@ Everything is case-insensitive unless noted. A journal soft break
 | `# Narrative` | a story beat on the stage: sections, choices, votes |
 | `# Montage` | a montage of rounds: opportunities and threats, tests |
 | `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
-| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
+| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Mark:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
 
@@ -718,6 +718,14 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   `enemy`/`monster`/`foe` means every enemy. Bystanders and allies never count,
   and reinforcements still to come do not either: clear the map and the fight
   is won before the next wave arrives.
+- **Marked targets**: `Mark: The Choir` (also `Mark: Chorister and Bone
+  Singer`, `Targets: every Cultist`). While the fight runs, every living enemy
+  it names gets a red arrow on every player's screen: bobbing over it when it
+  is in view, at the edge of the view pointing toward it when it is not. A
+  name matches a `## Reinforcements:` section's name (a leading "The" is
+  ignored), a token's name (or `<name> 2`), a monster keyword or a word of its
+  bestiary type. Marks only point the way: pair them with a `Victory:` line or
+  an Encounter Script if killing them should win the fight.
 - **Parallax**: `Parallax: Slight` (or `None`/`Off`, `Normal`, `Pronounced`)
   fixes the game's Parallax setting for the whole encounter -- narrative and
   montage beats included, from the moment the heroes arrive. The host keeps it

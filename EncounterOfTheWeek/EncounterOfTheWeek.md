@@ -5763,6 +5763,22 @@ the map, they win. Decisions taken:
   non-bystander monster of that keyword / bestiary-type word on the map.
   Minions count (unlike core `CountLiveCombatants`). Reinforcements still to
   come do not count -- the user's "kill all Dwarves PRESENT on the map".
+- **`Mark: <names>`** (also `Marks:`/`Marked:`/`Target:`/`Targets:`; a setup
+  line, `{kind = "mark", names = {{text, singular}}, whoText}`, added
+  2026-11-19 so Road Off the Moor Part 2 can point at the Choir). Client-only,
+  writes nothing: a full-screen overlay on `GameHud.instance.parentPanel`
+  (put up by a 0.5 s poll while any marked enemy stands in an EotW combat)
+  draws one red arrow per living enemy it names: bobbing over the token when
+  it is in `cameraUsableBounds`, else on the view's edge where the line from
+  the view's centre to the token leaves it, rotated toward it. World points
+  map to the overlay through `cameraBounds` (in tabletop mode the live map
+  window fills the layer). Edge arrows keep below `TOP_INSET` (the initiative
+  bar). A token HUD panel was tried first and dropped: monsters out of view
+  have no `token.sheet`. A name matches a `## Reinforcements:` section name
+  (tokens carry `eotwReinforcement = <section id>`), a token name or
+  `<name> N`, a keyword or a bestiary-type word (`IsKind`). The marked set is
+  cached per `dmhub.ngameupdate` (at most 1 s old). Nothing is added to the
+  objective strip, and the victory condition is unchanged.
 - **`Parallax: None|Slight|Normal|Pronounced`** (a setup line, `{kind =
   "parallax", ratio, level}`, added 2026-11-08 for Horizon's Grave: Slight in
   Parts 1 and 3, None in Part 2). `EnforceStrictRules` (the host tick) reads

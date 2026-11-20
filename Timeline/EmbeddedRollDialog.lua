@@ -5865,6 +5865,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
             end
 
+            --A triggered modifier can also take others off this row (removeModifiers).
+            ActiveTrigger.RemoveModifiersForTriggers(m_options.modifiers)
+
             -- Re-inject after-roll modifier entries so they survive this recalculation.
             -- The same entry objects are reused, preserving any mod.override values set by the user.
             if m_afterRollModifierEntries ~= nil then

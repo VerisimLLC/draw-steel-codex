@@ -682,3 +682,9 @@ shows the map on show, cut short when long; its menu lists those maps by name, t
 | L104 | Card sentence, wall break | ..., breaking through {n} wall(s). | Goblin 3 was pushed 3 squares, breaking through a wall. |
 | L105 | Caption, blocked before it moved a square | {Push} blocked | Push blocked · Stability 2 |
 | L106 | Card sentence, blocked | ... was blocked and didn't move (stability {s}). | Devil High Judge was blocked and didn't move (stability 2). |
+
+## Round 26: triggers used inside the roll dialog (6.5b, signed off 2026-11-20)
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L107 | Tag on a trigger row for a triggered action used from the roll dialog | During the roll | During the roll · Bryn · Draconian Guard › Larry -7 |

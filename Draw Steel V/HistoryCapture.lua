@@ -23,6 +23,7 @@ local mod = dmhub.GetModLoading()
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
+--- @field byminions? integer On a target of a squad's strike: how many of its minions hit it (W10).
 --- @field taken? number On a target: damage that landed, soaked included.
 --- @field healed? number On a target: Stamina regained.
 --- @field soaked? number On a target: how much of the damage temporary Stamina took.
@@ -238,6 +239,33 @@ local function FallerOf(ability, casterToken, options)
     return nil
 end
 
+--True for an ability that makes a power roll.
+local function RollsPower(ability)
+    for _, behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            return true
+        end
+    end
+    return false
+end
+
+--A trigger's place against its action's roll (T15): "before" or "after", nil when the
+--action makes no roll. The action's cast carries its total once the dice have landed.
+local function RollTiming(causeid)
+    if causeid == nil then
+        return nil
+    end
+    for _, state in pairs(g_casts) do
+        if state.entry ~= nil and state.entry.id == causeid then
+            if not state.rolls or state.cast == nil then
+                return nil
+            end
+            return state.cast:try_get("total") ~= nil and "after" or "before"
+        end
+    end
+    return nil
+end
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() or options.dismiss then
         return
@@ -278,6 +306,7 @@ local function CastBegan(ability, casterToken, targets, options)
                 name = ability.name,
                 free = ability:ActionResource() == CharacterResource.freeTriggeredActionResourceId or nil,
             },
+            when = RollTiming(symbols ~= nil and symbols.causecastid or nil),
             landedby = faller ~= nil and faller ~= casterToken and History.Creature(faller) or nil,
             targets = {},
         }, targets, options)
@@ -310,10 +339,25 @@ local function CastBegan(ability, casterToken, targets, options)
         targets = {},
     }, targets, options)
     History.AddCombatFacts(state.entry)
+    --its triggers say whether they came before or after the dice (RollTiming).
+    state.rolls = RollsPower(ability)
 
     --snapshot now: a target may be gone by the time the cast ends.
     for _, target in ipairs(targets) do
         AddTarget(state.entry, state.seen, target.token)
+    end
+    --a squad's strike pairs each minion with the creature it struck (targetPairs, which
+    --the roll also counts for Extra Attackers): how many minions hit each target (W10).
+    local squadStrike = false
+    pcall(function() squadStrike = ability:UsesSquadStrike(casterToken) end)
+    local targetPairs = symbols ~= nil and symbols.targetPairs or nil
+    if squadStrike and targetPairs ~= nil then
+        for _, pair in ipairs(targetPairs) do
+            local who = state.seen[pair.b]
+            if who ~= nil then
+                who.byminions = (who.byminions or 0) + 1
+            end
+        end
     end
     if ability.targetType == "self" and #targets == 0 then
         AddTarget(state.entry, state.seen, casterToken)
@@ -515,6 +559,62 @@ local function AddRoll(entry, cast, ability, caster)
     end
 end
 
+--Triggered actions used from the roll dialog (L107): one per trigger and the creature that
+--used it, with what it did to each target, the damage it changed or the edges and banes
+--it gave. The tray gives each its own trigger row, tagged During the roll.
+local function AddRollTriggers(entry, cast)
+    local damage = cast:try_get("targetDamageSources", {})
+    local sources = cast:try_get("targetSources", {})
+    local found = {}
+    local list = {}
+    local function Target(name, charid, who)
+        local key = name .. "|" .. tostring(charid)
+        local item = found[key]
+        if item == nil then
+            local owner = charid ~= nil and dmhub.GetCharacterById(charid) or nil
+            item = {name = name, who = owner ~= nil and History.Creature(owner) or nil, targets = {}, byid = {}}
+            found[key] = item
+            list[#list + 1] = item
+        end
+        local target = item.byid[who.id]
+        if target == nil then
+            --who it was, not what the action did to it: the action's own row says that.
+            target = {id = who.id, name = who.name, img = who.img, rect = who.rect, hero = who.hero, secret = who.secret}
+            item.byid[who.id] = target
+            item.targets[#item.targets + 1] = target
+        end
+        return target
+    end
+    for _, who in ipairs(entry.targets) do
+        for _, source in ipairs(damage[who.id] or {}) do
+            if source.trigger and who.tier ~= nil and who.tier > 0 then
+                local delta = 0
+                for _, amount in pairs(source.tiers[who.tier] or {}) do
+                    delta = delta + amount
+                end
+                if delta ~= 0 then
+                    local target = Target(source.name or "", source.charid, who)
+                    target.delta = (target.delta or 0) + delta
+                end
+            end
+        end
+        for _, source in ipairs(sources[who.id] or {}) do
+            if source.trigger then
+                local target = Target(source.name or "", source.charid, who)
+                target.edges = source.edges
+                target.banes = source.banes
+                target.tiers = source.tiers
+            end
+        end
+    end
+    for _, item in ipairs(list) do
+        item.byid = nil
+    end
+    if #list > 0 then
+        entry.rolltriggers = list
+    end
+end
+
 --The roll dialog's sources for one target (2.3a), with each owner as it looks now.
 --- @return HistoryEdgeSource[]
 local function EdgeSources(sources)
@@ -635,6 +735,7 @@ local function CastFinished(ability, casterToken, options)
             end
         end
         AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
+        AddRollTriggers(entry, cast)
     end
     History.Write(entry)
 end

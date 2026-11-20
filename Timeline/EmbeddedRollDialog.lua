@@ -2072,6 +2072,8 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = nottierone,
             bonus = bonus ~= 0 and bonus or nil,
             charid = charid,
+            --a triggered action used from this dialog: History gives it a row (L107).
+            trigger = mod.modifier:try_get("_tmp_triggerCharid") ~= nil or nil,
             hovertext = RecordedHoverText(mod),
         }
         return after
@@ -2116,7 +2118,8 @@ function GameHud.CreateEmbeddedRollDialog()
         if mod.modFromTarget and charid == nil then
             name = string.format("Target is %s", name)
         end
-        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod)}
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod),
+            trigger = charid ~= nil or nil}
     end
 
     --this is the current 'base roll' that is being calculated based on.

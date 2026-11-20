@@ -196,6 +196,20 @@ local function Styles()
             bgcolor = "clear",
             borderColor = "@borderSolid",
         },
+        --a turn pip still to use is filled, like the action bar's; a used one greys out.
+        {
+            selectors = {"label", "historyChip", "historyPip"},
+            color = "@bg",
+            bgcolor = "@fg",
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"label", "historyChip", "historyPip", "historyPipUsed"},
+            color = "@fgMuted",
+            bgcolor = "clear",
+            borderColor = "@borderSolid",
+            opacity = 0.6,
+        },
         {
             selectors = {"label", "historyChip", "historyChipHeroic"},
             color = "@info",
@@ -928,6 +942,14 @@ end
 local function MiniFaces(tally, room)
     local children = {}
     local used = 4
+    --faces that share a portrait (four goblins) get a number each, so the line reads without
+    --a hover (B4): numbered in the order they appear.
+    local byImage = {}
+    for _, row in ipairs(tally) do
+        local img = row.who.img or ""
+        byImage[img] = (byImage[img] or 0) + 1
+    end
+    local numbered = {}
     for i, row in ipairs(tally) do
         local width = 23 + 8
         for _, amount in ipairs({row.taken, row.healed}) do
@@ -951,6 +973,26 @@ local function MiniFaces(tally, room)
         used = used + width
         --the line's own hover names everyone (FoldHover), so the faces take no hover.
         local face = Face(row.who, 20)
+        local img = row.who.img or ""
+        if byImage[img] > 1 then
+            numbered[img] = (numbered[img] or 0) + 1
+            face.flow = "none"
+            face:AddChild(gui.Label{
+                classes = {"historyTriggerNumber"},
+                bgimage = "panels/square.png",
+                floating = true,
+                text = tostring(numbered[img]),
+                fontSize = 8,
+                width = 11,
+                height = 11,
+                cornerRadius = 5,
+                halign = "right",
+                valign = "bottom",
+                x = 3,
+                y = 3,
+                textAlignment = "center",
+            })
+        end
         face:MakeNonInteractiveRecursive()
         face.selfStyle.rmargin = 3
         children[#children + 1] = face
@@ -1096,7 +1138,7 @@ local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid", teleport 
 History.MOVED_VERBS = MOVED_VERBS
 
 --"Push 3", then after dots what stability took off, walls broken and a fall (T14, L97,
---L98, L103): "Push 2 · Stability 1 · Broke 1 wall · fell 4". vertical_push reads "Vertical push".
+--L98, L103): "Push 2 . Stability 1 . Broke 1 wall . fell 4" (dots are DOT). vertical_push reads "Vertical push".
 local function MovedWords(moved)
     local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
     local words
@@ -1133,6 +1175,10 @@ local function Captions(who, minions, allyHit)
     end
     if allyHit then
         Add("Ally hit")
+    end
+    --struck by a squad: how many of its minions hit this target (T14).
+    if (who.byminions or 0) > 0 and (who.taken or 0) > 0 then
+        Add(string.format("%d %s", who.byminions, who.byminions == 1 and "minion" or "minions"))
     end
     if who.state ~= nil then
         Add(STATE_CAPTIONS[who.state].text, nil, STATE_CAPTIONS[who.state].style)
@@ -1551,7 +1597,17 @@ local function OpposedRow(who, showTotals, named)
 end
 
 local function TriggerRow(index, entry)
-    local tagText = cond(entry.ability.free, "Free", "Triggered")
+    --T15: free first, then where it fell against the action's roll.
+    local tagText = "Triggered"
+    if entry.ability.free then
+        tagText = "Free"
+    elseif entry.when == "before" then
+        tagText = "Before the roll"
+    elseif entry.when == "during" then
+        tagText = "During the roll"
+    elseif entry.when == "after" then
+        tagText = "After the roll"
+    end
     local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
     --- @type Panel[]
     local children = {
@@ -1635,6 +1691,17 @@ local function TriggerRow(index, entry)
         if who.moved ~= nil then
             effects[#effects + 1] = MovedWords(who.moved)
         end
+        --a trigger used from the roll dialog (L107): what it changed, not what was dealt.
+        local net = (who.edges ~= nil or who.banes ~= nil) and History.NetEdges(who.edges, who.banes) or nil
+        if net ~= nil then
+            effects[#effects + 1] = net.label
+        end
+        if (who.tiers or 0) ~= 0 then
+            effects[#effects + 1] = string.format("%+d %s", who.tiers, math.abs(who.tiers) == 1 and "tier" or "tiers")
+        end
+        if (who.delta or 0) ~= 0 then
+            effects[#effects + 1] = string.format("%+d", who.delta)
+        end
         local taken, healed = who.taken or 0, who.healed or 0
         if taken > 0 or healed > 0 or #effects > 0 then
             AddCaret()
@@ -1680,9 +1747,50 @@ local function TriggerRow(index, entry)
         lpad = 9,
         vmargin = 2,
         borderBox = true,
-        rightClick = DirectorMenu({entry.source or entry}),
+        --a dialog trigger is part of its action's entry, with nothing of its own to hide or delete.
+        rightClick = (not entry.fromdialog) and DirectorMenu({entry.source or entry}) or nil,
         children = children,
     }
+end
+
+--A small outlined word beside an action's name: a cost (Malice, surges) or a glance chip.
+local function Chip(text, style)
+    return gui.Label{
+        classes = {"historyChip", style},
+        bgimage = "panels/square.png",
+        text = text,
+        width = "auto",
+        height = 16,
+        hpad = 6,
+        borderBox = true,
+        borderWidth = 1,
+        cornerRadius = 8,
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+        textAlignment = "center",
+    }
+end
+
+--What shaped the roll, readable without opening the card (T12): the net edges or banes as
+--the roll dialog's chevrons (one or two, up for an edge), netted as the card's numbers net
+--them, and a critical (a natural 19 or 20). Edges and banes that cancel show nothing.
+local function GlanceChips(roll)
+    local chips = {}
+    if roll == nil then
+        return chips
+    end
+    local net = History.NetEdges(roll.edges, roll.banes)
+    if net ~= nil and net.side ~= nil then
+        local chevrons = History.Chevrons(net.side, net.count)
+        chevrons.selfStyle.lmargin = 5
+        chevrons.selfStyle.rmargin = 0
+        chips[#chips + 1] = chevrons
+    end
+    if (roll.natural or 0) >= 19 then
+        chips[#chips + 1] = Chip("Critical")
+    end
+    return chips
 end
 
 local function BuildAction(item)
@@ -1721,6 +1829,9 @@ local function BuildAction(item)
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier, entry.roll ~= nil and entry.roll.overridden ~= nil)
     end
+    for _, chip in ipairs(GlanceChips(entry.roll)) do
+        titleChildren[#titleChildren + 1] = chip
+    end
     if entry.reverted ~= nil then
         titleChildren[#titleChildren + 1] = Tag("historyRevertedTag", "Reverted")
     end
@@ -1735,21 +1846,7 @@ local function BuildAction(item)
         table.sort(names)
         for _, name in ipairs(names) do
             local cost = entry.costs[name]
-            titleChildren[#titleChildren + 1] = gui.Label{
-                classes = {"historyChip", cost.style},
-                bgimage = "panels/square.png",
-                text = ResourceWords(cost.amount, name),
-                width = "auto",
-                height = 16,
-                hpad = 6,
-                borderBox = true,
-                borderWidth = 1,
-                cornerRadius = 8,
-                lmargin = 5,
-                halign = "left",
-                valign = "center",
-                textAlignment = "center",
-            }
+            titleChildren[#titleChildren + 1] = Chip(ResourceWords(cost.amount, name), cost.style)
         end
     end
 
@@ -1815,8 +1912,23 @@ local function BuildAction(item)
         end
     end
 
+    --in the order they came: before the roll, used from its dialog (L107), then the rest.
+    local ordered = {}
+    for _, kid in ipairs(triggers) do
+        if kid.when == "before" then
+            ordered[#ordered + 1] = kid
+        end
+    end
+    for _, used in ipairs(entry.rolltriggers or {}) do
+        ordered[#ordered + 1] = {kind = "trigger", when = "during", fromdialog = true, ability = {name = used.name}, actor = used.who, targets = used.targets}
+    end
+    for _, kid in ipairs(triggers) do
+        if kid.when ~= "before" then
+            ordered[#ordered + 1] = kid
+        end
+    end
     local triggerRows = {}
-    for i, kid in ipairs(triggers) do
+    for i, kid in ipairs(ordered) do
         triggerRows[i] = TriggerRow(i, kid)
     end
     --an opposed power roll reads as its outcome; the card has each side's dice. A row from
@@ -2489,6 +2601,65 @@ local function TurnSideText(item)
     return text
 end
 
+--Main, Maneuver and Move on the turn being played (T8): filled while there to use, greyed
+--once used, as the action bar shows them. Read from
+--the creature live, twice a second; hidden once the turn has passed.
+local PIPS = {
+    {text = "Main", used = function(props) return (props:GetResourceUsage(CharacterResource.actionResourceId, "turn") or 0) >= 1 end},
+    {text = "Maneuver", used = function(props) return (props:GetResourceUsage(CharacterResource.maneuverResourceId, "turn") or 0) >= 1 end},
+    {text = "Move", used = function(props) return props:DistanceMovedThisTurn() > 0 end},
+}
+
+local function TurnPips(item)
+    local live = item.live
+    local labels = {}
+    for i, pip in ipairs(PIPS) do
+        labels[i] = Chip(pip.text, "historyPip")
+    end
+    local shown = ""
+    --the pips collapse while the turn is not on; the check sits on this outer panel because
+    --a collapsed panel stops thinking.
+    local row = gui.Panel{
+        classes = {"collapsed"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        children = labels,
+    }
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        row,
+        thinkTime = 0.5,
+        think = function(element)
+            local q = dmhub.initiativeQueue
+            local state = "off"
+            if q ~= nil and not q.hidden and q.guid == live.encounter and q.round == live.round
+                and q.turnNumber == item.number and q.currentTurn == item.owner.turnid then
+                local tokens = InitiativeQueue.GetTokensForInitiativeId(q.currentTurn, dmhub.allTokens)
+                local props = tokens[1] ~= nil and tokens[1].properties or nil
+                if props ~= nil then
+                    state = ""
+                    for _, pip in ipairs(PIPS) do
+                        local ok, used = pcall(pip.used, props)
+                        state = state .. ((ok and used) and "1" or "0")
+                    end
+                end
+            end
+            if state == shown then
+                return
+            end
+            shown = state
+            row:SetClass("collapsed", state == "off")
+            for i, label in ipairs(labels) do
+                label:SetClass("historyPipUsed", string.sub(state, i, i) == "1")
+            end
+        end,
+    }
+end
+
 local function BuildTurnHead(item)
     return gui.Panel{
         classes = {"historyFold"},
@@ -2536,6 +2707,7 @@ local function BuildTurnHead(item)
                 halign = "left",
             },
         },
+        item.live ~= nil and TurnPips(item) or nil,
     }
 end
 
@@ -3372,14 +3544,17 @@ local function AddTurnRows(items, turn, isNewest, nested)
             }
             return
         end
+        local first = turn.entries[1]
         items[#items + 1] = {
             kind = "turnhead",
             key = "head-" .. turn.id,
-            sig = turn.owner.id .. tostring(reverted),
+            sig = turn.owner.id .. tostring(reverted) .. tostring(isNewest),
             number = turn.number,
             owner = turn.owner,
             toggle = toggle,
             reverted = reverted,
+            --the newest turn may be the one being played: its heading shows the pips (T8).
+            live = isNewest and first ~= nil and {encounter = first.encounter, round = first.round} or nil,
         }
     end
     for i, entry in ipairs(turn.entries) do
@@ -3752,11 +3927,12 @@ local function SearchLabel()
     return table.concat(parts, " + ")
 end
 
---S5, in place of the rows when nothing matches.
-local function SearchEmpty()
+--S5, in place of the rows when nothing matches; L96 when the map has nothing at all yet.
+--- @param text string|nil
+local function SearchEmpty(text)
     return gui.Label{
         classes = {"historyMuted"},
-        text = string.format("Nothing matches \"%s\".", SearchLabel()),
+        text = text or string.format("Nothing matches \"%s\".", SearchLabel()),
         width = "100%-24",
         height = "auto",
         halign = "left",
@@ -4429,6 +4605,8 @@ local function CreateFace()
         builtFrame = dmhub.FrameCount()
         if matches == 0 then
             children = {SearchEmpty()}
+        elseif #items == 0 then
+            children = {SearchEmpty("Nothing has happened on this map yet.")}
         end
         rowsPanel.children = children
         if stick and not loadingOlder then

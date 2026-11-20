@@ -34,6 +34,8 @@ local mod = dmhub.GetModLoading()
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil} What was used; villainaction is the stat block slot, "Villain Action 1"; the tag reads only "Villain Action" (L90).
 --- @field player? string On an action: the player who used it. Nil means the Director.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil, overridden: {by: string|nil, dicetier: number}|nil} The power roll. overridden: someone chose the tier after the dice landed (L91-L93). hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
+--- @field rolltriggers? {name: string, who: HistoryCreature|nil, targets: table[]}[] On an action: triggered actions used from its roll dialog (L107), each target with delta (damage it changed) or edges, banes and tiers.
+--- @field when? "before"|"after" On an automatic trigger: whether it came before or after its action's roll (T15); nil when that action rolls nothing.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it. On a test or table line: the ability that asked for the roll, whose row it goes under.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
@@ -471,6 +473,8 @@ local function ForPlayers(entry)
     if hiddenRoll then
         entry.roll = nil
         entry.secretroll = true
+        --the triggers used from its roll dialog (L107) were out of sight too.
+        entry.rolltriggers = nil
     end
     --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
     --An action keeps its roller in actor; a test or dice line, in who.

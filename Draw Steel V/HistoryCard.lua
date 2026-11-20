@@ -164,6 +164,10 @@ local function Predicate(who, isAlly)
 
     if (who.taken or 0) > 0 then
         local words, split = DamageWords(who)
+        --struck by a squad (W10): "took 6 damage from 2 minions".
+        if (who.byminions or 0) > 0 and not split then
+            words = string.format("%s from %d %s", words, who.byminions, who.byminions == 1 and "minion" or "minions")
+        end
         splitLead = split
         if who.soaked ~= nil then
             words = string.format("%s, %d of it to temporary Stamina", words, who.soaked)
@@ -1235,6 +1239,7 @@ end
 --one (Heroes book; GetRollModFromEdgesAndBanes agrees). Nil when there are none.
 --- @return {label: string, value: string, side: string|nil, count: integer, note: string|nil, aside: string|nil}|nil
 local function NetEdges(edges, banes)
+    --(History.NetEdges below: the row's glance chip uses the same rule.)
     edges, banes = edges or 0, banes or 0
     if edges == 0 and banes == 0 then
         return nil
@@ -1279,6 +1284,7 @@ local function NetEdges(edges, banes)
     end
     return net
 end
+History.NetEdges = NetEdges
 
 --The roll dialog's arrows: the image points down (a bane) and is flipped for an edge; a
 --double stacks two.
@@ -1305,6 +1311,7 @@ local function Chevrons(side, count)
         children = arrows,
     }
 end
+History.Chevrons = Chevrons
 
 local function Die(face)
     return gui.Label{

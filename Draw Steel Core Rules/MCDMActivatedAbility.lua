@@ -5823,12 +5823,13 @@ ActivatedAbility.RegisterProperty {
 }
 
 --Line-of-effect gates on targeting: an effect denying the caster line of effect to a set of
---creatures, and an enemy standing in the way with "Block Enemy Line of Effect". Both return
---a reason, so the action bar greys the target out with a tooltip instead of hiding it.
+--creatures, and an enemy in the way with its body or its aura. Each returns a reason, so
+--the action bar greys the target out with a tooltip instead of hiding it.
 local g_baseTargetPassesFilter = ActivatedAbility.TargetPassesFilter
 
 --Which creatures the last area included. The action bar checks every creature in an area,
---so this works the answer out once per area, not once per creature.
+--so this works the answer out once per area, not once per creature. It is redone every
+--frame, because creatures can move while the area stays where it is.
 local g_includedInAreaCache = {}
 
 --- The charids an ability already targets, for line-of-effect auras that only block
@@ -5851,24 +5852,22 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
     local targetArea = symbols.targetArea
     if targetArea ~= nil then
         local cache = g_includedInAreaCache
-        if cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
+        local frame = dmhub.FrameCount()
+        if cache.frame ~= frame or cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
             local charids = {}
             for _, tok in pairs(dmhub.tokenInfo.TokensInShape(targetArea) or {}) do
                 if tok.valid and tok.properties ~= nil and g_baseTargetPassesFilter(ability, casterToken, tok, symbols) then
                     charids[tok.charid] = true
                 end
             end
-            cache.area, cache.ability, cache.caster, cache.charids = targetArea, ability, casterToken, charids
+            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
         end
         included = cache.charids
     end
 
     local chosen = symbols.targetsChosen
     if type(chosen) == "table" and #chosen > 0 then
-        local merged = {}
-        for charid, _ in pairs(included or {}) do
-            merged[charid] = true
-        end
+        local merged = table.shallow_copy(included or {})
         for _, charid in ipairs(chosen) do
             merged[charid] = true
         end

@@ -742,6 +742,8 @@ local function CastFinished(ability, casterToken, options)
         AddRollTriggers(entry, cast)
     end
     History.Write(entry)
+    --the user's own card folds into the row it became (S5, 6.5d).
+    History.FoldIn(entry)
 end
 
 --The row a result belongs to: the running cast's own, else one it shares through its

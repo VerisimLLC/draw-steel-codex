@@ -225,6 +225,18 @@ local function Styles()
             color = "@danger",
             borderColor = "@danger",
         },
+        --a row the S5 fold's stand-in is flying to, hidden until it lands (6.5d).
+        {
+            selectors = {"historyFoldHidden"},
+            opacity = 0,
+        },
+        --and fades in under the stand-in as it fades out (the fold's last quarter).
+        {
+            selectors = {"historyFoldReveal"},
+            opacity = 1,
+            transitionTime = 0.22,
+            easing = "easeInOutSine",
+        },
         --a spend on an action's row: the resource's icon and the number, in its chip's colour.
         {
             selectors = {"label", "historyCost"},
@@ -5453,7 +5465,13 @@ local function CreateFace()
     end
 
     g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry, ShowMap = ShowMap,
-        MapId = function() return mapid end}
+        MapId = function() return mapid end,
+        --the row built for an entry key, once the list has it (the fold's landing spot).
+        RowPanel = function(key)
+            local row = rows[key]
+            return row ~= nil and row.panel.valid and row.panel or nil
+        end,
+        List = function() return list end}
     list.vscrollPosition = 0
     Refresh()
     if g_showOnOpen ~= nil then
@@ -5475,6 +5493,173 @@ function History.ShowEntry(mapid, key)
         g_showMapOnOpen = mapid
         g_showOnOpen = key
     end
+end
+
+--The S5 fold (BRIEF Appendix I, 6.5d): when your own action ends, a small stand-in for its
+--row (your face, the first target's, what they took) flies from the ability card to the
+--new row, or to the rail button while History is closed. Nothing is built while idle.
+--Long enough to follow by eye (James 2026-11-20: 0.3 s was too fast to see).
+local FOLD_SECONDS = 0.9
+
+--From this far through the flight the copy fades out over the real row.
+local FOLD_FADE_FROM = 0.75
+
+--Opacity is not inherited by children, so fading a panel means fading every panel in it.
+--- @param panel Panel
+--- @param opacity number
+local function SetTreeOpacity(panel, opacity)
+    panel.selfStyle.opacity = opacity
+    for _, child in ipairs(panel.children) do
+        SetTreeOpacity(child, opacity)
+    end
+end
+
+--Ease in-out cubic, as the map windows' minimise (Tabletop AnimateGhost).
+local function EaseInOut(t)
+    if t < 0.5 then
+        return 4 * t * t * t
+    end
+    return 1 - ((-2 * t + 2) ^ 3) / 2
+end
+
+--- Flies the stand-in for a row this client just wrote. Does nothing without an ability card
+--- on screen, with Reduce Motion on, or for a row on a map History isn't showing.
+--- @param entry HistoryEntry
+function History.FoldIn(entry)
+    if entry.kind ~= "action" or entry.actor == nil or ThemeEngine.GetAccessibility().reduceMotion then
+        return
+    end
+    local hud = GameHud.instance
+    local card = hud ~= nil and rawget(hud, "abilityDisplayPanel") or nil
+    local layer = Tabletop.ButtonLayer()
+    if card == nil or not card.valid or (card.renderedWidth or 0) <= 0 or layer == nil or not layer.valid then
+        return
+    end
+    local cardRect = Tabletop.PanelRect(card)
+    if cardRect == nil then
+        return
+    end
+    local tray = g_tray
+    local open = tray ~= nil and tray.face.valid
+    if tray ~= nil and open and tray.MapId() ~= entry.map then
+        return
+    end
+    local railButton = nil
+    if not open then
+        local _, _, button = PanelDocument.FindRailButton("history")
+        railButton = button
+        if railButton == nil or not railButton.valid then
+            return
+        end
+    end
+    local key = History.KeyOf(entry)
+
+    --a copy of the row it becomes (James 2026-11-20), built by the list's own row builder.
+    local width = g_trayWidth
+    local row = BuildAction({kind = "action", key = key, entry = entry, sources = {entry}, triggers = {}, showActor = true})
+
+    local start = dmhub.Time()
+    local from = {x = cardRect.x + (cardRect.w - width) / 2, y = cardRect.y + cardRect.h / 3}
+    --the card frame's themed fill needs the theme's tokens, which the table layer lacks.
+    --- @type Panel|nil
+    local hiddenRow = nil
+    local revealed = false
+    local ghost
+    ghost = gui.Panel{
+        --the solid frame History's cards use over the list: square, no shadow below it.
+        classes = {"historyCardFrame", "historyCardSolid"},
+        styles = ThemeEngine.MergeStyles(Styles()),
+        bgimage = true,
+        floating = true,
+        interactable = false,
+        flow = "vertical",
+        width = width,
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        x = from.x,
+        y = from.y,
+        thinkTime = 0.01,
+        children = {row},
+        --however it goes (a reload, the table torn down), the real row must not stay hidden.
+        destroy = function()
+            if hiddenRow ~= nil and hiddenRow.valid then
+                hiddenRow:SetClassTree("historyFoldHidden", false)
+            end
+        end,
+        think = function(element)
+            local t = math.min(1, (dmhub.Time() - start) / FOLD_SECONDS)
+            --aim where the row is now: the list adds it a frame or two after the write.
+            local target = nil
+            if open then
+                if g_tray ~= nil and g_tray.face.valid then
+                    local list = g_tray.List()
+                    local rect = list.valid and Tabletop.PanelRect(list) or nil
+                    local row = g_tray.RowPanel(key)
+                    target = row ~= nil and Tabletop.PanelRect(row) or nil
+                    --the real row stays hidden until the stand-in lands on it, so one row settles in.
+                    --opacity is not inherited, so the whole row tree takes the class.
+                    if row ~= nil and row ~= hiddenRow and not revealed then
+                        if hiddenRow ~= nil and hiddenRow.valid then
+                            hiddenRow:SetClassTree("historyFoldHidden", false)
+                        end
+                        hiddenRow = row
+                        row:SetClassTree("historyFoldHidden", true)
+                    end
+                    --a row scrolled out of view (or not built yet): the list's bottom edge.
+                    if rect ~= nil and (target == nil or target.y + 20 > rect.y + rect.h or target.y < rect.y) then
+                        target = {x = rect.x, y = rect.y + rect.h - 30, w = rect.w, h = 30}
+                    end
+                end
+            elseif railButton ~= nil and railButton.valid then
+                target = Tabletop.PanelRect(railButton)
+            end
+            if target == nil or t >= 1 then
+                element:DestroySelf()
+                return
+            end
+            --the last stretch cross-fades: the real row shows and the copy fades over it.
+            local fade = math.max(0, (t - FOLD_FADE_FROM) / (1 - FOLD_FADE_FROM))
+            if fade > 0 and hiddenRow ~= nil and hiddenRow.valid then
+                local shown = hiddenRow
+                shown:SetClassTree("historyFoldReveal", true)
+                shown:SetClassTree("historyFoldHidden", false)
+                hiddenRow = nil
+                --once faded in, the row goes back to its own styles (a used pip is dimmer).
+                dmhub.Schedule(0.4, function()
+                    if shown.valid then
+                        shown:SetClassTree("historyFoldReveal", false)
+                    end
+                end)
+            end
+            revealed = revealed or fade > 0
+            if fade > 0 then
+                SetTreeOpacity(element, 1 - fade)
+            end
+            --it arrives by FOLD_FADE_FROM and fades in place, lined up with the row.
+            local e = EaseInOut(math.min(1, t / FOLD_FADE_FROM))
+            local w, h = element.renderedWidth or 0, element.renderedHeight or 0
+            if w <= 0 or h <= 0 then
+                return
+            end
+            --it shrinks to what it lands on (James 2026-11-20): the row's width, from the row's
+            --top-left, when History is open; a third of itself, centred, into the rail button.
+            local endScale = open and math.min(1, target.w / w) or 0.35
+            local scale = 1 + (endScale - 1) * e
+            local toX, toY = target.x, target.y
+            if not open then
+                toX = target.x + target.w / 2 - w * endScale / 2
+                toY = target.y + target.h / 2 - h * endScale / 2
+            end
+            local drawnX = from.x + (toX - from.x) * e
+            local drawnY = from.y + (toY - from.y) * e
+            --scale works from the panel's centre, so move the panel to keep that top-left.
+            element.selfStyle.scale = scale
+            element.x = drawnX - w * (1 - scale) / 2
+            element.y = drawnY - h * (1 - scale) / 2
+        end,
+    }
+    layer:AddChild(ghost)
 end
 
 --The map switcher's width in the title row, when it shows.

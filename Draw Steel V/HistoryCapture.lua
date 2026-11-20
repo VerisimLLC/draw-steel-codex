@@ -37,6 +37,7 @@ local mod = dmhub.GetModLoading()
 --- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
 --- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
+--- @field resistedeffect? string On a target that resisted: the ongoing effect it escaped (Can't Hide), when no condition was named.
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
@@ -1771,6 +1772,32 @@ local function ConditionsIn(text)
     return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
 end
 
+--- The ongoing effect a rule text names, as the effect is named ("Can't Hide"); nil when it
+--- names none. The longest whole-word match wins, so a short name inside another can't.
+--- @param text string|nil
+--- @return string|nil
+local function EffectIn(text)
+    if text == nil then
+        return nil
+    end
+    text = " " .. string.lower(text) .. " "
+    local best = nil
+    for _, info in unhidden_pairs(GetTableCached(CharacterOngoingEffect.tableName)) do
+        local name = info.name
+        if type(name) == "string" and #name >= 4 and (best == nil or #name > #best) then
+            local at = string.find(text, string.lower(name), 1, true)
+            if at ~= nil then
+                local before = string.sub(text, at - 1, at - 1)
+                local after = string.sub(text, at + #name, at + #name)
+                if not string.match(before, "%w") and not string.match(after, "%w") then
+                    best = name
+                end
+            end
+        end
+    end
+    return best
+end
+
 --- @param creature creature
 --- @param ruleText string|nil What the potency gates, as written after it.
 --- @param stoppedText string|nil Text after a "#" stop marker: when the gated part is
@@ -1784,6 +1811,9 @@ local function OnResisted(creature, ruleText, stoppedText)
     local target = RowTarget(state, token)
     if target ~= nil then
         target.resisted = ConditionsIn(ruleText) or ConditionsIn(stoppedText) or true
+        if target.resisted == true then
+            target.resistedeffect = EffectIn(ruleText) or EffectIn(stoppedText)
+        end
     end
 end
 

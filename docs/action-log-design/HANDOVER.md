@@ -33,8 +33,8 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      flies from the ability card in 0.9 s; open History: shrinks to the row's width, lands
      on it while the real row waits hidden (`historyFoldHidden`, a class tree since opacity
      isn't inherited), then cross-fades (`historyFoldReveal`, transitionTime); closed: shrinks
-     into the rail button. Still open: James expected the closed case to fold into the
-     notification bubble, but your own actions never get one; decide whether they should.
+     into the rail button (James 2026-11-20: keep it so; your own actions get no bubble).
+     A resisted ongoing effect is now named (X7a, "resisted Can't Hide").
   3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
      C4) plus a collision Why ("2 squares left, +2 for hitting an object": wording to
      propose); strained, rampage and captain changes (F5).

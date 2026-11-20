@@ -306,6 +306,7 @@ N2 covers most sentences. These are the cases it doesn't cover, as built in chun
 | X5 | Temporary Stamina grew | {Creature}'s temporary Stamina went from 3 to 10. / ... and temporary Stamina went from 3 to 10. |
 | X6 | A fall with no push | ... took 6 damage and fell 4 squares. |
 | X7 | Resisted, the rule text names no condition | ... took 4 damage and resisted. |
+| X7a | Resisted, the rule text names an ongoing effect, no condition (signed 2026-11-20) | ... took 10 damage and resisted Can't Hide. |
 | X8 | Damage partly typed | ... took 10 damage: 6 fire and 4 untyped. |
 | X9 | W11 for any area, not only a burst | {Creature}, an ally, was caught in the area and took {N} damage. |
 | X10 | A trigger that did more than damage (W13 covers damage) | {Owner}'s {trigger}: {sentence} |

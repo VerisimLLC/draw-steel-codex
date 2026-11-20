@@ -217,6 +217,9 @@ local function Predicate(who, isAlly)
     end
     if type(who.resisted) == "string" then
         verbs[#verbs + 1] = string.format("resisted being %s", who.resisted)
+    elseif who.resisted and who.resistedeffect ~= nil then
+        --an ongoing effect, not a condition (X7a): "resisted Can't Hide".
+        verbs[#verbs + 1] = string.format("resisted %s", who.resistedeffect)
     elseif who.resisted then
         verbs[#verbs + 1] = "resisted"
     end

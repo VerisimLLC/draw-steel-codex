@@ -569,4 +569,6 @@ text("herocard.back.label.projects", [[Projects]])
 text("herocard.back.negotiation.trained", [[Trained]])
 text("herocard.back.negotiation.untrained", [[Untrained]])
 text("herocard.back.skills.none", [[No skills]])
+--The title of the test a click on a skill rolls. {skill} is the skill's name.
+text("herocard.back.skill_test", [[{skill} Test]])
 text("herocard.back.empty", [[Nothing to show here yet]])

@@ -2092,21 +2092,83 @@ local function ResourceTab(tok, c, state)
     }
 end
 
---- Trained skills by group, one line per group.
-local function SkillsByGroup(c)
+--- Rolls a test with a skill: the skill's own characteristic (or the hero's
+--- best when it has none), with the skill applied, in the roll sidebar.
+local function RollSkillTest(tok, skill)
+    local characteristics = {}
+    if skill.attribute ~= nil and creature.attributesInfo[skill.attribute] ~= nil then
+        characteristics[skill.attribute] = true
+    else
+        for id, _ in pairs(creature.attributesInfo) do
+            characteristics[id] = true
+        end
+    end
+    tok.properties:RollCustomPowerTableTest(T("herocard.back.skill_test", { skill = skill.name }), characteristics, { skill.id },
+        { "Tier 1 Result", "Tier 2 Result", "Tier 3 Result" })
+end
+
+--- One skill in a group's line: hover shows what it covers; a click rolls a
+--- test with it for whoever controls the hero.
+local function SkillPiece(tok, skill, last)
+    local canRoll = dmhub.isDM or Try(function() return tok.canControl end, false)
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        rmargin = 4,
+        bgimage = "panels/square.png",
+        bgcolor = "#00000000",
+        styles = {
+            { selectors = {"heroCardSkill", "hover"}, bgcolor = COLOR_PLATE },
+        },
+        classes = {"heroCardSkill"},
+        hover = function(element)
+            ShowHover(element, function()
+                if type(skill.description) ~= "string" or skill.description == "" then
+                    return nil
+                end
+                return skill.description
+            end)
+        end,
+        click = function(element)
+            if not canRoll then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            pcall(RollSkillTest, tok, skill)
+        end,
+        Text{ text = skill.name .. cond(last, "", ","), width = "auto", fontSize = 12, color = COLOR_SOFT, textWrap = false },
+    }
+end
+
+--- Trained skills by group, one line per group; each skill hovers and rolls.
+local function SkillsByGroup(c, tok)
     local lines = {}
     for _, cat in ipairs(Try(function() return Skill.categories end, {})) do
-        local names = {}
+        local skills = {}
         pcall(function()
             for _, skill in ipairs(Skill.SkillsInfo) do
                 if skill.category == cat.id and c:ProficientInSkill(skill) then
-                    names[#names+1] = skill.name
+                    skills[#skills+1] = skill
                 end
             end
         end)
-        if #names > 0 then
-            table.sort(names)
-            lines[#lines+1] = LabelledLine(cat.text, table.concat(names, ", "))
+        if #skills > 0 then
+            table.sort(skills, function(a, b) return a.name < b.name end)
+            local pieces = {
+                Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(cat.text)), width = "auto", fontSize = 12, rmargin = 8, textWrap = false },
+            }
+            for i, skill in ipairs(skills) do
+                pieces[#pieces+1] = SkillPiece(tok, skill, i == #skills)
+            end
+            lines[#lines+1] = gui.Panel{
+                width = CONTENT_WIDTH,
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                bmargin = 3,
+                interactable = false,
+                children = pieces,
+            }
         end
     end
     if #lines == 0 then
@@ -2141,7 +2203,7 @@ local function MontageTab(tok, c)
     return Collect{
         function() return Characteristics(c, tok) end,
         function() return HeroTokensLine(c) end,
-        function() return SkillsByGroup(c) end,
+        function() return SkillsByGroup(c, tok) end,
         function() return MovementLine(c, tok) end,
         function() return PerksLine(c) end,
     }

@@ -2398,7 +2398,9 @@ local g_cards = setmetatable({}, {__mode = "k"})
 
 --- Gives a hero card (EotwHeroCard.CreateHeroCard) its back: the back face
 --- and the flip button go on as the card's top layers, and the card learns
---- the "turnCard" event they both fire.
+--- the "turnCard" event they both fire. Mid-turn the card tells its hosts
+--- with "heroCardTurned" (turned) on its parents: the table hides the card's
+--- titlebar, which the grown back would otherwise sit under.
 --- @param cardArgs table the card's gui.Panel args, before it is built
 --- @param charid string
 --- @param cardWidth number
@@ -2420,6 +2422,7 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
         flipButton:SetClass("turning", true)
         AnimateFlip(element, cardHeight, cond(turned, 1, TURNED_SCALE), cond(turned, TURNED_SCALE, 1), function()
             backFace:FireEvent("showBack", turned)
+            element:FireEventOnParents("heroCardTurned", turned)
         end, function()
             flipButton:SetClass("turning", false)
         end)

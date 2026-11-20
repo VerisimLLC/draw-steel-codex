@@ -6662,6 +6662,21 @@ local function BuildCard(card)
                 ShowCardMenu(element)
             end
         end,
+        --a hero card turned to its back grows over its titlebar, grips and
+        --sheet buttons, which sit on the card's resting size and would take
+        --the clicks meant for the back's tabs (HeroCardBack). The back has its
+        --own Full sheet link.
+        heroCardTurned = function(element, turned)
+            titlebar:SetClass("collapsed", turned)
+            for _, grip in ipairs(card.grips or {}) do
+                grip:SetClass("collapsed", turned)
+            end
+            for _, button in ipairs({card.sheetButton, card.heroSheetButton}) do
+                if button ~= nil and button.valid then
+                    button:SetClass("collapsed", turned)
+                end
+            end
+        end,
         beginDrag = function(element)
             g_cs.BeginCardGroup(card)
             if dmhub.isDM then

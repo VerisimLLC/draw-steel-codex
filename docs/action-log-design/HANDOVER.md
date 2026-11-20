@@ -6,19 +6,51 @@ and the type-check gates are in `D:\draw-steel-codex\CLAUDE.local.md`.
 
 ## Where things stand
 
-- **Branch:** `feature/history-stage-3` in `D:\draw-steel-codex`, 88 commits ahead of
-  `origin/main` (rebased onto it 2026-11-19). **Nothing is pushed.** All PRs go up together
-  at the end.
-- **Done:** stages 0 to 4, and stage 5.1 except 5.1h. Today also added the Draw Steel banner,
-  the teleport line, opposed power rolls, the cull guard and the card's action-bar reserve.
-- **Left:** 5.1h, 5.2, 5.3, 6.1, 6.2, 6.3, 6.4, the loose ends below, then the PRs.
-- **`data` shows as modified.** It is a newer checkout than main's pointer. Never commit it.
-- **Stage tags** `history-stage-0` to `-2` point at pre-rebase commits. Move them before
-  the PRs. The pre-rebase branch is `backup/history-stage-3-pre-rebase-1119`.
+Updated 2026-11-20 (end of day, James off to a playtest on main).
+
+- **Branch:** `feature/history-stage-3` in `D:\draw-steel-codex`, last commit `a2424549`.
+  **Nothing is pushed.** All PRs go up together at the end. James's working copy was switched
+  to `main` for a playtest: check out `feature/history-stage-3` again before working.
+- **Done:** stages 0 to 5, 6.1 (several maps), 6.2 (scale), 6.3 (window width, fold hover
+  card), 6.5a (stability and wall breaks, `daf53acb`), 6.5b (chevrons, Before / During /
+  After the roll, minions, numbered fold faces, turn pips, empty History, `a2424549`). Notes
+  for each are in BUILD-PLAN.md, Stage 6 notes. The 1.3 data pass is committed in the data
+  repo (`74d5153d` before the pull, "Hidden from History on 40 rules-tracking markers"),
+  not pushed.
+- **Left, in order:**
+  1. **6.5c** card bugs: the numbers list the rolled target's sources when targets owed their
+     edges to different things (BUILD-PLAN.md, 2.3 notes, "Open follow-ups"); surges spent
+     on accepting a roll still write a duplicate line.
+  2. **6.5d** the roll card folds into History (BRIEF "The S5 fold, built cheaply"): a ghost
+     to the new row when History is open, to the History rail button when closed.
+  3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
+     C4) plus a collision Why ("2 squares left, +2 for hitting an object": wording to
+     propose); strained, rampage and captain changes (F5).
+  4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"
+     setting (off) brings the old log back and hides History (name and tooltip to propose).
+     Plus the Encounter of the Week corner strip (Stage 6 notes).
+  5. **Testing before PRs:** Crows (load a Crows game with the branch), a real Encounter of the
+     Week run, negotiation lines (Director side only: the player side of negotiations is
+     unfinished, not History's), failed or tied opposed rolls and a double bane, a respite
+     with XP, a downtime project completing, a real flat bonus on a power roll. James did
+     the second-client player check.
+  6. **Before the PRs:** merge main in, whole-codex type check, codex-code-review, move the
+     stage tags (they point at pre-rebase commits), engine PRs (`feat/saved-movement-path`,
+     vscroll fix dmhubclient #24), the rail drag fix as its own Lua PR (`3418beb1` on this
+     branch, was `7f463e8d`), push the data repo commit.
+- **Side findings, not History's:** a push handed to another client may lose stability twice
+  (`InvokeAbilityRemote`, check separately); a Tactician's Command +1 tier was lost on a
+  marked target's roll (resolved Tier 2 from 12 + 1 tier), diagnosed in its own session
+  "Command's +1 tier lost on a marked target's roll".
+- **`data` shows as modified** in the codex repo: a newer checkout than main's pointer. Never
+  commit it.
 - **Engine** (`D:\dmhubclient`): the dev build comes from the local-only branch
   `dev/local-build`, which merges two PR branches, both off `upstream/master` and unpushed:
   `feat/saved-movement-path` (History's movement views) and
   `fix/opposed-roll-flat-double-edge` (double edge or bane on an opposed roll).
+- **Edit with explicit UTF-8.** Python's default on this machine is the Windows codepage, which
+  once wrote a middle dot into a Lua comment as a non-ASCII byte. Open files with
+  `encoding='utf-8', newline=''` and keep new text ASCII.
 
 ## How a chunk is built here
 

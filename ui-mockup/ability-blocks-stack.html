@@ -136,12 +136,16 @@ input.f.name { min-width: 120px; font-weight: 600; }
 .picker .ph p { margin: 4px 0 8px; color: var(--dim); font-size: 12px; line-height: 1.4; }
 .picker .ph input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }
 .picker .pb { overflow-y: auto; padding: 6px 6px 10px; }
-.picker .grp { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 8px 6px 4px; }
+.picker .grp { font: 600 12.5px var(--font-head); color: var(--gold); padding: 10px 6px 3px; display: flex; flex-direction: column; gap: 1px; }
+.picker .grp .gd { font: 400 11.5px var(--font-ui); color: var(--dim); }
+.picker .ph p.who { background: var(--panel); border-radius: 4px; padding: 6px 8px; color: var(--fg); }
+.picker .ph p.who b { color: var(--gold); font-weight: 600; }
 .picker .opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; padding: 5px 6px; border-radius: 4px; cursor: pointer; }
 .picker .opt:hover, .picker .opt:focus-visible { background: var(--panel); }
 .picker .opt .chip { flex: none; display: inline-block; padding: 2px 9px; color: #fff; font-size: 11.5px; background: var(--c-num); border-radius: 999px; }
 .picker .opt .chip.test { background: var(--c-test); border-radius: 0; clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%); padding: 2px 12px; }
 .picker .opt .chip.ex { background: var(--panel); color: var(--fg); border-radius: 3px; font-family: var(--font-mono); font-size: 11px; }
+.picker .opt.more { color: var(--gold); font-size: 12px; padding-left: 10px; }
 .picker .opt .d { color: var(--dim); font-size: 11.5px; line-height: 1.3; }
 .picker .typebox { border-top: 1px solid var(--line); padding: 8px 12px 10px; }
 .picker .typebox summary { cursor: pointer; color: var(--dim); font-size: 12px; }
@@ -216,7 +220,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
    _numTargetsDocs, _targetFilterDocs, _abilityFilterDocs...). The picker is
    generated from them, so each slot only offers what is valid there.
    ===================================================================== */
-const NUM_FIELDS = ["Stamina","Maximum Stamina","Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
+const NUM_FIELDS = ["Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Stamina","Maximum Stamina","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
 // Friendlier wording for stats on the card; the dropdowns keep the real GoblinScript names.
 const FIELD_PROSE = { "Heroic Resources Available to Spend": "Heroic Resource", "Recoveries Available to Spend": "Recoveries", "Combat Round": "round number", "Maximum Stamina": "maximum Stamina" };
 const BOOL_FIELDS = { "Minion": "a minion", "Hero": "a hero", "Flanked": "flanked", "Dying": "dying", "Concealed": "concealed", "Your Turn": "taking their turn" };
@@ -227,30 +231,30 @@ const TARGET_SUBJ = { label: "Target", prefix: "", prose: "the target", poss: "t
 const TARGET_SYM = { label: "Target", prefix: "Target.", prose: "the target", poss: "the target's", aliases: ["target"] };
 const CHARGES = { name: "Charges", type: "number", desc: "Charges left on this ability.", prose: "the charges left" };
 const DOCS = {
-  range: { title: "Range", output: "number", help: "The range of this ability in squares. If left empty the ability has a range of 1 (melee).",
+  range: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Range", output: "number", help: "The range of this ability in squares. If left empty the ability has a range of 1 (melee).",
     roles: [YOU], symbols: [CHARGES],
     examples: [["10", "The ability has a range of 10 squares."], ["10 + Level * 2", "10 squares, plus 2 per level."]] },
-  numTargets: { title: "Number of targets", output: "number", help: "The number of targets this ability can select.",
+  numTargets: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Number of targets", output: "number", help: "The number of targets this ability can select.",
     roles: [YOU], symbols: [CHARGES],
     examples: [["3", "The ability targets 3 creatures."], ["1 + 1 when Level >= 5", "One target, or two from level 5."]] },
-  cost: { title: "Cost", output: "number", help: "How many of the selected resource this ability costs. Usually a flat number.",
+  cost: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Cost", output: "number", help: "How many of the selected resource this ability costs. Usually a flat number.",
     roles: [YOU], symbols: [], examples: [["3", "Costs 3."]] },
-  targetFilter: { title: "Who is affected", output: "boolean", help: "Decides whether each creature in the area is affected. Checked once per creature. Leave empty to affect every creature.",
+  targetFilter: { who: "Checked once for each creature in the area. \u201cThe target\u201d is the creature being checked; \u201cthe caster\u201d is you.", defaultRole: "Target", title: "Who is affected", output: "boolean", help: "Decides whether each creature in the area is affected. Checked once per creature. Leave empty to affect every creature.",
     roles: [TARGET_SUBJ, CASTER],
     symbols: [{ name: "Enemy", type: "boolean", desc: "The creature is an enemy of the caster.", prose: "the target is an enemy" },
               { name: "Target Number", type: "number", desc: "1 for the first target, 2 for the second, and so on.", prose: "its target number" },
               { name: "Number of Targets", type: "number", desc: "How many creatures the ability is targeting.", prose: "the number of targets" }],
     examples: [["Enemy", "Only enemies of the caster."], ["not Enemy", "Only allies and yourself."], ["Target Number = 2", "Only the second target."]] },
-  requirement: { title: "Can be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
+  requirement: { who: "Checked against you, the creature using the ability, before it is used.", defaultRole: "You", title: "Can be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
     roles: [YOU], symbols: [], examples: [["Level >= 5", "Only at level 5 or higher."], ["Stamina <= Maximum Stamina / 2", "Only while you are winded."]] },
-  stepIf: { title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
+  stepIf: { who: "Checked once for each target. \u201cThe target\u201d is the creature being checked; \u201cyou\u201d is the creature using the ability.", defaultRole: "Target", title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
     roles: [TARGET_SYM, YOU], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
     examples: [['Target.Conditions has "Prone"', "Only targets that are prone."], ["Target.Stamina <= Target.MaximumStamina / 2", "Only winded targets."]] },
-  damage: { title: "Damage", output: "roll", help: "How much damage is dealt. Can use dice.",
+  damage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Damage", output: "roll", help: "How much damage is dealt. Can use dice.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["2d6 + Might", "2d6 plus your Might."], ["Might * 2", "Twice your Might."]] },
-  tierDamage: { title: "Tier damage", output: "roll", help: "Damage for this tier of the power roll. Usually a flat number, or a number plus a characteristic.",
+  tierDamage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Tier damage", output: "roll", help: "Damage for this tier of the power roll. Usually a flat number, or a number plus a characteristic.",
     roles: [YOU], symbols: [], examples: [["3 + Might", "3 plus your Might."]] },
-  heal: { title: "Healing", output: "roll", help: "How much Stamina the target regains.",
+  heal: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Healing", output: "roll", help: "How much Stamina the target regains.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["Recovery Value", "One recovery's worth."]] },
 };
 const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","No action"];
@@ -403,7 +407,16 @@ function astToX(n, wantBool, docs) {
       if (wantBool) return raw();
       return X("math", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) });
     }
-    case "cmp": return wantBool ? X("compare", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) }) : raw();
+    case "cmp": {
+      // "X.Stamina <= X.MaximumStamina / 2" is the Draw Steel "winded" state.
+      if (wantBool && n.op === "<=" && n.l.k === "id" && n.r.k === "bin" && n.r.op === "/" && n.r.r.k === "num" && n.r.r.v === "2" && n.r.l.k === "id") {
+        const lp = n.l.path, rp = n.r.l.path;
+        const sameRole = lp.length === rp.length && (lp.length === 1 || norm(lp[0]) === norm(rp[0]));
+        const role = lp.length === 1 ? subjectRole(d) : roleFor(d, lp[0]);
+        if (sameRole && role && norm(lp[lp.length - 1]) === "stamina" && norm(rp[rp.length - 1]) === "maximumstamina") return X("winded", { role: role.label });
+      }
+      return wantBool ? X("compare", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) }) : raw();
+    }
     case "and": case "or": {
       if (!wantBool) return raw();
       const items = [];
@@ -480,6 +493,7 @@ function cX(x, h) {
       if (parts.length === 1) return parts[0];
       return { s: parts.map(r => r.s).join(" " + word + " "), p: 4, prose: parts.slice(0, -1).map(r => r.prose).join(", ") + " " + word + " " + parts[parts.length - 1].prose }; }
     case "not": { const a = kidBool("a", 7); return { s: "not " + a.s, p: 7, prose: "not (" + a.prose + ")" }; }
+    case "winded": { const r = role(); return { s: r.prefix + "Stamina <= " + r.prefix + "MaximumStamina / 2", p: 5, prose: r.prose + (r.prose === "you" ? " are" : " is") + " winded" }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
     case "raw": { let ok = true; try { parseGS(f.src); } catch (e) { ok = false; bad(x.id, "Formula does not parse: " + e.message); }
       return { s: f.src, p: ok ? rawPrec(f.src) : 0, prose: f.src }; }
@@ -615,7 +629,7 @@ function renderHolder(h, opts) {
 }
 function renderX(x, h) {
   const f = x.f, d = DOCS[h.docs];
-  const isTest = ["is", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
+  const isTest = ["is", "winded", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
   const e = E("span", "x " + (x.type === "raw" ? "raw " : "") + (isTest ? "test" : "num") + (x.type === "all" || x.type === "any" ? " list" : ""));
   e.dataset.x = x.id; e.dataset.holderOf = h.id;
   const roles = d.roles.map(r => r.label);
@@ -633,6 +647,7 @@ function renderX(x, h) {
     case "pick": add(renderHolder(x.kids.a)); add(lbl("if")); add(renderHolder(x.kids.cond)); add(lbl("else")); add(renderHolder(x.kids.b)); break;
     case "compare": add(renderHolder(x.kids.a)); add(sel(f, "op", [[">=", "is at least"], ["<=", "is at most"], [">", "is more than"], ["<", "is less than"], ["=", "is"], ["~=", "is not"]], null, "comparison")); add(renderHolder(x.kids.b)); break;
     case "not": add(lbl("not")); add(renderHolder(x.kids.a)); break;
+    case "winded": add(sel(f, "role", roles, null, "creature")); add(lbl(verb() + " winded")); break;
     case "hasCond": add(sel(f, "role", roles, null, "creature")); add(lbl(verb())); add(sel(f, "cond", CONDITIONS, null, "condition")); break;
     case "all": case "any": {
       const head = E("span", "listhead");
@@ -821,36 +836,60 @@ function place(el, anchor) {
   popup = el;
 }
 
-/* Picker contents come from the slot's field description: its roles (whose stats), its symbols, its examples. */
+/* Picker contents are grouped by what the author wants to do (intent), not by whose stats they read.
+   "Who" is preset from the field description (defaultRole) and explained in the header; every
+   block keeps a dropdown to switch it afterwards. Items come from the slot's description, so each
+   field only offers what is valid there. */
 function pickerOptions(h) {
   const d = DOCS[h.docs], wantBool = h.kind === "boolean", groups = [];
-  const chip = (txt, test) => ({ txt, test });
-  if (d.examples.length) groups.push(["Examples for " + d.title.toLowerCase(), d.examples.filter(([s]) => { try { const a = parseGS(s); return (["cmp","and","or","not","has","is"].includes(a.k) || (a.k === "id" && d.symbols.some(y => y.type === "boolean" && norm(y.name) === norm(a.path.join(""))))) === wantBool; } catch (e) { return false; } })
-    .map(([s, t]) => ({ chip: { txt: s, ex: true }, d: t, make: () => holderFromText(h.kind, h.docs, s).expr || X("num", { v: s }) }))]);
+  const who = d.defaultRole;
+  const r0 = d.roles.find(r => r.label === who) || d.roles[0];
+  const is = r0.label === "You" ? "are" : "is";
+  const Who = cap(r0.prose), Whose = cap(r0.poss);
+  const numH = v => H("number", h.docs, v);
+  const item = (txt, desc, make, key, test) => ({ chip: { txt, test }, d: desc, make, key });
+  const exItems = d.examples.filter(([src]) => { try { const a = parseGS(src); return (["cmp","and","or","not","has","is"].includes(a.k) || (a.k === "id" && d.symbols.some(y => y.type === "boolean" && norm(y.name) === norm(a.path.join(""))))) === wantBool; } catch (e) { return false; } })
+    .map(([src, t]) => ({ chip: { txt: src, ex: true }, d: t, make: () => holderFromText(h.kind, h.docs, src).expr || X("num", { v: src }) }));
   if (wantBool) {
-    groups.push(["Tests", [
-      { chip: chip("[ ] is at least [ ]", true), d: "Compare two numbers.", make: () => X("compare", { op: ">=" }, { a: H("number", h.docs, "0"), b: H("number", h.docs, "1") }), key: "compare at least at most more less" },
-      { chip: chip("all of these", true), d: "Every test in the list must be true (and).", make: () => X("all", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), key: "and all every" },
-      { chip: chip("any of these", true), d: "At least one test must be true (or).", make: () => X("any", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), key: "or any either" },
-      { chip: chip("not [ ]", true), d: "True when the test inside is false.", make: () => X("not", {}, { a: H("boolean", h.docs) }), key: "not negate" },
+    groups.push(["Check a condition", "Prone, slowed, grabbed, and so on.",
+      CONDITIONS.map(c => item(Who + " " + is + " " + c.toLowerCase(), "", () => X("hasCond", { role: who, cond: c }), "condition", true))]);
+    groups.push(["Check health", "Winded, or how much Stamina is left.", [
+      item(Who + " " + is + " winded", "Stamina is at half or less.", () => X("winded", { role: who }), "bloodied half hurt stamina", true),
+      item(Whose + " Stamina is at most [ ]", "Compare Stamina to a number.", () => X("compare", { op: "<=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Stamina" }) }), b: numH("10") }), "hp health hit points", true),
+      item(Who + " " + is + " dying", "", () => X("is", { role: who, field: "Dying" }), "dead down", true),
     ]]);
-    for (const r of d.roles) groups.push([cap(r.prose) + (r.prose === "you" ? " (the creature using the ability)" : ""), [
-      { chip: chip(r.label + (r.label === "You" ? " are" : " is") + " prone", true), d: "Has a condition.", make: () => X("hasCond", { role: r.label, cond: "Prone" }), key: "condition " + CONDITIONS.join(" ") },
-      ...Object.entries(BOOL_FIELDS).map(([k, v]) => ({ chip: chip(r.label + (r.label === "You" ? " are " : " is ") + v, true), d: "", make: () => X("is", { role: r.label, field: k }), key: k })),
+    const kind = [
+      ...d.symbols.filter(y => y.type === "boolean").map(y => item(cap(y.prose), y.desc, () => X("sym", { name: y.name }), "ally foe hostile side", true)),
+      ...["Minion", "Hero"].map(k => item(Who + " " + is + " " + BOOL_FIELDS[k], "", () => X("is", { role: who, field: k }), "type kind", true)),
+    ];
+    groups.push(["Check what kind of creature", "Enemy, minion, hero.", kind]);
+    groups.push(["Compare a number", "Level, characteristics, speed, round number...", [
+      item(Whose + " Level is at least [ ]", "", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }), "level echelon", true),
+      item(Whose + " Might is at least [ ]", "Any characteristic.", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Might" }) }), b: numH("2") }), "agility reason intuition presence characteristic", true),
+      item("[ any number ] is at least [ ]", "Pick any stat or formula on either side.", () => X("compare", { op: ">=" }, { a: numH("0"), b: numH("1") }), "compare greater less equal", true),
     ]]);
-    const syms = d.symbols.filter(s => s.type === "boolean");
-    if (syms.length) groups.push(["Other", syms.map(s => ({ chip: chip(s.name, true), d: s.desc, make: () => X("sym", { name: s.name }) }))]);
+    groups.push(["Combine tests", "Need several things at once, or any one of them.", [
+      item("All of these are true", "Every test must pass (and).", () => X("all", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), "and both every", true),
+      item("Any of these is true", "At least one test must pass (or).", () => X("any", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), "or either", true),
+      item("Not [ ]", "Flip a test: true when it is false.", () => X("not", {}, { a: H("boolean", h.docs) }), "not negate opposite", true),
+    ]]);
   } else {
-    groups.push(["Math", [
-      { chip: chip("[ ] + [ ]"), d: "Add, subtract, multiply or divide (division rounds down).", make: () => X("math", { op: "+" }, { a: H("number", h.docs, h.lit || "1"), b: H("number", h.docs, "1") }), key: "plus minus times divide add" },
-      { chip: chip("[ ] if [test] else [ ]"), d: "Pick one value or another, e.g. more targets from level 5.", make: () => X("pick", {}, { a: H("number", h.docs, "2"), cond: H("boolean", h.docs), b: H("number", h.docs, h.lit || "1") }), key: "when else level scaling" },
-      ...(h.kind === "roll" ? [{ chip: chip("1d6"), d: "Roll dice.", make: () => X("dice", { n: "1", s: "6" }), key: "dice roll" }] : []),
+    groups.push(["Use a stat", "A characteristic, Level, Stamina...", NUM_FIELDS.map(fl => item(Whose + " " + fl, "", () => X("stat", { role: who, field: fl }), "characteristic"))
+      .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }))))]);
+    groups.push(["Scale with level", "Grows as the creature levels up.", [
+      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),
+        b: Object.assign(numH(), { expr: X("pick", {}, { a: numH("1"), cond: Object.assign(H("boolean", h.docs), { expr: X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }) }), b: numH("0") }) }) }), "echelon bonus"),
+      item("[ ] plus " + (r0.label === "You" ? "your" : r0.poss) + " Level", "Goes up by one every level.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }) }), "per level"),
     ]]);
-    for (const r of d.roles) groups.push([cap(r.poss) + " stats", NUM_FIELDS.map(fl => ({ chip: chip(cap(r.poss) + " " + fl), d: "", make: () => X("stat", { role: r.label, field: fl }), key: fl }))]);
-    const syms = d.symbols.filter(s => s.type === "number");
-    if (syms.length) groups.push(["Other values", syms.map(s => ({ chip: chip(s.name), d: s.desc, make: () => X("sym", { name: s.name }) }))]);
+    groups.push(["Do math", "Add, subtract, multiply, halve.", [
+      item("[ ] + [ ]", "Add two values (also -, * and /).", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: numH("1") }), "plus minus times add subtract"),
+      item("Half of [ ]", "Division rounds down.", () => X("math", { op: "/" }, { a: numH(h.lit || "1"), b: numH("2") }), "divide half"),
+      item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => X("pick", {}, { a: numH("2"), cond: H("boolean", h.docs), b: numH(h.lit || "1") }), "when else choose"),
+    ]]);
+    if (h.kind === "roll") groups.push(["Roll dice", "Only damage and healing can roll.", [item("1d6", "Change the count and sides after.", () => X("dice", { n: "1", s: "6" }), "random d6 d10")]]);
   }
-  return groups.filter(g => g[1].length);
+  if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
+  return groups.filter(g => g[2].length);
 }
 function openPicker(h, anchor) {
   closePopups();
@@ -860,24 +899,30 @@ function openPicker(h, anchor) {
   const ph = E("div", "ph");
   const t = E("div", "t", d.title); t.appendChild(E("span", "kind", h.kind === "boolean" ? "true / false" : h.kind === "roll" ? "number or dice" : "number")); ph.appendChild(t);
   ph.appendChild(E("p", null, d.help));
-  const search = E("input"); search.placeholder = "Search, e.g. stamina, prone, level"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search);
+  const whoP = E("p", "who"); whoP.innerHTML = "<b>Who:</b> " + esc(d.who); ph.appendChild(whoP);
+  const search = E("input"); search.placeholder = h.kind === "boolean" ? "What do you want to check? e.g. prone, winded, level" : "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search);
   p.appendChild(ph);
   const pb = E("div", "pb"); p.appendChild(pb);
   const groups = pickerOptions(h);
+  // Without a search, each intent shows its first few choices so every intent stays visible.
+  const expanded = new Set();
   const draw = () => {
     pb.innerHTML = ""; const q = norm(search.value);
     let n = 0;
-    for (const [g, opts] of groups) {
-      const vis = opts.filter(o => !q || norm(o.chip.txt + " " + (o.d || "") + " " + (o.key || "")).includes(q));
+    for (const [g, gd, opts] of groups) {
+      const vis = opts.filter(o => !q || norm(g + " " + o.chip.txt + " " + (o.d || "") + " " + (o.key || "")).includes(q));
       if (!vis.length) continue;
-      pb.appendChild(E("div", "grp", g));
-      for (const o of vis) {
+      const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
+      const cap4 = !q && !expanded.has(g) && vis.length > 4;
+      for (const o of cap4 ? vis.slice(0, 3) : vis) {
         const b = E("button", "opt"); b.type = "button";
         b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
         if (o.d) b.appendChild(E("span", "d", o.d));
         b.addEventListener("click", () => { h.expr = o.make(); refresh(); flash(h.id); });
         pb.appendChild(b); n++;
       }
+      if (cap4) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button";
+        more.addEventListener("click", () => { expanded.add(g); draw(); }); pb.appendChild(more); }
     }
     if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
   };

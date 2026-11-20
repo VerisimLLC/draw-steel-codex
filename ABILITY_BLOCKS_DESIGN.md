@@ -208,6 +208,12 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 |---|---|---|
 | 2026-11-20 | **D1:** Build a new *simplified* ability editor alongside the existing one. Do not replace the old editor. | The full editor stays the power-user surface and the fallback for anything the simplified one cannot show. |
 | 2026-11-20 | **D2/scope:** Activated abilities first; triggered abilities later. GoblinScript is the main focus. | Users report GoblinScript as the hardest part of authoring. |
+| 2026-11-20 | **D1/surface:** Simplified editor takes option C: one auto-laid-out block stack with a live ability card, no free-form canvas. | Keeps Scratch's visible logic and shape-checked slots; an ability is one script, so a canvas only adds tidying. |
+| 2026-11-20 | **Picker:** organised by intent (check a condition, check health, check what kind of creature, compare a number, combine tests; use a stat, scale with level, do math, roll dice), not by source. **Who** is preset per formula box and explained in the picker header, never asked up front; every block keeps a dropdown to change it. | Who is being considered is what authors trip over most; asking them to choose it first makes that worse. |
+
+- Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
+  intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the
+  parser recognises `X.Stamina <= X.MaximumStamina / 2` as winded when opening existing content.
 
 ## 8. Out of scope / rejected
 

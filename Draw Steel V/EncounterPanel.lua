@@ -496,7 +496,8 @@ local function BankedPositionQueues(group)
     local locs = group.spawnlocs or {}
     for slot = 1, #locs do
         local entry = {
-            loc = locs[slot],
+            --back on the floor it was saved on, in case the map's floors changed since.
+            loc = Encounter.LocOnSavedFloor(locs[slot], (group.spawnfloors or {})[slot]),
             appearance = (group.appearances or {})[slot],
             invisible = (group.invisibleToPlayers or {})[slot],
             hidden = (group.startsHidden or {})[slot],
@@ -541,6 +542,7 @@ local function BankGroupPositions(group, saveAppearances)
         return tokens
     end
     group.spawnlocs = {}
+    group.spawnfloors = {}
     group.appearances = {}
     group.invisibleToPlayers = {}
     group.startsHidden = {}
@@ -548,6 +550,9 @@ local function BankGroupPositions(group, saveAppearances)
     group.stagemapid = game.currentMapId
     for slot, token in ipairs(tokens) do
         group.spawnlocs[slot] = token.loc
+        --which floor that is, by id: the loc's floor number alone goes stale
+        --when the map's floors change.
+        group.spawnfloors[slot] = Encounter.StampSavedFloor(token.loc)
         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
         --a monster staged with the Hidden condition starts every run hidden.
         group.startsHidden[slot] = token.properties:IsHidden()
@@ -626,6 +631,7 @@ end
 --Forget a group's saved staging: positions, appearances, visibility, mounts.
 local function ClearGroupStaging(group)
     group.spawnlocs = nil
+    group.spawnfloors = nil
     group.appearances = nil
     group.invisibleToPlayers = nil
     group.startsHidden = nil
@@ -3344,6 +3350,7 @@ local function CreateGroupCard(args)
                         --original group; the copy starts unplaced.
                         copy.placementid = nil
                         copy.spawnlocs = nil
+                        copy.spawnfloors = nil
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
                         copy.startsHidden = nil

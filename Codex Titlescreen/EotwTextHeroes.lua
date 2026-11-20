@@ -519,7 +519,7 @@ text("herocard.dismiss.tooltip", [[Dismiss]])
 
 --THE BACK OF THE HERO CARD
 --The tabs along the top of a turned-over hero card.
-text("herocard.back.tab.combat", [[Combat]])
+text("herocard.back.tab.combat", [[Tactical]])
 text("herocard.back.tab.montage", [[Montage]])
 text("herocard.back.tab.negotiation", [[Negotiation]])
 text("herocard.back.tab.downtime", [[Downtime]])

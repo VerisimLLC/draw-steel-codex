@@ -171,6 +171,7 @@ function creature:Invalidate()
     self._tmp_adjacentLocs = nil
     self._tmp_occupiedLocs = nil
     self._tmp_flankfromanydirection = nil
+    self._tmp_flankonlywithsummoner = nil
     self._tmp_grantsFlanking = nil
     self._tmp_highestCharacteristic = nil
     self._tmp_maxSurgeCount = nil
@@ -1671,6 +1672,27 @@ function creature:FlankFromAnyDirection()
     return self._tmp_flankfromanydirection ~= 0
 end
 
+--Set to 1 on a creature that can flank only together with the creature that summoned
+--it, such as the Familiar perk's familiar. ComputeFlankingTokens enforces it.
+CustomAttribute.RegisterAttribute {
+    id = "flankonlywithsummoner",
+    text = "Flank Only With Summoner",
+    attributeType = "number",
+    category = "Basic Attributes",
+}
+
+--- True if this creature can only flank together with its summoner.
+--- @return boolean
+function creature:FlanksOnlyWithSummoner()
+    local result = self:try_get("_tmp_flankonlywithsummoner")
+    if result ~= nil then
+        return result ~= 0
+    end
+
+    self._tmp_flankonlywithsummoner = self:CalculateAttribute("flankonlywithsummoner", 0)
+    return self._tmp_flankonlywithsummoner ~= 0
+end
+
 creature.RegisterSymbol {
     symbol = "object",
     lookup = function(c)
@@ -2617,6 +2639,20 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, 
         end
     end
 
+    --a creature that flanks only with its summoner (a familiar) can't flank here unless its
+    --summoner is one of the possible flankers too. This runs before the shortcuts below, so
+    --without its summoner it also gets nothing from "flank from any direction" or granted flanking.
+    local presentActors = {}
+    for _, enemy in ipairs(adjacentEnemies) do
+        presentActors[Actor(enemy).charid] = true
+    end
+    for i = #adjacentEnemies, 1, -1 do
+        local actor = Actor(adjacentEnemies[i])
+        if actor.properties:FlanksOnlyWithSummoner() and (actor.summonerid == nil or not presentActors[actor.summonerid]) then
+            table.remove(adjacentEnemies, i)
+        end
+    end
+
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2660,13 +2696,25 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, 
     local result = {}
     local targetBox = GetTokenBounds(token)
     local enemyBoxes = {}
+    --actorIds[i]: id of whoever flanks from adjacentEnemies[i]'s square (usually that creature,
+    --or one using an ability from its space). pairsOnlyWith[i]: id of the summoner it must pair
+    --with, or nil if it can pair with anyone.
+    local actorIds = {}
+    local pairsOnlyWith = {}
     for i, enemy in ipairs(adjacentEnemies) do
         enemyBoxes[i] = GetTokenBounds(enemy)
+        local actor = Actor(enemy)
+        actorIds[i] = actor.charid
+        if actor.properties:FlanksOnlyWithSummoner() then
+            pairsOnlyWith[i] = actor.summonerid
+        end
     end
     for i = 1, #adjacentEnemies - 1 do
         for j = i + 1, #adjacentEnemies do
             local a, b = enemyBoxes[i], enemyBoxes[j]
-            if targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
+            local canPair = (pairsOnlyWith[i] == nil or pairsOnlyWith[i] == actorIds[j])
+                and (pairsOnlyWith[j] == nil or pairsOnlyWith[j] == actorIds[i])
+            if canPair and targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
                 AddTokenOnce(result, adjacentEnemies[i])
                 AddTokenOnce(result, adjacentEnemies[j])
             end

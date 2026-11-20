@@ -8,10 +8,16 @@ local mod = dmhub.GetModLoading()
 --Each refresh works out the list of rows from the entries, then keeps every row whose
 --signature is unchanged and builds only what is new. A new action builds one row.
 
---Rows are laid out for this width. The window adds EDGE_STRIP on the right, where its
---resize strip sits, so the list's scroll bar stays clear of it.
-local TRAY_WIDTH = 410
+--The window's width range (6.3), and its width when it first opens. The window adds
+--EDGE_STRIP on the right, where its resize strip sits, so the scroll bar stays clear of it.
+local TRAY_MIN_WIDTH = 320
+local TRAY_MAX_WIDTH = 600
+local TRAY_DEFAULT_WIDTH = 410
 local EDGE_STRIP = 8
+
+--The width rows are laid out for: the open window's, once a resize has settled. Rows
+--shorten names by estimated text widths, so a new width rebuilds them.
+local g_trayWidth = TRAY_DEFAULT_WIDTH
 
 --The bar above the list that holds search and the "my hero" faces.
 local BAR_HEIGHT = 28
@@ -910,15 +916,31 @@ History.Tag = Tag
 History.Amount = Amount
 History.TierBadge = TierBadge
 
+--The engine can't measure text before layout, so one-line rows estimate it per character.
+--Generous: a row never wraps, a long name just shortens a little sooner.
+local function TextWidth(text, perChar)
+    return math.ceil(#text * perChar)
+end
+
 --The faces on a fold line, each with what it took and regained. Damage and healing stay
---apart, so 9 taken and 8 healed never reads as -1 (fix B1).
-local function MiniFaces(tally)
+--apart, so 9 taken and 8 healed never reads as -1 (fix B1). room: the width left on the
+--line; faces that don't fit, or past FOLD_FACES, become "+N".
+local function MiniFaces(tally, room)
     local children = {}
+    local used = 4
     for i, row in ipairs(tally) do
-        if i > FOLD_FACES then
+        local width = 23 + 8
+        for _, amount in ipairs({row.taken, row.healed}) do
+            if amount > 0 then
+                width = width + TextWidth(tostring(amount), 8) + 8 + 3
+            end
+        end
+        --room for a "+N" after this face, unless it is the last.
+        local after = i < #tally and 28 or 0
+        if i > FOLD_FACES or used + width + after > room then
             children[#children + 1] = gui.Label{
                 classes = {"historyMuted"},
-                text = string.format("+%d", #tally - FOLD_FACES),
+                text = string.format("+%d", #tally - i + 1),
                 width = "auto",
                 height = 20,
                 valign = "center",
@@ -926,7 +948,10 @@ local function MiniFaces(tally)
             }
             break
         end
+        used = used + width
+        --the line's own hover names everyone (FoldHover), so the faces take no hover.
         local face = Face(row.who, 20)
+        face:MakeNonInteractiveRecursive()
         face.selfStyle.rmargin = 3
         children[#children + 1] = face
         if row.taken > 0 then
@@ -946,6 +971,110 @@ local function MiniFaces(tally)
         lmargin = 4,
         children = children,
     }
+end
+
+--The hover on a folded line (6.3): every creature its faces stand for, one line each with
+--the name and what it took and regained, since the line only has room for some of them.
+--- @param title string The fold line's own words, as the card's heading.
+--- @return nil|fun(element: Panel)
+local function FoldHover(title, tally)
+    if tally == nil or #tally == 0 then
+        return nil
+    end
+    return function(element)
+        --a face shows its own name; the Director's menu must not be covered.
+        if (g_faceHovered ~= nil and g_faceHovered.valid) or element.popup ~= nil then
+            return
+        end
+        --sized from its longest line: an auto-width card with a full-width seam stretches
+        --across the screen.
+        local width = TextWidth(title, 8) + 24
+        local lines = {}
+        for _, row in ipairs(tally) do
+            local lineWidth = 20 + 6 + math.min(170, TextWidth(ShownName(row.who), 8)) + 8 + 24
+            for _, amount in ipairs({row.taken, row.healed}) do
+                if amount > 0 then
+                    lineWidth = lineWidth + TextWidth(tostring(amount), 8) + 8 + 3
+                end
+            end
+            width = math.max(width, lineWidth)
+            local cells = {
+                Face(row.who, 20),
+                gui.Label{
+                    classes = {"historyName"},
+                    text = ShownName(row.who),
+                    width = "auto",
+                    maxWidth = 170,
+                    height = "auto",
+                    lmargin = 6,
+                    rmargin = 8,
+                    textWrap = false,
+                    textOverflow = "ellipsis",
+                    halign = "left",
+                    valign = "center",
+                },
+            }
+            if row.taken > 0 then
+                cells[#cells + 1] = Amount(row.taken, false, 13)
+            end
+            if row.healed > 0 then
+                cells[#cells + 1] = Amount(row.healed, true, 13)
+            end
+            lines[#lines + 1] = gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                vmargin = 2,
+                children = cells,
+            }
+        end
+        local card = gui.Panel{
+            classes = {"historyCardFrame"},
+            styles = ThemeEngine.MergeStyles(Styles()),
+            bgimage = true,
+            blurBackground = true,
+            flow = "vertical",
+            width = width,
+            height = "auto",
+            interactable = false,
+            gui.Label{
+                classes = {"historyCardTitle"},
+                text = title,
+                width = "100%",
+                height = "auto",
+                hpad = 12,
+                tpad = 10,
+                bpad = 9,
+                borderBox = true,
+                textAlignment = "left",
+            },
+            gui.Panel{
+                classes = {"historySeam"},
+                bgimage = "panels/square.png",
+                width = "100%",
+                height = 1,
+            },
+            gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                hpad = 12,
+                tpad = 8,
+                bpad = 10,
+                borderBox = true,
+                children = lines,
+            },
+        }
+        --beside the line on the right, as the detail card opens; on the left when the
+        --screen's edge is too close. distancesToScreenEdge.z is the room to the right.
+        local right = element.distancesToScreenEdge.z >= width + 2 * CARD_GAP
+        card.selfStyle.halign = right and "right" or "left"
+        card.selfStyle.valign = "center"
+        card.x = right and CARD_GAP or -CARD_GAP
+        element.tooltip = card
+        card:MakeNonInteractiveRecursive()
+    end
 end
 
 --The caption a state shows as (T14), with the style that marks it.
@@ -1302,14 +1431,10 @@ local function SharedTier(entry)
     return shared, false
 end
 
---The engine can't measure text before layout, so one-line rows estimate it per character.
---Generous: a row never wraps, a long name just shortens a little sooner.
-local function TextWidth(text, perChar)
-    return math.ceil(#text * perChar)
-end
-
 --Room for a trigger row: the action's text column, less the row's own left pad.
-local TRIGGER_ROW_WIDTH = TRAY_WIDTH - 52 - 12 - 9
+local function TriggerRowWidth()
+    return g_trayWidth - 52 - 12 - 9
+end
 
 --The hairline above an action or a folded turn (the prototype's row separator).
 local function Rule()
@@ -1519,7 +1644,7 @@ local function TriggerRow(index, entry)
         classes = {"historyTriggerText"},
         text = name,
         width = "auto",
-        maxWidth = math.max(60, TRIGGER_ROW_WIDTH - used - resultWidth - 4),
+        maxWidth = math.max(60, TriggerRowWidth() - used - resultWidth - 4),
         height = "auto",
         lmargin = 5,
         textWrap = false,
@@ -1652,7 +1777,7 @@ local function BuildAction(item)
         end
     end
 
-    local inner = TRAY_WIDTH - 52 - 12
+    local inner = g_trayWidth - 52 - 12
     local targets = entry.targets
     local cells = {}
     local function Cell(who, width)
@@ -2023,7 +2148,7 @@ local function BuildLine(item)
     local leaveRoom = number ~= nil or entry.family == "resource"
     --a heal with its Recovery keeps its number and has Undo beside it.
     local both = number ~= nil and entry.resourceid ~= nil
-    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0) - cond(both, UNDO_WIDTH, 0)
+    local rowWidth = g_trayWidth - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0) - cond(both, UNDO_WIDTH, 0)
     local textWidth = rowWidth - 28
     local tag = nil
     if entry.family == "ended" then
@@ -2230,6 +2355,7 @@ local function BuildRoundFold(item)
         width = "100%",
         height = "auto",
         click = item.toggle,
+        linger = FoldHover(item.text, item.tally),
         gui.Panel{
             flow = "horizontal",
             width = "100%",
@@ -2247,7 +2373,7 @@ local function BuildRoundFold(item)
                 halign = "left",
                 valign = "center",
             },
-            MiniFaces(item.tally),
+            MiniFaces(item.tally, g_trayWidth - (item.sub and SUB_INDENT or 12) - 12 - 17 - TextWidth(item.text, item.sub and 7.5 or 9)),
         },
         gui.Panel{
             classes = {"historySeam"},
@@ -2266,6 +2392,7 @@ local function BuildGroupFold(item)
         width = "100%",
         height = "auto",
         click = item.toggle,
+        linger = FoldHover(item.text, item.tally),
         Rule(),
         gui.Panel{
             flow = "horizontal",
@@ -2282,7 +2409,7 @@ local function BuildGroupFold(item)
                 halign = "left",
                 valign = "center",
             },
-            MiniFaces(item.tally),
+            MiniFaces(item.tally, g_trayWidth - 24 - 17 - TextWidth(item.text, 7)),
         },
     }
 end
@@ -2295,6 +2422,7 @@ local function BuildTurnFold(item)
         width = "100%",
         height = "auto",
         click = item.toggle,
+        linger = FoldHover(string.format("Turn %d", item.number), item.tally),
         Rule(),
         gui.Panel{
             flow = "horizontal",
@@ -2314,7 +2442,8 @@ local function BuildTurnFold(item)
                 textAlignment = "right",
             },
             Face(item.owner, 26),
-            MiniFaces(item.tally),
+            --the turn number's column (33), the owner's face, and room for a Reverted tag.
+            MiniFaces(item.tally, g_trayWidth - 24 - 17 - 33 - 26 - (item.reverted and 70 or 0)),
             item.reverted and Tag("historyRevertedTag", "Reverted") or nil,
         },
     }
@@ -3597,7 +3726,7 @@ local function SearchEmpty()
     return gui.Label{
         classes = {"historyMuted"},
         text = string.format("Nothing matches \"%s\".", SearchLabel()),
-        width = TRAY_WIDTH - 24,
+        width = "100%-24",
         height = "auto",
         halign = "left",
         valign = "bottom",
@@ -4054,7 +4183,7 @@ local function CreateFace()
                 return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false, reserve = reserve}
             end
         end
-        return {x = 0, width = TRAY_WIDTH, maxHeight = face.renderedHeight, inTray = true}
+        return {x = 0, width = g_trayWidth, maxHeight = face.renderedHeight, inTray = true}
     end
 
     local Select
@@ -4327,7 +4456,7 @@ local function CreateFace()
 
     list = gui.Panel{
         flow = "vertical",
-        width = TRAY_WIDTH,
+        width = string.format("100%%-%d", EDGE_STRIP),
         height = string.format("100%%-%d", BAR_HEIGHT + (Searching() and CHIP_ROW_HEIGHT or 0)),
         halign = "left",
         vscroll = true,
@@ -4665,7 +4794,7 @@ local function CreateFace()
     searchInput = gui.SearchInput{
         placeholderText = "Search creatures, abilities, conditions",
         text = g_search.text,
-        width = TRAY_WIDTH - 12 - 12,
+        width = g_trayWidth - 12 - 12,
         --the theme's hpad 24 must sit inside the width, not on top of it.
         borderBox = true,
         height = 22,
@@ -4717,7 +4846,7 @@ local function CreateFace()
     chipRow = gui.Panel{
         classes = {cond(Searching(), nil, "collapsed")},
         flow = "horizontal",
-        width = TRAY_WIDTH,
+        width = string.format("100%%-%d", EDGE_STRIP),
         height = CHIP_ROW_HEIGHT,
         hpad = 12,
         borderBox = true,
@@ -4819,7 +4948,8 @@ local function CreateFace()
         valign = "center",
         heroes = function(element)
             local heroes = MyHeroes()
-            local sig = ""
+            --the search field beside the faces takes the rest of the width (6.3).
+            local sig = tostring(g_trayWidth) .. ":"
             for _, who in ipairs(heroes) do
                 sig = string.format("%s%s|%s|%s;", sig, who.id, tostring(who.name), tostring(who.img))
             end
@@ -4858,7 +4988,7 @@ local function CreateFace()
             if taken > 0 then
                 taken = taken + SEARCH_GAP - MY_HERO_GAP
             end
-            searchInput.selfStyle.width = TRAY_WIDTH - 12 - 12 - taken
+            searchInput.selfStyle.width = g_trayWidth - 12 - 12 - taken
         end,
     }
     heroRow:FireEvent("heroes")
@@ -4921,6 +5051,24 @@ local function CreateFace()
     end
 
     --No background of its own: the rail window's frame shows through.
+    --Lays the rows out again for the window's width, once a resize has stopped (6.3). Rows
+    --shorten names by estimated widths, so they are rebuilt, but once, not every frame of a
+    --drag. No 320-600 clamp here: a window Chat owns can be narrower or wider.
+    local resizeToken = 0
+    local function ApplyWidth()
+        local width = math.floor((face.renderedWidth or 0) - EDGE_STRIP)
+        if width < 200 or width == g_trayWidth then
+            return
+        end
+        g_trayWidth = width
+        rows = {}
+        heroRow:FireEvent("heroes")
+        Refresh()
+        if selected ~= nil then
+            ShowCard(selected.item)
+        end
+    end
+
     face = gui.Panel{
         classes = {"historyTray"},
         styles = ThemeEngine.MergeStyles(Styles()),
@@ -4952,6 +5100,16 @@ local function CreateFace()
             AlignCard()
         end,
 
+        rendered = function(element)
+            resizeToken = resizeToken + 1
+            local token = resizeToken
+            dmhub.Schedule(0.25, function()
+                if token == resizeToken and not mod.unloaded and element.valid then
+                    ApplyWidth()
+                end
+            end)
+        end,
+
         destroy = function()
             if g_tray ~= nil and g_tray.face == face then
                 g_tray = nil
@@ -4967,7 +5125,7 @@ local function CreateFace()
         --the window's own header names the panel, so this bar holds search and the faces.
         gui.Panel{
             flow = "none",
-            width = TRAY_WIDTH,
+            width = string.format("100%%-%d", EDGE_STRIP),
             height = BAR_HEIGHT,
             halign = "left",
             rpad = 12,
@@ -5629,11 +5787,9 @@ DockablePanel.Register{
     available = History.Enabled,
     vscroll = false,
     minHeight = 200,
-    --the rows are laid out for one width; narrow windows are chunk 6.3.
-    defaultWidth = TRAY_WIDTH + EDGE_STRIP,
-    minWidth = TRAY_WIDTH + EDGE_STRIP,
-    maxWidth = TRAY_WIDTH + EDGE_STRIP,
-    resizableWidth = false,
+    defaultWidth = TRAY_DEFAULT_WIDTH + EDGE_STRIP,
+    minWidth = TRAY_MIN_WIDTH + EDGE_STRIP,
+    maxWidth = TRAY_MAX_WIDTH + EDGE_STRIP,
     --looked up when called, like the hooks below: after a reload the window and the rail's
     --"seen" mark must come from the same copy of this file, or the divider is lost.
     content = function()

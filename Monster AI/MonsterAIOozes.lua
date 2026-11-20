@@ -720,16 +720,9 @@ MonsterAI:RegisterMove{
 local engulfHiddenMode = 2
 
 -- The AI reveals hidden monsters as their turn starts, so IsHidden alone is
--- false here; also accept "was hidden earlier this turn", as the
--- `hiddenthisturn` symbol does.
+-- false here; also count a monster that was hidden earlier this turn.
 local function WasHiddenThisTurn(token)
-    if token.properties:IsHidden() then
-        return true
-    end
-    local queue = dmhub.initiativeQueue
-    return queue ~= nil and not queue.hidden
-        and token.properties:try_get("_tmp_hiddenTurnId") == queue:GetTurnId()
-        and token.properties:try_get("hiddenBenefitsLostTurnId") ~= queue:GetTurnId()
+    return token.properties:IsHidden() or creature.lookupSymbols.hiddenthisturn(token.properties)
 end
 
 -- The 2 Malice mode tests Intuition at one higher potency instead of Agility,

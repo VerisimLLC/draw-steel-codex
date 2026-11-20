@@ -25,6 +25,7 @@ end
 --- @field sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
 --- @field sharesHeroicResourceWithSummoner boolean If true, heroic resource consumed/granted on this summoned creature is redirected to its summoner.
 --- @field minionDamageTime number|string Server time this minion was last damaged; a ServerTimestamp() placeholder string until the server fills it in.
+--- @field hiddenBenefitsLostTurnId? string Turn id (InitiativeQueue:GetTurnId) in which LoseHiddenBenefits ran; Hidden This Turn reads false for that turn.
 
 --- @alias SquadInfo table
 

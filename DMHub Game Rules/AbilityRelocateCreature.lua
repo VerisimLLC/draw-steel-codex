@@ -900,6 +900,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         distance = forcemoveEvent.distance - (falling and 1 or 0),
                         falling = falling,
                         collision = forcemoveEvent.collision,
+                        --what it ran into: an object (a wall counts) or the creatures it hit.
+                        collidewithobject = forcemoveEvent.collidewithobject,
+                        collidedwith = collisionInfo ~= nil and collisionInfo.collideWith or nil,
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,
                         cast = options.symbols.cast,

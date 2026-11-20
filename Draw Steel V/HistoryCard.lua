@@ -2313,6 +2313,7 @@ end
 --- @field text string
 --- @field who HistoryCreature|nil A face before the lead: the owner of a modifier.
 --- @field plain boolean|nil G6, muted, with no lead.
+--- @field movers HistoryCreature[]|nil Y7: whose recorded move the lead's side view button shows.
 
 --Conditions whose name doesn't follow "cannot be" (G5).
 local CONDITION_PHRASES = {prone = "knocked prone"}
@@ -3134,6 +3135,53 @@ function History.Why(entry, kids)
         end
     end
 
+    --Y7, L108, L109: what a fall or a collision added to a forced move.
+    for _, who in ipairs(targets) do
+        local moved = who.moved
+        if moved ~= nil then
+            local name = History.ShownName(who)
+            local fall = moved.falldamage or 0
+            if fall > 0 then
+                local taken = who.taken or 0
+                local total, without = taken, taken - fall
+                if moved.fallseparate then
+                    total, without = taken + fall, taken
+                end
+                local squares = moved.fell or 0
+                local text = string.format("The fall dealt %d damage, for %d instead of %d.", fall, total, without)
+                local canShow = g_canDrawPaths and MovedSteps(moved) ~= nil
+                if canShow then
+                    text = text .. " Hover here for the side view."
+                end
+                Add("fall|" .. who.id, function()
+                    return {
+                        lead = string.format("Fell %d %s", squares, squares == 1 and "square" or "squares"),
+                        text = text,
+                        movers = canShow and {who} or nil,
+                    }
+                end, who)
+            end
+            local left = moved.collision or 0
+            if left > 0 and (moved.collidedobject or moved.collidedwith ~= nil) then
+                local kind = string.lower(string.gsub(moved.kind or "push", "_", " "))
+                local squares = string.format("%d %s", left, left == 1 and "square" or "squares")
+                Add("collision|" .. who.id, function()
+                    if moved.collidedobject or moved.collidedwith == nil then
+                        return {
+                            lead = "Hit an object",
+                            text = string.format("%s had %s of the %s left: %d damage, plus 2 for hitting an object.", name, squares, kind, left),
+                        }
+                    end
+                    local other = History.ShownName(moved.collidedwith)
+                    return {
+                        lead = "Hit " .. other,
+                        text = string.format("%s had %s of the %s left, so it and %s each took %d damage.", name, squares, kind, other, left),
+                    }
+                end, who)
+            end
+        end
+    end
+
     --Y13, L25: how many minions the damage killed, and why that many.
     for _, kid in ipairs(kids or {}) do
         if kid.family == "minions" and (kid.killed or 0) > 0 and kid.each ~= nil and (kid.damage or 0) > 0 then
@@ -3303,6 +3351,10 @@ local function WhyRow(row, width)
             halign = "left",
             valign = "center",
         })
+        --Y7: the move's side view, the same button the creature's What happened line has.
+        if row.movers ~= nil then
+            lead[#lead + 1] = SideViewButton({who = row.movers}, g_linkMap)
+        end
         children[1] = gui.Panel{
             flow = "horizontal",
             width = inner,

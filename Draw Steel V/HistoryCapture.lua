@@ -42,7 +42,7 @@ local mod = dmhub.GetModLoading()
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move.
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move.
 --- @field landedon? boolean On a target: a creature fell on it.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
@@ -865,6 +865,15 @@ local function OnDamage(creature, info)
     local soaked = info.landed - info.lost
     local damagetype = TypeWord(info.damagetype)
     local state = CastFor(info.cast)
+    --a fall that lands after its push's cast ended still belongs to that push's move (Y7).
+    local falling = state == nil and info.damagetype == "fall" and Falling(token) or nil
+    if falling ~= nil and info.landed > 0 then
+        falling.moved.falldamage = (falling.moved.falldamage or 0) + info.landed
+        falling.moved.fallseparate = true
+        if falling.row == nil or falling.row.finished then
+            History.Rewrite(falling.entry)
+        end
+    end
     if state == nil then
         if info.landed > 0 then
             local cause = Cause(info.source)
@@ -884,6 +893,10 @@ local function OnDamage(creature, info)
     local target = RowTarget(state, token)
     if target == nil then
         return
+    end
+    --Y7: a fall's damage, kept with the move so the Why can say what the fall added.
+    if info.damagetype == "fall" and target.moved ~= nil and info.landed > 0 then
+        target.moved.falldamage = (target.moved.falldamage or 0) + info.landed
     end
     target.taken = (target.taken or 0) + info.landed
     if soaked > 0 then
@@ -1019,6 +1032,14 @@ local function OnForcedMove(creature, info)
         walls = info.walls,
         path = info.path,
     }
+    --what a collision hit (L108, L109): an object, or the first creature it ran into.
+    if (info.collision or 0) > 0 then
+        moved.collidedobject = info.collidewithobject or nil
+        local other = info.collidedwith ~= nil and info.collidedwith[1] or nil
+        if other ~= nil and other.valid and not info.collidewithobject then
+            moved.collidedwith = History.Creature(other)
+        end
+    end
     --what stability did (6.5): stopped comes straight from the setup, the rest with the move.
     local stability = info.stopped and info or info.stability
     if stability ~= nil then

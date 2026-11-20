@@ -18,9 +18,11 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
   repo (`74d5153d` before the pull, "Hidden from History on 40 rules-tracking markers"),
   not pushed.
 - **Left, in order:**
-  1. **6.5c** card bugs: the numbers list the rolled target's sources when targets owed their
-     edges to different things (BUILD-PLAN.md, 2.3 notes, "Open follow-ups"); surges spent
-     on accepting a roll still write a duplicate line.
+  1. **6.5c done** (`634c498e`, James tested the surge half 2026-11-20): per-target edge
+     sources in The numbers ("Edge for this target", no number); surge spends file under the
+     cast through `GameSystem.ForCast`. Costs on rows are now icon + number (`208d0ab7`).
+     Seen while testing, not looked at: Mark: Benefit's Focus spend is still its own line,
+     and Battle Grace's numbers show "Tier 3: lightning 0" above "Tier 3 +24".
   2. **6.5d** the roll card folds into History (BRIEF "The S5 fold, built cheaply"): a ghost
      to the new row when History is open, to the History rail button when closed.
   3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,

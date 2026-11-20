@@ -1,0 +1,1153 @@
+<title>Ability Blocks Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: three panes -- block palette | script canvas | output (reads-as / saved data / formula lab).
+   Dark-only by choice, to match the DMHub app chrome. Each block category has one hue AND a
+   glyph, so colour is never the only signifier; shape encodes the value type (Scratch grammar). */
+:root {
+  color-scheme: dark;
+  --bg: #15130f;
+  --panel: #1e1b16;
+  --panel-2: #26221b;
+  --line: #3a342a;
+  --fg: #ece4d4;
+  --fg-dim: #a99f8c;
+  --gold: #cca350;
+  --warn: #e0a040;
+  --err: #e2685a;
+  --ok: #7cc28a;
+  --c-event: #b8892c;
+  --c-control: #c06a2a;
+  --c-roll: #8a4fb0;
+  --c-action: #b04452;
+  --c-value: #3f8f5a;
+  --c-test: #2f7a93;
+  --c-raw: #5d5850;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 13px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+header.top {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+header.top h1 { font-family: var(--font-head); font-size: 16px; margin: 0; letter-spacing: .02em; }
+header.top .sub { color: var(--fg-dim); font-size: 12px; }
+header.top .spacer { flex: 1; }
+button, select, input, textarea { font: inherit; color: inherit; }
+.btn {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 10px; cursor: pointer;
+}
+.btn:hover { border-color: var(--gold); }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.btn.primary { border-color: var(--gold); color: var(--gold); }
+
+main { flex: 1; display: grid; grid-template-columns: 270px 1fr 380px; min-height: 0; }
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  main { grid-template-columns: 1fr; grid-auto-rows: minmax(360px, auto); }
+}
+
+/* palette */
+#palette { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px; background: var(--panel); }
+.pal-cat { margin-bottom: 14px; }
+.pal-cat h3 {
+  font-family: var(--font-head); font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fg-dim); margin: 0 0 6px; display: flex; align-items: center; gap: 6px;
+}
+.pal-cat h3 .glyph { width: 16px; height: 16px; border-radius: 3px; display: grid; place-items: center; color: #fff; font-size: 10px; }
+.pal-items { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.pal-items .blk { cursor: grab; }
+.pal-items .blk * { pointer-events: none; }
+.pal-hint { color: var(--fg-dim); font-size: 11px; line-height: 1.4; margin: 0 0 10px; }
+
+/* canvas */
+#canvasWrap { position: relative; overflow: auto; min-width: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+#canvas { position: relative; width: 1600px; height: 1400px; }
+.top-item { position: absolute; }
+.top-item.selected > .stack > .blk:first-child { box-shadow: 0 0 0 2px var(--gold); }
+
+/* output */
+#output { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; padding: 9px 4px; cursor: pointer; color: var(--fg-dim); }
+.tabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+.tabpane { flex: 1; overflow: auto; padding: 12px; min-height: 0; }
+.status { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; line-height: 1.4; border: 1px solid var(--line); }
+.status .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex: none; }
+.status.ok .dot { background: var(--ok); }
+.status.warn .dot { background: var(--warn); }
+.status.err .dot { background: var(--err); }
+pre.code { font-variant-ligatures: none; font-family: var(--font-mono); font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 0 0 12px; }
+.prose { font-size: 14px; line-height: 1.55; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 12px; margin-bottom: 12px; }
+.prose b { color: var(--gold); font-weight: 600; }
+.issues { list-style: none; padding: 0; margin: 0 0 12px; }
+.issues li { padding: 6px 8px; border-left: 3px solid var(--warn); background: var(--bg); margin-bottom: 4px; font-size: 12px; line-height: 1.4; }
+.issues li.err { border-left-color: var(--err); }
+.issues li.ext { border-left-color: var(--c-roll); }
+.issues li .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--fg-dim); margin-right: 6px; }
+h4 { font-family: var(--font-head); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--fg-dim); margin: 14px 0 6px; }
+h4:first-child { margin-top: 0; }
+.lab textarea { width: 100%; min-height: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font-family: var(--font-mono); font-size: 12px; resize: vertical; }
+.lab .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.lab .samples button { font-family: var(--font-mono); font-size: 11px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; margin-bottom: 10px; }
+.kv dt { color: var(--fg-dim); }
+.kv dd { margin: 0; font-family: var(--font-mono); word-break: break-word; }
+p.note { color: var(--fg-dim); font-size: 12px; line-height: 1.5; }
+
+/* ---------- blocks ---------- */
+.stack { display: flex; flex-direction: column; align-items: flex-start; }
+.blk {
+  --c: var(--c-raw);
+  position: relative; color: #fff; user-select: none; touch-action: none;
+  font-size: 12.5px; line-height: 1;
+}
+.blk .row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 6px 9px; min-height: 30px; }
+.blk.stackish > .body, .blk.hat > .body, .blk.c > .head, .blk.c > .foot, .blk.c > .mid {
+  background: var(--c); border: 1px solid rgba(0,0,0,.35);
+}
+.blk.stackish > .body { border-radius: 4px; min-width: 120px; }
+.blk.stackish { margin-top: -1px; }
+.blk.hat > .body { border-radius: 14px 14px 4px 4px; min-width: 200px; padding-top: 3px; }
+.blk.hat > .body .row:first-child { font-weight: 600; }
+.blk.c > .head { border-radius: 4px 4px 0 4px; min-width: 160px; }
+.blk.c > .mid { border-radius: 0 4px 4px 0; min-width: 160px; border-top: none; border-bottom: none; }
+.blk.c > .foot { border-radius: 0 4px 4px 4px; height: 14px; width: 60px; border-top: none; }
+.blk.c > .mid .row { padding: 4px 9px; min-height: 22px; font-size: 11.5px; opacity: .95; }
+.mouth { display: flex; margin-left: 0; }
+.mouth .spine { width: 14px; background: var(--c); border-left: 1px solid rgba(0,0,0,.35); border-right: 1px solid rgba(0,0,0,.25); }
+.mouth .slot-stack { min-height: 26px; min-width: 120px; padding: 2px 0; display: flex; flex-direction: column; align-items: flex-start; }
+.mouth .slot-stack.empty { min-height: 22px; }
+.mouth .slot-stack.empty::after { content: "drop actions here"; color: var(--fg-dim); font-size: 10.5px; padding: 6px 8px; font-style: italic; }
+
+.blk.reporter > .body { background: var(--c); border-radius: 999px; border: 1px solid rgba(0,0,0,.35); }
+.blk.reporter .row { padding: 3px 8px; min-height: 24px; }
+.blk.bool > .body { background: var(--c); border: 1px solid rgba(0,0,0,.35); clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); }
+.blk.bool .row { padding: 3px 16px; min-height: 24px; }
+.blk .blk.bool .row { padding: 2px 11px; min-height: 22px; gap: 4px; }
+.blk .blk.reporter .row { padding: 2px 6px; min-height: 22px; gap: 4px; }
+
+.cat-event { --c: var(--c-event); }
+.cat-control { --c: var(--c-control); }
+.cat-roll { --c: var(--c-roll); }
+.cat-action { --c: var(--c-action); }
+.cat-value { --c: var(--c-value); }
+.cat-test { --c: var(--c-test); }
+.cat-raw { --c: var(--c-raw); }
+
+.blk input.f, .blk select.f {
+  background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 999px;
+  padding: 2px 7px; height: 20px; font-size: 12px; min-width: 26px;
+  field-sizing: content; /* size each control to its current value, not its longest option */
+}
+.blk select.f { border-radius: 4px; padding-right: 2px; }
+.blk input.f.num { width: 42px; text-align: center; }
+.blk input.f.text { width: 90px; }
+.blk input.f.wide { width: 130px; }
+.blk input.f.mono { font-family: var(--font-mono); font-size: 11px; width: 170px; border-radius: 4px; }
+.slot { display: inline-flex; align-items: center; min-height: 20px; }
+.slot.bool-empty { width: 40px; height: 18px; background: rgba(0,0,0,.28); clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%); }
+.slot.hot, .slot.hot.bool-empty { outline: 2px solid #fff; outline-offset: 1px; background: rgba(255,255,255,.35); }
+.snap-line { position: absolute; height: 4px; width: 120px; background: #fff; border-radius: 2px; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 50; }
+.badge {
+  position: absolute; top: -7px; right: -7px; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--err); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center;
+  border: 2px solid var(--bg); z-index: 3; cursor: help;
+}
+.badge.warn { background: var(--warn); color: #1b1712; }
+.badge.ext { background: var(--c-roll); }
+.blk.flagged > .body, .blk.flagged > .head { box-shadow: 0 0 0 2px var(--err) inset; }
+#drag { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 100; opacity: .92; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+#palette.trash { outline: 2px dashed var(--err); outline-offset: -6px; }
+#palette.trash::before { content: "Release to delete"; display: block; color: var(--err); font-weight: 600; margin-bottom: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .blk.just-dropped > .body, .blk.just-dropped > .head { animation: pop .18s ease-out; }
+  @keyframes pop { from { transform: scale(1.04); } to { transform: none; } }
+}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono&display=swap">
+
+<header class="top">
+  <h1>Ability Blocks</h1>
+  <span class="sub">Prototype: Scratch-style authoring that compiles to today's ability data</span>
+  <span class="spacer"></span>
+  <label for="exampleSel" class="sub">Example</label>
+  <select id="exampleSel" class="btn">
+    <option value="gouge">Gouge (strike, power roll)</option>
+    <option value="retaliate">Retaliate (triggered, Lose Stamina)</option>
+    <option value="tooFar">Shadow Step (needs extension)</option>
+    <option value="empty">Empty canvas</option>
+  </select>
+  <button class="btn" id="tidyBtn">Tidy</button>
+</header>
+
+<main>
+  <aside id="palette" aria-label="Block palette">
+    <p class="pal-hint">Drag a block onto the canvas, or click it to add it to the selected script. Drag blocks back here to delete them.</p>
+    <div id="palCats"></div>
+  </aside>
+  <section id="canvasWrap" aria-label="Script canvas"><div id="canvas"></div></section>
+  <aside id="output" aria-label="Output">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="reads">Reads as</button>
+      <button role="tab" aria-selected="false" data-tab="data">Saved data</button>
+      <button role="tab" aria-selected="false" data-tab="lab">Formula lab</button>
+    </div>
+    <div class="tabpane" id="pane-reads"></div>
+    <div class="tabpane" id="pane-data" hidden></div>
+    <div class="tabpane lab" id="pane-lab" hidden>
+      <h4>GoblinScript to blocks</h4>
+      <p class="note">Type or paste a formula. It is parsed into blocks, then printed back out, to test that the two views can round-trip without losing meaning. Anything the parser does not understand becomes a grey <b>raw formula</b> block instead of failing.</p>
+      <textarea id="labIn" spellcheck="false" aria-label="GoblinScript formula">HasAttacker and Damage >= 5 and Distance(Attacker) <= 1</textarea>
+      <div class="row samples" id="labSamples"></div>
+      <div class="row"><button class="btn primary" id="labDrop">Add as blocks to canvas</button></div>
+      <dl class="kv" id="labResult"></dl>
+      <div id="labPreview"></div>
+    </div>
+  </aside>
+</main>
+<div id="drag"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Vocabulary. Trigger ids, names and symbol schemas mirror the real
+   TriggeredAbility.RegisterTrigger entries (TriggeredAbility.lua, MCDMRules.lua).
+   ===================================================================== */
+const TRIGGERS = {
+  losehitpoints: { text: "Lose Stamina", creatures: ["Attacker"],
+    numbers: ["Damage"], flags: ["Has Attacker"], texts: { "Damage Type": ["fire","cold","acid","poison","holy","corruption","psychic","lightning","sonic","untyped"] } },
+  inflictcondition: { text: "Condition Applied", creatures: ["Attacker"], numbers: [], flags: ["Has Attacker"], texts: { "Condition": ["Bleeding","Dazed","Frightened","Grabbed","Prone","Restrained","Slowed","Taunted","Weakened"] } },
+  leaveadjacent: { text: "Creature Moved Away From", creatures: ["Moving Creature"], numbers: [], flags: [], texts: {} },
+  useability: { text: "Use an Ability", creatures: [], numbers: [], flags: [], texts: {}, keywords: true },
+  beginturn: { text: "Start of Turn", creatures: [], numbers: ["Order"], flags: [], texts: {} },
+  endturn: { text: "End Turn", creatures: [], numbers: [], flags: [], texts: {} },
+};
+const TRIGGER_TARGETS = [["self","Self"],["attacker","Creature Attacking Me"],["subject","The Trigger Subject"],["all","Burst"]];
+const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver"];
+const TARGETS = ["1 creature","2 creatures","3 creatures","Self","Burst 1","Burst 2","Line 5 x 1"];
+const CHARS = ["Might","Agility","Reason","Intuition","Presence","Highest Characteristic"];
+const DMG_TYPES = ["untyped","fire","cold","acid","poison","holy","corruption","psychic","lightning","sonic"];
+const CONDITIONS = ["Bleeding","Dazed","Frightened","Grabbed","Prone","Restrained","Slowed","Taunted","Weakened"];
+const DURATIONS = ["save ends","EoT","until start of your next turn"];
+const FORCED = ["push","pull","slide","vertical push","vertical slide"];
+const FIELDS = ["Stamina","Maximum Stamina","Level","Might","Agility","Reason","Intuition","Presence","Speed","Size"];
+const POTENCY_CHAR = [["M","Might"],["A","Agility"],["R","Reason"],["I","Intuition"],["P","Presence"]];
+const KEYWORDS = ["Strike","Melee","Ranged","Weapon","Magic","Area","Psionic"];
+const ROLE_PROSE = { "Self": "you", "Target": "the target", "Attacker": "the attacker", "Moving Creature": "the moving creature" };
+
+/* =====================================================================
+   Block definitions. shape: hat | stack | c | reporter | bool.
+   parts: text, "\n" (new row), {f: field, k: kind, o: options}, {i: input, t: type}.
+   An input slot with t "num" shows an inline number box until a reporter is dropped on it.
+   ===================================================================== */
+const DEFS = {
+  whenUsed: { cat: "event", shape: "hat", label: "When used",
+    parts: ["When", {f:"name",k:"text",w:"wide"}, "is used", "\n", {f:"action",k:"sel",o:ACTIONS}, "targeting", {f:"targets",k:"sel",o:TARGETS}, "\n", "range", {f:"range",k:"num"}, "keywords", {f:"keywords",k:"text",w:"wide"}],
+    init: { name: "New Ability", action: ACTIONS[0], targets: TARGETS[0], range: "1", keywords: "Melee, Strike, Weapon" } },
+  whenTrigger: { cat: "event", shape: "hat", label: "When trigger",
+    parts: ["When", {f:"name",k:"text",w:"wide"}, "triggers", "\n", "on", {f:"trigger",k:"sel",o:Object.keys(TRIGGERS).map(k=>[k,TRIGGERS[k].text])}, "\n", "targets", {f:"target",k:"sel",o:TRIGGER_TARGETS}],
+    init: { name: "New Trigger", trigger: "losehitpoints", target: "attacker" } },
+
+  ifThen: { cat: "control", shape: "c", label: "if", branches: [["then", null]],
+    parts: ["if", {i:"cond",t:"bool"}, "then"] },
+  ifElse: { cat: "control", shape: "c", label: "if / else", branches: [["then", null], ["else", "else"]],
+    parts: ["if", {i:"cond",t:"bool"}, "then"] },
+  repeat: { cat: "control", shape: "c", label: "repeat", branches: [["body", null]], ext: true,
+    parts: ["repeat", {i:"n",t:"num"}, "times"], init: { _lit_n: "2" } },
+  setVar: { cat: "control", shape: "stack", label: "remember", ext: true,
+    parts: ["remember", {i:"v",t:"num"}, "as", {f:"name",k:"text"}], init: { name: "x", _lit_v: "0" } },
+
+  powerRoll: { cat: "roll", shape: "c", label: "power roll",
+    branches: [["t1","11 or lower"], ["t2","12 - 16"], ["t3","17+"]],
+    parts: ["power roll 2d10 +", {f:"char",k:"sel",o:CHARS}], init: { char: "Might" } },
+
+  damage: { cat: "action", shape: "stack", label: "deal damage",
+    parts: ["deal", {i:"amount",t:"num"}, {f:"dtype",k:"sel",o:DMG_TYPES}, "damage"], init: { _lit_amount: "3", dtype: "untyped" } },
+  condition: { cat: "action", shape: "stack", label: "apply condition",
+    parts: ["target is", {f:"cond",k:"sel",o:CONDITIONS}, {f:"dur",k:"sel",o:DURATIONS}], init: { cond: "Slowed", dur: "save ends" } },
+  forced: { cat: "action", shape: "stack", label: "forced move",
+    parts: [{f:"kind",k:"sel",o:FORCED}, "target", {f:"n",k:"num"}], init: { kind: "push", n: "2" } },
+  heal: { cat: "action", shape: "stack", label: "heal",
+    parts: ["target regains", {i:"amount",t:"num"}, "Stamina"], init: { _lit_amount: "5" } },
+  floatText: { cat: "action", shape: "stack", label: "float text",
+    parts: ["float text", {f:"text",k:"text",w:"wide"}], init: { text: "Retaliate!" } },
+  invoke: { cat: "action", shape: "stack", label: "use ability",
+    parts: ["use ability", {f:"ability",k:"text",w:"wide"}], init: { ability: "Free Strike" } },
+
+  num: { cat: "value", shape: "reporter", label: "number", parts: [{f:"v",k:"num"}], init: { v: "1" } },
+  dice: { cat: "value", shape: "reporter", label: "dice", parts: [{f:"n",k:"num"}, "d", {f:"s",k:"num"}], init: { n: "1", s: "6" } },
+  prop: { cat: "value", shape: "reporter", label: "creature stat",
+    parts: [{f:"role",k:"role"}, "'s", {f:"field",k:"sel",o:FIELDS}], init: { role: "Self", field: "Might" } },
+  tval: { cat: "value", shape: "reporter", label: "trigger value", parts: [{f:"name",k:"tnum"}], init: { name: "Damage" } },
+  arith: { cat: "value", shape: "reporter", label: "math",
+    parts: [{i:"a",t:"num"}, {f:"op",k:"sel",o:["+","-","*","/"]}, {i:"b",t:"num"}], init: { op: "+", _lit_a: "1", _lit_b: "1" } },
+  distance: { cat: "value", shape: "reporter", label: "distance", parts: ["distance to", {f:"role",k:"role"}], init: { role: "Target" } },
+  whenElse: { cat: "value", shape: "reporter", label: "pick value",
+    parts: [{i:"a",t:"num"}, "if", {i:"cond",t:"bool"}, "else", {i:"b",t:"num"}], init: { _lit_a: "2", _lit_b: "0" } },
+
+  compare: { cat: "test", shape: "bool", label: "compare",
+    parts: [{i:"a",t:"num"}, {f:"op",k:"sel",o:[[">=","at least"],["<=","at most"],[">",">"],["<","<"],["=","="],["~=","not ="]]}, {i:"b",t:"num"}], init: { op: ">=", _lit_a: "0", _lit_b: "5" } },
+  and: { cat: "test", shape: "bool", label: "and", parts: [{i:"a",t:"bool"}, "and", {i:"b",t:"bool"}] },
+  or: { cat: "test", shape: "bool", label: "or", parts: [{i:"a",t:"bool"}, "or", {i:"b",t:"bool"}] },
+  not: { cat: "test", shape: "bool", label: "not", parts: ["not", {i:"a",t:"bool"}] },
+  hasCond: { cat: "test", shape: "bool", label: "has condition",
+    parts: [{f:"role",k:"role"}, "has", {f:"cond",k:"sel",o:CONDITIONS}], init: { role: "Target", cond: "Slowed" } },
+  tflag: { cat: "test", shape: "bool", label: "trigger flag", parts: [{f:"name",k:"tflag"}], init: { name: "Has Attacker" } },
+  ttext: { cat: "test", shape: "bool", label: "trigger text is",
+    parts: [{f:"name",k:"ttext"}, "is", {f:"val",k:"tval"}], init: { name: "Damage Type", val: "fire" } },
+  keyword: { cat: "test", shape: "bool", label: "ability keyword",
+    parts: ["used ability has keyword", {f:"kw",k:"sel",o:KEYWORDS}], init: { kw: "Strike" } },
+  potency: { cat: "test", shape: "bool", label: "potency",
+    parts: ["target's", {f:"ch",k:"sel",o:POTENCY_CHAR}, "<", {f:"tier",k:"sel",o:[["0","weak"],["1","average"],["2","strong"]]}, "potency"], init: { ch: "M", tier: "1" } },
+
+  raw: { cat: "raw", shape: "bool", label: "raw formula", parts: ["formula", {f:"src",k:"text",w:"mono"}], init: { src: "true" } },
+  rawNum: { cat: "raw", shape: "reporter", label: "raw value", parts: ["formula", {f:"src",k:"text",w:"mono"}], init: { src: "0" } },
+};
+const CATS = [
+  ["event", "Events", "E", ["whenUsed","whenTrigger"]],
+  ["roll", "Power rolls", "R", ["powerRoll"]],
+  ["action", "Actions", "A", ["damage","condition","forced","heal","floatText","invoke"]],
+  ["control", "Control", "C", ["ifThen","ifElse","repeat","setVar"]],
+  ["test", "Tests (true / false)", "T", ["compare","and","or","not","hasCond","tflag","ttext","keyword","potency"]],
+  ["value", "Values (numbers)", "V", ["num","dice","prop","tval","arith","distance","whenElse"]],
+  ["raw", "Raw GoblinScript", "G", ["raw","rawNum"]],
+];
+const SHAPE_TYPE = { reporter: "num", bool: "bool" };
+
+/* =====================================================================
+   Model
+   ===================================================================== */
+let uid = 1;
+function mk(type, fields, inputs, branches, next) {
+  const d = DEFS[type];
+  const b = { id: "b" + (uid++), type, fields: Object.assign({}, d.init || {}, fields || {}), inputs: {}, branches: {}, next: next || null };
+  for (const p of d.parts) if (p && p.i) b.inputs[p.i] = (inputs && inputs[p.i]) || null;
+  for (const [n] of (d.branches || [])) b.branches[n] = (branches && branches[n]) || null;
+  return b;
+}
+function chain(...blocks) { for (let i = 0; i < blocks.length - 1; i++) lastOf(blocks[i]).next = blocks[i + 1]; return blocks[0] || null; }
+function lastOf(b) { while (b.next) b = b.next; return b; }
+function isStackish(b) { const s = DEFS[b.type].shape; return s === "stack" || s === "c"; }
+
+let items = [];   // top-level scripts: {b, x, y}
+let selectedTop = null;
+let parentIndex = {};
+
+function buildIndex() {
+  parentIndex = {};
+  const visit = (b, parent) => {
+    if (!b) return;
+    parentIndex[b.id] = parent;
+    for (const k in b.inputs) visit(b.inputs[k], { kind: "input", block: b, name: k });
+    for (const k in b.branches) visit(b.branches[k], { kind: "branch", block: b, name: k });
+    visit(b.next, { kind: "next", block: b });
+  };
+  for (const it of items) visit(it.b, { kind: "top", item: it });
+}
+function findBlock(id) {
+  let found = null;
+  const visit = b => { if (!b || found) return; if (b.id === id) { found = b; return; }
+    for (const k in b.inputs) visit(b.inputs[k]); for (const k in b.branches) visit(b.branches[k]); visit(b.next); };
+  for (const it of items) visit(it.b);
+  return found;
+}
+/* Detach a block from wherever it sits. Stack blocks take everything below them (Scratch rule). */
+function detach(b) {
+  const p = parentIndex[b.id];
+  if (!p) return;
+  if (p.kind === "top") items = items.filter(it => it !== p.item);
+  else if (p.kind === "next") p.block.next = null;
+  else if (p.kind === "branch") p.block.branches[p.name] = null;
+  else if (p.kind === "input") p.block.inputs[p.name] = null;
+}
+function topOf(b) {
+  let p = parentIndex[b.id];
+  while (p && p.kind !== "top") { b = p.block; p = parentIndex[b.id]; }
+  return p ? p.item : null;
+}
+
+/* =====================================================================
+   Context: which creatures and trigger values a script may reference.
+   ===================================================================== */
+function ctxFor(item) {
+  const hat = item && item.b;
+  if (hat && hat.type === "whenTrigger") {
+    const t = TRIGGERS[hat.fields.trigger];
+    return { kind: "trigger", trig: hat.fields.trigger, roles: ["Self", "Target", ...t.creatures], numbers: t.numbers, flags: t.flags, texts: t.texts, keywords: !!t.keywords };
+  }
+  if (hat && hat.type === "whenUsed") return { kind: "ability", roles: ["Self", "Target"], numbers: [], flags: [], texts: {}, keywords: false };
+  return { kind: "loose", roles: ["Self", "Target", "Attacker", "Moving Creature"], numbers: ["Damage", "Order"], flags: ["Has Attacker"], texts: TRIGGERS.losehitpoints.texts, keywords: true };
+}
+const PAL_CTX = { kind: "palette", roles: ["Self", "Target", "Attacker"], numbers: ["Damage"], flags: ["Has Attacker"], texts: TRIGGERS.losehitpoints.texts, keywords: true };
+
+/* =====================================================================
+   Rendering
+   ===================================================================== */
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+function fieldControl(b, p, ctx, live) {
+  let opts = null;
+  if (p.k === "sel") opts = p.o;
+  else if (p.k === "role") opts = ctx.roles;
+  else if (p.k === "tnum") opts = ctx.numbers.length ? ctx.numbers : [b.fields[p.f]];
+  else if (p.k === "tflag") opts = ctx.flags.length ? ctx.flags : [b.fields[p.f]];
+  else if (p.k === "ttext") opts = Object.keys(ctx.texts).length ? Object.keys(ctx.texts) : [b.fields[p.f]];
+  else if (p.k === "tval") opts = ctx.texts[b.fields.name] || [b.fields[p.f]];
+  let c;
+  if (opts) {
+    c = el("select", "f");
+    const cur = b.fields[p.f];
+    const norm = opts.map(o => Array.isArray(o) ? o : [o, o]);
+    if (!norm.some(o => o[0] === cur)) norm.unshift([cur, cur + " (?)"]);
+    for (const [v, t] of norm) { const o = el("option", null, t); o.value = v; c.appendChild(o); }
+    c.value = cur;
+  } else {
+    c = el("input", "f " + (p.k === "num" ? "num" : (p.w || "text")));
+    c.value = b.fields[p.f] ?? "";
+    c.spellcheck = false;
+  }
+  c.setAttribute("aria-label", (DEFS[b.type].label) + " " + p.f);
+  if (live) {
+    c.addEventListener("input", () => { b.fields[p.f] = c.value; scheduleCompile(); });
+    c.addEventListener("change", () => { b.fields[p.f] = c.value; render(); });
+  } else c.tabIndex = -1;
+  return c;
+}
+
+function slotControl(b, p, ctx, live) {
+  const wrap = el("span", "slot");
+  wrap.dataset.slot = b.id + ":" + p.i;
+  wrap.dataset.accept = p.t;
+  const child = b.inputs[p.i];
+  if (child) { wrap.appendChild(renderBlock(child, ctx, live)); return wrap; }
+  if (p.t === "bool") { wrap.classList.add("bool-empty"); return wrap; }
+  const inp = el("input", "f num");
+  const key = "_lit_" + p.i;
+  if (b.fields[key] == null) b.fields[key] = "0";
+  inp.value = b.fields[key];
+  inp.setAttribute("aria-label", DEFS[b.type].label + " " + p.i);
+  if (live) inp.addEventListener("input", () => { b.fields[key] = inp.value; scheduleCompile(); });
+  else inp.tabIndex = -1;
+  wrap.appendChild(inp);
+  return wrap;
+}
+
+function renderParts(b, parts, ctx, live) {
+  const frag = document.createDocumentFragment();
+  let row = el("div", "row");
+  frag.appendChild(row);
+  for (const p of parts) {
+    if (p === "\n") { row = el("div", "row"); frag.appendChild(row); continue; }
+    if (typeof p === "string") { row.appendChild(el("span", null, p)); continue; }
+    if (p.f) row.appendChild(fieldControl(b, p, ctx, live));
+    else if (p.i) row.appendChild(slotControl(b, p, ctx, live));
+  }
+  return frag;
+}
+
+function renderBlock(b, ctx, live) {
+  const d = DEFS[b.type];
+  const e = el("div", "blk cat-" + d.cat);
+  e.dataset.id = b.id;
+  if (d.shape === "stack") e.classList.add("stackish");
+  e.classList.add(d.shape);
+  if (d.shape === "c") {
+    e.classList.add("stackish");
+    const head = el("div", "head"); head.appendChild(renderParts(b, d.parts, ctx, live)); e.appendChild(head);
+    d.branches.forEach(([name, label], idx) => {
+      if (label) { const mid = el("div", "mid"); mid.appendChild(el("div", "row", label)); e.appendChild(mid); }
+      const mouth = el("div", "mouth");
+      mouth.appendChild(el("div", "spine"));
+      const ss = el("div", "slot-stack");
+      ss.dataset.branch = b.id + ":" + name;
+      if (b.branches[name]) ss.appendChild(renderStack(b.branches[name], ctx, live));
+      else ss.classList.add("empty");
+      mouth.appendChild(ss);
+      e.appendChild(mouth);
+    });
+    e.appendChild(el("div", "foot"));
+  } else {
+    const body = el("div", "body"); body.appendChild(renderParts(b, d.parts, ctx, live)); e.appendChild(body);
+  }
+  if (live) {
+    const iss = blockIssues[b.id];
+    if (iss && iss.length) {
+      const worst = iss.some(i => i.level === "err") ? "err" : iss.some(i => i.level === "ext") ? "ext" : "warn";
+      const bd = el("span", "badge" + (worst === "err" ? "" : " " + worst), worst === "ext" ? "+" : "!");
+      bd.title = iss.map(i => i.msg).join("\n");
+      bd.setAttribute("role", "img"); bd.setAttribute("aria-label", bd.title);
+      e.appendChild(bd);
+      if (worst === "err") e.classList.add("flagged");
+    }
+  }
+  return e;
+}
+function renderStack(first, ctx, live) {
+  const s = el("div", "stack");
+  for (let b = first; b; b = b.next) s.appendChild(renderBlock(b, ctx, live));
+  return s;
+}
+
+const canvas = document.getElementById("canvas");
+function render() {
+  buildIndex();
+  compileAll();
+  canvas.innerHTML = "";
+  for (const it of items) {
+    const w = el("div", "top-item");
+    if (it === selectedTop) w.classList.add("selected");
+    w.style.left = it.x + "px"; w.style.top = it.y + "px";
+    w.appendChild(renderStack(it.b, ctxFor(isHat(it.b) ? it : null), true));
+    canvas.appendChild(w);
+  }
+  renderOutput();
+}
+function isHat(b) { return DEFS[b.type].shape === "hat"; }
+
+function renderPalette() {
+  const host = document.getElementById("palCats");
+  host.innerHTML = "";
+  for (const [cat, name, glyph, types] of CATS) {
+    const sec = el("div", "pal-cat");
+    const h = el("h3"); const g = el("span", "glyph cat-" + cat, glyph); g.style.background = "var(--c)"; h.appendChild(g); h.appendChild(el("span", null, name));
+    sec.appendChild(h);
+    const list = el("div", "pal-items");
+    for (const t of types) {
+      const proto = mk(t);
+      const be = renderBlock(proto, PAL_CTX, false);
+      be.dataset.proto = t;
+      be.tabIndex = 0;
+      be.setAttribute("role", "button");
+      be.setAttribute("aria-label", "Add block: " + DEFS[t].label + (DEFS[t].ext ? " (needs engine extension)" : ""));
+      if (DEFS[t].ext) be.title = "Needs a runtime extension: today's ability data cannot express this.";
+      be.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); clickAdd(t); } });
+      list.appendChild(be);
+    }
+    sec.appendChild(list);
+    host.appendChild(sec);
+  }
+}
+
+/* Non-drag path: clicking a palette block adds it to the selected script. */
+function clickAdd(type) {
+  const nb = mk(type);
+  const d = DEFS[type];
+  if (d.shape === "hat") { items.push({ b: nb, x: 40 + items.length * 30, y: 40 + items.length * 30 }); selectedTop = items[items.length - 1]; render(); return; }
+  const target = selectedTop || items[0];
+  if (!target) { items.push({ b: nb, x: 60, y: 60 }); selectedTop = items[0]; render(); return; }
+  if (isStackish(nb)) { lastOf(target.b).next = nb; render(); flash(nb.id); return; }
+  const want = SHAPE_TYPE[d.shape];
+  const slot = firstEmptySlot(target.b, want);
+  if (slot) { slot.block.inputs[slot.name] = nb; render(); flash(nb.id); }
+  else { items.push({ b: nb, x: target.x + 340, y: target.y }); render(); }
+}
+function firstEmptySlot(b, want) {
+  let res = null;
+  const visit = x => {
+    if (!x || res) return;
+    for (const p of DEFS[x.type].parts) if (p && p.i && !x.inputs[p.i] && (p.t === want || (p.t === "bool" && want === "bool"))) {
+      if (want === "bool" ? p.t === "bool" : p.t === "num") { res = { block: x, name: p.i }; return; }
+    }
+    for (const k in x.inputs) visit(x.inputs[k]);
+    for (const k in x.branches) visit(x.branches[k]);
+    visit(x.next);
+  };
+  visit(b);
+  return res;
+}
+function flash(id) {
+  const e = canvas.querySelector('[data-id="' + id + '"]');
+  if (e) { e.classList.add("just-dropped"); setTimeout(() => e.classList.remove("just-dropped"), 250); }
+}
+
+/* =====================================================================
+   Drag and drop (pointer events, works with mouse, pen and touch)
+   ===================================================================== */
+const dragLayer = document.getElementById("drag");
+const palette = document.getElementById("palette");
+const canvasWrap = document.getElementById("canvasWrap");
+let drag = null;
+
+function onPointerDown(ev) {
+  if (ev.button !== 0) return;
+  if (ev.target.closest("input, select, textarea, .badge")) return;
+  const be = ev.target.closest(".blk");
+  if (!be) return;
+  const fromPalette = !!be.dataset.proto;
+  if (!fromPalette && !canvas.contains(be)) return;
+  const r = be.getBoundingClientRect();
+  drag = { started: false, fromPalette, proto: be.dataset.proto, id: be.dataset.id, sx: ev.clientX, sy: ev.clientY, ox: ev.clientX - r.left, oy: ev.clientY - r.top };
+  ev.preventDefault();
+}
+function startDrag() {
+  let b;
+  if (drag.fromPalette) b = mk(drag.proto);
+  else {
+    b = findBlock(drag.id);
+    const top = topOf(b);
+    if (top) selectedTop = top;
+    // Dragging a hat moves its whole script; keep the item so its position can be updated.
+    if (isHat(b)) drag.moveItem = parentIndex[b.id].item;
+    detach(b);
+  }
+  drag.block = b;
+  drag.started = true;
+  render();
+  dragLayer.innerHTML = "";
+  const ctx = drag.moveItem ? ctxFor(drag.moveItem) : PAL_CTX;
+  dragLayer.appendChild(isStackish(b) || isHat(b) ? renderStack(b, ctx, false) : renderBlock(b, ctx, false));
+  collectTargets();
+}
+function collectTargets() {
+  drag.snaps = []; drag.slots = [];
+  const b = drag.block, shape = DEFS[b.type].shape;
+  if (shape === "stack" || shape === "c") {
+    canvas.querySelectorAll(".blk").forEach(be => {
+      const blk = findBlock(be.dataset.id);
+      if (!blk || !(isStackish(blk) || isHat(blk))) return;
+      const full = be.getBoundingClientRect();
+      drag.snaps.push({ x: full.left, y: full.bottom, kind: "after", block: blk });
+    });
+    canvas.querySelectorAll("[data-branch]").forEach(ss => {
+      const [id, name] = ss.dataset.branch.split(":");
+      const r = ss.getBoundingClientRect();
+      drag.snaps.push({ x: r.left, y: r.top, kind: "branch", block: findBlock(id), name });
+    });
+  } else if (shape === "reporter" || shape === "bool") {
+    const want = SHAPE_TYPE[shape];
+    canvas.querySelectorAll("[data-slot]").forEach(s => {
+      if (s.dataset.accept !== want) return;
+      const [id, name] = s.dataset.slot.split(":");
+      drag.slots.push({ el: s, block: findBlock(id), name });
+    });
+  }
+}
+let snapLine = null;
+function onPointerMove(ev) {
+  if (!drag) return;
+  if (!drag.started) { if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 4) return; startDrag(); }
+  const x = ev.clientX - drag.ox, y = ev.clientY - drag.oy;
+  dragLayer.style.transform = "translate(" + x + "px," + y + "px)";
+  const pr = palette.getBoundingClientRect();
+  const overPal = ev.clientX < pr.right && ev.clientX > pr.left && ev.clientY > pr.top && ev.clientY < pr.bottom;
+  palette.classList.toggle("trash", overPal && !drag.fromPalette);
+  drag.target = null;
+  if (snapLine) { snapLine.remove(); snapLine = null; }
+  canvas.querySelectorAll(".slot.hot").forEach(s => s.classList.remove("hot"));
+  if (overPal) return;
+  if (drag.snaps.length) {
+    let best = null, bd = 32;
+    for (const s of drag.snaps) { const dd = Math.hypot(s.x - x, s.y - y); if (dd < bd) { bd = dd; best = s; } }
+    if (best) {
+      drag.target = best;
+      const cr = canvas.getBoundingClientRect();
+      snapLine = el("div", "snap-line");
+      snapLine.style.left = (best.x - cr.left) + "px"; snapLine.style.top = (best.y - cr.top - 2) + "px";
+      canvas.appendChild(snapLine);
+    }
+  } else if (drag.slots.length) {
+    let best = null, ba = Infinity;
+    for (const s of drag.slots) {
+      const r = s.el.getBoundingClientRect();
+      if (ev.clientX >= r.left - 6 && ev.clientX <= r.right + 6 && ev.clientY >= r.top - 6 && ev.clientY <= r.bottom + 6) {
+        const area = r.width * r.height; if (area < ba) { ba = area; best = s; }
+      }
+    }
+    if (best) { drag.target = best; best.el.classList.add("hot"); }
+  }
+}
+function onPointerUp(ev) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  palette.classList.remove("trash");
+  if (snapLine) { snapLine.remove(); snapLine = null; }
+  if (!d.started) {
+    if (d.fromPalette) clickAdd(d.proto);
+    else { const b = findBlock(d.id); const top = b && topOf(b); if (top && top !== selectedTop) { selectedTop = top; render(); } }
+    return;
+  }
+  dragLayer.innerHTML = "";
+  const b = d.block;
+  const pr = palette.getBoundingClientRect();
+  const overPal = ev.clientX < pr.right && ev.clientX > pr.left && ev.clientY > pr.top && ev.clientY < pr.bottom;
+  if (overPal) { if (d.moveItem && selectedTop === d.moveItem) selectedTop = null; render(); return; }
+  const t = d.target;
+  if (t && t.kind === "after") { const tail = lastOf(b); tail.next = t.block.next; t.block.next = b; }
+  else if (t && t.kind === "branch") { const tail = lastOf(b); tail.next = t.block.branches[t.name]; t.block.branches[t.name] = b; }
+  else if (t && t.block && t.name && !t.kind) {
+    const old = t.block.inputs[t.name];
+    t.block.inputs[t.name] = b;
+    if (old) { const cr = canvas.getBoundingClientRect(); items.push({ b: old, x: ev.clientX - cr.left + 30, y: ev.clientY - cr.top + 30 }); }
+  } else {
+    const cr = canvas.getBoundingClientRect();
+    const it = d.moveItem || { b };
+    it.x = Math.max(0, ev.clientX - d.ox - cr.left); it.y = Math.max(0, ev.clientY - d.oy - cr.top);
+    items.push(it);
+    if (isHat(b) || d.moveItem) selectedTop = it;
+  }
+  render();
+  flash(b.id);
+}
+document.addEventListener("pointerdown", onPointerDown);
+document.addEventListener("pointermove", onPointerMove);
+document.addEventListener("pointerup", onPointerUp);
+
+/* =====================================================================
+   Compiler: blocks -> GoblinScript text + today's ability records.
+   Text stays the stored format; blocks are a view over it.
+   ===================================================================== */
+let blockIssues = {};
+let compiled = [];
+function issue(b, level, msg) { (blockIssues[b.id] = blockIssues[b.id] || []).push({ level, msg }); }
+
+function q(s) { return '"' + String(s).replace(/"/g, "") + '"'; }
+function roleRef(role) { return role === "Self" ? "" : role.replace(/\s+/g, "") + "."; }
+function ident(s) { return s.replace(/\s+/g, ""); }
+
+/* Each expression compiles to {s: text, p: precedence, prose}. Precedence follows the
+   GoblinScript guide: + - (2) < when (3) < and/or (4) < compare (5) < * / (6) < is/has (7) < atom (10). */
+function cx(b, ctx, slotLit) {
+  if (!b) return slotLit;
+  const f = b.fields, d = DEFS[b.type];
+  const kid = (name, minP) => {
+    const c = b.inputs[name];
+    const r = c ? cx(c, ctx) : (d.parts.find(p => p.i === name).t === "bool"
+      ? (issue(b, "err", "An empty true/false slot needs a test block."), { s: "false", p: 10, prose: "(missing test)" })
+      : litNum(b, name));
+    return r.p < minP ? { s: "(" + r.s + ")", p: 10, prose: r.prose } : r;
+  };
+  const checkRole = role => { if (!ctx.roles.includes(role)) issue(b, "err", role + " is not available in this script's trigger."); };
+  switch (b.type) {
+    case "num": return { s: String(Number(f.v) || 0), p: 10, prose: String(Number(f.v) || 0) };
+    case "dice": return { s: (f.n || 1) + "d" + (f.s || 6), p: 10, prose: (f.n || 1) + "d" + (f.s || 6) };
+    case "prop": checkRole(f.role); return { s: roleRef(f.role) + ident(f.field), p: 10, prose: (f.role === "Self" ? "your " : ROLE_PROSE[f.role] + "'s ") + f.field };
+    case "tval": if (!ctx.numbers.includes(f.name)) issue(b, "err", f.name + " is not a value of this trigger."); return { s: ident(f.name), p: 10, prose: "the " + f.name.toLowerCase() };
+    case "distance": checkRole(f.role); return { s: "Distance(" + ident(f.role) + ")", p: 10, prose: "the distance to " + ROLE_PROSE[f.role] };
+    case "arith": { const lp = f.op === "*" || f.op === "/" ? 6 : 2; const a = kid("a", lp), c = kid("b", lp + 1);
+      return { s: a.s + " " + f.op + " " + c.s, p: lp, prose: a.prose + " " + ({ "+": "plus", "-": "minus", "*": "times", "/": "divided by" })[f.op] + " " + c.prose }; }
+    case "whenElse": { const a = kid("a", 4), c = kid("cond", 4), e = kid("b", 4);
+      return { s: a.s + " when " + c.s + " else " + e.s, p: 3, prose: a.prose + " if " + c.prose + ", otherwise " + e.prose }; }
+    case "compare": { const a = kid("a", 6), c = kid("b", 6);
+      const words = { ">=": "is at least", "<=": "is at most", ">": "is more than", "<": "is less than", "=": "is", "~=": "is not" };
+      return { s: a.s + " " + f.op + " " + c.s, p: 5, prose: a.prose + " " + words[f.op] + " " + c.prose }; }
+    case "and": case "or": { const a = kid("a", 4), c = kid("b", 5);
+      return { s: a.s + " " + b.type + " " + c.s, p: 4, prose: a.prose + " " + b.type + " " + c.prose }; }
+    case "not": { const a = kid("a", 7); return { s: "not " + a.s, p: 7, prose: "not (" + a.prose + ")" }; }
+    case "hasCond": checkRole(f.role); return { s: roleRef(f.role) + "Conditions has " + q(f.cond), p: 7, prose: (f.role === "Self" ? "you are " : ROLE_PROSE[f.role] + " is ") + f.cond.toLowerCase() };
+    case "tflag": if (!ctx.flags.includes(f.name)) issue(b, "err", f.name + " is not a flag of this trigger."); return { s: ident(f.name), p: 10, prose: f.name === "Has Attacker" ? "there is an attacker" : f.name.toLowerCase() };
+    case "ttext": if (!(f.name in ctx.texts)) issue(b, "err", f.name + " is not a value of this trigger."); return { s: ident(f.name) + " is " + q(f.val), p: 7, prose: "the " + f.name.toLowerCase() + " is " + f.val };
+    case "keyword": if (!ctx.keywords) issue(b, "err", "Only the Use an Ability trigger has a used ability."); return { s: "UsedAbility.Keywords has " + q(f.kw), p: 7, prose: "the ability used has the " + f.kw + " keyword" };
+    case "potency": { issue(b, "warn", "Potency checks only have meaning inside a power-roll tier."); const ch = POTENCY_CHAR.find(c => c[0] === f.ch)[1]; const t = ["weak","average","strong"][+f.tier];
+      return { s: "Target." + ch + " < Potency" + ["Weak","Average","Strong"][+f.tier], p: 5, prose: "the target's " + ch + " is below your " + t + " potency", potency: f.ch + "<" + f.tier }; }
+    case "raw": case "rawNum": { issue(b, "warn", "Raw formula: shown as text, not checked against this script's symbols."); return { s: f.src, p: rawPrec(f.src), prose: "“" + f.src + "”" }; }
+  }
+  issue(b, "err", "This block cannot be used as a value."); return { s: "0", p: 10, prose: "?" };
+}
+function litNum(b, name) {
+  const v = b.fields["_lit_" + name] ?? "0";
+  const t = String(v).trim();
+  return { s: t === "" ? "0" : t, p: /^[\d.]+$/.test(t) ? 10 : 0, prose: t };
+}
+
+/* Stack compile. Ifs become filterTarget on the behaviours inside them, AND-ed together.
+   The one case that becomes the trigger's own conditionFormula: a trigger script whose only
+   block under the hat is a single if (no else). */
+function compileStack(first, ctx, filters, out, proseOut) {
+  for (let b = first; b; b = b.next) {
+    const d = DEFS[b.type], f = b.fields;
+    const ft = filters.map(x => x.s).join(" and ");
+    const fprose = filters.length ? " if " + filters.map(x => x.prose).join(" and ") : "";
+    const base = ft ? { filterTarget: ft } : {};
+    switch (b.type) {
+      case "ifThen": case "ifElse": {
+        const c = b.inputs.cond ? cx(b.inputs.cond, ctx) : (issue(b, "err", "This if has no test."), { s: "false", p: 10, prose: "(missing test)" });
+        const cw = c.p < 5 ? { s: "(" + c.s + ")", prose: c.prose } : c;
+        compileStack(b.branches.then, ctx, filters.concat([cw]), out, proseOut);
+        if (b.type === "ifElse") compileStack(b.branches.else, ctx, filters.concat([{ s: "not (" + c.s + ")", prose: "not (" + c.prose + ")" }]), out, proseOut);
+        if (!b.branches.then) issue(b, "warn", "Nothing happens inside this if.");
+        break;
+      }
+      case "repeat": issue(b, "ext", "Repeat has no equivalent in today's ability data. Needs a runtime extension (Phase 4)."); compileStack(b.branches.body, ctx, filters, out, proseOut); break;
+      case "setVar": issue(b, "ext", "Abilities cannot store values between steps today (AbilityMemory is the closest). Needs a runtime extension."); break;
+      case "powerRoll": {
+        const tiers = [], tp = [];
+        for (const t of ["t1", "t2", "t3"]) { const r = compileTier(b.branches[t], ctx); tiers.push(r.s); tp.push(r.prose); }
+        out.push(Object.assign({ __typeName: "ActivatedAbilityPowerRollBehavior", roll: "2d10 + " + f.char, tiers }, base));
+        proseOut.push("make a <b>power roll</b> + " + f.char + fprose + ": " + ["11 or lower", "12-16", "17+"].map((n, i) => "<b>" + n + "</b> " + (tp[i] || "nothing")).join("; "));
+        break;
+      }
+      case "damage": { const a = b.inputs.amount ? cx(b.inputs.amount, ctx) : litNum(b, "amount");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityDamageBehavior", roll: a.s, damageType: f.dtype }, base));
+        proseOut.push("deal " + a.prose + " " + (f.dtype === "untyped" ? "" : f.dtype + " ") + "damage" + fprose); break; }
+      case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: f.cond.toLowerCase() + " (" + f.dur + ")" }, base));
+        proseOut.push("the target is " + f.cond.toLowerCase() + " (" + f.dur + ")" + fprose); break;
+      case "forced": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: f.kind + " " + (f.n || 1) }, base));
+        proseOut.push(f.kind + " the target " + (f.n || 1) + fprose); break;
+      case "heal": { const a = b.inputs.amount ? cx(b.inputs.amount, ctx) : litNum(b, "amount");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base)); proseOut.push("the target regains " + a.prose + " Stamina" + fprose); break; }
+      case "floatText": out.push(Object.assign({ __typeName: "ActivatedAbilityFloatTextBehavior", text: f.text }, base)); proseOut.push("show “" + f.text + "”" + fprose); break;
+      case "invoke": out.push(Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "named", namedAbility: f.ability }, base)); proseOut.push("use <b>" + f.ability + "</b>" + fprose); break;
+      default: issue(b, "err", "This block does not belong in a script stack.");
+    }
+  }
+}
+/* Tier strings are the DrawSteelCommand mini-language: "9 damage; slowed (save ends)".
+   An if inside a tier is only expressible when its test is a single potency check ("M<1 ..."). */
+function compileTier(first, ctx, prefix) {
+  const parts = [], prose = [];
+  for (let b = first; b; b = b.next) {
+    const f = b.fields, pre = prefix ? prefix + " " : "";
+    switch (b.type) {
+      case "damage": { const a = b.inputs.amount ? cx(b.inputs.amount, ctx) : litNum(b, "amount");
+        parts.push(pre + a.s + " " + (f.dtype === "untyped" ? "" : f.dtype + " ") + "damage"); prose.push(a.prose + " " + (f.dtype === "untyped" ? "" : f.dtype + " ") + "damage"); break; }
+      case "condition": parts.push(pre + f.cond.toLowerCase() + " (" + f.dur + ")"); prose.push(f.cond.toLowerCase() + " (" + f.dur + ")"); break;
+      case "forced": parts.push(pre + f.kind + " " + (f.n || 1)); prose.push(f.kind + " " + (f.n || 1)); break;
+      case "ifThen": {
+        const c = b.inputs.cond;
+        if (c && c.type === "potency" && !prefix) {
+          const r = compileTier(b.branches.then, ctx, c.fields.ch + "<" + c.fields.tier);
+          if (r.s) parts.push(r.s);
+          const pc = POTENCY_CHAR.find(x => x[0] === c.fields.ch)[1];
+          if (r.prose) prose.push("if the target's " + pc + " is below " + ["weak","average","strong"][+c.fields.tier] + " potency, " + r.prose);
+        } else issue(b, "ext", "Inside a power-roll tier, an if can only test potency (e.g. M < average). General tests here need the tier text format extended.");
+        break;
+      }
+      default: issue(b, "ext", DEFS[b.type].label + " cannot go inside a power-roll tier yet. Today's tier text only carries damage, conditions, forced movement and potency.");
+    }
+  }
+  return { s: parts.join("; "), prose: prose.join(", ") };
+}
+
+function compileItem(it) {
+  const ctx = ctxFor(isHat(it.b) ? it : null);
+  const hat = it.b;
+  const behaviors = [], prose = [];
+  let rec, sentence;
+  if (hat.type === "whenUsed") {
+    compileStack(hat.next, ctx, [], behaviors, prose);
+    const kw = {}; String(hat.fields.keywords || "").split(",").map(s => s.trim()).filter(Boolean).forEach(k => kw[k] = true);
+    rec = { __typeName: "ActivatedAbility", name: hat.fields.name, actionResourceId: "<" + hat.fields.action + ">", targetType: hat.fields.targets === "Self" ? "self" : /Burst/.test(hat.fields.targets) ? "all" : "target", numTargets: (hat.fields.targets.match(/^\d/) || ["1"])[0], range: String(hat.fields.range), keywords: kw, behaviors };
+    sentence = "<b>" + esc(hat.fields.name) + "</b> (" + esc(hat.fields.action) + ", " + esc(hat.fields.targets) + ", range " + esc(hat.fields.range) + "): ";
+  } else if (hat.type === "whenTrigger") {
+    let cond = "", condProse = "";
+    const first = hat.next;
+    let body = first;
+    if (first && first.type === "ifThen" && !first.next && first.inputs.cond) {
+      const c = cx(first.inputs.cond, ctx); cond = c.s; condProse = c.prose; body = first.branches.then;
+    }
+    compileStack(body, ctx, [], behaviors, prose);
+    rec = { __typeName: "TriggeredAbility", name: hat.fields.name, trigger: hat.fields.trigger, targetType: hat.fields.target, conditionFormula: cond, behaviors };
+    const tgt = TRIGGER_TARGETS.find(t => t[0] === hat.fields.target)[1];
+    sentence = "<b>" + esc(hat.fields.name) + "</b>: when you <b>" + TRIGGERS[hat.fields.trigger].text.toLowerCase() + "</b>" + (condProse ? ", if " + esc(condProse) : "") + ", targeting " + tgt.toLowerCase() + ": ";
+  } else {
+    issue(hat, "warn", "This script has no When block at the top, so it never runs.");
+    return null;
+  }
+  if (!behaviors.length) issue(hat, "warn", "Nothing happens yet. Add actions below this block.");
+  return { rec, prose: sentence + (prose.length ? joinProse(prose) + "." : "<i>nothing yet</i>.") };
+}
+function joinProse(a) { return a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + ", then " + a[a.length - 1]; }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]); }
+
+function compileAll() {
+  blockIssues = {};
+  compiled = [];
+  for (const it of items) { const r = compileItem(it); if (r) compiled.push(r); }
+}
+let compileTimer = null;
+function scheduleCompile() { clearTimeout(compileTimer); compileTimer = setTimeout(() => { compileAll(); renderOutput(); refreshBadges(); }, 120); }
+function refreshBadges() {
+  canvas.querySelectorAll(".badge").forEach(b => b.remove());
+  canvas.querySelectorAll(".flagged").forEach(b => b.classList.remove("flagged"));
+  for (const id in blockIssues) {
+    const e = canvas.querySelector('[data-id="' + id + '"]'); if (!e) continue;
+    const iss = blockIssues[id];
+    const worst = iss.some(i => i.level === "err") ? "err" : iss.some(i => i.level === "ext") ? "ext" : "warn";
+    const bd = el("span", "badge" + (worst === "err" ? "" : " " + worst), worst === "ext" ? "+" : "!");
+    bd.title = iss.map(i => i.msg).join("\n"); e.appendChild(bd);
+    if (worst === "err") e.classList.add("flagged");
+  }
+}
+
+/* =====================================================================
+   Output panes
+   ===================================================================== */
+function allIssues() {
+  const list = [];
+  for (const id in blockIssues) for (const i of blockIssues[id]) {
+    const b = findBlock(id); list.push(Object.assign({ label: b ? DEFS[b.type].label : "?" }, i));
+  }
+  return list;
+}
+function renderOutput() {
+  const iss = allIssues();
+  const errs = iss.filter(i => i.level === "err").length, exts = iss.filter(i => i.level === "ext").length;
+  let status;
+  if (errs) status = '<div class="status err"><span class="dot"></span><div><b>' + errs + ' problem' + (errs > 1 ? 's' : '') + '</b> to fix before this can be saved.</div></div>';
+  else if (exts) status = '<div class="status warn"><span class="dot"></span><div><b>Needs engine extension.</b> ' + exts + ' block' + (exts > 1 ? 's use' : ' uses') + ' something today\'s ability data cannot store. Saved data below drops those parts.</div></div>';
+  else status = '<div class="status ok"><span class="dot"></span><div><b>Fits today\'s data.</b> Everything here saves as ordinary ability records; no engine change needed.</div></div>';
+  const issHtml = iss.length ? '<h4>Notes</h4><ul class="issues">' + iss.map(i => '<li class="' + i.level + '"><span class="tag">' + (i.level === "ext" ? "extension" : i.level === "err" ? "problem" : "note") + '</span><b>' + esc(i.label) + ':</b> ' + esc(i.msg) + '</li>').join("") + '</ul>' : "";
+  document.getElementById("pane-reads").innerHTML = status +
+    (compiled.length ? compiled.map(c => '<div class="prose">' + c.prose + '</div>').join("") : '<p class="note">Add a <b>When</b> block from Events to start a script.</p>') + issHtml +
+    '<h4>How to read the canvas</h4><p class="note">Shape tells you the type: notched blocks are steps, round blocks are numbers, pointed blocks are true/false tests. A round block only fits a round hole. Red <b>!</b> marks a problem, amber <b>!</b> a note, purple <b>+</b> a block that needs an engine extension.</p>';
+  document.getElementById("pane-data").innerHTML = status +
+    '<p class="note">This is what would be saved: the same records the current editors and YAML importers already use. The blocks are a view over this data, so nothing has to be migrated.</p>' +
+    (compiled.length ? compiled.map(c => '<pre class="code">' + esc(JSON.stringify(c.rec, null, 2)) + '</pre>').join("") : "");
+}
+document.querySelectorAll(".tabs button").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
+  ["reads", "data", "lab"].forEach(t => document.getElementById("pane-" + t).hidden = t !== btn.dataset.tab);
+}));
+
+/* =====================================================================
+   GoblinScript parser: text -> blocks (Formula lab). Follows the precedence
+   table in GoblinScript_Guide.md. Unknown shapes fall back to raw blocks.
+   ===================================================================== */
+const KW = new Set(["and", "or", "not", "has", "is", "when", "else", "where"]);
+function tokenize(src) {
+  const toks = []; let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (/\s/.test(c)) { i++; continue; }
+    let m;
+    const rest = src.slice(i);
+    if ((m = rest.match(/^\d+d\d+/i))) { toks.push({ t: "dice", v: m[0] }); i += m[0].length; continue; }
+    if ((m = rest.match(/^\d+(\.\d+)?/))) { toks.push({ t: "num", v: m[0] }); i += m[0].length; continue; }
+    if (c === '"') { const j = src.indexOf('"', i + 1); if (j < 0) throw new Error("Unclosed quote"); toks.push({ t: "str", v: src.slice(i + 1, j) }); i = j + 1; continue; }
+    if ((m = rest.match(/^(>=|<=|~=|!=|<>|[=<>+\-*/(),.])/))) { toks.push({ t: "op", v: m[0] === "!=" || m[0] === "<>" ? "~=" : m[0] }); i += m[0].length; continue; }
+    if ((m = rest.match(/^[A-Za-z_][A-Za-z0-9_]*/))) {
+      const w = m[0], lw = w.toLowerCase();
+      if (KW.has(lw)) toks.push({ t: "kw", v: lw });
+      else { const prev = toks[toks.length - 1]; if (prev && prev.t === "id") prev.v += " " + w; else toks.push({ t: "id", v: w }); }
+      i += w.length; continue;
+    }
+    throw new Error("Unexpected character '" + c + "'");
+  }
+  return toks;
+}
+function parseGS(src) {
+  const toks = tokenize(src); let pos = 0;
+  const peek = () => toks[pos], take = () => toks[pos++];
+  const isOp = v => peek() && peek().t === "op" && peek().v === v;
+  const isKw = v => peek() && peek().t === "kw" && peek().v === v;
+  function add() { let l = whenE(); while (isOp("+") || isOp("-")) { const op = take().v; l = { k: "bin", op, l, r: whenE() }; } return l; }
+  function whenE() { let v = logic(); if (isKw("when")) { take(); const c = logic(); let e = null; if (isKw("else")) { take(); e = logic(); } v = { k: "when", v, c, e }; } return v; }
+  function logic() { let l = cmp(); while (isKw("and") || isKw("or")) { const op = take().v; l = { k: op, l, r: cmp() }; } return l; }
+  function cmp() { if (isKw("not")) { take(); return { k: "not", a: cmp() }; }
+    let l = mul(); const p = peek(); if (p && p.t === "op" && [">=", "<=", ">", "<", "=", "~="].includes(p.v)) { take(); l = { k: "cmp", op: p.v, l, r: mul() }; } return l; }
+  function mul() { let l = ishas(); while (isOp("*") || isOp("/")) { const op = take().v; l = { k: "bin", op, l, r: ishas() }; } return l; }
+  function ishas() { let l = unary(); if (isKw("has") || isKw("is")) { const op = take().v; let neg = false; if (isKw("not")) { take(); neg = true; } l = { k: op, neg, l, r: unary() }; } return l; }
+  function unary() { if (isOp("-")) { take(); return { k: "bin", op: "-", l: { k: "num", v: "0" }, r: unary() }; } return primary(); }
+  function primary() {
+    const t = take(); if (!t) throw new Error("Formula ends early");
+    if (t.t === "num") return { k: "num", v: t.v };
+    if (t.t === "dice") return { k: "dice", v: t.v };
+    if (t.t === "str") return { k: "str", v: t.v };
+    if (t.t === "op" && t.v === "(") { const e = add(); if (!isOp(")")) throw new Error("Missing )"); take(); return e; }
+    if (t.t === "id") {
+      const path = [t.v];
+      while (isOp(".")) { take(); const n = take(); if (!n || n.t !== "id") throw new Error("Expected a name after ."); path.push(n.v); }
+      if (isOp("(")) { take(); const args = []; if (!isOp(")")) { args.push(add()); while (isOp(",")) { take(); args.push(add()); } } if (!isOp(")")) throw new Error("Missing ) after arguments"); take(); return { k: "call", path, args }; }
+      return { k: "id", path };
+    }
+    throw new Error("Unexpected '" + t.v + "'");
+  }
+  const e = add();
+  if (pos < toks.length) throw new Error("Unexpected '" + toks[pos].v + "' after the end of the formula");
+  return e;
+}
+/* AST -> blocks. Returns {block, exact}: exact=false means part of it became a raw block. */
+const ROLE_BY_IDENT = { self: "Self", target: "Target", attacker: "Attacker", movingcreature: "Moving Creature", caster: "Self" };
+const norm = s => s.replace(/\s+/g, "").toLowerCase();
+function astToBlock(n, wantBool, src) {
+  let exact = true;
+  const raw = () => { exact = false; return mk(wantBool ? "raw" : "rawNum", { src: printAst(n) }); };
+  const sub = (x, wb) => { const r = astToBlock(x, wb); if (!r.exact) exact = false; return r.block; };
+  const numLit = x => x.k === "num";
+  let b;
+  switch (n.k) {
+    case "num": b = wantBool ? raw() : mk("num", { v: n.v }); break;
+    case "dice": { const [a, c] = n.v.toLowerCase().split("d"); b = mk("dice", { n: a, s: c }); break; }
+    case "id": {
+      const full = norm(n.path.join(""));
+      if (n.path.length === 2 && ROLE_BY_IDENT[norm(n.path[0])] && FIELDS.some(f => norm(f) === norm(n.path[1]))) {
+        b = mk("prop", { role: ROLE_BY_IDENT[norm(n.path[0])], field: FIELDS.find(f => norm(f) === norm(n.path[1])) });
+      } else if (n.path.length === 1 && FIELDS.some(f => norm(f) === full) && !wantBool) {
+        b = mk("prop", { role: "Self", field: FIELDS.find(f => norm(f) === full) });
+      } else if (n.path.length === 1 && ["hasattacker"].includes(full)) b = mk("tflag", { name: "Has Attacker" });
+      else if (n.path.length === 1 && ["damage", "order"].includes(full) && !wantBool) b = mk("tval", { name: full === "damage" ? "Damage" : "Order" });
+      else b = raw();
+      break;
+    }
+    case "call": {
+      if (norm(n.path.join("")) === "distance" && n.args.length === 1 && n.args[0].k === "id" && ROLE_BY_IDENT[norm(n.args[0].path.join(""))]) b = mk("distance", { role: ROLE_BY_IDENT[norm(n.args[0].path.join(""))] });
+      else b = raw();
+      break;
+    }
+    case "bin": {
+      if (wantBool) { b = raw(); break; }
+      const fields = { op: n.op }, inputs = {};
+      for (const [side, key] of [[n.l, "a"], [n.r, "b"]]) { if (numLit(side)) fields["_lit_" + key] = side.v; else inputs[key] = sub(side, false); }
+      b = mk("arith", fields, inputs); break;
+    }
+    case "cmp": {
+      if (!wantBool) { b = raw(); break; }
+      const fields = { op: n.op }, inputs = {};
+      for (const [side, key] of [[n.l, "a"], [n.r, "b"]]) { if (numLit(side)) fields["_lit_" + key] = side.v; else inputs[key] = sub(side, false); }
+      b = mk("compare", fields, inputs); break;
+    }
+    case "and": case "or": b = wantBool ? mk(n.k, {}, { a: sub(n.l, true), b: sub(n.r, true) }) : raw(); break;
+    case "not": b = wantBool ? mk("not", {}, { a: sub(n.a, true) }) : raw(); break;
+    case "has": {
+      const l = n.l;
+      if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path[l.path.length - 1]) === "conditions") {
+        const role = l.path.length === 1 ? "Self" : ROLE_BY_IDENT[norm(l.path[0])];
+        const cond = CONDITIONS.find(c => norm(c) === norm(n.r.v));
+        if (role && cond) { b = mk("hasCond", { role, cond }); break; }
+      }
+      if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path.join("")) === "usedabilitykeywords") {
+        const kw = KEYWORDS.find(k => norm(k) === norm(n.r.v)); if (kw) { b = mk("keyword", { kw }); break; }
+      }
+      b = raw(); break;
+    }
+    case "is": {
+      if (wantBool && !n.neg && n.l.k === "id" && n.l.path.length === 1 && n.r.k === "str") {
+        const nm = Object.keys(TRIGGERS.losehitpoints.texts).concat(Object.keys(TRIGGERS.inflictcondition.texts)).find(k => norm(k) === norm(n.l.path[0]));
+        if (nm) { b = mk("ttext", { name: nm, val: n.r.v }); break; }
+      }
+      b = raw(); break;
+    }
+    case "when": {
+      if (wantBool) { b = raw(); break; }
+      const fields = {}, inputs = { cond: sub(n.c, true) };
+      if (numLit(n.v)) fields._lit_a = n.v.v; else inputs.a = sub(n.v, false);
+      if (!n.e) fields._lit_b = "0"; else if (numLit(n.e)) fields._lit_b = n.e.v; else inputs.b = sub(n.e, false);
+      b = mk("whenElse", fields, inputs); break;
+    }
+    default: b = raw();
+  }
+  return { block: b, exact };
+}
+const AST_PREC = { bin: x => (x.op === "*" || x.op === "/") ? 6 : 2, cmp: () => 5, and: () => 4, or: () => 4, not: () => 7, has: () => 7, is: () => 7, when: () => 3 };
+const prec = x => AST_PREC[x.k] ? AST_PREC[x.k](x) : 10;
+// A raw block's text only needs brackets around it if its own top operator binds loosely.
+function rawPrec(src) { try { return prec(parseGS(src)); } catch (e) { return 0; } }
+function printAst(n) {
+  const wrap = (x, minP) => prec(x) < minP ? "(" + printAst(x) + ")" : printAst(x);
+  switch (n.k) {
+    case "num": case "dice": return n.v;
+    case "str": return '"' + n.v + '"';
+    case "id": return n.path.map(ident).join(".");
+    case "call": return n.path.map(ident).join(".") + "(" + n.args.map(printAst).join(", ") + ")";
+    case "bin": { const p = prec(n); return wrap(n.l, p) + " " + n.op + " " + wrap(n.r, p + 1); }
+    case "cmp": return wrap(n.l, 6) + " " + n.op + " " + wrap(n.r, 6);
+    case "and": case "or": return wrap(n.l, 5) + " " + n.k + " " + wrap(n.r, 5);
+    case "not": return "not " + wrap(n.a, 7);
+    case "has": case "is": return wrap(n.l, 10) + " " + n.k + (n.neg ? " not " : " ") + wrap(n.r, 10);
+    case "when": return wrap(n.v, 4) + " when " + wrap(n.c, 4) + (n.e ? " else " + wrap(n.e, 4) : "");
+  }
+  return "?";
+}
+const LAB_SAMPLES = [
+  "HasAttacker and Damage >= 5 and Distance(Attacker) <= 1",
+  "Has Attacker and Damage >= 5",
+  'Target.Conditions has "Slowed" or Target.Stamina <= Target.Maximum Stamina / 2',
+  "(1d3 + 1) when Level >= 7 else 1d3",
+  'UsedAbility.Keywords has "Strike" and not Friends(Target, Caster)',
+  "Count Nearby Enemies(5) >= 2",
+];
+let labBlock = null;
+function runLab() {
+  const src = document.getElementById("labIn").value;
+  const res = document.getElementById("labResult"), prev = document.getElementById("labPreview");
+  prev.innerHTML = ""; labBlock = null;
+  if (!src.trim()) { res.innerHTML = ""; return; }
+  let ast;
+  try { ast = parseGS(src); }
+  catch (e) { res.innerHTML = "<dt>Parse</dt><dd style='color:var(--err)'>" + esc(e.message) + (/'(has|is|not|and|or|when|else)'/.test(e.message) ? ". A spaced name containing has, is, not, and, or, when or else is read as an operator, as in the engine. Write it without spaces (HasAttacker)." : "") + "</dd><dt>Fallback</dt><dd>one raw formula block</dd>"; labBlock = mk("raw", { src }); prev.appendChild(renderBlock(labBlock, PAL_CTX, false)); return; }
+  const looksBool = ["cmp", "and", "or", "not", "has", "is"].includes(ast.k) || (ast.k === "id" && norm(ast.path.join("")) === "hasattacker");
+  const { block, exact } = astToBlock(ast, looksBool);
+  labBlock = block;
+  blockIssues = {};
+  const back = cx(block, ctxFor(null)).s;
+  const canon = printAst(ast);
+  const same = norm(back) === norm(canon);
+  res.innerHTML =
+    "<dt>Type</dt><dd>" + (looksBool ? "true / false test" : "number") + "</dd>" +
+    "<dt>Coverage</dt><dd style='color:" + (exact ? "var(--ok)" : "var(--warn)") + "'>" + (exact ? "every part became a real block" : "some parts kept as raw formula blocks") + "</dd>" +
+    "<dt>Printed back</dt><dd>" + esc(back) + "</dd>" +
+    "<dt>Round trip</dt><dd style='color:" + (same ? "var(--ok)" : "var(--err)") + "'>" + (same ? "identical meaning" : "differs: " + esc(canon)) + "</dd>";
+  prev.appendChild(renderBlock(block, PAL_CTX, false));
+  compileAll();
+}
+document.getElementById("labIn").addEventListener("input", runLab);
+document.getElementById("labDrop").addEventListener("click", () => {
+  if (!labBlock) return;
+  const t = selectedTop || items[0];
+  const want = SHAPE_TYPE[DEFS[labBlock.type].shape];
+  const slot = t && firstEmptySlot(t.b, want);
+  if (slot) slot.block.inputs[slot.name] = labBlock;
+  else items.push({ b: labBlock, x: 520, y: 60 + items.length * 40 });
+  const id = labBlock.id;
+  labBlock = null; runLab(); render(); flash(id);
+});
+LAB_SAMPLES.forEach(s => { const btn = el("button", "btn", s.length > 34 ? s.slice(0, 32) + "..." : s); btn.title = s; btn.addEventListener("click", () => { document.getElementById("labIn").value = s; runLab(); }); document.getElementById("labSamples").appendChild(btn); });
+
+/* =====================================================================
+   Examples
+   ===================================================================== */
+const EXAMPLES = {
+  gouge: () => {
+    const roll = mk("powerRoll", { char: "Might" }, null, {
+      t1: mk("damage", { _lit_amount: "3" }),
+      t2: mk("damage", { _lit_amount: "6" }),
+      t3: chain(mk("damage", { _lit_amount: "9" }), mk("ifThen", {}, { cond: mk("potency", { ch: "M", tier: "2" }) }, { then: mk("condition", { cond: "Bleeding", dur: "save ends" }) })),
+    });
+    const bonus = mk("ifThen", {}, { cond: mk("hasCond", { role: "Target", cond: "Prone" }) }, { then: mk("damage", { _lit_amount: "2" }) });
+    return [{ b: chain(mk("whenUsed", { name: "Gouge", action: "Main action", targets: "1 creature", range: "1", keywords: "Melee, Strike, Weapon" }), roll, bonus), x: 40, y: 30 }];
+  },
+  retaliate: () => {
+    const cond = mk("and", {}, {
+      a: mk("and", {}, { a: mk("tflag", { name: "Has Attacker" }), b: mk("compare", { op: ">=", _lit_b: "5" }, { a: mk("tval", { name: "Damage" }) }) }),
+      b: mk("compare", { op: "<=", _lit_b: "1" }, { a: mk("distance", { role: "Attacker" }) }),
+    });
+    const body = chain(mk("floatText", { text: "Retaliate!" }), mk("damage", { dtype: "untyped" }, { amount: mk("prop", { role: "Self", field: "Might" }) }));
+    return [{ b: chain(mk("whenTrigger", { name: "Retaliate", trigger: "losehitpoints", target: "attacker" }), mk("ifThen", {}, { cond }, { then: body })), x: 40, y: 30 }];
+  },
+  tooFar: () => {
+    const rep = mk("repeat", { _lit_n: "2" }, null, { body: chain(mk("forced", { kind: "slide", n: "1" }), mk("floatText", { text: "Step" })) });
+    const roll = mk("powerRoll", { char: "Agility" }, null, { t1: mk("damage", { _lit_amount: "2" }), t2: mk("damage", { _lit_amount: "4" }), t3: chain(mk("damage", { _lit_amount: "6" }), mk("heal", { _lit_amount: "3" })) });
+    return [{ b: chain(mk("whenUsed", { name: "Shadow Step", action: "Maneuver", targets: "Self", range: "0", keywords: "Magic" }), rep, roll), x: 40, y: 30 }];
+  },
+  empty: () => [],
+};
+function loadExample(k) { items = EXAMPLES[k](); selectedTop = items[0] || null; render(); }
+document.getElementById("exampleSel").addEventListener("change", e => loadExample(e.target.value));
+// Stack scripts vertically using their rendered heights.
+document.getElementById("tidyBtn").addEventListener("click", () => {
+  const heights = [...canvas.querySelectorAll(".top-item")].map(e => e.offsetHeight);
+  let y = 30;
+  items.forEach((it, i) => { it.x = 40; it.y = y; y += (heights[i] || 60) + 30; });
+  render();
+});
+
+renderPalette();
+loadExample("gouge");
+runLab();
+</script>

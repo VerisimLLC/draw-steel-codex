@@ -9687,7 +9687,7 @@ local function BuildSummons(bus, Row)
         view = Summons.View(token, entry, true)
         local now = view
         local custom = saved[entry.key] ~= nil
-        chooseHint.text = string.format("The picture for %s's token.", entry.name)
+        chooseHint.text = string.format("The name and picture for %s's token.", entry.name)
         --Suggested: its stat block's picture, then recent ones.
         local shown = {}
         local seen = {}
@@ -9803,8 +9803,10 @@ local function BuildSummons(bus, Row)
         if key == g_summon.key then
             return
         end
-        --save a name being typed, and free the field to show the next summon's.
+        --save a name being typed now (the field's own leave event can come a frame
+        --late), then free the field to show the next summon's.
         if nameField.hasInputFocus then
+            nameField:FireEvent("defocus")
             gui.SetFocus(nil)
         end
         CommitPending()
@@ -10469,11 +10471,14 @@ local function BuildSummons(bus, Row)
             height = "auto",
             flow = "vertical",
             FieldName("Name"),
+            --a name is short, so the field stops well short of a wide plate's edge.
             gui.Panel{
                 width = "100%",
+                maxWidth = 280,
                 height = 30,
                 tmargin = 4,
                 bmargin = 12,
+                halign = "left",
                 nameField,
             },
             gui.Panel{
@@ -10569,7 +10574,7 @@ local function BuildSummons(bus, Row)
         Row(FitParts.Hold(fitStep), fitStep, FitParts.Hold(mapStep), mapStep, true),
     }, {
         name = "appearance summons",
-        --holds the keyboard while the Name field is typed into.
+        --while the Name field is typed into, keys go to it, not to the sheet's shortcuts.
         holdsKeyboard = function(panel)
             return nameField.valid and nameField.hasInputFocus
         end,

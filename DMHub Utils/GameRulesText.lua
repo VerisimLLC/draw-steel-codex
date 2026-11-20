@@ -32,9 +32,16 @@ local text = UIText.Define("GameRulesText")
 text("movement.callout.hold_ctrl_to_teleport", [[Hold Ctrl while moving to teleport.]])
 
 ---Boxed note for a creature that can move vertically right now (flying, climbing at a wall,
----swimming, burrowing). {up} and {down} are the player's own Fly Token Up/Down keys, e.g.
----"Alt + Up". Short: one line.
-text("movement.callout.hold_to_move_vertically", [[Hold {up} or {down} while moving to move vertically.]])
+---swimming, burrowing). {source} is what gives it that ability (Climb, Fly...); {up} and
+---{down} are the player's own Fly Token Up/Down keys with an arrow glyph, e.g. "Alt + [up arrow]".
+---Short: one line.
+text("movement.callout.hold_to_move_vertically", [[{source}: Hold {up} or {down} to change height.]])
+---What gives the creature vertical movement, shown before the colon. One word each.
+text("movement.callout.vertical_source.fly", [[Fly]])
+text("movement.callout.vertical_source.climb", [[Climb]])
+text("movement.callout.vertical_source.swim", [[Swim]])
+text("movement.callout.vertical_source.burrow", [[Burrow]])
+text("movement.callout.vertical_source.cling", [[Cling]])
 
 --Boxed note shown when a player grabs a creature that is locked into a saddle (which drags
 --its mount instead). {lock} is drawn as the padlock icon that sits on the rider's token; keep

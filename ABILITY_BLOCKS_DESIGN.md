@@ -137,6 +137,42 @@ worked `examples` (e.g. `_targetFilterDocs`, `AbilityEditor.lua:3079`). That is 
 schema a block palette needs: the right blocks for each field can be generated from data the
 codebase already maintains, so plan step 2's "symbol schemas" largely exist.
 
+## 4c. Option C prototype: the simplified ability editor
+
+[`ui-mockup/ability-blocks-stack.html`](ui-mockup/ability-blocks-stack.html). One top-to-bottom stack
+in four sections (*What is it*, *Who it targets*, *Can be used when*, *What happens*) beside a live
+Draw Steel ability card.
+
+What it tries out:
+- **Formula slots driven by field descriptions.** Each slot carries a description mirroring the
+  real `documentation` objects (range, number of targets, cost, target filter, requirement,
+  step filter, damage, tier damage, heal). The `fx` button / empty test opens a picker built from
+  it: the field's help text, its own examples, whose stats it can read (e.g. *Your* vs
+  *Target's*), and its extra symbols (`Enemy`, `Target Number`...). Search narrows it.
+- **"Type a formula instead"** in every picker: live parse with plain-English feedback, including
+  the engine's spaced-name trap (`Has Cover`), then converts to blocks.
+- **Existing formulas open as blocks.** *Reaving Cleave* is loaded from stored formula text
+  (`1 + 1 when Level >= 5`, `Enemy and Stamina <= MaximumStamina / 2`, an `or` requirement) and
+  saves back identically. Unknown shapes stay as raw formula blocks with a convert button.
+- **"all of / any of" list blocks** replace nested and/or, so long conditions grow down, not across.
+- **Only storable steps are offered.** Tier menus offer damage, condition, forced movement and
+  potency checks only (what tier text can hold); the main list offers the rest. Invalid structures
+  cannot be built, so the extension warnings of the canvas prototype disappear.
+- **Card as the primary feedback.** Formula-derived text is dotted; hovering shows the
+  GoblinScript. "Show GoblinScript" reveals the text under each slot for authors learning it.
+- **Non-drag paths everywhere.** Steps drag by a grip handle, and the `...` menu offers move
+  up/down, wrap in *Only if* / potency, unwrap, duplicate and delete. Formula blocks can be
+  dragged between slots of the same type, and removed with their x.
+
+Findings:
+- Number slots read best as an inline value box plus `fx`: most fields are a plain number most
+  of the time, and the formula only appears when asked for.
+- Nested controls (x, fx) are shown on hover or keyboard focus only, otherwise deep formulas
+  become noise. This is a hover-gated affordance, with the picker and step menu as the visible path.
+- Stat names in GoblinScript are not card language ("Heroic Resources Available to Spend").
+  The card needs a friendly-name table per symbol; `BEHAVIOUR_PROSE.md` / `TRIGGER_SYMBOL_PROSE.md`
+  already hold much of it.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.

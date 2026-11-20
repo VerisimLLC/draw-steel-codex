@@ -1,0 +1,1077 @@
+<title>Simple Ability Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: editor dialog -- block stack (left, the ability top to bottom) | live ability card (right).
+   Dark only, to match DMHub. Shape = value type (round number, pointed test); category = hue + label. */
+:root {
+  color-scheme: dark;
+  --bg: #121110;
+  --dlg: #1c1a17;
+  --panel: #24211c;
+  --line: #3b352b;
+  --fg: #ede5d5;
+  --dim: #a3998a;
+  --gold: #cca350;
+  --err: #e2685a;
+  --warn: #e0a040;
+  --ok: #7cc28a;
+  --c-head: #8c6a24;
+  --c-roll: #7d4aa3;
+  --c-act: #a33d4b;
+  --c-ctrl: #b36125;
+  --c-num: #3c8656;
+  --c-test: #2c7391;
+  --c-raw: #5b564e;
+  --card-bg: #f3ecdc;
+  --card-fg: #2a2418;
+  --card-rule: #b9a27a;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-card: "Alegreya Sans", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.35 var(--font-ui); }
+.page { padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.dlg { max-width: 1120px; margin: 0 auto; background: var(--dlg); border: 1px solid var(--line); border-radius: 6px; }
+.dlg-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.dlg-head h1 { font: 600 15px var(--font-head); margin: 0; letter-spacing: .02em; }
+.dlg-head .spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { background: none; border: none; padding: 5px 10px; cursor: pointer; color: var(--dim); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--gold); }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--gold); }
+.btn.link { background: none; border: none; color: var(--dim); text-decoration: underline; padding: 4px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
+.dlg-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
+@media (max-width: 860px) { .dlg-body { grid-template-columns: 1fr; } .side { border-left: none !important; border-top: 1px solid var(--line); } }
+.main { padding: 16px; min-width: 0; overflow-x: auto; }
+.side { border-left: 1px solid var(--line); padding: 16px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------- stack ---------- */
+.stack { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.step { position: relative; color: #fff; --c: var(--c-raw); }
+.step > .bar, .step > .mouth > .spine, .step > .foot, .step > .mid { background: var(--c); }
+.step > .bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 8px 7px 4px; border-radius: 4px; border: 1px solid rgba(0,0,0,.35); min-height: 36px; }
+.step.c > .bar { border-radius: 4px 4px 0 4px; }
+.step + .step, .step + .addrow { margin-top: 3px; }
+.step > .mid { padding: 4px 10px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; border-left: 1px solid rgba(0,0,0,.35); border-right: 1px solid rgba(0,0,0,.35); display: flex; gap: 8px; align-items: baseline; }
+.step > .mid .range { font-family: var(--font-mono); font-weight: 400; opacity: .85; }
+.step > .mouth { display: flex; }
+.step > .mouth > .spine { width: 16px; flex: none; border-left: 1px solid rgba(0,0,0,.35); }
+.step > .mouth > .inner { flex: 1; min-width: 0; padding: 4px 0 4px 6px; background: color-mix(in srgb, var(--c) 10%, transparent); }
+.step > .foot { height: 12px; width: 70px; border-radius: 0 0 4px 4px; border: 1px solid rgba(0,0,0,.35); border-top: none; }
+.cat-head { --c: var(--c-head); }
+.cat-roll { --c: var(--c-roll); }
+.cat-act { --c: var(--c-act); }
+.cat-ctrl { --c: var(--c-ctrl); }
+.handle { cursor: grab; width: 18px; align-self: stretch; display: grid; place-items: center; opacity: .7; touch-action: none; user-select: none; flex: none; }
+.handle:hover { opacity: 1; }
+.handle svg { width: 10px; height: 14px; fill: currentColor; }
+.menu-btn { margin-left: auto; background: rgba(0,0,0,.18); border: none; border-radius: 3px; width: 24px; height: 22px; cursor: pointer; color: #fff; line-height: 1; }
+.menu-btn:hover { background: rgba(0,0,0,.35); }
+.lbl { white-space: nowrap; }
+.tag { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; opacity: .8; margin-right: 2px; }
+.drop-line { height: 4px; background: #fff; border-radius: 2px; box-shadow: 0 0 6px #fff; margin: 2px 0; }
+.step.ghost { opacity: .35; }
+
+.addrow { display: flex; }
+.add-btn { background: none; border: 1px dashed var(--line); color: var(--dim); border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+.add-btn:hover { border-color: var(--gold); color: var(--gold); }
+.inner .add-btn { border-color: rgba(255,255,255,.25); }
+
+.section-title { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 18px 0 6px; display: flex; align-items: center; gap: 8px; }
+.section-title:first-child { margin-top: 0; }
+.section-title .hint { text-transform: none; letter-spacing: 0; font: 400 12px var(--font-ui); color: var(--dim); opacity: .8; }
+
+/* inline fields on blocks */
+.f { background: rgba(255,255,255,.93); color: #1b1712; border: none; border-radius: 4px; height: 22px; padding: 0 6px; font-size: 12.5px; field-sizing: content; min-width: 30px; }
+input.f { border-radius: 999px; padding: 0 9px; }
+input.f.num { min-width: 34px; text-align: center; }
+input.f.name { min-width: 120px; font-weight: 600; }
+
+/* ---------- formula holders ---------- */
+.holder { display: inline-flex; align-items: center; gap: 3px; position: relative; max-width: 100%; }
+.holder.hot > * { outline: 2px solid #fff; outline-offset: 2px; }
+.fx { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.35); color: #fff; border-radius: 999px; height: 22px; padding: 0 7px; cursor: pointer; font: italic 600 12px Georgia, serif; }
+.fx:hover { background: rgba(0,0,0,.4); }
+.empty-test { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 16px; cursor: pointer; color: #fff; background: rgba(0,0,0,.25); border: none; font-size: 12px; clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); }
+.empty-test:hover { background: rgba(0,0,0,.45); }
+.empty-test.required { background: color-mix(in srgb, var(--err) 55%, rgba(0,0,0,.3)); }
+.gs-line { display: block; font: 11px var(--font-mono); font-variant-ligatures: none; color: #fff; opacity: .78; padding: 3px 0 0 22px; word-break: break-word; }
+.show-gs-off .gs-line { display: none; }
+
+.x { --c: var(--c-num); position: relative; display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; color: #fff; background: var(--c); border: 1px solid rgba(0,0,0,.35); min-height: 24px; padding: 2px 8px; max-width: 100%; }
+.x.num { border-radius: 999px; }
+.x.test { --c: var(--c-test); border: none; clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); padding: 2px 16px; }
+.x.raw { --c: var(--c-raw); font-family: var(--font-mono); font-size: 11.5px; }
+.x .x { min-height: 22px; }
+.x.list { clip-path: none; border-radius: 6px; flex-direction: column; align-items: flex-start; padding: 4px 8px 4px 8px; gap: 3px; }
+.x.list .listhead { font-weight: 600; font-size: 11.5px; display: flex; gap: 6px; align-items: center; width: 100%; }
+.x.list .item { display: flex; align-items: center; gap: 4px; }
+.x.list .bullet { opacity: .7; font-size: 11px; }
+.x .f { height: 20px; font-size: 12px; }
+.x .clear { background: rgba(0,0,0,.25); border: none; color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; line-height: 1; cursor: pointer; padding: 0; margin-left: 2px; }
+.x .clear:hover { background: var(--err); }
+/* Nested controls appear on hover or keyboard focus to keep deep formulas readable;
+   the picker and the step menu remain the always-visible paths. */
+.x .clear, .x .fx { display: none; }
+.x:hover > .clear, .x:focus-within > .clear, .x .listhead .clear, .x .item > .clear,
+.holder:hover > .fx, .holder:focus-within > .fx { display: inline-block; }
+.x.list .listhead .clear { display: none; }
+.x.list:hover .listhead .clear, .x.list:focus-within .listhead .clear { display: inline-block; }
+.x.grab { cursor: grab; }
+.x.flag::after { content: "!"; position: absolute; top: -6px; right: -4px; background: var(--err); color: #fff; width: 15px; height: 15px; border-radius: 50%; font: 700 10px/15px var(--font-ui); text-align: center; }
+.x.test.flag { outline: 2px solid var(--err); }
+
+/* ---------- picker popover ---------- */
+.picker { position: absolute; z-index: 60; width: 380px; max-width: calc(100vw - 32px); max-height: 470px; display: flex; flex-direction: column; background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
+.picker .ph { padding: 10px 12px 8px; border-bottom: 1px solid var(--line); }
+.picker .ph .t { font: 600 13px var(--font-head); display: flex; align-items: center; gap: 8px; }
+.picker .ph .t .kind { font: 500 10px var(--font-ui); text-transform: uppercase; letter-spacing: .08em; padding: 2px 6px; border-radius: 3px; background: var(--panel); color: var(--dim); }
+.picker .ph p { margin: 4px 0 8px; color: var(--dim); font-size: 12px; line-height: 1.4; }
+.picker .ph input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }
+.picker .pb { overflow-y: auto; padding: 6px 6px 10px; }
+.picker .grp { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 8px 6px 4px; }
+.picker .opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; padding: 5px 6px; border-radius: 4px; cursor: pointer; }
+.picker .opt:hover, .picker .opt:focus-visible { background: var(--panel); }
+.picker .opt .chip { flex: none; display: inline-block; padding: 2px 9px; color: #fff; font-size: 11.5px; background: var(--c-num); border-radius: 999px; }
+.picker .opt .chip.test { background: var(--c-test); border-radius: 0; clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%); padding: 2px 12px; }
+.picker .opt .chip.ex { background: var(--panel); color: var(--fg); border-radius: 3px; font-family: var(--font-mono); font-size: 11px; }
+.picker .opt .d { color: var(--dim); font-size: 11.5px; line-height: 1.3; }
+.picker .typebox { border-top: 1px solid var(--line); padding: 8px 12px 10px; }
+.picker .typebox summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+.picker .typebox textarea { width: 100%; margin-top: 6px; min-height: 48px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; font: 12px var(--font-mono); font-variant-ligatures: none; }
+.picker .typebox .res { font-size: 11.5px; margin: 4px 0; color: var(--dim); }
+.picker .typebox .res.bad { color: var(--err); }
+
+.menu { position: absolute; z-index: 60; background: var(--dlg); border: 1px solid var(--line); border-radius: 5px; padding: 4px; min-width: 190px; box-shadow: 0 10px 24px rgba(0,0,0,.55); }
+.menu button { display: flex; width: 100%; gap: 8px; align-items: center; background: none; border: none; text-align: left; padding: 6px 8px; border-radius: 3px; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: var(--panel); }
+.menu .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.menu .mh { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 6px 8px 2px; }
+.menu .md { color: var(--dim); font-size: 11.5px; }
+
+/* ---------- ability card (Draw Steel layout) ---------- */
+.card { background: var(--card-bg); color: var(--card-fg); border-radius: 4px; padding: 14px 16px; font: 14px/1.4 var(--font-card); }
+.card .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.card h2 { font: 700 19px var(--font-card); margin: 0; }
+.card .act { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.card .kw { font-style: italic; color: #5d5140; margin: 2px 0 8px; }
+.card .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; border-top: 1px solid var(--card-rule); border-bottom: 1px solid var(--card-rule); padding: 6px 0; margin-bottom: 8px; font-size: 13.5px; }
+.card .grid b { font-weight: 700; }
+.card .pr { font-weight: 700; margin: 6px 0 4px; }
+.card .tier { display: grid; grid-template-columns: 52px 1fr; gap: 6px; padding: 2px 0; }
+.card .tier .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.card .eff { margin-top: 8px; }
+.card .req { margin-top: 8px; font-size: 13px; color: #5d5140; }
+.card .formula { border-bottom: 1px dotted #8a7650; }
+.status { display: flex; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; line-height: 1.4; }
+.status .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; }
+.status.ok .dot { background: var(--ok); } .status.bad .dot { background: var(--err); }
+.problems { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.problems li { font-size: 12px; padding: 5px 8px; background: var(--panel); border-left: 3px solid var(--err); line-height: 1.35; }
+details.saved summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow: auto; }
+.note { color: var(--dim); font-size: 12px; line-height: 1.5; margin: 0; }
+#dragGhost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; opacity: .9; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+@media (prefers-reduced-motion: no-preference) { .flash { animation: fl .35s ease-out; } @keyframes fl { from { filter: brightness(1.6); } to { filter: none; } } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap">
+
+<div class="page">
+<div class="dlg" id="dlg">
+  <div class="dlg-head">
+    <h1>Edit Ability</h1>
+    <div class="seg" role="group" aria-label="Editor">
+      <button aria-pressed="true" type="button">Simple</button>
+      <button aria-pressed="false" type="button" title="The existing full editor (not part of this prototype)">Full editor</button>
+    </div>
+    <span class="spacer"></span>
+    <label class="toggle"><input type="checkbox" id="showGs"> Show GoblinScript</label>
+    <label for="exSel" class="note">Open</label>
+    <select id="exSel" class="btn">
+      <option value="gouge">Gouge (hero strike)</option>
+      <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
+      <option value="blank">New ability</option>
+    </select>
+  </div>
+  <div class="dlg-body">
+    <div class="main" id="main"></div>
+    <div class="side" id="side"></div>
+  </div>
+</div>
+</div>
+<div id="dragGhost"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Formula field descriptions. These mirror the `documentation` objects the
+   real editor passes to gui.GoblinScriptInput (AbilityEditor.lua _rangeDocs,
+   _numTargetsDocs, _targetFilterDocs, _abilityFilterDocs...). The picker is
+   generated from them, so each slot only offers what is valid there.
+   ===================================================================== */
+const NUM_FIELDS = ["Stamina","Maximum Stamina","Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
+// Friendlier wording for stats on the card; the dropdowns keep the real GoblinScript names.
+const FIELD_PROSE = { "Heroic Resources Available to Spend": "Heroic Resource", "Recoveries Available to Spend": "Recoveries", "Combat Round": "round number", "Maximum Stamina": "maximum Stamina" };
+const BOOL_FIELDS = { "Minion": "a minion", "Hero": "a hero", "Flanked": "flanked", "Dying": "dying", "Concealed": "concealed", "Your Turn": "taking their turn" };
+const CONDITIONS = ["Bleeding","Dazed","Frightened","Grabbed","Prone","Restrained","Slowed","Taunted","Weakened"];
+const YOU = { label: "You", prefix: "", prose: "you", poss: "your", aliases: ["self"] };
+const CASTER = { label: "Caster", prefix: "Caster.", prose: "the caster", poss: "the caster's", aliases: ["caster"] };
+const TARGET_SUBJ = { label: "Target", prefix: "", prose: "the target", poss: "the target's", aliases: ["self", "target"] };
+const TARGET_SYM = { label: "Target", prefix: "Target.", prose: "the target", poss: "the target's", aliases: ["target"] };
+const CHARGES = { name: "Charges", type: "number", desc: "Charges left on this ability.", prose: "the charges left" };
+const DOCS = {
+  range: { title: "Range", output: "number", help: "The range of this ability in squares. If left empty the ability has a range of 1 (melee).",
+    roles: [YOU], symbols: [CHARGES],
+    examples: [["10", "The ability has a range of 10 squares."], ["10 + Level * 2", "10 squares, plus 2 per level."]] },
+  numTargets: { title: "Number of targets", output: "number", help: "The number of targets this ability can select.",
+    roles: [YOU], symbols: [CHARGES],
+    examples: [["3", "The ability targets 3 creatures."], ["1 + 1 when Level >= 5", "One target, or two from level 5."]] },
+  cost: { title: "Cost", output: "number", help: "How many of the selected resource this ability costs. Usually a flat number.",
+    roles: [YOU], symbols: [], examples: [["3", "Costs 3."]] },
+  targetFilter: { title: "Who is affected", output: "boolean", help: "Decides whether each creature in the area is affected. Checked once per creature. Leave empty to affect every creature.",
+    roles: [TARGET_SUBJ, CASTER],
+    symbols: [{ name: "Enemy", type: "boolean", desc: "The creature is an enemy of the caster.", prose: "the target is an enemy" },
+              { name: "Target Number", type: "number", desc: "1 for the first target, 2 for the second, and so on.", prose: "its target number" },
+              { name: "Number of Targets", type: "number", desc: "How many creatures the ability is targeting.", prose: "the number of targets" }],
+    examples: [["Enemy", "Only enemies of the caster."], ["not Enemy", "Only allies and yourself."], ["Target Number = 2", "Only the second target."]] },
+  requirement: { title: "Can be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
+    roles: [YOU], symbols: [], examples: [["Level >= 5", "Only at level 5 or higher."], ["Stamina <= Maximum Stamina / 2", "Only while you are winded."]] },
+  stepIf: { title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
+    roles: [TARGET_SYM, YOU], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
+    examples: [['Target.Conditions has "Prone"', "Only targets that are prone."], ["Target.Stamina <= Target.MaximumStamina / 2", "Only winded targets."]] },
+  damage: { title: "Damage", output: "roll", help: "How much damage is dealt. Can use dice.",
+    roles: [YOU, TARGET_SYM], symbols: [], examples: [["2d6 + Might", "2d6 plus your Might."], ["Might * 2", "Twice your Might."]] },
+  tierDamage: { title: "Tier damage", output: "roll", help: "Damage for this tier of the power roll. Usually a flat number, or a number plus a characteristic.",
+    roles: [YOU], symbols: [], examples: [["3 + Might", "3 plus your Might."]] },
+  heal: { title: "Healing", output: "roll", help: "How much Stamina the target regains.",
+    roles: [YOU, TARGET_SYM], symbols: [], examples: [["Recovery Value", "One recovery's worth."]] },
+};
+const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","No action"];
+const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","each enemy in the area","each creature in the area"];
+const DISTANCES = ["Melee","Ranged","Melee or ranged","Burst","Cube","Line","Self"];
+const CHARS = ["Might","Agility","Reason","Intuition","Presence"];
+const DMG_TYPES = ["untyped","fire","cold","acid","poison","holy","corruption","psychic","lightning","sonic"];
+const DURATIONS = ["save ends","EoT"];
+const FORCED = ["push","pull","slide","vertical push","vertical slide"];
+const POT = [["0","weak"],["1","average"],["2","strong"]];
+const RESOURCES = ["no cost","Heroic Resource","Malice"];
+
+/* =====================================================================
+   Model. A holder is one formula slot: {kind, docs, expr, lit}. Number and
+   roll holders show an inline box for a plain value until a block is placed.
+   ===================================================================== */
+let uid = 1;
+const H = (kind, docs, lit) => ({ id: "h" + uid++, kind, docs, expr: null, lit: lit == null ? "" : String(lit) });
+const X = (type, f, kids) => ({ id: "x" + uid++, type, f: f || {}, kids: kids || {} });
+const S = (type, f, slots, branches) => ({ id: "s" + uid++, type, f: f || {}, slots: slots || {}, branches: branches || {} });
+
+/* Step types. ctx says where a step may live: "main" (the ability's effect list) or "tier" (inside a
+   power-roll tier, whose stored form is tier text, so only text-expressible steps are allowed). */
+const STEPS = {
+  powerRoll: { label: "Power roll", cat: "roll", ctx: ["main"], desc: "Roll 2d10 + a characteristic; three tiers of results.",
+    make: () => S("powerRoll", { char: "Might" }, {}, { t1: [], t2: [], t3: [] }) },
+  damage: { label: "Deal damage", cat: "act", ctx: ["main", "tier"], desc: "Damage to each target.",
+    make: c => S("damage", { dtype: "untyped" }, { amount: H("roll", c === "tier" ? "tierDamage" : "damage", c === "tier" ? "3" : "2d6") }) },
+  condition: { label: "Apply condition", cat: "act", ctx: ["main", "tier"], desc: "Slowed, prone, and so on.",
+    make: () => S("condition", { cond: "Slowed", dur: "save ends" }) },
+  forced: { label: "Forced movement", cat: "act", ctx: ["main", "tier"], desc: "Push, pull or slide the target.",
+    make: () => S("forced", { kind: "push", n: "2" }) },
+  potency: { label: "If potency fails", cat: "ctrl", ctx: ["tier"], desc: "Steps inside only apply if the target's characteristic is below a potency.",
+    make: () => S("potency", { ch: "Might", tier: "1" }, {}, { then: [] }) },
+  heal: { label: "Heal", cat: "act", ctx: ["main"], desc: "The target regains Stamina.",
+    make: () => S("heal", {}, { amount: H("roll", "heal", "5") }) },
+  ifStep: { label: "Only if...", cat: "ctrl", ctx: ["main"], desc: "Steps inside only happen to targets that pass a test.",
+    make: () => S("ifStep", {}, { cond: H("boolean", "stepIf") }, { then: [] }) },
+  invoke: { label: "Use another ability", cat: "act", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
+    make: () => S("invoke", { ability: "Free Strike" }) },
+};
+
+let ab = null;
+
+/* =====================================================================
+   GoblinScript parser (follows GoblinScript_Guide.md precedence) and the
+   AST -> block mapping. Anything unmapped becomes a raw formula block.
+   ===================================================================== */
+const KW = new Set(["and", "or", "not", "has", "is", "when", "else", "where"]);
+function tokenize(src) {
+  const toks = []; let i = 0;
+  while (i < src.length) {
+    const c = src[i], rest = src.slice(i); let m;
+    if (/\s/.test(c)) { i++; continue; }
+    if ((m = rest.match(/^\d+d\d+/i))) { toks.push({ t: "dice", v: m[0] }); i += m[0].length; continue; }
+    if ((m = rest.match(/^\d+(\.\d+)?/))) { toks.push({ t: "num", v: m[0] }); i += m[0].length; continue; }
+    if (c === '"') { const j = src.indexOf('"', i + 1); if (j < 0) throw new Error("A quote is not closed"); toks.push({ t: "str", v: src.slice(i + 1, j) }); i = j + 1; continue; }
+    if ((m = rest.match(/^(>=|<=|~=|!=|<>|[=<>+\-*/(),.])/))) { toks.push({ t: "op", v: m[0] === "!=" || m[0] === "<>" ? "~=" : m[0] }); i += m[0].length; continue; }
+    if ((m = rest.match(/^[A-Za-z_][A-Za-z0-9_]*/))) {
+      const w = m[0], lw = w.toLowerCase();
+      if (KW.has(lw)) toks.push({ t: "kw", v: lw });
+      else { const prev = toks[toks.length - 1]; if (prev && prev.t === "id") prev.v += " " + w; else toks.push({ t: "id", v: w }); }
+      i += w.length; continue;
+    }
+    throw new Error("Unexpected character " + c);
+  }
+  return toks;
+}
+function parseGS(src) {
+  const toks = tokenize(src); let pos = 0;
+  const peek = () => toks[pos], take = () => toks[pos++];
+  const isOp = v => peek() && peek().t === "op" && peek().v === v;
+  const isKw = v => peek() && peek().t === "kw" && peek().v === v;
+  function add() { let l = whenE(); while (isOp("+") || isOp("-")) { const op = take().v; l = { k: "bin", op, l, r: whenE() }; } return l; }
+  function whenE() { let v = logic(); if (isKw("when")) { take(); const c = logic(); let e = null; if (isKw("else")) { take(); e = logic(); } v = { k: "when", v, c, e }; } return v; }
+  function logic() { let l = cmp(); while (isKw("and") || isKw("or")) { const op = take().v; l = { k: op, l, r: cmp() }; } return l; }
+  function cmp() { if (isKw("not")) { take(); return { k: "not", a: cmp() }; }
+    let l = mul(); const p = peek(); if (p && p.t === "op" && [">=", "<=", ">", "<", "=", "~="].includes(p.v)) { take(); l = { k: "cmp", op: p.v, l, r: mul() }; } return l; }
+  function mul() { let l = ishas(); while (isOp("*") || isOp("/")) { const op = take().v; l = { k: "bin", op, l, r: ishas() }; } return l; }
+  function ishas() { let l = unary(); if (isKw("has") || isKw("is")) { const op = take().v; let neg = false; if (isKw("not")) { take(); neg = true; } l = { k: op, neg, l, r: unary() }; } return l; }
+  function unary() { if (isOp("-")) { take(); return { k: "bin", op: "-", l: { k: "num", v: "0" }, r: unary() }; } return primary(); }
+  function primary() {
+    const t = take(); if (!t) throw new Error("The formula ends too early");
+    if (t.t === "num") return { k: "num", v: t.v };
+    if (t.t === "dice") return { k: "dice", v: t.v };
+    if (t.t === "str") return { k: "str", v: t.v };
+    if (t.t === "op" && t.v === "(") { const e = add(); if (!isOp(")")) throw new Error("A ( is not closed"); take(); return e; }
+    if (t.t === "id") {
+      const path = [t.v];
+      while (isOp(".")) { take(); const n = take(); if (!n || n.t !== "id") throw new Error("Expected a name after ."); path.push(n.v); }
+      if (isOp("(")) { take(); const args = []; if (!isOp(")")) { args.push(add()); while (isOp(",")) { take(); args.push(add()); } } if (!isOp(")")) throw new Error("A ( is not closed"); take(); return { k: "call", path, args }; }
+      return { k: "id", path };
+    }
+    throw new Error("Unexpected " + (t.t === "kw" ? "word '" + t.v + "'" : "'" + t.v + "'") + (t.t === "kw" ? ". Names containing has, is, not, and, or are read as operators; write them without spaces (HasAttacker)" : ""));
+  }
+  const e = add();
+  if (pos < toks.length) throw new Error("Unexpected '" + toks[pos].v + "' after the end of the formula");
+  return e;
+}
+const AST_PREC = { bin: x => (x.op === "*" || x.op === "/") ? 6 : 2, cmp: () => 5, and: () => 4, or: () => 4, not: () => 7, has: () => 7, is: () => 7, when: () => 3 };
+const astPrec = x => AST_PREC[x.k] ? AST_PREC[x.k](x) : 10;
+function printAst(n) {
+  const w = (x, p) => astPrec(x) < p ? "(" + printAst(x) + ")" : printAst(x);
+  switch (n.k) {
+    case "num": case "dice": return n.v;
+    case "str": return '"' + n.v + '"';
+    case "id": return n.path.map(nospace).join(".");
+    case "call": return n.path.map(nospace).join(".") + "(" + n.args.map(printAst).join(", ") + ")";
+    case "bin": return w(n.l, astPrec(n)) + " " + n.op + " " + w(n.r, astPrec(n) + 1);
+    case "cmp": return w(n.l, 6) + " " + n.op + " " + w(n.r, 6);
+    case "and": case "or": return w(n.l, 4) + " " + n.k + " " + w(n.r, 5);
+    case "not": return "not " + w(n.a, 7);
+    case "has": case "is": return w(n.l, 10) + " " + n.k + (n.neg ? " not " : " ") + w(n.r, 10);
+    case "when": return w(n.v, 4) + " when " + w(n.c, 4) + (n.e ? " else " + w(n.e, 4) : "");
+  }
+  return "?";
+}
+const nospace = s => s.replace(/\s+/g, "");
+const norm = s => s.replace(/\s+/g, "").toLowerCase();
+function roleFor(docs, name) { const n = norm(name); return docs.roles.find(r => r.aliases.includes(n) || norm(r.label) === n); }
+function subjectRole(docs) { return docs.roles.find(r => r.prefix === ""); }
+
+/* AST -> block for a given field description. wantBool picks test vs number blocks. */
+function astToX(n, wantBool, docs) {
+  const d = DOCS[docs];
+  const raw = () => X("raw", { src: printAst(n), bool: wantBool });
+  const numKid = (x, kidDocs) => { const h = H("number", docs); if (x.k === "num") h.lit = x.v; else h.expr = astToX(x, false, docs); return h; };
+  const boolKid = x => { const h = H("boolean", docs); h.expr = astToX(x, true, docs); return h; };
+  switch (n.k) {
+    case "num": return wantBool ? raw() : X("num", { v: n.v });
+    case "dice": { const [a, b] = n.v.toLowerCase().split("d"); return wantBool ? raw() : X("dice", { n: a, s: b }); }
+    case "id": {
+      const p = n.path;
+      let role = null, field = null;
+      if (p.length === 1) { role = subjectRole(d); field = p[0]; }
+      else if (p.length === 2) { role = roleFor(d, p[0]); field = p[1]; }
+      if (role) {
+        const nf = NUM_FIELDS.find(f => norm(f) === norm(field));
+        const bf = Object.keys(BOOL_FIELDS).find(f => norm(f) === norm(field));
+        if (!wantBool && nf) return X("stat", { role: role.label, field: nf });
+        if (wantBool && bf) return X("is", { role: role.label, field: bf });
+      }
+      if (p.length === 1) {
+        const sym = d.symbols.find(s => norm(s.name) === norm(p[0]));
+        if (sym && (sym.type === "boolean") === wantBool) return X("sym", { name: sym.name });
+      }
+      return raw();
+    }
+    case "bin": {
+      if (wantBool) return raw();
+      return X("math", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) });
+    }
+    case "cmp": return wantBool ? X("compare", { op: n.op }, { a: numKid(n.l), b: numKid(n.r) }) : raw();
+    case "and": case "or": {
+      if (!wantBool) return raw();
+      const items = [];
+      const flat = x => { if (x.k === n.k) { flat(x.l); flat(x.r); } else items.push(boolKid(x)); };
+      flat(n);
+      return X(n.k === "and" ? "all" : "any", { items });
+    }
+    case "not": return wantBool ? X("not", {}, { a: boolKid(n.a) }) : raw();
+    case "has": {
+      const l = n.l;
+      if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path[l.path.length - 1]) === "conditions") {
+        const role = l.path.length === 1 ? subjectRole(d) : roleFor(d, l.path[0]);
+        const cond = CONDITIONS.find(c => norm(c) === norm(n.r.v));
+        if (role && cond) return X("hasCond", { role: role.label, cond });
+      }
+      return raw();
+    }
+    case "when": {
+      if (wantBool) return raw();
+      const b = n.e ? numKid(n.e) : Object.assign(H("number", docs), { lit: "0" });
+      return X("pick", {}, { a: numKid(n.v), cond: boolKid(n.c), b });
+    }
+  }
+  return raw();
+}
+function holderFromText(kind, docs, text) {
+  const h = H(kind, docs);
+  const t = String(text ?? "").trim();
+  if (!t) return h;
+  if (kind !== "boolean" && /^\d+$/.test(t)) { h.lit = t; return h; }
+  try { h.expr = astToX(parseGS(t), kind === "boolean", docs); }
+  catch (e) { h.expr = X("raw", { src: t, bool: kind === "boolean" }); }
+  return h;
+}
+
+/* =====================================================================
+   Compiling blocks back to GoblinScript + plain English.
+   Each result: {s: text, p: precedence, prose}. Problems are collected per holder/block.
+   ===================================================================== */
+let problems = [];
+const bad = (id, msg) => problems.push({ id, msg });
+function rawPrec(src) { try { return astPrec(parseGS(src)); } catch (e) { return 0; } }
+function cHolder(h, minP) {
+  let r;
+  if (h.expr) r = cX(h.expr, h);
+  else if (h.kind === "boolean") r = { s: "", p: 10, prose: "", empty: true };
+  else { const t = String(h.lit).trim(); r = { s: t || "0", p: /^[\d.]+$/.test(t) || !t ? 10 : rawPrec(t), prose: t || "0" }; }
+  if (minP && r.p < minP) r = { s: "(" + r.s + ")", p: 10, prose: r.prose };
+  return r;
+}
+function cX(x, h) {
+  const d = DOCS[h.docs], f = x.f;
+  const role = () => { const r = d.roles.find(r => r.label === f.role); if (!r) bad(x.id, f.role + " is not available in " + d.title.toLowerCase() + "."); return r || { prefix: f.role + ".", prose: f.role, poss: f.role + "'s" }; };
+  const kidBool = (k, minP) => { const r = cHolder(x.kids[k], minP); if (r.empty) { bad(x.kids[k].id, "A test is missing."); return { s: "false", p: 10, prose: "(missing test)" }; } return r; };
+  switch (x.type) {
+    case "num": return { s: String(+f.v || 0), p: 10, prose: String(+f.v || 0) };
+    case "dice": if (h.kind !== "roll") bad(x.id, "Dice only work in damage and healing."); return { s: f.n + "d" + f.s, p: 10, prose: f.n + "d" + f.s };
+    case "stat": { const r = role();
+      if (f.field === "Combat Round") return { s: r.prefix + "CombatRound", p: 10, prose: "the round number" };
+      return { s: r.prefix + nospace(f.field), p: 10, prose: r.poss + " " + (FIELD_PROSE[f.field] || f.field) }; }
+    case "is": { const r = role(); return { s: r.prefix + nospace(f.field), p: 10, prose: r.prose + (r.prose === "you" ? " are " : " is ") + BOOL_FIELDS[f.field] }; }
+    case "sym": { const s = d.symbols.find(s => s.name === f.name); if (!s) bad(x.id, f.name + " is not available in " + d.title.toLowerCase() + "."); return { s: nospace(f.name), p: 10, prose: s ? s.prose : f.name }; }
+    case "math": { const lp = f.op === "*" || f.op === "/" ? 6 : 2; const a = cHolder(x.kids.a, lp), b = cHolder(x.kids.b, lp + 1);
+      return { s: a.s + " " + f.op + " " + b.s, p: lp, prose: a.prose + " " + ({ "+": "plus", "-": "minus", "*": "times", "/": "divided by" })[f.op] + " " + b.prose }; }
+    case "pick": { const a = cHolder(x.kids.a, 4), c = kidBool("cond", 4), b = cHolder(x.kids.b, 4);
+      return { s: a.s + " when " + c.s + (b.s === "0" ? "" : " else " + b.s), p: 3, prose: a.prose + " if " + c.prose + (b.s === "0" ? "" : ", otherwise " + b.prose) }; }
+    case "compare": { const a = cHolder(x.kids.a, 6), b = cHolder(x.kids.b, 6);
+      const w = { ">=": "is at least", "<=": "is at most", ">": "is more than", "<": "is less than", "=": "is", "~=": "is not" }[f.op];
+      return { s: a.s + " " + f.op + " " + b.s, p: 5, prose: a.prose + " " + w + " " + b.prose }; }
+    case "all": case "any": {
+      const word = x.type === "all" ? "and" : "or";
+      const parts = f.items.map(it => cHolder(it, 5)).filter(r => !r.empty);
+      if (!parts.length) { bad(x.id, "Add at least one test to this list."); return { s: "false", p: 10, prose: "(no tests)" }; }
+      if (parts.length === 1) return parts[0];
+      return { s: parts.map(r => r.s).join(" " + word + " "), p: 4, prose: parts.slice(0, -1).map(r => r.prose).join(", ") + " " + word + " " + parts[parts.length - 1].prose }; }
+    case "not": { const a = kidBool("a", 7); return { s: "not " + a.s, p: 7, prose: "not (" + a.prose + ")" }; }
+    case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
+    case "raw": { let ok = true; try { parseGS(f.src); } catch (e) { ok = false; bad(x.id, "Formula does not parse: " + e.message); }
+      return { s: f.src, p: ok ? rawPrec(f.src) : 0, prose: f.src }; }
+  }
+  return { s: "?", p: 10, prose: "?" };
+}
+
+function compileSteps(list, filters, out, prose) {
+  for (const st of list) {
+    const ft = filters.map(r => r.s).join(" and ");
+    const fp = filters.length ? " if " + filters.map(r => r.prose).join(" and ") : "";
+    const base = ft ? { filterTarget: ft } : {};
+    const f = st.f;
+    switch (st.type) {
+      case "powerRoll": {
+        const tiers = [], tp = [];
+        for (const k of ["t1", "t2", "t3"]) { const r = compileTier(st.branches[k]); tiers.push(r.s); tp.push(r.prose); }
+        out.push(Object.assign({ __typeName: "ActivatedAbilityPowerRollBehavior", roll: "2d10 + " + f.char, tiers }, base));
+        prose.push({ kind: "roll", char: f.char, tiers: tp, cond: fp });
+        if (!st.branches.t1.length && !st.branches.t2.length && !st.branches.t3.length) bad(st.id, "This power roll has no results yet.");
+        break;
+      }
+      case "damage": { const a = cHolder(st.slots.amount);
+        out.push(Object.assign({ __typeName: "ActivatedAbilityDamageBehavior", roll: a.s, damageType: f.dtype }, base));
+        prose.push({ kind: "text", text: cap("deal " + a.prose + " " + dt(f.dtype) + "damage" + fp) }); break; }
+      case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: f.cond.toLowerCase() + " (" + f.dur + ")" }, base));
+        prose.push({ kind: "text", text: cap("the target is " + f.cond.toLowerCase() + " (" + f.dur + ")" + fp) }); break;
+      case "forced": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: f.kind + " " + f.n }, base));
+        prose.push({ kind: "text", text: cap(f.kind + " the target " + f.n + fp) }); break;
+      case "heal": { const a = cHolder(st.slots.amount);
+        out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base));
+        prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
+      case "invoke": out.push(Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "named", namedAbility: f.ability }, base));
+        prose.push({ kind: "text", text: cap("use " + f.ability + fp) }); break;
+      case "ifStep": {
+        const c = cHolder(st.slots.cond, 5);
+        if (c.empty) { bad(st.slots.cond.id, "This \"Only if\" needs a test."); }
+        if (!st.branches.then.length) bad(st.id, "Nothing happens inside this \"Only if\".");
+        compileSteps(st.branches.then, c.empty ? filters : filters.concat([c]), out, prose);
+        break;
+      }
+    }
+  }
+}
+/* Tier text is the DrawSteelCommand mini-language: "9 damage; M<1 slowed (save ends)". */
+function compileTier(list, prefix) {
+  const parts = [], prose = [];
+  const pre = prefix ? prefix + " " : "";
+  for (const st of list) {
+    const f = st.f;
+    if (st.type === "damage") { const a = cHolder(st.slots.amount);
+      // Cards write "5 + M damage": a flat number plus a characteristic initial.
+      const m = a.s.match(/^(\d+) \+ (Might|Agility|Reason|Intuition|Presence)$/);
+      parts.push(pre + a.s + " " + dt(f.dtype) + "damage"); prose.push((m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + "damage"); }
+    else if (st.type === "condition") { parts.push(pre + f.cond.toLowerCase() + " (" + f.dur + ")"); prose.push(f.cond.toLowerCase() + " (" + f.dur + ")"); }
+    else if (st.type === "forced") { parts.push(pre + f.kind + " " + f.n); prose.push(f.kind + " " + f.n); }
+    else if (st.type === "potency") {
+      const r = compileTier(st.branches.then, f.ch[0] + "<" + f.tier);
+      if (r.s) parts.push(r.s);
+      if (r.prose) prose.push("<b>" + f.ch[0] + "&lt;" + POT[+f.tier][1].toUpperCase() + "</b> " + r.prose);
+      if (!st.branches.then.length) bad(st.id, "Nothing happens inside this potency check.");
+    }
+  }
+  return { s: parts.join("; "), prose: prose.join("; ") };
+}
+const dt = t => t === "untyped" ? "" : t + " ";
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function compileAbility() {
+  problems = [];
+  const range = cHolder(ab.range), num = cHolder(ab.numTargets), cost = cHolder(ab.cost);
+  const tf = cHolder(ab.targetFilter);
+  const reqs = ab.requirements.map(r => { const c = cHolder(r.h); if (c.empty) bad(r.h.id, "This requirement needs a test."); return { c, reason: r.reason }; });
+  const behaviors = [], prose = [];
+  compileSteps(ab.steps, [], behaviors, prose);
+  if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  const rec = {
+    __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
+    keywords: Object.fromEntries(ab.keywords.split(",").map(s => s.trim()).filter(Boolean).map(k => [k, true])),
+    targetType: ab.distance === "Self" ? "self" : ["Burst", "Cube", "Line"].includes(ab.distance) ? ab.distance.toLowerCase() : "target",
+    range: range.s, numTargets: num.s,
+  };
+  if (!tf.empty) rec.targetFilter = tf.s;
+  if (ab.resource !== "no cost") { rec.resourceCost = "<" + ab.resource + ">"; rec.resourceNumber = cost.s; }
+  if (reqs.length) rec.reasonedFilters = reqs.map(r => ({ formula: r.c.s, reason: r.reason }));
+  rec.behaviors = behaviors;
+  return { rec, range, num, cost, tf, reqs, prose };
+}
+
+/* =====================================================================
+   Rendering: the stack
+   ===================================================================== */
+const main = document.getElementById("main"), side = document.getElementById("side");
+const E = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const GRIP = '<svg viewBox="0 0 10 14" aria-hidden="true"><circle cx="2" cy="2" r="1.4"/><circle cx="8" cy="2" r="1.4"/><circle cx="2" cy="7" r="1.4"/><circle cx="8" cy="7" r="1.4"/><circle cx="2" cy="12" r="1.4"/><circle cx="8" cy="12" r="1.4"/></svg>';
+
+function sel(obj, key, options, onChange, label) {
+  const s = E("select", "f");
+  for (const o of options) { const [v, t] = Array.isArray(o) ? o : [o, o]; const op = E("option", null, t); op.value = v; s.appendChild(op); }
+  s.value = obj[key]; s.setAttribute("aria-label", label || key);
+  s.addEventListener("change", () => { obj[key] = s.value; (onChange || refresh)(); });
+  return s;
+}
+function inp(obj, key, cls, label) {
+  const i = E("input", "f " + (cls || "")); i.value = obj[key]; i.spellcheck = false; i.setAttribute("aria-label", label || key);
+  i.addEventListener("input", () => { obj[key] = i.value; refreshSide(); });
+  i.addEventListener("change", refresh);
+  return i;
+}
+const lbl = t => E("span", "lbl", t);
+
+/* A holder renders as: its block, or an inline value box + fx button (number), or an empty test (boolean). */
+function renderHolder(h, opts) {
+  opts = opts || {};
+  const w = E("span", "holder"); w.dataset.holder = h.id;
+  if (h.expr) {
+    w.appendChild(renderX(h.expr, h));
+  } else if (h.kind === "boolean") {
+    const b = E("button", "empty-test" + (opts.required ? " required" : ""), opts.placeholder || "+ add a test");
+    b.type = "button"; b.addEventListener("click", ev => { ev.stopPropagation(); openPicker(h, b); });
+    w.appendChild(b);
+  } else {
+    const i = E("input", "f num"); i.value = h.lit; i.spellcheck = false; i.setAttribute("aria-label", DOCS[h.docs].title);
+    i.addEventListener("input", () => { h.lit = i.value; refreshSide(); });
+    i.addEventListener("change", refresh);
+    const fx = E("button", "fx", "fx"); fx.type = "button"; fx.title = "Build a formula";
+    fx.setAttribute("aria-label", "Build a formula for " + DOCS[h.docs].title);
+    fx.addEventListener("click", ev => { ev.stopPropagation(); openPicker(h, fx); });
+    w.appendChild(i); w.appendChild(fx);
+  }
+  return w;
+}
+function renderX(x, h) {
+  const f = x.f, d = DOCS[h.docs];
+  const isTest = ["is", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
+  const e = E("span", "x " + (x.type === "raw" ? "raw " : "") + (isTest ? "test" : "num") + (x.type === "all" || x.type === "any" ? " list" : ""));
+  e.dataset.x = x.id; e.dataset.holderOf = h.id;
+  const roles = d.roles.map(r => r.label);
+  // Role dropdowns read naturally: "Your Might", "Target's Might"; "you are", "the target is".
+  const possOpts = d.roles.map(r => [r.label, cap(r.poss)]);
+  const verb = () => f.role === "You" ? "are" : "is";
+  const add = n => e.appendChild(n);
+  switch (x.type) {
+    case "num": add(inp(f, "v", "num", "number")); break;
+    case "dice": add(inp(f, "n", "num", "dice count")); add(lbl("d")); add(inp(f, "s", "num", "dice sides")); break;
+    case "stat": add(sel(f, "role", possOpts, null, "creature")); add(sel(f, "field", NUM_FIELDS, null, "stat")); break;
+    case "is": add(sel(f, "role", roles, null, "creature")); add(lbl(verb())); add(sel(f, "field", Object.entries(BOOL_FIELDS).map(([k, v]) => [k, v]), null, "state")); break;
+    case "sym": add(lbl(f.name)); break;
+    case "math": add(renderHolder(x.kids.a)); add(sel(f, "op", ["+", "-", "*", "/"], null, "operator")); add(renderHolder(x.kids.b)); break;
+    case "pick": add(renderHolder(x.kids.a)); add(lbl("if")); add(renderHolder(x.kids.cond)); add(lbl("else")); add(renderHolder(x.kids.b)); break;
+    case "compare": add(renderHolder(x.kids.a)); add(sel(f, "op", [[">=", "is at least"], ["<=", "is at most"], [">", "is more than"], ["<", "is less than"], ["=", "is"], ["~=", "is not"]], null, "comparison")); add(renderHolder(x.kids.b)); break;
+    case "not": add(lbl("not")); add(renderHolder(x.kids.a)); break;
+    case "hasCond": add(sel(f, "role", roles, null, "creature")); add(lbl(verb())); add(sel(f, "cond", CONDITIONS, null, "condition")); break;
+    case "all": case "any": {
+      const head = E("span", "listhead");
+      head.appendChild(lbl(x.type === "all" ? "all of these are true" : "any of these is true"));
+      e.appendChild(head);
+      f.items.forEach((it, i) => {
+        const row = E("span", "item"); row.appendChild(E("span", "bullet", x.type === "all" ? "and" : "or"));
+        if (i === 0) row.firstChild.style.visibility = "hidden";
+        row.appendChild(renderHolder(it));
+        if (f.items.length > 1) { const c = E("button", "clear", "×"); c.type = "button"; c.title = "Remove this test"; c.addEventListener("click", () => { f.items.splice(i, 1); refresh(); }); row.appendChild(c); }
+        e.appendChild(row);
+      });
+      const more = E("button", "add-btn", "+ another test"); more.type = "button"; more.style.padding = "2px 8px";
+      more.addEventListener("click", () => { f.items.push(H("boolean", h.docs)); refresh(); });
+      e.appendChild(more);
+      break;
+    }
+    case "raw": { add(lbl("formula")); const i = inp(f, "src", "", "raw formula"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i);
+      const conv = E("button", "clear", "↻"); conv.type = "button"; conv.title = "Try to turn this into blocks";
+      conv.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, f.src); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; refresh(); });
+      add(conv); break; }
+  }
+  if (problems.some(p => p.id === x.id)) { e.classList.add("flag"); e.title = problems.filter(p => p.id === x.id).map(p => p.msg).join("\n"); }
+  const clr = E("button", "clear", "×"); clr.type = "button"; clr.title = "Remove"; clr.setAttribute("aria-label", "Remove block");
+  clr.addEventListener("click", ev => { ev.stopPropagation(); h.expr = null; refresh(); });
+  if (x.type !== "all" && x.type !== "any") e.appendChild(clr);
+  else e.querySelector(".listhead").appendChild(clr);
+  e.classList.add("grab");
+  return e;
+}
+/* GoblinScript line under a holder, visible when "Show GoblinScript" is on. */
+function gsLine(h) { const r = cHolder(h); const s = E("span", "gs-line", r.empty ? "" : r.s); return s; }
+
+function renderStep(st, list, ctx) {
+  const def = STEPS[st.type];
+  const e = E("div", "step cat-" + def.cat + (st.branches && Object.keys(st.branches).length ? " c" : ""));
+  e.dataset.step = st.id;
+  const bar = E("div", "bar");
+  const hd = E("span", "handle"); hd.innerHTML = GRIP; hd.title = "Drag to move"; hd.dataset.drag = st.id;
+  bar.appendChild(hd);
+  const f = st.f;
+  const add = n => bar.appendChild(n);
+  let gsHolder = null;
+  switch (st.type) {
+    case "powerRoll": add(lbl("Power roll 2d10 +")); add(sel(f, "char", CHARS, null, "characteristic")); break;
+    case "damage": add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage")); gsHolder = st.slots.amount; break;
+    case "condition": add(lbl("Target is")); add(sel(f, "cond", CONDITIONS, null, "condition")); add(sel(f, "dur", DURATIONS, null, "duration")); break;
+    case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
+    case "potency": add(lbl("If the target's")); add(sel(f, "ch", CHARS, null, "characteristic")); add(lbl("is below")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency")); break;
+    case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
+    case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
+    case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
+  }
+  const mb = E("button", "menu-btn", "⋯"); mb.type = "button"; mb.setAttribute("aria-label", def.label + " options");
+  mb.addEventListener("click", ev => { ev.stopPropagation(); stepMenu(st, list, ctx, mb); });
+  add(mb);
+  if (problems.some(p => p.id === st.id)) { bar.style.boxShadow = "inset 0 0 0 2px var(--err)"; bar.title = problems.filter(p => p.id === st.id).map(p => p.msg).join("\n"); }
+  e.appendChild(bar);
+  if (gsHolder) { const g = gsLine(gsHolder); g.style.paddingLeft = "26px"; e.appendChild(g); }
+  if (st.type === "powerRoll") {
+    [["t1", "11 or lower"], ["t2", "12 - 16"], ["t3", "17 +"]].forEach(([k, t], i) => {
+      const mid = E("div", "mid"); mid.appendChild(E("span", null, ["Tier 1", "Tier 2", "Tier 3"][i])); mid.appendChild(E("span", "range", t)); e.appendChild(mid);
+      e.appendChild(mouth(st.branches[k], "tier"));
+    });
+    e.appendChild(E("div", "foot"));
+  } else if (st.type === "potency" || st.type === "ifStep") {
+    e.appendChild(mouth(st.branches.then, ctx));
+    e.appendChild(E("div", "foot"));
+  }
+  return e;
+}
+function mouth(list, ctx) {
+  const m = E("div", "mouth"); m.appendChild(E("div", "spine"));
+  const inner = E("div", "inner"); inner.appendChild(renderList(list, ctx)); m.appendChild(inner);
+  return m;
+}
+function renderList(list, ctx) {
+  const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx;
+  list.forEach(st => s.appendChild(renderStep(st, list, ctx)));
+  const row = E("div", "addrow");
+  const b = E("button", "add-btn", ctx === "tier" ? "+ add result" : "+ add step"); b.type = "button";
+  b.addEventListener("click", ev => { ev.stopPropagation(); addMenu(list, ctx, b); });
+  row.appendChild(b); s.appendChild(row);
+  return s;
+}
+const listIds = new WeakMap(); let listSeq = 1; const listsById = {};
+function listId(list) { if (!listIds.has(list)) { const id = "L" + listSeq++; listIds.set(list, id); } const id = listIds.get(list); listsById[id] = list; return id; }
+
+function section(title, hint) { const t = E("div", "section-title", title); if (hint) t.appendChild(E("span", "hint", hint)); return t; }
+function headBlock(rows) {
+  const e = E("div", "step cat-head");
+  rows.forEach((r, i) => { const bar = E("div", "bar"); bar.style.paddingLeft = "10px"; if (i) { bar.style.borderTop = "none"; bar.style.borderRadius = i === rows.length - 1 ? "0 0 4px 4px" : "0"; } else if (rows.length > 1) bar.style.borderRadius = "4px 4px 0 0";
+    r.forEach(n => bar.appendChild(n)); e.appendChild(bar); });
+  return e;
+}
+
+function renderMain() {
+  main.innerHTML = "";
+  main.classList.toggle("show-gs-off", !document.getElementById("showGs").checked);
+  main.appendChild(section("What is it"));
+  const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
+  main.appendChild(headBlock([[lbl("When"), nm, lbl("is used as a"), sel(ab, "action", ACTIONS, null, "action")],
+    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()],
+    [lbl("Costs"), (() => { const w = E("span"); if (ab.resource !== "no cost") w.appendChild(renderHolder(ab.cost)); return w; })(), sel(ab, "resource", RESOURCES, null, "resource")]]));
+
+  main.appendChild(section("Who it targets"));
+  const t = headBlock([
+    [renderHolder(ab.numTargets), sel(ab, "targetCount", TARGET_COUNTS, null, "target type"), lbl("within"), sel(ab, "distance", DISTANCES, null, "distance"), renderHolder(ab.range)],
+  ]);
+  t.querySelector(".bar").appendChild(gsWrap([ab.numTargets, ab.range]));
+  main.appendChild(t);
+  const tf = headBlock([[lbl("Only affects creatures where"), renderHolder(ab.targetFilter, { placeholder: "+ add a test (optional)" })]]);
+  tf.style.marginTop = "3px"; tf.appendChild(gsLine(ab.targetFilter)); main.appendChild(tf);
+
+  main.appendChild(section("Can be used when", ab.requirements.length ? "" : "optional"));
+  ab.requirements.forEach((r, i) => {
+    const reason = inp(r, "reason", "name", "reason shown to the player"); reason.placeholder = "reason shown to the player";
+    const del = E("button", "menu-btn", "×"); del.type = "button"; del.title = "Remove requirement"; del.addEventListener("click", () => { ab.requirements.splice(i, 1); refresh(); });
+    const b = headBlock([[lbl("Only if"), renderHolder(r.h, { required: true, placeholder: "+ choose a test" }), del], [lbl("otherwise say"), reason]]);
+    b.style.marginTop = i ? "3px" : "0"; b.appendChild(gsLine(r.h)); main.appendChild(b);
+  });
+  const addReq = E("button", "add-btn", "+ add a requirement"); addReq.type = "button"; addReq.style.marginTop = ab.requirements.length ? "4px" : "0";
+  addReq.addEventListener("click", () => { const h = H("boolean", "requirement"); ab.requirements.push({ h, reason: "" }); refresh(); const el = main.querySelector('[data-holder="' + h.id + '"] button'); if (el) openPicker(h, el); });
+  main.appendChild(addReq);
+
+  main.appendChild(section("What happens"));
+  main.appendChild(renderList(ab.steps, "main"));
+}
+function gsWrap(hs) { const w = E("span", "gs-line"); w.style.flexBasis = "100%"; w.style.padding = "0 0 0 2px"; w.textContent = hs.map(h => DOCS[h.docs].title + ": " + cHolder(h).s).join("   "); return w; }
+
+/* =====================================================================
+   Side: the Draw Steel ability card, problems, saved data
+   ===================================================================== */
+function renderSide(c) {
+  side.innerHTML = "";
+  const pr = problems;
+  const st = E("div", "status " + (pr.length ? "bad" : "ok"));
+  st.appendChild(E("span", "dot"));
+  st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. Saves as an ordinary ability: the full editor can open it too."));
+  side.appendChild(st);
+  if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
+
+  const card = E("div", "card");
+  const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
+  const dist = ab.distance === "Self" ? "Self" : ab.distance + " " + fm(c.range);
+  const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
+    : /^\d+$/.test(c.num.s) ? c.num.s + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
+  let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc(ab.action) + (ab.resource !== "no cost" ? " &middot; " + fm(c.cost) + " " + esc(ab.resource) : "") + "</span></div>";
+  html += '<div class="kw">' + esc(ab.keywords) + "</div>";
+  html += '<div class="grid"><div><b>Distance:</b> ' + dist + "</div><div><b>Target:</b> " + tgt + "</div></div>";
+  for (const p of c.prose) {
+    if (p.kind === "roll") {
+      html += '<div class="pr">Power Roll + ' + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":</div>";
+      ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => html += '<div class="tier"><span class="n">' + n + "</span><span>" + (p.tiers[i] ? esc(p.tiers[i]).replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>").replace(/&amp;lt;/g, "&lt;") : "<i>no effect</i>") + "</span></div>");
+    } else html += '<div class="eff"><b>Effect:</b> ' + esc(p.text) + ".</div>";
+  }
+  if (!c.tf.empty) html += '<div class="req">Only affects creatures where ' + esc(c.tf.prose) + ".</div>";
+  c.reqs.forEach(r => { if (!r.c.empty) html += '<div class="req">Can only be used if ' + esc(r.c.prose) + (r.reason ? " (“" + esc(r.reason) + "”)" : "") + ".</div>"; });
+  card.innerHTML = html;
+  side.appendChild(card);
+  side.appendChild(E("p", "note", "Dotted text on the card comes from a formula. Hover it to see the GoblinScript."));
+  const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
+  det.appendChild(E("pre", null, JSON.stringify(c.rec, null, 2)));
+  side.appendChild(det);
+}
+
+let compiledCache = null;
+function refresh() { closePopups(); compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); }
+// While typing, only the card updates; the stack re-renders when the field loses focus.
+function refreshSide() { compiledCache = compileAbility(); renderSide(compiledCache); }
+document.getElementById("showGs").addEventListener("change", refresh);
+
+/* =====================================================================
+   Popups: block picker for a formula slot, add-step menu, step menu
+   ===================================================================== */
+let popup = null;
+function closePopups() { if (popup) { popup.remove(); popup = null; } }
+document.addEventListener("click", ev => { if (popup && !popup.contains(ev.target)) closePopups(); });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") closePopups(); });
+function place(el, anchor) {
+  document.body.appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  const w = el.offsetWidth, vw = document.documentElement.clientWidth;
+  el.style.left = Math.max(8, Math.min(r.left + window.scrollX, vw - w - 8 + window.scrollX)) + "px";
+  el.style.top = (r.bottom + window.scrollY + 6) + "px";
+  popup = el;
+}
+
+/* Picker contents come from the slot's field description: its roles (whose stats), its symbols, its examples. */
+function pickerOptions(h) {
+  const d = DOCS[h.docs], wantBool = h.kind === "boolean", groups = [];
+  const chip = (txt, test) => ({ txt, test });
+  if (d.examples.length) groups.push(["Examples for " + d.title.toLowerCase(), d.examples.filter(([s]) => { try { const a = parseGS(s); return (["cmp","and","or","not","has","is"].includes(a.k) || (a.k === "id" && d.symbols.some(y => y.type === "boolean" && norm(y.name) === norm(a.path.join(""))))) === wantBool; } catch (e) { return false; } })
+    .map(([s, t]) => ({ chip: { txt: s, ex: true }, d: t, make: () => holderFromText(h.kind, h.docs, s).expr || X("num", { v: s }) }))]);
+  if (wantBool) {
+    groups.push(["Tests", [
+      { chip: chip("[ ] is at least [ ]", true), d: "Compare two numbers.", make: () => X("compare", { op: ">=" }, { a: H("number", h.docs, "0"), b: H("number", h.docs, "1") }), key: "compare at least at most more less" },
+      { chip: chip("all of these", true), d: "Every test in the list must be true (and).", make: () => X("all", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), key: "and all every" },
+      { chip: chip("any of these", true), d: "At least one test must be true (or).", make: () => X("any", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), key: "or any either" },
+      { chip: chip("not [ ]", true), d: "True when the test inside is false.", make: () => X("not", {}, { a: H("boolean", h.docs) }), key: "not negate" },
+    ]]);
+    for (const r of d.roles) groups.push([cap(r.prose) + (r.prose === "you" ? " (the creature using the ability)" : ""), [
+      { chip: chip(r.label + (r.label === "You" ? " are" : " is") + " prone", true), d: "Has a condition.", make: () => X("hasCond", { role: r.label, cond: "Prone" }), key: "condition " + CONDITIONS.join(" ") },
+      ...Object.entries(BOOL_FIELDS).map(([k, v]) => ({ chip: chip(r.label + (r.label === "You" ? " are " : " is ") + v, true), d: "", make: () => X("is", { role: r.label, field: k }), key: k })),
+    ]]);
+    const syms = d.symbols.filter(s => s.type === "boolean");
+    if (syms.length) groups.push(["Other", syms.map(s => ({ chip: chip(s.name, true), d: s.desc, make: () => X("sym", { name: s.name }) }))]);
+  } else {
+    groups.push(["Math", [
+      { chip: chip("[ ] + [ ]"), d: "Add, subtract, multiply or divide (division rounds down).", make: () => X("math", { op: "+" }, { a: H("number", h.docs, h.lit || "1"), b: H("number", h.docs, "1") }), key: "plus minus times divide add" },
+      { chip: chip("[ ] if [test] else [ ]"), d: "Pick one value or another, e.g. more targets from level 5.", make: () => X("pick", {}, { a: H("number", h.docs, "2"), cond: H("boolean", h.docs), b: H("number", h.docs, h.lit || "1") }), key: "when else level scaling" },
+      ...(h.kind === "roll" ? [{ chip: chip("1d6"), d: "Roll dice.", make: () => X("dice", { n: "1", s: "6" }), key: "dice roll" }] : []),
+    ]]);
+    for (const r of d.roles) groups.push([cap(r.poss) + " stats", NUM_FIELDS.map(fl => ({ chip: chip(cap(r.poss) + " " + fl), d: "", make: () => X("stat", { role: r.label, field: fl }), key: fl }))]);
+    const syms = d.symbols.filter(s => s.type === "number");
+    if (syms.length) groups.push(["Other values", syms.map(s => ({ chip: chip(s.name), d: s.desc, make: () => X("sym", { name: s.name }) }))]);
+  }
+  return groups.filter(g => g[1].length);
+}
+function openPicker(h, anchor) {
+  closePopups();
+  const d = DOCS[h.docs];
+  const p = E("div", "picker"); p.setAttribute("role", "dialog"); p.setAttribute("aria-label", "Choose a block for " + d.title);
+  p.addEventListener("click", ev => ev.stopPropagation());
+  const ph = E("div", "ph");
+  const t = E("div", "t", d.title); t.appendChild(E("span", "kind", h.kind === "boolean" ? "true / false" : h.kind === "roll" ? "number or dice" : "number")); ph.appendChild(t);
+  ph.appendChild(E("p", null, d.help));
+  const search = E("input"); search.placeholder = "Search, e.g. stamina, prone, level"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search);
+  p.appendChild(ph);
+  const pb = E("div", "pb"); p.appendChild(pb);
+  const groups = pickerOptions(h);
+  const draw = () => {
+    pb.innerHTML = ""; const q = norm(search.value);
+    let n = 0;
+    for (const [g, opts] of groups) {
+      const vis = opts.filter(o => !q || norm(o.chip.txt + " " + (o.d || "") + " " + (o.key || "")).includes(q));
+      if (!vis.length) continue;
+      pb.appendChild(E("div", "grp", g));
+      for (const o of vis) {
+        const b = E("button", "opt"); b.type = "button";
+        b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
+        if (o.d) b.appendChild(E("span", "d", o.d));
+        b.addEventListener("click", () => { h.expr = o.make(); refresh(); flash(h.id); });
+        pb.appendChild(b); n++;
+      }
+    }
+    if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
+  };
+  search.addEventListener("input", draw);
+  draw();
+  const tb = E("details", "typebox"); tb.appendChild(E("summary", null, "Type a formula instead"));
+  const ta = E("textarea"); ta.spellcheck = false; ta.setAttribute("aria-label", "GoblinScript formula"); ta.value = h.expr ? cHolder(h).s : "";
+  const res = E("div", "res"); const ins = E("button", "btn", "Use this formula"); ins.type = "button";
+  const check = () => {
+    const s = ta.value.trim(); if (!s) { res.textContent = ""; res.className = "res"; return; }
+    try { const a = parseGS(s); const x = astToX(a, h.kind === "boolean", h.docs); const rawCount = JSON.stringify(x).split('"raw"').length - 1;
+      res.className = "res"; res.textContent = rawCount ? "Understood. " + rawCount + " part" + (rawCount > 1 ? "s" : "") + " will stay as typed formula." : "Understood. Becomes blocks: " + cX(x, h).prose; }
+    catch (e) { res.className = "res bad"; res.textContent = e.message; }
+  };
+  ta.addEventListener("input", check); check();
+  ins.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, ta.value); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; refresh(); flash(h.id); });
+  tb.appendChild(ta); tb.appendChild(res); tb.appendChild(ins); p.appendChild(tb);
+  place(p, anchor);
+  search.focus();
+}
+function flash(hid) { const e = main.querySelector('[data-holder="' + hid + '"]'); if (e) { e.classList.add("flash"); setTimeout(() => e.classList.remove("flash"), 400); } }
+
+/* Only steps that can be stored in this place are offered: tiers get tier-text steps only. */
+function addMenu(list, ctx, anchor) {
+  closePopups();
+  const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
+  m.appendChild(E("div", "mh", ctx === "tier" ? "Add a tier result" : "Add a step"));
+  for (const [k, d] of Object.entries(STEPS)) {
+    if (!d.ctx.includes(ctx)) continue;
+    const b = E("button"); b.type = "button";
+    const sw = E("span", "sw"); sw.style.background = "var(--c-" + d.cat + ")"; b.appendChild(sw);
+    const tx = E("span"); tx.appendChild(E("div", null, d.label)); tx.appendChild(E("div", "md", d.desc)); b.appendChild(tx);
+    b.addEventListener("click", () => { const st = d.make(ctx); list.push(st); refresh(); const h = st.slots.cond; if (h) { const el = main.querySelector('[data-holder="' + h.id + '"] button'); if (el) openPicker(h, el); } });
+    m.appendChild(b);
+  }
+  place(m, anchor);
+  m.querySelector("button").focus();
+}
+function stepMenu(st, list, ctx, anchor) {
+  closePopups();
+  const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
+  const i = list.indexOf(st);
+  const item = (t, fn, dis) => { const b = E("button", null, t); b.type = "button"; if (dis) b.disabled = true, b.style.opacity = .4; else b.addEventListener("click", () => { fn(); refresh(); }); m.appendChild(b); };
+  item("Move up", () => { list.splice(i, 1); list.splice(i - 1, 0, st); }, i === 0);
+  item("Move down", () => { list.splice(i, 1); list.splice(i + 1, 0, st); }, i === list.length - 1);
+  if (ctx === "main" && st.type !== "ifStep") item("Wrap in “Only if”", () => { const w = STEPS.ifStep.make(); w.branches.then.push(st); list.splice(i, 1, w); });
+  if (ctx === "tier" && st.type !== "potency") item("Wrap in potency check", () => { const w = STEPS.potency.make(); w.branches.then.push(st); list.splice(i, 1, w); });
+  if (st.branches && st.branches.then && st.branches.then.length) item("Unwrap (keep the steps inside)", () => { list.splice(i, 1, ...st.branches.then); });
+  item("Duplicate", () => { list.splice(i + 1, 0, reid(JSON.parse(JSON.stringify(st)))); });
+  item("Delete", () => { list.splice(i, 1); });
+  place(m, anchor);
+  m.querySelector("button:not([disabled])").focus();
+}
+function reid(o) { if (o && typeof o === "object") { if (o.id) o.id = o.id[0] + uid++; for (const k in o) reid(o[k]); } return o; }
+
+/* =====================================================================
+   Drag: steps by their handle (reorder, move between compatible lists);
+   formula blocks by their body (move to another slot of the same kind).
+   Every drag has a menu or picker alternative.
+   ===================================================================== */
+const ghost = document.getElementById("dragGhost");
+let drag = null;
+function findStep(id, lists) {
+  for (const l of lists) for (const st of l) {
+    if (st.id === id) return { st, list: l };
+    for (const k in st.branches || {}) { const r = findStep(id, [st.branches[k]]); if (r) return r; }
+  }
+  return null;
+}
+function allHolders() {
+  const out = {};
+  const visitH = h => { if (!h) return; out[h.id] = h; if (h.expr) visitX(h.expr); };
+  const visitX = x => { for (const k in x.kids) visitH(x.kids[k]); (x.f.items || []).forEach(visitH); };
+  [ab.range, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h)].forEach(visitH);
+  const visitS = l => l.forEach(st => { for (const k in st.slots) visitH(st.slots[k]); for (const k in st.branches || {}) visitS(st.branches[k]); });
+  visitS(ab.steps);
+  return out;
+}
+document.addEventListener("pointerdown", ev => {
+  if (ev.button !== 0) return;
+  const hd = ev.target.closest(".handle");
+  const xe = !hd && ev.target.closest(".x");
+  if (xe && ev.target.closest("input, select, button")) return;
+  if (!hd && !xe) return;
+  if (hd) {
+    const r = findStep(hd.dataset.drag, [ab.steps]); if (!r) return;
+    drag = { kind: "step", st: r.st, from: r.list, el: hd.closest(".step"), sx: ev.clientX, sy: ev.clientY };
+  } else {
+    const hs = allHolders(); const h = hs[xe.dataset.holderOf]; if (!h) return;
+    drag = { kind: "x", h, x: h.expr, el: xe, sx: ev.clientX, sy: ev.clientY };
+  }
+  const r = drag.el.getBoundingClientRect(); drag.ox = ev.clientX - r.left; drag.oy = ev.clientY - r.top;
+  ev.preventDefault();
+});
+document.addEventListener("pointermove", ev => {
+  if (!drag) return;
+  if (!drag.on) {
+    if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 5) return;
+    drag.on = true; closePopups();
+    ghost.innerHTML = ""; const c = drag.el.cloneNode(true); c.style.width = drag.el.offsetWidth + "px"; ghost.appendChild(c);
+    drag.el.classList.add("ghost");
+  }
+  ghost.style.transform = "translate(" + (ev.clientX - drag.ox) + "px," + (ev.clientY - drag.oy) + "px)";
+  main.querySelectorAll(".drop-line").forEach(l => l.remove());
+  main.querySelectorAll(".holder.hot").forEach(l => l.classList.remove("hot"));
+  drag.target = null;
+  if (drag.kind === "step") {
+    const ctxOk = c => STEPS[drag.st.type].ctx.includes(c);
+    let best = null;
+    main.querySelectorAll(".stack[data-list]").forEach(s => {
+      if (drag.el.contains(s) || !ctxOk(s.dataset.ctx)) return;
+      const r = s.getBoundingClientRect();
+      if (ev.clientX < r.left - 10 || ev.clientX > r.right + 10 || ev.clientY < r.top - 12 || ev.clientY > r.bottom + 12) return;
+      if (!best || best.r.width > r.width) best = { s, r };
+    });
+    if (best) {
+      const kids = [...best.s.children].filter(k => k.classList.contains("step"));
+      let idx = kids.length;
+      for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (ev.clientY < r.top + Math.min(r.height / 2, 20)) { idx = i; break; } }
+      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(".addrow"));
+      drag.target = { list: listsById[best.s.dataset.list], idx };
+    }
+  } else {
+    let best = null;
+    main.querySelectorAll(".holder").forEach(he => {
+      if (drag.el.contains(he)) return;
+      const h = allHolders()[he.dataset.holder]; if (!h || h === drag.h) return;
+      if ((h.kind === "boolean") !== (drag.h.kind === "boolean")) return;
+      const r = he.getBoundingClientRect();
+      if (ev.clientX >= r.left - 4 && ev.clientX <= r.right + 4 && ev.clientY >= r.top - 4 && ev.clientY <= r.bottom + 4) { if (!best || best.a > r.width * r.height) best = { he, h, a: r.width * r.height }; }
+    });
+    if (best) { best.he.classList.add("hot"); drag.target = best.h; }
+  }
+});
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const d = drag; drag = null; ghost.innerHTML = "";
+  if (!d.on) return;
+  if (d.kind === "step" && d.target) {
+    const fromIdx = d.from.indexOf(d.st);
+    let idx = d.target.idx;
+    if (d.target.list === d.from && idx > fromIdx) idx--;
+    d.from.splice(fromIdx, 1); d.target.list.splice(idx, 0, d.st);
+  } else if (d.kind === "x" && d.target) {
+    const old = d.target.expr; d.target.expr = d.x; d.h.expr = old || null;
+    if (d.x.type === "dice" && d.target.kind !== "roll") { d.h.expr = d.x; d.target.expr = old; }
+  }
+  refresh();
+});
+
+/* =====================================================================
+   Examples. "cleave" is loaded from formula TEXT, the way existing
+   content would open, to show existing formulas becoming blocks.
+   ===================================================================== */
+function newAbility() {
+  return { name: "New Ability", action: "Main action", keywords: "Melee, Strike, Weapon", resource: "no cost",
+    cost: H("number", "cost", "1"), numTargets: H("number", "numTargets", "1"), targetCount: "creature", distance: "Melee", range: H("number", "range", "1"),
+    targetFilter: H("boolean", "targetFilter"), requirements: [], steps: [] };
+}
+const EXAMPLES = {
+  blank: newAbility,
+  gouge: () => {
+    const a = newAbility();
+    Object.assign(a, { name: "Gouge", keywords: "Melee, Strike, Weapon" });
+    const pr = STEPS.powerRoll.make();
+    const dmg = (n, f) => { const s = STEPS.damage.make("tier"); s.slots.amount = holderFromText("roll", "tierDamage", n); return s; };
+    pr.branches.t1.push(dmg("3 + Might")); pr.branches.t2.push(dmg("6 + Might"));
+    const pot = STEPS.potency.make(); pot.f.tier = "2"; const bl = STEPS.condition.make(); bl.f.cond = "Bleeding"; pot.branches.then.push(bl);
+    pr.branches.t3.push(dmg("9 + Might"), pot);
+    const onlyIf = STEPS.ifStep.make(); onlyIf.slots.cond = holderFromText("boolean", "stepIf", 'Target.Conditions has "Prone"');
+    const extra = STEPS.damage.make("main"); extra.slots.amount = holderFromText("roll", "damage", "2"); onlyIf.branches.then.push(extra);
+    a.steps.push(pr, onlyIf);
+    return a;
+  },
+  cleave: () => {
+    // Stored text exactly as it would appear in compendium YAML.
+    const saved = { name: "Reaving Cleave", numTargets: "1 + 1 when Level >= 5", range: "1", targetFilter: "Enemy and Stamina <= MaximumStamina / 2",
+      reasonedFilters: [{ formula: "Heroic Resources Available to Spend >= 3 or Combat Round >= 3", reason: "You need 3 Ferocity, or it must be round 3 or later." }],
+      tiers: ["5 + Might", "8 + Might", "11 + Might"], resourceNumber: "3" };
+    const a = newAbility();
+    Object.assign(a, { name: saved.name, keywords: "Melee, Strike, Weapon", resource: "Heroic Resource", targetCount: "enemies" });
+    a.cost = holderFromText("number", "cost", saved.resourceNumber);
+    a.numTargets = holderFromText("number", "numTargets", saved.numTargets);
+    a.range = holderFromText("number", "range", saved.range);
+    a.targetFilter = holderFromText("boolean", "targetFilter", saved.targetFilter);
+    a.requirements = saved.reasonedFilters.map(r => ({ h: holderFromText("boolean", "requirement", r.formula), reason: r.reason }));
+    const pr = STEPS.powerRoll.make();
+    ["t1", "t2", "t3"].forEach((k, i) => { const s = STEPS.damage.make("tier"); s.slots.amount = holderFromText("roll", "tierDamage", saved.tiers[i]); pr.branches[k].push(s); });
+    const fm = STEPS.forced.make(); fm.f.n = "1"; pr.branches.t3.push(fm);
+    a.steps.push(pr);
+    return a;
+  },
+};
+document.getElementById("exSel").addEventListener("change", e => { ab = EXAMPLES[e.target.value](); refresh(); });
+ab = EXAMPLES.gouge();
+refresh();
+</script>

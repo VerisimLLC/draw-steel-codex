@@ -58,7 +58,8 @@ local g_playObservers = {}
 ---     inside the cast that ran it.
 ---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
 ---     atturnend, options (the options of the cast that rolled it).
----   persistenceended(creature, abilityname, reason): a persistent ability stopped.
+---   persistenceended(creature, abilityname, reason): a persistent ability stopped. reason:
+---     "chose", "targetsgone" or "damage" (Persistent Magic's 5 times Reason in one turn).
 ---   encounterended(creature): runs for each creature as combat ends.
 ---   turnended(creature): a creature's turn ended.
 --- None may yield. Any may fail: a broken observer is logged and play carries on.

@@ -3063,6 +3063,21 @@ function History.Why(entry, kids)
         line.who[#line.who + 1] = who
     end
 
+    --Y11: a triggered action says first what set it off, in its own Trigger line's words. A
+    --monster's rules are the Director's, as its trigger card is.
+    local triggerText = entry.ability ~= nil and entry.ability.triggertext or nil
+    if entry.provoker ~= nil and entry.actor ~= nil then
+        --L33: a free strike for moving away says so in the rules' words instead.
+        rows[#rows + 1] = {
+            lead = "Moved away without shifting",
+            text = string.format("%s moved away from %s, who made a free strike against it.",
+                History.ShownName(entry.provoker), History.ShownName(entry.actor)),
+        }
+    elseif triggerText ~= nil and (dmhub.isDM or (entry.actor ~= nil and entry.actor.hero)) then
+        local name = entry.ability.name
+        rows[#rows + 1] = {lead = TriggerLink(WhyName(name), entry.actor, name), text = "Trigger: " .. triggerText}
+    end
+
     --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
     --of its own moved; targets whose lines read the same share one.
     local roll = entry.roll

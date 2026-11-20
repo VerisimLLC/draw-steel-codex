@@ -31,7 +31,7 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil} What was used; villainaction is the stat block slot, "Villain Action 1"; the tag reads only "Villain Action" (L90).
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil, triggertext: string|nil} What was used; triggertext is a triggered action's Trigger line (Y11); villainaction is the stat block slot, "Villain Action 1"; the tag reads only "Villain Action" (L90).
 --- @field player? string On an action: the player who used it. Nil means the Director.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil, overridden: {by: string|nil, dicetier: number}|nil} The power roll. overridden: someone chose the tier after the dice landed (L91-L93). hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
 --- @field rolltriggers? {name: string, who: HistoryCreature|nil, targets: table[]}[] On an action: triggered actions used from its roll dialog (L107), each target with delta (damage it changed) or edges, banes and tiers.
@@ -80,6 +80,7 @@ local mod = dmhub.GetModLoading()
 --- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
 --- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
+--- @field provoker? HistoryCreature On a free strike for moving away (L33): who moved away.
 --- @field costs? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it spent; icon is a heroic resource's.
 --- @field gains? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it gave its user, shaped like costs.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".

@@ -347,6 +347,24 @@ local function CastBegan(ability, casterToken, targets, options)
     }, targets, options)
     History.AddCombatFacts(state.entry)
     ClaimUpfrontSpend(state, casterToken, ability.name)
+    --L33: a free strike for moving away keeps who moved away.
+    if ability.typeName == "TriggeredAbility" and ability.trigger == "leaveadjacent" then
+        local mover = symbols ~= nil and symbols.movingcreature or nil
+        local moverToken = mover ~= nil and dmhub.LookupToken(mover) or nil
+        if moverToken ~= nil then
+            state.entry.provoker = History.Creature(moverToken)
+        end
+    end
+    --Y11: a triggered action's own row says what set it off, in its Trigger line's words.
+    if ability.typeName == "TriggeredAbility" then
+        pcall(function()
+            local display = casterToken.properties:GetTriggeredActionInfo(ability.name)
+            local text = display ~= nil and display:try_get("trigger") or nil
+            if type(text) == "string" and text ~= "" then
+                state.entry.ability.triggertext = text
+            end
+        end)
+    end
     --its triggers say whether they came before or after the dice (RollTiming).
     state.rolls = RollsPower(ability)
 
@@ -2214,9 +2232,16 @@ local PERSISTENCE_WORDS = {
 local function OnPersistenceEnded(creature, abilityName, reason)
     local token = dmhub.LookupToken(creature)
     if History.Enabled() and token ~= nil then
+        local causetext = PERSISTENCE_WORDS[reason] or Cause(nil)
+        --L16: Persistent Magic stops it at 5 times Reason damage in one turn.
+        if reason == "damage" then
+            local reasonScore = creature:AttributeMod("rea")
+            causetext = string.format("Took %d damage in one turn, 5 times Reason %d",
+                creature:try_get("damageTakenThisTurn", 0), reasonScore)
+        end
         WriteLine(token, "persistence", {
             name = abilityName,
-            causetext = PERSISTENCE_WORDS[reason] or Cause(nil),
+            causetext = causetext,
         })
     end
 end

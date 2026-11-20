@@ -2120,7 +2120,8 @@ function ActivatedAbility:SwitchModes(i)
     end
     result.skippable = self:try_get("skippable")
     result.countsAsCast = self:try_get("countsAsCast")
-    result.promptOverride = self:try_get("promptOverride")
+    --A mode variation can carry its own prompt (e.g. a shift hint); otherwise keep the parent's.
+    result.promptOverride = result:try_get("promptOverride") or self:try_get("promptOverride")
     -- Keep the opt-out across the mode switch, or a minion gets asked for one target
     -- per squad member.
     result.disableSquadCoordination = self:try_get("disableSquadCoordination")

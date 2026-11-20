@@ -2270,25 +2270,42 @@ creature.RegisterSymbol {
     }
 }
 
-creature.RegisterSymbol {
-    symbol = "saveendseffects",
-    lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "save" then
+--True if the creature has a condition or ongoing effect that ends on a save (options.save)
+--or at the end of its turn (options.eot). options.skipBuffs leaves out the ones marked as buffs.
+--- @param creature creature
+--- @param options {save?: boolean, eot?: boolean, skipBuffs?: boolean}
+--- @return boolean
+local function HasEffectsEnding(creature, options)
+    if creature:has_key("inflictedConditions") then
+        --The table is only needed to tell buffs apart.
+        local conditionsTable = options.skipBuffs and dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, cond in pairs(creature.inflictedConditions) do
+            if (options.save and cond.duration == "save") or (options.eot and cond.duration == "eot") then
+                local info = conditionsTable[condid]
+                if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                     return true
                 end
             end
         end
+    end
 
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeOnSave then
+    local effectsTable = options.skipBuffs and dmhub.GetTable("characterOngoingEffects") or {}
+    for _, effectInstance in ipairs(creature:ActiveOngoingEffects()) do
+        if (options.save and effectInstance.removeOnSave) or (options.eot and effectInstance.removeAtNextTurnEnd) then
+            local info = effectsTable[effectInstance.ongoingEffectid]
+            if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                 return true
             end
         end
+    end
 
-        return false
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "saveendseffects",
+    lookup = function(c)
+        return HasEffectsEnding(c, {save = true})
     end,
     help = {
         name = "Save Ends Effects",
@@ -2300,22 +2317,7 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "eoteffects",
     lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "eot" then
-                    return true
-                end
-            end
-        end
-
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeAtNextTurnEnd then
-                return true
-            end
-        end
-
-        return false
+        return HasEffectsEnding(c, {eot = true})
     end,
     help = {
         name = "EoT Effects",
@@ -2324,35 +2326,12 @@ creature.RegisterSymbol {
     }
 }
 
-local g_creatureText = UIText.Define("MCDMCreature")
-g_creatureText("symbol.endableeffects.desc", [[Does this creature have a save ends or end of turn condition or effect that is not a buff?]])
-
---True if the creature has a save-ends or end-of-turn condition/effect that is not a buff.
+--True if the creature has a save-ends or end-of-turn effect that is not a buff.
 --Used to stop Reorder prompting when there is nothing worth ending.
-local function HasEndableEffects(c)
-    if c:has_key("inflictedConditions") then
-        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
-        for condid, cond in pairs(c.inflictedConditions) do
-            if cond.duration == "save" or cond.duration == "eot" then
-                local info = conditionsTable[condid]
-                if info == nil or info.buffType ~= "buff" then
-                    return true
-                end
-            end
-        end
-    end
-
-    local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-    for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-        if effectInstance.removeOnSave or effectInstance.removeAtNextTurnEnd then
-            local info = effectsTable[effectInstance.ongoingEffectid]
-            if info == nil or info.buffType ~= "buff" then
-                return true
-            end
-        end
-    end
-
-    return false
+--- @param creature creature
+--- @return boolean
+local function HasEndableEffects(creature)
+    return HasEffectsEnding(creature, {save = true, eot = true, skipBuffs = true})
 end
 
 creature.RegisterSymbol {
@@ -2361,7 +2340,7 @@ creature.RegisterSymbol {
     help = {
         name = "Endable Effects",
         type = "boolean",
-        desc = UIText.T("symbol.endableeffects.desc"),
+        desc = "Does this creature have a save ends or end of turn condition or effect that is not a buff?",
     }
 }
 

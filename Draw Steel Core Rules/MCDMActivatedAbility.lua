@@ -4,6 +4,10 @@ local mod = dmhub.GetModLoading()
 local g_text = UIText.Define("MCDMActivatedAbility")
 g_text("ability.oppositeSquareOccupied", [[The opposite adjacent square is occupied, so you cannot push the target.]])
 
+--Set in the ability's data (there is no editor field). When true, the ability card warns
+--if another creature stands in the square on the far side of the caster from a target.
+ActivatedAbility.warnOppositeSquareOccupied = false
+
 --effectImplemented is deprecated. Use the 'implementation' field instead.
 --kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
@@ -2253,12 +2257,13 @@ function ActivatedAbility:Render(options, params)
         --Abilities flagged warnOppositeSquareOccupied (Phase Inversion Strike) warn when the
         --square opposite the caster is taken, since the target then can't be teleported or
         --pushed. Kept out of tokenDependentInfoPanel because that collapses in the roll dialog.
-        if self:try_get("warnOppositeSquareOccupied", false) then
+        if self.warnOppositeSquareOccupied then
             local cast = params.symbols ~= nil and params.symbols.cast or nil
             local castTargets = cast ~= nil and cast:try_get("targets") or nil
-            for _, t in ipairs(castTargets or {}) do
-                if t.token ~= nil and ActivatedAbility.OppositeSquareOccupied(params.token, t.token) then
+            for _, target in ipairs(castTargets or {}) do
+                if target.token ~= nil and ActivatedAbility.OppositeSquareOccupied(params.token, target.token) then
                     oppositeWarningPanel = gui.Panel {
+                        classes = { "bgDanger" },
                         width = "100%-16",
                         height = "auto",
                         flow = "vertical",
@@ -2267,13 +2272,10 @@ function ActivatedAbility:Render(options, params)
                         borderBox = true,
                         hpad = 6,
                         vpad = 4,
-                        bgimage = "panels/square.png",
-                        bgcolor = "#C94040",
                         gui.Label {
+                            classes = { "sizeS", "fgStrong" },
                             width = "100%",
                             height = "auto",
-                            fontSize = 14,
-                            color = "#FFFFFF",
                             textWrap = true,
                             text = UIText.T("ability.oppositeSquareOccupied"),
                         },
@@ -2300,7 +2302,7 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
-    --Always-visible wrapper (a single child avoids nil holes in the children list).
+    --One panel holding the token info and the warning, so the card gets a single entry.
     local infoAndWarningPanel = nil
     if tokenDependentInfoPanel ~= nil or oppositeWarningPanel ~= nil then
         local extras = {}

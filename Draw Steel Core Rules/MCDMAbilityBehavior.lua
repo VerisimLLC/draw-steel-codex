@@ -1,8 +1,10 @@
 local mod = dmhub.GetModLoading()
 
---- True when the square directly opposite the caster from the target (where
---- "teleport to opposite side" would put the target) holds another creature.
---- Large creatures count if any square they cover is that square.
+--- True when another creature stands in the square on the far side of the caster
+--- from the target (where "teleport to the opposite side" would put the target).
+--- A large creature counts if any square it covers is that square.
+--- Only correct when the caster and target are both size 1. It also ignores walls
+--- and objects.
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @return boolean

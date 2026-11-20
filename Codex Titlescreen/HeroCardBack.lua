@@ -2109,7 +2109,8 @@ end
 
 --- One skill in a group's line: hover shows what it covers; a click rolls a
 --- test with it for whoever controls the hero.
-local function SkillPiece(tok, skill, last)
+--- @param style? {color: string|nil, bold: boolean|nil} how the name reads (Negotiation's trained skills are bold, the rest muted)
+local function SkillPiece(tok, skill, last, style)
     local canRoll = dmhub.isDM or Try(function() return tok.canControl end, false)
     return gui.Panel{
         width = "auto",
@@ -2136,7 +2137,7 @@ local function SkillPiece(tok, skill, last)
             audio.FireSoundEvent("Mouse.Click")
             pcall(RollSkillTest, tok, skill)
         end,
-        Text{ text = skill.name .. cond(last, "", ","), width = "auto", fontSize = 12, color = COLOR_SOFT, textWrap = false },
+        Text{ text = skill.name .. cond(last, "", ","), width = "auto", fontSize = 12, bold = style ~= nil and style.bold == true, color = style ~= nil and style.color or COLOR_SOFT, textWrap = false },
     }
 end
 
@@ -2209,28 +2210,47 @@ local function MontageTab(tok, c)
     }
 end
 
---- The interpersonal skills, trained ones first, the rest muted.
-local function InterpersonalSkills(c)
+--- The interpersonal skills, trained ones first, the rest muted; each hovers
+--- and rolls a test, as on the Montage tab.
+local function InterpersonalSkills(c, tok)
     local trained, untrained = {}, {}
     pcall(function()
         for _, skill in ipairs(Skill.SkillsInfo) do
             if skill.category == "interpersonal" then
                 if c:ProficientInSkill(skill) then
-                    trained[#trained+1] = skill.name
+                    trained[#trained+1] = skill
                 else
-                    untrained[#untrained+1] = skill.name
+                    untrained[#untrained+1] = skill
                 end
             end
         end
     end)
-    table.sort(trained)
-    table.sort(untrained)
+    local function ByName(a, b) return a.name < b.name end
+    table.sort(trained, ByName)
+    table.sort(untrained, ByName)
+    local function Line(label, skills, style)
+        local pieces = {
+            Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(label)), width = "auto", fontSize = 12, rmargin = 8, textWrap = false },
+        }
+        for i, skill in ipairs(skills) do
+            pieces[#pieces+1] = SkillPiece(tok, skill, i == #skills, style)
+        end
+        return gui.Panel{
+            width = CONTENT_WIDTH,
+            height = "auto",
+            flow = "horizontal",
+            wrap = true,
+            bmargin = 3,
+            interactable = false,
+            children = pieces,
+        }
+    end
     local lines = {}
     if #trained > 0 then
-        lines[#lines+1] = LabelledLine(T("herocard.back.negotiation.trained"), string.format("<b><color=%s>%s</color></b>", COLOR_TEXT, table.concat(trained, ", ")))
+        lines[#lines+1] = Line(T("herocard.back.negotiation.trained"), trained, { color = COLOR_TEXT, bold = true })
     end
     if #untrained > 0 then
-        lines[#lines+1] = LabelledLine(T("herocard.back.negotiation.untrained"), string.format("<color=%s>%s</color>", COLOR_MUTED, table.concat(untrained, ", ")))
+        lines[#lines+1] = Line(T("herocard.back.negotiation.untrained"), untrained, { color = COLOR_MUTED })
     end
     return Lines(lines)
 end
@@ -2246,7 +2266,7 @@ local function NegotiationTab(tok, c)
                 HeroTokensLine(c),
             }
         end,
-        function() return InterpersonalSkills(c) end,
+        function() return InterpersonalSkills(c, tok) end,
         function()
             local languages = LanguagesText(c)
             if languages == "" then

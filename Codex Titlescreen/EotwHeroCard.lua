@@ -843,10 +843,88 @@ local function CreateStaminaBar(charid, opts)
     }
 end
 
+--- Resource readouts --------------------------------------------------------
+
+--Extra readouts on the heroic resource row, for classes with more than one
+--heroic resource. Seeded from the previous EotwHeroCard table so a
+--registration made once at startup survives a reload of this file.
+local g_resourceReadouts = {}
+do
+    local previous = rawget(_G, "EotwHeroCard")
+    if type(previous) == "table" and type(previous.resourceReadouts) == "table" then
+        g_resourceReadouts = previous.resourceReadouts
+    end
+end
+
+--- Add a readout beside the heroic resource on every hero card, for a class
+--- with a second heroic resource. Registering an id again replaces it.
+---   id    unique key
+---   ord   sort order among readouts (default 0, lower is further left)
+---   read  function(tok) -> nil to show nothing for this hero, or
+---         { icon = image id, text = "4/6", tooltip = optional string }
+--- @param entry {id: string, ord: nil|number, read: fun(tok: CharacterToken): nil|{icon: string, text: string, tooltip: nil|string}}
+local function RegisterResourceReadout(entry)
+    g_resourceReadouts[entry.id] = entry
+end
+
+--The readouts that show for this hero, in ord order. A read that errors
+--is skipped so one broken registration cannot break the card.
+local function CollectResourceReadouts(tok)
+    local result = {}
+    for _, entry in pairs(g_resourceReadouts) do
+        local ok, shown = pcall(entry.read, tok)
+        if ok and type(shown) == "table" then
+            result[#result+1] = { id = entry.id, ord = entry.ord or 0, shown = shown }
+        end
+    end
+    table.sort(result, function(a, b)
+        if a.ord ~= b.ord then
+            return a.ord < b.ord
+        end
+        return a.id < b.id
+    end)
+    return result
+end
+
+--One readout: its icon and value, styled like the heroic resource's own.
+local function CreateResourceReadout()
+    local icon = gui.Panel{
+        classes = {"eotwResIcon"},
+        interactable = false,
+    }
+    local value = gui.Label{
+        classes = {"eotwResValue"},
+        text = "",
+        interactable = false,
+    }
+    return gui.Panel{
+        width = "auto",
+        height = "100%",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        data = { tooltip = nil },
+        linger = function(element)
+            if element.data.tooltip ~= nil then
+                gui.Tooltip(element.data.tooltip)(element)
+            end
+        end,
+        setReadout = function(element, shown)
+            icon.selfStyle.bgimage = shown.icon
+            value.text = shown.text or ""
+            element.data.tooltip = shown.tooltip
+        end,
+        icon,
+        value,
+    }
+end
+
 --Heroic resource, icon only: the class's heroic resource icon (the
---character panel's own source) with the current value beside it. Surges
---are NOT here -- they render as per-surge icons in the card's bottom-right
---corner (CreateSurgeCorner).
+--character panel's own source) with the current value beside it, then any
+--registered readouts (RegisterResourceReadout). Surges are NOT here --
+--they render as per-surge icons in the card's bottom-right corner
+--(CreateSurgeCorner).
 local function CreateResourceRow(charid)
     local hrIcon = gui.Panel{
         classes = {"eotwResIcon"},
@@ -893,6 +971,39 @@ local function CreateResourceRow(charid)
             element.text = tostring(value)
         end,
     }
+    --the cells are rebuilt only when which readouts show (or their icons)
+    --changes; the values are pushed into them on every refresh.
+    local readouts = gui.Panel{
+        width = "auto",
+        height = "100%",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        data = { signature = nil },
+        refreshCard = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if tok == nil or not tok.valid or tok.properties == nil then
+                return
+            end
+            local shownList = CollectResourceReadouts(tok)
+            local parts = {}
+            for _, item in ipairs(shownList) do
+                parts[#parts+1] = item.id .. "=" .. tostring(item.shown.icon)
+            end
+            local signature = table.concat(parts, ";")
+            if signature ~= element.data.signature then
+                element.data.signature = signature
+                local cells = {}
+                for _ = 1, #shownList do
+                    cells[#cells+1] = CreateResourceReadout()
+                end
+                element.children = cells
+            end
+            for i, cell in ipairs(element.children) do
+                cell:FireEvent("setReadout", shownList[i].shown)
+            end
+        end,
+    }
     return gui.Panel{
         width = "100%",
         height = RESOURCE_ROW_HEIGHT,
@@ -901,6 +1012,7 @@ local function CreateResourceRow(charid)
         valign = "center",
         hrIcon,
         hrValue,
+        readouts,
     }
 end
 
@@ -2047,6 +2159,9 @@ EotwHeroCard = {
     IsCardHeroDead = IsCardHeroDead,
     RosterSignature = RosterSignature,
     HeroDisplayName = HeroDisplayName,
+    RegisterResourceReadout = RegisterResourceReadout,
+    --the registry itself, read back by the next load of this file.
+    resourceReadouts = g_resourceReadouts,
     --the card's style rules; callers wrap them in their own MergeTokens /
     --MergeStyles so the theme tokens resolve for their cascade root.
     rules = g_heroCardRules,

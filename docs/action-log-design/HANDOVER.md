@@ -29,8 +29,12 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      before or after the dice both recorded. That cast also had Lightning Treads Momentum
      (needs movement first). An uncommitted `HISTORYDIAG:: surges` print sits in
      MCDMAbilityRollBehavior.lua to catch the next one; remove it before the PRs.
-  2. **6.5d** the roll card folds into History (BRIEF "The S5 fold, built cheaply"): a ghost
-     to the new row when History is open, to the History rail button when closed.
+  2. **6.5d done** (`eff4da03`, James checked 2026-11-20): a copy of the row (BuildAction)
+     flies from the ability card in 0.9 s; open History: shrinks to the row's width, lands
+     on it while the real row waits hidden (`historyFoldHidden`, a class tree since opacity
+     isn't inherited), then cross-fades (`historyFoldReveal`, transitionTime); closed: shrinks
+     into the rail button. Still open: James expected the closed case to fold into the
+     notification bubble, but your own actions never get one; decide whether they should.
   3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
      C4) plus a collision Why ("2 squares left, +2 for hitting an object": wording to
      propose); strained, rampage and captain changes (F5).

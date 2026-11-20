@@ -10820,6 +10820,11 @@ creature.lookupSymbols = {
         local q = dmhub.initiativeQueue
         if q ~= nil and not q.hidden then
             local id = q:GetTurnId()
+            --Something took away this creature's hidden benefits for the rest of this turn
+            --(creature:LoseHiddenBenefits), so it no longer counts as hidden this turn.
+            if c:try_get("hiddenBenefitsLostTurnId") == id then
+                return false
+            end
             return hiddenid == id
         end
 

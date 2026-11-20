@@ -1663,6 +1663,29 @@ local function AddStruckLine(rows, width, side, removed, forTarget, sources)
     AddSideSources(rows, width, sources, side, true)
 end
 
+--Z8, Z9: each tier modifier and flat bonus, after the edges and banes, a trigger's with
+--its owner's face.
+--- @param sources HistoryEdgeSource[]
+local function AddTierSourceLines(rows, width, sources)
+    for _, source in ipairs(sources) do
+        local values = {}
+        values[#values + 1] = TierValue(source)
+        if (source.bonus or 0) ~= 0 then
+            values[#values + 1] = Signed(source.bonus)
+        end
+        for _, value in ipairs(values) do
+            local lead = nil
+            if source.who ~= nil and not source.hand then
+                local face = History.Face(source.who, 20, true)
+                face.selfStyle.rmargin = 6
+                face.selfStyle.halign = "left"
+                lead = {face}
+            end
+            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), eye = SpoilerEye(source.name or ""), value = value})
+        end
+    end
+end
+
 --The net edge or bane line, what gave it each edge and bane (edges first), then the rule
 --note. A side that was ignored entirely gets its own line, edges before the net line and
 --banes after it.
@@ -1709,25 +1732,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources, flat)
         rows[#rows + 1] = ReceiptNote(width, net.note)
     end
 
-    --Z8, Z9: each tier modifier and flat bonus after the edges and banes, a trigger's with
-    --its owner's face.
-    for _, source in ipairs(sources) do
-        local values = {}
-        values[#values + 1] = TierValue(source)
-        if (source.bonus or 0) ~= 0 then
-            values[#values + 1] = Signed(source.bonus)
-        end
-        for _, value in ipairs(values) do
-            local lead = nil
-            if source.who ~= nil and not source.hand then
-                local face = History.Face(source.who, 20, true)
-                face.selfStyle.rmargin = 6
-                face.selfStyle.halign = "left"
-                lead = {face}
-            end
-            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), eye = SpoilerEye(source.name or ""), value = value})
-        end
-    end
+    AddTierSourceLines(rows, width, sources)
 end
 
 --"Damage immunity 2", "Fire immunity 3", "Fire weakness 3" (Z5).
@@ -1782,12 +1787,86 @@ local function DamagePartLine(width, part)
     return ReceiptLine(width, {lead = lead, label = text, eye = SpoilerEye(part.name or ""), value = Signed(part.amount)})
 end
 
+--- Splits each target's roll sources into what applied to every target and its own (COPY.md
+--- Round 16). A target without a list of its own had the roll's (rows from before Round 16).
+--- @param roll {sources: HistoryEdgeSource[]|nil}
+--- @param targets HistoryCreature[] The targets to compare.
+--- @return table<HistoryCreature, HistoryEdgeSource[]> shared
+--- @return table<HistoryCreature, HistoryEdgeSource[]> own
+local function SplitSources(roll, targets)
+    local function Sources(who)
+        return (who.roll ~= nil and who.roll.sources) or who.sources or roll.sources or {}
+    end
+    --each source as many times as the target with fewest has it.
+    --- @type table<string, integer>|nil
+    local common = nil
+    for _, who in ipairs(targets) do
+        local counts = {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            counts[key] = (counts[key] or 0) + 1
+        end
+        if common == nil then
+            common = counts
+        else
+            for key, count in pairs(common) do
+                common[key] = math.min(count, counts[key] or 0)
+            end
+        end
+    end
+    local shared, own = {}, {}
+    for _, who in ipairs(targets) do
+        local left = {}
+        for key, count in pairs(common or {}) do
+            left[key] = count
+        end
+        shared[who], own[who] = {}, {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            if (left[key] or 0) > 0 then
+                left[key] = left[key] - 1
+                table.insert(shared[who], source)
+            else
+                table.insert(own[who], source)
+            end
+        end
+    end
+    return shared, own
+end
+
+--What gave this target, alone, edges or banes the roll's line doesn't name: a line per side
+--that it changed, with no number (the roll's line has the count), and its sources under it.
+--- @param sources HistoryEdgeSource[]
+local function AddOwnSources(rows, width, sources)
+    for _, side in ipairs({"edge", "bane"}) do
+        local field = side == "edge" and "edges" or "banes"
+        local removedField = side == "edge" and "removedEdges" or "removedBanes"
+        local any = false
+        for _, source in ipairs(sources) do
+            any = any or (source[field] or 0) > 0 or (source[removedField] or 0) > 0
+        end
+        if any then
+            rows[#rows + 1] = ReceiptLine(width, {
+                lead = {Chevrons(side, 1)},
+                label = side == "edge" and "Edge for this target" or "Bane for this target",
+                labelClass = side == "edge" and "historyEdgeText" or "historyBaneText",
+                value = "",
+            })
+            AddSideSources(rows, width, sources, side)
+        end
+    end
+    AddTierSourceLines(rows, width, sources)
+end
+
 --One target's sum: its own roll if it had one, what the tier dealt, what changed it, and
 --what landed. count > 1 for numbered creatures that all got the same.
-local function AddTargetLines(rows, width, entry, who, count)
+--- @param own? HistoryEdgeSource[] Roll sources that applied to this target alone.
+local function AddTargetLines(rows, width, entry, who, count, own)
     if who.roll ~= nil then
         AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true, who.roll.sources)
         rows[#rows + 1] = ReceiptLine(width, {label = "Their roll", badge = who.tier, value = tostring(who.roll.total), total = true})
+    elseif own ~= nil and #own > 0 then
+        AddOwnSources(rows, width, own)
     end
     --what dealt it: the tier against this target, or the ability when nothing was rolled.
     local source = (who.tier ~= nil and who.tier > 0) and string.format("Tier %d", who.tier) or entry.ability.name
@@ -1885,13 +1964,15 @@ local function AddTargetLines(rows, width, entry, who, count)
 end
 
 --Targets with the same numbers share one sum ("Goblin 1-4", "Taken, each").
-local function ReceiptKey(who)
+--- @param own? HistoryEdgeSource[] Roll sources that applied to this target alone.
+local function ReceiptKey(who, own)
+    own = own or {}
     local moved = who.moved
     local stability = ""
     if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
         stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
     end
-    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" then
+    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" and #own == 0 then
         return nil
     end
     local types = {}
@@ -1910,6 +1991,11 @@ local function ReceiptKey(who)
         end
         roll = string.format("%d/%d/%d/%s", who.roll.edges or 0, who.roll.banes or 0, who.roll.total, table.concat(names, ","))
     end
+    local ownKeys = {}
+    for _, source in ipairs(own) do
+        ownKeys[#ownKeys + 1] = History.SourceKey(source)
+    end
+    roll = roll .. "/" .. table.concat(ownKeys, ",")
     local parts = {}
     for _, part in ipairs(who.parts or {}) do
         parts[#parts + 1] = string.format("%s/%s/%s/%d/%s", part.kind, part.name or "", part.who ~= nil and part.who.id or "",
@@ -2022,6 +2108,25 @@ local function NumbersRows(entry, kids, width)
     end
 
     local roll = entry.roll
+    --targets that rolled with the main roll but owed its edges to different things: the
+    --Power roll lines name what applied to all of them, each target's sum its own (Round 16).
+    local rollSources = roll ~= nil and roll.sources or nil
+    --- @type table<HistoryCreature, HistoryEdgeSource[]>
+    local ownOf = {}
+    if roll ~= nil then
+        local plain, differs = {}, false
+        for _, who in ipairs(targets) do
+            if who.roll == nil and who.tier ~= nil then
+                plain[#plain + 1] = who
+                differs = differs or who.sources ~= nil
+            end
+        end
+        if differs then
+            local sharedOf
+            sharedOf, ownOf = SplitSources(roll, plain)
+            rollSources = sharedOf[plain[1]]
+        end
+    end
     --each side of an opposed power roll, under its roller's name: the same lines a test
     --line's own card shows. A roll players may not see keeps only its heading.
     for _, kid in ipairs(kids or {}) do
@@ -2062,7 +2167,7 @@ local function NumbersRows(entry, kids, width)
                 rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
             end
         end
-        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources, entry.family == "test" and entry.cause ~= nil)
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false, rollSources, entry.family == "test" and entry.cause ~= nil)
         --the tier of the roll itself: a target with edges or banes of its own got another.
         local tier = roll.tier
         for _, who in ipairs(targets) do
@@ -2120,7 +2225,7 @@ local function NumbersRows(entry, kids, width)
     local groups = {}
     local byKey = {}
     for _, who in ipairs(targets) do
-        local key = ReceiptKey(who)
+        local key = ReceiptKey(who, ownOf[who])
         if key ~= nil then
             if byKey[key] == nil then
                 byKey[key] = {}
@@ -2131,7 +2236,7 @@ local function NumbersRows(entry, kids, width)
     end
     for _, group in ipairs(groups) do
         rows[#rows + 1] = SubHead(GroupNames(group), width, group[1])
-        AddTargetLines(rows, width, entry, group[1], #group)
+        AddTargetLines(rows, width, entry, group[1], #group, ownOf[group[1]])
     end
 
     local triggered = {}
@@ -2630,45 +2735,11 @@ local function TierLines(roll, targets)
         return roll.tier ~= nil and TierStory(roll, roll.tier, natural) or nil, {}
     end
 
-    --a target without a list of its own had the roll's (rows from before Round 16 always).
-    local function Sources(who)
-        return (who.roll ~= nil and who.roll.sources) or who.sources or roll.sources or {}
-    end
-    --what applied to every target: each source as many times as the target with fewest has it.
-    --- @type table<string, integer>|nil
-    local common = nil
-    for _, who in ipairs(rolled) do
-        local counts = {}
-        for _, source in ipairs(Sources(who)) do
-            local key = History.SourceKey(source)
-            counts[key] = (counts[key] or 0) + 1
-        end
-        if common == nil then
-            common = counts
-        else
-            for key, count in pairs(common) do
-                common[key] = math.min(count, counts[key] or 0)
-            end
-        end
-    end
-
     --each target's parts, split into the shared ones and its own.
+    local sharedOf, ownOf = SplitSources(roll, rolled)
     local plans = {}
     for _, who in ipairs(rolled) do
-        local left = {}
-        for key, count in pairs(common or {}) do
-            left[key] = count
-        end
-        local shared, own = {}, {}
-        for _, source in ipairs(Sources(who)) do
-            local key = History.SourceKey(source)
-            if (left[key] or 0) > 0 then
-                left[key] = left[key] - 1
-                shared[#shared + 1] = source
-            else
-                own[#own + 1] = source
-            end
-        end
+        local shared, own = sharedOf[who], ownOf[who]
         local parts = TierParts(shared, natural)
         local isShared = {}
         for _, part in ipairs(parts) do

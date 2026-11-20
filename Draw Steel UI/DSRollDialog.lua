@@ -3924,7 +3924,10 @@ function GameHud.CreateRollDialog(self)
                                 description = "Consume surges",
                                 undoable = false,
                                 execute = function()
-                                    creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    --filed under the cast, so History shows it on the action's row.
+                                    GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    end)
                                 end,
                             }
                         end

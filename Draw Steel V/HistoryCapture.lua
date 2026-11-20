@@ -754,6 +754,10 @@ local function OpenCast(cast)
             cast = symbols.cast
         end
     end
+    --outside the cast's coroutine, e.g. surges spent when the roll dialog's Roll is clicked.
+    if cast == nil then
+        cast = GameSystem.ScopedCast()
+    end
     return cast ~= nil and g_byCast[cast] or nil
 end
 

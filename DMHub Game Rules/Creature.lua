@@ -86,6 +86,30 @@ function GameSystem.IsHandEdit()
 	return g_handEditDepth > 0
 end
 
+--The cast a GameSystem.ForCast call is running on behalf of, if any.
+local g_scopedCast = nil
+
+--- Runs fn as part of a cast from outside its coroutine, e.g. a roll dialog spending surges
+--- when its Roll button is clicked, so play observers can file the change under that cast
+--- (ActivatedAbility.CurrentCastInfo() only sees the cast's own coroutine). fn must not yield.
+--- @param cast table|nil The cast (symbols.cast); nil runs fn as is.
+--- @param fn function
+function GameSystem.ForCast(cast, fn)
+	local outer = g_scopedCast
+	g_scopedCast = cast or outer
+	local ok, err = pcall(fn)
+	g_scopedCast = outer
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- The cast the running GameSystem.ForCast call names, or nil outside one.
+--- @return table|nil
+function GameSystem.ScopedCast()
+	return g_scopedCast
+end
+
 --- Tells every observer that something happened. Safe in hot code: it costs a table
 --- lookup per observer, and a failure in one stops nothing.
 --- @param moment string

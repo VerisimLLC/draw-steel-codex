@@ -24,8 +24,11 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      `07f04dfd`: a trigger's up-front cost joins its row (0.5 s wait), an action's own
      gains go on its row as "+N" and in What happened ("{Hero} gained 6 surges.", signed by
      James 2026-11-20), and zero damage type lines are dropped. Up-front costs and gains
-     not yet run on a real cast. Open question: Battle Grace showed "Cost: 2 surges" with
-     no surge damage part.
+     not yet run on a real cast. Battle Grace once showed "Cost: 2 surges" with no surge
+     part (its Tier 3 24 was 14 + the surges' 10). Not reproduced 2026-11-20: surges picked
+     before or after the dice both recorded. That cast also had Lightning Treads Momentum
+     (needs movement first). An uncommitted `HISTORYDIAG:: surges` print sits in
+     MCDMAbilityRollBehavior.lua to catch the next one; remove it before the PRs.
   2. **6.5d** the roll card folds into History (BRIEF "The S5 fold, built cheaply"): a ghost
      to the new row when History is open, to the History rail button when closed.
   3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,

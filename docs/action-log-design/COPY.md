@@ -659,3 +659,9 @@ shows the map on show, cut short when long; its menu lists those maps by name, t
 | ID | What | Line |
 |---|---|---|
 | L95 | Tooltip on the map switcher | Display history for another map |
+
+## Round 24: empty History (signed off 2026-11-20)
+
+| ID | What | Line |
+|---|---|---|
+| L96 | History on a map with nothing recorded yet | Nothing has happened on this map yet. |

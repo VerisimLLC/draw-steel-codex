@@ -994,9 +994,9 @@ local function BuildColumn(bus)
         eyeLabel.text = cond(private, "Name hidden", "Name shown")
         eyeIcon.bgimage = cond(private, "phosphor/eye-slash.png", "phosphor/eye.png")
         eyeButton.data.tip = cond(private, "Hidden from other players", "Visible to other players")
-        local hasTable, ancestry = HeroSheetCard.NameTable(token)
+        local hasTable, ancestry, formerLife = HeroSheetCard.NameTable(token)
         suggestButton:SetClass("heroSheetOff", not hasTable or not writable)
-        suggestButton.data.tip = cond(hasTable, nil, HeroSheetCard.NoNamesTip(ancestry))
+        suggestButton.data.tip = cond(hasTable, nil, HeroSheetCard.NoNamesTip(ancestry, formerLife))
         --a look other than the first carries its own name;
         --"Use <Hero>" needs the first look's name, which engines that report
         --it per look (GetVariationInfo's characterName) give.

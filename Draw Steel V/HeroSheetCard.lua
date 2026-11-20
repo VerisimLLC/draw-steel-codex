@@ -186,12 +186,13 @@ local PLATE_INSET = 44
 
 --Whether the Hero's ancestry has a name table to suggest from (homebrew
 --ancestries without one, and a Revenant before their former life is picked,
---do not), and the ancestry as it is said.
+--do not), the ancestry as it is said, and whether it waits on a former life.
 --- @param token CharacterToken
---- @return boolean, string
+--- @return boolean, string, boolean
 local function NameTable(token)
     local hasTable = false
     local ancestry = ""
+    local formerLife = false
     pcall(function()
         local hero = token.properties --[[@as character]]
         local generator = hero:GetNameGeneratorTable()
@@ -199,15 +200,21 @@ local function NameTable(token)
         --Race() falls back to a default ancestry; an unpicked one reads "".
         if hero:try_get("raceid") ~= nil then
             ancestry = HeroBuild.SaidName(hero:Race().name)
+            formerLife = hero:Race():IsInherited() ~= false and hero:InheritedAncestry() == nil
         end
     end)
-    return hasTable, ancestry
+    return hasTable, ancestry, formerLife
 end
 
---- Why Suggest a name is off: the ancestry has no names, or none is picked.
+--- Why Suggest a name is off: the ancestry has no names, none is picked, or
+--- a Revenant's names wait on their former life.
 --- @param ancestry string the second value NameTable returns
+--- @param formerLife nil|boolean the third value NameTable returns
 --- @return string
-function HeroSheetCard.NoNamesTip(ancestry)
+function HeroSheetCard.NoNamesTip(ancestry, formerLife)
+    if formerLife then
+        return "Select a Former Life to suggest a name"
+    end
     if ancestry == "" then
         return "Pick an ancestry to get name suggestions."
     end
@@ -642,10 +649,10 @@ local function NameRow(token)
         field,
     }
     local eye = PrivacyEye(token)
-    local hasTable, ancestry = NameTable(token)
+    local hasTable, ancestry, formerLife = NameTable(token)
     local dice = IconButton{
         icon = "phosphor/dice-five.png",
-        tooltip = cond(hasTable, "Suggest a name", HeroSheetCard.NoNamesTip(ancestry)),
+        tooltip = cond(hasTable, "Suggest a name", HeroSheetCard.NoNamesTip(ancestry, formerLife)),
         enabled = hasTable,
         press = function()
             rolledAt = dmhub.Time()

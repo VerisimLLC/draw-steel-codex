@@ -4937,18 +4937,21 @@ function HeroBuilder.Create(args)
 
     --A characteristic being dragged: the chip on the pointer, where the
     --pointer started (pop-up layer units), and the tile it is over.
-    --- @type nil|{tile: Panel, chip: Panel, start: {x: number, y: number}, over: nil|Panel}
+    --- @type nil|{tile: Panel, chip: Panel, start: {x: number, y: number}, zoom: number, over: nil|Panel}
     local charDrag = nil
 
     --- Where the pointer is during a tile's drag: its start plus how far it
     --- has moved (the engine finds no targets while the tile stays put, so
     --- the Builder hit-tests the pointer, as the Inventory's drag does).
+    --- The tile measures the move in its own units, which the window's
+    --- zoom (Font Size) shrinks, so the move is scaled back to the layer's.
     --- @param tile Panel
     --- @return {x: number, y: number}
     local function CharDragPointer(tile)
         local start = charDrag ~= nil and charDrag.start or {x = 0, y = 0}
+        local zoom = charDrag ~= nil and charDrag.zoom or 1
         local delta = tile.dragDelta
-        return {x = start.x + delta.x, y = start.y + delta.y}
+        return {x = start.x + delta.x * zoom, y = start.y + delta.y * zoom}
     end
 
     --- The swappable tile under a point, other than the dragged one.
@@ -5147,12 +5150,12 @@ function HeroBuilder.Create(args)
                     if not element.data.swappable or not Host().canWrite() or layer == nil or rect == nil then
                         return
                     end
-                    local mousePoint = element.mousePoint
-                    local moved = element.dragDelta
-                    local start = {x = rect.x + mousePoint.x * rect.w - moved.x, y = rect.y + (1 - mousePoint.y) * rect.h - moved.y}
                     --the tile's own size and look, its value alone,
                     --held by its middle; the pop-up layer is in screen units.
                     local zoom = HeroSheetWindow.Zoom()
+                    local mousePoint = element.mousePoint
+                    local moved = {x = element.dragDelta.x * zoom, y = element.dragDelta.y * zoom}
+                    local start = {x = rect.x + mousePoint.x * rect.w - moved.x, y = rect.y + (1 - mousePoint.y) * rect.h - moved.y}
                     local chip = gui.Panel{
                         classes = {"heroBuilderCharTile", "heroBuilderCharFree"},
                         styles = {HeroSheetTheme.RootStyles(), BuilderRules()},
@@ -5183,7 +5186,7 @@ function HeroBuilder.Create(args)
                     chip.x = math.floor(start.x + moved.x - chip.data.w / 2)
                     chip.y = math.floor(start.y + moved.y - chip.data.h / 2)
                     chip:SetAsLastSibling()
-                    charDrag = {tile = element, chip = chip, start = start, over = nil}
+                    charDrag = {tile = element, chip = chip, start = start, zoom = zoom, over = nil}
                     element:SetClass("heroBuilderCharDragging", true)
                 end,
                 dragging = function(element)

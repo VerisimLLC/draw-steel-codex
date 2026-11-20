@@ -1,5 +1,36 @@
 local mod = dmhub.GetModLoading()
 
+--- True when another creature stands in the square on the far side of the caster
+--- from the target (where "teleport to the opposite side" would put the target).
+--- A large creature counts if any square it covers is that square.
+--- Only correct when the caster and target are both size 1. It also ignores walls
+--- and objects.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @return boolean
+function ActivatedAbility.OppositeSquareOccupied(casterToken, targetToken)
+    if casterToken == nil or targetToken == nil or casterToken.loc == nil or targetToken.loc == nil then
+        return false
+    end
+
+    local dx = casterToken.loc.x - targetToken.loc.x
+    local dy = casterToken.loc.y - targetToken.loc.y
+    local oppositeLoc = targetToken.loc:dir(round(dx*2), round(dy*2))
+
+    --Tokens anchored a few squares away can still cover the square, so scan the
+    --neighbourhood and compare every square each token occupies.
+    for _, tok in ipairs(targetToken:GetNearbyTokens(5) or {}) do
+        if tok.charid ~= targetToken.charid and tok.charid ~= casterToken.charid then
+            for _, loc in ipairs(tok.locsOccupying) do
+                if loc.x == oppositeLoc.x and loc.y == oppositeLoc.y and loc.floor == oppositeLoc.floor then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return
@@ -609,8 +640,7 @@ local g_rulePatterns = {
                 end
             end
 
-            local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
-            if targetImmune > 0 then
+            if targetToken.properties:CannotBeForceMoved() then
                 print("Target is immune to forced movement, not executing")
                 ShowFailMessage("Immune to Forced Movement")
                 return

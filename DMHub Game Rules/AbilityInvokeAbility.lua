@@ -1498,6 +1498,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
                             end
 
+                            --Nothing else matters once the target can't be moved, so this replaces the other notes.
+                            if target.token.properties:CannotBeForceMoved() then
+                                adjustedRange = 0
+                                adjustments = {"Immune to Forced Movement"}
+                            end
+
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
                             --A constrained pull names its anchor ("toward the nearest enemy within 3 squares") and keeps the real distance.
@@ -3014,6 +3020,12 @@ function AbilityInvocation:Invoke()
 
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+		end
+
+		--Nothing else matters once the target can't be moved, so this replaces the other notes.
+		if targetToken.properties:CannotBeForceMoved() then
+			adjustedRange = 0
+			adjustments = {"Immune to Forced Movement"}
 		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare

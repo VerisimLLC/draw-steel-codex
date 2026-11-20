@@ -52,13 +52,24 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
 	local targetGroups = {}
 
+    --If logActorCondition is set and this creature has that condition, the action log
+    --card shows whoever inflicted it (e.g. the grabber, when a grabbed creature takes
+    --the damage).
+    local logActorId = casterToken.charid
+    if self.logActorCondition ~= "" then
+        local entry = casterToken.properties:try_get("inflictedConditions", {})[self.logActorCondition]
+        if entry ~= nil and entry.casterInfo ~= nil and entry.casterInfo.tokenid ~= nil then
+            logActorId = entry.casterInfo.tokenid
+        end
+    end
+
     local logMessage = nil
     if string.trim(self.chatMessage) ~= "" then
         logMessage = ActivatedAbilityDamageChatMessage.new{
             amount = 0,
             damageType = self:EffectiveDamageType(ability, options),
             chatMessage = self.chatMessage,
-            casterid = casterToken.charid,
+            casterid = logActorId,
             targetids = tokenids,
         }
     end
@@ -388,6 +399,10 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
     self:PostBonusNote(casterToken, options)
 end
+
+--Optional condition id. When the creature making the damage roll has it, the action log
+--shows whoever inflicted it. Set in the ability's data; there is no editor field.
+ActivatedAbilityDamageBehavior.logActorCondition = ""
 
 --Optional record-only log note for a bonus already folded into the roll (no extra damage instance).
 --logNoteTitle names the source, logNoteDetail the bonus, logNoteAmount is a GoblinScript for its size.

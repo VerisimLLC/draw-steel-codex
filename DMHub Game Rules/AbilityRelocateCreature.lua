@@ -445,6 +445,12 @@ end
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 
+    --Last check: stops a forced move that got past the checks made before the prompt.
+    local forcedMove = options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil
+    if forcedMove and casterToken.properties:CannotBeForceMoved() then
+        return
+    end
+
     casterToken.properties._tmp_freeMovement = true
 
     if ability.targetType == 'line' and options.targetArea ~= nil then

@@ -2114,6 +2114,19 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
         --reveals that characteristic to the players (self-guarding).
         MonsterKnowledge.RecordCharacteristicTest(targetToken, attrid)
 
+        --every potency test, either way, for a record of play: what was tested, against what.
+        if options.powerRollPass == "target" then
+            GameSystem.NotifyPlayObservers("potency", targetToken.properties, {
+                attrid = attrid,
+                letter = string.upper(gateMatch.attr),
+                value = resistanceValue,
+                gate = gate,
+                resisted = result,
+                text = gateMatch.tail,
+                stopped = stoppedText,
+            })
+        end
+
         if result then
 
             if options.powerRollPass == "target" then

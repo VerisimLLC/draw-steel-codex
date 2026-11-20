@@ -2409,8 +2409,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
 
                     --Check modifiers actually applied to roll for this target
+                    --and what raised it, for a record of play (History): "Potency raised with 2 surges".
+                    local potencySources = {}
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
+                        local change = tonumber(mod:try_get("potencymod", 0)) or 0
+                        potencyApplied = potencyApplied + change
+                        if change ~= 0 then
+                            potencySources[#potencySources + 1] = {
+                                name = mod.name,
+                                potency = change,
+                                surges = mod:try_get("resourceCostType") == "surges" and tonumber(mod:try_get("resourceCostAmount", 0)) or nil,
+                            }
+                        end
+                    end
+                    if #potencySources > 0 then
+                        options.symbols.cast:get_or_add("targetPotencySources", {})[targetToken.charid] = potencySources
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)

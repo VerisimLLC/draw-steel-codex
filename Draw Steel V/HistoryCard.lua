@@ -3089,6 +3089,56 @@ function History.Why(entry, kids)
         end
     end
 
+    --Y8, Y9, L26: each potency test, and why it went the way it did. Targets with the same
+    --test and outcome share a line.
+    for _, who in ipairs(targets) do
+        for _, test in ipairs(who.potency or {}) do
+            local phrase = nil
+            if test.what ~= nil then
+                phrase = "being " .. (CONDITION_PHRASES[test.what] or test.what)
+            elseif test.effect ~= nil then
+                phrase = test.effect
+            end
+            local hidden = test.mk ~= nil and not dmhub.isDM
+                and not MonsterKnowledge.IsRevealed(test.mk, MonsterKnowledge.EntryKey("attr", test.attrid))
+            local key = table.concat({"potency", test.letter, tostring(test.gate), tostring(test.resisted), phrase or "",
+                hidden and "hidden" or tostring(test.value), tostring(test.surges or "")}, "|")
+            Add(key, function(group)
+                local names = GroupNames(group)
+                local potency = string.format("%s<%d", test.letter, test.gate)
+                if hidden then
+                    --L26: players don't know the monster's characteristic, only how it went.
+                    local lead = phrase ~= nil and string.gsub(phrase, "^being ", "") or "Potency"
+                    lead = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
+                    return {lead = lead, text = test.resisted and "It resisted." or "It did not resist."}
+                end
+                if test.surges ~= nil and (test.raised or 0) > 0 then
+                    --Y8: surges raised the potency.
+                    local from = string.format("%s<%d", test.letter, test.gate - test.raised)
+                    local text
+                    if test.resisted then
+                        text = string.format("%s became %s, but %s resisted.", from, potency, names)
+                    elseif phrase ~= nil then
+                        text = string.format("%s became %s, so %s could not resist %s.", from, potency, names, phrase)
+                    else
+                        text = string.format("%s became %s, so %s could not resist.", from, potency, names)
+                    end
+                    return {lead = string.format("Potency raised with %d surges", test.surges), text = text}
+                end
+                --Y9: the target's characteristic against the potency.
+                local text
+                if test.resisted then
+                    text = string.format("%s: %s resisted.", potency, names)
+                elseif phrase ~= nil then
+                    text = string.format("%s: %s could not resist %s.", potency, names, phrase)
+                else
+                    text = string.format("%s: %s could not resist.", potency, names)
+                end
+                return {lead = string.format("%s %d", test.attr, test.value), text = text}
+            end, who)
+        end
+    end
+
     for _, line in ipairs(order) do
         rows[#rows + 1] = line.make(line.who)
     end

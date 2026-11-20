@@ -38,6 +38,7 @@ local mod = dmhub.GetModLoading()
 --- @field immune? string[] On a target: conditions that its immunity stopped.
 --- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
 --- @field resistedeffect? string On a target that resisted: the ongoing effect it escaped (Can't Hide), when no condition was named.
+--- @field potency? HistoryPotency[] On a target: each potency test it faced (6.6a, Y8, Y9, L26).
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
@@ -1820,6 +1821,71 @@ local function OnResisted(creature, ruleText, stoppedText)
     end
 end
 
+--- One potency test a target faced (6.6a).
+--- @class HistoryPotency
+--- @field letter string M, A, R, I or P, as the stat block writes it.
+--- @field attr string The characteristic's name ("Reason").
+--- @field attrid string For Monster Knowledge: whether players may see the monster's value.
+--- @field value number The target's characteristic.
+--- @field gate number The potency it was tested against, after anything raised it.
+--- @field resisted boolean
+--- @field what? string The condition it gated ("slowed"), or nil.
+--- @field effect? string The ongoing effect it gated ("Can't Hide") when no condition.
+--- @field raised? number How much the roll's modifiers raised the potency.
+--- @field surges? number Surges spent to raise it, when surges did all of the raising.
+--- @field mk? string The target's Monster Knowledge key, when it is a monster.
+
+--- Every potency test (resisted or not), kept on the target's place in the row so the Why
+--- can say what was tested and why it went the way it did.
+--- @param creature creature
+--- @param info {attrid: string, letter: string, value: number, gate: number, resisted: boolean, text: string|nil, stopped: string|nil}
+local function OnPotency(creature, info)
+    local state = History.Enabled() and OpenCast(nil) or nil
+    local token = dmhub.LookupToken(creature)
+    if state == nil or token == nil then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target == nil then
+        return
+    end
+    local attrInfo = creature.attributesInfo[info.attrid]
+    --- @type HistoryPotency
+    local test = {
+        letter = info.letter,
+        attr = attrInfo ~= nil and attrInfo.description or info.letter,
+        attrid = info.attrid,
+        value = info.value,
+        gate = info.gate,
+        resisted = info.resisted,
+        what = ConditionsIn(info.text) or ConditionsIn(info.stopped),
+    }
+    if test.what == nil then
+        test.effect = EffectIn(info.text) or EffectIn(info.stopped)
+    end
+    local sources = state.cast ~= nil and state.cast:try_get("targetPotencySources", {})[token.charid] or nil
+    if sources ~= nil then
+        local raised, surges, allSurges = 0, 0, true
+        for _, source in ipairs(sources) do
+            raised = raised + (source.potency or 0)
+            if source.surges ~= nil then
+                surges = surges + source.surges
+            else
+                allSurges = false
+            end
+        end
+        if raised ~= 0 then
+            test.raised = raised
+            test.surges = allSurges and surges > 0 and surges or nil
+        end
+    end
+    if not creature:IsHero() then
+        test.mk = MonsterKnowledge.KeyForToken(token)
+    end
+    target.potency = target.potency or {}
+    table.insert(target.potency, test)
+end
+
 --A save is a roll the table watched, so it earns a line whether it passed or not. The
 --line says everything, so the cast that made the roll gets no row of its own.
 local function OnSaved(creature, info)
@@ -2198,6 +2264,7 @@ GameSystem.RegisterPlayObserver("history", {
     effectsended = OnEffectsEnded,
     conditionimmune = OnConditionImmune,
     resisted = OnResisted,
+    potency = OnPotency,
     saved = OnSaved,
     tested = OnTested,
     diceroll = OnDiceRoll,

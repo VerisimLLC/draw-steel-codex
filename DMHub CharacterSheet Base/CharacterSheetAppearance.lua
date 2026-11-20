@@ -1693,6 +1693,8 @@ end
 
 local function RevertSummonLook(lookKey)
     local tok = CharacterSheet.instance.data.info.token
+    --the look's name goes too: summons still showing it get their stat block's name back.
+    local old = tok.properties:GetSummonAppearance(lookKey)
     tok:ModifyProperties{
         description = "Change summon appearance",
         execute = function()
@@ -1702,7 +1704,7 @@ local function RevertSummonLook(lookKey)
             end
         end,
     }
-    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey)
+    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey, old ~= nil and old.name or nil)
     CharacterSheet.instance:FireEvent("refreshAll")
     CharacterSheet.instance:FireEventTree("refreshSummonLook")
 end

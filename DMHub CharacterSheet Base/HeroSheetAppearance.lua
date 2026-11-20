@@ -3865,17 +3865,24 @@ local g_summon = {key = nil, name = "", pending = {}, repaint = nil}
 --- as on the old sheet), then restyle the Hero's live summons of that kind. An emptied
 --- look is removed: the summon is back to its stat block's.
 --- @param mutate fun(look: table)
-local function SaveSummonLook(mutate)
-    local key = g_summon.key
+--- @param lookKey? string the summon to save to, if not the one being edited
+local function SaveSummonLook(mutate, lookKey)
+    local key = lookKey or g_summon.key
     if key == nil then
         return
     end
+    --if this save clears the name, summons still showing it get their stat block's name back.
+    local droppedName = nil
     local saved = HeroSheetWrite.Save{
         description = "Change summon appearance",
         execute = function(props)
             local all = props:get_or_add("summonAppearances", {})
             local look = all[key] or {}
+            local oldName = look.name
             mutate(look)
+            if oldName ~= nil and look.name == nil then
+                droppedName = oldName
+            end
             if next(look) == nil then
                 look = nil
             end
@@ -3886,7 +3893,7 @@ local function SaveSummonLook(mutate)
     }
     local token = Token()
     if saved and token ~= nil then
-        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key)
+        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, droppedName)
     end
     HeroSheetRefresh.Changed()
 end
@@ -9527,6 +9534,10 @@ local function BuildSummons(bus, Row)
     local MakeRow
     local listHolder, countPill
     local revertButton, chooseHint
+    --- @type Input
+    local nameField
+    --- @type nil|string the summon whose name nameField shows, which is where a typed name saves
+    local nameKey = nil
     local picks = {}
     local picksFit = SUGGEST_MAX
     local paintToken, dragTag, zoomRow, zoomSlider, circleRow, circleSlider
@@ -9614,7 +9625,8 @@ local function BuildSummons(bus, Row)
     --- Revert to default: the whole saved look goes; the summon stays listed.
     local function Revert()
         local key = g_summon.key
-        if key == nil or SavedLook() == nil then
+        local look = SavedLook()
+        if key == nil or look == nil then
             return
         end
         g_summon.pending = {}
@@ -9629,7 +9641,7 @@ local function BuildSummons(bus, Row)
         }
         local token = Token()
         if saved and token ~= nil then
-            ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key)
+            ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, look.name)
         end
         HeroSheetRefresh.Changed()
     end
@@ -9729,6 +9741,15 @@ local function BuildSummons(bus, Row)
         local framed = frame ~= nil and frame ~= ""
         local look = saved[entry.key]
 
+        --the field keeps what is being typed. Left empty, it shows the stat block's
+        --name in grey, and the summon keeps that name.
+        if not nameField.hasInputFocus then
+            nameField.text = look ~= nil and look.name or ""
+            nameKey = entry.key
+        end
+        nameField.placeholderText = entry.monster.info.name or entry.name
+        nameField.interactable = writable
+
         backgroundLine:SetClass("collapsed", not popout)
         local back = now.portraitBackground
         local hasBack = back ~= nil and back ~= ""
@@ -9781,6 +9802,10 @@ local function BuildSummons(bus, Row)
     local function Select(key)
         if key == g_summon.key then
             return
+        end
+        --save a name being typed, and free the field to show the next summon's.
+        if nameField.hasInputFocus then
+            gui.SetFocus(nil)
         end
         CommitPending()
         g_summon.key = key
@@ -10409,6 +10434,33 @@ local function BuildSummons(bus, Row)
         picks[i] = pick
     end
 
+    --Name: what the summon is called on the map, saved when the field is left. It saves
+    --to the summon it showed (nameKey), since a click on another summon can be handled first.
+    nameField = Field({
+        text = "",
+        limit = NAME_LIMIT,
+        selectAll = true,
+        defocus = function(text)
+            local key = nameKey
+            local token = Token()
+            if key == nil or token == nil or not HeroSheetWrite.CanWrite() then
+                return
+            end
+            local name = trim(text)
+            local current = token.properties:GetSummonAppearance(key)
+            if name == (current ~= nil and current.name or "") then
+                return
+            end
+            SaveSummonLook(function(look)
+                if name == "" then
+                    look.name = nil
+                else
+                    look.name = name
+                end
+            end, key)
+        end,
+    }) --[[@as Input]]
+
     local chooseStep
     --the hint names the summon, so it is painted.
     chooseStep, chooseHint = Step(1, "Choose the art", "",
@@ -10416,6 +10468,14 @@ local function BuildSummons(bus, Row)
             width = "100%",
             height = "auto",
             flow = "vertical",
+            FieldName("Name"),
+            gui.Panel{
+                width = "100%",
+                height = 30,
+                tmargin = 4,
+                bmargin = 12,
+                nameField,
+            },
             gui.Panel{
                 width = "100%",
                 height = 26,
@@ -10509,6 +10569,10 @@ local function BuildSummons(bus, Row)
         Row(FitParts.Hold(fitStep), fitStep, FitParts.Hold(mapStep), mapStep, true),
     }, {
         name = "appearance summons",
+        --holds the keyboard while the Name field is typed into.
+        holdsKeyboard = function(panel)
+            return nameField.valid and nameField.hasInputFocus
+        end,
         signature = function(token)
             local keys = {}
             for _, entry in ipairs(Summons.Entries(token)) do

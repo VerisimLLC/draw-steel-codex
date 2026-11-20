@@ -156,7 +156,8 @@ end
 --the summon keeps its bestiary value, except portraitFrame where nil means
 --"copy the caster's frame" and "" means "no frame". A copied frame brings the
 --caster's tint too, unless the look has a tint of its own (portraitFrameHueShift).
---Map of look key -> { portrait, portraitFrame, portraitFrameHueShift,
+--name renames the summon (a familiar's own name); nil keeps its stat block's name.
+--Map of look key -> { name, portrait, portraitFrame, portraitFrameHueShift,
 --portraitFrameSaturation, portraitFrameBrightness, tokenScale, portraitZoom,
 --portraitOffset, popoutMode, popoutScale, portraitBackground }
 ---@type table<string, table>
@@ -273,6 +274,9 @@ function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, look
 
     local custom = casterToken.properties:GetSummonAppearance(lookKey)
     if custom ~= nil then
+        if custom.name ~= nil and custom.name ~= "" then
+            token.name = custom.name
+        end
         if custom.portrait ~= nil and custom.portrait ~= "" then
             token.portrait = custom.portrait
         end
@@ -399,9 +403,12 @@ end
 
 --- Updates the caster's live summons of this creature type on the current map:
 --- reset to the bestiary look, then apply the current custom look, then upload.
+--- The reset leaves names alone, so a summon renamed by hand keeps its name. When
+--- the look's name is cleared, only summons still showing it get their stat block's name back.
 --- @param casterToken CharacterToken
 --- @param lookKey string
-function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
+--- @param droppedName nil|string the look's name before it was cleared or reverted
+function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey, droppedName)
     local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
     if monster == nil then
         return
@@ -412,6 +419,9 @@ function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
         if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
             ActivatedAbilitySummonBehavior.ResetToBestiaryLook(tok, monster)
             ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
+            if droppedName ~= nil and tok.name == droppedName then
+                tok.name = monster.info.name
+            end
             tok:UploadAppearance()
         end
     end

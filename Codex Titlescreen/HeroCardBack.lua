@@ -291,9 +291,65 @@ local function StaminaStrip(c)
     }
 end
 
+--- Stat hovers ---------------------------------------------------------------
+
+--- A hover showing where a hero's stat comes from: its base, then one line
+--- per source, as the hero sheets show it. The sources are read only when
+--- hovered (EotwHeroSheet.Data), so rebuilding the back costs nothing.
+--- @param tok CharacterToken
+--- @param key string a characteristic's attribute id, or "speed", "disengage", "stability", "size"
+--- @return fun(element: Panel)
+local function StatHover(tok, key)
+    return function(element)
+        local tip = Try(function()
+            local d = EotwHeroSheet.Data(tok, {"characteristics", "stats"})
+            if d == nil then
+                return nil
+            end
+            local s = nil
+            for _, entry in ipairs(d.characteristics or {}) do
+                if entry.id == key then
+                    s = entry
+                end
+            end
+            if s == nil and d.stats ~= nil then
+                s = d.stats[key]
+            end
+            if s == nil then
+                return nil
+            end
+            local lines = {}
+            if s.base ~= nil then
+                lines[#lines+1] = T("herosheet.stats.source_base", { base = tostring(s.base) })
+            end
+            for _, src in ipairs(s.sources or {}) do
+                lines[#lines+1] = string.format("%s %s", src.name or "", src.value or "")
+            end
+            return table.concat(lines, "\n")
+        end)
+        --framed like the ability rows' hovers: a bare gui.Tooltip draws no
+        --background over the card's face.
+        if tip ~= nil and tip ~= "" then
+            element.tooltip = gui.TooltipFrame(gui.Panel{
+                width = "auto",
+                height = "auto",
+                hpad = 12,
+                vpad = 8,
+                borderBox = true,
+                bgimage = "panels/square.png",
+                bgcolor = "#151515f8",
+                border = 1,
+                borderColor = "#6fa8ffcc",
+                gui.Label{ text = tip, width = "auto", height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = false },
+            }, { halign = "right", valign = "center" })
+        end
+    end
+end
+
 --- Characteristics -----------------------------------------------------------
 
-local function Characteristics(c)
+--- @param tok? CharacterToken a hero's token: each characteristic gets a hover with its sources
+local function Characteristics(c, tok)
     local attrs = {}
     pcall(function()
         attrs = table.values(creature.attributesInfo)
@@ -318,7 +374,12 @@ local function Characteristics(c)
             width = cellWidth,
             height = "auto",
             flow = "vertical",
-            interactable = false,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            interactable = tok ~= nil,
+            hover = tok ~= nil and StatHover(tok, attr.id) or nil,
+            --a click on a stat is for reading it, not for turning the card.
+            click = tok ~= nil and function(element) end or nil,
             gui.Panel{
                 width = 38,
                 height = 34,
@@ -360,51 +421,95 @@ end
 
 --- Movement line -------------------------------------------------------------
 
-local function MovementLine(c)
+--- @param tok? CharacterToken a hero's token: speed, disengage, stability and size get hovers with their sources
+local function MovementLine(c, tok)
     local function Stat(name, value)
         return string.format("%s <b><color=%s>%s</color></b>", name, COLOR_TEXT, tostring(value))
     end
 
+    --each part: its text and, for a stat with sources, the key StatHover reads.
     local parts = {}
     local speed = Try(function() return c:CurrentMovementSpeed() end)
     if speed ~= nil then
-        parts[#parts+1] = Stat("Speed", speed)
+        parts[#parts+1] = { Stat("Speed", speed), "speed" }
     end
     local disengage = Try(function()
         return c:GetCustomAttribute(CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"])
     end)
     if disengage ~= nil then
-        parts[#parts+1] = Stat("Disengage", disengage)
+        parts[#parts+1] = { Stat("Disengage", disengage), "disengage" }
     end
     local stability = Try(function() return c:Stability() end)
     if stability ~= nil then
-        parts[#parts+1] = Stat("Stability", stability)
+        parts[#parts+1] = { Stat("Stability", stability), "stability" }
     end
     local size = Try(function() return c:SizeDescription() end)
     if size ~= nil and size ~= "" then
-        parts[#parts+1] = Stat("Size", size)
+        parts[#parts+1] = { Stat("Size", size), "size" }
     end
     if not IsHeroProps(c) then
         local freeStrike = Try(function() return c:OpportunityAttack() end)
         if freeStrike ~= nil then
-            parts[#parts+1] = Stat("Free strike", freeStrike)
+            parts[#parts+1] = { Stat("Free strike", freeStrike) }
         end
     else
         local surges = Try(function() return c:GetAvailableSurges() end)
         if surges ~= nil then
-            parts[#parts+1] = Stat("Surges", surges)
+            parts[#parts+1] = { Stat("Surges", surges) }
         end
     end
 
     local moveType = Try(function() return c:CurrentMoveType() end)
     if moveType == "fly" then
-        parts[#parts+1] = "Flying"
+        parts[#parts+1] = { "Flying" }
     elseif moveType == "burrow" then
-        parts[#parts+1] = "Burrowing"
+        parts[#parts+1] = { "Burrowing" }
     elseif Try(function() return c:IsClingingToCeiling() end, false) then
-        parts[#parts+1] = "Clinging"
+        parts[#parts+1] = { "Clinging" }
     elseif moveType == "climb" then
-        parts[#parts+1] = "Climbing"
+        parts[#parts+1] = { "Climbing" }
+    end
+
+    --a monster's line is one label; a hero's is one piece per stat, so each
+    --can carry its own hover.
+    local statsRow
+    if tok == nil then
+        local texts = {}
+        for _, part in ipairs(parts) do
+            texts[#texts+1] = part[1]
+        end
+        statsRow = Text{
+            text = table.concat(texts, "   "),
+            fontSize = 12,
+            color = COLOR_MUTED,
+            textAlignment = "center",
+            vmargin = 4,
+        }
+    else
+        local pieces = {}
+        for i, part in ipairs(parts) do
+            local key = part[2]
+            pieces[#pieces+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                lmargin = cond(i == 1, 0, 9),
+                bgimage = "panels/square.png",
+                bgcolor = "#00000000",
+                interactable = key ~= nil,
+                hover = key ~= nil and StatHover(tok, key) or nil,
+                click = key ~= nil and function(element) end or nil,
+                Text{ text = part[1], width = "auto", fontSize = 12, color = COLOR_MUTED, textWrap = false },
+            }
+        end
+        statsRow = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            vmargin = 4,
+            flow = "horizontal",
+            interactable = false,
+            children = pieces,
+        }
     end
     --"On ground" is the usual state and is left unsaid.
 
@@ -436,13 +541,7 @@ local function MovementLine(c)
         flow = "vertical",
         interactable = false,
         Divider(),
-        Text{
-            text = table.concat(parts, "   "),
-            fontSize = 12,
-            color = COLOR_MUTED,
-            textAlignment = "center",
-            vmargin = 4,
-        },
+        statsRow,
         movementLine,
         Divider(),
     }
@@ -1862,10 +1961,10 @@ end
 --- Montage: what a test leans on.
 local function MontageTab(tok, c)
     return Collect{
-        function() return Characteristics(c) end,
+        function() return Characteristics(c, tok) end,
         function() return HeroTokensLine(c) end,
         function() return SkillsByGroup(c) end,
-        function() return MovementLine(c) end,
+        function() return MovementLine(c, tok) end,
         function() return PerksLine(c) end,
     }
 end
@@ -1899,7 +1998,7 @@ end
 --- Negotiation: what talking leans on.
 local function NegotiationTab(tok, c)
     return Collect{
-        function() return Characteristics(c) end,
+        function() return Characteristics(c, tok) end,
         function()
             local renown = Try(function() return c:CalculateNamedCustomAttribute("Renown") end, 0)
             return Lines{
@@ -2002,8 +2101,8 @@ local function BuildHeroTab(tok, charid, state)
     else
         result, info = Collect{
             function() return StaminaStrip(c) end,
-            function() return Characteristics(c) end,
-            function() return MovementLine(c) end,
+            function() return Characteristics(c, tok) end,
+            function() return MovementLine(c, tok) end,
             function() return Effects(c) end,
             function() return PersistentAbilities(c) end,
         }

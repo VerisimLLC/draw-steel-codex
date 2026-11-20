@@ -298,8 +298,8 @@ Sources: `MCDMCreature.lua` `passespotency` and `CalculatePotencyValueSelf`;
 "Passes" means the target resists; about 80% of content writes `not Cast.PassesPotency(...)`.
 
 **Block** (`potencyTest`): `[Target] [is affected: | resists:] [Might] below [your strong potency |
-potency for the tier rolled | a number | a formula] [with this roll's potency changes | base
-potency only]`. A *Check potency* group sits near the top of every true/false picker. The card
+potency for the tier rolled | a number | a formula] [including power roll modifiers |
+excluding power roll modifiers]`. A *Check potency* group sits near the top of every true/false picker. The card
 shows the DS shorthand ("(M<STRONG)"). Saved formulas keep the author's spelling (`"Strong"` vs
 `Caster.Strong`). A non-blocking note explains that a plain number with roll changes ignores the
 Potency Bonus and level scaling.
@@ -318,6 +318,17 @@ meaning for all of them. Content bugs it surfaces, each with a one-click repair 
    (`ActivatedAbility.lua:5183`) but with the **caster** as subject in the damage-checkbox path
    (`ActivatedAbility.lua:5739`), so bare names mean different creatures in the two paths.
    The prototype now treats the target as the subject (it had this backwards before).
+
+## 4g. Prototype for hands-on testing
+
+The prototype opens on a blank **New ability**; the examples moved under *Examples* in the
+*Open* menu. Work in progress is kept as a draft in the viewer's own browser (localStorage), so a
+reload does not lose it; it is never shared. *Saved data* has a Copy button.
+
+Real compendium tables are embedded (names and ids from draw-steel-data): 27 conditions (the nine
+core ones first), 1,034 ongoing effects (searched by typing, never a plain dropdown) and 19
+resources. Field mappings for the five new steps follow content usage; their less common options
+(duration rounds, stacks, relocate vicinity, purge by duration) are not modelled yet.
 
 ## 5. Plan
 
@@ -362,6 +373,8 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-20 | **Parent information is just available inside a follow-up.** No hand-off step: a follow-up's pickers offer *From <parent>* (its tier result, damage dealt, squares moved, number of targets; its first target, its target). The `<< >>` parameters are generated on save from whatever the follow-up uses. Authors never see the piping unless *Show GoblinScript* is on. | `<< >>` confuses people endlessly; the cleanest fix is that there is nothing to wire. |
 | 2026-11-20 | **Direct parent only.** A follow-up offers only its direct parent's information; the UI names it after that parent ("From Share the Spoils"). **Saved parameter names never use ability names:** they name the information (`tierresult`, `damagedealt`, `firsttarget`), and existing content keeps its own names. | Renaming an ability must not break anything stored; the label is display only. |
 | 2026-11-20 | **One potency block for both functions.** Reads "the target is affected: Might below your strong potency, with this roll's potency changes". "Affected" hides the `not` (passes = resists); "with this roll's potency changes" picks `Cast.PassesPotency`, "base potency only" picks the creature form. Potency can be weak / average / strong, follows the tier rolled, a number, or a formula. | Users constantly stumble over the double negative and over which function counts power roll modifiers. Both functions are kept. |
+| 2026-11-20 | **Potency wording:** the function choice reads "including power roll modifiers" / "excluding power roll modifiers". | Shorter, and uses the term players already know. |
+| 2026-11-20 | **Five more steps** (most-used after the core five): apply an effect (searchable over the compendium's ongoing effects; also allowed in tiers as tier text), gain or spend a resource, temporary Stamina, end conditions or effects, move a creature. Each has a "The target / You" choice saved as `applyto`. | Content uses these 1,666 / 355 / 81 / 570 / 166 times; most target the user ("caster"). |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

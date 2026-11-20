@@ -1129,6 +1129,10 @@ local HERO_BUCKETS = { "signature", "heroic", "main", "maneuver", "other", "free
 --list this long while game updates rebuild its back.
 local ABILITY_CACHE_SECONDS = 5
 
+--charid -> the Combat sub-tab last picked on that hero's card. Cards are
+--rebuilt as screens change, so the choice lives here for the session.
+local g_lastSubTab = {}
+
 --- @param id string
 --- @return string
 local function TabLabel(id)
@@ -2176,6 +2180,7 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
         state.tab = tab
         if sub ~= nil then
             state.sub = sub
+            g_lastSubTab[charid] = sub
         end
         scroller.vscrollPosition = 1
         content:FireEvent("refreshBack")
@@ -2289,6 +2294,7 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
             element:SetClass("turned", show)
             if show then
                 state.tab = CurrentMode()
+                state.sub = g_lastSubTab[charid] or "basics"
                 state.abilities = nil
                 scroller.vscrollPosition = 1
                 content:FireEvent("refreshBack")

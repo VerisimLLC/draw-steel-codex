@@ -18,7 +18,7 @@
 --- @field isLiveVersion boolean True if the version open is the live one. Its first edit starts nextVersion.
 --- @field nextVersion number The number the next new version gets.
 --- @field notes string The version's notes.
---- @field access string Who gets the table: "everyone", "dice" for the owners of the dice set `dice`, or "nobody" (unpublished: set live, it leaves players' menus).
+--- @field access string The access the open version carries: "everyone", "dice" for the owners of the dice set `dice`, or "nobody" (unpublished: it leaves players' menus). Who gets the table now is GetLiveAccess; SetLiveAccess changes it.
 --- @field dice string The dice set (a dice asset id) the table is linked to, or "".
 --- @field menuName string The table's name in the players' menu ("" uses its name).
 --- @field position number The table's place in the players' menu, lower first (the built-ins are 1 to 9).
@@ -210,6 +210,12 @@ function TableStudioLua:SetAccess(access, dice) end
 --- @param position? number
 function TableStudioLua:SetMenu(menuName, position) end
 
+--- Who Gets It: changes who gets the open table, at once. With a version live only its access changes (the look stays, unsaved edits stay unsaved); with none live, the table is saved and the open version set live with it. access is "everyone", "dice" or "nobody"; dice a dice asset id or "". False if it couldn't start (a table never saved: SaveAs first). Progress is in sendState; RetrySend repeats it.
+--- @param access? string
+--- @param dice? string
+--- @return boolean
+function TableStudioLua:SetLiveAccess(access, dice) end
+
 --- Who gets the live version of the open table now, as {access, dice}; nil if none is live.
 --- @return any
 function TableStudioLua:GetLiveAccess() end
@@ -222,11 +228,11 @@ function TableStudioLua:Upload() end
 --- @return boolean
 function TableStudioLua:SetLive() end
 
---- Repeats the last Upload or Set Live.
+--- Repeats the last Upload, Set Live or SetLiveAccess.
 --- @return boolean
 function TableStudioLua:RetrySend() end
 
---- The tables saved on this machine with who gets them: a list of {name, type, access, dice}.
+--- The tables saved on this machine: a list of {name, type, id, access, dice}. id is the table's cloud id ("" if never uploaded); access and dice are its latest save's, which is not who gets it once it is live.
 --- @return table
 function TableStudioLua:GetTableList() end
 

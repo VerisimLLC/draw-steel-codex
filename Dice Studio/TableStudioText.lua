@@ -95,9 +95,7 @@ text("tablestudio.uploadfailed", [[Upload failed]])
 text("tablestudio.retry", [[Retry]])
 text("tablestudio.setlive.confirm", [[Set version {n} live?]])
 text("tablestudio.setlive.accessloss", [[Players without {dice} lose this table.]])
-text("tablestudio.sec.dice", [[Dice]])
 text("tablestudio.diceset", [[Dice Set]])
-text("tablestudio.dice.none", [[None]])
 text("tablestudio.sec.access", [[Who Gets It]])
 text("tablestudio.access.everyone", [[Everyone]])
 text("tablestudio.access.dice", [[Dice Owners]])
@@ -106,12 +104,18 @@ text("tablestudio.sec.menu", [[Menu]])
 text("tablestudio.menuname", [[Menu Name]])
 text("tablestudio.position", [[Position]])
 
---Who Gets It: Nobody unpublishes a table. "Unpublished" is its tag in the table list, the note
---beside the choice and the live version's status. Signed off 2026-11-20.
+--Who Gets It: Nobody unpublishes a table. "Unpublished" is its tag in the table list and the
+--live version's status. Signed off 2026-11-20.
 text("tablestudio.access.nobody", [[Nobody]])
 text("tablestudio.unpublished", [[Unpublished]])
 text("tablestudio.setlive.unpublish", [[This unpublishes the table. Players lose it.]])
 text("tablestudio.unpublishedreadonly", [[Unpublished version. Editing starts version {n}.]])
+
+--Who Gets It goes live at once: its confirmation, and Set Live on a table nobody gets. Signed off
+--2026-11-20.
+text("tablestudio.access.confirm", [[Change who gets {name}?]])
+text("tablestudio.access.golive", [[This saves version {n} and sets it live.]])
+text("tablestudio.setlive.nobody", [[Nobody gets it until you change Who Gets It.]])
 
 ----------------------------------------------------------------------
 --DRAFT (2026-11-19): written for the build, not yet signed off.

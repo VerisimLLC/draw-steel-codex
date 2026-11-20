@@ -1730,25 +1730,53 @@ local function GrowthTables(c)
     return Lines(children)
 end
 
---- The class's own section of the tac panel (the Summoner's minion squads),
---- in the tac panel's styles. TacPanel is game-side: in town there is none.
---- Kept on the card's state and refreshed, so squads keep their rows.
+--the tac panel's own resource boxes; the card shows these itself.
+local CORE_RESOURCE_DISPLAYS = { victories = true, heroic = true, recoveries = true, herotokens = true, surges = true }
+
+--- The class's own pieces of the tac panel, in its styles: the boxes classes
+--- register (the Beastheart's Rampage, the Acolyte's Patron's Gaze) and the
+--- Summoner's minion squads. Each hides itself on a hero it doesn't fit.
+--- TacPanel is game-side: in town there is none. Kept on the card's state and
+--- refreshed, so the boxes keep their state.
 local function ClassPanel(tok, c, state)
     local tac = rawget(_G, "TacPanel")
-    if tac == nil or tac.Summoner == nil or tac.AllStyles == nil then
-        return nil
-    end
-    local range = tonumber(Try(function() return c:CalculateNamedCustomAttribute("SummonerRange") end, 0)) or 0
-    if range <= 0 then
+    if tac == nil or tac.AllStyles == nil then
         return nil
     end
     if state.classPanel == nil or not state.classPanel.valid then
+        local children = {}
+        if tac.GetHeroicResourceDisplays ~= nil then
+            local boxes = {}
+            for _, entry in ipairs(tac.GetHeroicResourceDisplays()) do
+                if not CORE_RESOURCE_DISPLAYS[entry.id] then
+                    local ok, box = pcall(entry.create)
+                    if ok and box ~= nil then
+                        boxes[#boxes+1] = box
+                    end
+                end
+            end
+            if #boxes > 0 then
+                children[#children+1] = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    wrap = true,
+                    children = boxes,
+                }
+            end
+        end
+        if tac.Summoner ~= nil then
+            children[#children+1] = tac.Summoner()
+        end
+        if #children == 0 then
+            return nil
+        end
         state.classPanel = gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
             styles = tac.AllStyles(),
-            tac.Summoner(),
+            children = children,
         }
     end
     state.classPanel:FireEventTree("refreshToken", tok)

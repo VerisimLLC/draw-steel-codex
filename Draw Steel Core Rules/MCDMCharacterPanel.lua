@@ -8140,6 +8140,23 @@ function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end
 
+--- Every registered heroic-resource display, ordered by `ord`, for other
+--- surfaces that show them (the EotW hero card's resource tab).
+--- @return {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean}[]
+function TacPanel.GetHeroicResourceDisplays()
+    local result = {}
+    for _, entry in pairs(g_heroicResourceDisplays) do
+        result[#result+1] = entry
+    end
+    table.sort(result, function(a, b)
+        if (a.ord or 0) ~= (b.ord or 0) then
+            return (a.ord or 0) < (b.ord or 0)
+        end
+        return a.id < b.id
+    end)
+    return result
+end
+
 TacPanel.RegisterHeroicResourceDisplay{
     id = "victories",
     create = TacPanel.VictoriesBox,

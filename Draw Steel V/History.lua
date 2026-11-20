@@ -80,7 +80,7 @@ local mod = dmhub.GetModLoading()
 --- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
 --- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
---- @field costs? table<string, {amount: number, style: string}> On an action: resources it spent.
+--- @field costs? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it spent; icon is a heroic resource's.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.

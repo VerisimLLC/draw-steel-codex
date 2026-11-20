@@ -1232,11 +1232,30 @@ local function ResourceFacts(creature, key)
     return info ~= nil and info.name or "resource", nil
 end
 
---A spend on a row reads as a chip (T12).
-local function AddCost(state, name, amount, style)
+--- The icon of a Hero's heroic resource (their class's), or nil when it has none.
+--- @param creature creature
+--- @return string|nil
+function History.HeroicIcon(creature)
+    local iconid = nil
+    pcall(function()
+        --only a character has a class; on anything else this errors and the pcall gives nil.
+        local classInfo = (creature --[[@as character]]):GetClass()
+        if classInfo ~= nil then
+            iconid = classInfo:try_get("heroicResourceIcon")
+        end
+    end)
+    if iconid == "" then
+        return nil
+    end
+    return iconid
+end
+
+--A spend on a row reads as its icon and the number (T12). A heroic resource keeps its
+--class's icon on the cost, so the row still shows it if the Hero changes class.
+local function AddCost(state, name, amount, style, icon)
     local entry = state.entry
     entry.costs = entry.costs or {}
-    local cost = entry.costs[name] or {amount = 0, style = style}
+    local cost = entry.costs[name] or {amount = 0, style = style, icon = icon}
     cost.amount = cost.amount + amount
     entry.costs[name] = cost
 end
@@ -1266,7 +1285,7 @@ local function OnResource(creature, key, before, after, refreshType, note)
         return
     end
     if state ~= nil and not state.automatic and change < 0 then
-        AddCost(state, name, -change, style)
+        AddCost(state, name, -change, style, key == CharacterResource.heroicResourceId and History.HeroicIcon(creature) or nil)
         return
     end
     --gains are lines, with Undo. Inside an automatic trigger the line names the trigger

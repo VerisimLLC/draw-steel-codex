@@ -225,6 +225,37 @@ local function Styles()
             color = "@danger",
             borderColor = "@danger",
         },
+        --a spend on an action's row: the resource's icon and the number, in its chip's colour.
+        {
+            selectors = {"label", "historyCost"},
+            fontSize = 12,
+            bold = true,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyCost", "historyChipHeroic"},
+            color = "@info",
+        },
+        {
+            selectors = {"label", "historyCost", "historyChipSurge"},
+            color = "@warning",
+        },
+        {
+            selectors = {"label", "historyCost", "historyChipMalice"},
+            color = "@danger",
+        },
+        {
+            selectors = {"historyCostIcon"},
+            bgcolor = "white",
+        },
+        {
+            selectors = {"historyCostIcon", "historyChipSurge"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"historyCostIcon", "historyChipMalice"},
+            bgcolor = "@danger",
+        },
         {
             selectors = {"label", "historyUndone"},
             color = "@fgMuted",
@@ -1772,6 +1803,57 @@ local function Chip(text, style)
     }
 end
 
+--Masks tinted to the cost's colour; a heroic resource uses its class's own art.
+local COST_ICONS = {
+    historyChipSurge = "game-icons/surge.png",
+    historyChipMalice = "panels/malice.png",
+}
+
+--A spend beside an action's name: its icon and the number. A resource with no icon (one
+--without art, or a heroic resource on a row from before icons were kept) stays a chip.
+--- @param entry HistoryEntry
+--- @param name string
+--- @param cost {amount: number, style: string, icon: string|nil}
+local function Cost(entry, name, cost)
+    --- @type string|nil
+    local icon = COST_ICONS[cost.style] or cost.icon
+    if icon == nil and cost.style == "historyChipHeroic" and entry.actor ~= nil then
+        local token = dmhub.GetCharacterById(entry.actor.id)
+        if token ~= nil and token.properties ~= nil then
+            icon = History.HeroicIcon(token.properties)
+        end
+    end
+    if icon == nil then
+        return Chip(ResourceWords(cost.amount, name), cost.style)
+    end
+    return gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = 16,
+        lmargin = 6,
+        halign = "left",
+        valign = "center",
+        children = {
+            gui.Panel{
+                classes = {"historyCostIcon", cost.style},
+                bgimage = icon,
+                width = 14,
+                height = 14,
+                rmargin = 2,
+                valign = "center",
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"historyCost", cost.style},
+                text = tostring(cost.amount),
+                width = "auto",
+                height = "auto",
+                valign = "center",
+            },
+        },
+    }
+end
+
 --What shaped the roll, readable without opening the card (T12): the net edges or banes as
 --the roll dialog's chevrons (one or two, up for an edge), netted as the card's numbers net
 --them, and a critical (a natural 19 or 20). Edges and banes that cancel show nothing.
@@ -1846,7 +1928,7 @@ local function BuildAction(item)
         table.sort(names)
         for _, name in ipairs(names) do
             local cost = entry.costs[name]
-            titleChildren[#titleChildren + 1] = Chip(ResourceWords(cost.amount, name), cost.style)
+            titleChildren[#titleChildren + 1] = Cost(entry, name, cost)
         end
     end
 

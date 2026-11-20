@@ -1389,6 +1389,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --they had actually learned it.
                         if (self:CastsAsCustom() or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
+                            --A kit's signature ability already has its kit's bonus in its numbers. Mark the strike it
+                            --nests the same way, so the kit modifier below skips it, unless another creature makes the strike.
+                            if ability:try_get("_tmp_fromKit") and target.token.charid == casterToken.charid then
+                                abilityClone._tmp_fromKit = true
+                            end
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
                                 if abilityClone == nil then break end

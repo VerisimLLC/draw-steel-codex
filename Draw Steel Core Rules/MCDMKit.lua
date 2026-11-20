@@ -651,7 +651,9 @@ ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
 
     --willModifyAbility only reads kitType, so this stands in for the kit's modifier.
     local kitModifierShape = {kitType = kit.type}
-	-- Recursively find the power roll behaviors, in this ability and nested invokes, that take this kit's bonus now
+    --A kit's signature ability, and any strike it nests, never gets the kit bonus at cast, so adjust nested strikes here too.
+    local isKitSignature = ability:try_get("_tmp_fromKit") == true
+    --Find the power rolls, here and in nested invokes, that get this kit's bonus now rather than at cast.
     local function findAllPowerRollBehaviors(currentAbility, foundBehaviors, foundAbilities)
         local countAbility = false
         for _, behavior in ipairs(currentAbility.behaviors) do
@@ -663,8 +665,13 @@ ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
                 local invokeAbility = behavior.customAbility
                 --A custom invoke gives its ability the invoker's kit bonus when it is cast, so skip any this
                 --kit will modify then. Adding it here as well gave them the bonus twice.
-                local bonusAddedAtCast = invokeAbility ~= nil and behavior:CastsAsCustom()
-                    and CharacterModifier.TypeInfo.kitmodifyability.willModifyAbility(kitModifierShape, nil, invokeAbility)
+                --With "inherit keywords" on, the cast gives the nested ability the outer ability's keywords, so check those.
+                local abilityWithCastKeywords = invokeAbility
+                if behavior:try_get("inheritKeywords", false) then
+                    abilityWithCastKeywords = currentAbility
+                end
+                local bonusAddedAtCast = invokeAbility ~= nil and not isKitSignature and behavior:CastsAsCustom()
+                    and CharacterModifier.TypeInfo.kitmodifyability.willModifyAbility(kitModifierShape, nil, abilityWithCastKeywords)
                 if invokeAbility ~= nil and not bonusAddedAtCast then
                     findAllPowerRollBehaviors(invokeAbility, foundBehaviors, foundAbilities)
                 end

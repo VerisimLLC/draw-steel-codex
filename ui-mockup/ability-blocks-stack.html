@@ -270,7 +270,8 @@ const CHARS = ["Might","Agility","Reason","Intuition","Presence"];
 const DMG_TYPES = ["untyped","fire","cold","acid","poison","holy","corruption","psychic","lightning","sonic"];
 const DURATIONS = ["save ends","EoT"];
 const FORCED = ["push","pull","slide","vertical push","vertical slide"];
-const POT = [["0","weak"],["1","average"],["2","strong"]];
+// Heroes use the caster's relative potency (weak/average/strong); monster content writes the number.
+const POT = [["weak","weak"],["average","average"],["strong","strong"],...["0","1","2","3","4","5","6"].map(n => [n, n])];
 const RESOURCES = ["no cost","Heroic Resource","Malice"];
 
 /* =====================================================================
@@ -294,7 +295,7 @@ const STEPS = {
   forced: { label: "Forced movement", cat: "act", ctx: ["main", "tier"], desc: "Push, pull or slide the target.",
     make: () => S("forced", { kind: "push", n: "2" }) },
   potency: { label: "If potency fails", cat: "ctrl", ctx: ["tier"], desc: "Steps inside only apply if the target's characteristic is below a potency.",
-    make: () => S("potency", { ch: "Might", tier: "1" }, {}, { then: [] }) },
+    make: () => S("potency", { ch: "Might", tier: "average" }, {}, { then: [] }) },
   heal: { label: "Heal", cat: "act", ctx: ["main"], desc: "The target regains Stamina.",
     make: () => S("heal", {}, { amount: H("roll", "heal", "5") }) },
   ifStep: { label: "Only if...", cat: "ctrl", ctx: ["main"], desc: "Steps inside only happen to targets that pass a test.",
@@ -319,6 +320,8 @@ function tokenize(src) {
   while (i < src.length) {
     const c = src[i], rest = src.slice(i); let m;
     if (/\s/.test(c)) { i++; continue; }
+    // <<name>>: a value handed in by the ability that invoked this one (GoblinScript parameter pipe).
+    if ((m = rest.match(/^<<([^>]*)>>/))) { toks.push({ t: "param", v: m[1].trim() }); i += m[0].length; continue; }
     if ((m = rest.match(/^\d+d\d+/i))) { toks.push({ t: "dice", v: m[0] }); i += m[0].length; continue; }
     if ((m = rest.match(/^\d+(\.\d+)?/))) { toks.push({ t: "num", v: m[0] }); i += m[0].length; continue; }
     if (c === '"') { const j = src.indexOf('"', i + 1); if (j < 0) throw new Error("A quote is not closed"); toks.push({ t: "str", v: src.slice(i + 1, j) }); i = j + 1; continue; }
@@ -339,7 +342,8 @@ function parseGS(src) {
   const isOp = v => peek() && peek().t === "op" && peek().v === v;
   const isKw = v => peek() && peek().t === "kw" && peek().v === v;
   function add() { let l = whenE(); while (isOp("+") || isOp("-")) { const op = take().v; l = { k: "bin", op, l, r: whenE() }; } return l; }
-  function whenE() { let v = logic(); if (isKw("when")) { take(); const c = logic(); let e = null; if (isKw("else")) { take(); e = logic(); } v = { k: "when", v, c, e }; } return v; }
+  // "a when x else b when y else c" chains: the else side is itself a when-expression.
+  function whenE() { let v = logic(); if (isKw("when")) { take(); const c = logic(); let e = null; if (isKw("else")) { take(); e = whenE(); } v = { k: "when", v, c, e }; } return v; }
   function logic() { let l = cmp(); while (isKw("and") || isKw("or")) { const op = take().v; l = { k: op, l, r: cmp() }; } return l; }
   function cmp() { if (isKw("not")) { take(); return { k: "not", a: cmp() }; }
     let l = mul(); const p = peek(); if (p && p.t === "op" && [">=", "<=", ">", "<", "=", "~="].includes(p.v)) { take(); l = { k: "cmp", op: p.v, l, r: mul() }; } return l; }
@@ -351,11 +355,15 @@ function parseGS(src) {
     if (t.t === "num") return { k: "num", v: t.v };
     if (t.t === "dice") return { k: "dice", v: t.v };
     if (t.t === "str") return { k: "str", v: t.v };
+    if (t.t === "param") return { k: "param", v: t.v };
     if (t.t === "op" && t.v === "(") { const e = add(); if (!isOp(")")) throw new Error("A ( is not closed"); take(); return e; }
     if (t.t === "id") {
       const path = [t.v];
       while (isOp(".")) { take(); const n = take(); if (!n || n.t !== "id") throw new Error("Expected a name after ."); path.push(n.v); }
-      if (isOp("(")) { take(); const args = []; if (!isOp(")")) { args.push(add()); while (isOp(",")) { take(); args.push(add()); } } if (!isOp(")")) throw new Error("A ( is not closed"); take(); return { k: "call", path, args }; }
+      if (isOp("(")) { take(); const args = []; if (!isOp(")")) { args.push(add()); while (isOp(",")) { take(); args.push(add()); } } if (!isOp(")")) throw new Error("A ( is not closed"); take();
+        let node = { k: "call", path, args };
+        while (isOp(".")) { take(); const n = take(); if (!n || n.t !== "id") throw new Error("Expected a name after ."); node = { k: "field", of: node, name: n.v }; }
+        return node; }
       return { k: "id", path };
     }
     throw new Error("Unexpected " + (t.t === "kw" ? "word '" + t.v + "'" : "'" + t.v + "'") + (t.t === "kw" ? ". Names containing has, is, not, and, or are read as operators; write them without spaces (HasAttacker)" : ""));
@@ -371,6 +379,8 @@ function printAst(n) {
   switch (n.k) {
     case "num": case "dice": return n.v;
     case "str": return '"' + n.v + '"';
+    case "param": return "<<" + n.v + ">>";
+    case "field": return printAst(n.of) + "." + nospace(n.name);
     case "id": return n.path.map(nospace).join(".");
     case "call": return n.path.map(nospace).join(".") + "(" + n.args.map(printAst).join(", ") + ")";
     case "bin": return w(n.l, astPrec(n)) + " " + n.op + " " + w(n.r, astPrec(n) + 1);
@@ -378,7 +388,7 @@ function printAst(n) {
     case "and": case "or": return w(n.l, 4) + " " + n.k + " " + w(n.r, 5);
     case "not": return "not " + w(n.a, 7);
     case "has": case "is": return w(n.l, 10) + " " + n.k + (n.neg ? " not " : " ") + w(n.r, 10);
-    case "when": return w(n.v, 4) + " when " + w(n.c, 4) + (n.e ? " else " + w(n.e, 4) : "");
+    case "when": return w(n.v, 4) + " when " + w(n.c, 4) + (n.e ? " else " + w(n.e, 3) : "");
   }
   return "?";
 }
@@ -489,9 +499,12 @@ function cX(x, h) {
       return { s: r.prefix + nospace(f.field), p: 10, prose: r.poss + " " + (FIELD_PROSE[f.field] || f.field) }; }
     case "is": { const r = role(); return { s: r.prefix + nospace(f.field), p: 10, prose: r.prose + (r.prose === "you" ? " are " : " is ") + BOOL_FIELDS[f.field] }; }
     case "sym": { const s = d.symbols.find(s => s.name === f.name); if (!s) bad(x.id, f.name + " is not available in " + d.title.toLowerCase() + "."); return { s: nospace(f.name), p: 10, prose: s ? s.prose : f.name }; }
-    case "math": { const lp = f.op === "*" || f.op === "/" ? 6 : 2; const a = cHolder(x.kids.a, lp), b = cHolder(x.kids.b, lp + 1);
+    case "math": { const lp = f.op === "*" || f.op === "/" ? 6 : 2;
+      // Brackets where precedence needs them, and always around "x when y" for readability.
+      const side = (k, minP) => { const r = cHolder(x.kids[k]); return r.p < minP || r.p === 3 ? { s: "(" + r.s + ")", p: 10, prose: r.prose } : r; };
+      const a = side("a", lp), b = side("b", lp + 1);
       return { s: a.s + " " + f.op + " " + b.s, p: lp, prose: a.prose + " " + ({ "+": "plus", "-": "minus", "*": "times", "/": "divided by" })[f.op] + " " + b.prose }; }
-    case "pick": { const a = cHolder(x.kids.a, 4), c = kidBool("cond", 4), b = cHolder(x.kids.b, 4);
+    case "pick": { const a = cHolder(x.kids.a, 4), c = kidBool("cond", 4), b = cHolder(x.kids.b, 3);
       return { s: a.s + " when " + c.s + (b.s === "0" ? "" : " else " + b.s), p: 3, prose: a.prose + " if " + c.prose + (b.s === "0" ? "" : ", otherwise " + b.prose) }; }
     case "compare": { const a = cHolder(x.kids.a, 6), b = cHolder(x.kids.b, 6);
       const w = { ">=": "is at least", "<=": "is at most", ">": "is more than", "<": "is less than", "=": "is", "~=": "is not" }[f.op];
@@ -570,9 +583,9 @@ function compileTier(list, prefix) {
     else if (st.type === "condition") { parts.push(pre + f.cond.toLowerCase() + " (" + f.dur + ")"); prose.push(f.cond.toLowerCase() + " (" + f.dur + ")"); }
     else if (st.type === "forced") { parts.push(pre + f.kind + " " + f.n); prose.push(f.kind + " " + f.n); }
     else if (st.type === "potency") {
-      const r = compileTier(st.branches.then, f.ch[0] + "<" + f.tier);
+      const r = compileTier(st.branches.then, f.ch[0] + "<" + f.tier);  // e.g. "M<strong" or "M<3", as stored in content
       if (r.s) parts.push(r.s);
-      if (r.prose) prose.push("<b>" + f.ch[0] + "&lt;" + POT[+f.tier][1].toUpperCase() + "</b> " + r.prose);
+      if (r.prose) prose.push("<b>" + f.ch[0] + "&lt;" + f.tier.toUpperCase() + "</b> " + r.prose);
       if (!st.branches.then.length) bad(st.id, "Nothing happens inside this potency check.");
     }
   }
@@ -715,7 +728,7 @@ function renderStep(st, list, ctx) {
     case "damage": add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage")); gsHolder = st.slots.amount; break;
     case "condition": add(lbl("Target is")); add(sel(f, "cond", CONDITIONS, null, "condition")); add(sel(f, "dur", DURATIONS, null, "duration")); break;
     case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
-    case "potency": add(lbl("If the target's")); add(sel(f, "ch", CHARS, null, "characteristic")); add(lbl("is below")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency")); break;
+    case "potency": add(lbl("If the target's")); add(sel(f, "ch", CHARS, null, "characteristic")); add(lbl("is below")); add(sel(f, "tier", POT, null, "potency")); break;
     case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
@@ -1126,7 +1139,7 @@ const EXAMPLES = {
     const pr = STEPS.powerRoll.make();
     const dmg = (n, f) => { const s = STEPS.damage.make("tier"); s.slots.amount = holderFromText("roll", "tierDamage", n); return s; };
     pr.branches.t1.push(dmg("3 + Might")); pr.branches.t2.push(dmg("6 + Might"));
-    const pot = STEPS.potency.make(); pot.f.tier = "2"; const bl = STEPS.condition.make(); bl.f.cond = "Bleeding"; pot.branches.then.push(bl);
+    const pot = STEPS.potency.make(); pot.f.tier = "strong"; const bl = STEPS.condition.make(); bl.f.cond = "Bleeding"; pot.branches.then.push(bl);
     pr.branches.t3.push(dmg("9 + Might"), pot);
     const onlyIf = STEPS.ifStep.make(); onlyIf.slots.cond = holderFromText("boolean", "stepIf", 'Target.Conditions has "Prone"');
     const extra = STEPS.damage.make("main"); extra.slots.amount = holderFromText("roll", "damage", "2"); onlyIf.branches.then.push(extra);

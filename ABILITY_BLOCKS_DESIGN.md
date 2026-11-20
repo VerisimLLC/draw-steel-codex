@@ -173,6 +173,69 @@ Findings:
   The card needs a friendly-name table per symbol; `BEHAVIOUR_PROSE.md` / `TRIGGER_SYMBOL_PROSE.md`
   already hold much of it.
 
+## 4d. Corpus test against the real compendium (2026-11-20)
+
+Source: the GitHub copy of `VerisimLLC/draw-steel-data` (5,820 YAML files; monsters, objectTables,
+objects). Scripts: [`ui-mockup/ability-blocks-corpus/`](ui-mockup/ability-blocks-corpus/). Activated
+abilities only (triggered abilities excluded per the scope decision).
+
+**Formulas** (14,308 formula fields on activated abilities and their behaviours):
+
+| Measure | Result |
+|---|---|
+| Plain numbers (no formula at all) | 10,577 (74%) |
+| Real formulas | 3,731 |
+| Parse with the prototype parser | 3,705 (99.3%) |
+| Text -> blocks -> text keeps the meaning | all 3,705 that parse: 3,629 identical, 76 equivalent rewrites (`else 0` dropped, `Self.` implied, condition name capitalised) |
+| Become blocks with no raw part, prototype vocabulary | 2,102 (56%) |
+| ...projected, once boxes get their real symbol lists plus the planned intent blocks below | 3,446 (92%) |
+
+Hardest boxes today, by share needing raw parts: behaviour *Only if* (`filterTarget`, 653 of 860),
+requirements (170 of 259), target filter (218 of 524).
+
+Most-needed new intent blocks (raw-part counts): **potency check** `Cast.PassesPotency(...)` (200),
+**has ongoing effect** (157), **mode** (157), **parameter from the invoking ability** `<<x>>` (142),
+**allies / enemies** `Friends(...)` (134), **higher of** (`Might or Agility` on numbers, 89),
+**has keyword** (80), **distance** (33). Remaining raw parts are long-tail functions
+(`ConditionCaster`, `Cast.NumAttackers`, `Stacks`, `Cast.Memory`...), which stay raw blocks.
+
+Parser fixes the corpus forced (now in the prototype): chained `a when x else b when y else c`,
+field access after a call `f(x).y`, and the `<<parameter>>` pipe. Still unsupported: dice
+modifiers (`1d6 minroll 3`) and `{...}` text (21, mostly comments inside formulas).
+
+**Likely content bugs found** (fail to parse; the engine probably mis-reads them too):
+- `objectTables/classes/conduit.yaml`, *Our Hearts, Your Strength*: range `1o`.
+- `objectTables/classes/conduit.yaml`, invoked ability: range `(6 when "<<tierresult>>" = 3 else ...` has an unclosed bracket.
+- `objectTables/classes/elementalist.yaml`, *Translated Through Flame*: `not Target.Is Friend(Caster)` (spaced name containing `is`).
+- `objectTables/classes/null.yaml`, *A Squad Unto Myself*: a mode condition holds rules prose, not a formula.
+- `monsters/demon-bale-eye.yaml` and `d3-hall-of-the-brave.yaml` contain a control character (U+000B) and are not valid YAML.
+
+**Behaviours** (3,444 activated abilities that have at least one; 1,612 are hero/item abilities):
+
+| Hand-designed steps | Abilities with no Advanced block |
+|---|---|
+| 5 core (power roll, command, damage, heal, use ability) | 44% |
+| + apply ongoing effect, relocate creature, ability duration effect (8) | 69% |
+| + modify power roll, replenish, riders, purge effects, augmented ability, summon, aura (15) | 90% |
+
+**Power roll tiers** (4,878 tier strings): 80% are fully expressible with the four tier steps.
+Misses: custom conditions (burning, hexed, seared, dragonsealed), several conditions at once
+("dazed and restrained"), forced movement with a direction ("slide 2 squares away from the
+target"), resource effects ("gains 2 rage"), and free text. Potency is written two ways: heroes
+use words (`M<strong`, 446 uses), monsters use numbers (`M<3`, 1,342 uses); the prototype now
+supports both.
+
+**What this means for the design**
+- Plan step 1 is largely de-risked: the grammar and round-trip hold on real content. The Lua port
+  remains, and the same test should run against it.
+- Most formula boxes hold a plain number, so the inline value box with `fx` is the right default.
+- Block vocabulary priorities come from data: the intent blocks above, in that order.
+- The condition dropdown must come from the conditions table (custom conditions), and the
+  condition step should allow more than one condition.
+- Step priorities: apply ongoing effect is the biggest gap after the core five.
+- New open question: Invoke steps often carry a nested custom ability (504 nested "Invoked
+  Ability" records). How the simple editor edits a nested ability needs a decision.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.

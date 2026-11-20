@@ -30,7 +30,8 @@ local g_playObservers = {}
 ---     moment after the move that caused it, outside any cast.
 ---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
 ---     info: source, cast.
----   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
+---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast,
+---     damage (all types together), each (one minion's Stamina).
 ---   temporarystamina(creature, before, after, note): the pool grew.
 ---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
 ---     or healed (a sheet field, a Set Stamina step).

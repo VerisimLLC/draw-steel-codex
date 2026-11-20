@@ -2317,6 +2317,9 @@ end
 --Conditions whose name doesn't follow "cannot be" (G5).
 local CONDITION_PHRASES = {prone = "knocked prone"}
 
+--How many minions died, in words (Y13): "killed two".
+local MINION_WORDS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+
 --A trigger name longer than this is taken for its rule text, not a name (G7a).
 local TRIGGER_NAME_MAX = 40
 
@@ -2813,6 +2816,7 @@ end
 --- @field amount number What it did: positive added damage, negative took it off.
 --- @field order integer Modifiers, then surges, then weakness or immunity.
 --- @field clause string Its words in the damage line: "[Empyrean Boon] added 10 holy".
+--- @field after? string A sentence of its own after the line (Y5b, free surges).
 
 --- What changed one target's damage besides its tier and kit. A kit is the hero's normal
 --- damage, so it stays in the "from" number and is never named.
@@ -2843,11 +2847,31 @@ local function DamageBits(who, actor)
                 clause = string.format("%s (%s's highest characteristic, %s %d)", clause, History.ShownName(actor),
                     part.characteristic, part.each or 0)
             end
+            --Y5b: surges a modifier granted for this strike only.
+            local after = nil
+            local free = part.free or 0
+            if free > 0 then
+                local from = {}
+                for _, name in ipairs(part.freefrom or {}) do
+                    from[#from + 1] = WhyName(name)
+                end
+                local source = #from > 0 and JoinClauses(from) or "a modifier"
+                local NUMBERS = {"One", "Two", "Three", "Four", "Five"}
+                local subject
+                if free == count then
+                    subject = count == 1 and "It was" or "They were"
+                else
+                    subject = string.format("%s %s", NUMBERS[free] or tostring(free), free == 1 and "was" or "were")
+                end
+                after = string.format("%s gained from %s and could only be spent on this strike.", subject, source)
+            end
             bits[#bits + 1] = {
-                key = string.format("surge|%d|%d|%s|%s", count, part.each or 0, part.damagetype or "", part.characteristic or ""),
+                key = string.format("surge|%d|%d|%s|%s|%d|%s", count, part.each or 0, part.damagetype or "", part.characteristic or "",
+                    free, table.concat(part.freefrom or {}, ",")),
                 amount = amount,
                 order = 2,
                 clause = clause,
+                after = after,
             }
         end
     end
@@ -2889,7 +2913,13 @@ local function DamageText(bits)
     if #up > 0 and #down > 0 then
         text = text .. ", but " .. JoinClauses(down)
     end
-    return Capitalise(text) .. "."
+    text = Capitalise(text) .. "."
+    for _, item in ipairs(sorted) do
+        if item.bit.after ~= nil then
+            text = text .. " " .. item.bit.after
+        end
+    end
+    return text
 end
 
 --", up from 15", ", down from 20", or nothing when the parts cancelled out.
@@ -3086,6 +3116,28 @@ function History.Why(entry, kids)
                     text = string.format("%s cannot be %s.", GroupNames(group), CONDITION_PHRASES[condition] or condition),
                 }
             end, who)
+        end
+    end
+
+    --Y13, L25: how many minions the damage killed, and why that many.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "minions" and (kid.killed or 0) > 0 and kid.each ~= nil and (kid.damage or 0) > 0 then
+            local killed = kid.killed
+            local count = killed == 1 and "one" or (MINION_WORDS[killed] or tostring(killed))
+            local known = dmhub.isDM
+            if not known and kid.mk ~= nil then
+                local knowledge = MonsterKnowledge.StaminaKnowledge(kid.mk, nil)
+                known = knowledge.visible and knowledge.tier >= 3
+            end
+            local text
+            if known then
+                text = string.format("Each minion in this squad has %d Stamina, so %d damage killed %s.", kid.each, kid.damage, count)
+            else
+                text = string.format("%d damage was enough to kill %s %s.", kid.damage, count, killed == 1 and "minion" or "minions")
+            end
+            Add("minions|" .. tostring(kid.id), function()
+                return {lead = "Minions", text = text}
+            end, nil)
         end
     end
 

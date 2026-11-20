@@ -85,6 +85,9 @@ local mod = dmhub.GetModLoading()
 --- @field state? string On a threshold line: "winded", "dying" or "killed".
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
+--- @field each? number On a minions line: one minion's Stamina (Y13).
+--- @field damage? number On a minions line: the damage behind the deaths (Y13).
+--- @field mk? string On a minions line: the squad's Monster Knowledge key (L25).
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title. On a reinforcements line: the wave. On a reveal line: the modifier.
 --- @field names? string[] On an ended line: what ended.

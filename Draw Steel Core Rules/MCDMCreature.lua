@@ -6468,11 +6468,18 @@ local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
         return
     end
 
+    --the damage behind the deaths, all types together (History's Y13).
+    local batchDamage = 0
+    for _, group in pairs(batch.groups) do
+        batchDamage = batchDamage + (group.damage or 0)
+    end
     GameSystem.NotifyPlayObservers("minionsdied", victim, {
         squad = batch.squadName,
         killed = batch.totalKills,
         left = batch.expectedBands,
         cast = batch.cast,
+        damage = batchDamage,
+        each = batch.singleHealth,
     })
 
     for damagetype,group in pairs(batch.groups) do

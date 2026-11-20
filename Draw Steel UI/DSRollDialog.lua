@@ -3775,6 +3775,10 @@ function GameHud.CreateRollDialog(self)
                                     cond(#sourceNames > 0, table.concat(sourceNames, ", "), "Modifier"), freeGranted,
                                     cond(freeGranted > 1, "surges", "surge"), targetName, freeUsed,
                                     cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
+                                --and on the cast, for a record of play (History's Y5b).
+                                if freeUsed > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                    m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames}
+                                end
                             end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed

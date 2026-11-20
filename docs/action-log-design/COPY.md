@@ -689,3 +689,19 @@ shows the map on show, cut short when long; its menu lists those maps by name, t
 | ID | What | Line | Example |
 |---|---|---|---|
 | L107 | Tag on a trigger row for a triggered action used from the roll dialog | During the roll | During the roll · Bryn · Draconian Guard › Larry -7 |
+
+## Round 27: the rest of 6.6 (signed off 2026-11-20)
+
+James 2026-11-20. L32 is retired: a triggered action's own card says what set it off with Y11's
+words. L16 moves into the persistence line's small text. Rampage needs nothing new: it is an
+ongoing effect and already gets its own lines.
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L32 | (retired: Y11 instead) | | |
+| Y11 | Why on a triggered action's own card | {Trigger} / Trigger: {the ability's Trigger line} | Mark: Benefit / Trigger: You or an ally uses an ability to deal rolled damage to a creature marked by you. |
+| L16 | Persistence broken by damage, small text (replaces L13's) | Took {n} damage in one turn, 5 times {Characteristic} {r} | Took 12 damage in one turn, 5 times Reason 2 |
+| L108 | Why, collision with an object | Hit an object / {Creature} had {n} squares of the {push} left: {n} damage, plus 2 for hitting an object. | Goblin 1 had 2 squares of the push left: 2 damage, plus 2 for hitting an object. |
+| L109 | Why, collision with a creature | Hit {Other} / {Creature} had {n} squares of the {push} left, so it and {Other} each took {n} damage. | Hit Goblin 2 / Goblin 1 had 2 squares of the push left, so it and Goblin 2 each took 2 damage. |
+| L110 | Strained (F5) | {Creature} is strained / {Creature} is no longer strained; small text {Resource} {n} | Lyra is strained · Clarity -2 |
+| L111 | New squad captain (F5) | {Creature} is now {Squad}'s captain; small text who did it | Goblin 3 is now the Goblin Raiders' captain · Director |

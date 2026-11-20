@@ -56,6 +56,8 @@ local mod = dmhub.GetModLoading()
 --- @field count? integer On surges: how many were spent.
 --- @field each? number On surges: the damage each dealt (the highest characteristic).
 --- @field characteristic? string On surges: that characteristic's name.
+--- @field free? integer On surges: how many a modifier granted for this strike only.
+--- @field freefrom? string[] On surges: the modifiers that granted them.
 --- @field hovertext? string On a modifier, until History stores it: the roll dialog's hover text.
 --- @field hover? string On a modifier: id of that hover text in the map's History (History.HoverText).
 
@@ -482,6 +484,7 @@ local function AddDamageParts(entry, cast, ability, caster)
     local kits = KitBonuses(ability)
     local targetDamage = cast:try_get("targetDamageSources", {})
     local targetSurges = cast:try_get("targetSurges", {})
+    local freeSurges = cast:try_get("targetFreeSurges", {})
     for _, who in ipairs(entry.targets) do
         local tier = who.tier
         if tier ~= nil and tier > 0 and who.taken ~= nil then
@@ -513,6 +516,8 @@ local function AddDamageParts(entry, cast, ability, caster)
             end
             local surges = targetSurges[who.id]
             if surges ~= nil then
+                --surges a modifier granted for this strike only (Y5b): how many, and from what.
+                local free = freeSurges[who.id]
                 parts[#parts + 1] = {
                     kind = "surge",
                     count = surges.count,
@@ -520,6 +525,8 @@ local function AddDamageParts(entry, cast, ability, caster)
                     characteristic = CharacteristicNamed(caster, surges.each),
                     amount = surges.count * surges.each,
                     damagetype = surges.damagetype,
+                    free = free ~= nil and math.min(free.count, surges.count) or nil,
+                    freefrom = free ~= nil and #free.sources > 0 and free.sources or nil,
                 }
             end
             if #parts > 0 then
@@ -1088,6 +1095,10 @@ local function OnMinionsDied(creature, info)
         killed = info.killed,
         left = info.left,
         cause = info.cast ~= nil and g_rowOfCast[info.cast] or nil,
+        --Y13: a minion's own Stamina, and the damage that killed them.
+        each = info.each,
+        damage = info.damage,
+        mk = MonsterKnowledge.KeyForToken(token),
     })
 end
 

@@ -95,8 +95,9 @@ end
 --- over the card's face, and gui.TooltipFrame's faded edge reads as a blur.
 --- Long text wraps.
 --- @param text string
+--- @param markdown? boolean the text is markdown (the tac panel's tooltip text)
 --- @return Panel
-local function TipFrame(text)
+local function TipFrame(text, markdown)
     local long = #text > 70
     return gui.Panel{
         width = "auto",
@@ -109,7 +110,7 @@ local function TipFrame(text)
         bgimage = "panels/square.png",
         bgcolor = COLOR_PLATE,
         interactable = false,
-        gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long, interactable = false },
+        gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long, markdown = markdown == true, interactable = false },
     }
 end
 
@@ -172,19 +173,14 @@ local function WithHover(panel, build)
     return panel
 end
 
---- The tac panel's own tooltip for its text (it reads its markdown), or the
---- card's framed box when the tac panel isn't loaded (the titlescreen).
+--- The tac panel's tooltip text (markdown) in the card's own hover box.
 --- @param text string|nil
---- @return string|Panel|nil
+--- @return Panel|nil
 local function TacTip(text)
     if text == nil or text == "" then
         return nil
     end
-    local tac = rawget(_G, "TacPanel")
-    if tac ~= nil and tac.Tooltip ~= nil then
-        return tac.Tooltip(text)
-    end
-    return text
+    return TipFrame(text, true)
 end
 
 --- A stat's history (who changed it, when), as the tac panel's boxes show it.

@@ -266,6 +266,9 @@ local function RollTiming(causeid)
     return nil
 end
 
+--Set below, beside OnResource: hands a spend made just before this cast to its row.
+local ClaimUpfrontSpend
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() or options.dismiss then
         return
@@ -339,6 +342,7 @@ local function CastBegan(ability, casterToken, targets, options)
         targets = {},
     }, targets, options)
     History.AddCombatFacts(state.entry)
+    ClaimUpfrontSpend(state, casterToken, ability.name)
     --its triggers say whether they came before or after the dice (RollTiming).
     state.rolls = RollsPower(ability)
 
@@ -1260,6 +1264,22 @@ local function AddCost(state, name, amount, style, icon)
     entry.costs[name] = cost
 end
 
+--A triggered ability pays its cost just before its cast begins (TriggeredAbility
+--ExecuteTriggerCast), when no row is open yet. Such a spend, named after the ability,
+--waits a moment here for that row; unclaimed, it becomes a line as before.
+local UPFRONT_WAIT_SECONDS = 0.5
+--- @type table<table, {charid: string, name: string, amount: number, style: string|nil, icon: string|nil, note: string}>
+local g_upfront = {}
+
+ClaimUpfrontSpend = function(state, casterToken, abilityName)
+    for key, pending in pairs(g_upfront) do
+        if pending.charid == casterToken.charid and pending.note == abilityName then
+            g_upfront[key] = nil
+            AddCost(state, pending.name, pending.amount, pending.style, pending.icon)
+        end
+    end
+end
+
 local function OnResource(creature, key, before, after, refreshType, note)
     if not History.Enabled() or note == "Undo" or note == "Redo" then
         return
@@ -1284,8 +1304,33 @@ local function OnResource(creature, key, before, after, refreshType, note)
         History.Rewrite(entry)
         return
     end
+    local icon = key == CharacterResource.heroicResourceId and History.HeroicIcon(creature) or nil
     if state ~= nil and not state.automatic and change < 0 then
-        AddCost(state, name, -change, style, key == CharacterResource.heroicResourceId and History.HeroicIcon(creature) or nil)
+        AddCost(state, name, -change, style, icon)
+        return
+    end
+    --what the action gave its own user (Counterstrategy's surges) is part of its result:
+    --it goes on the row, not a line of its own. Others' gains stay lines.
+    local actor = state ~= nil and state.entry.actor or nil
+    if state ~= nil and not state.automatic and change > 0 and actor ~= nil and actor.id == token.charid then
+        local entry = state.entry
+        entry.gains = entry.gains or {}
+        local gain = entry.gains[name] or {amount = 0, style = style, icon = icon}
+        gain.amount = gain.amount + change
+        entry.gains[name] = gain
+        return
+    end
+    if state == nil and change < 0 and note ~= nil and note ~= "" and not GameSystem.IsHandEdit() then
+        local pending = {charid = token.charid, name = name, amount = -change, style = style, icon = icon, note = note}
+        g_upfront[pending] = pending
+        dmhub.Schedule(UPFRONT_WAIT_SECONDS, function()
+            if mod.unloaded or g_upfront[pending] == nil then
+                return
+            end
+            g_upfront[pending] = nil
+            WriteLine(token, "resource", {name = name, amount = change, resourceid = key,
+                refreshtype = refreshType, causetext = note})
+        end)
         return
     end
     --gains are lines, with Undo. Inside an automatic trigger the line names the trigger

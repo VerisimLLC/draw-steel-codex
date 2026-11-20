@@ -573,6 +573,18 @@ function History.Story(entry, kids)
             text = string.format("%s %s.", name, DeathWords(death)),
         }
     end
+    --what the action gave its user: "Baiqadrazaar gained 6 surges."
+    if entry.gains ~= nil and entry.actor ~= nil then
+        local names = {}
+        for name in pairs(entry.gains) do
+            names[#names + 1] = name
+        end
+        table.sort(names)
+        for _, name in ipairs(names) do
+            rows[#rows + 1] = {who = {entry.actor}, text = string.format("%s gained %s.",
+                History.ShownName(entry.actor), History.ResourceWords(entry.gains[name].amount, name))}
+        end
+    end
     for _, kid in ipairs(kids) do
         AddKid(rows, kid)
     end
@@ -1923,11 +1935,24 @@ local function AddTargetLines(rows, width, entry, who, count, own)
             rows[#rows + 1] = ReceiptLine(width, {label = label, value = first and tostring(raw) or Signed(raw)})
             first = false
         end
+        --a type the tier itself dealt none of (all of it came from a modifier, say) gets no
+        --"Tier 3: lightning 0" line; the modifier's own line below carries it.
+        local lines = {}
         for _, name in ipairs(typeNames) do
-            Dealt(string.format("%s: %s", source, name), base[name])
+            lines[#lines + 1] = {label = string.format("%s: %s", source, name), amount = base[name]}
         end
         if base.untyped ~= nil then
-            Dealt(source, base.untyped)
+            lines[#lines + 1] = {label = source, amount = base.untyped}
+        end
+        local shown = 0
+        for _, line in ipairs(lines) do
+            if line.amount ~= 0 then
+                Dealt(line.label, line.amount)
+                shown = shown + 1
+            end
+        end
+        if shown == 0 and #lines > 0 then
+            Dealt(lines[1].label, lines[1].amount)
         end
         for _, part in ipairs(parts) do
             rows[#rows + 1] = DamagePartLine(width, part)

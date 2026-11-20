@@ -1809,12 +1809,14 @@ local COST_ICONS = {
     historyChipMalice = "panels/malice.png",
 }
 
---A spend beside an action's name: its icon and the number. A resource with no icon (one
---without art, or a heroic resource on a row from before icons were kept) stays a chip.
+--A spend beside an action's name: its icon and the number; a gain is signed ("+6"). A
+--resource with no icon (one without art, or a heroic resource on a row from before icons
+--were kept) stays a chip.
 --- @param entry HistoryEntry
 --- @param name string
 --- @param cost {amount: number, style: string, icon: string|nil}
-local function Cost(entry, name, cost)
+--- @param gained? boolean
+local function Cost(entry, name, cost, gained)
     --- @type string|nil
     local icon = COST_ICONS[cost.style] or cost.icon
     if icon == nil and cost.style == "historyChipHeroic" and entry.actor ~= nil then
@@ -1824,7 +1826,7 @@ local function Cost(entry, name, cost)
         end
     end
     if icon == nil then
-        return Chip(ResourceWords(cost.amount, name), cost.style)
+        return Chip((gained and "+" or "") .. ResourceWords(cost.amount, name), cost.style)
     end
     return gui.Panel{
         flow = "horizontal",
@@ -1845,7 +1847,7 @@ local function Cost(entry, name, cost)
             },
             gui.Label{
                 classes = {"historyCost", cost.style},
-                text = tostring(cost.amount),
+                text = gained and string.format("+%d", cost.amount) or tostring(cost.amount),
                 width = "auto",
                 height = "auto",
                 valign = "center",
@@ -1920,15 +1922,16 @@ local function BuildAction(item)
     if dmhub.isDM and entry.hiddenfromplayers then
         titleChildren[#titleChildren + 1] = HiddenEye()
     end
-    if entry.costs ~= nil then
-        local names = {}
-        for name in pairs(entry.costs) do
-            names[#names + 1] = name
-        end
-        table.sort(names)
-        for _, name in ipairs(names) do
-            local cost = entry.costs[name]
-            titleChildren[#titleChildren + 1] = Cost(entry, name, cost)
+    for _, list in ipairs({{costs = entry.costs}, {costs = entry.gains, gained = true}}) do
+        if list.costs ~= nil then
+            local names = {}
+            for name in pairs(list.costs) do
+                names[#names + 1] = name
+            end
+            table.sort(names)
+            for _, name in ipairs(names) do
+                titleChildren[#titleChildren + 1] = Cost(entry, name, list.costs[name], list.gained)
+            end
         end
     end
 
@@ -3147,6 +3150,9 @@ local function RowText(entry, kids)
             end
         end
         for name in pairs(entry.costs or {}) do
+            Add(name)
+        end
+        for name in pairs(entry.gains or {}) do
             Add(name)
         end
         local roll = entry.roll

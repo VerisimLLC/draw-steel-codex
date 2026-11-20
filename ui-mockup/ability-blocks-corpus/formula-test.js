@@ -6,7 +6,7 @@ const rows = fs.readFileSync('formulas.jsonl', 'utf8').trim().split('\n').map(JS
 const canon = s => E.norm(E.printAst(E.parseGS(s)));
 // Equivalent spellings: "else 0" is the default, Self. is implied, Target. is the subject in target filters,
 // and string comparisons ignore case.
-const eqv = (s, docs) => { let t = canon(s).replace(/else0(?=\)|$)/g, '').replace(/self\./g, ''); if (docs === 'targetFilter') t = t.replace(/target\./g, ''); return t.replace(/[()]/g, ''); };
+const eqv = (s, docs) => { let t = canon(s).replace(/else0(?=\)|$)/g, '').replace(/self\./g, ''); if (docs === 'targetFilter' || docs === 'stepIf') t = t.replace(/target\./g, ''); return t.replace(/[()]/g, ''); };
 function rawSrcs(x, out) { if (!x || typeof x !== 'object') return out; if (x.type === 'raw') out.push(x.f.src); for (const k in x) rawSrcs(x[k], out); return out; }
 function cls(src) {
   let a; try { a = E.parseGS(src); } catch (e) { return 'unparsed'; }

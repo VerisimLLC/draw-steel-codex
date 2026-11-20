@@ -214,6 +214,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <option value="gouge">Gouge (hero strike)</option>
       <option value="drain">Draining Strike (follow-up ability with passed-in information)</option>
       <option value="butcher">Gorge (existing content with a missing value)</option>
+      <option value="potency">Potency checks (real formulas from content)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
       <option value="smoke">Smoke Bomb (has an advanced step)</option>
       <option value="blank">New ability</option>
@@ -244,6 +245,10 @@ const YOU = { label: "You", prefix: "", prose: "you", poss: "your", aliases: ["s
 const CASTER = { label: "Caster", prefix: "Caster.", prose: "the caster", poss: "the caster's", aliases: ["caster"] };
 const TARGET_SUBJ = { label: "Target", prefix: "", prose: "the target", poss: "the target's", aliases: ["self", "target"] };
 const TARGET_SYM = { label: "Target", prefix: "Target.", prose: "the target", poss: "the target's", aliases: ["target"] };
+// A step's "Only if" (filterTarget) runs with the TARGET as its subject (ActivatedAbility.lua:5183):
+// bare names and Self mean the target, and the caster is reached through Caster.
+const STEP_TARGET = { label: "Target", prefix: "Target.", prose: "the target", poss: "the target's", aliases: ["target", "self"] };
+const YOU_CASTER = { label: "You", prefix: "Caster.", prose: "you", poss: "your", aliases: ["caster"] };
 const CHARGES = { name: "Charges", type: "number", desc: "Charges left on this ability.", prose: "the charges left" };
 const DOCS = {
   range: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Range", output: "number", help: "The range of this ability in squares. If left empty the ability has a range of 1 (melee).",
@@ -263,7 +268,7 @@ const DOCS = {
   requirement: { who: "Checked against you, the creature using the ability, before it is used.", defaultRole: "You", title: "Can be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
     roles: [YOU], symbols: [], examples: [["Level >= 5", "Only at level 5 or higher."], ["Stamina <= Maximum Stamina / 2", "Only while you are winded."]] },
   stepIf: { who: "Checked once for each target. \u201cThe target\u201d is the creature being checked; \u201cyou\u201d is the creature using the ability.", defaultRole: "Target", title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
-    roles: [TARGET_SYM, YOU], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
+    subject: "Target", roles: [STEP_TARGET, YOU_CASTER], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
     examples: [['Target.Conditions has "Prone"', "Only targets that are prone."], ["Target.Stamina <= Target.MaximumStamina / 2", "Only winded targets."]] },
   damage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Damage", output: "roll", help: "How much damage is dealt. Can use dice.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["2d6 + Might", "2d6 plus your Might."], ["Might * 2", "Twice your Might."]] },
@@ -283,6 +288,7 @@ const SOURCES = [
   { id: "firsttarget", label: "First target", kind: "creature", expr: "Cast.PrimaryTarget.ID", desc: "The first creature it targeted." },
   { id: "targetid", label: "Target", kind: "creature", expr: "Target.ID", desc: "The creature it was targeting when it used this one." },
 ];
+const POTENCY_NUMBER_NOTE = "A potency check with a plain number (such as 2) in a formula ignores the caster's Potency Bonus and monster level scaling, unlike the same check written in tier text (M<2). Prefer weak / average / strong where you can.";
 const NESTED_NOTE = "A follow-up inside a follow-up uses its parent's information. Today the engine fills these values from the outermost ability, so this needs an engine change (stop parameter substitution at nested follow-ups) before it runs as shown.";
 const sourceFor = expr => SOURCES.find(y => norm(y.expr) === norm(expr || ""));
 const SCOPES = {};
@@ -441,8 +447,54 @@ function printAst(n) {
 const nospace = s => s.replace(/\s+/g, "");
 const norm = s => s.replace(/\s+/g, "").toLowerCase();
 function roleFor(docs, name) { const n = norm(name); return docs.roles.find(r => r.aliases.includes(n) || norm(r.label) === n); }
-function subjectRole(docs) { return docs.roles.find(r => r.prefix === ""); }
+function subjectRole(docs) { return docs.roles.find(r => docs.subject ? r.label === docs.subject : r.prefix === ""); }
 
+/* Both potency functions become one block. "Passes" means the target RESISTS, so the common
+   "not ...PassesPotency(...)" (the effect lands) becomes mode "affected" with no visible "not".
+   Cast.PassesPotency counts the power roll's potency changes (roll: "yes"); the creature form
+   Target.PassesPotency / Passes Potency does not (roll: "no"). Returns null for malformed calls. */
+const CHAR_BY_LETTER = { m: "Might", a: "Agility", r: "Reason", i: "Intuition", p: "Presence" };
+function potencyFromAst(n, d, mode, numKid) {
+  if (!n || n.k !== "call") return null;
+  const path = n.path.map(norm), fn = path[path.length - 1];
+  if (fn !== "passespotency") return null;
+  const isCast = path.length === 2 && path[0] === "cast";
+  const args = n.args;
+  const f = { mode, roll: isCast ? "yes" : "no", pv: "tier", n: "2" };
+  let who, ch, val;
+  if (isCast) { if (args.length < 2 || args.length > 3) return null; [who, ch, val] = args; }
+  else { if (args.length !== 2) return null; [ch, val] = args; who = path.length === 2 ? { k: "id", path: [n.path[0]] } : null; }
+  if (!ch || ch.k !== "str" || !CHAR_BY_LETTER[ch.v.toLowerCase()]) return null;
+  f.ch = CHAR_BY_LETTER[ch.v.toLowerCase()];
+  if (who) { if (who.k !== "id" || who.path.length !== 1) return null; const r = roleFor(d, who.path[0]); if (!r) return null; f.role = r.label; }
+  else f.role = subjectRole(d).label;
+  const kids = {};
+  if (!val) { if (!isCast) return null; f.pv = "tier"; }
+  else if (val.k === "str" && /^(weak|average|strong)$/i.test(val.v)) {
+    if (!isCast) return null;  // creature form reads a word as 0: a content bug, left raw so it is flagged
+    f.pv = val.v.toLowerCase(); f.form = "string";
+  }
+  else if (val.k === "id" && val.path.length <= 2 && /^(weak|average|strong)$/i.test(val.path[val.path.length - 1]) && (val.path.length === 1 || norm(val.path[0]) === "caster")) {
+    f.pv = val.path[val.path.length - 1].toLowerCase(); f.form = val.path.length === 2 ? "caster" : "bare";
+  }
+  else if (val.k === "num") { f.pv = "number"; f.n = val.v; }
+  else { f.pv = "formula"; kids.v = numKid(val); }
+  return X("potencyTest", f, kids);
+}
+/* Explains why a raw formula's potency check is broken (it fails silently in the engine). */
+function potencyLint(src) {
+  if (!/pass\w*\s*potency/i.test(src)) return null;
+  if (/(^|[^.\w])((target|self)\s*\.\s*)?passes\s*potency\s*\(\s*"[marip]"\s*,\s*"(weak|average|strong)"/i.test(src) && !/cast\s*\.\s*passes/i.test(src))
+    return "In this form a word like \"Average\" counts as 0, so the target almost always resists. Use your average potency instead.";
+  if (/passess\s*potency/i.test(src)) return "\u201cPassessPotency\u201d is misspelled (one s too many), so this check never works.";
+  const m = src.match(/cast\s*\.\s*passes\s*potency\s*\(([^)]*)\)/i);
+  if (m) {
+    const a = m[1].split(",").map(x => x.trim());
+    if (!/^(target|self|caster|cast\.\s*primary\s*target)$/i.test(a[0] || "")) return "This potency check names no creature first (it should start with Target), so it is broken and gives the same answer for every target.";
+    if (!/^"[marip]"$/i.test(a[1] || "")) return "The characteristic must be a quoted letter such as \"M\", so this check is broken and gives the same answer for every target.";
+  }
+  return null;
+}
 /* AST -> block for a given field description. wantBool picks test vs number blocks. */
 function astToX(n, wantBool, docs) {
   const d = docOf(docs);
@@ -477,7 +529,7 @@ function astToX(n, wantBool, docs) {
       // "Target.ID = <<struck>>" checks a creature from the parent ability.
       if (wantBool && n.op === "=" && d.inFollowUp) {
         const [idSide, pSide] = n.l.k === "param" ? [n.r, n.l] : [n.l, n.r];
-        if (pSide.k === "param" && idSide.k === "id" && norm(idSide.path[idSide.path.length - 1]) === "id") {
+        if (pSide.k === "param" && idSide.k === "id" && idSide.path.length <= 2 && norm(idSide.path[idSide.path.length - 1]) === "id") {
           const src = sourceFor(d.loadedParams[pSide.v]);
           const role = idSide.path.length === 1 ? subjectRole(d) : roleFor(d, idSide.path[0]);
           if (src && src.kind === "creature" && role) return X("isParent", { role: role.label, name: pSide.v, src: src.id });
@@ -499,7 +551,18 @@ function astToX(n, wantBool, docs) {
       flat(n);
       return X(n.k === "and" ? "all" : "any", { items });
     }
-    case "not": return wantBool ? X("not", {}, { a: boolKid(n.a) }) : raw();
+    case "not": {
+      if (!wantBool) return raw();
+      const pot = potencyFromAst(n.a, d, "affected", numKid);
+      // A malformed potency call stays one raw block with its "not", so the repair knows the intent.
+      if (!pot && n.a.k === "call" && norm(n.a.path[n.a.path.length - 1]) === "passespotency") return raw();
+      return pot || X("not", {}, { a: boolKid(n.a) });
+    }
+    case "call": {
+      const pot = wantBool && potencyFromAst(n, d, "resists", numKid);
+      if (pot) return pot;
+      return raw();
+    }
     case "param": {
       // A <<name>> inside a follow-up: look up what the parent sets it to.
       if (!d.inFollowUp || wantBool) return raw();
@@ -509,7 +572,8 @@ function astToX(n, wantBool, docs) {
     }
     case "has": {
       const l = n.l;
-      if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path[l.path.length - 1]) === "conditions") {
+      // Only "Conditions" or "Role.Conditions"; deeper paths such as Caster.Mentor.Conditions stay raw.
+      if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && l.path.length <= 2 && norm(l.path[l.path.length - 1]) === "conditions") {
         const role = l.path.length === 1 ? subjectRole(d) : roleFor(d, l.path[0]);
         const cond = CONDITIONS.find(c => norm(c) === norm(n.r.v));
         if (role && cond) return X("hasCond", { role: role.label, cond });
@@ -599,9 +663,36 @@ function cX(x, h) {
       return { s: (r.prefix || (r.label === "Target" ? "Target." : "")) + "ID = <<" + f.name + ">>", p: 5,
         prose: r.prose + (r.prose === "you" ? " are " : " is ") + pn + "'s " + src.label.toLowerCase() };
     }
+    case "potencyTest": {
+      const r = role(), L = f.ch[0];
+      const you = d.roles.find(q => q.label === "You" || q.label === "Caster") || { prefix: "Caster." };
+      let arg, gate, gateProse;
+      if (f.pv === "tier") {
+        if (f.roll !== "yes") bad(x.id, "\u201cFollows the tier rolled\u201d needs this roll's potency changes; switch that on or pick a fixed potency.");
+        arg = null; gate = "TIER"; gateProse = "your potency for the tier rolled";
+      } else if (f.pv === "number") { arg = String(+f.n || 0); gate = arg; gateProse = arg; }
+      else if (f.pv === "formula") { const v = cHolder(x.kids.v, 0); arg = v.s; gate = "?"; gateProse = v.prose; }
+      else {
+        // Keep the author's spelling: "Strong" (string) or Caster.Strong; new blocks use the string with roll changes.
+        const form = f.form || (f.roll === "yes" ? "string" : "caster");
+        arg = form === "string" ? '"' + cap(f.pv) + '"' : form === "bare" ? cap(f.pv) : (you.prefix || "") + cap(f.pv);
+        gate = f.pv.toUpperCase(); gateProse = "your " + f.pv + " potency";
+      }
+      if (f.roll === "yes" && f.pv === "number") notes.includes(POTENCY_NUMBER_NOTE) || notes.push(POTENCY_NUMBER_NOTE);
+      const creatureArg = r.label === "Target" ? "Target" : (r.prefix === "Caster." ? "Caster" : "Self");
+      const call = f.roll === "yes"
+        ? "Cast.PassesPotency(" + creatureArg + ', "' + L + '"' + (arg == null ? "" : ", " + arg) + ")"
+        : (r.prefix || (r.label === "Target" ? "Target." : "")) + 'PassesPotency("' + L + '", ' + arg + ")";
+      const whose = r.label === "You" ? "your " : r.poss + " ";
+      const tag = f.pv === "tier" || f.pv === "formula" ? "" : " (" + L + "<" + gate + ")";
+      return f.mode === "affected"
+        ? { s: "not " + call, p: 7, prose: whose + f.ch + " is below " + gateProse + tag }
+        : { s: call, p: 10, prose: whose + f.ch + " is at least " + gateProse };
+    }
     case "winded": { const r = role(); return { s: r.prefix + "Stamina <= " + r.prefix + "MaximumStamina / 2", p: 5, prose: r.prose + (r.prose === "you" ? " are" : " is") + " winded" }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
     case "raw": { let ok = true; try { parseGS(f.src); } catch (e) { ok = false; bad(x.id, "Formula does not parse: " + e.message); }
+      const lint = potencyLint(f.src); if (lint) bad(x.id, lint);
       return { s: f.src, p: ok ? rawPrec(f.src) : 0, prose: f.src }; }
   }
   return { s: "?", p: 10, prose: "?" };
@@ -759,7 +850,7 @@ function renderHolder(h, opts) {
 }
 function renderX(x, h) {
   const f = x.f, d = docOf(h.docs);
-  const isTest = ["is", "isParent", "winded", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
+  const isTest = ["potencyTest", "is", "isParent", "winded", "compare", "not", "hasCond", "all", "any"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
   const e = E("span", "x " + (x.type === "raw" ? "raw " : "") + (isTest ? "test" : "num") + (x.type === "all" || x.type === "any" ? " list" : ""));
   e.dataset.x = x.id; e.dataset.holderOf = h.id;
   const roles = d.roles.map(r => r.label);
@@ -777,6 +868,17 @@ function renderX(x, h) {
     case "pick": add(renderHolder(x.kids.a)); add(lbl("if")); add(renderHolder(x.kids.cond)); add(lbl("else")); add(renderHolder(x.kids.b)); break;
     case "compare": add(renderHolder(x.kids.a)); add(sel(f, "op", [[">=", "is at least"], ["<=", "is at most"], [">", "is more than"], ["<", "is less than"], ["=", "is"], ["~=", "is not"]], null, "comparison")); add(renderHolder(x.kids.b)); break;
     case "not": add(lbl("not")); add(renderHolder(x.kids.a)); break;
+    case "potencyTest": {
+      add(sel(f, "role", roles, null, "creature"));
+      add(sel(f, "mode", [["affected", f.role === "You" ? "are affected:" : "is affected:"], ["resists", f.role === "You" ? "resist:" : "resists:"]], null, "affected or resists"));
+      add(sel(f, "ch", CHARS, null, "characteristic"));
+      add(lbl(f.mode === "affected" ? "below" : "at least"));
+      add(sel(f, "pv", [["weak", "your weak potency"], ["average", "your average potency"], ["strong", "your strong potency"], ["tier", "potency for the tier rolled"], ["number", "a number"], ["formula", "a formula"]], () => { if (f.pv === "formula" && !x.kids.v) x.kids.v = H("number", h.docs, "2"); refresh(); }, "potency"));
+      if (f.pv === "number") add(inp(f, "n", "num", "potency number"));
+      if (f.pv === "formula" && x.kids.v) add(renderHolder(x.kids.v));
+      add(sel(f, "roll", [["yes", "with this roll's potency changes"], ["no", "base potency only"]], null, "count power roll potency changes"));
+      break;
+    }
     case "winded": add(sel(f, "role", roles, null, "creature")); add(lbl(verb() + " winded")); break;
     case "hasCond": add(sel(f, "role", roles, null, "creature")); add(lbl(verb())); add(sel(f, "cond", CONDITIONS, null, "condition")); break;
     case "all": case "any": {
@@ -816,7 +918,21 @@ function renderX(x, h) {
       if (f.expr) { const i = inp(f, "expr", "", "formula worked out by the parent"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i); }
       break;
     }
-    case "raw": { add(lbl("formula")); const i = inp(f, "src", "", "raw formula"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i);
+    case "raw": {
+      // The most common broken form, Cast.PassesPotency(R, 2), gets a one-click repair.
+      const bm = f.src.match(/^\s*(not\s+)?cast\s*\.\s*passes\s*potency\s*\(\s*"?([marip])"?\s*,\s*(\d+)\s*\)\s*$/i);
+      if (bm) {
+        const fix = E("button", "full-btn", "Fix: target's " + CHAR_BY_LETTER[bm[2].toLowerCase()] + (bm[1] ? " below " : " at least ") + bm[3]); fix.type = "button";
+        fix.addEventListener("click", ev => { ev.stopPropagation(); h.expr = X("potencyTest", { role: (d.roles.find(r => r.label === "Target") || d.roles[0]).label, mode: bm[1] ? "affected" : "resists", ch: CHAR_BY_LETTER[bm[2].toLowerCase()], pv: "number", n: bm[3], roll: "yes" }); refresh(); });
+        add(fix);
+      }
+      const wm = f.src.match(/^\s*(not\s+)?(?:(target|self)\s*\.\s*)?passes\s*potency\s*\(\s*"([marip])"\s*,\s*"(weak|average|strong)"\s*\)\s*$/i);
+      if (wm) {
+        const fix = E("button", "full-btn", "Fix: use your " + wm[4].toLowerCase() + " potency"); fix.type = "button";
+        fix.addEventListener("click", ev => { ev.stopPropagation(); h.expr = X("potencyTest", { role: subjectRole(d).label, mode: wm[1] ? "affected" : "resists", ch: CHAR_BY_LETTER[wm[3].toLowerCase()], pv: wm[4].toLowerCase(), form: "caster", n: "2", roll: "no" }); refresh(); });
+        add(fix);
+      }
+      add(lbl("formula")); const i = inp(f, "src", "", "raw formula"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i);
       const conv = E("button", "clear", "↻"); conv.type = "button"; conv.title = "Try to turn this into blocks";
       conv.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, f.src); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; refresh(); });
       add(conv); break; }
@@ -1031,6 +1147,13 @@ function pickerOptions(h) {
   if (wantBool) {
     groups.push(["Check a condition", "Prone, slowed, grabbed, and so on.",
       CONDITIONS.map(c => item(Who + " " + is + " " + c.toLowerCase(), "", () => X("hasCond", { role: who, cond: c }), "condition", true))]);
+    const pt = (mode, pv, roll) => () => X("potencyTest", { role: who, mode, ch: "Might", pv, n: "2", roll });
+    groups.push(["Check potency", "Like M<STRONG on an ability card: the effect lands if the characteristic is below the potency.", [
+      item(Who + " " + is + " affected: Might below your strong potency", "The effect lands (M<STRONG). Counts this roll's potency changes.", pt("affected", "strong", "yes"), "potency m< fails passes", true),
+      item(Who + " " + is + " affected: below the potency for the tier rolled", "Weak on tier 1, average on tier 2, strong on tier 3.", pt("affected", "tier", "yes"), "potency tier", true),
+      item(Who + " " + (is === "are" ? "resist" : "resists") + ": Might at least your strong potency", "The opposite: the target shrugs it off.", pt("resists", "strong", "yes"), "potency passes resist", true),
+      item(Who + " " + is + " affected, base potency only", "Ignores potency changes from the power roll. Use outside power rolls, e.g. in auras.", pt("affected", "average", "no"), "potency aura base", true),
+    ]]);
     groups.push(["Check health", "Winded, or how much Stamina is left.", [
       item(Who + " " + is + " winded", "Stamina is at half or less.", () => X("winded", { role: who }), "bloodied half hurt stamina", true),
       item(Whose + " Stamina is at most [ ]", "Compare Stamina to a number.", () => X("compare", { op: "<=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Stamina" }) }), b: numH("10") }), "hp health hit points", true),
@@ -1355,6 +1478,25 @@ const EXAMPLES = {
     const heal = STEPS.heal.make(); heal.slots.amount = holderFromText("roll", "heal@" + fu.id, "<<total>>");
     fu.branches.steps.push(heal);
     a.steps.push(pr, fu);
+    return a;
+  },
+  potency: () => {
+    // Each "Only if" test is loaded from a formula used in the compendium today.
+    const a = newAbility();
+    Object.assign(a, { name: "Potency Checks", keywords: "Magic, Ranged, Strike", distance: "Ranged" });
+    a.range = holderFromText("number", "range", "10");
+    const rows = [
+      ['not Cast.PassesPotency(target, "M", 2)', "Restrained", "Medusa, Petrify"],
+      ['not Cast.PassesPotency(Target, "P", "Strong")', "Frightened", "word potency"],
+      ['not Cast.PassesPotency(Target, "I")', "Dazed", "follows the tier rolled"],
+      ['not Target.PassesPotency("A", 1)', "Prone", "creature form, no roll changes"],
+      ['not Cast.PassesPotency(R, 2)', "Slowed", "Devil Notary, Importunity (broken)"],
+      ['not Passes Potency("I", "Average")', "Weakened", "creature form with a word (broken: reads as 0)"],
+    ];
+    for (const [src, cond] of rows) {
+      const w = STEPS.ifStep.make(); w.slots.cond = holderFromText("boolean", "stepIf", src);
+      const c = STEPS.condition.make(); c.f.cond = cond; w.branches.then.push(c); a.steps.push(w);
+    }
     return a;
   },
   cleave: () => {

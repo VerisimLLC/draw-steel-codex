@@ -279,6 +279,46 @@ prototype shows a non-blocking note when a nested follow-up uses parent informat
 Not yet covered: defaults (`<<name=3>>`), hand-offs into named or standard abilities (not built
 inline), and showing what a hand-off will be in the Test panel.
 
+## 4f. Potency checks
+
+**The two functions** (both kept):
+
+| | `Target.PassesPotency("M", v)` / `Passes Potency("M", v)` (creature) | `Cast.PassesPotency(Target, "M", v)` (cast) | Tier text `M<2` |
+|---|---|---|---|
+| Compares | the creature's Might with `v` | the target's Might with the caster's potency | the target's Might with the gate |
+| Power roll potency changes (`potencymod`, per target) | no | **yes** | yes (gate text rewritten) |
+| No `v` | not allowed | follows the tier rolled: weak / average / strong | n/a |
+| Caster's Potency Bonus | only through `Caster.Strong` etc. | only when `v` is a word; **not for numbers or "follows the tier"** | yes |
+| Monster level scaling (`ScaledPotencyGateBonus`) | no | **no** | yes |
+| Target resistance formulas | no | **no** | yes |
+| A word as `v` (`"Average"`) | **counts as 0** | caster's potency for that word | n/a |
+
+Sources: `MCDMCreature.lua` `passespotency` and `CalculatePotencyValueSelf`;
+`MCDMActivatedAbilityCast.lua` `PassesPotency`; `MCDMAbilityBehavior.lua:2039-2075` (tier gate).
+"Passes" means the target resists; about 80% of content writes `not Cast.PassesPotency(...)`.
+
+**Block** (`potencyTest`): `[Target] [is affected: | resists:] [Might] below [your strong potency |
+potency for the tier rolled | a number | a formula] [with this roll's potency changes | base
+potency only]`. A *Check potency* group sits near the top of every true/false picker. The card
+shows the DS shorthand ("(M<STRONG)"). Saved formulas keep the author's spelling (`"Strong"` vs
+`Caster.Strong`). A non-blocking note explains that a plain number with roll changes ignores the
+Potency Bonus and level scaling.
+
+**Corpus:** 169 of 172 potency calls in activated abilities become this block; the round trip keeps
+meaning for all of them. Content bugs it surfaces, each with a one-click repair in the editor:
+- Devil Notary, *Importunity*: `not Cast.PassesPotency(R, 2)` (twice): no creature, unquoted characteristic.
+- Twisted Bengrul, *Mind Twist*: `Cast.PassesPotency(target, p)`: unquoted characteristic.
+- Creature form with a word, e.g. `not Passes Potency("I", "Average")`: the word counts as 0.
+- The engine's own help example is misspelled `Cast.PassessPotency`.
+
+**Engine findings to decide on** (not changed here):
+1. The three potency paths disagree on Potency Bonus, level scaling and resistance formulas.
+   Recommend one shared potency function used by all three.
+2. A step's *Only if* (`filterTarget`) runs with the target as subject in the main path
+   (`ActivatedAbility.lua:5183`) but with the **caster** as subject in the damage-checkbox path
+   (`ActivatedAbility.lua:5739`), so bare names mean different creatures in the two paths.
+   The prototype now treats the target as the subject (it had this backwards before).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -321,6 +361,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-20 | ~~Hand-offs: a *Passes along* row on the follow-up step.~~ Superseded the same day by the row below. | |
 | 2026-11-20 | **Parent information is just available inside a follow-up.** No hand-off step: a follow-up's pickers offer *From <parent>* (its tier result, damage dealt, squares moved, number of targets; its first target, its target). The `<< >>` parameters are generated on save from whatever the follow-up uses. Authors never see the piping unless *Show GoblinScript* is on. | `<< >>` confuses people endlessly; the cleanest fix is that there is nothing to wire. |
 | 2026-11-20 | **Direct parent only.** A follow-up offers only its direct parent's information; the UI names it after that parent ("From Share the Spoils"). **Saved parameter names never use ability names:** they name the information (`tierresult`, `damagedealt`, `firsttarget`), and existing content keeps its own names. | Renaming an ability must not break anything stored; the label is display only. |
+| 2026-11-20 | **One potency block for both functions.** Reads "the target is affected: Might below your strong potency, with this roll's potency changes". "Affected" hides the `not` (passes = resists); "with this roll's potency changes" picks `Cast.PassesPotency`, "base potency only" picks the creature form. Potency can be weak / average / strong, follows the tier rolled, a number, or a formula. | Users constantly stumble over the double negative and over which function counts power roll modifiers. Both functions are kept. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

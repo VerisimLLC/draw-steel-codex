@@ -2167,6 +2167,12 @@ local function LineWords(entry)
         return string.format("%s %s %s", name, cond(entry.passed, "saved against", "failed a save against"), entry.name)
     elseif family == "persistence" then
         return string.format("%s stopped maintaining %s", name, entry.name)
+    elseif family == "strained" then
+        --L110: a Talent's heroic resource went below 0, or back.
+        return string.format(entry.strained and "%s is strained" or "%s is no longer strained", name)
+    elseif family == "captain" then
+        --L111: the Director gave a squad its captain.
+        return string.format("%s is now %s's captain", name, entry.squad or "the squad")
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
     elseif family == "downtime" then

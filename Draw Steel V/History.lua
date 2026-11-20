@@ -43,7 +43,8 @@ local mod = dmhub.GetModLoading()
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
---- "negotiation", "downtime", "table", "award", "staminaset", "reinforcements", "reveal" or "reverted".
+--- "negotiation", "downtime", "table", "award", "staminaset", "reinforcements", "reveal", "reverted",
+--- "strained" or "captain".
 --- @field spoilerkey? string On a reveal line: the spoilered modifier's key (PowerRollSpoilers.Key); the Director's eye on it hides or shows the line (L94).
 --- @field arrivals? {who: HistoryCreature, name: string, count: integer}[] On a reinforcements line: who arrived, counted by stat block name (L89).
 --- @field byplayer? boolean On a line: a player made this change by hand (L87); it turns the Director's badge gold.
@@ -80,6 +81,8 @@ local mod = dmhub.GetModLoading()
 --- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
 --- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
+--- @field strained? boolean On a strained line (L110): it became strained, or stopped being.
+--- @field squad? string On a captain line (L111): the squad it now leads.
 --- @field provoker? HistoryCreature On a free strike for moving away (L33): who moved away.
 --- @field costs? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it spent; icon is a heroic resource's.
 --- @field gains? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it gave its user, shaped like costs.

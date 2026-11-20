@@ -1344,6 +1344,14 @@ local function OnResource(creature, key, before, after, refreshType, note)
     end
     local name, style = ResourceFacts(creature, key)
     local change = after - before
+    --L110: a creature that may go below 0 (a Talent's Clarity) is strained while it is.
+    if key == CharacterResource.heroicResourceId and (before < 0) ~= (after < 0) then
+        local canGoNegative = false
+        pcall(function() canGoNegative = creature:AllowNegativeResources() > 0 end)
+        if canGoNegative then
+            WriteLine(token, "strained", {strained = after < 0, causetext = string.format("%s %d", name, after)})
+        end
+    end
     local state = CastFor(nil)
     --the Recovery behind the heal just written: it becomes that row's cause (L3).
     local healed = g_recoveryHeal
@@ -1936,6 +1944,17 @@ local function OnPotency(creature, info)
     table.insert(target.potency, test)
 end
 
+--L111: the Director made a creature a squad's captain (DrawSteelMinion.SetSquadCaptain).
+--- @param creature creature
+--- @param info {squad: string}
+local function OnCaptain(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    WriteLine(token, "captain", {squad = info.squad, causetext = dmhub.isDM and "Director" or dmhub.userDisplayName})
+end
+
 --A save is a roll the table watched, so it earns a line whether it passed or not. The
 --line says everything, so the cast that made the roll gets no row of its own.
 local function OnSaved(creature, info)
@@ -2322,6 +2341,7 @@ GameSystem.RegisterPlayObserver("history", {
     conditionimmune = OnConditionImmune,
     resisted = OnResisted,
     potency = OnPotency,
+    captain = OnCaptain,
     saved = OnSaved,
     tested = OnTested,
     diceroll = OnDiceRoll,

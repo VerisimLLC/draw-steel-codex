@@ -51,6 +51,7 @@ local g_playObservers = {}
 ---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
 ---   conditionimmune(creature, conditionid): an infliction was stopped by immunity.
 ---   resisted(creature): a potency test was resisted.
+---   captain(creature, info): the Director made a creature a squad's captain. info: squad.
 ---   potency(creature, info): a potency test was made, resisted or not. info: attrid,
 ---     letter (M, A, R, I, P), value (the creature's), gate, resisted, text (what it gates),
 ---     stopped (gated text another behavior applies, after a "#").

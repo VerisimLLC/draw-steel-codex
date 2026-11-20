@@ -3869,7 +3869,11 @@ function GameHud.CreateRollDialog(self)
                                             undoable = false,
                                             execute = function()
                                                 --this also triggers the modifier's custom trigger
-                                                local consume = modifier:ConsumeResource(c)
+                                                --filed under the cast, so History shows the cost on the action's row.
+                                                local consume = false
+                                                GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                                    consume = modifier:ConsumeResource(c)
+                                                end)
                                                 resourceConsumed = consume or resourceConsumed
                                             end,
                                         }
@@ -3893,7 +3897,11 @@ function GameHud.CreateRollDialog(self)
                                     description = "Consume resources",
                                     undoable = false,
                                     execute = function()
-                                        local consume = modifier:ConsumeResource(creatureUsed)
+                                        --filed under the cast, so History shows the cost on the action's row.
+                                        local consume = false
+                                        GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                            consume = modifier:ConsumeResource(creatureUsed)
+                                        end)
                                         resourceConsumed = consume or resourceConsumed
                                     end,
                                 }

@@ -106,6 +106,13 @@ text("tablestudio.sec.menu", [[Menu]])
 text("tablestudio.menuname", [[Menu Name]])
 text("tablestudio.position", [[Position]])
 
+--Who Gets It: Nobody unpublishes a table. "Unpublished" is its tag in the table list, the note
+--beside the choice and the live version's status. Signed off 2026-11-20.
+text("tablestudio.access.nobody", [[Nobody]])
+text("tablestudio.unpublished", [[Unpublished]])
+text("tablestudio.setlive.unpublish", [[This unpublishes the table. Players lose it.]])
+text("tablestudio.unpublishedreadonly", [[Unpublished version. Editing starts version {n}.]])
+
 ----------------------------------------------------------------------
 --DRAFT (2026-11-19): written for the build, not yet signed off.
 

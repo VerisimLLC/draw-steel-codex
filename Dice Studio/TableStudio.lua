@@ -1149,9 +1149,12 @@ local function DiceName(assetid)
     return DiceNames()[assetid] or assetid
 end
 
---The tag showing who gets a table: "Free", or "<set> dice" (a set named "Soulkiller Dice" gives
---"Soulkiller dice", not "Soulkiller Dice dice").
+--The tag showing who gets a table: "Free", "<set> dice" (a set named "Soulkiller Dice" gives
+--"Soulkiller dice", not "Soulkiller Dice dice") or "Unpublished".
 local function AccessTag(access, diceid)
+    if access == "nobody" then
+        return T("tablestudio.unpublished")
+    end
     if access == "dice" and diceid ~= nil and diceid ~= "" then
         local name = string.gsub(DiceName(diceid), "%s+[Dd][Ii][Cc][Ee]$", "")
         return T("tablestudio.tag.dice", { dice = name })
@@ -1185,23 +1188,37 @@ local function OpenBuiltin(id)
     return studio:EditBuiltin(id, T("tablestudio.preset." .. id), diceid, index > 0 and index or 10)
 end
 
---The dice set whose non-owners would lose the table if this version went live, or nil.
+--Who players get the open table from now: its live version's rule, else a built-in's own. Nil
+--for a table made in the studio and never set live (no player has it).
+local function PlayersAccess()
+    local live = studio:GetLiveAccess()
+    if live ~= nil then
+        return live.access, live.dice
+    elseif studio.builtin ~= "" then
+        return BuiltinDefaultAccess(studio.builtin)
+    end
+    return nil, nil
+end
+
+--Whether the live version of the open table is unpublished (Who Gets It: Nobody).
+local function LiveUnpublished()
+    local live = studio:GetLiveAccess()
+    return live ~= nil and live.access == "nobody"
+end
+
+--Who would lose the table if this version went live: "unpublish" (everyone, as it is set to
+--Nobody), a dice set's name (players without it), or nil (nobody).
 local function AccessLoss()
+    local oldAccess, oldDice = PlayersAccess()
+    if oldAccess == nil or oldAccess == "nobody" then
+        return nil
+    end
+    if studio.access == "nobody" then
+        return "unpublish"
+    end
     if studio.access ~= "dice" or studio.dice == "" then
         return nil
     end
-
-    local oldAccess, oldDice
-    local live = studio:GetLiveAccess()
-    if live ~= nil then
-        oldAccess, oldDice = live.access, live.dice
-    elseif studio.builtin ~= "" then
-        oldAccess, oldDice = BuiltinDefaultAccess(studio.builtin)
-    else
-        --a new table: nobody has it yet.
-        return nil
-    end
-
     if oldAccess == "dice" and oldDice == studio.dice then
         return nil
     end
@@ -1357,8 +1374,12 @@ local function CreateTableStudioPanel()
                             idChosen = studio.dice,
                             change = function(element)
                                 local id = tostring(element.idChosen or "")
-                                --with no dice set, only Everyone makes sense.
-                                studio:SetAccess(id == "" and "everyone" or studio.access, id)
+                                --with no dice set, Dice Owners becomes Everyone.
+                                local access = studio.access
+                                if id == "" and access == "dice" then
+                                    access = "everyone"
+                                end
+                                studio:SetAccess(access, id)
                                 root:FireEventTree("refreshSegment")
                             end,
                         },
@@ -1373,12 +1394,23 @@ local function CreateTableStudioPanel()
                     Label({"tsName"}, T("tablestudio.access.everyone")),
                 }
             else
+                --Nobody unpublishes the table once set live: it leaves players' menus.
                 accessRows[#accessRows + 1] = gui.Panel{
                     classes = {"tsRow"},
+                    Label({"tsSub"}, T("tablestudio.unpublished"), {
+                        valign = "center",
+                        create = function(element)
+                            element:SetClass("collapsed", studio.access ~= "nobody")
+                        end,
+                        refreshSegment = function(element)
+                            element:SetClass("collapsed", studio.access ~= "nobody")
+                        end,
+                    }),
                     Segmented(
                         {
                             { id = "everyone", text = T("tablestudio.access.everyone") },
                             { id = "dice", text = T("tablestudio.access.dice") },
+                            { id = "nobody", text = T("tablestudio.access.nobody") },
                         },
                         function() return studio.access end,
                         function(id)
@@ -1386,6 +1418,7 @@ local function CreateTableStudioPanel()
                             if id ~= "dice" or studio.dice ~= "" then
                                 studio:SetAccess(id, studio.dice)
                             end
+                            root:FireEventTree("refreshSegment")
                         end
                     ),
                 }
@@ -1651,7 +1684,9 @@ local function CreateTableStudioPanel()
         local function Confirm()
             local extra = nil
             local loss = AccessLoss()
-            if loss ~= nil then
+            if loss == "unpublish" then
+                extra = Label({"tsSub"}, T("tablestudio.setlive.unpublish"), { width = "100%", tmargin = 8 })
+            elseif loss ~= nil then
                 extra = Label({"tsSub"}, T("tablestudio.setlive.accessloss", { dice = loss }), { width = "100%", tmargin = 8 })
             end
             Modal(T("tablestudio.setlive.confirm", { n = studio.version }), {
@@ -1686,12 +1721,18 @@ local function CreateTableStudioPanel()
             idChosen = "",
             refreshVersion = function(element)
                 local options = {}
+                local unpublished = LiveUnpublished()
                 for _, v in ipairs(studio:GetVersions()) do
+                    --the live version of an unpublished table says so, not "Live".
+                    local status = T("tablestudio.status." .. v.status)
+                    if v.status == "live" and unpublished then
+                        status = T("tablestudio.unpublished")
+                    end
                     options[#options + 1] = {
                         id = tostring(v.version),
                         text = T("tablestudio.versionentry", {
                             version = T("tablestudio.version", { n = v.version }),
-                            status = T("tablestudio.status." .. v.status),
+                            status = status,
                         }),
                     }
                 end
@@ -1732,7 +1773,9 @@ local function CreateTableStudioPanel()
                     valign = "center",
                     refreshVersion = function(element)
                         local live = studio.liveVersion
-                        element.text = (live > 0 and not studio.isLiveVersion) and T("tablestudio.liveversion", { n = live }) or ""
+                        --an unpublished table has nothing live for players.
+                        local shown = live > 0 and not studio.isLiveVersion and not LiveUnpublished()
+                        element.text = shown and T("tablestudio.liveversion", { n = live }) or ""
                     end,
                 }),
                 gui.Panel{
@@ -1754,7 +1797,8 @@ local function CreateTableStudioPanel()
                 tmargin = 4,
                 refreshVersion = function(element)
                     element:SetClass("collapsed", not studio.isLiveVersion)
-                    element.text = T("tablestudio.livereadonly", { n = studio.nextVersion })
+                    local key = LiveUnpublished() and "tablestudio.unpublishedreadonly" or "tablestudio.livereadonly"
+                    element.text = T(key, { n = studio.nextVersion })
                 end,
             }),
             gui.Panel{

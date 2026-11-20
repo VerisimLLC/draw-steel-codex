@@ -18,7 +18,7 @@
 --- @field isLiveVersion boolean True if the version open is the live one. Its first edit starts nextVersion.
 --- @field nextVersion number The number the next new version gets.
 --- @field notes string The version's notes.
---- @field access string Who gets the table: "everyone", or "dice" for the owners of the dice set `dice`.
+--- @field access string Who gets the table: "everyone", "dice" for the owners of the dice set `dice`, or "nobody" (unpublished: set live, it leaves players' menus).
 --- @field dice string The dice set (a dice asset id) the table is linked to, or "".
 --- @field menuName string The table's name in the players' menu ("" uses its name).
 --- @field position number The table's place in the players' menu, lower first (the built-ins are 1 to 9).
@@ -200,7 +200,7 @@ function TableStudioLua:GetVersions() end
 --- @return boolean
 function TableStudioLua:LoadVersion(version) end
 
---- Sets who gets the table ("everyone" or "dice") and its dice set (a dice asset id, or "").
+--- Sets who gets the table ("everyone", "dice" or "nobody") and its dice set (a dice asset id, or "").
 --- @param access? string
 --- @param dice? string
 function TableStudioLua:SetAccess(access, dice) end

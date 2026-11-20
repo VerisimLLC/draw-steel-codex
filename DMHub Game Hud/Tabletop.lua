@@ -83,6 +83,10 @@ local TABLE_SURFACES = {
 --table, not locals: this file is at Lua's 200-local limit.
 TABLE_SURFACES.owned = {}
 TABLE_SURFACES.Offered = function(surface)
+    --unpublished in the Table Studio (Who Gets It: Nobody): only admins still see it.
+    if surface.unpublished then
+        return dmhub.isAdminAccount and not TABLE_SURFACES.ViewingAsPlayer()
+    end
     local assetid = surface.dice
     if assetid == nil or TABLE_SURFACES.owned[assetid] or (dmhub.isAdminAccount and not TABLE_SURFACES.ViewingAsPlayer()) then
         return true
@@ -112,8 +116,8 @@ end
 
 --The surfaces to offer, in menu order: each built-in, or its live Table Studio version (its menu
 --name and who gets it) if it has one, then the live tables made in the studio. Leather is
---everyone's fallback, so it is never locked. Rebuilt at most every two seconds: SyncSurface asks
---every frame. Entries are {id, text, dice, position}.
+--everyone's fallback, so it is never locked or unpublished. Rebuilt at most every two seconds:
+--SyncSurface asks every frame. Entries are {id, text, dice, position, unpublished}.
 TABLE_SURFACES.List = function()
     local now = dmhub.Time()
     if TABLE_SURFACES.listed ~= nil and now - TABLE_SURFACES.listedAt < 2 then
@@ -141,9 +145,11 @@ TABLE_SURFACES.List = function()
             entry.text = live.name or surface.text
             entry.dice = (live.access == "dice") and live.dice or nil
             entry.position = live.position or i
+            entry.unpublished = live.access == "nobody"
         end
         if surface.id == "leather" then
             entry.dice = nil
+            entry.unpublished = nil
         end
         result[#result+1] = entry
     end
@@ -153,6 +159,7 @@ TABLE_SURFACES.List = function()
             text = live.name,
             dice = (live.access == "dice") and live.dice or nil,
             position = live.position or 10,
+            unpublished = live.access == "nobody",
         }
     end
     table.sort(result, function(a, b)

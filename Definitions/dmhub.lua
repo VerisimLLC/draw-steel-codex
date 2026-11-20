@@ -1858,7 +1858,7 @@ function dmhub.DescribeTabletop() end
 --- @param needPictures nil|string[]
 function dmhub.SetTabletopWindowMaps(mapids, needPictures) end
 
---- Tabletop mode: the tables put live from the Table Studio, as a list of {id, builtin, name, access, dice, position, version}. id is what dmhub.tabletopSurface takes: a built-in's id ("soulkiller") for one that replaces that built-in, else "table:<id>". builtin is the built-in id it replaces, or nil. name is its name in the players' menu. access is "everyone" or "dice", for the owners of the dice set dice (a dice asset id, or nil). position orders the menu (the built-ins are 1 to 9). Each is drawn once its images have loaded; a built-in's own drawing shows until then.
+--- Tabletop mode: the tables put live from the Table Studio, as a list of {id, builtin, name, access, dice, position, version}. id is what dmhub.tabletopSurface takes: a built-in's id ("soulkiller") for one that replaces that built-in, else "table:<id>". builtin is the built-in id it replaces, or nil. name is its name in the players' menu. access is "everyone", "dice" for the owners of the dice set dice (a dice asset id, or nil), or "nobody": unpublished, so players' menus leave it out (and leave out the built-in it replaces). position orders the menu (the built-ins are 1 to 9). Each is drawn once its images have loaded; a built-in's own drawing shows until then.
 --- @return table
 function dmhub.GetLiveTables() end
 

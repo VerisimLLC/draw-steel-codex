@@ -2145,6 +2145,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
     end
 
+    --The roll properties (with the tier texts) to resolve one target with. A target
+    --with its own modifiers in the roll dialog has its own copy; the rest share one.
+    local function TierPropertiesFor(targetToken)
+        for i,multitarget in ipairs(multitargetResults or {}) do
+            if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
+                return multitargets[i].rollProperties or rollProperties
+            end
+        end
+        return rollProperties
+    end
+
     --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
     --stats, along with the edges and banes that were applied to the roll
     --(m_result.boons/banes -- the engine's names for edges/banes, captured from
@@ -2243,6 +2254,23 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
     end
 
+    --promptWhenResolving asks which target to resolve next, so pushes land in the
+    --player's chosen order. Skip it when no target's tier pushes, pulls or slides:
+    --a tier 1 "2 damage" used to ask which target to push first.
+    if promptWhenResolving then
+        local orderMatters = false
+        for _,targetToken in ipairs(targetChoices) do
+            local tierText = TierPropertiesFor(targetToken).tiers[EffectiveTier(targetToken)]
+            if type(tierText) == "string" and regex.MatchGroups(string.lower(tierText), "(push|pull|slide)") ~= nil then
+                orderMatters = true
+                break
+            end
+        end
+        if not orderMatters then
+            promptWhenResolving = false
+        end
+    end
+
     repeat
 
         if promptWhenResolving then
@@ -2304,17 +2332,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.total = m_result.total
 
             if targetToken ~= nil then
-                if multitargetResults ~= nil then
-                    for i,multitarget in ipairs(multitargetResults) do
-                        if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
-                            tier = multitarget.tier
-                            if multitargets[i].rollProperties ~= nil then
-                                targetRollProperties = multitargets[i].rollProperties
-                            end
-                            break
-                        end
-                    end
-                end
+                tier = EffectiveTier(targetToken)
+                targetRollProperties = TierPropertiesFor(targetToken)
 
                 local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)
 

@@ -5743,17 +5743,11 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
         for i=1,#self.enemyTokens do
             local enemy = self.enemyTokens[i]
             if self.TokenIsLiveCombatant(enemy) then
+                --TargetPassesFilter already leaves out Hidden enemies this creature cannot spot. It measures
+                --from where the creature stands now, not from where it might move to strike.
                 local filterProf = ProfBegin("TargetPassesFilter")
                 local canTarget = ability:TargetPassesFilter(token, enemy, {})
                 ProfEnd(filterProf)
-                if canTarget and enemy.properties:HasNamedCondition("Hidden") and ability:HasKeyword("Strike") then
-                    local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    --Shadowmeld: from in front of the wall the enemy melded into, it can be struck.
-                    if (ignoreRange <= 0 or MonsterAI.TargetDistance(token, enemy) > ignoreRange)
-                        and not RuleUtils.WallMeldSeesTarget(token, enemy) then
-                        canTarget = false
-                    end
-                end
                 if canTarget then
                     filteredTokens[#filteredTokens+1] = enemy
                 end
@@ -5821,7 +5815,16 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
                 end
             end
 
-            if dist <= range then
+            --The filter above checked a Hidden enemy from where this creature stands now. A strike
+            --made after moving or charging needs the Hidden rule to allow it from that square too.
+            local inReach = dist <= range
+            if inReach and enemy.properties:HasNamedCondition("Hidden") then
+                self:ExecuteWithTheoreticalMovementLoc(token, chargeLoc or loc, function()
+                    inReach = GameSystem.AllowTargeting(token, enemy, ability) == true
+                end)
+            end
+
+            if inReach then
                 local los = sightFromLoc[enemy]
                 if los == nil then
                     local losProf = ProfBegin("engine: GetLineOfSight")

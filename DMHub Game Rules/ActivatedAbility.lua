@@ -1690,8 +1690,9 @@ end
 --- @param targetToken CharacterToken
 --- @param symbols table
 --- @param filterOverride nil|string
---- @return boolean, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter.
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
+--- @param rankReasons nil|boolean True when the caller shows the reason to the user (the action bar). A target with only a warning, such as Hidden, then still runs every other check, so a more important reason replaces the warning. Without it the warning is returned at once, which keeps yes/no callers like the Monster AI cheap.
+--- @return boolean, nil|string, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter. The third is "hidden" when that reason is only the Hidden warning (see GameSystem.AllowTargeting).
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
 
 	local conditionid = self:PrimaryConditionID()
 
@@ -1709,8 +1710,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		end
 	end
 
-	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
-		return false
+	--A refusal with a reason (a Hidden enemy) is a warning the Director or a player may
+	--override. When the reason will be shown, keep checking so any hard refusal below still
+	--wins, and return the warning at the end.
+	local allowed, warningReason, warningKind = GameSystem.AllowTargeting(casterToken, targetToken, self)
+	if not allowed then
+		if warningReason == nil then
+			return false
+		end
+		if not rankReasons then
+			return false, warningReason, warningKind
+		end
 	end
 
 	--An ability an object grants to the creatures adjacent to it (a Field
@@ -1845,17 +1855,23 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     if filterOverride == nil then
-        for _,filter in ipairs(self:try_get("customTargetFilters", {})) do
-            local passes = self:TargetPassesFilter(casterToken, targetToken, symbols, filter)
-            if not passes then
-                return false
-            end
+        local passes, filterReason = self:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+        if not passes then
+            return false, filterReason
         end
+        if warningReason ~= nil then
+            return false, warningReason, warningKind
+        end
+        return true
     end
 
-    local filter = filterOverride or self.targetFilter
+    --A caller's own filter formula replaces the ability's custom filters and target filter.
+    local filter = filterOverride
     local reasonedFilters = self:try_get("reasonedFilters", {})
     if filter == "" and #reasonedFilters == 0 then
+        if warningReason ~= nil then
+            return false, warningReason, warningKind
+        end
         return true
     end
 
@@ -1879,6 +1895,10 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         if not result then
             return false, ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
         end
+    end
+
+    if warningReason ~= nil then
+        return false, warningReason, warningKind
     end
 
     return result

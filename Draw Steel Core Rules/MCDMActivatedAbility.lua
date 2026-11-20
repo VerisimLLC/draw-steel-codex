@@ -5826,14 +5826,16 @@ ActivatedAbility.RegisterProperty {
 --creatures, and an enemy standing in the way with "Block Enemy Line of Effect". Both return
 --a reason, so the action bar greys the target out with a tooltip instead of hiding it.
 local g_baseTargetPassesFilter = ActivatedAbility.TargetPassesFilter
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
-    local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
-    if not result then
-        return result, reason
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
+    local result, reason, warningKind = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride, rankReasons)
+    --When the reason will be shown, a Hidden target still gets the line-of-effect checks
+    --below: "no line of effect" matters more than "hidden", so it is the reason the player sees.
+    if not result and (warningKind ~= "hidden" or not rankReasons) then
+        return result, reason, warningKind
     end
 
     if casterToken == nil or targetToken == nil or targetToken.isObject then
-        return result, reason
+        return result, reason, warningKind
     end
 
     --Area abilities are exempt from the caster's own line-of-effect denial: they need line
@@ -5867,7 +5869,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 
     local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc)
     if blocker == nil then
-        return result, reason
+        return result, reason, warningKind
     end
 
     return false, string.format("%s blocks line of effect to this creature.", RuleUtils.LineOfEffectBlockerName(blocker))

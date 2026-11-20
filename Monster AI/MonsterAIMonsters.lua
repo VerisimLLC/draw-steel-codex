@@ -100,7 +100,7 @@ local function GetKnockbackScoringFunction(token)
             result = result + 0.06
         end
 
-        if targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0 then
+        if targetToken.properties:CannotBeForceMoved() then
             --don't bother knockback on someone who can't be force moved.
             result = result - 100
         end

@@ -6566,7 +6566,8 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 	local targetsSorted = {}
 	for i,target in ipairs(targets) do
-		if target.token ~= nil and target.token.properties ~= nil then
+		--targets that can't be force moved are left where they are.
+		if target.token ~= nil and target.token.properties ~= nil and not target.token.properties:CannotBeForceMoved() then
 			targetsSorted[#targetsSorted+1] = target.token
 		end
 	end

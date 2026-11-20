@@ -3001,6 +3001,12 @@ function creature:Stability()
     return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
+--- True if push, pull and slide can't move this creature or object.
+--- @return boolean
+function creature:CannotBeForceMoved()
+    return self:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0
+end
+
 --- If the creature can teleport. The engine asks this when a token drag begins to decide
 --- whether holding Ctrl may turn the move into a teleport for a non-Director, so it must
 --- count teleport granted by features (Cinder Step, Translation) as well as an innate speed.

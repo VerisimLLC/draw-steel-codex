@@ -640,8 +640,7 @@ local g_rulePatterns = {
                 end
             end
 
-            local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
-            if targetImmune > 0 then
+            if targetToken.properties:CannotBeForceMoved() then
                 print("Target is immune to forced movement, not executing")
                 ShowFailMessage("Immune to Forced Movement")
                 return

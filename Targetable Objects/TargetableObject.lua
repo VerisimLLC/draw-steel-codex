@@ -20,6 +20,14 @@ TargetableObject.additionalTargetFilter = ""
 --TargetableObject.TokenSuppressesCollisionDamage.
 TargetableObject.no_collision_damage = false
 
+--When true, push, pull and slide never move this object.
+TargetableObject.immune_to_forced_movement = false
+
+--- @return boolean
+function TargetableObject:CannotBeForceMoved()
+    return self:try_get("immune_to_forced_movement", false) == true or creature.CannotBeForceMoved(self)
+end
+
 --True if the given token is an object flagged to skip standard collision damage.
 --Safe to call with any token: nil, non-objects and plain creatures return false.
 function TargetableObject.TokenSuppressesCollisionDamage(token)
@@ -535,6 +543,20 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
                         component:BeginChanges()
                         component.properties.no_collision_damage = val
                         component:CompleteChanges("Change collision damage")
+                    end
+                end,
+            },
+
+            gui.Check{
+                text = "Immune to Forced Movement",
+                value = components[1].properties:try_get("immune_to_forced_movement", false),
+                fontSize = 14,
+                change = function(element)
+                    local immune = element.value
+                    for _, component in ipairs(components) do
+                        component:BeginChanges()
+                        component.properties.immune_to_forced_movement = immune
+                        component:CompleteChanges("Change forced movement immunity")
                     end
                 end,
             },

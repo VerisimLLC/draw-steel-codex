@@ -248,19 +248,23 @@ numbers (damage dealt, tier result, squares moved, a characteristic) or a creatu
 with `Target.ID = <<targetid>>`). **8 children use a name their parent never sets**, which fails
 silently.
 
-**Design in the prototype** (example: *Draining Strike*, loaded from today's stored format):
+**Design in the prototype** (examples: *Draining Strike* and *Gorge*, both loaded from today's stored format):
 - The follow-up ability is built inline under a **Then use a new ability: <name>** step, with its
   own targets row (*the same targets* / *you* / *new targets*), target filter and steps.
-- **Passes along** chips on that step list what the parent hands over. **+ pass information**
-  offers sources grouped by intent: *From this ability's result*, *A creature*, *One of your
-  stats*. The parameter name is generated from the label; authors never see it.
-- Inside the follow-up, every formula picker starts with **Passed in from <parent>**: number
-  hand-offs as values, creature hand-offs as tests ("the target is the first target").
-- **Stale references are caught at edit time.** Remove a hand-off and every block using it turns
-  red with "*Damage dealt* is no longer passed in". Unused hand-offs are shown faded.
-- Saving writes exactly today's format: `standardAbilityParams: {damagedealt: "<<Cast.DamageDealt>>"}`
-  on the parent and `<<damagedealt>> / 2` in the child. Existing content opens as hand-off blocks
-  when the parent's value matches a known source; other values keep their expression.
+- Inside the follow-up, every formula picker starts with **From <parent>**: *Draining Strike's
+  tier result*, *Draining Strike's damage dealt*... as values, and "the target is Draining
+  Strike's first target" as tests. They are dashed teal blocks so they read as "from outside".
+- **No wiring.** On save, each parent-information block becomes `<<id>>` in the child and
+  `id = "<<Cast.DamageDealt>>"` (etc.) in the parent's `standardAbilityParams`, generated from
+  what the follow-up actually uses. Nothing can be passed but unused, or used but not passed.
+- **Existing content opens as these blocks** when the parent's value is a known source; existing
+  parameter names are kept on save (no churn in content). A value the parent works out with some
+  other formula opens as *value from <parent>* showing that formula.
+- **The silent bug becomes visible.** *Gorge* models a real monster whose follow-up heals by
+  `<<total>>` that the parent never sets: the block is red ("Gorge never sets this value, so it is
+  always empty") and a dropdown on the block fixes it in one click.
+- With *Show GoblinScript* on, the follow-up step shows the generated plumbing
+  ("Passed to it: damagedealt = <<Cast.DamageDealt>>, ...") for authors learning the engine.
 
 Not yet covered: defaults (`<<name=3>>`), hand-offs into named or standard abilities (not built
 inline), and showing what a hand-off will be in the Test panel.
@@ -304,7 +308,8 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-20 | **Picker:** organised by intent (check a condition, check health, check what kind of creature, compare a number, combine tests; use a stat, scale with level, do math, roll dice), not by source. **Who** is preset per formula box and explained in the picker header, never asked up front; every block keeps a dropdown to change it. | Who is being considered is what authors trip over most; asking them to choose it first makes that worse. |
 | 2026-11-20 | **D9/regression:** Abilities using behaviours the simple editor does not model still open in it. Each such behaviour is a grey striped **Advanced** block showing its summary and an **Edit in full editor** button; its record is saved back untouched. It can be moved, and wrapped in *Only if* (AND-ed onto its own `filterTarget`). | The simple editor must never take away editing an ability could already have; no ability becomes uneditable here. |
 | 2026-11-20 | **Nested abilities: exploring A (inline)** before deciding. B (open with a breadcrumb) is a fallback; it confuses many users. | Seeing the follow-up in place keeps the whole ability readable in one stack. |
-| 2026-11-20 | **Hand-offs replace typing `<< >>`.** A follow-up step has a *Passes along* row: the author picks information by intent (tier result, damage dealt, squares moved, number of targets; first target, current target, you; one of your stats). Inside the follow-up, a *Passed in from <parent>* picker group offers those values as dashed teal blocks. | `<< >>` means two different things on the two sides and relies on matching free-text names; it confuses people endlessly. |
+| 2026-11-20 | ~~Hand-offs: a *Passes along* row on the follow-up step.~~ Superseded the same day by the row below. | |
+| 2026-11-20 | **Parent information is just available inside a follow-up.** No hand-off step: a follow-up's pickers offer *From <parent>* (its tier result, damage dealt, squares moved, number of targets; its first target, its target). The `<< >>` parameters are generated on save from whatever the follow-up uses. Authors never see the piping unless *Show GoblinScript* is on. | `<< >>` confuses people endlessly; the cleanest fix is that there is nothing to wire. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

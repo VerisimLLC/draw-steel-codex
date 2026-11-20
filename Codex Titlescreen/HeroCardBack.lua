@@ -491,8 +491,16 @@ local function Characteristics(c, tok)
             bgcolor = "#00000000",
             interactable = tok ~= nil,
             hover = tok ~= nil and StatHover(tok, attr.id) or nil,
-            --a click on a stat is for reading it, not for turning the card.
-            click = tok ~= nil and function(element) end or nil,
+            --a click rolls a test with the characteristic, as the tac panel's
+            --box does, for whoever controls the hero; for anyone else it only
+            --stops the card turning.
+            click = tok ~= nil and function(element)
+                if not (dmhub.isDM or Try(function() return tok.canControl end, false)) then
+                    return
+                end
+                audio.FireSoundEvent("Mouse.Click")
+                pcall(function() tok.properties:ShowCharacteristicRollDialog(attr.id) end)
+            end or nil,
             gui.Panel{
                 width = 38,
                 height = 34,

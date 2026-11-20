@@ -12896,12 +12896,16 @@ CreateAbilityController = function()
             --A scripted invoke can preselect every target and still require the player
             --to accept an optional rider. Leave that cast on Confirm/Skip so declining
             --does not resolve the effect or spend its resource cost. An invoked
-            --multi-mode ability waits the same way so the player can pick the mode.
+            --multi-mode ability or choice of abilities waits the same way for the player's pick.
             local awaitsModeChoice = g_currentAbility ~= nil and g_currentSymbols.invoked
                 and g_currentAbility.multipleModes and #g_currentAbility:try_get("modeList", {}) > 1
+            local awaitsSynthChoice = g_currentAbility ~= nil and g_currentAbility.castImmediately
+                and g_currentSymbols.invoked
+                and #(g_currentAbility:SynthesizeAbilities(g_creature) or {}) > 1
             if g_currentAbility ~= nil and g_currentAbility.castImmediately
                 and g_currentAbility:try_get("promptOverride") == nil
                 and (not awaitsModeChoice)
+                and (not awaitsSynthChoice)
                 and (not g_castButton:HasClass("collapsed")) then
                 g_castButton:FireEvent("press")
             end
@@ -13424,19 +13428,11 @@ CreateAbilityController = function()
             g_actionBar:SetClassTree("invokingAbility", true)
 
             ability = DeepCopy(ability)
-            --instantCast means the invoke already resolved its targets (AI prompt
-            --handler or scripted resolution): cast as soon as targeting is satisfied
-            --instead of waiting for a manual press of the cast button.
-            --A choice of several abilities (Melee or Ranged Free Strike) waits for the player
-            --to pick: casting the choice itself does nothing and ends the invoke as cancelled.
-            --So the choice gets no targets (with targets it would cast at once); the option buttons still do.
-            local awaitsChoice = false
+            --instantCast means the invoke already resolved its targets (AI prompt handler or
+            --scripted resolution): cast as soon as targeting is satisfied, without a press of
+            --the cast button. A choice of several abilities still waits for the player's pick.
             if options.instantCast then
-                local choices = ability:SynthesizeAbilities(casterToken.properties)
-                awaitsChoice = choices ~= nil and #choices > 1
-                if not awaitsChoice then
-                    ability.castImmediately = true
-                end
+                ability.castImmediately = true
             end
             CharacterPanel.DisplayAbility(casterToken, ability)
             CharacterPanel.HighlightAbilitySection{
@@ -13444,7 +13440,7 @@ CreateAbilityController = function()
                 caster = casterToken,
                 section = "target",
             }
-            element:FireEvent("beginCasting", ability, { symbols = symbols, targets = (not awaitsChoice) and options.targets or nil })
+            element:FireEvent("beginCasting", ability, { symbols = symbols, targets = options.targets })
 
             --[[
             local spellPanel = GetSpellPanel(nil, nil, ability,

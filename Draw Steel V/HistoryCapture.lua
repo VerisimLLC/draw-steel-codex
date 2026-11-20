@@ -1780,15 +1780,18 @@ local function EffectIn(text)
     if text == nil then
         return nil
     end
-    text = " " .. string.lower(text) .. " "
+    --the rules code strips apostrophes before the potency check ("cant hide"), so both
+    --sides drop them.
+    text = " " .. string.gsub(string.lower(text), "'", "") .. " "
     local best = nil
     for _, info in unhidden_pairs(GetTableCached(CharacterOngoingEffect.tableName)) do
         local name = info.name
         if type(name) == "string" and #name >= 4 and (best == nil or #name > #best) then
-            local at = string.find(text, string.lower(name), 1, true)
+            local bare = string.gsub(string.lower(name), "'", "")
+            local at = string.find(text, bare, 1, true)
             if at ~= nil then
                 local before = string.sub(text, at - 1, at - 1)
-                local after = string.sub(text, at + #name, at + #name)
+                local after = string.sub(text, at + #bare, at + #bare)
                 if not string.match(before, "%w") and not string.match(after, "%w") then
                     best = name
                 end

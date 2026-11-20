@@ -4381,6 +4381,15 @@ function HeroBuilder.Create(args)
     --name it gave and the table it came from, {name, table}, under this field.
     local AUTO_NAME_FIELD = "builderAutoName"
 
+    --- The Hero's name table, or nil when their ancestry has none.
+    --- @param hero character
+    --- @return nil|table
+    local function NameTableOf(hero)
+        local generator = nil
+        pcall(function() generator = hero:GetNameGeneratorTable() end)
+        return generator
+    end
+
     --- Wrap an ancestry-step change so it also gives the Hero a name when one
     --- is due. Returns the wrapped change, and a function to call after it is
     --- saved that writes the name to the token (the engine saves names apart).
@@ -4398,8 +4407,7 @@ function HeroBuilder.Create(args)
             if typed ~= "" and typed ~= autoName then
                 return
             end
-            local generator = nil
-            pcall(function() generator = hero:GetNameGeneratorTable() end)
+            local generator = NameTableOf(hero)
             if generator == nil or (typed ~= "" and auto.table == generator.id) then
                 return
             end
@@ -4529,18 +4537,19 @@ function HeroBuilder.Create(args)
             --clicking a pick drops it.
             Save(T("herobuilder.undo.drop_pick"), change)
             Track("ability_respec", {featureId = sectionKey, removedOptionId = option.id, removedOptionName = option.name, dailyLimit = 10})
-        elseif stepid == "ancestry" then
-            --a Revenant's former life can bring the name table.
-            local token = Host().token()
-            if token == nil then
-                return false
-            end
-            local named, Rename = WithAncestryName(token, change)
-            Save(T("herobuilder.undo.make_choice"), named)
-            Rename()
-            Track("builder_selection", {featureId = sectionKey, optionId = option.id, optionName = option.name, isFinal = true, dailyLimit = 20})
         else
+            local Rename = nil
+            if stepid == "ancestry" then
+                --a Revenant's former life can bring the name table.
+                local token = Host().token()
+                if token ~= nil then
+                    change, Rename = WithAncestryName(token, change)
+                end
+            end
             Save(T("herobuilder.undo.make_choice"), change)
+            if Rename ~= nil then
+                Rename()
+            end
             Track("builder_selection", {featureId = sectionKey, optionId = option.id, optionName = option.name, isFinal = true, dailyLimit = 20})
         end
         return true
@@ -4943,8 +4952,8 @@ function HeroBuilder.Create(args)
     --- Where the pointer is during a tile's drag: its start plus how far it
     --- has moved (the engine finds no targets while the tile stays put, so
     --- the Builder hit-tests the pointer, as the Inventory's drag does).
-    --- The tile measures the move in its own units, which the window's
-    --- zoom (Font Size) shrinks, so the move is scaled back to the layer's.
+    --- The tile reports the move in its own units, which the Font Size zoom
+    --- shrinks, so it is scaled back up to screen units like the start.
     --- @param tile Panel
     --- @return {x: number, y: number}
     local function CharDragPointer(tile)
@@ -7410,8 +7419,7 @@ function HeroBuilder.Create(args)
                 count = count + Engine().hero.ApplyFill(hero, plan.entries)
                 --the name Fill gave counts as the Builder's, so a later
                 --ancestry change may replace it.
-                local generator = nil
-                pcall(function() generator = hero:GetNameGeneratorTable() end)
+                local generator = NameTableOf(hero)
                 if namedAs ~= nil and generator ~= nil then
                     hero[AUTO_NAME_FIELD] = {name = namedAs, table = generator.id}
                 end

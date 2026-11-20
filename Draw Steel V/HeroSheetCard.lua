@@ -184,9 +184,9 @@ local NAME_LIMIT = 60
 --the card column less this is the room on the plate.
 local PLATE_INSET = 44
 
---Whether the Hero's ancestry has a name table to suggest from (homebrew
---ancestries without one, and a Revenant before their former life is picked,
---do not), the ancestry as it is said, and whether it waits on a former life.
+--Whether the Hero's ancestry has a name table to suggest from (a Revenant
+--before their former life is picked does not), the ancestry as it is said,
+--and whether it waits on a former life.
 --- @param token CharacterToken
 --- @return boolean, string, boolean
 local function NameTable(token)

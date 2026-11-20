@@ -35,13 +35,15 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      isn't inherited), then cross-fades (`historyFoldReveal`, transitionTime); closed: shrinks
      into the rail button (James 2026-11-20: keep it so; your own actions get no bubble).
      A resisted ongoing effect is now named (X7a, "resisted Can't Hide").
-  3. **6.6**, split 2026-11-20 into a (potency) b (surges, minions) c (causes) d (falls,
-     collision: wording to propose) e (F5: wording to propose). **6.6a done** `0421f304`:
-     "potency" play-observer moment, cast.targetPotencySources, Y8/Y9 checked on real casts;
-     L26 (player view) not run. Names are plain ("Devil High Judge"), not "the Fury".
-     The signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
-     C4) plus a collision Why ("2 squares left, +2 for hitting an object": wording to
-     propose); strained, rampage and captain changes (F5).
+  3. **6.6 done 2026-11-20 overnight** (COPY.md Round 27 records James's six answers):
+     6.6a `0421f304` potency (Y8, Y9, L26); 6.6b `ded03c69` free surges (Y5b), minions
+     (Y13, L25); 6.6c `4300f2f7` + data `4c51197d` trigger cause (Y11, L32 retired),
+     persistence small text (L16; Persistent Magic's script now passes "damage"), free
+     strike for moving away (L33); 6.6d `4d845884` falls (Y7, side view button on the line),
+     collisions (L108, L109); 6.6e `5ed4e0a2` strained (L110), captain (L111), roll-dialog
+     modifier costs on the row. Checked live: Y8, Y9, Y13, captain, rampage, modifier cost.
+     Checked on test entries only: Y5b, Y11, L33, Y7, L108, L109, strained; L16 through its
+     observer. Never run: L25, L26 (player views). See "Morning checklist" below.
   4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"
      setting (off) brings the old log back and hides History (name and tooltip to propose).
      Plus the Encounter of the Week corner strip (Stage 6 notes).
@@ -67,6 +69,31 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
 - **Edit with explicit UTF-8.** Python's default on this machine is the Windows codepage, which
   once wrote a middle dot into a Lua comment as a non-ASCII byte. Open files with
   `encoding='utf-8', newline=''` and keep new text ASCII.
+
+## Morning checklist (2026-11-21, from the overnight 6.6 build)
+
+Test state left in Monster Builder Test: Goblin Runner Squad 1 (4 fresh minions) with the
+Acid Drake as captain and Rampage (EoT) on it; four dead Goblin Runners from the Y13 test;
+Careful Observation on Baiqadrazaar and Carefully Observed on the Devil High Judge (EoT);
+Larry moved next to the Devil High Judge; the Judge weakened from Mind Game.
+
+1. A Talent spends Clarity below 0: "{Talent} is strained · Clarity -n", then back above.
+2. Push a creature into a wall, and into another creature: the card's Why (L108, L109).
+3. Push a creature off a ledge so it falls: "Fell n squares / The fall dealt..." and the
+   side view button beside the lead.
+4. Move a Hero away from an enemy without shifting and let the enemy take its free strike:
+   "Moved away without shifting / ...".
+5. Use a triggered action that gets its own row (Mark: Benefit, Pincer Movement): its card
+   starts "[Mark: Benefit] / Trigger: ...".
+6. An Elementalist maintaining a persistent ability takes 5x Reason damage in one turn:
+   "{Hero} stopped maintaining {ability} · Took n damage in one turn, 5 times Reason r".
+7. A Shadow with Trained Assassin (or any strike-only surge) spends the free surge: the
+   damage line ends "One was gained from [Trained Assassin] and could only be spent on
+   this strike."
+8. On a player client: a monster's potency line reads "Weakened / It did not resist." until
+   Monster Info reveals the characteristic (L26), and minions read "{n} damage was enough
+   to kill one minion." until their Stamina is known (L25).
+9. Potency Surge on a roll: its 2 surges show on the action's row, no separate line.
 
 ## How a chunk is built here
 

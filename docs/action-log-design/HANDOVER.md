@@ -35,7 +35,11 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      isn't inherited), then cross-fades (`historyFoldReveal`, transitionTime); closed: shrinks
      into the rail button (James 2026-11-20: keep it so; your own actions get no bubble).
      A resisted ongoing effect is now named (X7a, "resisted Can't Hide").
-  3. **6.6** the signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
+  3. **6.6**, split 2026-11-20 into a (potency) b (surges, minions) c (causes) d (falls,
+     collision: wording to propose) e (F5: wording to propose). **6.6a done** `0421f304`:
+     "potency" play-observer moment, cast.targetPotencySources, Y8/Y9 checked on real casts;
+     L26 (player view) not run. Names are plain ("Devil High Judge"), not "the Fury".
+     The signed Why lines never written (Y5b, Y7, Y8, Y9, L26, Y13, L25, L32, L33, L16,
      C4) plus a collision Why ("2 squares left, +2 for hitting an object": wording to
      propose); strained, rampage and captain changes (F5).
   4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"

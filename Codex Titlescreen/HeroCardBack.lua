@@ -65,6 +65,19 @@ local function SectionLabel(text, color)
     }
 end
 
+--- Fades a panel and everything in it: a panel's opacity doesn't reach its
+--- children, and a row's words are children.
+--- @param panel Panel
+--- @param alpha number
+--- @return Panel panel
+local function Fade(panel, alpha)
+    panel.selfStyle.opacity = alpha
+    for _, child in ipairs(panel.children or {}) do
+        Fade(child, alpha)
+    end
+    return panel
+end
+
 local function Divider()
     return gui.Panel{
         width = "100%",
@@ -142,9 +155,9 @@ local function Header(tok, c)
                 color = COLOR_TEXT,
                 textWrap = false,
             },
-            Text{ text = line2, fontSize = 13 },
-            --one line, shrunk to fit: a long kit name must not push the
-            --header down into the tab rows under it.
+            --one line each, shrunk to fit: a long subclass or kit name must
+            --not push the header down into the tab rows under it.
+            Text{ text = line2, height = 17, fontSize = 13, minFontSize = 8, textWrap = false },
             Text{ text = table.concat(parts, " - "), height = 16, fontSize = 12, minFontSize = 8, textWrap = false, color = COLOR_MUTED },
         },
         gui.Panel{
@@ -573,15 +586,18 @@ end
 --- Heroic resource gains -----------------------------------------------------
 
 local function TwoColumnRow(left, right, rightColor, dim)
-    return gui.Panel{
+    local row = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        opacity = cond(dim, 0.45, 1),
         interactable = false,
         Text{ text = left, fontSize = 12, width = CONTENT_WIDTH - 90 },
         Text{ text = right, fontSize = 12, bold = true, color = rightColor or COLOR_TEXT, width = 90, textAlignment = "right" },
     }
+    if dim then
+        Fade(row, 0.45)
+    end
+    return row
 end
 
 local function ResourceGains(c)
@@ -1508,7 +1524,7 @@ local function AbilityItemRow(item, tok, spendable)
     end)
     local cost = item.ability ~= nil and HeroicCost(item.ability) or nil
     if spendable ~= nil and cost ~= nil and cost > spendable then
-        row.selfStyle.opacity = 0.45
+        Fade(row, 0.45)
     end
     return row
 end
@@ -1668,12 +1684,11 @@ end
 --- what it gives. Full while reached, muted while only reached earlier this
 --- turn (it lasts to the end of the turn), faint while not reached.
 local function GrowthRow(need, text, active, expiring)
-    return gui.Panel{
+    return Fade(gui.Panel{
         width = "100%",
         height = "auto",
         flow = "horizontal",
         bmargin = 4,
-        opacity = cond(active, 1, cond(expiring, 0.75, 0.45)),
         interactable = false,
         gui.Panel{
             width = 22,
@@ -1697,7 +1712,7 @@ local function GrowthRow(need, text, active, expiring)
             },
         },
         Text{ text = text, width = CONTENT_WIDTH - 32, lmargin = 10, fontSize = 12, valign = "center" },
-    }
+    }, cond(active, 1, cond(expiring, 0.75, 0.45)))
 end
 
 --- The class's growing resources tables (Growing Ferocity and the like), at

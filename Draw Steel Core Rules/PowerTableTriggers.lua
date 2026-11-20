@@ -270,7 +270,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if not selfIsTarget and self.range ~= "" then
             --range check (with Modify Abilities range mods applied).
             local effectiveRange = ComputeTriggerRange(self, token.properties)
-            local distance = token:Distance(triggerTarget)
+            local distance = TokenDistance3D(token, triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return
             end
@@ -411,7 +411,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if not selfIsTarget and self.range ~= "" then
             --range check (with Modify Abilities range mods applied).
             local effectiveRange = ComputeTriggerRange(self, token.properties)
-            local distance = token:Distance(triggerTarget)
+            local distance = TokenDistance3D(token, triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return false
             end

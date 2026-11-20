@@ -69,6 +69,11 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-roll { --c: var(--c-roll); }
 .cat-act { --c: var(--c-act); }
 .cat-ctrl { --c: var(--c-ctrl); }
+.cat-raw { --c: var(--c-raw); }
+.step.cat-raw > .bar { background: repeating-linear-gradient(135deg, var(--c-raw) 0 10px, #545049 10px 20px); }
+.adv-tag { font: 600 10px var(--font-ui); text-transform: uppercase; letter-spacing: .08em; background: rgba(0,0,0,.35); padding: 3px 6px; border-radius: 3px; }
+.full-btn { background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 4px; height: 22px; padding: 0 8px; cursor: pointer; font-size: 12px; }
+.full-btn:hover { background: #fff; }
 .handle { cursor: grab; width: 18px; align-self: stretch; display: grid; place-items: center; opacity: .7; touch-action: none; user-select: none; flex: none; }
 .handle:hover { opacity: 1; }
 .handle svg { width: 10px; height: 14px; fill: currentColor; }
@@ -201,6 +206,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
     <select id="exSel" class="btn">
       <option value="gouge">Gouge (hero strike)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
+      <option value="smoke">Smoke Bomb (has an advanced step)</option>
       <option value="blank">New ability</option>
     </select>
   </div>
@@ -295,6 +301,10 @@ const STEPS = {
     make: () => S("ifStep", {}, { cond: H("boolean", "stepIf") }, { then: [] }) },
   invoke: { label: "Use another ability", cat: "act", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
     make: () => S("invoke", { ability: "Free Strike" }) },
+  // A behaviour the simple editor does not model (aura, summon, script...). Its record is kept as-is
+  // and saved back untouched; only its position and any "Only if" around it are editable here.
+  opaque: { label: "Advanced step", cat: "raw", ctx: ["main"], hidden: true, desc: "",
+    make: rec => S("opaque", { record: rec, summary: rec.summary || rec.__typeName }) },
 };
 
 let ab = null;
@@ -492,7 +502,10 @@ function cX(x, h) {
       if (!parts.length) { bad(x.id, "Add at least one test to this list."); return { s: "false", p: 10, prose: "(no tests)" }; }
       if (parts.length === 1) return parts[0];
       return { s: parts.map(r => r.s).join(" " + word + " "), p: 4, prose: parts.slice(0, -1).map(r => r.prose).join(", ") + " " + word + " " + parts[parts.length - 1].prose }; }
-    case "not": { const a = kidBool("a", 7); return { s: "not " + a.s, p: 7, prose: "not (" + a.prose + ")" }; }
+    case "not": { const a = kidBool("a", 7);
+      // "the target is a hero" reads better as "the target is not a hero" than "not (...)".
+      const m = a.prose.match(/^(.*?) (is|are) (.*)$/);
+      return { s: "not " + a.s, p: 7, prose: m && !/ (and|or) /.test(a.prose) ? m[1] + " " + m[2] + " not " + m[3] : "not (" + a.prose + ")" }; }
     case "winded": { const r = role(); return { s: r.prefix + "Stamina <= " + r.prefix + "MaximumStamina / 2", p: 5, prose: r.prose + (r.prose === "you" ? " are" : " is") + " winded" }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
     case "raw": { let ok = true; try { parseGS(f.src); } catch (e) { ok = false; bad(x.id, "Formula does not parse: " + e.message); }
@@ -526,6 +539,12 @@ function compileSteps(list, filters, out, prose) {
       case "heal": { const a = cHolder(st.slots.amount);
         out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base));
         prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
+      case "opaque": {
+        // Pass the record through unchanged; an "Only if" around it is AND-ed onto its own filter.
+        const rec = Object.assign({}, f.record);
+        if (ft) rec.filterTarget = rec.filterTarget ? "(" + rec.filterTarget + ") and " + ft : ft;
+        out.push(rec); prose.push({ kind: "text", text: cap(f.summary + fp) }); break;
+      }
       case "invoke": out.push(Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "named", namedAbility: f.ability }, base));
         prose.push({ kind: "text", text: cap("use " + f.ability + fp) }); break;
       case "ifStep": {
@@ -700,6 +719,12 @@ function renderStep(st, list, ctx) {
     case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
+    case "opaque": {
+      add(E("span", "adv-tag", "Advanced")); add(lbl(f.summary));
+      const fb = E("button", "full-btn", "Edit in full editor"); fb.type = "button";
+      fb.addEventListener("click", ev => { ev.stopPropagation(); fullEditorNote(fb, f); });
+      add(fb); break;
+    }
   }
   const mb = E("button", "menu-btn", "⋯"); mb.type = "button"; mb.setAttribute("aria-label", def.label + " options");
   mb.addEventListener("click", ev => { ev.stopPropagation(); stepMenu(st, list, ctx, mb); });
@@ -788,6 +813,8 @@ function renderSide(c) {
   st.appendChild(E("span", "dot"));
   st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. Saves as an ordinary ability: the full editor can open it too."));
   side.appendChild(st);
+  const adv = countOpaque(ab.steps);
+  if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the full editor can change. They are kept as they are when you save."));
   if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
   const card = E("div", "card");
@@ -814,6 +841,7 @@ function renderSide(c) {
   side.appendChild(det);
 }
 
+function countOpaque(list) { let n = 0; for (const st of list) { if (st.type === "opaque") n++; for (const k in st.branches || {}) n += countOpaque(st.branches[k]); } return n; }
 let compiledCache = null;
 function refresh() { closePopups(); compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); }
 // While typing, only the card updates; the stack re-renders when the field loses focus.
@@ -945,13 +973,21 @@ function openPicker(h, anchor) {
 }
 function flash(hid) { const e = main.querySelector('[data-holder="' + hid + '"]'); if (e) { e.classList.add("flash"); setTimeout(() => e.classList.remove("flash"), 400); } }
 
+/* Prototype stand-in for handing one step to the existing full editor. */
+function fullEditorNote(anchor, f) {
+  closePopups();
+  const m = E("div", "menu"); m.style.maxWidth = "300px"; m.style.padding = "10px 12px"; m.addEventListener("click", ev => ev.stopPropagation());
+  m.appendChild(E("div", null, "In the app this opens the full editor on this step (" + f.record.__typeName + "), then returns here. Its settings are kept exactly as they are."));
+  place(m, anchor);
+}
+
 /* Only steps that can be stored in this place are offered: tiers get tier-text steps only. */
 function addMenu(list, ctx, anchor) {
   closePopups();
   const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
   m.appendChild(E("div", "mh", ctx === "tier" ? "Add a tier result" : "Add a step"));
   for (const [k, d] of Object.entries(STEPS)) {
-    if (!d.ctx.includes(ctx)) continue;
+    if (!d.ctx.includes(ctx) || d.hidden) continue;
     const b = E("button"); b.type = "button";
     const sw = E("span", "sw"); sw.style.background = "var(--c-" + d.cat + ")"; b.appendChild(sw);
     const tx = E("span"); tx.appendChild(E("div", null, d.label)); tx.appendChild(E("div", "md", d.desc)); b.appendChild(tx);
@@ -1095,6 +1131,18 @@ const EXAMPLES = {
     const onlyIf = STEPS.ifStep.make(); onlyIf.slots.cond = holderFromText("boolean", "stepIf", 'Target.Conditions has "Prone"');
     const extra = STEPS.damage.make("main"); extra.slots.amount = holderFromText("roll", "damage", "2"); onlyIf.branches.then.push(extra);
     a.steps.push(pr, onlyIf);
+    return a;
+  },
+  smoke: () => {
+    const a = newAbility();
+    Object.assign(a, { name: "Smoke Bomb", action: "Maneuver", keywords: "Area, Magic", distance: "Burst", targetCount: "each enemy in the area" });
+    a.range = holderFromText("number", "range", "2");
+    a.targetFilter = holderFromText("boolean", "targetFilter", "Enemy");
+    const aura = STEPS.opaque.make({ __typeName: "ActivatedAbilityAuraBehavior", summary: "Create a smoke cloud aura (2 squares, until end of your next turn)",
+      aura: { __typeName: "Aura", name: "Smoke Cloud", applyto: "enemies", damage: 0, difficult_terrain: false, concealment: true } });
+    const cond = STEPS.condition.make(); cond.f.cond = "Dazed"; cond.f.dur = "EoT";
+    const onlyIf = STEPS.ifStep.make(); onlyIf.slots.cond = holderFromText("boolean", "stepIf", "not Target.Hero"); onlyIf.branches.then.push(cond);
+    a.steps.push(aura, onlyIf);
     return a;
   },
   cleave: () => {

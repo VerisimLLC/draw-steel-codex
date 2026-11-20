@@ -8,25 +8,31 @@ local g_blockLoEAttribute = "Block Enemy Line of Effect"
 --used only to skip the whole mechanic in games that don't have the attribute at all.
 local g_blockLoESymbol = string.lower((string.gsub(g_blockLoEAttribute, "%s+", "")))
 
+--Used by the War Dog Doomthief's Doom Magnet. A creature whose "Block Enemy Line of
+--Effect Aura" is N > 0 blocks its enemies' line of effect through every square within
+--N of it, for any ability that doesn't include it as a target.
+local g_blockLoEAuraAttribute = "Block Enemy Line of Effect Aura"
+local g_blockLoEAuraSymbol = string.lower((string.gsub(g_blockLoEAuraAttribute, "%s+", "")))
+
 --Rays are cast from points this far inside a square's corners rather than the corners
 --themselves, so a ray can never slip along the seam between two adjacent blockers.
 local g_sampleInset = 0.3
 
---Each blocker square is shrunk by this much on every side before the crossing test, so a
---ray that merely grazes a blocker's edge doesn't count as passing through it.
+--Each blocking rectangle is shrunk by this much on every side before the crossing test, so
+--a ray that merely grazes a blocker's edge doesn't count as passing through it.
 local g_squareEpsilon = 0.05
 
---True if the segment from (ax,ay) to (bx,by) passes through the map square whose lower
---corner is (sx,sy). Tile space: the square at loc (x,y) covers x..x+1 and y..y+1. This is
---the standard slab clip -- narrow the segment's parameter range t in [0,1] to the part
---inside each axis band in turn; if anything survives both, the segment is inside the square.
-local function SegmentCrossesSquare(ax, ay, bx, by, sx, sy)
+--True if the segment from (ax,ay) to (bx,by) passes through the rectangle x0..x1, y0..y1
+--in tile space, where the square at loc (x,y) covers x..x+1 and y..y+1. This is the
+--standard slab clip: narrow the segment's parameter range t in [0,1] to the part inside
+--each axis band in turn; if anything survives both, the segment is inside the rectangle.
+local function SegmentCrossesRect(ax, ay, bx, by, x0, y0, x1, y1)
     local tmin = 0
     local tmax = 1
 
     local d = bx - ax
-    local lo = sx + g_squareEpsilon
-    local hi = sx + 1 - g_squareEpsilon
+    local lo = x0 + g_squareEpsilon
+    local hi = x1 - g_squareEpsilon
     if d == 0 then
         if ax < lo or ax > hi then return false end
     else
@@ -39,8 +45,8 @@ local function SegmentCrossesSquare(ax, ay, bx, by, sx, sy)
     end
 
     d = by - ay
-    lo = sy + g_squareEpsilon
-    hi = sy + 1 - g_squareEpsilon
+    lo = y0 + g_squareEpsilon
+    hi = y1 - g_squareEpsilon
     if d == 0 then
         if ay < lo or ay > hi then return false end
     else
@@ -77,6 +83,58 @@ local function SamplePoints(locs)
     end
 
     return pts
+end
+
+--The creatures that block line of effect, per floor, worked out once per frame. Targeting
+--checks every candidate in the same frame, and almost no creature on a map ever blocks.
+local g_blockersFrame = nil
+local g_blockersByFloor = {}
+
+--- The creatures on a floor that block their enemies' line of effect, with their own body
+--- ("Block Enemy Line of Effect") or an aura ("Block Enemy Line of Effect Aura").
+--- @param floorIndex nil|number
+--- @return {token: CharacterToken, blocksWithBody: boolean, auraRadius: number}[]
+local function BlockersOnFloor(floorIndex)
+    --no floor, nothing on it to block (and nil can't be a cache key).
+    if floorIndex == nil then
+        return {}
+    end
+
+    local frame = dmhub.FrameCount()
+    if g_blockersFrame ~= frame then
+        g_blockersFrame = frame
+        g_blockersByFloor = {}
+    end
+
+    local blockers = g_blockersByFloor[floorIndex]
+    if blockers ~= nil then
+        return blockers
+    end
+
+    blockers = {}
+    g_blockersByFloor[floorIndex] = blockers
+
+    --inert in games whose data doesn't define either attribute at all.
+    local haveBlock = CustomAttribute.attributeInfoByLookupSymbol[g_blockLoESymbol] ~= nil
+    local haveAura = CustomAttribute.attributeInfoByLookupSymbol[g_blockLoEAuraSymbol] ~= nil
+    if not haveBlock and not haveAura then
+        return blockers
+    end
+
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties ~= nil and tok.floorIndex == floorIndex then
+            local body = haveBlock and tok.properties:CalculateNamedCustomAttribute(g_blockLoEAttribute) or 0
+            local radius = haveAura and tok.properties:CalculateNamedCustomAttribute(g_blockLoEAuraAttribute) or 0
+            if type(body) ~= "number" then body = 0 end
+            if type(radius) ~= "number" then radius = 0 end
+            radius = math.max(0, math.floor(radius))
+            if body > 0 or radius > 0 then
+                blockers[#blockers+1] = {token = tok, blocksWithBody = body > 0, auraRadius = radius}
+            end
+        end
+    end
+
+    return blockers
 end
 
 --Filter modifiers registered under this id take a creature's line of effect away from a
@@ -171,24 +229,23 @@ end
 
 RuleUtils = {
     --- Finds an enemy creature standing between the source and the target that carries the
-    --- "Block Enemy Line of Effect" custom attribute. Only enemies of the source block, and
+    --- "Block Enemy Line of Effect" custom attribute, or whose "Block Enemy Line of Effect Aura"
+    --- (a radius) covers squares between them. Only enemies of the source block, and
     --- only while EVERY line the source could draw to the target passes through one of them --
     --- as with the engine's cover test, a single clear ray means the source can see through.
     --- Pass `originLoc` to measure from somewhere other than the source's own square, e.g.
     --- the origin of an area ability.
+    --- An aura only blocks abilities that don't include its owner as a target, so pass the
+    --- creatures the ability already includes in `includedCharids` to lift their auras.
     --- @param sourceToken CharacterToken
     --- @param targetToken CharacterToken
     --- @param originLoc nil|Loc measure from here instead of the source token's squares
+    --- @param includedCharids nil|table<string, boolean> charids the ability already targets
     --- @return nil|CharacterToken the blocking token, or nil when line of effect is clear
-    LineOfEffectBlocker = function(sourceToken, targetToken, originLoc)
+    LineOfEffectBlocker = function(sourceToken, targetToken, originLoc, includedCharids)
         if sourceToken == nil or targetToken == nil then return nil end
         if not sourceToken.valid or not targetToken.valid then return nil end
         if sourceToken.charid == targetToken.charid then return nil end
-
-        --inert in games whose data doesn't define the attribute at all.
-        if CustomAttribute.attributeInfoByLookupSymbol[g_blockLoESymbol] == nil then
-            return nil
-        end
 
         if originLoc ~= nil and not originLoc.valid then
             originLoc = nil
@@ -211,8 +268,14 @@ RuleUtils = {
             return nil
         end
 
-        --a segment between the two footprints can only enter squares inside their
-        --bounding box, so anything outside it is not worth testing.
+        --usually nobody on the floor blocks, which ends the check here.
+        local blockers = BlockersOnFloor(floorIndex)
+        if #blockers == 0 then
+            return nil
+        end
+
+        --a segment between the two footprints stays inside their bounding box, so a
+        --blocker entirely outside it can't be in the way.
         local minx, miny, maxx, maxy
         for _,list in ipairs({sourceLocs, targetLocs}) do
             for _,loc in ipairs(list) do
@@ -223,26 +286,38 @@ RuleUtils = {
             end
         end
 
-        --Squares held by enemies of the source that carry the attribute. The attribute is
-        --cached per creature, so testing it before the friend test keeps the usual
-        --nobody-has-it case down to one table lookup per token on the map.
-        local squares = nil
-        for _,tok in ipairs(dmhub.allTokens) do
-            if tok.valid and tok.properties ~= nil and tok.floorIndex == floorIndex
-                and tok.charid ~= sourceToken.charid and tok.charid ~= targetToken.charid then
-                local blocks = tok.properties:CalculateNamedCustomAttribute(g_blockLoEAttribute)
-                if type(blocks) == "number" and blocks > 0 and not tok:IsFriend(sourceToken) then
+        --One rectangle per enemy of the source that blocks: its footprint, grown on every
+        --side by its aura radius (just the footprint when it only blocks with its body).
+        local rects = nil
+        for _,entry in ipairs(blockers) do
+            local tok = entry.token
+            if tok.valid and tok.charid ~= sourceToken.charid and tok.charid ~= targetToken.charid then
+                local radius = entry.auraRadius
+                --once the ability targets the aura's owner, its aura lets the ability through.
+                --A creature that blocks with its own body still blocks.
+                if includedCharids ~= nil and includedCharids[tok.charid] then
+                    radius = 0
+                end
+                if (entry.blocksWithBody or radius > 0) and not tok:IsFriend(sourceToken) then
+                    local x0, y0, x1, y1
                     for _,loc in ipairs(tok.locsOccupying) do
-                        if loc.x >= minx and loc.x <= maxx and loc.y >= miny and loc.y <= maxy then
-                            squares = squares or {}
-                            squares[#squares+1] = {x = loc.x, y = loc.y, token = tok}
+                        if x0 == nil or loc.x < x0 then x0 = loc.x end
+                        if y0 == nil or loc.y < y0 then y0 = loc.y end
+                        if x1 == nil or loc.x + 1 > x1 then x1 = loc.x + 1 end
+                        if y1 == nil or loc.y + 1 > y1 then y1 = loc.y + 1 end
+                    end
+                    if x0 ~= nil and y0 ~= nil and x1 ~= nil and y1 ~= nil then
+                        x0, y0, x1, y1 = x0 - radius, y0 - radius, x1 + radius, y1 + radius
+                        if x0 < maxx + 1 and x1 > minx and y0 < maxy + 1 and y1 > miny then
+                            rects = rects or {}
+                            rects[#rects+1] = {x0 = x0, y0 = y0, x1 = x1, y1 = y1, token = tok}
                         end
                     end
                 end
             end
         end
 
-        if squares == nil then
+        if rects == nil then
             return nil
         end
 
@@ -256,9 +331,9 @@ RuleUtils = {
                 local bx, by = targetPts[j], targetPts[j+1]
 
                 local hit = nil
-                for _,square in ipairs(squares) do
-                    if SegmentCrossesSquare(ax, ay, bx, by, square.x, square.y) then
-                        hit = square.token
+                for _,rect in ipairs(rects) do
+                    if SegmentCrossesRect(ax, ay, bx, by, rect.x0, rect.y0, rect.x1, rect.y1) then
+                        hit = rect.token
                         break
                     end
                 end
@@ -273,6 +348,24 @@ RuleUtils = {
         end
 
         return blocker
+    end,
+
+    --- True when an enemy of the source on the floor has a line-of-effect aura. Only then
+    --- does it matter which creatures an ability includes, so callers skip that work
+    --- otherwise: always for the aura owner's allies, and in every game without one.
+    --- @param sourceToken CharacterToken
+    --- @param floorIndex nil|number the floor to look on; the source's own floor when nil
+    --- @return boolean
+    HostileLineOfEffectAura = function(sourceToken, floorIndex)
+        if sourceToken == nil or not sourceToken.valid then
+            return false
+        end
+        for _,entry in ipairs(BlockersOnFloor(floorIndex or sourceToken.floorIndex)) do
+            if entry.auraRadius > 0 and entry.token.valid and not entry.token:IsFriend(sourceToken) then
+                return true
+            end
+        end
+        return false
     end,
 
     --- The blocker's name as it should read to the local player, for tooltips explaining

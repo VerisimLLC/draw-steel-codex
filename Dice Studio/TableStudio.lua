@@ -1657,10 +1657,12 @@ local function CreateTableStudioPanel()
 
     --Who Gets It, under the table name: what players have now, with the active choice marked.
     --Picking another asks, then goes live at once. Leather is everyone's fallback, so it shows
-    --Everyone only. The dice set row shows while Dice Owners is active. (Without going live it
-    --is an empty panel: a nil in the middle of fileBlock's children would cut off the rest.)
-    local accessBlock = gui.Panel{ classes = {"collapsed"} }
-    if g_canGoLive then
+    --Everyone only. The dice set row shows while Dice Owners is active.
+    local accessBlock
+    if not g_canGoLive then
+        --an empty stand-in: a nil in the middle of fileBlock's children would cut off the rest.
+        accessBlock = gui.Panel{ classes = {"collapsed"} }
+    else
         local lastSignature = ""
         local function Build(element)
             local options = { { id = "everyone", text = T("tablestudio.access.everyone") } }

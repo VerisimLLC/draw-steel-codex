@@ -22,7 +22,7 @@
 --- @field dice string The dice set (a dice asset id) the table is linked to, or "".
 --- @field menuName string The table's name in the players' menu ("" uses its name).
 --- @field position number The table's place in the players' menu, lower first (the built-ins are 1 to 9).
---- @field sendState string The last Upload or Set Live: "" (none yet), "sending", "sent" or "failed".
+--- @field sendState string The last Upload, Set Live or SetLiveAccess of the open table: "" (none, or the last was for another table), "sending", "sent" or "failed".
 --- @field viewAsPlayer boolean View as Player: while true, this admin's table menus offer only what this account would get without admin rights (the Table Studio's switch; Tabletop.lua reads it). Not saved.
 TableStudioLua = {}
 
@@ -228,7 +228,7 @@ function TableStudioLua:Upload() end
 --- @return boolean
 function TableStudioLua:SetLive() end
 
---- Repeats the last Upload, Set Live or SetLiveAccess.
+--- Repeats the last Upload, Set Live or SetLiveAccess, if it was for the open table; false (and nothing sent) otherwise.
 --- @return boolean
 function TableStudioLua:RetrySend() end
 

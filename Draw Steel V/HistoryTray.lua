@@ -17,8 +17,10 @@ local EDGE_STRIP = 8
 local BAR_HEIGHT = 28
 local SEARCH_GAP = 8
 
---Rows built at first; scrolling to the top adds this many more each time.
-local ROWS_CHUNK = 40
+--Rows built at first; scrolling up adds this many more each time. A few more than fit is
+--what keeps a long fight quick: each new row costs about 5 ms to build and lay out, and
+--40 took a 155 ms frame (6.2). Tall windows get more (fillView).
+local ROWS_CHUNK = 12
 
 --Turns of the newest round that stay apart from the "Turns a-b" fold.
 local NEWEST_TURNS = 4
@@ -2981,6 +2983,7 @@ local function BuildSections(mapid)
     end
 
     local sections = {}
+    local sectionIds = {}
     local nested = {}
     local section = nil
     local turn = nil
@@ -3000,9 +3003,17 @@ local function BuildSections(mapid)
                 groupid = string.format("%s-%d", entry.encounter, entry.round)
             end
             if section == nil or section.groupid ~= groupid then
+                --a combat broken by a line from outside it picks up again with the same round:
+                --its id gets a count, since rows and folds are told apart by id.
+                local id = outside and ("out-" .. key) or groupid
+                local seen = sectionIds[id] or 0
+                sectionIds[id] = seen + 1
+                if seen > 0 then
+                    id = string.format("%s-%d", id, seen)
+                end
                 section = {
                     groupid = groupid,
-                    id = outside and ("out-" .. key) or groupid,
+                    id = id,
                     round = entry.round,
                     mode = outside and (entry.mode or "exploration") or nil,
                     encounter = not outside and entry.encounter or nil,
@@ -3826,6 +3837,14 @@ local function CreateFace()
     local loadingOlder = false
     local anchor = nil
     local anchorTries = 0
+    --how far below the top of the list the view was when older rows were asked for.
+    local anchorDelta = 0
+    local anchorHeight = 0
+    --fillView's last measured list height, and how often it has looked.
+    local fillHeight = -1
+    local fillTries = 0
+    --the frame of the last rebuild.
+    local builtFrame = 0
     local face
     local list
     --true until the first build: History opens on "New since you last looked" when the
@@ -4202,10 +4221,14 @@ local function CreateFace()
         face:FireEventTree("searchResults", matches)
 
         --a row redraws when what is still on changes (Active) or the search does (marks).
-        for _, item in ipairs(items) do
-            local active = ActiveSignature(item)
-            if active ~= "" or g_searchKey ~= "" then
-                item.sig = string.format("%s|%s|%s", tostring(item.sig), active, g_searchKey)
+        --Only rows on show need it: making the string costs, and a long fight has hundreds.
+        local function Sign(item)
+            if not item.signed then
+                item.signed = true
+                local active = ActiveSignature(item)
+                if active ~= "" or g_searchKey ~= "" then
+                    item.sig = string.format("%s|%s|%s", tostring(item.sig), active, g_searchKey)
+                end
             end
         end
 
@@ -4225,6 +4248,7 @@ local function CreateFace()
         local kept = {}
         for i = first, #items do
             local item = items[i]
+            Sign(item)
             local row = rows[item.key]
             if row ~= nil and row.sig ~= item.sig and row.panel.valid and IsQuiet(item) then
                 row.sig = item.sig
@@ -4237,6 +4261,12 @@ local function CreateFace()
             row.panel:SetClass("historySelected", selected ~= nil and selected.key == item.key)
         end
         rows = kept
+        --a tall window: build further back until the list scrolls, so scrolling to the top
+        --can load the rest.
+        fillTries = 0
+        fillHeight = -1
+        list:ScheduleEvent("fillView", 0.05)
+        builtFrame = dmhub.FrameCount()
         if matches == 0 then
             children = {SearchEmpty()}
         end
@@ -4278,6 +4308,7 @@ local function CreateFace()
         if selected ~= nil then
             for _, item in ipairs(items) do
                 if item.key == selected.key then
+                    Sign(item)
                     if item.sig ~= selected.sig then
                         selected.sig = item.sig
                         selected.item = item
@@ -4400,6 +4431,24 @@ local function CreateFace()
             end
         end,
 
+        --the rows built don't reach a quarter of a view above the bottom one: build more now,
+        --so there is always room to scroll up into (and so to load more).
+        --Layout takes a few frames, so it waits until the height stops changing.
+        fillView = function(element)
+            local contentHeight = rowsPanel.renderedHeight or 0
+            fillTries = fillTries + 1
+            if contentHeight ~= fillHeight and fillTries < 8 then
+                fillHeight = contentHeight
+                element:ScheduleEvent("fillView", 0.05)
+                return
+            end
+            local windowHeight = element.renderedHeight or 0
+            if hasOlder and not loadingOlder and windowHeight > 0 and contentHeight < windowHeight * 1.25 then
+                rowsWanted = rowsWanted + ROWS_CHUNK
+                Refresh()
+            end
+        end,
+
         --at the top with more to show: build the next rows and hold the view still.
         scroll = function(element)
             AlignCard()
@@ -4413,10 +4462,18 @@ local function CreateFace()
                 end
                 UpdateNewBelow()
             end
-            if hasOlder and not loadingOlder and element.vscrollPosition >= 0.98 then
+            --load while still half a view from the top, so the rows are there before they
+            --scroll into sight.
+            local range = (rowsPanel.renderedHeight or 0) - (element.renderedHeight or 0)
+            local fromTop = (1 - element.vscrollPosition) * math.max(range, 0)
+            --a rebuild moves the view for a few frames before it is put back: only the
+            --reader's own scrolling loads more.
+            local settling = dmhub.FrameCount() - builtFrame < 10
+            if hasOlder and not loadingOlder and not settling and range > 0 and fromTop < (element.renderedHeight or 0) * 0.5 then
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
                 anchorTries = 0
+                anchorDelta = fromTop
                 if (rowsPanel.renderedHeight or 0) - (element.renderedHeight or 0) > 1 then
                     loadedOlder = true
                 end
@@ -4433,7 +4490,10 @@ local function CreateFace()
             local windowHeight = element.renderedHeight or 0
             local contentHeight = rowsPanel.renderedHeight or 0
             local range = contentHeight - windowHeight
-            if anchor ~= nil and anchor.valid and range > 0 then
+            --settled: stop, so a reader still scrolling isn't pulled back.
+            local settled = anchorTries > 1 and contentHeight == anchorHeight
+            anchorHeight = contentHeight
+            if not settled and anchor ~= nil and anchor.valid and range > 0 then
                 local offset = 0
                 for _, row in ipairs(rowsPanel.children) do
                     if row == anchor then
@@ -4441,9 +4501,9 @@ local function CreateFace()
                     end
                     offset = offset + (row.renderedHeight or 0)
                 end
-                element.vscrollPosition = 1 - math.min(offset, range) / range
+                element.vscrollPosition = 1 - math.min(offset + anchorDelta, range) / range
             end
-            if anchorTries >= 6 then
+            if settled or anchorTries >= 6 then
                 anchor = nil
                 loadingOlder = false
             else

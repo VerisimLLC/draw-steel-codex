@@ -107,7 +107,7 @@ local function TipFrame(text)
         vpad = 8,
         borderBox = true,
         bgimage = "panels/square.png",
-        bgcolor = "#151515f8",
+        bgcolor = COLOR_PLATE,
         interactable = false,
         gui.Label{ text = text, width = cond(long, 340, "auto"), height = "auto", fontSize = 13, color = COLOR_SOFT, textWrap = long, interactable = false },
     }
@@ -1583,7 +1583,7 @@ local function TabButton(args)
         bgimage = "panels/square.png",
         hover = function(element)
             if args.live then
-                element.tooltip = T("herocard.back.tab.current")
+                element.tooltip = TipFrame(T("herocard.back.tab.current"))
             end
         end,
         click = function(element)

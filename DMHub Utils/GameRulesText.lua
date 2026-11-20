@@ -31,6 +31,11 @@ local text = UIText.Define("GameRulesText")
 --control, not the rule. Short: one line.
 text("movement.callout.hold_ctrl_to_teleport", [[Hold Ctrl while moving to teleport.]])
 
+---Boxed note for a creature that can move vertically right now (flying, climbing at a wall,
+---swimming, burrowing). {up} and {down} are the player's own Fly Token Up/Down keys, e.g.
+---"Alt + Up". Short: one line.
+text("movement.callout.hold_to_move_vertically", [[Hold {up} or {down} while moving to move vertically.]])
+
 --Boxed note shown when a player grabs a creature that is locked into a saddle (which drags
 --its mount instead). {lock} is drawn as the padlock icon that sits on the rider's token; keep
 --it in the sentence where the icon should appear. {name} is the rider's name; with several

@@ -233,8 +233,8 @@ supports both.
 - The condition dropdown must come from the conditions table (custom conditions), and the
   condition step should allow more than one condition.
 - Step priorities: apply ongoing effect is the biggest gap after the core five.
-- New open question: Invoke steps often carry a nested custom ability (504 nested "Invoked
-  Ability" records). How the simple editor edits a nested ability needs a decision.
+- New open question: Invoke steps often carry a nested custom ability (over 500 nested
+  "Invoked Ability" records in monster files alone). How the simple editor edits a nested ability needs a decision.
 
 ## 5. Plan
 

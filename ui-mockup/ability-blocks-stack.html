@@ -36,12 +36,12 @@
   --c-test: #2c7391;
   --c-raw: #5b564e;
   --c-pass: #2f6f6a;
-  --card-bg: #f3ecdc;
-  --card-fg: #2a2418;
-  --card-rule: #b9a27a;
+  --card-bg: #fdfcf8;
+  --card-fg: #141414;
+  --card-rule: #141414;
   --font-ui: "Inter", system-ui, sans-serif;
   --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
-  --font-card: "Alegreya Sans", "Inter", system-ui, sans-serif;
+  --font-card: "Bitter", Georgia, serif;   /* slab serif, like the printed ability cards */
   --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 * { box-sizing: border-box; }
@@ -312,31 +312,40 @@ input.f.name { min-width: 120px; font-weight: 600; }
 .menu .md { color: var(--dim); font-size: 11.5px; }
 
 /* ---------- ability card (Draw Steel layout) ---------- */
-.card { background: var(--card-bg); color: var(--card-fg); border-radius: 4px; padding: 14px 16px; font: 14px/1.4 var(--font-card); }
-.card .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-.card h2 { font: 700 19px var(--font-card); margin: 0; }
-.card .act { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-.card .kw { font-style: italic; color: #5d5140; margin: 2px 0 8px; }
-.card .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; border-top: 1px solid var(--card-rule); border-bottom: 1px solid var(--card-rule); padding: 6px 0; margin-bottom: 8px; font-size: 13.5px; }
-.card .grid b { font-weight: 700; }
-.card .pr { font-weight: 700; margin: 6px 0 4px; }
-.card .tier { display: grid; grid-template-columns: 52px 1fr; gap: 6px; padding: 2px 0; }
-.card .tier .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+/* The ability card, styled after the printed book: a header with a ruled left edge and diamond marks,
+   keywords and action on one line, distance and target with icons, then the effect paragraphs. */
+.card { background: var(--card-bg); color: var(--card-fg); border-radius: 4px; padding: 14px 16px 14px 14px; font: 14.5px/1.45 var(--font-card); }
+.card .hdr { position: relative; padding-left: 20px; margin-bottom: 10px; }
+.card .hdr::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: 2px; width: 1.5px; background: var(--card-fg); }
+.card .hdr .marks { position: absolute; left: -2px; top: 6px; width: 14px; height: 40px; color: var(--card-fg); }
+.card h2 { font: 700 19px/1.25 var(--font-card); margin: 0; }
+.card h2 .cost { font-weight: 700; }
+.card .cline.flavor { font-style: italic; margin: 1px 0 0; padding-bottom: 3px; border-bottom: 1px solid var(--card-rule); }
+.card .kwrow, .card .dtrow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.card .kwrow { font-weight: 700; margin-top: 2px; }
+.card .dtrow { margin-top: 1px; }
+.card .dt { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.card .dt.right { justify-content: flex-end; text-align: right; }
+.card .dt svg { width: 17px; height: 17px; flex: none; }
+.card .dt .cline { margin-top: 0; }
+.card .pr { font-weight: 700; margin: 10px 0 3px; }
+.card .cline.tier { display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; margin-top: 3px; align-items: baseline; }
+.card .cline.tier .n { display: inline-block; width: 40px; height: 18px; line-height: 18px; text-align: center; font: 600 10.5px/18px var(--font-card);
+  background: no-repeat center/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 18' preserveAspectRatio='none'%3E%3Cpath d='M7 1H35Q39 1 39 5V13Q39 17 35 17H7L1 9Z' fill='none' stroke='%23141414' stroke-width='1.4'/%3E%3C/svg%3E"); padding-left: 3px; box-sizing: border-box; }
+.card .chr, .card .pot { display: inline-block; background: var(--card-fg); color: var(--card-bg); font: 700 11.5px/1 var(--font-card); padding: 2px 4px; border-radius: 2px; vertical-align: 1px; }
+.card .pot { font-size: 10.5px; letter-spacing: .02em; text-transform: uppercase; }
 .card .eff { margin-top: 8px; }
-.card .req { margin-top: 8px; font-size: 13px; color: #5d5140; }
+.card .req { margin-top: 8px; font-size: 13px; color: #555; }
 .card .formula { border-bottom: 1px dotted #8a7650; }
 .card .cline { margin-top: 6px; }
-.card .cline.tier { display: grid; grid-template-columns: 52px 1fr; column-gap: 6px; margin-top: 2px; align-items: baseline; }
 .card .cmeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .card .cline.tier .cmeta { grid-column: 2; }
-.card .grid .cline { margin-top: 0; }
-.card .cline.flavor { font-style: italic; color: #5d5140; margin: 0 0 6px; }
 .card .ctext { cursor: text; border-radius: 3px; }
 .card .ctext:hover, .card .ctext:focus-visible { background: rgba(140,106,36,.15); outline: none; }
 .card .ctext.placeholder { opacity: .45; font-size: 12.5px; }
-.card .cline.edited .ctext { background: rgba(140,106,36,.12); box-shadow: inset 2px 0 0 #8c6a24; padding-left: 4px; }
+.card .cline.edited .ctext { box-shadow: inset 2px 0 0 #b08a3a; padding-left: 5px; }
 .card .cline.stale .ctext { box-shadow: inset 2px 0 0 #c0392b; }
-.card .ctag { font: 600 10px var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: #8c6a24; white-space: nowrap; }
+.card .ctag { font: 600 9.5px var(--font-ui); opacity: .8; text-transform: uppercase; letter-spacing: .06em; color: #8c6a24; white-space: nowrap; }
 .card .cline.stale .ctag { color: #c0392b; }
 .card .clabel { cursor: pointer; border-radius: 3px; }
 .card .clabel:hover, .card .clabel:focus-visible { background: rgba(140,106,36,.18); outline: none; }
@@ -354,7 +363,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
 #dragGhost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; opacity: .9; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
 @media (prefers-reduced-motion: no-preference) { .flash { animation: fl .35s ease-out; } @keyframes fl { from { filter: brightness(1.6); } to { filter: none; } } }
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono&display=swap">
 
 <div class="page">
 <div class="dlg" id="dlg">
@@ -1223,7 +1232,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
 /* Tier text is the DrawSteelCommand mini-language: "9 damage; M<1 slowed (save ends)". */
 function compileTier(list, prefix) {
   const parts = [], prose = [];
-  const pre = prefix ? prefix + " " : "";
+  const pre = prefix ? prefix + ", " : "";   // "M<weak, prone": the comma content uses after a potency
   for (const st of list) {
     const f = st.f;
     if (st.type === "damage") { const a = cHolder(st.slots.amount);
@@ -2264,6 +2273,15 @@ function cardLine(parent, key, label, genHtml, kind) {
   }
   parent.appendChild(line);
 }
+/* Card art, drawn inline: the diamond marks on the header's left rule, and the distance and target icons. */
+const CARD_MARKS = '<svg class="marks" viewBox="0 0 14 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 1 13 7 7 13 1 7Z" fill="currentColor"/><path d="M7 13 13 19 7 25 1 19Z"/><path d="M7 25 13 31 7 37 1 31Z" fill="currentColor"/></g></svg>';
+const ICON_DISTANCE = '<svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 2V18H19Z"/><path d="M6.5 10V14.5H11Z"/></g><g stroke="currentColor" stroke-width="1.4"><path d="M3 6H5.5M3 9H4.5M3 12H5.5M7 18V15.5M10 18V16.5M13 18V15.5"/></g></svg>';
+const ICON_TARGET = '<svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7.5"/><circle cx="11" cy="11" r="3.5"/></g><circle cx="11" cy="11" r="1.2" fill="currentColor"/><path d="M1.5 1.5 9.5 9.5M1.5 1.5H5.5M1.5 1.5V5.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>';
+/* Tier text with the book's black boxes: "8 + [M] holy damage; [P<WEAK], frightened (save ends)". */
+function tierHtml(t) {
+  return esc(t).replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/g, (m, x) => '<span class="pot">' + x.replace(/&amp;lt;/g, "&lt;") + "</span>,")
+    .replace(/(\+ )([MARIP])(?= )/g, '$1<span class="chr">$2</span>');
+}
 function renderSide(c) {
   side.innerHTML = "";
   const seen = new Set(); const pr = problems.filter(q => { const k = q.id + q.msg; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -2279,14 +2297,21 @@ function renderSide(c) {
   const card = E("div", "card");
   /* Card text is generated from the blocks. Any line can be reworded by clicking it; the override
      remembers the generated text it replaced, so a later rules change flags it instead of drifting. */
-  const top = E("div", "top"); top.appendChild(E("h2", null, ab.name || "Unnamed"));
-  const actText = c.triggered ? (TRIG_ACTIONS.find(a => a[0] === ab.trig.action) || ["", ""])[1] : ab.action;
-  const act = E("span", "act"); act.innerHTML = esc(actText) + (ab.resource !== "no cost" ? " &middot; " + esc(cHolder(ab.cost).s) + " " + esc(resName(ab.resource)) : ""); top.appendChild(act);
-  card.appendChild(top);
-  card.appendChild(E("div", "kw", keywordsOf(ab).join(", ")));
-  cardLine(card, "flavor", null, "", "flavor");
+  // Header: name (cost), flavor over a rule, keywords and action, distance and target.
+  const hdr = E("div", "hdr"); card.appendChild(hdr);
+  hdr.insertAdjacentHTML("beforeend", CARD_MARKS);
+  const h2 = E("h2", null, ab.name || "Unnamed");
+  if (ab.resource !== "no cost") h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (" + cHolder(ab.cost).s + " " + resName(ab.resource) + ")" }));
+  hdr.appendChild(h2);
+  cardLine(hdr, "flavor", null, "", "flavor");
+  const actText = c.triggered ? ({ trigger: "Triggered", free: "Free triggered", passive: "Passive" }[ab.trig.action] || "Triggered") : ab.action;
+  const kwrow = E("div", "kwrow"); kwrow.appendChild(E("span", null, keywordsOf(ab).join(", ") || "\u00a0")); kwrow.appendChild(E("span", null, actText)); hdr.appendChild(kwrow);
+  const dtrow = E("div", "dtrow"); hdr.appendChild(dtrow);
+  const dtCell = (icon, key, html, right) => { const cell = E("div", "dt" + (right ? " right" : "")); cell.insertAdjacentHTML("beforeend", icon); cardLine(cell, key, null, html, "fixed"); dtrow.appendChild(cell); };
   if (c.triggered) {
     const t = ab.trig, ev = EVENTS[t.event], who = TRIG_WHO[t.who];
+    dtCell(ICON_DISTANCE, "distance", t.who === "self" ? "Self" : "Ranged " + esc(c.range.s));
+    dtCell(ICON_TARGET, "target", { self: "Self", selfally: "Self or one ally", ally: "One ally", enemy: "One enemy", any: "One creature" }[t.who] || "One creature", true);
     const sq = c.range.s === "1" ? " square " : " squares ";
     const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + c.range.s + sq + ev.other;
     cardLine(card, "trigger", "Trigger", esc(cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + "."), "effect");
@@ -2298,8 +2323,7 @@ function renderSide(c) {
     const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
     const dist = distanceText(fm);
     const tgt = targetText(ab, fm);
-    const grid = E("div", "grid"); card.appendChild(grid);
-    cardLine(grid, "distance", "Distance", dist, "fixed"); cardLine(grid, "target", "Target", tgt, "fixed");
+    dtCell(ICON_DISTANCE, "distance", dist); dtCell(ICON_TARGET, "target", tgt, true);
     // Effect text can come before the power roll as well as after it; each is one paragraph.
     let effects = [], seenRoll = false;
     const flush = key => { if (effects.length) cardLine(card, key, "Effect", esc(effects.join(" ")), "effect"); effects = []; };
@@ -2307,7 +2331,7 @@ function renderSide(c) {
       if (p.kind === "roll") {
         flush("effectBefore"); seenRoll = true;
         card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
-        ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? esc(p.tiers[i]).replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>").replace(/&amp;lt;/g, "&lt;") : "<i>no effect</i>", "tier"));
+        ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
       } else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); cardLine(card, p.key, p.label, esc(p.text), "effect"); }
       else effects.push(p.text + ".");
     }

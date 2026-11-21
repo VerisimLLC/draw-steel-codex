@@ -2439,14 +2439,20 @@ local function OnWaveDeployed(info)
     History.Write(entry)
 end
 
---The current map's reveal lines for one spoilered modifier.
+--The reveal lines for one spoilered modifier, on every map: a line is filed on its
+--creature's map, which need not be the one the Director is looking at.
 local function RevealEntries(key)
-    local mapid = History.CurrentMap()
+    local mapids = {History.NO_MAP}
+    for _, map in ipairs(game.maps) do
+        mapids[#mapids + 1] = map.id
+    end
     local found = {}
-    for _, entryKey in ipairs(History.Keys(mapid)) do
-        local entry = History.Entry(mapid, entryKey)
-        if entry ~= nil and entry.family == "reveal" and entry.spoilerkey == key then
-            found[#found + 1] = entry
+    for _, mapid in ipairs(mapids) do
+        for _, entryKey in ipairs(History.Keys(mapid)) do
+            local entry = History.Entry(mapid, entryKey)
+            if entry ~= nil and entry.family == "reveal" and entry.spoilerkey == key then
+                found[#found + 1] = entry
+            end
         end
     end
     return found

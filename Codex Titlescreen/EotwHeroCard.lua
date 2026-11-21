@@ -846,8 +846,8 @@ end
 --- Resource readouts --------------------------------------------------------
 
 --Extra readouts on the heroic resource row, for classes with more than one
---heroic resource. Seeded from the previous EotwHeroCard table so a
---registration made once at startup survives a reload of this file.
+--heroic resource. Kept across reloads of this file, because mods register
+--once when they load and their readouts would otherwise vanish.
 local g_resourceReadouts = {}
 do
     local previous = rawget(_G, "EotwHeroCard")
@@ -861,7 +861,9 @@ end
 ---   id    unique key
 ---   ord   sort order among readouts (default 0, lower is further left)
 ---   read  function(tok) -> nil to show nothing for this hero, or
----         { icon = image id, text = "4/6", tooltip = optional string }
+---         { icon = image id, text = "4/6", tooltip = optional hover text }
+---         It runs on every card refresh, so keep it cheap; if it errors,
+---         the readout is hidden.
 --- @param entry {id: string, ord: nil|number, read: fun(tok: CharacterToken): nil|{icon: string, text: string, tooltip: nil|string}}
 local function RegisterResourceReadout(entry)
     g_resourceReadouts[entry.id] = entry
@@ -877,11 +879,11 @@ local function CollectResourceReadouts(tok)
             result[#result+1] = { id = entry.id, ord = entry.ord or 0, shown = shown }
         end
     end
-    table.sort(result, function(a, b)
-        if a.ord ~= b.ord then
-            return a.ord < b.ord
+    table.sort(result, function(left, right)
+        if left.ord ~= right.ord then
+            return left.ord < right.ord
         end
-        return a.id < b.id
+        return left.id < right.id
     end)
     return result
 end
@@ -890,7 +892,12 @@ end
 local function CreateResourceReadout()
     local icon = gui.Panel{
         classes = {"eotwResIcon"},
-        interactable = false,
+        data = { tooltip = nil },
+        linger = function(element)
+            if element.data.tooltip ~= nil then
+                gui.Tooltip(element.data.tooltip)(element)
+            end
+        end,
     }
     local value = gui.Label{
         classes = {"eotwResValue"},
@@ -904,31 +911,22 @@ local function CreateResourceReadout()
         halign = "left",
         valign = "center",
         lmargin = 8,
-        data = { tooltip = nil },
-        linger = function(element)
-            if element.data.tooltip ~= nil then
-                gui.Tooltip(element.data.tooltip)(element)
-            end
-        end,
-        setReadout = function(element, shown)
+        setReadout = function(_, shown)
             icon.selfStyle.bgimage = shown.icon
+            icon.data.tooltip = shown.tooltip
             value.text = shown.text or ""
-            element.data.tooltip = shown.tooltip
         end,
         icon,
         value,
     }
 end
 
---Heroic resource, icon only: the class's heroic resource icon (the
---character panel's own source) with the current value beside it, then any
---registered readouts (RegisterResourceReadout). Surges are NOT here --
---they render as per-surge icons in the card's bottom-right corner
---(CreateSurgeCorner).
+--The heroic resource row: the class's heroic resource icon and current
+--value, then any registered readouts. Surges are not here; they sit in
+--the card's bottom-right corner (CreateSurgeCorner).
 local function CreateResourceRow(charid)
     local hrIcon = gui.Panel{
         classes = {"eotwResIcon"},
-        interactable = false,
         refreshCard = function(element)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
@@ -971,8 +969,8 @@ local function CreateResourceRow(charid)
             element.text = tostring(value)
         end,
     }
-    --the cells are rebuilt only when which readouts show (or their icons)
-    --changes; the values are pushed into them on every refresh.
+    --rebuild the cells only when the list of readouts or their icons
+    --changes; on other refreshes just update the values.
     local readouts = gui.Panel{
         width = "auto",
         height = "100%",

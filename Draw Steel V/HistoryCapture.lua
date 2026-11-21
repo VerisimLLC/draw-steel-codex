@@ -2439,7 +2439,7 @@ end
 
 --The current map's reveal lines for one spoilered modifier (L94).
 local function RevealEntries(key)
-    local mapid = game.currentMapId
+    local mapid = History.CurrentMap()
     local found = {}
     for _, k in ipairs(History.Keys(mapid)) do
         local e = History.Entry(mapid, k)
@@ -2508,7 +2508,8 @@ local function OnTurnReverted(info)
     if not History.Enabled() or info.since == nil then
         return
     end
-    local mapid = game.currentMapId
+    --with no map open, the revert is on the game-wide record, where lines with no map go.
+    local mapid = History.CurrentMap()
     --Turn Rewind: what came after the point is what History didn't hold yet (not the stamps,
     --which a client whose clock runs behind writes early).
     local heldAt = info.point ~= nil and g_heldAtPoint[info.point] or nil

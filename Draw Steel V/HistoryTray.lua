@@ -2,13 +2,12 @@ local mod = dmhub.GetModLoading()
 
 --The History tray: a rail panel window that shows a map's History as rounds and turns,
 --newest at the bottom. Older rounds and turns fold away, so opening it builds a few
---rows even after a long fight. The target design is the prototype named in
---docs/action-log-design/BUILD-PLAN.md.
+--rows even after a long fight.
 --
 --Each refresh works out the list of rows from the entries, then keeps every row whose
 --signature is unchanged and builds only what is new. A new action builds one row.
 
---The window's width range (6.3), and its width when it first opens. The window adds
+--The window's width range, and its width when it first opens. The window adds
 --EDGE_STRIP on the right, where its resize strip sits, so the scroll bar stays clear of it.
 local TRAY_MIN_WIDTH = 320
 local TRAY_MAX_WIDTH = 600
@@ -23,9 +22,8 @@ local g_trayWidth = TRAY_DEFAULT_WIDTH
 local BAR_HEIGHT = 28
 local SEARCH_GAP = 8
 
---Rows built at first; scrolling up adds this many more each time. A few more than fit is
---what keeps a long fight quick: each new row costs about 5 ms to build and lay out, and
---40 took a 155 ms frame (6.2). Tall windows get more (fillView).
+--Rows built at first; scrolling up adds this many more each time. Building only a few
+--more than fit keeps a long fight quick to open. Tall windows get more (fillView).
 local ROWS_CHUNK = 12
 
 --Turns of the newest round that stay apart from the "Turns a-b" fold.
@@ -37,7 +35,8 @@ local FOLD_FACES = 5
 --Targets on an action before the last cell becomes "+N".
 local TARGET_CELLS = 4
 
---The Codex's fonts have these two; Lua source stays ASCII (REVIEW.md, font check).
+--The Codex's fonts have these two characters; they are byte escapes because Lua source
+--must stay ASCII.
 local DOT = " \194\183 "
 local EN_DASH = "\226\128\147"
 
@@ -73,7 +72,7 @@ local g_tray = nil
 --A row to show once the window is built: the Sidebar Preview's click opens History on it.
 --- @type string|nil
 local g_showOnOpen = nil
---That row's map, which can be one the user is not on (6.1).
+--That row's map, which can be one the user is not on.
 --- @type string|nil
 local g_showMapOnOpen = nil
 
@@ -141,7 +140,7 @@ local function Styles()
             color = "@fgStrong",
             borderColor = "@fgMuted",
         },
-        --the map switcher in the title row (6.1), drawn like the tray's other buttons.
+        --the map switcher in the title row, drawn like the tray's other buttons.
         {
             selectors = {"historyMapSwitcher"},
             bgcolor = "clear",
@@ -225,7 +224,7 @@ local function Styles()
             color = "@danger",
             borderColor = "@danger",
         },
-        --a row the S5 fold's stand-in is flying to, hidden until it lands (6.5d).
+        --a row the fold animation's stand-in is flying to, hidden until it lands.
         {
             selectors = {"historyFoldHidden"},
             opacity = 0,
@@ -272,7 +271,7 @@ local function Styles()
             selectors = {"label", "historyUndone"},
             color = "@fgMuted",
         },
-        --a row Revert Turn or Turn Rewind undid (L39): every panel in it fades and its
+        --a row Revert Turn or Turn Rewind undid: every panel in it fades and its
         --words are struck through, all but its Reverted tag.
         {
             selectors = {"historyFaded"},
@@ -312,7 +311,7 @@ local function Styles()
             bgcolor = "clear",
             borderColor = "@fgMuted",
         },
-        --a villain action (L90): outlined in the Malice chip's red, apart from a filled Failure.
+        --a villain action: outlined in the Malice chip's red, apart from a filled Failure.
         {
             selectors = {"label", "historyVillainTag"},
             fontSize = 11,
@@ -369,7 +368,7 @@ local function Styles()
             bgcolor = "@bg",
             borderColor = "@borderSolid",
         },
-        --search (3.1).
+        --the search bar, its chips and its suggestions.
         {
             selectors = {"label", "historySearchCount"},
             fontSize = 11,
@@ -486,7 +485,7 @@ local function Styles()
             bgcolor = "@bgRaised",
         },
         --@border is white at 16% in the default theme: the seam under a round heading
-        --comes to 12%, the line between rows to 5%, as in the prototype.
+        --comes to 12%, the line between rows to 5%.
         {
             selectors = {"historySeam"},
             bgcolor = "@border",
@@ -505,8 +504,8 @@ local function Styles()
             selectors = {"historyChevron", "parent:hover"},
             bgcolor = "@fg",
         },
-        --the rail windows' frame (framedPanel in DocumentWindowStyles), so the card
-        --matches History; its blurred backdrop is set on the panel.
+        --the same frame as the rail windows, so the card matches History; its blurred
+        --backdrop is set on the panel.
         {
             selectors = {"historyCardFrame"},
             bgcolor = "white",
@@ -552,14 +551,14 @@ local function Styles()
             color = "@fgMuted",
         },
         {
-            --between the receipt's lines and its notes, as the prototype's sources are.
+            --a source line: dimmer than the receipt's lines, brighter than its notes.
             selectors = {"label", "historyReceiptSource"},
             fontSize = 13,
             color = "@fg",
             opacity = 0.8,
         },
         {
-            --a Why line (COPY.md N3): a rule down its left, a bold lead, a plain sentence.
+            --a Why line: a rule down its left, a bold lead, a plain sentence.
             selectors = {"historyWhy"},
             bgcolor = "clear",
             borderColor = "@fgMuted",
@@ -815,7 +814,7 @@ end
 History.Face = Face
 
 --Small marks beside a name. Ended is the partner of Active: one for what stopped, one
---for what is still on (L7, L10).
+--for what is still on.
 local function Tag(style, text)
     return gui.Label{
         classes = {style},
@@ -834,7 +833,7 @@ local function Tag(style, text)
     }
 end
 
---Active with the icon of what is still on, so a cell with two badges says which (B8).
+--Active with the icon of what is still on, so a cell with two badges says which.
 --- @param icon string|nil
 --- @return Panel
 local function ActiveTag(icon)
@@ -921,7 +920,7 @@ local function Caret(down)
     }
 end
 
---- The tier pill. overridden: someone chose this tier after the dice landed (L91); it is
+--- The tier pill. overridden: someone chose this tier after the dice landed; it is
 --- drawn in the warning colour and says so on hover, and the card says who and what the
 --- dice gave.
 --- @param tier integer
@@ -980,13 +979,13 @@ local function TextWidth(text, perChar)
 end
 
 --The faces on a fold line, each with what it took and regained. Damage and healing stay
---apart, so 9 taken and 8 healed never reads as -1 (fix B1). room: the width left on the
+--apart, so 9 taken and 8 healed never reads as -1. room: the width left on the
 --line; faces that don't fit, or past FOLD_FACES, become "+N".
 local function MiniFaces(tally, room)
     local children = {}
     local used = 4
-    --faces that share a portrait (four goblins) get a number each, so the line reads without
-    --a hover (B4): numbered in the order they appear.
+    --faces that share a portrait (four goblins) get a number each, in the order they
+    --appear, so the line reads without a hover.
     local byImage = {}
     for _, row in ipairs(tally) do
         local img = row.who.img or ""
@@ -1058,7 +1057,7 @@ local function MiniFaces(tally, room)
     }
 end
 
---The hover on a folded line (6.3): every creature its faces stand for, one line each with
+--The hover on a folded line: every creature its faces stand for, one line each with
 --the name and what it took and regained, since the line only has room for some of them.
 --- @param title string The fold line's own words, as the card's heading.
 --- @return nil|fun(element: Panel)
@@ -1162,7 +1161,7 @@ local function FoldHover(title, tally)
     end
 end
 
---The caption a state shows as (T14), with the style that marks it.
+--The caption a state shows as, with the style that marks it.
 local STATE_CAPTIONS = {
     winded = {text = "Winded", style = "historyWinded"},
     dying = {text = "Dying", style = "historyDying"},
@@ -1180,15 +1179,15 @@ end
 local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid", teleport = "teleported"}
 History.MOVED_VERBS = MOVED_VERBS
 
---"Push 3", then after dots what stability took off, walls broken and a fall (T14, L97,
---L98, L103): "Push 2 . Stability 1 . Broke 1 wall . fell 4" (dots are DOT). vertical_push reads "Vertical push".
+--"Push 3", then after dots what stability took off, walls broken and a fall:
+--"Push 2 . Stability 1 . Broke 1 wall . fell 4" (dots are DOT). vertical_push reads "Vertical push".
 local function MovedWords(moved)
     local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
     local words
     if moved.stopped then
         words = string.format("%s stopped", kind)
     elseif moved.distance <= 0 and moved.fell <= 0 then
-        --blocked before it moved a square (L105).
+        --blocked before it moved a square.
         words = string.format("%s blocked", kind)
     elseif moved.distance <= 0 then
         return string.format("Fell %d", moved.fell)
@@ -1208,9 +1207,9 @@ local function MovedWords(moved)
     return words
 end
 
---The small lines under a target (T14). ended marks one that takes an Ended tag.
+--The small lines under a target. ended marks one that takes an Ended tag.
 --minions: confirmed minion deaths that belong on this cell.
---allyHit: an area ability caught a creature on its user's side (T13).
+--allyHit: an area ability caught a creature on its user's side.
 local function Captions(who, minions, allyHit)
     local list = {}
     local function Add(text, ended, style)
@@ -1219,7 +1218,7 @@ local function Captions(who, minions, allyHit)
     if allyHit then
         Add("Ally hit")
     end
-    --struck by a squad: how many of its minions hit this target (T14).
+    --struck by a squad: how many of its minions hit this target.
     if (who.byminions or 0) > 0 and (who.taken or 0) > 0 then
         Add(string.format("%d %s", who.byminions, who.byminions == 1 and "minion" or "minions"))
     end
@@ -1284,7 +1283,7 @@ local function Captions(who, minions, allyHit)
 end
 
 --extraTaken: what triggers nested under this action added. A face shows everything
---the creature took from the action, so it agrees with the detail (fix B1).
+--the creature took from the action, so it agrees with the detail card.
 --minions: confirmed minion deaths to show on this cell.
 --allyHit: see Captions.
 local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
@@ -1394,7 +1393,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
     }
 end
 
---Past four targets, three cells and "+N" with the rest named beside it (B6).
+--Past four targets, three cells and "+N" with the rest named beside it.
 local function MoreCell(rest, width)
     local names = {}
     for i, who in ipairs(rest) do
@@ -1437,7 +1436,7 @@ local function ResourceWords(amount, name)
 end
 History.ResourceWords = ResourceWords
 
---What makes a row open the card: the tooltip and the click (T19). The tooltip waits for
+--What makes a row open the card: the tooltip and the click. The tooltip waits for
 --the pointer to rest, because it would otherwise cover the next row on every pass.
 local function OpensCard(item)
     return {
@@ -1460,7 +1459,7 @@ local function OpensCard(item)
     }
 end
 
---The Director's right-click on a row (L41, L86): hide it from players or show it again,
+--The Director's right-click on a row: hide it from players or show it again,
 --delete it, or clear the map's History. sources: the entries the row stands for, with
 --everything nested under them. Nil (no menu) for players.
 --- @param sources HistoryEntry[]|nil
@@ -1507,7 +1506,7 @@ local function DirectorMenu(sources)
     end
 end
 
---The Director's eye-off beside a row hidden from players (L28).
+--The Director's eye-off beside a row hidden from players.
 local function HiddenEye()
     return gui.VisibilityPanel{
         visible = false,
@@ -1540,7 +1539,7 @@ local function TriggerRowWidth()
     return g_trayWidth - 52 - 12 - 9
 end
 
---The hairline above an action or a folded turn (the prototype's row separator).
+--The hairline above an action or a folded turn.
 local function Rule()
     return gui.Panel{
         classes = {"historyRule"},
@@ -1550,10 +1549,6 @@ local function Rule()
     }
 end
 
---A trigger nested under an action (T15), on one line: number, owner, Triggered or Free,
---"{Owner} . {trigger}", then after a caret what it did. The name shortens with "..." so the
---result stays in view; hovering the name shows it whole, and the card has the full sentence.
---entry.result is a change to the owner itself, such as "Clarity +1".
 --One side's roll under the action that asked for it: face, "Gordon rolled 14", then the
 --test's name, muted. The same words as the line a test gets on its own.
 local function RollRow(entry)
@@ -1564,7 +1559,7 @@ local function RollRow(entry)
         children[1] = Face(entry.who, 20)
         name = string.format("<b>%s</b> ", ShownName(entry.who))
     end
-    --a Dice Tower roll: players saw it happen, not what it came to (L79).
+    --a Dice Tower roll: players saw it happen, not what it came to.
     local words = "rolled in secret"
     if not entry.secretroll and entry.total ~= nil then
         words = string.format("rolled %d", entry.total)
@@ -1639,9 +1634,13 @@ local function OpposedRow(who, showTotals, named)
     }
 end
 
+--A trigger nested under an action, on one line: number, owner, Triggered or Free,
+--"{Owner} . {trigger}", then after a caret what it did. The name shortens with "..." so the
+--result stays in view; hovering the name shows it whole, and the card has the full sentence.
+--entry.result is a change to the owner itself, such as "Clarity +1".
 --- @param rowActor HistoryCreature|nil Who took the action the line sits under.
 local function TriggerRow(index, entry, rowActor)
-    --T15: free first, then where it fell against the action's roll. An ability used as part
+    --free first, then where it fell against the action's roll. An ability used as part
     --of the action says what kind of action it is, if it is one.
     local tagText = "Triggered"
     if entry.kind == "action" then
@@ -1740,7 +1739,7 @@ local function TriggerRow(index, entry, rowActor)
         if who.moved ~= nil then
             effects[#effects + 1] = MovedWords(who.moved)
         end
-        --a trigger used from the roll dialog (L107): what it changed, not what was dealt.
+        --a trigger used from the roll dialog: what it changed, not what was dealt.
         local net = (who.edges ~= nil or who.banes ~= nil) and History.NetEdges(who.edges, who.banes) or nil
         if net ~= nil then
             effects[#effects + 1] = net.label
@@ -1876,9 +1875,9 @@ local function Cost(entry, name, cost, gained)
     }
 end
 
---What shaped the roll, readable without opening the card (T12): the net edges or banes as
---the roll dialog's chevrons (one or two, up for an edge), netted as the card's numbers net
---them, and a critical (a natural 19 or 20). Edges and banes that cancel show nothing.
+--What shaped the roll, readable without opening the card: the net edges or banes as the
+--roll dialog's chevrons (one or two, up for an edge), counted the same way as the card's
+--numbers, and a critical (a natural 19 or 20). Edges and banes that cancel show nothing.
 local function GlanceChips(roll)
     local chips = {}
     if roll == nil then
@@ -2019,7 +2018,7 @@ local function BuildAction(item)
         end
     end
 
-    --in the order they came: before the roll, used from its dialog (L107), then the rest.
+    --in the order they came: before the roll, used from its dialog, then the rest.
     local ordered = {}
     for _, kid in ipairs(triggers) do
         if kid.when == "before" then
@@ -2137,7 +2136,7 @@ local function BuildAction(item)
     }
 end
 
---A result with no action behind it (L1-L24): who, what, and the cause under it.
+--A result with no action behind it: who, what, and the cause under it.
 local function LineWords(entry)
     local name = entry.who ~= nil and string.format("<b>%s</b>", ShownName(entry.who)) or ""
     local family = entry.family
@@ -2168,7 +2167,7 @@ local function LineWords(entry)
         if entry.who == nil and entry.roller ~= nil then
             name = string.format("<b>%s</b>", entry.roller)
         end
-        --a Dice Tower roll: players saw it happen, not what it came to (L79).
+        --a Dice Tower roll: players saw it happen, not what it came to.
         if entry.secretroll then
             return string.format("%s rolled in secret", name)
         end
@@ -2178,13 +2177,13 @@ local function LineWords(entry)
     elseif family == "persistence" then
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "strained" then
-        --L110: a Talent's heroic resource went below 0, or back.
+        --a Talent's heroic resource went below 0, or back.
         return string.format(entry.strained and "%s is strained" or "%s is no longer strained", name)
     elseif family == "note" then
         --a note card posted outside any action: "{Creature} {title}", the detail under it.
         return string.format("%s %s", name, entry.name or "")
     elseif family == "captain" then
-        --L111: the Director gave a squad its captain.
+        --the Director gave a squad its captain.
         return string.format("%s is now %s's captain", name, entry.squad or "the squad")
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
@@ -2323,14 +2322,14 @@ local function LineNumber(entry)
 end
 
 --Which entries open a detail card: actions, an encounter's closing line with something to
---list (L17), and test, Dice panel or table rolls. Every other line already says all there is.
+--list, and test, Dice panel or table rolls. Every other line already says all there is.
 local function HasCard(entry)
     return entry.kind == "action" or (entry.family == "encounterend" and #(entry.ended or {}) > 0)
         or entry.family == "test" or entry.family == "dice" or entry.family == "table"
         or (entry.family == "negotiation" and entry.sub == "argument" and (entry.text or "") ~= "")
 end
 
---The start of a combat (T10): the old log's swords and lettering as a landmark to scroll
+--The start of a combat: the old log's swords and lettering as a landmark to scroll
 --back to, with who goes first under them. LineWords has the same facts as one sentence.
 local function BuildDrawSteel(entry)
     local words = cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
@@ -2447,7 +2446,7 @@ local function BuildLine(item)
     if entry.reverted ~= nil then
         top[#top + 1] = Tag("historyRevertedTag", "Reverted")
     end
-    --an effect hidden from enemies: players don't get this line, or these names (2.4).
+    --an effect hidden from enemies: players don't get this line, or these names.
     if dmhub.isDM and (entry.secret or entry.hiddenfromplayers or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
         top[#top + 1] = HiddenEye()
     end
@@ -2501,7 +2500,7 @@ local function BuildLine(item)
         children[2] = number
     end
 
-    --a resource line can be put back by whoever controls the creature (L42); not once its turn
+    --a resource line can be put back by whoever controls the creature; not once its turn
     --was reverted, which already put it back.
     local undoable = entry.resourceid ~= nil and not entry.undone and entry.reverted == nil and entry.who ~= nil
     if undoable then
@@ -2528,7 +2527,7 @@ local function BuildLine(item)
         }
     end
 
-    --the closing line of an encounter lists what ended on its card (L17).
+    --the closing line of an encounter lists what ended on its card.
     --a test or Dice panel roll opens its numbers.
     local hasCard = HasCard(entry)
     local opens = hasCard and OpensCard(item) or nil
@@ -2721,9 +2720,9 @@ local function TurnSideText(item)
     return text
 end
 
---Main, Maneuver and Move on the turn being played (T8): filled while there to use, greyed
---once used, as the action bar shows them. Read from
---the creature live, twice a second; hidden once the turn has passed.
+--Main, Maneuver and Move on the turn being played: filled while there to use, greyed once
+--used, as the action bar shows them. Read from the creature live, twice a second; hidden
+--once the turn has passed.
 local PIPS = {
     {text = "Main", used = function(props) return (props:GetResourceUsage(CharacterResource.actionResourceId, "turn") or 0) >= 1 end},
     {text = "Maneuver", used = function(props) return (props:GetResourceUsage(CharacterResource.maneuverResourceId, "turn") or 0) >= 1 end},
@@ -2754,11 +2753,11 @@ local function TurnPips(item)
         row,
         thinkTime = 0.5,
         think = function(element)
-            local q = dmhub.initiativeQueue
+            local queue = dmhub.initiativeQueue
             local state = "off"
-            if q ~= nil and not q.hidden and q.guid == live.encounter and q.round == live.round
-                and q.turnNumber == item.number and q.currentTurn == item.owner.turnid then
-                local tokens = InitiativeQueue.GetTokensForInitiativeId(q.currentTurn, dmhub.allTokens)
+            if queue ~= nil and not queue.hidden and queue.guid == live.encounter and queue.round == live.round
+                and queue.turnNumber == item.number and queue.currentTurn == item.owner.turnid then
+                local tokens = InitiativeQueue.GetTokensForInitiativeId(queue.currentTurn, dmhub.allTokens)
                 local props = tokens[1] ~= nil and tokens[1].properties or nil
                 if props ~= nil then
                     state = ""
@@ -2831,7 +2830,7 @@ local function BuildTurnHead(item)
     }
 end
 
---"New since you last looked" (T9): where the turns you have not seen start.
+--"New since you last looked": where the turns you have not seen start.
 local function BuildNewMarker(item)
     local function Rule()
         return gui.Panel{
@@ -2872,7 +2871,7 @@ local g_builders = {
     line = BuildLine,
 }
 
---A row from its builder. A reverted one (L39) fades whole: opacity does not reach a
+--A row from its builder. A reverted one fades whole: opacity does not reach a
 --panel's children, so every panel in it takes the class, except its Reverted tag.
 local function BuildRow(item)
     local panel = g_builders[item.kind](item)
@@ -2928,7 +2927,7 @@ local function Tally(entries, nested)
         row.healed = row.healed + (healed or 0)
     end
     local function AddEntry(entry)
-        --what a revert undid never happened: it stays out of the fold's totals (L39).
+        --what a revert undid never happened: it stays out of the fold's totals.
         if entry.reverted ~= nil then
             return
         end
@@ -2977,8 +2976,8 @@ local function RootAction(entry, rowsById)
     return root
 end
 
---Search (3.1). Chips come from suggestions (or, in 3.2, from History on a token); chips
---and typed words must all match. A match filters the tray in place, under its round and
+--Search. Chips come from suggestions, or from opening History on a token; chips and
+--typed words must all match. A match filters the tray in place, under its round and
 --turn, and the words that matched are marked in the tray and the card.
 --- @class HistorySearchChip
 --- @field kind "creature"|"type"|"ability"|"condition"|"other"
@@ -2988,7 +2987,7 @@ end
 --- @field icon? string A condition chip's icon.
 --- @field type? string The type a creature suggestion was found by, shown after its name.
 
---The outcome words (S3) and the stems that find them.
+--The outcome words and the stems that find them.
 local OTHER_WORDS = {
     {name = "Killed", stem = "kill"},
     {name = "Winded", stem = "winded"},
@@ -3013,7 +3012,7 @@ local g_search = {
     text = "",
 }
 
---- The typed words, lower case, and the turn number in "turn 15" (B8), or nil.
+--- The typed words, lower case, and the turn number in "turn 15", or nil.
 --- @return string[] words, integer|nil turn
 local function SearchWords()
     local text = string.lower(g_search.text or "")
@@ -3046,15 +3045,15 @@ local function EachCreature(entry, kids, fn)
             fn(who)
         end
     end
-    local function AddEntry(e)
-        Add(e.actor)
-        Add(e.who)
-        Add(e.triggerby)
-        for _, who in ipairs(e.targets or {}) do
+    local function AddEntry(record)
+        Add(record.actor)
+        Add(record.who)
+        Add(record.triggerby)
+        for _, who in ipairs(record.targets or {}) do
             Add(who)
         end
-        if type(e.ended) == "table" and e.family == "encounterend" then
-            for _, item in ipairs(e.ended) do
+        if type(record.ended) == "table" and record.family == "encounterend" then
+            for _, item in ipairs(record.ended) do
                 Add(item.who)
             end
         end
@@ -3091,24 +3090,24 @@ local function CreatureTypes(id)
         end
     end
     local token = dmhub.GetTokenById(id)
-    local c = token ~= nil and token.properties or nil
-    if c ~= nil then
-        if c:IsHero() then
-            local class = (c --[[@as character]]):GetClass()
+    local props = token ~= nil and token.properties or nil
+    if props ~= nil then
+        if props:IsHero() then
+            local class = (props --[[@as character]]):GetClass()
             if class ~= nil then
                 Add(class.name)
             end
         elseif dmhub.isDM then
             --role holds organisation and role together, e.g. "Minion Defender".
-            for word in string.gmatch(tostring(c:try_get("role", "")), "%S+") do
+            for word in string.gmatch(tostring(props:try_get("role", "")), "%S+") do
                 Add(word)
             end
-            for keyword, on in pairs(c:try_get("keywords", {})) do
+            for keyword, on in pairs(props:try_get("keywords", {})) do
                 if on then
                     Add(keyword)
                 end
             end
-            Add(c:try_get("monster_type"))
+            Add(props:try_get("monster_type"))
         end
     end
     g_types[id] = types
@@ -3238,12 +3237,12 @@ local function GaveOrGot(entry, kids, name, ids)
         end
         return false
     end
-    local function Check(e)
-        if e.kind == "line" then
-            return e.who ~= nil and ids[e.who.id] and string.find(Plain(LineWords(e)), wanted, 1, true) ~= nil
+    local function Check(record)
+        if record.kind == "line" then
+            return record.who ~= nil and ids[record.who.id] and string.find(Plain(LineWords(record)), wanted, 1, true) ~= nil
         end
-        local actorIn = e.actor ~= nil and ids[e.actor.id]
-        for _, who in ipairs(e.targets or {}) do
+        local actorIn = record.actor ~= nil and ids[record.actor.id]
+        for _, who in ipairs(record.targets or {}) do
             if Has(who) and (ids[who.id] or actorIn) then
                 return true
             end
@@ -3262,7 +3261,7 @@ local function GaveOrGot(entry, kids, name, ids)
 end
 
 --- Whether a row matches these chips and words. With a creature chip, a condition chip
---- means that creature got (or gave) the condition, as in the prototype.
+--- means that creature got (or gave) the condition.
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
 --- @param chips HistorySearchChip[]
@@ -3393,9 +3392,9 @@ function History.SearchMark(text)
         while i <= #chunk do
             local best, bestEnd = nil, nil
             for _, term in ipairs(terms) do
-                local s, e = string.find(lower, term, i, true)
-                if s ~= nil and (best == nil or s < best or (s == best and e > bestEnd)) then
-                    best, bestEnd = s, e
+                local matchStart, matchEnd = string.find(lower, term, i, true)
+                if matchStart ~= nil and (best == nil or matchStart < best or (matchStart == best and matchEnd > bestEnd)) then
+                    best, bestEnd = matchStart, matchEnd
                 end
             end
             if best == nil then
@@ -3457,7 +3456,7 @@ local function BuildSections(mapid)
         if root ~= nil then
             nested[root.id] = nested[root.id] or {}
             table.insert(nested[root.id], entry)
-        --a Malice line a player may not see never reaches here: ForPlayers cut it.
+        --a Malice line a player may not see never reaches here: History.Entry leaves it out.
         elseif entry ~= nil then
             local outside = entry.encounter == nil
             local groupid = "out-" .. (entry.mode or "exploration")
@@ -3518,7 +3517,7 @@ local function BuildSections(mapid)
     return sections, nested
 end
 
---Out of combat, the heading is the game mode's name as the Initiative bar shows it (5.1).
+--Out of combat, the heading is the game mode's name as the Initiative bar shows it.
 local function SectionTitle(section)
     if section.round == nil then
         local info = InitiativeQueue.GameModesById[section.mode or "exploration"] or InitiativeQueue.GameModesById["exploration"]
@@ -3581,8 +3580,8 @@ local function AddLoneTrigger(items, entry, key, kids)
             parts[#parts + 1] = {family = "moved", moved = who.moved}
         end
         for j, part in ipairs(parts) do
-            for k, v in pairs(base) do
-                part[k] = v
+            for field, value in pairs(base) do
+                part[field] = value
             end
             items[#items + 1] = {
                 kind = "line",
@@ -3595,10 +3594,10 @@ local function AddLoneTrigger(items, entry, key, kids)
     end
 end
 
---While searching, everything that matched shows unfolded (Appendix U).
+--While searching, everything that matched shows unfolded.
 local g_searchOpen = false
 
---The newest entry key this user had seen when History opened (3.3a), or nil. Turns with
+--The newest entry key this user had seen when History opened, or nil. Turns with
 --anything newer open unfolded, under the "New since you last looked" marker.
 --- @type string|nil
 local g_since = nil
@@ -3615,7 +3614,7 @@ local g_barStrip = nil
 --Whether the marker went in during this build (it goes before the first new turn only).
 local g_markerPlaced = false
 
---Nothing moves under the reader (B3): when new rows arrive while the pointer is on History or
+--Nothing moves under the reader: when new rows arrive while the pointer is on History or
 --a card is open, every turn and round stays as open as it was, and the turns shown on their
 --own stay out of the "Turns 1-4" fold. g_lastOpen / g_lastFoldTo are the last build's state.
 local g_frozen = false
@@ -3648,7 +3647,7 @@ local function AddTurnRows(items, turn, isNewest, nested)
         items[#items + 1] = {kind = "newmarker", key = "newmarker", sig = "newmarker"}
     end
     local toggle = Toggle(turn.id, isOpen)
-    --a turn whose every row was reverted (L39) has its heading struck through too.
+    --a turn whose every row was reverted has its heading struck through too.
     local reverted = false
     for _, entry in ipairs(turn.entries) do
         if entry.family ~= "reverted" then
@@ -3683,7 +3682,7 @@ local function AddTurnRows(items, turn, isNewest, nested)
             owner = turn.owner,
             toggle = toggle,
             reverted = reverted,
-            --the newest turn may be the one being played: its heading shows the pips (T8).
+            --the newest turn may be the one being played: its heading shows the pips.
             live = isNewest and first ~= nil and {encounter = first.encounter, round = first.round} or nil,
         }
     end
@@ -3692,7 +3691,7 @@ local function AddTurnRows(items, turn, isNewest, nested)
         if entry.kind == "line" and entry.family == "ended" and last ~= nil and last.kind == "line"
             and last.entry.family == "ended" and last.entry.who.id == entry.who.id
             and last.entry.causetext == entry.causetext and last.entry.reverted == entry.reverted then
-            --ended a moment apart, for the same reason: one line (L8).
+            --ended a moment apart, for the same reason: one line.
             local names = table.shallow_copy(last.entry.names)
             for _, name in ipairs(entry.names) do
                 names[#names + 1] = name
@@ -3805,7 +3804,7 @@ local function AddSectionRows(items, section, isNewest, nested, sub, open)
     local first = 1
     local groupid = "group-" .. section.id
     --the turns before the newest few fold into one line; with new turns, everything before
-    --the first new turn does (Appendix V).
+    --the first new turn does.
     local foldTo = nil
     if not g_searchOpen and g_open[groupid] ~= true then
         if firstNew ~= nil and firstNew > 1 then
@@ -3863,9 +3862,9 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
             for _, turn in ipairs(section.turns) do
                 local tail = prev.turns[#prev.turns]
                 if tail ~= nil and tail.number == turn.number then
-                    for k, entry in ipairs(turn.entries) do
+                    for index, entry in ipairs(turn.entries) do
                         tail.entries[#tail.entries + 1] = entry
-                        tail.keys[#tail.keys + 1] = turn.keys[k]
+                        tail.keys[#tail.keys + 1] = turn.keys[index]
                     end
                 else
                     prev.turns[#prev.turns + 1] = turn
@@ -3901,8 +3900,8 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
                 entries[#entries + 1] = entry
             end
         end
-        local a, b = sections[first].round, sections[last].round
-        local text = "Combat" .. DOT .. (a == b and string.format("Round %d", a) or string.format("Rounds %d%s%d", a, EN_DASH, b))
+        local firstRound, lastRound = sections[first].round, sections[last].round
+        local text = "Combat" .. DOT .. (firstRound == lastRound and string.format("Round %d", firstRound) or string.format("Rounds %d%s%d", firstRound, EN_DASH, lastRound))
         local tally = Tally(entries, nested)
         items[#items + 1] = {
             kind = "roundfold",
@@ -3996,7 +3995,7 @@ end
 
 --- The rows to show, and how many rows matched while searching (nil when not searching).
 --- @return table[] items, integer|nil matches
---- @param frozen boolean|nil New rows arrived while someone is reading (B3): keep what is open.
+--- @param frozen boolean|nil New rows arrived while someone is reading: keep what is open.
 local function BuildItems(mapid, frozen)
     local items = {}
     ClearTypes()
@@ -4074,7 +4073,7 @@ local function MapLabel(mapid)
 end
 
 
---What the search is called in S5: the chips, then the typed words.
+--What the search is called in the "Nothing matches" message: the chips, then the typed words.
 local function SearchLabel()
     local parts = {}
     for _, chip in ipairs(g_search.chips) do
@@ -4087,7 +4086,8 @@ local function SearchLabel()
     return table.concat(parts, " + ")
 end
 
---S5, in place of the rows when nothing matches; L96 when the map has nothing at all yet.
+--The message in place of the rows when nothing matches; text, when given, says the map has
+--nothing at all yet.
 --- @param text string|nil
 local function SearchEmpty(text)
     return gui.Label{
@@ -4131,7 +4131,7 @@ local function FitScore(name, typed)
     return 2
 end
 
---Suggestions while typing (S2): creatures, abilities, conditions and the outcome words that
+--Suggestions while typing: creatures, abilities, conditions and the outcome words that
 --appear in History, best fits first, four a group, each with how many rows it would find.
 --- @param mapid string
 --- @param typed string Lower case.
@@ -4180,14 +4180,14 @@ local function Suggestions(mapid, typed)
         EachCreature(row.entry, row.kids, function(who)
             Offer({kind = "creature", key = who.id, name = ShownName(who), who = who})
         end)
-        for _, e in ipairs({row.entry, table.unpack(row.kids or {})}) do
-            if e.ability ~= nil and e.ability.name ~= nil and e.ability.name ~= "" then
-                Offer({kind = "ability", key = e.ability.name, name = e.ability.name})
+        for _, record in ipairs({row.entry, table.unpack(row.kids or {})}) do
+            if record.ability ~= nil and record.ability.name ~= nil and record.ability.name ~= "" then
+                Offer({kind = "ability", key = record.ability.name, name = record.ability.name})
             end
-            if e.family == "condition" and e.name ~= nil then
-                Offer({kind = "condition", key = e.name, name = e.name, icon = e.icon})
+            if record.family == "condition" and record.name ~= nil then
+                Offer({kind = "condition", key = record.name, name = record.name, icon = record.icon})
             end
-            for _, who in ipairs(e.targets or {}) do
+            for _, who in ipairs(record.targets or {}) do
                 OfferStarts(who)
             end
         end
@@ -4205,16 +4205,16 @@ local function Suggestions(mapid, typed)
                 taken = true
             end
         end
-        local n = 0
+        local memberCount = 0
         for _ in pairs(members) do
-            n = n + 1
+            memberCount = memberCount + 1
         end
-        if n >= 2 and not taken then
+        if memberCount >= 2 and not taken then
             typeChips[#typeChips + 1] = {kind = "type", key = key, name = text}
         end
     end
-    table.sort(typeChips, function(a, b)
-        return a.name < b.name
+    table.sort(typeChips, function(first, second)
+        return first.name < second.name
     end)
     for i = #typeChips, 1, -1 do
         table.insert(candidates.creature, 1, typeChips[i])
@@ -4246,11 +4246,11 @@ local function Suggestions(mapid, typed)
                 items[#items + 1] = {chip = chip, count = count, score = score}
             end
         end
-        table.sort(items, function(a, b)
-            if a.score ~= b.score then
-                return a.score < b.score
+        table.sort(items, function(first, second)
+            if first.score ~= second.score then
+                return first.score < second.score
             end
-            return a.chip.name < b.chip.name
+            return first.chip.name < second.chip.name
         end)
         while #items > 4 do
             table.remove(items)
@@ -4259,8 +4259,8 @@ local function Suggestions(mapid, typed)
             groups[#groups + 1] = {title = kind[2], items = items, best = math.max(0, items[1].score) * 10 + index}
         end
     end
-    table.sort(groups, function(a, b)
-        return a.best < b.best
+    table.sort(groups, function(first, second)
+        return first.best < second.best
     end)
     return groups
 end
@@ -4285,7 +4285,7 @@ local function ChipPicture(chip, size)
     return nil
 end
 
---A small x that clears something, with its tooltip (S7).
+--A small x that clears something, with its tooltip.
 local function SearchX(tooltip, size, fn)
     return gui.Panel{
         classes = {"historySearchX"},
@@ -4318,8 +4318,8 @@ local function MyHeroes()
             heroes[#heroes + 1] = History.Creature(token)
         end
     end
-    table.sort(heroes, function(a, b)
-        return a.id < b.id
+    table.sort(heroes, function(first, second)
+        return first.id < second.id
     end)
     while #heroes > MY_HERO_MAX do
         heroes[#heroes] = nil
@@ -4344,10 +4344,10 @@ local function CreateFace()
     local face
     local list
     --true until the first build: History opens on "New since you last looked" when the
-    --new rows don't all fit, so the first one is in view (3.3a).
+    --new rows don't all fit, so the first one is in view.
     local openAtMarker = true
     local markerTries = 0
-    --The last build's items, and the row ShowEntry is bringing into view (3.4).
+    --The last build's items, and the row ShowEntry is bringing into view.
     --- @type table[]
     local builtItems = {}
     --- @type string|nil
@@ -4357,7 +4357,7 @@ local function CreateFace()
     --- @type string|nil
     local builtNewest = nil
 
-    --Held while scrolled up (B3): the row at the top of the view and how far into it the
+    --Held while scrolled up: the row at the top of the view and how far into it the
     --view starts, so a rebuild puts it back where it was.
     --- @type Panel|nil
     local holdPanel = nil
@@ -4402,21 +4402,20 @@ local function CreateFace()
             return
         end
         local top = (1 - list.vscrollPosition) * range
-        local y = 0
+        local rowTop = 0
         for _, row in ipairs(rowsPanel.children) do
-            local h = row.renderedHeight or 0
-            if y + h > top then
+            local rowHeight = row.renderedHeight or 0
+            if rowTop + rowHeight > top then
                 holdPanel = row
-                holdDelta = top - y
+                holdDelta = top - rowTop
                 return
             end
-            y = y + h
+            rowTop = rowTop + rowHeight
         end
     end
 
-    --The view is at the end of the list, or within half a row of it. A fraction of the
-    --scroll range alone is many pixels on a long list, so a new row landing just past the
-    --edge counted as "new below" while it was in view.
+    --The view is at the end of the list, or within half a row of it. On a long list a small
+    --fraction of the scroll range is many pixels, enough to count a row in view as "new below".
     local function AtBottom()
         local range = (rowsPanel.renderedHeight or 0) - (list.renderedHeight or 0)
         return list.vscrollPosition <= 0.02 or list.vscrollPosition * range <= 24
@@ -4434,7 +4433,7 @@ local function CreateFace()
         away = (scrollable and (not AtBottom() or loadedOlder)) or next(g_open) ~= nil
         UpdateNewBelow()
     end
-    --The map History shows: the one last clicked (6.1), held while someone reads; the
+    --The map History shows: the one last clicked, held while someone reads; the
     --switcher or a preview row from another map can show another until the next click.
     local mapid = g_showMapOnOpen or History.CurrentMap()
     --the map last clicked, as last seen: a change to it is a new click to follow.
@@ -4530,24 +4529,24 @@ local function CreateFace()
         }
     end
 
-    --Beside the window on the side with room, else over the list with a way back (B7).
+    --Beside the window on the side with room, else over the list with a way back.
     local function CardPlace()
         local rect = WindowRect()
         if rect ~= nil then
             local needed = (History.CARD_WIDTH + CARD_GAP) * rect.scale
-            local x = nil
+            local cardX = nil
             if rect.x + rect.w + needed <= rect.layerWidth then
-                x = face.renderedWidth + CARD_GAP
+                cardX = face.renderedWidth + CARD_GAP
             elseif rect.x - needed >= RAIL_LEFT then
-                x = -(History.CARD_WIDTH + CARD_GAP)
+                cardX = -(History.CARD_WIDTH + CARD_GAP)
             end
-            if x ~= nil then
+            if cardX ~= nil then
                 --the card slides up or down to stay on the screen, so the screen's height bounds
                 --it: less the action bar's strip when the card stands over it.
-                local left = rect.x + x * rect.scale
+                local left = rect.x + cardX * rect.scale
                 local reserve = BarReserve(rect.layer, left, left + History.CARD_WIDTH * rect.scale)
                 local room = math.floor((rect.layerHeight - reserve - 2 * CARD_GAP) / rect.scale)
-                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false, reserve = reserve}
+                return {x = cardX, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false, reserve = reserve}
             end
         end
         return {x = 0, width = g_trayWidth, maxHeight = face.renderedHeight, inTray = true}
@@ -4611,9 +4610,9 @@ local function CreateFace()
             return
         end
         --screen pixels to this face's own units.
-        local k = face.renderedHeight / faceScreenHeight
-        local rowTop = (row.panel.distancesToScreenEdge.w - faceEdges.w) * k
-        local listTop = (list.distancesToScreenEdge.w - faceEdges.w) * k
+        local toFaceUnits = face.renderedHeight / faceScreenHeight
+        local rowTop = (row.panel.distancesToScreenEdge.w - faceEdges.w) * toFaceUnits
+        local listTop = (list.distancesToScreenEdge.w - faceEdges.w) * toFaceUnits
         local listBottom = listTop + list.renderedHeight
         local target = rowTop + ROW_TITLE
 
@@ -4624,14 +4623,14 @@ local function CreateFace()
         local cardHeight = card.renderedHeight
         local minY = CARD_GAP - rect.top / rect.scale
         local maxY = (rect.layerHeight - (cardPlace.reserve or 0) - rect.top) / rect.scale - CARD_GAP - cardHeight
-        local y = math.max(minY, math.min(level - TAIL_DOWN, maxY))
-        card.y = y
+        local cardY = math.max(minY, math.min(level - TAIL_DOWN, maxY))
+        card.y = cardY
 
         --no tail when its row is out of sight, or the card couldn't reach it.
-        local tailCenter = target - y
+        local tailCenter = target - cardY
         local shown = inSight and tailCenter >= 14 and tailCenter <= cardHeight - 14
         tail:SetClass("collapsed", not shown)
-        tail.y = y + tailCenter - tail.renderedHeight / 2
+        tail.y = cardY + tailCenter - tail.renderedHeight / 2
     end
 
     --The tray moved or changed height, or the table did: the card may need a new place.
@@ -4672,8 +4671,8 @@ local function CreateFace()
             return
         end
         local stick = AtBottom()
-        --someone reading: the pointer on History, or a card open. mousePoint is 0-1 inside
-        --the panel (not (0,0) outside, whatever the stub says), as the title bar search reads it.
+        --someone reading: the pointer on History, or a card open. mousePoint runs 0-1 inside
+        --the panel and past that range outside it (not (0,0), whatever the stub says).
         local point = face.mousePoint
         local pointerIn = point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
         local reading = selected ~= nil or pointerIn
@@ -4777,7 +4776,7 @@ local function CreateFace()
             list:ScheduleEvent("holdAnchor", 0.02)
         end
 
-        --"{n} new below" (H2): rows that came in since the reader was last at the bottom.
+        --"{n} new below": rows that came in since the reader was last at the bottom.
         if stick then
             seenKeys = {}
             for _, item in ipairs(items) do
@@ -4848,24 +4847,24 @@ local function CreateFace()
             UpdateNewBelow()
         end,
 
-        --puts the held row back at the top of the view (B3). Layout takes a few frames.
+        --puts the held row back at the top of the view. Layout takes a few frames.
         holdAnchor = function(element)
             holdTries = holdTries + 1
             local windowHeight = element.renderedHeight or 0
             local contentHeight = rowsPanel.renderedHeight or 0
             local range = contentHeight - windowHeight
             if holdPanel ~= nil and holdPanel.valid and range > 0 then
-                local y = nil
+                local rowTop = nil
                 local offset = 0
                 for _, row in ipairs(rowsPanel.children) do
                     if row == holdPanel then
-                        y = offset
+                        rowTop = offset
                         break
                     end
                     offset = offset + (row.renderedHeight or 0)
                 end
-                if y ~= nil then
-                    element.vscrollPosition = 1 - math.max(0, math.min(y + holdDelta, range)) / range
+                if rowTop ~= nil then
+                    element.vscrollPosition = 1 - math.max(0, math.min(rowTop + holdDelta, range)) / range
                 end
             end
             if holdTries < 4 then
@@ -5016,7 +5015,8 @@ local function CreateFace()
         end,
     }
 
-    --Search (3.1): the field beside Latest, chips and the count on a row under it.
+    --Search: the field in the bar above the list, and its chips and match count on a row
+    --under it.
     local searchInput
     local chipRow
     local heroRow
@@ -5150,7 +5150,7 @@ local function CreateFace()
             styles = ThemeEngine.MergeStyles(Styles()),
             bgimage = "panels/square.png",
             flow = "vertical",
-            --grows downward from under the field (see the global search's popup).
+            --grows downward from under the field.
             pivot = {x = 0.5, y = 1},
             width = searchInput.renderedWidth > 0 and searchInput.renderedWidth or 280,
             height = "auto",
@@ -5323,7 +5323,7 @@ local function CreateFace()
         valign = "center",
         heroes = function(element)
             local heroes = MyHeroes()
-            --the search field beside the faces takes the rest of the width (6.3).
+            --the search field beside the faces takes the rest of the width.
             local sig = tostring(g_trayWidth) .. ":"
             for _, who in ipairs(heroes) do
                 sig = string.format("%s%s|%s|%s;", sig, who.id, tostring(who.name), tostring(who.img))
@@ -5368,7 +5368,7 @@ local function CreateFace()
     }
     heroRow:FireEvent("heroes")
 
-    --"{n} new below" (H2) or "Latest": floats over the list's foot (see UpdateNewBelow).
+    --"{n} new below" or "Latest": floats over the list's foot (see UpdateNewBelow).
     newBelowButton = gui.Label{
         classes = {"historyButton", "historyNewBelow", "hidden"},
         bgimage = "panels/square.png",
@@ -5425,8 +5425,7 @@ local function CreateFace()
         return selected ~= nil or (point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1)
     end
 
-    --No background of its own: the rail window's frame shows through.
-    --Lays the rows out again for the window's width, once a resize has stopped (6.3). Rows
+    --Lays the rows out again for the window's width, once a resize has stopped. Rows
     --shorten names by estimated widths, so they are rebuilt, but once, not every frame of a
     --drag. No 320-600 clamp here: a window Chat owns can be narrower or wider.
     local resizeToken = 0
@@ -5444,6 +5443,7 @@ local function CreateFace()
         end
     end
 
+    --No background of its own: the rail window's frame shows through.
     face = gui.Panel{
         classes = {"historyTray"},
         styles = ThemeEngine.MergeStyles(Styles()),
@@ -5520,7 +5520,7 @@ local function CreateFace()
         ApplySearch()
     end
 
-    --Opens on one row (3.4): the Sidebar Preview's click. Stops the opening's own scroll
+    --Opens on one row: the Sidebar Preview's click. Stops the opening's own scroll
     --to the marker, which would otherwise pull the view back.
     --- @param key string The row's entry key.
     local function ShowEntry(key)
@@ -5561,10 +5561,10 @@ function History.ShowEntry(mapid, key)
     end
 end
 
---The S5 fold (BRIEF Appendix I, 6.5d): when your own action ends, a small stand-in for its
---row (your face, the first target's, what they took) flies from the ability card to the
---new row, or to the rail button while History is closed. Nothing is built while idle.
---Long enough to follow by eye (James 2026-11-20: 0.3 s was too fast to see).
+--The fold: when your own action ends, a small stand-in for its row (your face, the first
+--target's, what they took) flies from the ability card to the new row, or to the rail
+--button while History is closed. Nothing is built while idle.
+--How long the flight takes: long enough to follow by eye.
 local FOLD_SECONDS = 0.9
 
 --From this far through the flight the copy fades out over the real row.
@@ -5580,12 +5580,12 @@ local function SetTreeOpacity(panel, opacity)
     end
 end
 
---Ease in-out cubic, as the map windows' minimise (Tabletop AnimateGhost).
-local function EaseInOut(t)
-    if t < 0.5 then
-        return 4 * t * t * t
+--Ease in-out cubic, the same curve as the map windows' minimise.
+local function EaseInOut(progress)
+    if progress < 0.5 then
+        return 4 * progress * progress * progress
     end
-    return 1 - ((-2 * t + 2) ^ 3) / 2
+    return 1 - ((-2 * progress + 2) ^ 3) / 2
 end
 
 --- Flies the stand-in for a row this client just wrote. Does nothing without an ability card
@@ -5623,7 +5623,7 @@ function History.FoldIn(entry)
     end
     local key = History.KeyOf(entry)
 
-    --a copy of the row it becomes (James 2026-11-20), built by the list's own row builder.
+    --a copy of the row it becomes, built by the list's own row builder.
     local width = g_trayWidth
     local row = BuildAction({kind = "action", key = key, entry = entry, sources = {entry}, triggers = {}, showActor = true})
 
@@ -5657,7 +5657,7 @@ function History.FoldIn(entry)
             end
         end,
         think = function(element)
-            local t = math.min(1, (dmhub.Time() - start) / FOLD_SECONDS)
+            local progress = math.min(1, (dmhub.Time() - start) / FOLD_SECONDS)
             --aim where the row is now: the list adds it a frame or two after the write.
             local target = nil
             if open then
@@ -5683,12 +5683,12 @@ function History.FoldIn(entry)
             elseif railButton ~= nil and railButton.valid then
                 target = Tabletop.PanelRect(railButton)
             end
-            if target == nil or t >= 1 then
+            if target == nil or progress >= 1 then
                 element:DestroySelf()
                 return
             end
             --the last stretch cross-fades: the real row shows and the copy fades over it.
-            local fade = math.max(0, (t - FOLD_FADE_FROM) / (1 - FOLD_FADE_FROM))
+            local fade = math.max(0, (progress - FOLD_FADE_FROM) / (1 - FOLD_FADE_FROM))
             if fade > 0 and hiddenRow ~= nil and hiddenRow.valid then
                 local shown = hiddenRow
                 shown:SetClassTree("historyFoldReveal", true)
@@ -5706,26 +5706,26 @@ function History.FoldIn(entry)
                 SetTreeOpacity(element, 1 - fade)
             end
             --it arrives by FOLD_FADE_FROM and fades in place, lined up with the row.
-            local e = EaseInOut(math.min(1, t / FOLD_FADE_FROM))
-            local w, h = element.renderedWidth or 0, element.renderedHeight or 0
-            if w <= 0 or h <= 0 then
+            local eased = EaseInOut(math.min(1, progress / FOLD_FADE_FROM))
+            local ghostWidth, ghostHeight = element.renderedWidth or 0, element.renderedHeight or 0
+            if ghostWidth <= 0 or ghostHeight <= 0 then
                 return
             end
-            --it shrinks to what it lands on (James 2026-11-20): the row's width, from the row's
-            --top-left, when History is open; a third of itself, centred, into the rail button.
-            local endScale = open and math.min(1, target.w / w) or 0.35
-            local scale = 1 + (endScale - 1) * e
+            --it shrinks to what it lands on: the row's width, from the row's top-left, when
+            --History is open; a third of itself, centred, into the rail button.
+            local endScale = open and math.min(1, target.w / ghostWidth) or 0.35
+            local scale = 1 + (endScale - 1) * eased
             local toX, toY = target.x, target.y
             if not open then
-                toX = target.x + target.w / 2 - w * endScale / 2
-                toY = target.y + target.h / 2 - h * endScale / 2
+                toX = target.x + target.w / 2 - ghostWidth * endScale / 2
+                toY = target.y + target.h / 2 - ghostHeight * endScale / 2
             end
-            local drawnX = from.x + (toX - from.x) * e
-            local drawnY = from.y + (toY - from.y) * e
+            local drawnX = from.x + (toX - from.x) * eased
+            local drawnY = from.y + (toY - from.y) * eased
             --scale works from the panel's centre, so move the panel to keep that top-left.
             element.selfStyle.scale = scale
-            element.x = drawnX - w * (1 - scale) / 2
-            element.y = drawnY - h * (1 - scale) / 2
+            element.x = drawnX - ghostWidth * (1 - scale) / 2
+            element.y = drawnY - ghostHeight * (1 - scale) / 2
         end,
     }
     layer:AddChild(ghost)
@@ -5737,9 +5737,9 @@ end
 --The map switcher's width in the title row, when it shows.
 local SWITCHER_WIDTH = 170
 
---- The map switcher in History's title row (6.1): the shown map's name, cut short when long,
+--- The map switcher in History's title row: the shown map's name, cut short when long,
 --- with a menu of every map in combat. It takes no room until two or more of the maps this
---- user can see are in combat. Built once per window by the rail window's headerControl hook.
+--- user can see are in combat. Each rail window showing History builds its own.
 --- @return Panel
 function History.MapSwitcher()
     local sig = nil
@@ -5859,7 +5859,7 @@ ThemeEngine.OnThemeChanged(mod, function()
     end
 end)
 
---- Opens History on one creature, from the token radial and hero cards (3.2). The search
+--- Opens History on one creature, from the token radial and hero cards. The search
 --- becomes just that creature's chip, replacing any search there was, and the window
 --- opens or comes to the front.
 --- @param token CharacterToken
@@ -5874,11 +5874,11 @@ function History.OpenFor(token)
     end
 end
 
---Notifications (3.3a, Appendix V). While History is closed its rail button counts the turns
+--Notifications. While History is closed its rail button counts the turns
 --you have not seen: a grey count, or a gold diamond when one of them did something to a
 --creature you control. Hovering the button shows what happened; opening clears it.
 
---M7: notifications on or off, per user.
+--Notifications on or off, per user.
 setting{
     id = "history:notifications",
     description = "History notifications",
@@ -6001,7 +6001,7 @@ local function Unseen()
             while first > 1 and keys[first - 1] > last do
                 first = first - 1
             end
-            --a combat that began since: what came before it counts as seen (James, 2026-11-19).
+            --a combat that began since: what came before it counts as seen.
             local start = CombatStart(mapid, keys, first)
             if start ~= nil then
                 baselines[mapid] = keys[start - 1]
@@ -6025,7 +6025,7 @@ local function Unseen()
                         local function Add(row, mine)
                             result.lines[#result.lines + 1] = {row = row, mine = mine, turn = turnKey}
                         end
-                        --a player's hand edit is what the Director's gold is for (Appendix V).
+                        --a player's hand edit is what the Director's gold is for.
                         if dmhub.isDM and entry.byplayer then
                             result.gold = true
                         end
@@ -6101,10 +6101,10 @@ local PREVIEW_LINES = 3
 --The hover card's width, and how far it stands off the rail button to clear its name label.
 local PREVIEW_WIDTH = 320
 local PREVIEW_CLEAR_LABEL = 80
---Seconds the pointer rests on the button before the card shows (the detail hovers' delay).
+--Seconds the pointer rests on the button before the card shows (the same as the detail hovers).
 local PREVIEW_DELAY = 0.4
 
---- The rail button's hover card (M1-M5): what happened since you last looked, your
+--- The rail button's hover card: what happened since you last looked, your
 --- creatures first, while History is closed.
 --- @param element Panel The rail button.
 --- @param placement {halign: string, valign: string, inStrip: boolean|nil}
@@ -6114,7 +6114,7 @@ function History.ShowSincePreview(element, placement)
         if mod.unloaded or not element.valid or not element:HasClass("hover") then
             return
         end
-        --the hover card takes over from the Sidebar Preview's bubble (3.4).
+        --the hover card takes over from the Sidebar Preview's bubble.
         PanelDocument.FadeRailBubble("history")
         if g_tray ~= nil and g_tray.face.valid then
             return
@@ -6185,11 +6185,11 @@ History.Notify = {
     end,
 }
 
---Sidebar Preview (3.4, David's D2). While History is closed, each new entry from someone
+--Sidebar Preview. While History is closed, each new entry from someone
 --else's turn shows beside the History button in the chat bubble; clicking a row opens
 --History on it. It marks nothing seen: the badge keeps counting until History opens.
 
---L37 and L38.
+--Sidebar Preview on or off, per user.
 setting{
     id = "history:sidebarpreview",
     description = "History Sidebar Preview",
@@ -6251,7 +6251,7 @@ local function BubbleRows(mapid, keys)
         else
             owner = entry.actor or entry.who
         end
-        --(a Malice line a player may not see was cut by ForPlayers)
+        --(a Malice line a player may not see is already left out by History.Entry)
         local wanted = entry.cause == nil and not Mine(owner)
         local args = nil
         if wanted and entry.kind == "line" then
@@ -6354,11 +6354,11 @@ DockablePanel.Register{
     minWidth = TRAY_MIN_WIDTH + EDGE_STRIP,
     maxWidth = TRAY_MAX_WIDTH + EDGE_STRIP,
     --looked up when called, like the hooks below: after a reload the window and the rail's
-    --"seen" mark must come from the same copy of this file, or the divider is lost.
+    --"seen" mark must come from the same copy of this file, or "New since you last looked" is lost.
     content = function()
         return History.Notify.CreateFace()
     end,
-    --the rail button's badge and hover card (3.3a). The rail keeps these functions, so each
+    --the rail button's badge and hover card. The rail keeps these functions, so each
     --looks up History.Notify when called: a reloaded HistoryTray takes effect at once.
     hasNewContent = function()
         return History.Notify.Unseen().turns > 0
@@ -6376,7 +6376,7 @@ DockablePanel.Register{
     railHover = function(element, placement)
         History.ShowSincePreview(element, placement)
     end,
-    --the map switcher in the window's title row (6.1).
+    --the map switcher in the window's title row.
     headerControl = function()
         return History.MapSwitcher()
     end,

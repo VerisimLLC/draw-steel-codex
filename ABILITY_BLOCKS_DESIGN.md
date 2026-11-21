@@ -562,6 +562,48 @@ Engine work if adopted: a JS-free Lua path. The paste dialog calls the importer'
 ability's text, maps the resulting behaviours to blocks (the same mapping the editor uses to open saved
 abilities), and "Save as pattern" writes an `importerAbilityEffects` row.
 
+## 4m. Random poll of class abilities (2026-11-21)
+
+55 abilities, drawn at random (fixed seed) from every class and subclass: one per level band (1, 2-3,
+4-6, 7-10) per class, plus one player-facing trigger each. Each was checked two ways: its saved setup
+against what the editor can show as blocks, and its book text pasted into the reader. Scripts and results:
+`ui-mockup/ability-blocks-corpus/poll/`.
+
+**15 of 55 map onto blocks with nothing missing** (e.g. Brutal Slam, Meteoric Introduction, Conflagration,
+Impart Force, Mark, Sacred Bond, Oracular Warning, Equal Billing, and the power roll triggers Synaptic
+Anchor, Advanced Tactics and Stasis Shield as far as their fields go). The other 40 hit one or more of:
+
+| Issue | Abilities | Examples | What the editor needs |
+|---|---|---|---|
+| Nested / invoked abilities | 14 | Get In Get Out (3 deep), Blot Out the Sun!, Pierce the Veil (2 deep), Feral Strike | Works with "Use a new ability", but depth 2-3 is hard to read. A collapsed summary per nested ability. |
+| **Modes** (choose one when using it) | 12 | Banshee Howl "Standard / Spend 1 Ferocity", Elemental Fury and Grand Wyrding (7 damage types), Sanctified Weapon, Coat the Blade, Optic Blast (numTargets = Mode) | **Not modelled at all.** Biggest gap. Needs a "When you use it, choose:" block with one branch per option, and "spend N more" options as their own pattern. |
+| Advanced behaviours | 12 | Ability Duration Effect (4), Condition Riders (2), Summon, Recast, Modify Power Roll (2), Forced Movement Origin | Ability Duration Effect and Riders are common enough to deserve sentence blocks. |
+| Distance written as text (`rangeTextOverride`) | 11 | "Melee 1 or ranged 5" (content uses the override, not meleeRange), "2 aura", "5 aura", "3 burst" on a self ability whose nested ability does the targeting | Add **N aura** as a distance form. Generated card text replaces the other overrides. |
+| Tier text the tier grammar can't read | 11 | "P < Weak, jaws of death (save ends)" (multi-word effect), "#the target is suppressed (save ends)" (custom effect text), "vertical push straight up 5", "the target gains two surges", "M < Strong prone and can't stand (EoT)", "bleeding (EoT), or if M < Strong, bleeding (save ends)", narrative tiers (Dead Men Tell All Tales) | Multi-word effect names, surges, "vertical push", "can't stand", and a text-only tier result. |
+| Formulas with symbols the editor doesn't know | 9 | SummonerRange, Mode, Resources.Rampage, Resources.Recovery, Caster.Recovery Value, Cast.Damage Dealt, Used Ability.keywords has "Void", Friends(Caster, Target) | Add these symbols to the field descriptions; "Friends" and "Used Ability has keyword" as tests. |
+| Display-only power roll hack | 2 | Feral Strike, Get In Get Out: a power roll with `filterTarget: 0 {Display only}` so the card shows the table while the real roll runs in a nested ability | Generated card text with overrides makes this hack unnecessary. |
+| Trigger targets | 2 | Blessing of Life (targetType subject), Snare Ward (attacker) | The trigger header needs "affects the triggering creature / the attacker". |
+| Power roll trigger fields | 3 | surges (Advanced Tactics), activationCondition and custom trigger (Synaptic Anchor), changeTargetEffect / changeTargetFilter (Stasis Shield), rollType and keywords filters | Add "gain surges" to Change the roll, and a "which rolls" filter (roll type, keywords). |
+
+**Paste from the book PDF: 3 of 33 came out clean.** The rulebook's PDF text has its own copy artefacts,
+different from the third-party PDF:
+- tier markers come through as the letters **a / e / i** ("a 3 + M damage"), distance and target as
+  **o** and **x** ("o Melee 1 or ranged 5", "x One creature"), and potency as **m<w / m<v / m<s**
+  (weak / average / strong);
+- the action ("Main action") is on its own line after the keywords;
+- lines wrap mid-word with a stray space ("encoun ter", "crea ture", "dupli cate");
+- bullets come through as **Y**;
+- a tier's text can wrap onto a second line ("the target is suppressed" / "(save ends)").
+The markdown reference format (Beastheart) wasn't read at all: "**Name (7 Ferocity)** *(keywords -- Main
+Action)*", "- Distance: ... | Target: ...", and a table for the tiers. Each copy source needs its own small
+set of rules, so the reader should keep a list of known formats and say which one it recognised.
+
+Sentence patterns: none of the effect sentences in the sample matched an existing pattern, so they all
+became "To build". The common ones are good candidates for the importer's pattern table: "You gain N surges",
+"Each target gains N surges", "You can shift up to N squares", "You or one ally within distance can spend a
+Recovery", "You gain an edge on this ability", "Until the end of the encounter, ...", and "Spend N+ Resource:"
+paragraphs (which are modes).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -637,6 +679,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **"Who it targets" stays as the author set it when a block (e.g. Move a creature) picks the targets.** No "set by..." wording. | Abilities with unusual targeting are already labeled Special targeting on the card, so authors expect the row to differ from what the blocks do. |
 | 2026-11-21 | **Pasting tolerates lost icons and marks guesses.** Bare tier lines are read in order; a potency lost with its icon is guessed (roll characteristic, weak/average/strong by tier) and marked "check"; unknown resource words (third-party) stay on the card. | Real copies from PDFs and third-party books drop the icons that carry meaning; a marked guess is fewer clicks than a blank. |
 | 2026-11-21 | **"Who it targets" uses the card's own wording, as two lines: "Distance: [4] cube within [10]" and "Target: each enemy in the area".** Each form puts its numbers where the card does: Melee N, Ranged N, Melee N or ranged M, N burst, N cube within M, L x W line within D, Self. Area forms only offer "each ... in the area" (and Special) as targets. A plain-words line underneath explains it ("A cube 4 squares on each side, placed anywhere within 10 squares of you."). Saved the way the statblock importer saves them: burst = targetType all with range = size; cube = radius size, range within; line = range length, radius width, lineDistance; melee or ranged = meleeRange. The card shows "One creature", not "1 creature". | The old row ("1 each enemy in the area within Cube 4") didn't match how the book says it and lost the cube's "within" distance. |
+| 2026-11-21 | **Class ability poll (55 random abilities, all classes, levels 1-10).** 15 map to blocks fully. The gaps, by count: nested abilities 14, modes 12 (not modelled), advanced behaviours 12, distance as text 11, unreadable tier text 11, unknown symbols 9. Book PDF paste: 3 of 33 clean, because of icon letters (a/e/i, o/x, m<w), split action lines and broken word wraps. | Evidence for what to build next: modes, the aura distance form, tier grammar additions, and copy-format rules. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

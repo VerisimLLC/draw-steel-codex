@@ -1,0 +1,5245 @@
+[
+{
+"cls": "Guardian",
+"sub": true,
+"file": "subclasses/guardian.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Feral Strike",
+"rec": {
+"name": "Feral Strike",
+"description": "Your companion moves up to a number of squares equal to their Intuition score straight toward the closest enemy they are aware of, avoiding damaging terrain, ending the movement when adjacent to that enemy. Your companion then makes the following power roll against each creature in the area.\n\nEach enemy target is taunted by your companion until the start of your next turn.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"filterTarget": "0 {Display only - real roll runs inside the burst sub-ability.}",
+"roll": "2d10 + Might",
+"tiers": [
+"1 + M damage; taunted (EoT)",
+"3 + M damage; taunted (EoT)",
+"4 + M damage; taunted (EoT)"
+]
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "custom",
+"applyto": "caster",
+"customAbility": {
+"name": "Feral Strike Approach",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityRelocateCreatureBehavior",
+"movementType": "move"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "6e2c8d41-3b7f-4a96-b528-1c5d6e3f7a83",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": "Intuition",
+"repeatTargets": false,
+"targetType": "emptyspace",
+"targeting": "straightpath"
+},
+"promptText": "Move up to your Intuition in a straight line toward the closest enemy."
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "custom",
+"applyto": "caster",
+"customAbility": {
+"name": "Feral Strike Burst",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Might",
+"tiers": [
+"1 + M damage",
+"3 + M damage",
+"4 + M damage"
+]
+},
+{
+"__typeName": "ActivatedAbilityDrawSteelCommandBehavior",
+"filterTarget": "not Friends(Caster, Target)",
+"rule": "taunted (EoT)"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "5b8c2e93-3f1d-4a76-b248-7c1e6d3f5a83",
+"iconid": "ui-icons/skills/1.png",
+"keywords": {
+"Area": true,
+"Companion": true,
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"rangeTextOverride": "1 burst",
+"repeatTargets": false,
+"targetTextOverride": "Each creature in the area",
+"targetType": "all"
+},
+"inheritKeywords": true,
+"promptText": "Resolve the burst against each enemy in the area."
+}
+],
+"castImmediately": true,
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2": true,
+"class:6ebd1424-e99c-4656-a58f-f0e3e2850dee": true
+},
+"flavor": "Your companion lunges into the fray, attacking wildly with teeth, claws, or other weapons.",
+"guid": "3a7c1e93-5b6d-4f48-b219-8e3c5d1f7a92",
+"iconid": "a393d50b-bef4-4a90-a1bf-767971ef2117",
+"implementation": 3,
+"keywords": {
+"Area": true,
+"Companion": true,
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "1 burst",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "d04b544a-5144-4c0f-bd3d-2e9fc27e3bc4",
+"page": 4,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "Each creature in the area",
+"targetType": "self"
+},
+"klass": "Beastheart",
+"from": "Guardian",
+"book": "**Feral Strike** *(Area, Companion, Melee, Strike, Weapon -- Main Action)*\n*Your companion lunges into the fray, attacking wildly with teeth, claws, or other weapons.*\n- Distance: 1 Burst | Target: Each creature in the area\n- Effect: Your companion moves up to a number of squares equal to their Intuition score straight toward the closest enemy they are aware of, avoiding damaging terrain, ending the movement when adjacent to that enemy. Your companion then makes the following power roll:\n\n| Roll | Result |\n|------|--------|\n| <= 11 | 1 + M damage |\n| 12-16 | 3 + M damage |\n| 17+ | 4 + M damage |\n\nWild nature benefits:\n- **Guardian:** Each enemy target is taunted by your companion until the start of your next turn.\n- **Prowler:** Each enemy target is weakened until the start of your next turn.\n- **Punisher:** Your companion slides each target up to a number of squares equal to their Might score.\n- **Spark:** This strike deals cold, fire, lightning, or sonic damage. You gain 1 surge.\n"
+},
+{
+"cls": "Beastheart",
+"sub": false,
+"file": "classes/beastheart.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Jaws of Death",
+"rec": {
+"name": "Jaws of Death",
+"description": "Whenever a target more than 3 squares away from you fails the saving throw while weakened this way, you can pull the target up to a number of squares equal to your Intuition score as a free triggered action.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Intuition",
+"tiers": [
+"7 + I damage; P < Weak, jaws of death (save ends)",
+"10 + I damage; P < Average, jaws of death (save ends)",
+"14 + I damage; P < Strong, jaws of death (save ends)"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2": true
+},
+"flavor": "Spectral teeth clamp on a foe, chaining them to you and draining their life essence.",
+"guid": "3dd27093-dad5-46a7-a97c-3ba18fb91e68",
+"iconid": "ui-icons/skills/1.png",
+"keywords": {
+"Beastheart": true,
+"Magic": true,
+"Melee": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"range": 5,
+"rangeTextOverride": "Melee 1 or ranged 5",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "7",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "d04b544a-5144-4c0f-bd3d-2e9fc27e3bc4",
+"page": 28,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "enemy",
+"targetType": "target"
+},
+"klass": "Beastheart",
+"from": "Beastheart",
+"book": "**Jaws of Death (7 Ferocity)** *(Beastheart, Magic, Melee, Ranged -- Main Action)*\n*Spectral teeth clamp on a foe, chaining them to you and draining their life essence.*\n- Distance: Melee 1 or Ranged 5 | Target: One creature\n\n| Roll | Result |\n|------|--------|\n| <= 11 | 7 + I damage; P < Weak: weakened (save ends) |\n| 12-16 | 10 + I damage; P < Average: weakened (save ends) |\n| 17+ | 14 + I damage; P < Strong: weakened (save ends) |\n\n- Effect: Whenever a target more than 3 squares away from you fails the saving throw while weakened this way, you can pull the target up to a number of squares equal to your Intuition score as a free triggered action.\n"
+},
+{
+"cls": "Guardian",
+"sub": true,
+"file": "subclasses/guardian.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Sic 'Em!",
+"rec": {
+"name": "Sic 'Em!",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Might",
+"tiers": [
+"11 + M damage; taunted (save ends); M < Weak prone",
+"16 + M damage; taunted (save ends); M < Average prone",
+"21 + M damage; taunted (save ends); M < Strong prone and can't stand (EoT)"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2": true,
+"class:6ebd1424-e99c-4656-a58f-f0e3e2850dee": true
+},
+"flavor": "Your companion rushes forward to protect you from a dangerous foe.",
+"guid": "3c3fa2ca-57ce-4b2c-bd5e-24f9ea1637cd",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Charge": true,
+"Companion": true,
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "d04b544a-5144-4c0f-bd3d-2e9fc27e3bc4",
+"page": 31,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Beastheart",
+"from": "Guardian",
+"book": "**Sic 'Em! (9 Ferocity)** *(Charge, Companion, Melee, Strike, Weapon -- Main Action)*\n*Your companion rushes forward to protect you from a dangerous foe.*\n- Distance: Melee 1 | Target: One creature\n\n| Roll | Result |\n|------|--------|\n| <= 11 | 11 + M damage; taunted (save ends); M < Weak: prone |\n| 12-16 | 16 + M damage; taunted (save ends); M < Average: prone |\n| 17+ | 21 + M damage; taunted (save ends); M < Strong: prone and can't stand (EoT) |\n\n- Spend 2 Ferocity: Your companion can use this ability as a triggered action against an enemy who damages you.\n"
+},
+{
+"cls": "Guardian",
+"sub": true,
+"file": "subclasses/guardian.yaml",
+"level": 9,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Banshee Howl",
+"rec": {
+"name": "Banshee Howl",
+"description": "3 burst; each enemy in the area. Power Roll + Intuition: sonic damage and frightened (save ends). While frightened this way, a creature takes 10 psychic damage at the start of each of your turns. Spend 1 Ferocity: this ability also affects a 3 burst originating from you; an enemy in both areas is only affected once.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Intuition",
+"tiers": [
+"5 sonic damage; I < weak, banshee howl (save ends)",
+"10 sonic damage; I < average, banshee howl (save ends)",
+"15 sonic damage; I < strong, banshee howl (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"applyto": "caster",
+"chatMessage": "Banshee Howl - Spend 1 Ferocity for a second burst from the beastheart.",
+"mode": "expend",
+"modesSelected": [
+2
+],
+"quantity": "1",
+"resourceid": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2": true,
+"class:6ebd1424-e99c-4656-a58f-f0e3e2850dee": true
+},
+"flavor": "Your companion's howl, screech, roar, or psychic emanation presages death to those who hear it.",
+"guid": "2e4d80fe-ba62-4596-8197-5a7292f0a474",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Area": true,
+"Companion": true,
+"Magic": true
+},
+"modeList": [
+{
+"text": "Standard"
+},
+{
+"condition": "Heroic Resources Available to Spend >= 1",
+"rules": "Also affects a 3 burst originating from you; an enemy in both areas is only affected once.",
+"text": "Spend 1 Ferocity"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"partnerBurst": "Mode = 2",
+"range": 3,
+"rangeTextOverride": "3 burst",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "11",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "d04b544a-5144-4c0f-bd3d-2e9fc27e3bc4",
+"page": 35,
+"type": "pdf"
+},
+"targetFilter": "Enemy",
+"targetTextOverride": "Each enemy in the area",
+"targetType": "all"
+},
+"klass": "Beastheart",
+"from": "Guardian",
+"book": "**Banshee Howl (11 Ferocity)** *(Area, Companion, Magic -- Main Action)*\n*Your companion's howl, screech, roar, or psychic emanation presages death to those who hear it.*\n- Distance: 3 Burst | Target: Each enemy in the area\n\n| Roll | Result |\n|------|--------|\n| <= 11 | 5 sonic damage; I < Weak: frightened (save ends) |\n| 12-16 | 10 sonic damage; I < Average: frightened (save ends) |\n| 17+ | 15 sonic damage; I < Strong: frightened (save ends) |\n\n- Effect: While frightened this way, a creature takes 10 psychic damage at the start of each of your turns.\n- Spend 1 Ferocity: This ability also affects a 3 burst originating from you. An enemy in both areas is only affected once.\n"
+},
+{
+"cls": "Beastheart",
+"sub": false,
+"file": "classes/beastheart.yaml",
+"level": 1,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Rampaging - End of Turn Feral Strike",
+"rec": {
+"name": "Rampaging - End of Turn Feral Strike",
+"description": "Rampaging (rampage >= 8): at the end of your turn, your companion uses Feral Strike as a free maneuver. Each ally damaged grants 2 surges (delivered by the temporary effect this trigger applies during the strike).",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"guid": "9d4c2e83-5b1f-4a86-c628-7e1c3d6f5a82",
+"source": "Beastheart",
+"sourceguid": "8a4f2c91-3b6e-4d75-b528-9c1d3e7f5a82",
+"triggeredAbility": {
+"name": "Rampaging Feral Strike",
+"description": "At the end of your turn while rampaging, your companion uses Feral Strike as a free maneuver. Each ally damaged grants 2 surges.",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"name": "Rampaging Surges Window",
+"__typeName": "ActivatedAbilityApplyAbilityDurationEffect",
+"applyto": "caster",
+"instant": true,
+"momentaryEffect": {
+"id": "6c3d8e91-2b5f-4a76-c428-9d1e7f3c5a83",
+"name": "Rampaging - Surges On Ally Damage",
+"description": "While the rampaging Feral Strike resolves, each ally the companion damages grants 2 surges to the beastheart.",
+"__typeName": "CharacterOngoingEffect",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "6c3d8e91-2b5f-4a76-c428-9d1e7f3c5a83",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [
+{
+"name": "Rampaging - Surge On Ally Damage",
+"description": "Each ally damaged this way grants the beastheart 2 surges.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"guid": "7f2c5d83-3b1e-4a96-b528-1d6c4e8f5a82",
+"source": "Ongoing Effect",
+"sourceguid": "6c3d8e91-2b5f-4a76-c428-9d1e7f3c5a83",
+"triggeredAbility": {
+"name": "Rampaging Ally Damage Surge",
+"description": "Each ally damaged grants 2 surges to the beastheart.",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"applyto": "caster_summoner",
+"chatMessage": "Rampaging - Ally Damage Surge",
+"quantity": "2",
+"resourceid": "8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d"
+}
+],
+"conditionFormula": "Target.IsFriend(Self)",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "2d8c4f93-5b1e-4a76-b428-9c1d3e6f5a82",
+"iconid": "ui-icons/skills/1.png",
+"mandatory": true,
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"strain": [],
+"targetType": "self",
+"trigger": "dealdamage",
+"triggerPrompt": "Damaged Ally: Beastheart gains 2 surges.",
+"whenActive": "combat"
+}
+}
+],
+"source": "Ongoing Effect"
+}
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "named",
+"applyto": "caster",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "3a7c1e93-5b6d-4f48-b219-8e3c5d1f7a94",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"namedAbility": "Feral Strike",
+"promptText": "Rampaging: Free Feral Strike."
+}
+],
+"conditionFormula": "Resources.Rampage >= 8",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "4e8c1d72-3b9f-4a56-b428-2d5c1e7f6a83",
+"hostile": true,
+"iconid": "ui-icons/skills/1.png",
+"mandatory": false,
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"strain": [],
+"subject": "self",
+"targetType": "self",
+"trigger": "endturn",
+"triggerPrompt": "Rampaging: Companion uses Feral Strike as a free maneuver.",
+"whenActive": "combat"
+}
+},
+"klass": "Beastheart",
+"from": "Beastheart",
+"book": null
+},
+{
+"cls": "Censor",
+"sub": false,
+"file": "classes/censor.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Ability",
+"name": "Sanctified Weapon",
+"rec": {
+"name": "Sanctified Weapon",
+"description": "As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a +1 rolled damage bonus with abilities that use the weapon. This benefit lasts until you finish another respite. ",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "5758da29-8660-47d3-805b-7c6038f476a1",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+1
+],
+"ongoingEffect": "2df939ce-c414-4316-b408-4547f003d8dd",
+"ongoingEffectCustom": "2df939ce-c414-4316-b408-4547f003d8dd"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+2
+],
+"ongoingEffect": "88f52d3a-6278-447c-b2d9-ce250a8057d4",
+"ongoingEffectCustom": false
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+3
+],
+"ongoingEffect": "684c093d-dabf-4aae-abe0-11caf71945c4",
+"ongoingEffectCustom": false
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"guid": "ba2f67ab-d575-424e-81f0-01214b3949aa",
+"iconid": "c12a60e3-9a18-43a7-a6ad-228834cc5fc2",
+"implementation": 4,
+"implementationDetails": "Use it during a respite, targeting whoever will wield the weapon.",
+"modeList": [
+{
+"rules": "+1 rolled damage bonues with abilities that use your melee weapon attacks.",
+"text": "Melee Weapon"
+},
+{
+"condition": "",
+"rules": "+1 rolled damage bonues with abilities that use your Ranged weapon attacks.",
+"text": "Ranged Weapon"
+},
+{
+"rules": "+1 rolled damage bonus with melee and ranged attacks.",
+"text": "Both"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"persistence": [],
+"range": "25",
+"repeatTargets": false,
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 80,
+"type": "pdf"
+},
+"strain": [],
+"targetFilter": "not enemy",
+"targetType": "target",
+"usageLimitOptions": {
+"charges": "1",
+"multicharge": false,
+"resourceRefreshType": "long",
+"resourceid": "3ed20a2d-1ba1-441c-937e-36b3dad6c39a"
+}
+},
+"klass": "Censor",
+"from": "Censor",
+"book": null
+},
+{
+"cls": "Censor",
+"sub": false,
+"file": "classes/censor.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Edict of Purifying Pacifism",
+"rec": {
+"name": "Edict of Purifying Pacifism",
+"description": "Until the end of the encounter or until you are dying, whenever a target makes a strike, they take holy damage equal to twice your Presence score. A target judged by you takes an extra 2d6 holy damage.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"ongoingEffect": "97214170-ea60-4843-b2ec-920c00723e0e",
+"ongoingEffectCustom": "97214170-ea60-4843-b2ec-920c00723e0e"
+}
+],
+"castImmediately": true,
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"effectImplemented": false,
+"flavor": "You shed a righteous energy that punishes enemies who would harm you or your allies.",
+"guid": "ddedbde0-a3f4-49dc-a01d-259d8e82d40b",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Area": true,
+"Magic": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "2 aura",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 7,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 85,
+"type": "pdf"
+},
+"strain": [],
+"targetFilter": "",
+"targetTextOverride": "Each enemy in the area",
+"targetType": "self"
+},
+"klass": "Censor",
+"from": "Censor",
+"book": "Edict of Purifying Pacifism (7 Wrath)\nYou shed a righteous energy that punishes enemies who would harm you or \nyour allies.\nArea, Magic\t\nManeuver\no 2 aura\t\nx Each enemy in the area\nEffect: Until the end of the encounter or until you are dying, when\never a target makes a strike, they take holy damage equal to twice \nyour Presence score. A target judged by you takes an extra 2d6 holy \ndamage."
+},
+{
+"cls": "Censor",
+"sub": false,
+"file": "classes/censor.yaml",
+"level": 4,
+"kind": "ability",
+"cat": "Ability",
+"name": "Oracular Warning",
+"rec": {
+"name": "Oracular Warning",
+"description": "Each time you finish a respite, you can share the vague dreams of the future granted to you by the gods with allies who finished the respite with you. These premonitions help you and your allies stay alive, granting each of you temporary Stamina equal to 10 + your level that lasts until you finish another respite.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "5758da29-8660-47d3-805b-7c6038f476a1",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityGrantTemporaryStaminaBehavior",
+"stamina": "10 + Caster.Level"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"guid": "69e476f3-6821-4a0b-8c40-7ab114167a5b",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "20",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 86,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetType": "all"
+},
+"klass": "Censor",
+"from": "Censor",
+"book": null
+},
+{
+"cls": "Censor",
+"sub": false,
+"file": "classes/censor.yaml",
+"level": 7,
+"kind": "ability",
+"cat": "Ability",
+"name": "Trinity of Trickery",
+"rec": {
+"name": "Trinity of Trickery",
+"description": "You create two illusory duplicates of the target, which appear anywhere within distance. These duplicates last until the end of the encounter. On each of their turns, the target can move each duplicate up to their speed. If the target is targeted by an ability, they can use a free triggered action to switch places with a duplicate within their line of effect, making the duplicate the target of the ability",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"customAbility": {
+"name": "Trinity of Trickery",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilitySummonBehavior",
+"applyto": "caster",
+"duplicateMode": true
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"ongoingEffect": "0fab6f7d-eaf4-4e26-be26-db824b57931f",
+"ongoingEffectCustom": "0fab6f7d-eaf4-4e26-be26-db824b57931f"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "26b1d40c-fe06-4295-a11f-3dd5031393c6",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 89,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "emptyspace"
+},
+"inheritRange": true,
+"promptText": "Place first Duplicate"
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"customAbility": {
+"name": "Trinity of Trickery",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilitySummonBehavior",
+"applyto": "caster",
+"duplicateMode": true
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"ongoingEffect": "0fab6f7d-eaf4-4e26-be26-db824b57931f",
+"ongoingEffectCustom": "0fab6f7d-eaf4-4e26-be26-db824b57931f"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "26b1d40c-fe06-4295-a11f-3dd5031393c6",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 89,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "emptyspace"
+},
+"guid": "1a2c10b2-26e0-4646-b8c0-d896f273e820",
+"inheritRange": true,
+"promptText": "Place second Duplicate"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"applyto": "caster",
+"duration": "eoe_or_dying",
+"ongoingEffect": "641e0df1-c24e-4510-81ab-40abc6b40415",
+"ongoingEffectCustom": "641e0df1-c24e-4510-81ab-40abc6b40415"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"flavor": "Hey! I\u2019m over here. No, here, numbskull.",
+"guid": "3af96d4c-33a8-4cc4-94b7-8cbe2281cfde",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Magic": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "10",
+"rangeTextOverride": "",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 89,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetTextOverride": "Self or one ally",
+"targetType": "target"
+},
+"klass": "Censor",
+"from": "Censor",
+"book": "Trinity of Trickery\nYou have the following ability.\nTrinity of Trickery (9 Wrath)\nHey! I'm over here. No, here, numbskull.\nMagic, Ranged\t\nManeuver\no Ranged 10\t\nx Self or one ally\nEffect: You create two illusory duplicates of the target, which appear \nanywhere within distance. These duplicates last until the end of the \nencounter. On each of their turns, the target can move each dupli\ncate up to their speed. If the target is targeted by an ability, they can \nuse a free triggered action to switch places with a duplicate within \ntheir line of effect, making the duplicate the target of the ability \ninstead. When either duplicate takes damage, it is destroyed.\nWord of Death Deferred\nYou can stop death from taking your allies. When an ally within \ndistance of your My Life for Yours ability dies and you are not dying, \nyou can use a free triggered action to instead have that ally fall \nunconscious until they regain Stamina.\nAdditionally, your abilities deal an extra 5 damage to winded creatures.\nWord of Fate Denied\nWhen an ally within 10 squares takes damage that would leave them \ndying, you can use a free triggered action to make yourself or another \nwilling creature within 10 squares of you the target of the triggering \ndamage instead. The creature you choose takes the damage and suffers \nany effects associated with it, and that damage can't be reduced in any \nway.\nYour Triumphs Are Remembered\nThe gods allow you and your companions to bask in the glory of past \nsuccesses. Whenever you finish a respite, you and any other heroes \nwho rested with you regain 1 Victory after your Victories are converted \nto XP. This Victory isn't converted into XP at the end of a subsequent \nrespite.\nFocused Wrath\nWhen you gain wrath at the start of each of your turns during combat, \nyou gain 3 wrath instead of 2.\nSkill\nYou gain one skill of your choice.An armored blue dragon knight shoots golden lightning from their mace as they fly between bolts of white lightning\n"
+},
+{
+"cls": "Censor",
+"sub": false,
+"file": "classes/censor.yaml",
+"level": 7,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Blessing of Life",
+"rec": {
+"name": "Blessing of Life",
+"description": "Your divine presence causes those you deem worthy to recover quickly from a fight. Whenever an ally within distance of your My Life for Yours ability regains Stamina, they regain additional Stamina equal to your Presence score.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"guid": "5641389a-75df-42af-9cdb-e627b9b4fae7",
+"source": "Censor Class Feature",
+"sourceguid": "6efbb883-7783-48f4-92ec-8d9b8a6f527a",
+"triggeredAbility": {
+"name": "My Life For Yours",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"actionResourceId": "b9bc06dd-80f1-4f33-bc55-25c114e3300c",
+"behaviors": [
+{
+"name": "Ability Duration Effect",
+"__typeName": "ActivatedAbilityApplyAbilityDurationEffect",
+"applyto": "caster",
+"instant": true,
+"momentaryEffect": {
+"id": "030bc27c-7535-44ce-a3c1-08e165664d31",
+"name": "Temporary Wrath",
+"description": "",
+"__typeName": "CharacterOngoingEffect",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "030bc27c-7535-44ce-a3c1-08e165664d31",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [
+{
+"name": "Temporary Wrath",
+"description": "",
+"__typeName": "CharacterModifier",
+"attribute": "77c7724e-a5ed-4b1e-a95b-586c758c90a2",
+"behavior": "attribute",
+"guid": "b26cc353-1785-49c2-be9d-f4754168a222",
+"source": "Ongoing Effect",
+"sourceguid": "030bc27c-7535-44ce-a3c1-08e165664d31",
+"value": 1
+}
+],
+"source": "Ongoing Effect"
+}
+},
+{
+"__typeName": "ActivatedAbilityHealBehavior",
+"roll": "Caster.Recovery Value"
+},
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"applyto": "caster",
+"mode": "expend",
+"resourceid": "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
+},
+{
+"__typeName": "ActivatedAbilityGrantTemporaryStaminaBehavior",
+"chatMessage": "My Life For Yours - Life Domain",
+"guid": "ccbe7e77-a479-4724-b106-a3410a2895d7",
+"stamina": "10"
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "1e14916e-6e70-4f89-b203-6e1557df6ffe",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"filterTarget": "",
+"modesSelected": [
+2
+],
+"promptText": "",
+"runOnController": false,
+"standardAbility": "26dfe43d-436d-478c-adf6-23d05fe28618",
+"targeting": "self"
+},
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"applyto": "caster",
+"mode": "expend",
+"modesSelected": [
+2
+],
+"resourceid": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+}
+],
+"conditionFormula": "Resources.Recovery > 0 and (Subject.stamina < Subject.Maximum Stamina) and (not Subject.Minion)",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049": true
+},
+"guid": "9c9b37cf-97eb-4023-93b3-042b8d04f431",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"mandatory": false,
+"modeList": [
+{
+"text": "Activate"
+},
+{
+"condition": "Resources.Heroic Resource > 0 and (Subject.Save Ends Effects or Subject.EoT Effects or Subject.Conditions has \"Prone\")",
+"rules": "You can end one effect on the target that is ended by a saving throw or that ends at the end of their turn, or a prone target can stand up.",
+"text": "1 Wrath"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 80,
+"type": "pdf"
+},
+"strain": [],
+"subject": "selfandallies",
+"subjectRange": "10",
+"targetType": "subject",
+"trigger": "beginturn",
+"triggerPrompt": "Spend a Recovery and the target regains Stamina equal to your Recovery value."
+}
+},
+"klass": "Censor",
+"from": "Censor",
+"book": null
+},
+{
+"cls": "Conduit",
+"sub": false,
+"file": "classes/conduit.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Drain",
+"rec": {
+"name": "Drain",
+"description": "You or one ally within distance can spend a Recovery.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"filterTarget": "enemy",
+"roll": "2d10 + Intuition",
+"tiers": [
+"2 + I corruption damage",
+"5 + I corruption damage",
+"7 + I corruption damage"
+]
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"applyto": "caster",
+"autoTarget": false,
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "418d7521-ca4a-47f7-ac02-4b9006183b74",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"filterTarget": "",
+"inheritRange": true,
+"invokeOnCaster": true,
+"promptText": "Select self or ally to spend recovery",
+"runOnController": false,
+"standardAbility": "4af4ccee-f664-43d2-b971-3abaec71aa42",
+"standardAbilityParams": {
+"distance": "1",
+"expendmessage": "Drain's Revitalize",
+"expendrecovery": "1",
+"numrecoveries": "1",
+"numtargets": "1",
+"range": "1",
+"targets": "1"
+}
+}
+],
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:e0263246-c362-433a-9c1e-ee29c3b63b2c": true
+},
+"effectImplemented": false,
+"flavor": "You drain the energy from your target and revitalize yourself or an ally.",
+"guid": "b76e0bd6-435d-447a-b23d-45f9b7996e5a",
+"iconid": "f5b79037-8789-4171-98f6-0da8a10367cc",
+"implementation": 4,
+"keywords": {
+"Magic": true,
+"Melee": true,
+"Strike": true
+},
+"modifiers": [],
+"numTargets": 1,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 99,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Conduit",
+"from": "Conduit",
+"book": "Drain\nYou drain the energy from your target to revitalize yourself or an ally.\nMagic, Melee, Strike\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Intuition:\na \t 2 + I corruption damage\ne \t 5 + I corruption damage\ni \t 7 + I corruption damage\nEffect: You or one ally within distance can spend a Recovery."
+},
+{
+"cls": "Conduit",
+"sub": false,
+"file": "classes/conduit.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Sacred Bond",
+"rec": {
+"name": "Sacred Bond",
+"description": "Until the end of the encounter, whenever one target takes damage,  the other target can use a free triggered action to take the damage instead. The original target suffers any effects associated with the damage. Additionally, whenever one target spends a Recovery, the other target can use a free triggered action to spend a Recovery",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe",
+"ongoingEffect": "3f3709f5-00f2-405a-8130-5c387e8936ec",
+"ongoingEffectCustom": "c4fb7393-5f6c-4308-bd12-827ecacbde3d"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"applyto": "caster",
+"duration": "eoe",
+"ongoingEffect": "3f3709f5-00f2-405a-8130-5c387e8936ec",
+"ongoingEffectCustom": "3f3709f5-00f2-405a-8130-5c387e8936ec"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:e0263246-c362-433a-9c1e-ee29c3b63b2c": true
+},
+"flavor": "You forge a divine connection between two creatures.",
+"guid": "8410a5d0-05a6-40d3-bfe5-a177a21df77e",
+"iconid": "c3447113-3551-4fbf-a4ec-4963c3da6907",
+"keywords": {
+"Magic": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": "10",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 5,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 102,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Conduit",
+"from": "Conduit",
+"book": "Sacred Bond (5 Piety)\nYou forge a divine connection between two creatures.\nMagic, Ranged\t\nManeuver\no Ranged 10\t\nx Self and one ally\nEffect: Until the end of the encounter, whenever one target takes \ndamage, the other target can use a free triggered action to take the \ndamage instead. The original target suffers any effects associated \nwith the damage. Additionally, whenever one target spends a \nRecovery, the other target can use a free triggered action to spend a \nRecovery.\nSaint's Tempest (5 Piety)"
+},
+{
+"cls": "Conduit",
+"sub": false,
+"file": "classes/conduit.yaml",
+"level": 4,
+"kind": "ability",
+"cat": "Ability",
+"name": "Sanctified Weapon",
+"rec": {
+"name": "Sanctified Weapon",
+"description": "As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a +3 rolled damage bonus with abilities that use the weapon. This benefit lasts until you finish another respite. ",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "5758da29-8660-47d3-805b-7c6038f476a1",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+1
+],
+"ongoingEffect": "34ef8b9b-9259-4489-b6d6-d9e741ff4b24",
+"ongoingEffectCustom": "34ef8b9b-9259-4489-b6d6-d9e741ff4b24"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+2
+],
+"ongoingEffect": "873d7551-6dc5-4f17-96c3-5c1b8ab4fbd9",
+"ongoingEffectCustom": "873d7551-6dc5-4f17-96c3-5c1b8ab4fbd9"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+3
+],
+"ongoingEffect": "c86ff836-7046-4bd9-8f78-4702640eeb88",
+"ongoingEffectCustom": "c86ff836-7046-4bd9-8f78-4702640eeb88"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:e0263246-c362-433a-9c1e-ee29c3b63b2c": true
+},
+"guid": "e3b1298f-55a6-4bc3-8119-8742fc811724",
+"iconid": "c12a60e3-9a18-43a7-a6ad-228834cc5fc2",
+"modeList": [
+{
+"rules": "+3 rolled damage bonues with abilities that use your melee weapon attacks.",
+"text": "Melee Weapon"
+},
+{
+"condition": "",
+"rules": "+3 rolled damage bonues with abilities that use your Ranged weapon attacks.",
+"text": "Ranged Weapon"
+},
+{
+"rules": "+3 rolled damage bonus with melee and ranged attacks.",
+"text": "Both"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "25",
+"repeatTargets": false,
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 97,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetFilter": "",
+"targetType": "target",
+"usageLimitOptions": {
+"charges": "1",
+"multicharge": false,
+"resourceRefreshType": "long",
+"resourceid": "13c7fd0f-15ea-4d48-9f2e-32c50093aef7"
+}
+},
+"klass": "Conduit",
+"from": "Conduit",
+"book": null
+},
+{
+"cls": "Conduit",
+"sub": false,
+"file": "classes/conduit.yaml",
+"level": 8,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Blessing of the Blade",
+"rec": {
+"name": "Blessing of the Blade",
+"description": "At the end of each of your turns until the end of the encounter or until you are dying, each target gains 3 surges",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe",
+"ongoingEffect": "b43f6d28-b1a2-4f76-9100-93bcc23530bf",
+"ongoingEffectCustom": "b43f6d28-b1a2-4f76-9100-93bcc23530bf"
+}
+],
+"castImmediately": true,
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.16825008392334,
+"s": 0.95996105670929,
+"v": 0.958516657352448
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:e0263246-c362-433a-9c1e-ee29c3b63b2c": true
+},
+"effectImplemented": false,
+"flavor": "The power of the gods is within you, friends. Allow me to unleash it.",
+"guid": "e601b0e0-ede9-4078-a89f-12d3a9de3785",
+"iconid": "7960d94e-8d18-4fa2-984d-126de8590736",
+"implementation": 3,
+"implementationDetails": "",
+"keywords": {
+"Area": true,
+"Magic": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "5 aura",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 11,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 109,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "Self and each ally in the area",
+"targetType": "self"
+},
+"klass": "Conduit",
+"from": "Conduit",
+"book": "Blessing of the Blade (11 Piety)\n\"The power of the gods is within you, friends. Allow me to unleash it.\"\nArea, Magic\t\nManeuver\no 5 aura\t\nx Self and each ally in the area\nEffect: At the end of each of your turns until the end of the encoun\nter or until you are dying, each target gains 3 surges."
+},
+{
+"cls": "Death Domain",
+"sub": true,
+"file": "subclasses/death-domain.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Trigger",
+"name": "Death Domain Effect",
+"rec": {
+"name": "Death Domain Effect",
+"description": "You inflict a deadly curse upon two enemies of your choice within 10 squares of you. Each target takes corruption damage equal to twice your Intuition score.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"damageType": "corruption",
+"roll": "Intuition*2"
+}
+],
+"categorization": "Trigger",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:77f52570-7fe1-457b-ab02-7295b6ef089a": true,
+"class:e0263246-c362-433a-9c1e-ee29c3b63b2c": true
+},
+"guid": "5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5",
+"iconid": "fbfb413b-5378-48cc-9a8d-44af9bddd71c",
+"implementation": 4,
+"keywords": {
+"Magic": true
+},
+"modifiers": [],
+"numTargets": "2",
+"range": "10",
+"repeatTargets": false,
+"targetFilter": "enemy",
+"targetType": "target"
+},
+"klass": "Conduit",
+"from": "Death Domain",
+"book": null
+},
+{
+"cls": "Elementalist",
+"sub": false,
+"file": "classes/elementalist.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Meteoric Introduction",
+"rec": {
+"name": "Meteoric Introduction",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"3 + R damage; push 2",
+"5 + R damage; push 3",
+"8 + R damage; push 4"
+]
+}
+],
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true
+},
+"flavor": "You give your enemy a gentle tap--like an asteroid impact.",
+"guid": "09aeafe1-474a-44e8-9cf2-a655b0f94459",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Earth": true,
+"Magic": true,
+"Melee": true,
+"Strike": true
+},
+"modifiers": [],
+"numTargets": 1,
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 117,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Elementalist",
+"from": "Elementalist",
+"book": "Meteoric Introduction\nYou give your enemy a gentle tap--like an asteroid impact. \nEarth, Magic, Melee, Strike\t\nMain action\no Melee 1\t\nx One creature or object\nPower Roll + Reason:\na \t 3 + R damage; push 2\ne \t 5 + R damage; push 3\ni \t 8 + R damage; push 4"
+},
+{
+"cls": "Elementalist",
+"sub": false,
+"file": "classes/elementalist.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Conflagration",
+"rec": {
+"name": "Conflagration",
+"description": "**Persistent 2:** At the start of your turn, you can use a maneuver to use this ability again without spending Essence.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"4 fire damage",
+"6 fire damage",
+"10 fire damage"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true
+},
+"flavor": "A storm of fire descends upon your enemies.",
+"guid": "8b2dcae7-51ee-498a-8a06-f2f69b19837c",
+"iconid": "cca13c82-30d8-4ede-a38a-5cf0275795da",
+"implementation": 4,
+"keywords": {
+"Area": true,
+"Fire": true,
+"Magic": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": {
+"cost": 2,
+"enabled": true,
+"mode": "recast_maneuver"
+},
+"radius": 3,
+"range": 10,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 5,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 118,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "enemy",
+"targetFilter": "",
+"targetType": "cube"
+},
+"klass": "Elementalist",
+"from": "Elementalist",
+"book": "Conflagration (5 Essence)\nA storm of fire descends upon your enemies.\nArea, Fire, Magic, Ranged\t\nMain action\no 3 cube within 10\t\nx Each enemy in the area\nPower Roll + Reason:\na \t 4 fire damage\ne \t 6 fire damage\ni \t 10 fire damage\nPersistent 2: At the start of your turn, you can use a maneuver to use \nthis ability again without spending essence."
+},
+{
+"cls": "Elementalist",
+"sub": false,
+"file": "classes/elementalist.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Magma Titan",
+"rec": {
+"name": "Magma Titan",
+"description": "Until the start of your next turn, the target has the following benefits: \nTheir size and stability increase by 2, with any size 1 target becoming size 3. Each creature who is within the target's new space slides to the nearest unoccupied space, ignoring stability. If the target doesn't have space to grow, they grow as much as they can and become restrained until the effect ends. \nThey have fire immunity 10. \nTheir strikes deal extra fire damage equal to twice your Reason score. \nWhen the target force moves a creature or object, the forced movement distance gains a +2 bonus.\nThey can use their highest characteristic instead of Might for Might power rolls. \n**Persistent 2:** The effect lasts until the start of your next turn. Additionally, at the start of your turn, the target can spend 2 Recoveries",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"durationUntilEndOfTurn": false,
+"ongoingEffect": "6ae494c4-cb6b-4417-987b-993216a732a5",
+"ongoingEffectCustom": "6ae494c4-cb6b-4417-987b-993216a732a5"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true
+},
+"flavor": "Their body swells with lava, mud, and might, towering over their enemies.",
+"guid": "7a59c851-7cf1-4cb3-872c-3df6464a1af0",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"implementationDetails": "",
+"keywords": {
+"Earth": true,
+"Fire": true,
+"Green": true,
+"Magic": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": {
+"cost": 2,
+"enabled": true,
+"mode": "recast_new"
+},
+"range": "10",
+"recastNewAbility": {
+"name": "Magma Titan",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "a3cb6c9e-d965-488e-8d05-6e06664d83a6",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"runOnController": true,
+"standardAbility": "f57cb6f7-13b9-4ebb-8e88-88ead0a9c203",
+"standardAbilityParams": {
+"numrecoveries": "2"
+}
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true
+},
+"guid": "b982cd39-4b18-48d2-ad0b-8320bd01a49f",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "10",
+"repeatTargets": false,
+"selfTarget": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 124,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetFilter": "ConditionCaster(\"Magma Titan\") = Caster",
+"targetType": "target"
+},
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 124,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetTextOverride": "Self or one ally",
+"targetType": "target"
+},
+"klass": "Elementalist",
+"from": "Elementalist",
+"book": "Magma Titan (9 Essence)\nTheir body swells with lava, mud, and might, towering over their enemies.\nEarth, Fire, Green, Magic, Ranged\t\nManeuver\no Ranged 10\t\nx Self or one ally\nEffect: Until the start of your next turn, the target has the following \nbenefits:\n\t\nY Their size and stability increase by 2, with any size 1 target be\ncoming size 3. Each creature who is within the target's new space \nslides to the nearest unoccupied space, ignoring stability. If the \ntarget doesn't have space to grow, they grow as much as they can \nand become restrained until the effect ends.\n\t\nY They have fire immunity 10.\n\t\nY Their strikes deal extra fire damage equal to twice your Reason \nscore.\n\t\nY When the target force moves a creature or object, the forced \nmovement distance gains a +2 bonus.\n\t\nY They can use their highest characteristic instead of Might for \nMight power rolls.\nPersistent 2: The effect lasts until the start of your next turn. Addi\ntionally, at the start of your turn, the target can spend 2 Recoveries.\nMeteor (9 Essence)"
+},
+{
+"cls": "Elementalist",
+"sub": false,
+"file": "classes/elementalist.yaml",
+"level": 9,
+"kind": "ability",
+"cat": "Ability",
+"name": "Grand Wyrding",
+"rec": {
+"name": "Grand Wyrding",
+"description": "When you have 5 or more Victories, choose one of the following damage types: acid, cold, corruption, fire, lightning, poison, or sonic. You have immunity to that type.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+1
+],
+"ongoingEffect": "cab68885-44a9-4dc7-bd64-c944b9c5cb0d",
+"ongoingEffectCustom": "cab68885-44a9-4dc7-bd64-c944b9c5cb0d"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+2
+],
+"ongoingEffect": "3d1a4e3b-116b-4a53-a52e-6bd3890e341a",
+"ongoingEffectCustom": "3d1a4e3b-116b-4a53-a52e-6bd3890e341a"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+3
+],
+"ongoingEffect": "92a205a8-c56a-4483-8630-9d69004c42bc",
+"ongoingEffectCustom": "92a205a8-c56a-4483-8630-9d69004c42bc"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+4
+],
+"ongoingEffect": "46559e14-105f-4bf5-9e5e-0f51ebd219e5",
+"ongoingEffectCustom": "46559e14-105f-4bf5-9e5e-0f51ebd219e5"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+5
+],
+"ongoingEffect": "05da4a3e-36a7-4bd7-827e-7b34d77a4de7",
+"ongoingEffectCustom": "05da4a3e-36a7-4bd7-827e-7b34d77a4de7"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+6
+],
+"ongoingEffect": "bdb5ce73-3ce0-4860-b91c-a1eb8d1edd3b",
+"ongoingEffectCustom": "bdb5ce73-3ce0-4860-b91c-a1eb8d1edd3b"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "until_rest",
+"modesSelected": [
+7
+],
+"ongoingEffect": "f52ed831-e02b-4800-8b7b-bc57a58d0343",
+"ongoingEffectCustom": "f52ed831-e02b-4800-8b7b-bc57a58d0343"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true
+},
+"guid": "afe27b6f-2abc-4695-92d6-699274882f62",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 2,
+"implementationDetails": "The Codex only handles damage immunities provided from Grand Wyrding.",
+"modeList": [
+{
+"text": "Acid"
+},
+{
+"text": "Cold"
+},
+{
+"text": "Corruption"
+},
+{
+"text": "Fire"
+},
+{
+"text": "Lightning"
+},
+{
+"text": "Poison"
+},
+{
+"text": "Sonic"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 127,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "Self",
+"targetType": "self"
+},
+"klass": "Elementalist",
+"from": "Elementalist",
+"book": null
+},
+{
+"cls": "Void",
+"sub": true,
+"file": "subclasses/void.yaml",
+"level": 5,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Pierce the Veil of Substance",
+"rec": {
+"name": "Pierce the Veil of Substance",
+"description": "Solidity is merely a suggestion to you. Mundane barriers that are 1 square thick or less do not block your senses or line of effect. You can only sense or have line of effect past one such barrier at a time. \nAdditionally, whenever you use a void ability, you or one ally within distance of the ability can teleport a number of squares equal to your Reason score.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true,
+"class:fa3598cf-51ec-454e-9509-3692fcb41824": true
+},
+"guid": "7335c287-d1e9-4b05-8957-6dcf2e5459ce",
+"source": "Void Class Feature",
+"sourceguid": "22d7ecbf-e0f9-41d2-8be0-af6ce67d6cfa",
+"triggeredAbility": {
+"name": "Pierce the Veil of Substance",
+"description": "whenever you use a void ability, you or one ally within distance of the ability can teleport a number of squares equal to your Reason score.",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "ec2d851d-8808-43c5-8b3d-a102bba836d7",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"runOnController": true,
+"standardAbility": "1de07d8e-11c3-4621-9055-bb8e26c9a40f",
+"standardAbilityParams": {
+"range": "<<caster.Reason>>"
+}
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "8ec00c16-f229-451e-aa17-e69b00fedbc7",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "3",
+"repeatTargets": false,
+"selfTarget": true,
+"strain": [],
+"targetAllegiance": "ally",
+"targetType": "target"
+},
+"promptText": "You or an ally can teleport up to your Reason score"
+}
+],
+"conditionFormula": "Used Ability.keywords has \"Void\"",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:c1e1c512-6092-423f-85b2-324547f7f390": true,
+"class:fa3598cf-51ec-454e-9509-3692fcb41824": true
+},
+"guid": "084df0c0-d4c5-44f2-b073-a78cd6eb6578",
+"iconid": "ui-icons/skills/1.png",
+"mandatory": false,
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 122,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self",
+"trigger": "useability",
+"triggerPrompt": "You or one ally within distance of the ability can teleport a number of squares equal to your Reason score.",
+"whenActive": "combat"
+}
+},
+"klass": "Elementalist",
+"from": "Void",
+"book": null
+},
+{
+"cls": "Fury",
+"sub": false,
+"file": "classes/fury.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Brutal Slam",
+"rec": {
+"name": "Brutal Slam",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Might",
+"tiers": [
+"3 + M damage; push 1",
+"6 + M damage; push 2",
+"9 + M damage; push 4"
+]
+}
+],
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.0510204024612904,
+"s": 0.604938268661499,
+"v": 0.317647069692612
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true
+},
+"flavor": "The heavy impact of your weapon attacks drives your foes ever backward.",
+"guid": "834ef027-a400-4538-b87c-04a850a99a11",
+"iconid": "516f1bc6-09d4-4107-9ddb-0940f7d51a81",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": 1,
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 133,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Fury",
+"from": "Fury",
+"book": "Brutal Slam\nThe heavy impact of your weapon attacks drives your foes ever back.\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature or object\nPower Roll + Might:\na \t 3 + M damage; push 1\ne \t 6 + M damage; push 2\ni \t 9 + M damage; push 4"
+},
+{
+"cls": "Fury",
+"sub": false,
+"file": "classes/fury.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Your Entrails Are Your Extrails!",
+"rec": {
+"name": "Your Entrails Are Your Extrails!",
+"description": "While bleeding, the target takes damage equal to your Might score at the end of your turns.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Might",
+"tiers": [
+"3 + M damage; M < weak, bleeding (save ends)",
+"5 + M damage; M < average, bleeding (save ends)",
+"8 + M damage; M < strong, bleeding (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyRidersBehavior",
+"conditionid": "18ff50ab-053b-49d2-a456-927f8e4f9cf9",
+"riderid": "c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0,
+"s": 0.985741853713989,
+"v": 1.0030654668808
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true
+},
+"effectImplemented": false,
+"flavor": "Hard for them to fight when they're busy holding in their giblets.",
+"guid": "f9d44af8-5d42-40a4-b341-0876cc280d06",
+"iconid": "8440688f-05d0-49d4-8a55-bb16044f5725",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 3,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 133,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Fury",
+"from": "Fury",
+"book": "Your Entrails Are Your Extrails! (3 Ferocity)\nHard for them to fight when they're busy holding in their giblets.\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature or object\nPower Roll + Might:\na \t 3 + M damage; m<w , bleeding (save ends)\ne \t 5 + M damage; m<v , bleeding (save ends) \ni \t 8 + M damage; m<s , bleeding (save ends)\nEffect: While bleeding this way, the target takes damage equal to \nyour Might score at the end of each of your turns.\n"
+},
+{
+"cls": "Stormwight",
+"sub": true,
+"file": "subclasses/stormwight.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Pounce",
+"rec": {
+"name": "Pounce",
+"description": "You can shift up to 4 squares, bringing the target with you.While grabbed this way, the target takes damage equal to twice your Might score at the start of each of your turns.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Might",
+"tiers": [
+"8 damage; M < Weak, grabbed",
+"13 damage; M < Average, grabbed",
+"17 damage; M < Strong, grabbed"
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyRidersBehavior",
+"conditionid": "70504ebe-3899-41d3-9f60-74b52ce35e39",
+"riderid": "fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48"
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"applyto": "caster",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "cfe42a39-a150-4ee4-a405-073f4915a0e4",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"promptText": "Shift up to 4 squares",
+"standardAbility": "14c386b6-693c-4abf-aebe-3b5f5a017886",
+"standardAbilityParams": {
+"distance": "4"
+}
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true,
+"class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78": true
+},
+"flavor": "You strike at the target like the ultimate predator you are.",
+"guid": "181c84b8-177d-483a-bfaa-02420364f473",
+"iconid": "ui-icons/skills/1.png",
+"keywords": {
+"Magic": true,
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 139,
+"type": "pdf"
+},
+"strain": [],
+"targetFilter": "",
+"targetTextOverride": "",
+"targetType": "target"
+},
+"klass": "Fury",
+"from": "Stormwight",
+"book": "Pounce (9 Ferocity)\nYou strike at the target like the ultimate predator you are.\nMagic, Melee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Might:\na \t 8 damage; m<w , grabbed\ne \t 13 damage; m<v , grabbed\ni \t 17 damage; m<s , grabbed\nEffect: You can shift up to 4 squares, bringing the target with you. \nWhile grabbed this way, the target takes damage equal to twice \nyour Might score at the start of each of your turns."
+},
+{
+"cls": "Fury",
+"sub": false,
+"file": "classes/fury.yaml",
+"level": 8,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Elemental Fury",
+"rec": {
+"name": "Elemental Fury",
+"description": "You gain 10 temporary Stamina. Additionally, choose acid, cold, corruption, fire, lightning, poison, or sonic damage. Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityGrantTemporaryStaminaBehavior",
+"stamina": "10"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+1
+],
+"ongoingEffect": "fb0fd79f-c24a-494a-8ada-fcc3940343cc",
+"ongoingEffectCustom": "fb0fd79f-c24a-494a-8ada-fcc3940343cc"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+2
+],
+"ongoingEffect": "42586ef4-2230-4ee8-8f68-9717cec3438a",
+"ongoingEffectCustom": "42586ef4-2230-4ee8-8f68-9717cec3438a"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+3
+],
+"ongoingEffect": "ae330f33-9a91-4589-a129-665e5fbdbada",
+"ongoingEffectCustom": "ae330f33-9a91-4589-a129-665e5fbdbada"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+4
+],
+"ongoingEffect": "fb179ff3-14dd-4905-90ff-c7040bcb5363",
+"ongoingEffectCustom": "fb179ff3-14dd-4905-90ff-c7040bcb5363"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+5
+],
+"ongoingEffect": "ad43f758-1ea6-40ae-8f1b-3aa6dc3502cf",
+"ongoingEffectCustom": "ad43f758-1ea6-40ae-8f1b-3aa6dc3502cf"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+6
+],
+"ongoingEffect": "dcde6554-5356-4dc7-98f3-9d772b85c466",
+"ongoingEffectCustom": "dcde6554-5356-4dc7-98f3-9d772b85c466"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe_or_dying",
+"modesSelected": [
+7
+],
+"ongoingEffect": "55cf29a0-b770-493e-9e35-d8441d39ba16",
+"ongoingEffectCustom": "55cf29a0-b770-493e-9e35-d8441d39ba16"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true
+},
+"effectImplemented": true,
+"flavor": "Your primordial energies make for instant retribution.",
+"guid": "7e7f4319-efec-4b55-84a0-aa33d8206f7a",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Magic": true
+},
+"modeList": [
+{
+"condition": "",
+"rules": "",
+"text": "Acid"
+},
+{
+"text": "Cold"
+},
+{
+"text": "Corruption"
+},
+{
+"text": "Fire"
+},
+{
+"text": "Lightning"
+},
+{
+"text": "Poison"
+},
+{
+"text": "Sonic"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 11,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 140
+},
+"strain": [],
+"targetTextOverride": "Self",
+"targetType": "self"
+},
+"klass": "Fury",
+"from": "Fury",
+"book": null
+},
+{
+"cls": "Reaver",
+"sub": true,
+"file": "subclasses/reaver.yaml",
+"level": 6,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Death Strike",
+"rec": {
+"name": "Death Strike",
+"description": "",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"domains": {
+"class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5": true,
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true
+},
+"guid": "d3f3c295-bb6c-4eb8-a319-289bccf4816c",
+"source": "Character",
+"sourceguid": "14c79599-58bd-4f29-8c49-26aef1f13a64",
+"triggeredAbility": {
+"name": "Death Strike",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"actionResourceId": "5e551b7d-17fb-4099-a303-bafb3c146f98",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityRecastBehavior",
+"abilityFilter": "Ability.name = Used Ability.name"
+}
+],
+"conditionFormula": "Target.Stamina <= 0",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5": true,
+"class:ce18b1ba-363b-4403-945b-34a3ce08a465": true
+},
+"guid": "2fae2911-e8cc-4fee-8e36-3253c9d90385",
+"iconid": "ui-icons/skills/1.png",
+"mandatory": false,
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 9,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 138,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self",
+"trigger": "dealdamage",
+"triggerPrompt": "Target a creature adjacent to you with the same strike"
+}
+},
+"klass": "Fury",
+"from": "Reaver",
+"book": null
+},
+{
+"cls": "Null",
+"sub": false,
+"file": "classes/null.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Faster than the Eye",
+"rec": {
+"name": "Faster than the Eye",
+"description": "You can deal damage equal to your Agility score to an adjacent creature or object.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Agility",
+"tiers": [
+"4 damage",
+"5 damage",
+"7 damage"
+]
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"applyto": "caster",
+"autoTarget": false,
+"customAbility": {
+"name": "Faster than the Eye Effect",
+"description": "You can deal damage equal to your Agility score to one creature or object adjacent to you.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"roll": "Agility"
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "ff4a91ad-e00f-4199-b474-40ec7ff14db8",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": true,
+"range": 1,
+"repeatTargets": false,
+"targetFilter": "Enemy",
+"targetType": "target"
+},
+"promptText": "Deal {Agility} damage to an adjacent creature or object."
+}
+],
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.566875159740448,
+"s": -0.00267505645751953,
+"v": 1.00306510925293
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:4203e447-4531-467b-b270-c952806ce67f": true
+},
+"effectImplemented": true,
+"flavor": "You strike so quickly that your hands become a blur.",
+"guid": "f6e7bdc8-3801-4cca-9da5-4adcecfed51b",
+"iconid": "6929f97b-0bcb-4824-b52b-b328187339c2",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Psionic": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": 2,
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 149,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Null",
+"from": "Null",
+"book": "Faster Than the Eye\nYou strike so quickly that your hands become a blur.\nMelee, Psionic, Strike, Weapon\t\nMain action\no Melee 1\t\nx Two creatures or objects\nPower Roll + Agility:\na \t 4 damage\ne \t 5 damage\ni \t 7 damage\nEffect: You can deal damage equal to your Agility score to one crea\nture or object adjacent to you."
+},
+{
+"cls": "Null",
+"sub": false,
+"file": "classes/null.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Impart Force",
+"rec": {
+"name": "Impart Force",
+"description": "An object you target must be your size or smaller. You gain an edge on this ability. Additionally, for each square you push the target, they take 1 psychic damage.",
+"__typeName": "ActivatedAbility",
+"abilityFilters": [],
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": 0,
+"ongoingEffect": "5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7",
+"ongoingEffectCustom": false
+},
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"modifiers": [
+{
+"condition": "1",
+"details": "You gain an edge on this ability.",
+"text": "Impart Force",
+"type": "edge"
+}
+],
+"roll": "2d10 + Intuition",
+"tiers": [
+"Push 3",
+"Push 5",
+"Push 7"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:4203e447-4531-467b-b270-c952806ce67f": true
+},
+"effectImplemented": true,
+"flavor": "A single touch from you, and your enemy flies backward.",
+"guid": "0a4dbaed-c127-4937-922a-c5577ebbebc8",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Melee": true,
+"Psionic": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": 1,
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"reasonedFilters": [],
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 5,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 151,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Null",
+"from": "Null",
+"book": "Impart Force (5 Discipline)\nA single touch from you, and your enemy flies backward.\nMelee, Psionic, Strike, Weapon\t\nManeuver\no Melee 1\t\nx One creature or object\nPower Roll + Intuition:\na \t Push 3\ne \t Push 5\ni \t Push 7\nEffect: An object you target must be your size or smaller. You gain \nan edge on this ability. Additionally, for each square you push the \ntarget, they take 1 psychic damage."
+},
+{
+"cls": "Null",
+"sub": false,
+"file": "classes/null.yaml",
+"level": 5,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Synaptic Reset",
+"rec": {
+"name": "Synaptic Reset",
+"description": "Each target can end any conditions or effects on themself, and gains 5 temporary Stamina for each condition or effect removed.\n",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "custom",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPurgeEffectsBehavior",
+"conditions": [],
+"purgeType": "chosen"
+},
+{
+"__typeName": "ActivatedAbilityGrantTemporaryStaminaBehavior",
+"stamina": "Cast.Purged Conditions * 5"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "e91a3323-1914-46b4-afe3-ce6def2261b1",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"strain": [],
+"targetType": "self"
+},
+"promptText": "End any condition or effect"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:4203e447-4531-467b-b270-c952806ce67f": true
+},
+"effectImplemented": true,
+"flavor": "You expand your nullifying power to mitigate harmful effects. ",
+"guid": "d58e6065-0686-4e1f-9f87-131a4e3fed83",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"implementationDetails": "",
+"keywords": {
+"Psionic": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "3",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 9,
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 154,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetTextOverride": "Self and each ally in the area",
+"targetType": "all"
+},
+"klass": "Null",
+"from": "Null",
+"book": "Synaptic Reset (9 Discipline)\nYou expand your nullifying power to mitigate harmful effects. \nArea, Psionic\t\nManeuver\no 3 burst\t\nx Self and each ally in the area\nEffect: Each target can end any conditions or effects on themself, and \ngains 5 temporary Stamina for each condition or effect removed.Battling in a castle courtyard, a hakaan null creates a curved, spinning shield of iridescent en\n\n6th-Level Features\nAs a 6th-level null, you gain the following features.\nElemental Absorption \nWhenever you use your Inertial Shield triggered action, you gain \nimmunity to acid, cold, corruption, fire, lightning, poison, and sonic \ndamage equal to your Intuition score against the triggering damage.\nElemental Buffer \nWhenever you reduce acid, cold, corruption, fire, lightning, poison, or \nsonic damage with damage immunity, you gain 2 surges that can be \nused only to increase the damage of your next strike. \nPerk\nYou gain one exploration, interpersonal, or intrigue perk of your choice.\n6th-Level Tradition Ability\nYour null tradition grants your choice of one of two heroic abilities.\n6th-Level Chronokinetic Abilities\nChoose one of the following abilities."
+},
+{
+"cls": "Null",
+"sub": false,
+"file": "classes/null.yaml",
+"level": 8,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Arcane Purge",
+"rec": {
+"name": "Arcane Purge",
+"description": "While suppressed, a target takes psychic damage equal to twice your Intuition score at the start of their turns, whenever they use a supernatural ability, or whenever they use an ability that costs Malice.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Agility",
+"tiers": [
+"13 + A damage; M < Weak, #the target is suppressed (save ends)",
+"19 + A damage; M < Average, #the target is suppressed (save ends)",
+"24 + A damage; M < Strong, #the target is suppressed (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "save_ends",
+"filterTarget": "not Cast.PassesPotency(target, \"M\")",
+"ongoingEffect": "06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb",
+"ongoingEffectCustom": "06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 0
+},
+"domains": {
+"class:4203e447-4531-467b-b270-c952806ce67f": true
+},
+"effectImplemented": true,
+"flavor": "You focus your null field into a pressure point strike that prevents your foe from channeling sorcery.",
+"guid": "9672075e-700c-4b84-9b2b-2de43aa1bf03",
+"iconid": "a26528b0-0914-4391-9db7-43597afd0cff",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Psionic": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": 1,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 11,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 157,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Null",
+"from": "Null",
+"book": "Arcane Purge (11 Discipline)\nYou focus your null field into a pressure point strike that prevents your foe \nfrom channeling sorcery.\nMelee, Psionic, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Agility:\na \t 13 + A damage; m<w , the target is suppressed \n(save ends) \ne \t 19 + A damage; m<v , the target is suppressed \n(save ends) \ni \t 24 + A damage; m<s , the target is suppressed \n(save ends) \nEffect: While suppressed, a target takes psychic damage equal to \ntwice your Intuition score at the start of their turns, whenever they \nuse a supernatural ability, or whenever they use an ability that costs \nMalice.\nPhase Hurl (11 Discipline)"
+},
+{
+"cls": "Null",
+"sub": false,
+"file": "classes/null.yaml",
+"level": 8,
+"kind": "powertabletrigger",
+"cat": "Triggered",
+"name": "Synaptic Anchor",
+"rec": {
+"name": "Synaptic Anchor",
+"description": "You disrupt an enemy's strike and create a feedback loop in their mind, preventing them from focusing on future attacks.",
+"__typeName": "CharacterModifier",
+"behavior": "powertabletrigger",
+"domains": {
+"class:4203e447-4531-467b-b270-c952806ce67f": true
+},
+"guid": "9ff98844-03b2-4eed-81b6-fa70bdaca084",
+"powerRollModifier": {
+"name": "Synaptic Anchor",
+"description": "The target takes half the damage, and if the triggering creature has I < Average, they are dazed (save ends). While the triggering creature is dazed this way, they take psychic damage equal to your Intuition score whenever they use a main action.",
+"__typeName": "CharacterModifier",
+"activationCondition": true,
+"behavior": "power",
+"customTrigger": {
+"name": "New Ability",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityDrawSteelCommandBehavior",
+"filterTarget": "not Passes Potency(\"I\", Caster.Average)",
+"rule": "dazed (save ends)"
+},
+{
+"__typeName": "ActivatedAbilityApplyRidersBehavior",
+"conditionid": "c27e0b16-291a-45ad-8406-973e26576a44",
+"riderid": "4e40de4d-302e-4b65-96a1-59199ee6bae9"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "b77d9547-097f-42af-b853-1376e33ec5f9",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "20",
+"repeatTargets": false,
+"strain": [],
+"targetType": "target"
+},
+"promptText": "Target the Attacking Creature for Synaptic Anchor"
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "139b735d-59e9-4db9-966c-7152fadbcd3f",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"strain": [],
+"targetType": "self",
+"trigger": "d20roll"
+},
+"damageMultiplier": "half",
+"guid": "dc6f0648-d7bf-49d2-be03-6f841365c7a4",
+"hasCustomTrigger": true,
+"keywords": [],
+"modtype": "none",
+"rollType": "ability_power_roll",
+"rules": "",
+"source": "Trigger"
+},
+"range": "Nullifying Aura Radius",
+"rules": "The target takes half the damage, and if the triggering creature has I < Average, they are dazed (save ends). While the triggering creature is dazed this way, they take psychic damage equal to your Intuition score whenever they use a main action.",
+"source": "Character",
+"sourceguid": "d6987eb1-7f78-4b17-b1ff-be97bdc0af91",
+"targetFilter": "",
+"targetType": "selforally",
+"trigger": "takedamage",
+"type": "free"
+},
+"klass": "Null",
+"from": "Null",
+"book": null
+},
+{
+"cls": "College of Caustic Alchemy",
+"sub": true,
+"file": "subclasses/college-of-caustic-alchemy.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Ability",
+"name": "Coat the Blade",
+"rec": {
+"name": "Coat the Blade",
+"description": "You gain two surges. Whenever you use a surge before the end of the encounter, you can choose to have its damage be poison damage.\n\nSpend 1+ Insight: For each insight you spend, you gain an additional surge. ",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"quantity": "2 + Charges",
+"resourceid": "8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe",
+"ongoingEffect": "3276c468-deb3-4cb2-aabc-6f8ac7b7b609",
+"ongoingEffectCustom": "3276c468-deb3-4cb2-aabc-6f8ac7b7b609"
+}
+],
+"categorization": "Ability",
+"channelDescription": "+1 Surge per Insight Spent",
+"channeledResource": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.36578169465065,
+"s": 0.896825432777405,
+"v": 0.494117647409439
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5": true,
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true
+},
+"flavor": "Just a little poison goes a long way.",
+"guid": "f9e3dde0-5efb-4e1b-8535-25e09b0ba4d5",
+"iconid": "013d7c5e-381c-4675-a849-13debafd9f21",
+"implementation": 3,
+"maxChannel": "",
+"modeList": [
+{
+"text": "Extra Damage"
+},
+{
+"text": "Weakens"
+}
+],
+"modifiers": [],
+"multipleModes": false,
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "none",
+"resourceNumber": "",
+"sourceDocument": "521cfbed-9528-4099-9618-3cab64d7f633",
+"sourcePage": 142,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 162,
+"type": "pdf"
+},
+"strain": [],
+"targetFilter": "",
+"targetType": "self"
+},
+"klass": "Shadow",
+"from": "College of Caustic Alchemy",
+"book": "Coat the Blade\nYou have the following ability.\nCoat the Blade\nA little poison goes a long way.\n--\t\nManeuver\no Self\t\nx Self\nEffect: You gain 2 surges. Additionally, whenever you use a surge \nbefore the end of the encounter, you can choose to have it deal \npoison damage.\nSpend 1+ Insight: For each insight you spend, you gain 1 additional \nsurge.\nI'm No Threat\nYou have the following ability.\nI'm No Threat"
+},
+{
+"cls": "Shadow",
+"sub": false,
+"file": "classes/shadow.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Get In Get Out",
+"rec": {
+"name": "Get In Get Out",
+"description": "You can shift up to your speed, dividing that movement before or after your strike as desired.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"filterTarget": "0 {This is just to display in the ability description.}",
+"roll": "2d10 + Agility",
+"tiers": [
+"5 + A damage",
+"8 + A damage",
+"11 + A damage"
+]
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"autoTarget": false,
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "2cdcc8bd-fea7-4e11-a19e-2a66750bbf78",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"promptText": "You can shift up to your speed, dividing that movement before or after your strike as desired.",
+"standardAbility": "14c386b6-693c-4abf-aebe-3b5f5a017886",
+"standardAbilityParams": {
+"distance": "<<Movement Speed>>"
+}
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"applyto": "caster",
+"customAbility": {
+"name": "Get In Get Out",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"filterTarget": "",
+"guid": "54889416-4d22-421c-836d-9c40992ec1c7",
+"roll": "2d10 + Agility",
+"tiers": [
+"5 + A damage",
+"8 + A damage",
+"11 + A damage"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "f70e7535-194b-4e0e-a18f-cd43740ba287",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 164,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"promptText": "Choose Target"
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"autoTarget": false,
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "2cdcc8bd-fea7-4e11-a19e-2a66750bbf78",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"guid": "cef230b7-9317-4a2c-a9d7-040a8892e97e",
+"promptText": "You can shift up to your speed, dividing that movement before or after your strike as desired.",
+"standardAbility": "14c386b6-693c-4abf-aebe-3b5f5a017886",
+"standardAbilityParams": {
+"distance": "<<Movement Speed - Cast.Spaces Moved>>"
+}
+}
+],
+"castImmediately": true,
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true
+},
+"effectImplemented": true,
+"flavor": "Move unexpectedly, strike fast, and be gone!",
+"guid": "5006283e-053f-4af1-b210-3467e2eb5048",
+"iconid": "b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea",
+"implementation": 4,
+"keywords": {
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modeList": [],
+"modifiers": [],
+"multipleModes": false,
+"numTargets": 1,
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "Melee 1",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 3,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 164,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "One creature",
+"targetType": "self"
+},
+"klass": "Shadow",
+"from": "Shadow",
+"book": "Get In Get Out (3 Insight)\nMove unexpectedly, strike fast, and be gone!\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Agility:\na\t  5 + A damage\ne\t  8 + A damage\ni\t  11 + A damage\nEffect: You can shift up to your speed, dividing that movement \nbefore or after your strike as desired."
+},
+{
+"cls": "College of Black Ash",
+"sub": true,
+"file": "subclasses/college-of-black-ash.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Black Ash Eruption",
+"rec": {
+"name": "Black Ash Eruption",
+"description": "A creature force moved by this ability must be moved straight upward.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 +Agility",
+"tiers": [
+"3 + A damage; vertical push straight up 5",
+"6 + A damage; vertical push straight up 10",
+"9 + A damage; vertical push straight up 15"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true,
+"class:d5b2e07d-657a-4405-899a-7fed0771f184": true
+},
+"flavor": "Your attack produces a cloud of black ash that launches an enemy into the air.",
+"guid": "f99407cd-a478-4d3b-bd65-f3bc807dcc98",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Magic": true,
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "Melee 1",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 169,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "One creature",
+"targetType": "target"
+},
+"klass": "Shadow",
+"from": "College of Black Ash",
+"book": "Black Ash Eruption (9 Insight)\nYour attack produces a cloud of black ash that launches an enemy into the \nair.\nMagic, Melee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Agility:\na\t  3 + A damage; vertical push 5\ne\t  6 + A damage; vertical push 10\ni\t  9 + A damage; vertical push 15\nEffect: A creature force moved by this ability must be moved straight \nupward."
+},
+{
+"cls": "Shadow",
+"sub": false,
+"file": "classes/shadow.yaml",
+"level": 10,
+"kind": "ability",
+"cat": "Ability",
+"name": "Subterfuge",
+"rec": {
+"name": "Subterfuge",
+"description": "You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.  Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.\nSubterfuge remains until you spend it.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"resourceid": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b"
+}
+],
+"castImmediately": true,
+"categorization": "Ability",
+"channelDescription": "Spend 1 Subterfuge per additional maneuver on your turn.",
+"channeledResource": "none",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true
+},
+"guid": "ea8ee874-6204-4792-ba8f-676f8ff9cd76",
+"iconid": "0e377747-2985-47cb-87aa-52e6563a1230",
+"implementation": 4,
+"implementationDetails": "",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "e7b04a7e-61fc-4e17-b999-d95d7e751abb",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 173,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self"
+},
+"klass": "Shadow",
+"from": "Shadow",
+"book": null
+},
+{
+"cls": "College of Caustic Alchemy",
+"sub": true,
+"file": "subclasses/college-of-caustic-alchemy.yaml",
+"level": 5,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Volatile Reagents",
+"rec": {
+"name": "Volatile Reagents",
+"description": "Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.\n\nAdditionally, your Defensive Roll ability now allows you to shift up to 5 squares, including shifting vertically. If you don\u2019t end this shift on solid ground and are not flying, you fall.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"domains": {
+"class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5": true,
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true
+},
+"guid": "e2470af9-bdaf-44da-9bb3-03c92573bec3",
+"source": "College of Caustic Alchemy Class Feature",
+"sourceguid": "e26f4d46-c083-4baa-8780-25addc7679eb",
+"triggeredAbility": {
+"name": "Volatile Reagents",
+"description": "Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"chatMessage": "Volatile Reagents damage",
+"damageType": "fire",
+"modesSelected": [
+1
+],
+"roll": "Agility"
+},
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"chatMessage": "Volatile Reagents damage",
+"damageType": "acid",
+"guid": "f4f19717-e01c-475e-a392-92b32fa2f150",
+"modesSelected": [
+2
+],
+"roll": "Agility"
+},
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"chatMessage": "Volatile Reagents damage",
+"damageType": "poison",
+"guid": "1c6fcefd-f568-45f1-9fe1-26349689cc20",
+"modesSelected": [
+3
+],
+"roll": "Agility"
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5": true,
+"class:a58112e5-6466-4189-b810-5d0d93adc075": true
+},
+"guid": "6607c179-78c5-4d8c-90d9-45cd0038114d",
+"iconid": "ui-icons/skills/1.png",
+"mandatory": false,
+"modeList": [
+{
+"text": "Fire"
+},
+{
+"text": "Acid"
+},
+{
+"text": "Poison"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 168,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "enemy",
+"targetType": "all",
+"trigger": "losehitpoints",
+"triggerPrompt": "Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score."
+}
+},
+"klass": "Shadow",
+"from": "College of Caustic Alchemy",
+"book": null
+},
+{
+"cls": "Summoner",
+"sub": false,
+"file": "classes/summoner.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Ability",
+"name": "Minion Bridge",
+"rec": {
+"name": "Minion Bridge",
+"description": "You shift into a square adjacent to the target, including vertically. You can shift into squares that contain one of your minions, even if they occupy difficult terrain. Each time you shift into a square that contains one of your minions while using this maneuver, you can shift an additional square. \n**1 Essence:** An adjacent ally can shift alongside you during this movement. They must end their movement in an unoccupied square adjacent to the last minion you moved through.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "10687c15-8572-44b0-b167-c8f4d0589345",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"promptText": "Select the final square of your movement",
+"standardAbility": "14c386b6-693c-4abf-aebe-3b5f5a017886",
+"standardAbilityParams": {
+"distance": "10"
+}
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "5054ffa6-8849-47dd-89ef-249cbce9c142",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"modesSelected": [
+2
+],
+"promptText": "Select an adjacent ally to shift with you",
+"standardAbility": "090c096b-0841-45db-bb48-175f51a3bf75",
+"standardAbilityParams": {
+"count": "1",
+"distance": "10"
+}
+},
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"mode": "expend",
+"modesSelected": [
+2
+],
+"resourceid": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"flavor": "Your minions do everything in their power to form a safe path for you to cross.",
+"guid": "5a8d088c-8302-4d37-bd6b-d7c95d5c85e6",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 2,
+"implementationDetails": "You must select the final square of movement to shift to.",
+"keywords": {
+"Magic": true
+},
+"modeList": [
+{
+"text": "Normal"
+},
+{
+"rules": "An adjacent ally can shift alongside you",
+"text": "1 Essence"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"range": 1,
+"rangeTextOverride": "Melee 1",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "6a761787-90ad-4cd8-b2cb-43064db57a20",
+"page": 7,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "One of your minions",
+"targetType": "self"
+},
+"klass": "Summoner",
+"from": "Summoner",
+"book": null
+},
+{
+"cls": "Circle of Graves",
+"sub": true,
+"file": "subclasses/circle-of-graves.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Ability",
+"name": "Dead Men Tell All Tales",
+"rec": {
+"name": "Dead Men Tell All Tales",
+"description": "You can touch the corpse of a creature who died within the past week and ask them a question. The corpse can choose to answer the question to the best of their ability. Each additional question you ask the corpse requires a medium Reason test, where failure or consequence breaks your connection with the corpse permanently.\nThe corpse can also choose to refuse to answer or lie, especially if you were the one to kill them in the first place.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"attrid": "rea",
+"isTest": true,
+"modesSelected": [
+2
+],
+"resistanceRoll": false,
+"roll": "2d10 + Reason",
+"tiers": [
+"Your connection with the corpse permanently is broken",
+"Your connection with the corpse permanently is broken",
+"The corpse can choose to answer your question"
+]
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:085c51f9-4646-41bb-91eb-0cb8e2bf359b": true,
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"guid": "912850f1-a603-4e08-b681-17b044ce04c0",
+"iconid": "ui-icons/skills/1.png",
+"modeList": [
+{
+"text": "First Question"
+},
+{
+"text": "Additional Question"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "6a761787-90ad-4cd8-b2cb-43064db57a20",
+"page": 10,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self"
+},
+"klass": "Summoner",
+"from": "Circle of Graves",
+"book": null
+},
+{
+"cls": "Summoner",
+"sub": false,
+"file": "classes/summoner.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "A Champion's Cry",
+"rec": {
+"name": "A Champion's Cry",
+"description": "You can use this ability as if in the space of one of your minions within your Summoner's Range.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"2 damage; I < Weak, frightened (save ends)",
+"5 damage; I < Average, frightened (EoT)",
+"7 damage; I < Strong, frightened (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityModifyPowerRollBehavior",
+"guid": "c1d9a7e2-4f6b-4a3c-9e1d-7b5f8c2a6d40",
+"modifier": {
+"name": "A Champion's Cry",
+"description": "",
+"__typeName": "CharacterModifier",
+"activationCondition": true,
+"behavior": "power",
+"damageTypeMappings": {
+"untyped": [
+"psychic",
+"sonic"
+]
+},
+"domains": [],
+"guid": "c1d9a7e3-4f6b-4a3c-9e1d-7b5f8c2a6d41",
+"keywords": [],
+"modtype": "none",
+"rollType": "ability_power_roll",
+"sourceguid": "c1d9a7e2-4f6b-4a3c-9e1d-7b5f8c2a6d40"
+}
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"flavor": "Your champion unleashes a bellow that shakes you to your core.",
+"guid": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"implementationDetails": "The Codex uses cube targeting to mimic selecting a minion in your summoner range.\nTier 3 result not implemented, Frightened of all allies",
+"keywords": {
+"Area": true,
+"Champion": true,
+"Magic": true
+},
+"modifiers": [],
+"numTargets": "1",
+"radius": "3",
+"range": "SummonerRange",
+"rangeTextOverride": "3 burst",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "6a761787-90ad-4cd8-b2cb-43064db57a20",
+"page": 39,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "Each enemy in the area",
+"targetType": "cube"
+},
+"klass": "Summoner",
+"from": "Summoner",
+"book": null
+},
+{
+"cls": "Summoner",
+"sub": false,
+"file": "classes/summoner.yaml",
+"level": 9,
+"kind": "ability",
+"cat": "Ability",
+"name": "Summoner Strike",
+"rec": {
+"name": "Summoner Strike",
+"description": "{2*Reason} damage. If the target has R < Strong, they are slowed (save ends).",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityDrawSteelCommandBehavior",
+"rule": "{Reason*2} damage; R< Strong, slowed (save ends)"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"flavor": "A sudden burst of energy erupts from your implement and shocks your foes' nerves.",
+"guid": "19e080fb-5292-44f0-a623-b8a6ffd89c07",
+"hasCustomIcon": false,
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"keywords": {
+"Magic": true,
+"Melee": true,
+"Ranged": true,
+"Strike": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": true,
+"properties": {
+"useasstrike": true
+},
+"range": "SummonerRange",
+"rangeTextOverride": "",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "6a761787-90ad-4cd8-b2cb-43064db57a20",
+"page": 7,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Summoner",
+"from": "Summoner",
+"book": null
+},
+{
+"cls": "Summoner",
+"sub": false,
+"file": "classes/summoner.yaml",
+"level": 6,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Snare Ward",
+"rec": {
+"name": "Snare Ward",
+"description": "Whenever an adjacent creature deals damage to you, you can use a free triggered action to pull that creature toward one of your minions within your Summoner's Range a number of squares equal to your Reason score.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"domains": {
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"guid": "6ad905f4-d210-43ba-9caa-cdc786182d12",
+"source": "Summoner Class Feature",
+"sourceguid": "5eab0c61-9c5a-4ef2-9a82-02afa699db93",
+"triggeredAbility": {
+"name": "Snare Ward",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"actionResourceId": "5e551b7d-17fb-4099-a303-bafb3c146f98",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityForcedMovementLocBehavior",
+"creatureFilter": "Minion and Summoner = Caster",
+"creatureRange": "SummonerRange",
+"type": "creature"
+},
+{
+"__typeName": "ActivatedAbilityDrawSteelCommandBehavior",
+"rule": "pull {Caster.Reason}"
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:b41b7bcb-6246-4906-8115-831e55f62758": true
+},
+"guid": "082f9790-8570-4b4d-9f71-910a2dc455ce",
+"hasManualVersion": true,
+"iconid": "ui-icons/skills/1.png",
+"mandatory": false,
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "6a761787-90ad-4cd8-b2cb-43064db57a20",
+"page": 32,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "attacker",
+"trigger": "losehitpoints",
+"triggerPrompt": "Pull a creature towards one of your minions"
+}
+},
+"klass": "Summoner",
+"from": "Summoner",
+"book": null
+},
+{
+"cls": "Tactician",
+"sub": false,
+"file": "classes/tactician.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Mark",
+"rec": {
+"name": "Mark",
+"description": "The target is marked by you until the end of the encounter, you are dying, you use this ability again, or you willingly end this effect (no action required). If another tactician marks the target, then your mark on the target ends. You can have one target marked this way, but other tactician abilities can allow you to have multiple marked creatures.\n\nWhile the target is marked and within your line of effect, you and allies within your line of effect have an edge on power rolls made against the target.\n\nWhen the marked creature is reduced to 0 Stamina, you can use a free triggered action to move the mark to a new target within 10 squares. \n\nIn addition, you can spend 1 focus to take one of the following free triggered actions whenever you or an ally damages a target with an ability. You can't use more than one instance of a benefit per trigger: \n\n- The ability deals additional damage equal to twice your Reason score. \n- The damage dealer can spend a Recovery. \n- The damage dealer can shift up to a number of squares equal to your Reason score. \n- If you damage a creature marked by you with a melee ability, the creature is taunted by you until the end of their next turn.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"attributeOverride": "no_attribute",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"durationUntilEndOfTurn": false,
+"ongoingEffect": "319e19ac-4f15-4c16-be71-96d448241c10",
+"ongoingEffectCustom": false
+}
+],
+"categorization": "Heroic Ability",
+"channelDescription": "",
+"channeledResource": "none",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:506d41b6-816b-45c5-8f28-765f29d6f8ae": true
+},
+"flavor": "\nYou draw your allies' attention to a specific foe--with devastating effect.",
+"guid": "5abb3441-4647-4626-be56-89691b0be8fd",
+"hasCustomIcon": true,
+"iconid": "b5353528-4640-400a-813e-9a75f4a60d72",
+"implementation": 4,
+"keywords": {
+"Ranged": true
+},
+"maxChannel": 1,
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "10",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 177,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "enemy",
+"targetType": "target"
+},
+"klass": "Tactician",
+"from": "Tactician",
+"book": "Mark \nYou draw your allies' attention to a specific foe--with devastating effect.\nRanged\t\nManeuver\no Ranged 10\t\nx One creature\nEffect: The target is marked by you until the end of the encounter, \nuntil you are dying, or until you use this ability again. You can \nwillingly end your mark on a creature (no action required), and if \nanother tactician marks a creature, your mark on that creature ends. \nWhen a creature marked by you is reduced to 0 Stamina, you can \nuse a free triggered action to mark a new target within distance.\nYou can initially mark only one creature using this ability, though \nother tactician abilities allow you to mark additional creatures at \nthe same time. The mastermind tactical doctrine's Anticipation \nfeature allows you to target additional creatures with this ability \nstarting at 5th level.\nWhile a creature marked by you is within your line of effect, you \nand allies within your line of effect gain an edge on power rolls \nmade against that creature. Additionally, whenever you or any ally \nuses an ability to deal rolled damage to a creature marked by you, \nyou can spend 1 focus to gain one of the following benefits as a free \ntriggered action: \n\t\nY The ability deals extra damage equal to twice your Reason score.\n\t\nY The creature dealing the damage can spend a Recovery.\n\t\nY The creature dealing the damage can shift up to a number of \nsquares equal to your Reason score.\n\t\nY If you damage a creature marked by you with a melee ability, the \ncreature is taunted by you until the end of their next turn.\nYou can't gain more than one benefit from the same trigger.\nStrike Now\nYou have the following ability."
+},
+{
+"cls": "Tactician",
+"sub": false,
+"file": "classes/tactician.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Battle Cry",
+"rec": {
+"name": "Battle Cry",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"the target gains one surge",
+"the target gains two surges",
+"the target gains three surges"
+]
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:506d41b6-816b-45c5-8f28-765f29d6f8ae": true
+},
+"flavor": "You shout a phrase that galvanizes your team.",
+"guid": "3e5aace6-e693-4578-9686-098161a82958",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": 3,
+"persistence": [],
+"range": 10,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 3,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 178,
+"type": "pdf"
+},
+"strain": [],
+"targetFilter": "not Enemy",
+"targetType": "target"
+},
+"klass": "Tactician",
+"from": "Tactician",
+"book": "Battle Cry (3 Focus)\nYou shout a phrase that galvanizes your team.\nRanged\t\nManeuver\no Ranged 10\t\nx Three allies\nPower Roll + Reason:\na\t  Each target gains 1 surge.\ne\t  Each target gains 2 surges.\ni\t  Each target gains 3 surges."
+},
+{
+"cls": "Tactician",
+"sub": false,
+"file": "classes/tactician.yaml",
+"level": 4,
+"kind": "ability",
+"cat": "Ability",
+"name": "Strike Now!",
+"rec": {
+"name": "Strike Now!",
+"description": "The target can make a signature attack as a free triggered action.\n\nSpend 5 Focus: You target two allies instead of one. ",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"autoTarget": false,
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "67a0130e-0121-403f-92d0-15f246d63c0e",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"promptText": "Strike Now!",
+"runOnController": true,
+"standardAbility": "7b19698f-5fe2-4eea-9ef8-7621a7974073"
+}
+],
+"categorization": "Ability",
+"channelDescription": "You target two allies instead of one.",
+"channelIncrement": 5,
+"channeledResource": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.636249840259552,
+"s": 0.72206974029541,
+"v": 1.00228643417358
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:506d41b6-816b-45c5-8f28-765f29d6f8ae": true
+},
+"flavor": "Your foe left an opening. You point this out to an ally! ",
+"guid": "e68b20fd-0749-478f-a691-a6098f3a0d6f",
+"iconid": "c4893538-9809-4de1-8ef9-2fa83a84fe2b",
+"implementation": 3,
+"keywords": {
+"Ranged": true
+},
+"maxChannel": 5,
+"modifiers": [],
+"numTargets": "1 + (1 when Charges >= 1)",
+"objectTarget": false,
+"persistence": [],
+"range": "10",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 177,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetFilter": "",
+"targetType": "target"
+},
+"klass": "Tactician",
+"from": "Tactician",
+"book": null
+},
+{
+"cls": "Mastermind",
+"sub": true,
+"file": "subclasses/mastermind.yaml",
+"level": 9,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Blot Out the Sun!",
+"rec": {
+"name": "Blot Out the Sun!",
+"description": "Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike. A target ignores banes and double banes when making this strike.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"name": "Ability Duration Effect",
+"__typeName": "ActivatedAbilityApplyAbilityDurationEffect",
+"momentaryEffect": {
+"id": "81be8bb9-5059-4e24-a5f8-05e7349d4ba8",
+"name": "Blot Out the Sun!",
+"description": "Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.",
+"__typeName": "CharacterOngoingEffect",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "81be8bb9-5059-4e24-a5f8-05e7349d4ba8",
+"iconid": "3ba95686-6af5-4436-8e2f-41c94714ff40",
+"modifiers": [
+{
+"name": "Blot Out the Sun!",
+"description": "Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.",
+"__typeName": "CharacterModifier",
+"activationCondition": "Target.Conditions has \"Mark\"",
+"behavior": "power",
+"guid": "8d4ec86f-623b-4902-8fbf-0b047579cc7e",
+"keywords": [],
+"modtype": "edge",
+"rollType": "ability_power_roll",
+"source": "Ongoing Effect",
+"sourceguid": "81be8bb9-5059-4e24-a5f8-05e7349d4ba8"
+},
+{
+"name": "Ignore Banes",
+"description": "Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.",
+"__typeName": "CharacterModifier",
+"activationCondition": "Target.Conditions has \"Mark\"",
+"behavior": "power",
+"guid": "88d3fef9-1351-4f1c-ad4c-762264d09b1a",
+"keywords": [],
+"modtype": "ignore_banes",
+"rollType": "ability_power_roll",
+"source": "Ongoing Effect",
+"sourceguid": "81be8bb9-5059-4e24-a5f8-05e7349d4ba8"
+}
+],
+"source": "Ongoing Effect"
+}
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "custom",
+"applyto": "targets",
+"autoTarget": true,
+"customAbility": {
+"name": "Ranged Free Strike",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"applyto": "caster",
+"autoTarget": true,
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "3ec94560-20a5-4ab0-9218-87086ef37036",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"namedAbility": "Ranged Free Strike",
+"promptText": "",
+"standardAbility": "aba67409-be3e-4ba9-8a99-0c01df37a34b",
+"targeting": "inherit",
+"targetingFormula": "Target.ConditionCaster(\"Mark\").id = <<casterid>>"
+}
+],
+"castImmediately": false,
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "9e2984e3-0ea6-4dae-a7b2-f334e8664dc0",
+"iconid": "ui-icons/skills/1.png",
+"keywords": {
+"Ranged": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "5",
+"repeatTargets": false,
+"strain": [],
+"targetAllegiance": "enemy",
+"targetFilter": "Target.ConditionCaster(\"Mark\").id = <<casterid>>",
+"targetType": "target"
+},
+"namedAbility": "Ranged Free Strike",
+"promptText": "Select Marked Target for Ranged Free Strike",
+"runOnController": true,
+"standardAbility": "0ca5fc04-6068-4f47-b5c6-936d3a595f24",
+"standardAbilityParams": {
+"casterid": "<<caster.id>>"
+},
+"targeting": "prompt",
+"targetingFormula": "Target.ConditionCaster(\"Mark\") = Caster"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:506d41b6-816b-45c5-8f28-765f29d6f8ae": true,
+"class:56180917-b5c2-4030-9fc8-9a00113d5ad4": true
+},
+"flavor": "What makes a good soldier? The ability to fire four shots a minute in any weather. ",
+"guid": "a5bfccaf-ad38-4c89-9534-67d7ded49b2d",
+"iconid": "3ba95686-6af5-4436-8e2f-41c94714ff40",
+"implementation": 4,
+"implementationDetails": "",
+"keywords": {
+"Area": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "3",
+"rangeTextOverride": "3 burst",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "11",
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 185,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetTextOverride": "Self and each ally in the area",
+"targetType": "all"
+},
+"klass": "Tactician",
+"from": "Mastermind",
+"book": "Blot Out the Sun! (11 Focus)\nWhat makes a good soldier? The ability to fire four shots a minute in any \nweather.\nArea\t\nMain action\no 3 burst\t\nx Self and each ally in the area\nEffect: Each target can make a ranged free strike that gains an edge \nagainst any enemy marked by you within distance of their ranged \nfree strike. A target ignores banes and double banes when making \nthis strike."
+},
+{
+"cls": "Insurgent",
+"sub": true,
+"file": "subclasses/insurgent.yaml",
+"level": 2,
+"kind": "powertabletrigger",
+"cat": "Triggered",
+"name": "Advanced Tactics",
+"rec": {
+"name": "Advanced Tactics",
+"description": "",
+"__typeName": "CharacterModifier",
+"additionalCostModifiers": [
+{
+"name": "Advanced Tactics+",
+"__typeName": "CharacterModifier",
+"activationCondition": false,
+"behavior": "power",
+"guid": "3014d656-2b18-46ff-b001-429a6fad4069",
+"keywords": [],
+"modtype": "none",
+"potencymod": "1",
+"resourceCostType": "cost",
+"rollType": "ability_power_roll",
+"rules": "",
+"rulesText": "Potency increased by 1",
+"source": "Trigger"
+}
+],
+"behavior": "powertabletrigger",
+"domains": {
+"class:506d41b6-816b-45c5-8f28-765f29d6f8ae": true,
+"class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130": true
+},
+"guid": "32c52bb8-35ee-4950-9050-45d808213acf",
+"powerRollModifier": {
+"name": "Advanced Tactics",
+"__typeName": "CharacterModifier",
+"activationCondition": false,
+"behavior": "power",
+"guid": "63462217-8520-40e5-8a34-319b856ef09b",
+"keywords": [],
+"modtype": "none",
+"rollType": "ability_power_roll",
+"rules": "",
+"source": "Trigger",
+"surges": "2"
+},
+"range": 10,
+"rules": "Attacker gains two surges",
+"source": "Insurgent Class Feature",
+"sourceguid": "9e3a56b1-ba8c-4088-a513-fbc509bb19f5",
+"targetType": "ally",
+"trigger": "dealdamage",
+"type": "trigger"
+},
+"klass": "Tactician",
+"from": "Insurgent",
+"book": null
+},
+{
+"cls": "Talent",
+"sub": false,
+"file": "classes/talent.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Signature Ability",
+"name": "Optic Blast",
+"rec": {
+"name": "Optic Blast",
+"description": "When targeting an object with a solid reflective surface or a creature carrying or wearing such an object (a mirror, an unpainted metal shield, shiny metal plate armor, and so forth), you can choose an additional target within 3 squares of the first target. \n\n**Strained:** You gain a surge, which you can use immediately, and take damage equal to your Reason score, which can\u2019t be reduced in any way.\u202f ",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"2 + R damage; M < weak, prone",
+"4 + R damage; M < average, prone",
+"6 + R damage; M < strong, prone"
+]
+},
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"applyto": "caster",
+"cannotBeReduced": true,
+"chatMessage": "Strained: Optic Blast",
+"roll": "Reason",
+"strainSelection": "strained"
+},
+{
+"__typeName": "ActivatedAbilityModifyPowerRollBehavior",
+"guid": "fe8a1f1d-43ab-4483-b9bc-bb632fa292e6",
+"modifier": {
+"name": "Optic Blast - Surge",
+"description": "You gain a surge, which you can use immediately, and take damage equal to your Reason score, which can't be reduced in any way.",
+"__typeName": "CharacterModifier",
+"activationAfterRoll": false,
+"activationCondition": "1",
+"behavior": "power",
+"displayCondition": "Caster.Strained",
+"domains": [],
+"guid": "5cde7f25-a0fc-46dd-840f-fd786d67bff3",
+"keywords": [],
+"modtype": "none",
+"rollType": "ability_power_roll",
+"sourceguid": "fe8a1f1d-43ab-4483-b9bc-bb632fa292e6",
+"surges": "1",
+"surgesCanBeKept": true
+},
+"strainSelection": "strained"
+}
+],
+"categorization": "Signature Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:58b82a67-8b93-468b-99c5-2ac452033071": true
+},
+"effectImplemented": false,
+"flavor": "Your eyes emit rays of powerful enervating force.",
+"guid": "cebb0c23-233f-447f-bcfa-a12528b9e6b4",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"implementationDetails": "Whether the first target has a solid reflective surface is your call. If it does, pick the Reflective Surface mode to add a second target within 3 squares of it.",
+"keywords": {
+"Metamorphosis": true,
+"Psionic": true,
+"Ranged": true,
+"Strike": true
+},
+"modeList": [
+{
+"text": "Normal"
+},
+{
+"rules": "When targeting an object with a solid reflective surface or a creature carrying or wearing such an object (a mirror, an unpainted metal shield, shiny metal plate armor, and so forth), you can choose an additional target within 3 squares of the first target. ",
+"text": "Reflective Surface"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "Mode",
+"objectTarget": true,
+"persistence": [],
+"proximityRange": "3",
+"proximityTargeting": true,
+"range": 10,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 190,
+"type": "pdf"
+},
+"strain": {
+"enabled": true
+},
+"targetType": "target"
+},
+"klass": "Talent",
+"from": "Talent",
+"book": "Optic Blast \nYour eyes emit rays of powerful enervating force. \nMetamorphosis, Psionic, Ranged, Strike\t\nMain action \no Ranged 10\t\nx One creature or object \nPower Roll + Reason: \na\t  2 + R damage; m<w , prone\ne\t  4 + R damage; m<v , prone \ni\t  6 + R damage; m<s , prone \nEffect: When targeting an object with a solid reflective surface or \na creature carrying or wearing such an object (such as a mirror, an \nunpainted metal shield, or shiny metal plate armor), you can target \none additional creature or object within 3 squares of the first target.\nStrained: You gain 1 surge that you can use immediately, and you \ntake damage equal to your Reason score that can't be reduced in any \nway. "
+},
+{
+"cls": "Chronopathy",
+"sub": true,
+"file": "subclasses/chronopathy.yaml",
+"level": 2,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Applied Chronometrics",
+"rec": {
+"name": "Applied Chronometrics",
+"description": "Until the start of your next turn, each target gains a +5 bonus to speed, they can\u2019t be made dazed, and they can use an additional maneuver on their turn. If a target is already dazed, that condition ends for them.\n\n*Strained:* Your speed is halved until the end of the encounter.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Presence",
+"tiers": [
+"You target two creatures, one of which can be you.",
+"You target three creatures, one of which can be you.",
+"You target four creatures, one of which can be you."
+]
+},
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": 1,
+"durationUntilEndOfTurn": false,
+"ongoingEffect": "3e9e7310-8af6-4dc7-ba57-009c07031fae",
+"ongoingEffectCustom": false
+},
+{
+"__typeName": "ActivatedAbilityPurgeEffectsBehavior",
+"conditions": [
+"c27e0b16-291a-45ad-8406-973e26576a44"
+],
+"mode": "conditions"
+}
+],
+"categorization": "Hidden",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "4f2ca614-f7b1-4736-928e-4390fb2649e4",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "<<targetcount>>\t",
+"objectTarget": false,
+"persistence": [],
+"range": "10",
+"repeatTargets": false,
+"selfTarget": true,
+"strain": [],
+"targetType": "target"
+},
+"promptText": "Select Targets for Applied Chronometric ",
+"standardAbilityParams": {
+"targetcount": "<<cast.tier>> +1"
+}
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "eoe",
+"ongoingEffect": "0f7c3b13-b6ce-40fe-9964-6235e7862a89",
+"ongoingEffectCustom": "0f7c3b13-b6ce-40fe-9964-6235e7862a89",
+"strainSelection": "strained"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:58b82a67-8b93-468b-99c5-2ac452033071": true,
+"class:8e407d6b-5351-4e5f-b944-85e69bb64fde": true
+},
+"flavor": "Time slows down around you. Your heartbeat is the only gauge of the extra moments you\u2019ve gained.",
+"guid": "fb4bb1cd-caed-4d79-9aa4-3e2f0aa6f212",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Chronopathy": true,
+"Psionic": true,
+"Ranged": true
+},
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "Ranged 10",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "5",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 192,
+"type": "pdf"
+},
+"strain": {
+"enabled": true
+},
+"targetTextOverride": "Special",
+"targetType": "self"
+},
+"klass": "Talent",
+"from": "Chronopathy",
+"book": "Applied Chronometrics (5 Clarity) \nTime slows down around you. Your heartbeat is the only gauge of the extra \nmoments you've gained. \nChronopathy, Psionic, Ranged\t\nManeuver \no Ranged 10\t\nx Special\nPower Roll + Presence: \na\t  You target two creatures, one of which can be you.\ne\t  You target three creatures, one of which can be you.\ni\t  You target four creatures, one of which can be you.\nEffect: Until the start of your next turn, each target gains a +5 bonus \nto speed, they can't be made dazed, and they can use an additional \nmaneuver on their turn. If a target is already dazed, that condition \nends for them.\nStrained: Your speed is halved until the end of the encounter."
+},
+{
+"cls": "Telepathy",
+"sub": true,
+"file": "subclasses/telepathy.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Synaptic Conditioning",
+"rec": {
+"name": "Synaptic Conditioning",
+"description": "**Strained:** While the target is under this effect, you no longer consider your enemies to be your enemies when using your abilities and features.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"10 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)",
+"14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)",
+"20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "save_ends",
+"ongoingEffect": "4e58600f-249e-42c3-aa04-9641756a0661",
+"ongoingEffectCustom": "4e58600f-249e-42c3-aa04-9641756a0661",
+"tiersSelected": [
+1
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "save_ends",
+"ongoingEffect": "e767dfb9-bb64-4402-8565-5ee48f7bfa8d",
+"ongoingEffectCustom": "e767dfb9-bb64-4402-8565-5ee48f7bfa8d",
+"tiersSelected": [
+2
+]
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": "save_ends",
+"ongoingEffect": "b4246346-754c-4c43-9485-6c8fa4d7a21a",
+"ongoingEffectCustom": "b4246346-754c-4c43-9485-6c8fa4d7a21a"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"applyto": "caster",
+"ongoingEffect": "aeb7a0a0-3185-478a-81d1-a35861a71b08",
+"ongoingEffectCustom": "aeb7a0a0-3185-478a-81d1-a35861a71b08",
+"strainSelection": "strained"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:19c04f9f-5d72-4f12-afd3-b572d4671cfc": true,
+"class:58b82a67-8b93-468b-99c5-2ac452033071": true
+},
+"flavor": "It\u2019s a subtle mindset shift. It\u2019s not that they\u2019re your enemy\u2014you just don\u2019t like them!",
+"guid": "4d23a9a1-da2c-47b0-a3f6-85d9a37ba77a",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 2,
+"implementationDetails": "",
+"keywords": {
+"Melee": true,
+"Psionic": true,
+"Strike": true,
+"Telepathy": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"range": "2",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 197,
+"type": "pdf"
+},
+"strain": {
+"enabled": true
+},
+"targetType": "target"
+},
+"klass": "Talent",
+"from": "Telepathy",
+"book": "Synaptic Conditioning (9 Clarity)\nIt's a subtle mindset shift. It's not that they're your enemy--you just don't like \nthem!\nPsionic, Melee, Strike, Telepathy\t\nMain action\no Melee 2\t\nx One creature\nPower Roll + Reason\na\t  10 psychic damage; the target takes a bane on ability rolls \nmade to harm you or your allies (save ends)\ne\t  14 psychic damage; the target has a double bane on ability \nrolls made to harm you or your allies (save ends)\ni\t  20 psychic damage; the target considers you and your allies \nto be their allies when using abilities and features (save ends)\nStrained: While the target is under this effect, you no longer consid\ner your enemies to be your enemies when using your abilities and \nfeatures.\nSynaptic Dissipation (9 Clarity)"
+},
+{
+"cls": "Telepathy",
+"sub": true,
+"file": "subclasses/telepathy.yaml",
+"level": 9,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Resonant Mind Spike",
+"rec": {
+"name": "Resonant Mind Spike",
+"description": "This ability ignores cover and concealment.\n**Strained:** The ability roll scores a critical hit on a natural 17 or higher. You take half the damage the target takes, and you can\u2019t reduce this damage in any way.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"name": "Ability Duration Effect",
+"__typeName": "ActivatedAbilityApplyAbilityDurationEffect",
+"applyto": "caster",
+"lingerTime": 10,
+"momentaryEffect": {
+"id": "8fd15ea1-5425-4498-933d-0436d5ef4efe",
+"name": "Ignore Cover and Concealement",
+"description": "",
+"__typeName": "CharacterOngoingEffect",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "8fd15ea1-5425-4498-933d-0436d5ef4efe",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [
+{
+"name": "Ignore Cover and Concealement",
+"description": "",
+"__typeName": "CharacterModifier",
+"attribute": "16228928-9f29-4510-a703-65344f2356ef",
+"behavior": "attribute",
+"guid": "ebce2907-1e08-4d9b-b349-434e7eb282ac",
+"source": "Ongoing Effect",
+"sourceguid": "8fd15ea1-5425-4498-933d-0436d5ef4efe",
+"value": 1
+},
+{
+"name": "Ignore Cover and Concealement",
+"description": "",
+"__typeName": "CharacterModifier",
+"attribute": "33b6a265-6b89-4def-b86d-507d86061fe8",
+"behavior": "attribute",
+"guid": "355f61dd-c482-4066-a94d-f93ccbabc911",
+"source": "Ongoing Effect",
+"sourceguid": "8fd15ea1-5425-4498-933d-0436d5ef4efe",
+"value": 1
+},
+{
+"name": "Ignore Cover and Concealement",
+"description": "",
+"__typeName": "CharacterModifier",
+"attribute": "f383ffc8-817d-4965-ae92-2e839f27e063",
+"behavior": "attribute",
+"guid": "a1218782-f28b-4cfa-a515-3ee62ca38b0c",
+"operation": "set",
+"source": "Ongoing Effect",
+"sourceguid": "8fd15ea1-5425-4498-933d-0436d5ef4efe",
+"value": 17
+}
+],
+"source": "Ongoing Effect"
+}
+},
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Reason",
+"tiers": [
+"15 + R psychic damage",
+"24 + R psychic damage",
+"28 + R psychic damage"
+]
+},
+{
+"__typeName": "ActivatedAbilityDamageBehavior",
+"applyto": "caster",
+"cannotBeReduced": true,
+"chatMessage": "Resonant Mind Spike Strained Damage",
+"roll": "Cast.Damage Dealt * 0.5",
+"strainSelection": "strained"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 0
+},
+"domains": {
+"class:19c04f9f-5d72-4f12-afd3-b572d4671cfc": true,
+"class:58b82a67-8b93-468b-99c5-2ac452033071": true
+},
+"flavor": "You fire a telepathic bolt empowered by every consciousness within reach directly into your foe\u2019s mind",
+"guid": "87291d51-956b-4064-a574-23cb2d564c4b",
+"iconid": "0eac5a41-6f48-48a3-aa55-9adf199d0e90",
+"implementation": 4,
+"keywords": {
+"Psionic": true,
+"Ranged": true,
+"Strike": true,
+"Telepathy": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"preDescription": "",
+"range": "10",
+"rangeTextOverride": "",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "11",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 200,
+"type": "pdf"
+},
+"strain": {
+"enabled": true
+},
+"targetTextOverride": "One creature",
+"targetType": "target"
+},
+"klass": "Talent",
+"from": "Telepathy",
+"book": "Resonant Mind Spike (11 Clarity)\nYou fire a telepathic bolt empowered by every consciousness within reach \ndirectly into your foe's mind.\nPsionic, Ranged, Strike, Telepathy\t\nMain action\no Ranged 10\t\nx One creature\nPower Roll + Reason\na\t  15 + R psychic damage\ne\t  24 + R psychic damage\ni\t  28 + R psychic damage\nEffect: This ability ignores cover and concealment.\nStrained: The ability roll scores a critical hit on a natural 17 or high\ner. You take half the damage the target takes, and you can't reduce \nthis damage in any way.\nSynaptic Terror (11 Clarity)"
+},
+{
+"cls": "Chronopathy",
+"sub": true,
+"file": "subclasses/chronopathy.yaml",
+"level": 8,
+"kind": "powertabletrigger",
+"cat": "Triggered",
+"name": "Stasis Shield",
+"rec": {
+"name": "Stasis Shield",
+"description": "You have the following ability.",
+"__typeName": "CharacterModifier",
+"behavior": "powertabletrigger",
+"domains": {
+"class:58b82a67-8b93-468b-99c5-2ac452033071": true,
+"class:8e407d6b-5351-4e5f-b944-85e69bb64fde": true
+},
+"guid": "eb50d24c-810e-4580-b451-337c8f618fd3",
+"powerRollModifier": {
+"name": "Stasis Shield",
+"description": "The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm\u2019s way. ",
+"__typeName": "CharacterModifier",
+"activationCondition": false,
+"behavior": "power",
+"changeTarget": true,
+"changeTargetEffect": "all",
+"changeTargetFilter": "Target = Triggerer",
+"changeTargetRange": "none",
+"damageMultiplier": "full",
+"guid": "f79218ab-8804-4ede-8359-6346d04222b3",
+"hasTriggerBefore": false,
+"keywords": [],
+"modtype": "none",
+"rollType": "ability_power_roll",
+"rules": "",
+"source": "Trigger",
+"triggerBefore": {
+"name": "New Ability",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityInvokeAbilityBehavior",
+"abilityType": "standard",
+"customAbility": {
+"name": "Invoked Ability",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "7139b493-57ad-457f-9cb5-aa3afbe53d5f",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"range": 1,
+"repeatTargets": false,
+"targetType": "self"
+},
+"guid": "aef6d5cf-1365-4218-a6e4-8ca3ec3873b8",
+"promptText": "Select Creature being targeted by attack",
+"standardAbility": "4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8",
+"standardAbilityParams": {
+"range": "1"
+}
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "c900a98e-0c1e-4188-883a-869c75a97e71",
+"iconid": "ui-icons/skills/1.png",
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"strain": [],
+"targetType": "self",
+"trigger": "d20roll"
+}
+},
+"range": 10,
+"rules": "The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm\u2019s way. \n*Director must manually teleport the target*",
+"source": "Chronopathy Class Feature",
+"sourceguid": "95cdfdb6-f65e-415a-9086-a73a6d8f5e85",
+"targetFilter": "Triggerer.Strained",
+"targetType": "selforally",
+"trigger": "takedamage",
+"type": "trigger"
+},
+"klass": "Talent",
+"from": "Chronopathy",
+"book": null
+},
+{
+"cls": "Duelist",
+"sub": true,
+"file": "subclasses/duelist.yaml",
+"level": 1,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Star Power",
+"rec": {
+"name": "Star Power",
+"description": "You gain a +2 bonus to speed until the end of your turn. Additionally, the next power roll you make this turn can\u2019t have a result lower than tier 2.\n**Spend 1 Drama:** You gain a +4 bonus to speed instead.\n",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"applyto": "targets",
+"duration": 0,
+"modesSelected": [
+1
+],
+"ongoingEffect": "4c781df8-6975-4cdb-839c-7f6547b94264",
+"ongoingEffectCustom": false
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": 0,
+"modesSelected": [
+2
+],
+"ongoingEffect": "74e5faeb-661d-4138-8582-adef55c4f98b",
+"ongoingEffectCustom": false
+},
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"mode": "expend",
+"modesSelected": [
+2
+],
+"quantity": "1",
+"resourceid": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+},
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"duration": 0,
+"ongoingEffect": "22cbcd26-16eb-4ad7-ad5e-17e9d903041b",
+"ongoingEffectCustom": "22cbcd26-16eb-4ad7-ad5e-17e9d903041b"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.208749651908875,
+"s": 0.811913967132568,
+"v": 1.0015617609024
+},
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:97bd30e0-b670-41c7-9136-6a832625f049": true,
+"class:fbdf6bd8-61b6-4321-8923-ea4205bf5959": true
+},
+"flavor": "You\u2019re the one they came to see!",
+"guid": "3179f741-346c-4886-853d-67120bb5b063",
+"iconid": "ec739c66-81be-4d4c-9c6b-b320924b3d2d",
+"implementation": 3,
+"modeList": [
+{
+"text": "Normal"
+},
+{
+"condition": "Resources.Heroic Resource >= 2",
+"rules": "You gain 4 speed instead.",
+"text": "Spend 1 Drama"
+}
+],
+"modifiers": [],
+"multipleModes": true,
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 205,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self"
+},
+"klass": "Troubadour",
+"from": "Duelist",
+"book": "Star Power\nYou have the following ability.\nStar Power (1 Drama)\nYour years of practicing fencing and dancing pay off on the battlefield.\n--\t\nManeuver\no Self\t\nx Self\nEffect: You gain a +2 bonus to speed until the end of your turn. \nAdditionally, the next power roll you make this turn can't have an \noutcome lower than tier 2.\nSpend 1 Drama: You gain a +4 bonus to speed instead.\nVirtuoso Performances\nYou have the following performance abilities, which are usable with \nyour Routines feature."
+},
+{
+"cls": "Troubadour",
+"sub": false,
+"file": "classes/troubadour.yaml",
+"level": 3,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Dramatic Reversal",
+"rec": {
+"name": "Dramatic Reversal",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Presence",
+"tiers": [
+"#The target can shift 1 square and make a free strike.",
+"#The target can shift up to 2 squares and make a free strike with an edge.",
+"#The target can shift up to 3 squares and make a free strike with an edge, then can spend a Recovery."
+]
+},
+{
+"name": "DramaticReversalPrompts",
+"__typeName": "ActivatedAbilityScriptBehavior",
+"code": "--Offer each target a Dramatic Reversal prompt card. Accepting the\n--card casts the tier-matched standard ability package (shift, free\n--strike, and at tier 3 a recovery) on the accepting player's client,\n--whether the target is controlled locally or remotely. Dismissing\n--the card declines the offer.\nlocal tierAbilities = {\n    \"6b7c412d-2ff8-428f-ab64-57d37c05ce06\",\n    \"50f79904-37ad-436f-9073-541b71d39484\",\n    \"827bf5ba-e81d-443d-8052-58fd0601dc06\",\n}\nlocal tierRules = {\n    \"You can shift 1 square and make a free strike.\",\n    \"You can shift up to 2 squares and make a free strike with an edge.\",\n    \"You can shift up to 3 squares and make a free strike with an edge, then can spend a Recovery.\",\n}\nlocal tier = 0\nif symbols ~= nil and symbols.cast ~= nil then\n    tier = symbols.cast:try_get(\"tier\", 0) or 0\nend\nif tier < 1 then\n    return\nend\nif tier > 3 then\n    tier = 3\nend\nfor _,target in ipairs(targets or {}) do\n    if target.token ~= nil and target.token.valid then\n        AbilityInvocation.PromptStandardAbility{\n            token = target.token,\n            invoker = casterToken,\n            standardAbility = tierAbilities[tier],\n            targeting = \"self\",\n            prompt = \"Dramatic Reversal\",\n            rules = tierRules[tier],\n        }\n    end\nend"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": {
+"__usertype": "LuaColor",
+"a": 1,
+"h": 0.83875036239624,
+"s": 0.604882717132568,
+"v": 1.00156188011169
+},
+"brightness": 1.72856968470982,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:97bd30e0-b670-41c7-9136-6a832625f049": true
+},
+"flavor": "Give the audience a surprise.",
+"guid": "42c137aa-17a5-48f1-8901-26c63c015581",
+"iconid": "53777917-af89-413b-9f1d-7202a8416cce",
+"implementation": 4,
+"keywords": {
+"Area": true,
+"Magic": true
+},
+"modifiers": [],
+"numTargets": 1,
+"objectTarget": false,
+"persistence": [],
+"range": 3,
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": 5,
+"selfTarget": true,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 207,
+"type": "pdf"
+},
+"strain": [],
+"targetAllegiance": "ally",
+"targetFilter": "",
+"targetType": "all"
+},
+"klass": "Troubadour",
+"from": "Troubadour",
+"book": "Dramatic Reversal (5 Drama)\nGive the audience a surprise.\nArea, Magic\t\nMain action\no 3 burst\t\nx Self and each ally in the area\nPower Roll + Presence:\na\t  The target can shift 1 square and make a free strike.\ne\t  The target can shift up to 2 squares and make a free strike \nthat gains an edge.\ni\t  The target can shift up to 3 squares and make a free strike \nthat gains an edge, then can spend a Recovery."
+},
+{
+"cls": "Duelist",
+"sub": true,
+"file": "subclasses/duelist.yaml",
+"level": 6,
+"kind": "ability",
+"cat": "Heroic Ability",
+"name": "Blood on the Stage",
+"rec": {
+"name": "Blood on the Stage",
+"description": "",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"actionResourceId": "d19658a2-4d7b-4504-af9e-1a5410fb17fd",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityPowerRollBehavior",
+"roll": "2d10 + Agility",
+"tiers": [
+"12 + A damage; M < Weak, bleeding (save ends)",
+"18 + A damage; M < Average, bleeding (save ends)",
+"24 + A damage; bleeding (eot), or if M < Strong, bleeding (save ends)"
+]
+},
+{
+"__typeName": "ActivatedAbilityDrawSteelCommandBehavior",
+"filterTarget": "not Cast.PassesPotency(target, \"M\", \"Strong\")",
+"rule": "bleeding (save ends)"
+}
+],
+"categorization": "Heroic Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:97bd30e0-b670-41c7-9136-6a832625f049": true,
+"class:fbdf6bd8-61b6-4321-8923-ea4205bf5959": true
+},
+"flavor": "It\u2019s love and blood or drama and blood. Either way, there\u2019s always blood.",
+"guid": "36d54fe6-c043-4ecb-a5e0-a2d36144c141",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 3,
+"keywords": {
+"Melee": true,
+"Strike": true,
+"Weapon": true
+},
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": true,
+"persistence": [],
+"range": 1,
+"rangeTextOverride": "",
+"repeatTargets": false,
+"resourceCost": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca",
+"resourceNumber": "9",
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 212,
+"type": "pdf"
+},
+"strain": [],
+"targetTextOverride": "",
+"targetType": "target"
+},
+"klass": "Troubadour",
+"from": "Duelist",
+"book": "Blood on the Stage (9 Drama)\nIt's love and blood or drama and blood. Either way, there's always blood.\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature or object\nPower Roll + Agility:\na\t  12 + A damage; m<w , bleeding (save ends)\ne\t  18 + A damage; m<v , bleeding (save ends)\ni\t  24 + A damage; bleeding (EoT), or if m<s , bleeding \n(save ends)\nFight Choreography (9 Drama)"
+},
+{
+"cls": "Troubadour",
+"sub": false,
+"file": "classes/troubadour.yaml",
+"level": 7,
+"kind": "ability",
+"cat": "Ability",
+"name": "Equal Billing ",
+"rec": {
+"name": "Equal Billing ",
+"description": "You and creatures you are bonded with gain a +1 bonus to saving throws. Whenever you or a bonded creature succeeds on a saving throw, you and each creature you are bonded with gains temporary Stamina equal to your level.",
+"__typeName": "ActivatedAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityApplyOngoingEffectBehavior",
+"applyto": "caster_and_targets",
+"ongoingEffect": "38fdb93d-2235-4639-a2df-d71ca8cb6471",
+"ongoingEffectCustom": "38fdb93d-2235-4639-a2df-d71ca8cb6471"
+}
+],
+"categorization": "Ability",
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"domains": {
+"class:97bd30e0-b670-41c7-9136-6a832625f049": true
+},
+"guid": "5dcfb260-65ea-45e3-b640-baeb113cdf96",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"modifiers": [],
+"numTargets": "1",
+"objectTarget": false,
+"persistence": [],
+"preDescription": "Choose a creature to bond with.",
+"range": "100",
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 212,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "target"
+},
+"klass": "Troubadour",
+"from": "Troubadour",
+"book": null
+},
+{
+"cls": "Troubadour",
+"sub": false,
+"file": "classes/troubadour.yaml",
+"level": 6,
+"kind": "trigger",
+"cat": "Triggered",
+"name": "Spotlight",
+"rec": {
+"name": "Spotlight",
+"description": "While this performance is active, each target who starts their turn in the area gains 1 of their Heroic Resource. This Heroic Resource disappears at the end of the target\u2019s turn if they don\u2019t spend it.",
+"__typeName": "CharacterModifier",
+"behavior": "trigger",
+"guid": "c3bde6f7-1723-4a52-9f07-a5f83b18eebe",
+"source": "Aura",
+"sourceguid": "621d14e2-8db8-4446-b0e4-8d0ba4fbb939",
+"triggeredAbility": {
+"name": "Spotlight",
+"description": "",
+"__typeName": "TriggeredAbility",
+"abilityType": "none",
+"behaviors": [
+{
+"__typeName": "ActivatedAbilityReplenishBehavior",
+"chatMessage": "Spotlight Heroic Resource",
+"resourceid": "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+}
+],
+"display": {
+"bgcolor": "#ffffffff",
+"brightness": 1,
+"hueshift": 0,
+"saturation": 1
+},
+"guid": "59f2250e-2862-4266-aa7f-e6917ddd5a0b",
+"iconid": "ui-icons/skills/1.png",
+"implementation": 4,
+"modifiers": [],
+"numTargets": "1",
+"persistence": [],
+"range": 1,
+"repeatTargets": false,
+"sourceReference": {
+"__typeName": "SourceReference",
+"docid": "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904",
+"page": 212,
+"type": "pdf"
+},
+"strain": [],
+"targetType": "self",
+"trigger": "beginturn"
+}
+},
+"klass": "Troubadour",
+"from": "Troubadour",
+"book": "Spotlight\nThe audience is watching, so you'd better give them a show.\nArea, Magic, Performance\t\nNo action\no 5 aura\t\nx Self and each ally in the area\nEffect: While this performance is active, each target who starts \ntheir turn in the area gains 1 of their Heroic Resource. This Heroic \nResource disappears at the end of the target's turn if they don't \nspend it.\n6th-Level Class Act Ability\nYour troubadour class act grants your choice of one of two heroic \nabilities.\n6th-Level Auteur Abilities\nChoose one of the following abilities."
+}
+]

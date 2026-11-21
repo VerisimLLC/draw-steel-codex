@@ -339,35 +339,35 @@ end
 --line per test, per threat whose consequence landed, and one when the montage ends.
 --historyLogged counts the log entries already told, and lives on the montage so a new
 --host does not tell them again.
-function EncounterMontage.NoteHistory(m)
-    if type(m) ~= "table" then
+function EncounterMontage.NoteHistory(montage)
+    if type(montage) ~= "table" then
         return
     end
-    local log = m.log or {}
-    for i = (tonumber(m.historyLogged) or 0) + 1, #log do
-        local e = log[i]
-        if e.consequence then
-            GameSystem.NotifyPlayObservers("montage", {kind = "threat", name = e.entryName, applied = e.applied})
-        elseif not e.delve and not e.passed and not e.interrupted and type(e.tier) == "number" and e.tier > 0 and e.total ~= nil then
+    local log = montage.log or {}
+    for i = (tonumber(montage.historyLogged) or 0) + 1, #log do
+        local entry = log[i]
+        if entry.consequence then
+            GameSystem.NotifyPlayObservers("montage", {kind = "threat", name = entry.entryName, applied = entry.applied})
+        elseif not entry.delve and not entry.passed and not entry.interrupted and type(entry.tier) == "number" and entry.tier > 0 and entry.total ~= nil then
             GameSystem.NotifyPlayObservers("montage", {
                 kind = "test",
-                heroid = e.heroid,
-                total = e.total,
-                tier = e.tier,
-                entry = e.entryName,
-                option = e.optionName,
+                heroid = entry.heroid,
+                total = entry.total,
+                tier = entry.tier,
+                entry = entry.entryName,
+                option = entry.optionName,
             })
         end
     end
-    m.historyLogged = #log
-    if m.phase == "done" and not m.historyEnded then
-        m.historyEnded = true
-        local totals = EncounterMontage.TotalsFromLog(m)
+    montage.historyLogged = #log
+    if montage.phase == "done" and not montage.historyEnded then
+        montage.historyEnded = true
+        local totals = EncounterMontage.TotalsFromLog(montage)
         --how many tests the montage held, so a beat nobody rolled in (a "Proceed") can
         --be told apart from one whose tests all came out Tier 2.
         local tests = 0
-        for _, e in ipairs(log) do
-            if not e.consequence and not e.delve and type(e.tier) == "number" and e.tier > 0 then
+        for _, entry in ipairs(log) do
+            if not entry.consequence and not entry.delve and type(entry.tier) == "number" and entry.tier > 0 then
                 tests = tests + 1
             end
         end

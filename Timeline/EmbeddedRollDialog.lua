@@ -2003,7 +2003,7 @@ function GameHud.CreateEmbeddedRollDialog()
         return tooltip
     end
 
-    --The hover text History keeps for a modifier that changed the roll (2.3d). Spoilers stay
+    --The hover text History keeps for a modifier that changed the roll. Spoilers stay
     --as markup: History hides them for whoever looks. Nil when it says nothing past the name.
     local function RecordedHoverText(mod)
         local description = mod.modifier:try_get("description") or ""
@@ -2074,7 +2074,7 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = nottierone,
             bonus = bonus ~= 0 and bonus or nil,
             charid = charid,
-            --a triggered action used from this dialog: History gives it a row (L107).
+            --a triggered action used from this dialog: History gives it a row of its own.
             trigger = mod.modifier:try_get("_tmp_triggerCharid") ~= nil or nil,
             hovertext = RecordedHoverText(mod),
         }
@@ -2098,9 +2098,9 @@ function GameHud.CreateEmbeddedRollDialog()
             local beforeTier = before[i] or {}
             local delta = {}
             for typeName, amount in pairs(afterTier) do
-                local d = amount - (beforeTier[typeName] or 0)
-                if d ~= 0 then
-                    delta[typeName] = d
+                local added = amount - (beforeTier[typeName] or 0)
+                if added ~= 0 then
+                    delta[typeName] = added
                     changed = true
                 end
             end
@@ -8168,7 +8168,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                     cond(#sourceNames > 0, table.concat(sourceNames, ", "), "Modifier"), freeGranted,
                                     cond(freeGranted > 1, "surges", "surge"), targetName, freeUsed,
                                     cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
-                                --and on the cast, for a record of play (History's Y5b).
+                                --and on the cast, for a record of play (History).
                                 if freeUsed > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
                                     m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames, hovers = sourceHovers}
                                 end

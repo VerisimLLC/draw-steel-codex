@@ -2814,18 +2814,18 @@ local function CreateFlipButton(charid)
     }
 end
 
---- The History chip (3.2): just left of the flip button, in its look, shown only while the card
+--- The History chip: just left of the flip button, in its look, shown only while the card
 --- is hovered. Opens History showing only this hero.
 --- @param charid string
---- @param x number
+--- @param offsetX number Its x offset from the card's centre.
 --- @return Panel
-local function CreateHistoryButton(charid, x)
+local function CreateHistoryButton(charid, offsetX)
     return gui.Panel{
         classes = {"heroCardHistory"},
         floating = true,
         halign = "center",
         valign = "top",
-        x = x,
+        x = offsetX,
         y = 4,
         width = 26,
         height = 26,
@@ -2844,7 +2844,8 @@ local function CreateHistoryButton(charid, x)
                 selectors = {"heroCardHistory", "parent:hover"},
                 hidden = 0,
             },
-            --as the flip button: hover sits on the chip, not the card, so it stays shown.
+            --as on the flip button: with the pointer on the chip the card is no longer
+            --hovered, so the chip's own hover keeps it shown.
             {
                 selectors = {"heroCardHistory", "hover"},
                 hidden = 0,

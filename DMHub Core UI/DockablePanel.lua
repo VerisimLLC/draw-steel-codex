@@ -2285,16 +2285,16 @@ local PanelPermittedForUser = function(p)
 	return true
 end
 
---The panel a dock shows for p: p itself, or, when p can't show for this user, the panel
---registered to stand in for it (standsInFor). A dock saved with the Action Log shows History
---instead, and the other way round. Nil when nothing can show.
-local function DockStandIn(p)
-	if p == nil or PanelPermittedForUser(p) then
-		return p
+--The panel a dock shows for a registration: itself, or, when it can't show for this user,
+--the panel registered to stand in for it (standsInFor). A dock saved with the Action Log
+--shows History instead, and the other way round. Nil when nothing can show.
+local function DockStandIn(registration)
+	if registration == nil or PanelPermittedForUser(registration) then
+		return registration
 	end
-	for _, q in pairs(dockablePanels) do
-		if q.standsInFor ~= nil and string.lower(q.standsInFor) == string.lower(p.name) and PanelPermittedForUser(q) then
-			return q
+	for _, candidate in pairs(dockablePanels) do
+		if candidate.standsInFor ~= nil and string.lower(candidate.standsInFor) == string.lower(registration.name) and PanelPermittedForUser(candidate) then
+			return candidate
 		end
 	end
 	return nil
@@ -2498,14 +2498,14 @@ DockablePanel = {
 
 		local added = {}
 		for _,name in ipairs(names) do
-			for k,registered in pairs(dockablePanels) do
-				local p = string.lower(registered.name) == string.lower(name) and DockStandIn(registered) or nil
-				if p ~= nil and not added[p.identifier] then
-					added[p.identifier] = true
-					local instance = existing[p.identifier]
-					existing[p.identifier] = nil
+			for _,registered in pairs(dockablePanels) do
+				local shown = string.lower(registered.name) == string.lower(name) and DockStandIn(registered) or nil
+				if shown ~= nil and not added[shown.identifier] then
+					added[shown.identifier] = true
+					local instance = existing[shown.identifier]
+					existing[shown.identifier] = nil
 					if instance == nil or not instance.valid then
-						instance = CreateDockablePanelInstance(p)
+						instance = CreateDockablePanelInstance(shown)
 					end
 					local newPanel = CreateDockablePanelTabbedContainer{
 						panelInstances = {instance},

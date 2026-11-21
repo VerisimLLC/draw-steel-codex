@@ -6603,7 +6603,7 @@ local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
         return
     end
 
-    --the damage behind the deaths, all types together (History's Y13).
+    --the damage behind the deaths, all types together.
     local batchDamage = 0
     for _, group in pairs(batch.groups) do
         batchDamage = batchDamage + (group.damage or 0)

@@ -642,11 +642,12 @@ local function NotifyRolledUnguarded(roller, tableRef, rollInfo, extra)
             tableRef = rolledOn
         end
     end)
-    local t = tableRef:GetTable()
-    if t == nil or rollInfo == nil or rollInfo.total == nil then
+    local rollTable = tableRef:GetTable()
+    if rollTable == nil or rollInfo == nil or rollInfo.total == nil then
         return
     end
-    --a real roll is an engine object, which raises on a field it doesn't have.
+    --a real roll is an engine object, which raises on a field it doesn't have (the
+    --override fields are set only by the roll dialog).
     local rolled, overridden = rollInfo.total, nil
     pcall(function()
         rolled = rollInfo.rolledTotal or rolled
@@ -664,7 +665,7 @@ local function NotifyRolledUnguarded(roller, tableRef, rollInfo, extra)
         result = StringInterpolateGoblinScript(result, roller)
     end
     GameSystem.NotifyPlayObservers("tablerolled", roller, {
-        table = t.name,
+        table = rollTable.name,
         rolled = rolled,
         dice = faces,
         result = result,

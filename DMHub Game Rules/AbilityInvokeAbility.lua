@@ -1509,6 +1509,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             if stability > 0 then
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
                             end
+
                             --Nothing else matters once the target can't be moved, so this replaces the other notes.
                             if target.token.properties:CannotBeForceMoved() then
                                 adjustedRange = 0
@@ -1685,7 +1686,7 @@ end
 
 --- What stability did to a forced move, for play observers (History). Put what it returns on
 --- the forced-movement clone as _tmp_forcedMoveStability, so the move reports it when it
---- lands. A move stability stops entirely never happens, so that one is reported here.
+--- lands. A move that stability stops entirely never takes place, so it is reported here.
 --- @param targetToken CharacterToken The creature being moved.
 --- @param kind string "push", "vertical_pull" and so on.
 --- @param requested number Squares before stability.
@@ -3088,6 +3089,7 @@ function AbilityInvocation:Invoke()
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
 		end
+
 		--Nothing else matters once the target can't be moved, so this replaces the other notes.
 		if targetToken.properties:CannotBeForceMoved() then
 			adjustedRange = 0

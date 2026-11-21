@@ -732,11 +732,9 @@ Commands.RegisterBuiltinDoc{
 
 -- roll: Roll dice into chat.
 --
--- Not a C# command: Commands.roll and Commands.dmroll start in the engine's
--- core-asset Lua chunk (Assets/CoreAssets/Lua/commands.txt, loaded before the
--- codex). These copies roll exactly as those do, and add only a complete
--- callback so a record of play (History) hears the result on the client that
--- rolled. Keep them in step with the engine's. /r calls Commands.roll.
+-- These replace the engine's own Lua Commands.roll and Commands.dmroll (its
+-- commands.txt; /r calls Commands.roll) and roll exactly as they do, adding only a
+-- callback so a record of play (History) hears the result. Keep them in step.
 local function RollToChat(str, description, dmonly)
     local tok = dmhub.currentToken
     dmhub.Roll{

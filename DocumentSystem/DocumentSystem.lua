@@ -9020,11 +9020,7 @@ function PanelDocument:PresentPanel(args)
 
     --a panel laid out for one width (History) registers defaultWidth for its first window.
     local reg = DockablePanel.GetRegistration(self:try_get("panelName") or "")
-    local defaultWidth = nil
-    pcall(function()
-        defaultWidth = reg ~= nil and reg.defaultWidth or nil
-    end)
-    args.width = args.width or defaultWidth or PanelDocument.DefaultWidth
+    args.width = args.width or (reg ~= nil and reg.defaultWidth) or PanelDocument.DefaultWidth
     args.height = PanelDocument.ClampHeight(
         self:try_get("panelName"),
         args.height or PanelDocument.DefaultHeight)
@@ -9248,10 +9244,6 @@ local function RailActivation(key)
     return "close", ownerKey, doc, dialog
 end
 
---An ACTION registration (DockablePanel.Register with launch = fn): its
---button runs launch() instead of opening a window -- e.g. Monster
---Builder, which launches the companion app. Returns the launch function
---for a layout key, or nil for ordinary panels and non-panel keys.
 --A panel the rail's Add lists may offer this user: one they can open that is available to
 --them now (History is not while they use the old Action Log, nor in Crows).
 function PanelDocument.OfferedOnRail(name)
@@ -9262,6 +9254,10 @@ function PanelDocument.OfferedOnRail(name)
     return reg == nil or DockablePanel.PanelPermittedForUser(reg)
 end
 
+--An ACTION registration (DockablePanel.Register with launch = fn): its
+--button runs launch() instead of opening a window -- e.g. Monster
+--Builder, which launches the companion app. Returns the launch function
+--for a layout key, or nil for ordinary panels and non-panel keys.
 local function RailLaunchAction(key)
     if key == nil then
         return nil
@@ -9284,7 +9280,7 @@ local g_iconRailPanels = {
     --lookup fails), same as any unavailable panel.
     "Dice",
     "Chat",
-    --History replaced the Action Log here (6.4); the old log shows only for a user
+    --History replaced the Action Log here; the old log shows only for a user
     --who turns on "Use Old Action Log".
     "History",
     "Journal",
@@ -10439,18 +10435,14 @@ function PanelDocument:CreateInterface(args)
         valign = "center",
     }
 
-    --A panel can put one control of its own in the title row, between its
-    --tab chip and the window buttons: registration field
-    --headerControl = function() return panel end, called once, when its
-    --tab is first active. The panel must have a numeric width (the strip
-    --gives up exactly that much); with nothing to offer it sets that width
-    --to 0, and fires "syncHeaderControl" on its parents whenever it changes.
-    --Only the active tab's control shows. History's map switcher uses it.
+    --A panel may put one control in the title row (History's map switcher): registration
+    --field headerControl = function() return panel end, called once its tab is first active.
+    --The panel needs a numeric width, 0 when it has nothing to show, and fires
+    --"syncHeaderControl" on its parents when that changes. Only the active tab's one shows.
     local m_headerControls = {}
-    --floats in the header (like headerControls) just past the last chip, as
-    --far from the chip's edge as the title is (6px), so it reads as part of
-    --the title. Not inside the tab strip: that strip wraps, and a floating
-    --child there was placed on a second row, below the header.
+    --floats in the header just past the last chip, 6px off it like the title, so it
+    --reads as part of the title. Not inside the tab strip: that strip wraps, which
+    --would put a floating child on a second row.
     headerSlot = gui.Panel{
         floating = true,
         width = "auto",
@@ -10474,13 +10466,13 @@ function PanelDocument:CreateInterface(args)
             headerSlot.x = 7
             return
         end
-        local x = 0
-        for _, t in ipairs(m_tabs) do
-            if t.chip ~= nil and t.chip.valid then
-                x = x + (t.chip.renderedWidth or 0) + 2
+        local chipsWidth = 0
+        for _, tab in ipairs(m_tabs) do
+            if tab.chip ~= nil and tab.chip.valid then
+                chipsWidth = chipsWidth + (tab.chip.renderedWidth or 0) + 2
             end
         end
-        headerSlot.x = x + 6
+        headerSlot.x = chipsWidth + 6
     end
 
     SyncHeaderControl = function()
@@ -10515,11 +10507,9 @@ function PanelDocument:CreateInterface(args)
                 end
             end
         end
-        --one tab: the control sits in the title row beside its chip, and
-        --the strip gives up its width. Several tabs: the chips keep the
-        --whole row and the control takes a row of its own below them,
-        --lined up with the first chip's icon. With nothing showing it
-        --floats, so it takes no room either way.
+        --one tab: the control sits in the title row beside its chip, taking width
+        --from the strip. Several tabs: it gets its own row below the chips. With
+        --nothing showing it floats, so it takes no room either way.
         local ownRow = controlWidth > 0 and #m_tabs > 1
         headerSlot.floating = not ownRow
         headerSlot.selfStyle.bmargin = ownRow and 4 or 0
@@ -12332,7 +12322,7 @@ RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
 --g_iconRailPanels list only provides first-run defaults for panels
 --without a stored entry. Legacy entries (ord, no slot) compact into the
 --lowest free slots; slot collisions bump downward.
---Panels drawn on the rail in another's stored slot, by their key: the key saved for them.
+--Stand-ins drawn in another panel's rail slot: each stand-in's key -> the key that slot is saved under.
 --Set by each RailLayout (a field: this file is at Lua's 200-local limit).
 --- @type table<string, string>
 PanelDocument.railStandIns = {}
@@ -16869,10 +16859,9 @@ function PanelDocument.PanelInFront(key, panelName)
     return false
 end
 
---Functions run once a rail layout is in place: on entering a game (after any built-in
---View has been applied) and after every View apply. A module whose panel's availability
---follows a preference uses one to give that panel the slot a View's template left out.
---(Fields of PanelDocument rather than locals: this file is at Lua's 200-local limit.)
+--Functions run once a rail layout is in place (on entering a game and after every View
+--apply), e.g. to give a panel shown by a preference the slot a View's template left out.
+--A field, not a local: this file is at Lua's 200-local limit.
 PanelDocument.railLayoutApplied = {}
 
 --- Registers a function to run whenever a rail layout has been put in place. Keyed, so a
@@ -17332,7 +17321,7 @@ function PanelDocument.CreateRailBubble(opts, side, slot, rect)
         end,
 
         --one row: contents is a list of panels stacked in it; click, when
-        --given, is what a press on this row does instead of opening the panel.
+        --given, runs after a press on this row has opened the panel.
         addBubbleRow = function(element, contents, click)
             local data = element.data
             data.lastMessage = dmhub.Time()
@@ -17495,8 +17484,8 @@ function PanelDocument.ChatBubbleRowContent(message)
         --so the cut never splits a codepoint.
         local cut = limit
         while cut > 1 do
-            local b = string.byte(text, cut)
-            if b ~= nil and b >= 0x80 and b < 0xc0 then
+            local byte = string.byte(text, cut)
+            if byte ~= nil and byte >= 0x80 and byte < 0xc0 then
                 cut = cut - 1
             else
                 break
@@ -27440,7 +27429,7 @@ local g_viewBuiltins = {
         id = "builtin:director",
         name = UIText.Term("director"),
         --v7: History has its own button directly below Chat, and the Action Log left
-        --Chat's group (History replaced it, 6.4).
+        --Chat's group (History replaced it).
         version = 7,
         dmonly = true,
         --Floors & Layers, Measuring Tool, Map Markup and their folders
@@ -27507,7 +27496,7 @@ local g_viewBuiltins = {
         id = "builtin:player",
         name = "Player",
         --v8: History has its own button directly below Chat, and the Action Log left
-        --Chat's group (History replaced it, 6.4).
+        --Chat's group (History replaced it).
         version = 8,
         dmonly = false,
         layout = {

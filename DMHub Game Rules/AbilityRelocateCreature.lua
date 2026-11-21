@@ -898,14 +898,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
                 --pcall: this is only news for play observers and must not stop the move.
                 if path ~= nil then pcall(function()
-                    --plain numbers, so the route outlives this path object (the side view).
+                    --copied as plain numbers, so observers can keep the route after this path object is gone.
                     local savedPath = {}
                     local steps = path.steps or {}
                     for _,step in ipairs(steps) do
                         savedPath[#savedPath+1] = {step.x, step.y, step.floor, step.altitude}
                     end
-                    --a fall adds its landing to the end of the path. That step is no square the
-                    --creature was moved, and path.fallDistance reads 0 once it is there.
+                    --a fall adds its landing as a last step straight down. That is no square the creature
+                    --was moved, so it comes off distance (path.fallDistance already reads 0 here).
                     local last, previous = steps[#steps], steps[#steps-1]
                     local falling = previous ~= nil and last.x == previous.x and last.y == previous.y
                         and (last.floor ~= previous.floor or previous.altitude - last.altitude > 1)
@@ -920,7 +920,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,
                         cast = options.symbols.cast,
-                        --what stability took off, from the ability that set this move up (NoteStability).
+                        --what stability took off, saved on this clone by the ability that set the move up.
                         stability = ability:try_get("_tmp_forcedMoveStability"),
                     })
                 end) end

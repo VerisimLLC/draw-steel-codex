@@ -1073,7 +1073,7 @@ function AudioLogChatMessage.Render(self, message)
     }
 end
 
---Coalescing state for effect captions: consecutive fires of the SAME effect (same key --
+--Coalescing state for effect captions: consecutive fires of the SAME effect (same key:
 --assetid or poolid) within a few seconds share one caption rather than one per press.
 --A transition (music/ambience/anthem) breaks the run, so the effect captions again after it.
 local m_audioLogLastEffect = nil   -- { key, nonce }
@@ -1242,13 +1242,13 @@ local function AudioLogSend(text, kind)
     local doc = AudioCaptionDoc()
     doc:BeginChange()
     local recent = {}
-    local n = 0
+    local latest = 0
     for _, caption in ipairs(type(doc.data.recent) == "table" and doc.data.recent or {}) do
         recent[#recent + 1] = caption
-        n = math.max(n, caption.n or 0)
+        latest = math.max(latest, caption.n or 0)
     end
-    --n counts up, so a listener knows which captions it has not shown yet.
-    recent[#recent + 1] = {n = n + 1, text = text, kind = kind or "", t = dmhub.serverTimeMilliseconds}
+    --each caption's n counts up, so a listener knows which captions it has not shown yet.
+    recent[#recent + 1] = {n = latest + 1, text = text, kind = kind or "", t = dmhub.serverTimeMilliseconds}
     while #recent > AUDIO_CAPTIONS_KEPT do
         table.remove(recent, 1)
     end
@@ -1345,14 +1345,14 @@ local function ShowNewAudioCaptions()
     local rows = {}
     local texts = {}
     for _, caption in ipairs(recent) do
-        local n = caption.n or 0
+        local number = caption.n or 0
         local fresh = dmhub.serverTimeMilliseconds - (caption.t or 0) < AUDIO_CAPTION_FRESH_MS
         local wanted = caption.kind ~= "effect" or audioEventLogSfx:Get()
-        if n > seen and fresh and wanted and type(caption.text) == "string" then
+        if number > seen and fresh and wanted and type(caption.text) == "string" then
             texts[#texts + 1] = caption.text
             rows[#rows + 1] = {
                 contents = {gui.Label{classes = {"chatBubbleText"}, text = caption.text, interactable = false}},
-                --a caption has nothing to open: a press on it does nothing.
+                --a caption has nothing of its own to show: a press on it just opens Chat.
                 click = function() end,
             }
         end

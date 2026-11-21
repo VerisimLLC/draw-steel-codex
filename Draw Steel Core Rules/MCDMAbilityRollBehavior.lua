@@ -2122,7 +2122,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
-            --a roll the players could not see: History hides its numbers from them too (2.4).
+            --a roll the players could not see: History hides its numbers from them too.
             local hiddenRoll = false
             pcall(function() hiddenRoll = rollInfo.gmonly == true end)
             options.symbols.cast.hiddenRoll = hiddenRoll or nil
@@ -3345,8 +3345,8 @@ end
 
 function RollPropertiesPowerTable:ResetMods()
     self.surges = nil
-    --the surges among them that can be kept (surgesCanBeKept); without this reset every
-    --recalculation added a kept-surge modifier's surges again (7 from one I Work Better Alone).
+    --the surges among them that can be kept (surgesCanBeKept); cleared here so each
+    --recalculation counts a kept-surge modifier's surges once, not once more per pass.
     self.nonwastedSurges = nil
     self.shields = nil
     self.tierSuppressed = nil

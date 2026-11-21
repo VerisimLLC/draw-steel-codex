@@ -9274,7 +9274,9 @@ local g_iconRailPanels = {
     --lookup fails), same as any unavailable panel.
     "Dice",
     "Chat",
-    "Action Log",
+    --History replaced the Action Log here (6.4); the old log shows only for a user
+    --who turns on "Use Old Action Log".
+    "History",
     "Journal",
     "Campaign Tracker",
     "Downtime Projects",
@@ -12438,7 +12440,11 @@ local function RailLayout()
                 sbuttonSpan = ScriptButtonStyle(def).slots
             end
         else
+            --a panel behind a setting (`available`) keeps its slot but draws nothing while
+            --off, as the docks and window tabs already do (History / Use Old Action Log).
+            local reg = DockablePanel.GetRegistration(displayName)
             available = PanelDocument.Get(displayName) ~= nil
+                and (reg == nil or reg.available == nil or reg.available())
         end
 
         if not available then
@@ -16859,6 +16865,14 @@ function PanelDocument.RailPlaceBelow(key, belowKey)
     layout[key] = { side = side, slot = slot + 1 }
     dmhub.SetSettingValue("iconraillayout", layout)
     RebuildIconRails()
+end
+
+--- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
+--- changed (History's "Use Old Action Log" swaps History and the Action Log).
+function PanelDocument.RebuildRails()
+    if RebuildIconRails ~= nil then
+        RebuildIconRails()
+    end
 end
 
 function PanelDocument.FindChatRailButton()
@@ -27343,7 +27357,9 @@ local g_viewBuiltins = {
     {
         id = "builtin:director",
         name = UIText.Term("director"),
-        version = 6,
+        --v7: History has its own button directly below Chat, and the Action Log left
+        --Chat's group (History replaced it, 6.4).
+        version = 7,
         dmonly = true,
         --Floors & Layers, Measuring Tool, Map Markup and their folders
         --(and Map Settings from the Maps folder) moved to the map rail
@@ -27358,7 +27374,8 @@ local g_viewBuiltins = {
                 ["journal"] = { side = "left", slot = 3 },
                 ["dice"] = { side = "left", slot = 4 },
                 ["chat"] = { side = "left", slot = 5 },
-                ["audio"] = { side = "left", slot = 6 },
+                ["history"] = { side = "left", slot = 6 },
+                ["audio"] = { side = "left", slot = 7 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
@@ -27373,7 +27390,7 @@ local g_viewBuiltins = {
                 --copies of the old key are repaired by
                 --g_railRenamedPanels, so no version bump is needed for
                 --this edit (see the rename block up there).
-                ["chat"] = { "chat", "action log", "safety" },
+                ["chat"] = { "chat", "safety" },
                 ["map markup"] = {
                     "map markup",
                     "building editor",
@@ -27407,7 +27424,9 @@ local g_viewBuiltins = {
     {
         id = "builtin:player",
         name = "Player",
-        version = 7,
+        --v8: History has its own button directly below Chat, and the Action Log left
+        --Chat's group (History replaced it, 6.4).
+        version = 8,
         dmonly = false,
         layout = {
             rail = {
@@ -27418,7 +27437,8 @@ local g_viewBuiltins = {
                 --Measuring Tool (slot 4, with Whiteboard) moved to the map
                 --rail, 2026-10-15; see the Director view's note.
                 ["chat"] = { side = "left", slot = 4 },
-                ["audio"] = { side = "left", slot = 5 },
+                ["history"] = { side = "left", slot = 5 },
+                ["audio"] = { side = "left", slot = 6 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
@@ -27432,7 +27452,7 @@ local g_viewBuiltins = {
                 --copies of the old key are repaired by
                 --g_railRenamedPanels, so no version bump is needed for
                 --this edit (see the rename block up there).
-                ["chat"] = { "chat", "action log", "safety" },
+                ["chat"] = { "chat", "safety" },
             },
             pins = {},
             docks = { left = {}, right = {} },

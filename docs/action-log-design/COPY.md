@@ -707,3 +707,13 @@ ongoing effect and already gets its own lines.
 | L111 | New squad captain (F5) | {Creature} is now {Squad}'s captain; small text who did it | Goblin 3 is now the Goblin Raiders' captain · Director |
 | Y5c | Surges a modifier gave to keep, after the damage line (signed off 2026-11-21) | {One was / They were} gained from [{Modifier}]. | 2 surges added 2 each (...). They were gained from [I Work Better Alone]. |
 | L26 | (changed 2026-11-21, James: name the creature) | {Condition} / {Creature} did not resist. / {Creature} resisted. | Weakened / Devil High Judge did not resist. |
+
+## Round 28: the switch-over (6.4, signed off 2026-11-21)
+
+History is the default. The old Action Log is hidden unless the setting is on.
+
+| ID | What | Text |
+|---|---|---|
+| L112 | Setting name | Use Old Action Log |
+| L113 | Setting tooltip | Show the old Action Log instead of History |
+| L114 | History's rail button hover | History |

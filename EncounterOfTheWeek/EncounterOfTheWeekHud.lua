@@ -1216,14 +1216,11 @@ local function CreateCornerButtonsPanel()
     end
     local toolCount = #buttons
     buttons[#buttons+1] = CreateRulesButton()
-    for _, name in ipairs({"Journal", "Chat", "Action Log"}) do
-        buttons[#buttons+1] = CreatePanelButton(name)
-    end
-    --History sits beside the Action Log while it is being built and is switched on;
-    --it takes the Action Log's place here when the old log leaves the rail (6.4).
+    --History, or the old Action Log for a user who chose it back (6.4).
     local history = rawget(_G, "History")
-    if history ~= nil and history.Enabled ~= nil and history.Enabled() then
-        buttons[#buttons+1] = CreatePanelButton("History")
+    local oldLog = history == nil or history.UsingOldLog == nil or history.UsingOldLog()
+    for _, name in ipairs({"Journal", "Chat", oldLog and "Action Log" or "History"}) do
+        buttons[#buttons+1] = CreatePanelButton(name)
     end
     if #buttons == 0 then
         return nil

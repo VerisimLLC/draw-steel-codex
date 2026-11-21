@@ -130,14 +130,17 @@ History = {
     OnEnabledChanged = nil,
 }
 
---Off by default until the last stage of the build; on for a whole game at once,
---so every client records and shows the same thing. No editor: it has no place in
---Settings until the switch-over. Turn it on with
---dmhub.SetSettingValue("historyenabled", true).
-local g_enabledSetting = setting{
-    id = "historyenabled",
-    storage = "game",
+--History records in every game and is what everyone sees. A player who prefers the old
+--Action Log can bring it back for themselves; History keeps recording meanwhile, so turning
+--it back on loses nothing (6.4, COPY.md Round 28).
+local g_oldLogSetting = setting{
+    id = "history:useoldlog",
+    description = "Use Old Action Log",
+    help = "Show the old Action Log instead of History",
+    editor = "check",
     default = false,
+    storage = "preference",
+    section = "general",
     onchange = function()
         if History.OnEnabledChanged ~= nil then
             History.OnEnabledChanged()
@@ -145,10 +148,16 @@ local g_enabledSetting = setting{
     end,
 }
 
---- True if History is on in this game. Cheap enough to ask every frame.
+--- True: History records in every game. Kept as a function for the code that asks.
 --- @return boolean
 function History.Enabled()
-    return g_enabledSetting:Get() == true
+    return true
+end
+
+--- True if this user chose the old Action Log over History (their own preference).
+--- @return boolean
+function History.UsingOldLog()
+    return g_oldLogSetting:Get() == true
 end
 
 --- The document id for a map's History.

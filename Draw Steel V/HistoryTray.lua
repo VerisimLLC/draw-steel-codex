@@ -6272,7 +6272,10 @@ dmhub.Schedule(BUBBLE_TICK, BubbleTick)
 DockablePanel.Register{
     name = "History",
     icon = "phosphor/clock-counter-clockwise-bold.png",
-    available = History.Enabled,
+    --hidden for a user who chose the old Action Log (History.UsingOldLog).
+    available = function()
+        return not History.UsingOldLog()
+    end,
     vscroll = false,
     minHeight = 200,
     defaultWidth = TRAY_DEFAULT_WIDTH + EDGE_STRIP,
@@ -6307,15 +6310,23 @@ DockablePanel.Register{
     end,
 }
 
---Puts the rail button directly below Chat, once. The switch-over (chunk 6.4) gives
---everyone this through the built-in Views; until then only games with History on need it.
+--Puts the log this user sees (History, or the old Action Log if they chose it) directly
+--below Chat, once; a button already on their rail stays where they put it.
 local function PlaceRailButton()
-    if History.Enabled() then
+    if History.UsingOldLog() then
+        PanelDocument.RailPlaceBelow("action log", "chat")
+    else
         PanelDocument.RailPlaceBelow("history", "chat")
     end
 end
 
-History.OnEnabledChanged = PlaceRailButton
+--"Use Old Action Log" changed: swap the buttons now, not at the next reload.
+local function LogChoiceChanged()
+    PlaceRailButton()
+    PanelDocument.RebuildRails()
+end
+
+History.OnEnabledChanged = LogChoiceChanged
 dmhub.RegisterEventHandler("EnterGame", function()
     if not mod.unloaded then
         PlaceRailButton()

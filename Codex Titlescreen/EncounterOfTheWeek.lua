@@ -8707,31 +8707,67 @@ CreateScreen = function(args)
             end
         end
 
-        --An encounter's heading, with the Withdraw button when it carries one.
-        --The button asks for a second click, then makes the module Private.
-        local EncounterHeading = function(key)
+        --An encounter's heading. Clicking the arrow or title folds the encounter's
+        --feedback (entriesPanel) away, so a long list doesn't bury the encounters
+        --below it. Carries the Withdraw button when the encounter has one: it asks
+        --for a second click, then makes the module Private.
+        local EncounterHeading = function(key, entriesPanel)
             local moduleid = withdrawOn[key]
+            local collapsed = false
+            --Points right when folded, down when open.
+            local arrow = gui.ExpandoArrow{
+                classes = { "expanded" },
+                bgcolor = "#d9b56a",
+                width = 8,
+                height = 8,
+                lmargin = 0,
+                rmargin = 10,
+                valign = "center",
+                styles = {
+                    {
+                        selectors = { "parent:hover" },
+                        bgcolor = "#f2dca0",
+                    },
+                },
+            }
+            --The Withdraw button sits beside this panel, not inside it, so
+            --clicking the button never folds the feedback.
+            local toggle = gui.Panel{
+                --Leaves room for the 200-wide Withdraw button when there is one.
+                width = cond(moduleid == nil, "100%", "100%-200"),
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 14,
+                bmargin = 6,
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+                press = function()
+                    collapsed = not collapsed
+                    entriesPanel:SetClass("collapsed", collapsed)
+                    arrow:SetClass("expanded", not collapsed)
+                end,
+                arrow,
+                --ListSectionTitle's look, narrowed by the arrow (8 wide + 10 margin).
+                gui.Label{
+                    text = string.upper(titles[key] or ""),
+                    fontSize = 17,
+                    bold = true,
+                    color = "#d9b56a",
+                    width = "100%-18",
+                    height = "auto",
+                    valign = "center",
+                },
+            }
             if moduleid == nil then
-                return ListSectionTitle(titles[key])
+                return toggle
             end
             local moduleName = moduleNames[moduleid]
             return gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
-                --ListSectionTitle's look, sized to its text so the button fits.
-                gui.Label{
-                    text = string.upper(titles[key] or ""),
-                    fontSize = 17,
-                    bold = true,
-                    color = "#d9b56a",
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    valign = "center",
-                    tmargin = 14,
-                    bmargin = 6,
-                },
+                toggle,
                 gui.Button{
                     text = T("eotw.feedback.withdraw_button"),
                     fontSize = 16,
@@ -8815,8 +8851,8 @@ CreateScreen = function(args)
                 local rows = {}
                 for _,key in ipairs(keys) do
                     local stats = (result.stats or {})[key]
-                    rows[#rows+1] = EncounterHeading(key)
-                    rows[#rows+1] = gui.Label{
+                    local entries = {}
+                    entries[#entries+1] = gui.Label{
                         text = cond(stats == nil, T("eotw.feedback.not_tried"),
                             TP("eotw.feedback.stats", stats ~= nil and stats.plays or 0, { up = stats ~= nil and stats.up or 0,
                                 down = stats ~= nil and stats.down or 0 })),
@@ -8828,7 +8864,7 @@ CreateScreen = function(args)
                     for _,f in ipairs(result.feedback or {}) do
                         if f.encounter == key then
                             local vote = cond((f.vote or 0) > 0, T("eotw.feedback.vote_up"), cond((f.vote or 0) < 0, T("eotw.feedback.vote_down"), T("eotw.feedback.no_vote")))
-                            rows[#rows+1] = gui.Label{
+                            entries[#entries+1] = gui.Label{
                                 text = (f.feedback ~= nil and f.feedback ~= "") and T("eotw.feedback.entry", { player = f.name or "?", vote = vote, feedback = tostring(f.feedback) })
                                     or T("eotw.feedback.entry_no_text", { player = f.name or "?", vote = vote }),
                                 fontSize = 16,
@@ -8840,6 +8876,14 @@ CreateScreen = function(args)
                             }
                         end
                     end
+                    local entriesPanel = gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+                        children = entries,
+                    }
+                    rows[#rows+1] = EncounterHeading(key, entriesPanel)
+                    rows[#rows+1] = entriesPanel
                 end
                 body.children = rows
             end,

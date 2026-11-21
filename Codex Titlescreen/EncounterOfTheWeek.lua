@@ -5680,7 +5680,7 @@ CreateScreen = function(args)
                     height = "auto",
                 },
                 gui.Label{
-                    text = T("eotw.party.row_byline", { host = record.hostName or "?", filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
+                    text = T("eotw.party.row_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
                     fontSize = 18,
                     color = Styles.textColor,
                     opacity = 0.8,
@@ -6086,7 +6086,7 @@ CreateScreen = function(args)
 
         local ownerText = nil
         if params.ownerName ~= nil then
-            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName })
+            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName .. EotwPlayerTags.Inline(params.ownerTag) })
         end
 
         local chipText = nil
@@ -6277,13 +6277,13 @@ CreateScreen = function(args)
         local memberNames = {}
         if record.players ~= nil then
             for _,player in pairs(record.players) do
-                memberNames[#memberNames+1] = player.name or "?"
+                memberNames[#memberNames+1] = (player.name or "?") .. EotwPlayerTags.Inline(player.tag)
             end
         end
         table.sort(memberNames)
         children[#children+1] = gui.Label{
-            text = #memberNames > 0 and T("eotw.party.view_byline", { host = record.hostName or "?", players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
-                or T("eotw.party.view_byline_no_players", { host = record.hostName or "?", encounter = EncounterSuffix(record) }),
+            text = #memberNames > 0 and T("eotw.party.view_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
+                or T("eotw.party.view_byline_no_players", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), encounter = EncounterSuffix(record) }),
             fontSize = 18,
             color = Styles.textColor,
             opacity = 0.8,
@@ -6367,6 +6367,7 @@ CreateScreen = function(args)
                     gameid = gameid,
                     heroEntry = heroEntry,
                     ownerName = player.name,
+                    ownerTag = player.tag,
                     ownerUserid = userid,
                     myIndex = myIndex,
                     kickUserid = kickUserid,
@@ -7677,37 +7678,75 @@ CreateScreen = function(args)
         end)
     end
 
+    --The row under the chat tabs: who is in town (or in the party, on the Game
+    --Chat tab). Each name is followed by its plaque; the row wraps and is clipped
+    --to two lines, so a busy town cannot push the input off the drawer.
     local RefreshPresence = function()
         if presenceLabel == nil or not presenceLabel.valid or m_conn == nil then
             return
         end
+        --One small label of the row, dimmed like the line used to be. (Local to
+        --this function: the town screen's function is at Lua's local limit.)
+        local function PresenceText(text)
+            return gui.Label{
+                text = text,
+                fontSize = 16,
+                color = Styles.textColor,
+                opacity = 0.7,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                textWrap = false,
+            }
+        end
         local presence = m_conn:GetPath("/presence")
-        local names = {}
-        --the Game Chat tab lists the party, marking who is not in town.
+        --{ name, tag, note } per person, sorted by name.
+        local people = {}
+        local heading
         if m_viewGameid ~= nil and m_chatTab == "game" then
             local record = m_conn:GetPath("/state/games/" .. m_viewGameid)
             for userid,player in pairs(record ~= nil and record.players or {}) do
-                local name = ChatPlain(player.name or "?")
-                if presence == nil or presence[userid] == nil then
-                    name = name .. " <color=#ffffff80>" .. T("eotw.chat.presence_away") .. "</color>"
-                end
-                names[#names+1] = name
+                local away = presence == nil or presence[userid] == nil
+                people[#people+1] = { name = ChatPlain(player.name or "?"), tag = player.tag, note = cond(away, T("eotw.chat.presence_away"), nil) }
             end
-            table.sort(names)
-            presenceLabel.text = T("eotw.chat.presence_party", { count = #names, names = table.concat(names, ", ") })
+            heading = T("eotw.chat.presence_party", { count = #people, names = "" })
+        else
+            for _,entry in pairs(presence or {}) do
+                people[#people+1] = { name = ChatPlain(entry.name or "?"), tag = entry.tag }
+            end
+            heading = T("eotw.chat.presence_town", { count = #people, names = "" })
+        end
+        table.sort(people, function(a, b) return a.name < b.name end)
+        if #people == 0 then
+            presenceLabel.children = { PresenceText(T("eotw.chat.presence_empty")) }
             return
         end
-        if presence ~= nil then
-            for _,entry in pairs(presence) do
-                names[#names+1] = entry.name or "?"
+        local headingLabel = PresenceText(heading)
+        --labels drop a trailing space, so the gap after the colon is a margin.
+        headingLabel.selfStyle.rmargin = 5
+        local items = { headingLabel }
+        for i, person in ipairs(people) do
+            local parts = { PresenceText(person.name) }
+            local badge = EotwPlayerTags.Badge(person.tag, { fontSize = 11, maxWidth = 160 })
+            if badge ~= nil then
+                badge.selfStyle.lmargin = 5
+                parts[#parts+1] = badge
             end
+            if person.note ~= nil then
+                parts[#parts+1] = PresenceText(" " .. person.note)
+            end
+            if i < #people then
+                parts[#parts+1] = PresenceText(",")
+            end
+            items[#items+1] = gui.Panel{
+                width = "auto",
+                height = 21,
+                flow = "horizontal",
+                rmargin = 5,
+                children = parts,
+            }
         end
-        table.sort(names)
-        if #names == 0 then
-            presenceLabel.text = T("eotw.chat.presence_empty")
-        else
-            presenceLabel.text = T("eotw.chat.presence_town", { count = #names, names = table.concat(names, ", ") })
-        end
+        presenceLabel.children = items
     end
 
     RefreshChat = function()
@@ -7841,18 +7880,29 @@ CreateScreen = function(args)
             local body, urls = ChatLinkify(msg.text or "")
             --a horn's announcement reads as one gold line: "Aria blows the horn! ...",
             --as does its close (horn-launched / horn-canceled / horn-expired).
-            if type(msg.kind) == "string" and (msg.kind == "horn" or msg.kind:sub(1, 5) == "horn-") then
+            local isHorn = type(msg.kind) == "string" and (msg.kind == "horn" or msg.kind:sub(1, 5) == "horn-")
+            if isHorn then
                 name = string.format("<color=#d9b56a><b>%s</b>", ChatPlain(msg.name or "?"))
                 body = body .. "</color>"
             end
-            children[#children+1] = gui.Label{
-                text = string.format("%s%s %s%s", stamp, name, body, edited),
+            --a player showing a Player Tag: the plaque sits beside their name on a
+            --header row, and the message wraps underneath.
+            local badge = nil
+            if msg.source ~= "discord" and not isHorn then
+                badge = EotwPlayerTags.Badge(msg.tag, { fontSize = 12, maxWidth = 200 })
+            end
+            local lineText = string.format("%s%s %s%s", stamp, name, body, edited)
+            if badge ~= nil then
+                lineText = body .. edited
+            end
+            local line = gui.Label{
+                text = lineText,
                 fontSize = 16,
                 color = Styles.textColor,
-                width = "96%",
+                width = cond(badge ~= nil, "100%", "96%"),
                 height = "auto",
                 halign = "left",
-                vmargin = 2,
+                vmargin = cond(badge ~= nil, 0, 2),
                 --pressing a link opens it. Approved sites open at once; for
                 --any other the engine asks the player first.
                 links = #urls > 0,
@@ -7883,6 +7933,35 @@ CreateScreen = function(args)
                     }
                 end,
             }
+            if badge ~= nil then
+                children[#children+1] = gui.Panel{
+                    width = "96%",
+                    height = "auto",
+                    halign = "left",
+                    flow = "vertical",
+                    vmargin = 3,
+                    gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        bmargin = 1,
+                        gui.Label{
+                            text = string.format("%s<b>%s</b>", stamp, ChatPlain(msg.name or "?")),
+                            fontSize = 16,
+                            color = Styles.textColor,
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            textWrap = false,
+                            rmargin = 6,
+                        },
+                        badge,
+                    },
+                    line,
+                }
+            else
+                children[#children+1] = line
+            end
         end
         chatMessagesPanel.children = children
         if m_chatStickBottom then
@@ -12322,18 +12401,15 @@ CreateScreen = function(args)
             ChatTab("game", T("eotw.chat.tab_game")),
         },
 
-        gui.Label{
-            fontSize = 16,
-            color = Styles.textColor,
-            opacity = 0.7,
+        gui.Panel{
             width = "94%",
             --two lines at most, so a busy town cannot push the input
             --off the bottom of the drawer.
             height = 42,
-            textAlignment = "topleft",
-            textOverflow = "ellipsis",
+            flow = "horizontal",
+            wrap = true,
+            clip = true,
             halign = "center",
-            text = "",
             create = function(element)
                 presenceLabel = element
                 RefreshPresence()
@@ -12933,6 +13009,7 @@ CreateScreen = function(args)
                     reveal()
                 end
                 EotwRoster.AnnounceReturns(resultPanel)
+                EotwPlayerTags.AnnounceEarned(resultPanel)
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()

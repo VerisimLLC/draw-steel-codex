@@ -61,6 +61,11 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      the setting hides/shows History on the rail. Not run: the built-in View switch, EotW
      strip. The old "historyenabled" game setting is gone: History now runs in every game,
      so the Crows load test matters.
+     Crows (2026-11-21): History is wrong for Crows (no winded, AD, Wounds). `7920c88a` adds
+     GameSystem.historyNotSupported (History records nothing, everyone sees the old log;
+     RailSwapPanel hands History's slot to the Action Log). Crowdex sets it: VerisimLLC/crowdex
+     PR #3 (clone at D:\crowdex, branch history-not-supported). Checked live by setting the
+     flag over the bridge in James's Crows game.
   5. **Testing before PRs:** Crows (load a Crows game with the branch), a real Encounter of the
      Week run, negotiation lines (Director side only: the player side of negotiations is
      unfinished, not History's), failed or tied opposed rolls and a double bane, a respite

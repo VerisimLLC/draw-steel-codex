@@ -323,7 +323,7 @@ local function CollectConditionEntries(tokens)
                         name = info.name,
                         tooltip = tooltip or info.name,
                         remove = function(t)
-                            t.properties:InflictCondition(condid, {purge = true})
+                            GameSystem.HandEdit(function() t.properties:InflictCondition(condid, {purge = true}) end)
                         end,
                     }
                 end
@@ -349,7 +349,7 @@ local function CollectConditionEntries(tokens)
                         name = info.name,
                         tooltip = tooltip or info.name,
                         remove = function(t)
-                            t.properties:RemoveOngoingEffect(entry.ongoingEffectid)
+                            GameSystem.HandEdit(function() t.properties:RemoveOngoingEffect(entry.ongoingEffectid) end)
                         end,
                     }
                 end
@@ -1442,7 +1442,7 @@ local function CreateMaliceCard(groups)
             if value < 0 then
                 value = 0
             end
-            CharacterResource.SetMalice(value, "Manually set")
+            GameSystem.HandEdit(function() CharacterResource.SetMalice(value, "Manually set") end)
             element.text = string.format("%d", value)
         end,
         hover = function(element)

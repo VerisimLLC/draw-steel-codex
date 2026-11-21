@@ -7,6 +7,100 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): GameSystem
 GameSystem = RegisterGameType("GameSystem")
 
+--Observers of play, by id, so a reload of the observing mod replaces its observer
+--instead of adding a second one.
+local g_playObservers = {}
+
+--- Registers functions told about things that happen in play, for code that keeps a
+--- record of it. handlers holds a function per moment, any of:
+---   began(ability, casterToken, targets, options): a cast has its castid and its
+---     symbols.cast, before anything is paid or resolved.
+---   finished(ability, casterToken, options): a cast ended. options.abort means it
+---     was cancelled and options.atexit that it stopped with an error.
+---   damage(creature, info): Stamina or temporary Stamina was hit. info: landed, lost,
+---     raw, damagetype, source, cast, startofturn.
+---   heal(creature, regained, note, recovered): Stamina went up by regained. recovered is
+---     "winded" or "dying" if that ended it.
+---   resource(creature, key, before, after, refreshType, note): a resource a record of
+---     play follows changed on a creature.
+---   globalresource(resourceid, before, after, note): a shared resource changed.
+---   forcedmove(creature, info): another creature moved it. info: kind, distance, falling,
+---     collision, walls, path (a list of {x, y, floor, altitude}, start first), cast.
+---   fell(creature, info): it landed from a fall. info: distance, in squares. This comes a
+---     moment after the move that caused it, outside any cast.
+---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
+---     info: source, cast.
+---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
+---   temporarystamina(creature, before, after, note): the pool grew.
+---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
+---     or healed (a sheet field, a Set Stamina step).
+---   wavedeployed(info): reinforcements arrived. info: name (the wave's), tokens (the
+---     tokens spawned). Only on the client that deployed them.
+---   spoilerrevealed(info): the Director revealed a spoilered roll modifier to players.
+---     info: key, name, description, tokenid (whose modifier, or nil).
+---   spoilervisibility(key, revealed): the Director's eye shows or hides such a modifier.
+---   turnreverted(info): Revert Turn or Turn Rewind restored the board, on the client that
+---     did it. info: since (server ms the checkpoint was taken), turnkey (Turn Rewind only:
+---     the turn, so stepping back and forward within it is one record), turn (Revert Turn
+---     only: {encounter, round, turn} of the turn undone).
+---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
+---     or ongoingeffectid, duration, source; renewed = true when the creature already had
+---     it and this application only renewed it; instanceid = an ongoing effect's instance.
+---   effectsended(creature, ended, cause): conditions and ongoing effects ended. ended is
+---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
+---   conditionimmune(creature, conditionid): an infliction was stopped by immunity.
+---   resisted(creature): a potency test was resisted.
+---   typedmessage(text): an ability step posted the note its author typed (its chatMessage),
+---     inside the cast that ran it.
+---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
+---     atturnend, options (the options of the cast that rolled it).
+---   persistenceended(creature, abilityname, reason): a persistent ability stopped.
+---   encounterended(creature): runs for each creature as combat ends.
+---   turnended(creature): a creature's turn ended.
+--- None may yield. Any may fail: a broken observer is logged and play carries on.
+--- @param id string Unique name for this observer.
+--- @param handlers table<string, function>
+function GameSystem.RegisterPlayObserver(id, handlers)
+	g_playObservers[id] = handlers
+end
+
+--How many GameSystem.HandEdit calls are running (they can nest).
+local g_handEditDepth = 0
+
+--- Runs a change a person made by hand (a sheet field, the Stamina bar, the condition
+--- menu) so play observers can tell it from one the rules made: while fn runs,
+--- GameSystem.IsHandEdit() is true. Wrap only the change itself; fn must not yield.
+--- @param fn function
+function GameSystem.HandEdit(fn)
+	g_handEditDepth = g_handEditDepth + 1
+	local ok, err = pcall(fn)
+	g_handEditDepth = g_handEditDepth - 1
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- True while a change made by hand (GameSystem.HandEdit) is running.
+--- @return boolean
+function GameSystem.IsHandEdit()
+	return g_handEditDepth > 0
+end
+
+--- Tells every observer that something happened. Safe in hot code: it costs a table
+--- lookup per observer, and a failure in one stops nothing.
+--- @param moment string
+function GameSystem.NotifyPlayObservers(moment, ...)
+	for id,handlers in pairs(g_playObservers) do
+		local fn = handlers[moment]
+		if fn ~= nil then
+			local ok, err = pcall(fn, ...)
+			if not ok then
+				print("GameSystem:: play observer failed:", id, moment, err)
+			end
+		end
+	end
+end
+
 --- @class StatHistoryEntry
 --- @field note nil|string
 --- @field disposition nil|string
@@ -3042,6 +3136,7 @@ end
 --- @field multitargets? table[] Per-target state of a roll against several targets ({tokenid, boons, banes, surges, modifiersUsed, ...}); set by the roll dialog.
 --- @field castid? string Id of the ability cast this roll belongs to; set by the roll dialog.
 --- @field overrideMessage? string Why the result was overridden (e.g. "X overrode the result"); shown on the chat card.
+--- @field overrideBy? string Who overrode the result: "Director" or the player's name, for a record of play (History).
 --- @field overrideOutcome? table An outcome entry ({outcome = "Hit", value = 8, ...}) that GetOutcome returns instead of matching the roll.
 --- Properties attached to a dice roll result to control outcome display and resolution.
 RollProperties = RegisterGameType("RollProperties")
@@ -6169,9 +6264,11 @@ function creature:RefreshToken(token)
                 token:ModifyProperties{
                     description = "Remove expired inflicted conditions",
                     execute = function()
-                        for _,k in ipairs(removes) do
-                            self.inflictedConditions[k] = nil
-                        end
+                        self:EndingEffects(nil, function()
+                            for _,k in ipairs(removes) do
+                                self.inflictedConditions[k] = nil
+                            end
+                        end)
                     end,
                 }
             end
@@ -6204,7 +6301,9 @@ function creature:RefreshToken(token)
 				token:ModifyProperties{
 					description = "Remove expired ongoing effects",
 					execute = function()
-						self.ongoingEffects = ongoingEffects
+						self:EndingEffects(nil, function()
+							self.ongoingEffects = ongoingEffects
+						end)
 					end,
 				}
 			end
@@ -8949,13 +9048,66 @@ local function PropagateTargetingGroupEnd(key)
     g_propagatingTargetingGroupEnd = false
 end
 
+--Creatures whose changes an EndingEffects call further up the stack is already watching.
+local g_endingEffects = {}
+
+--What is on a creature that can end, by a key that is the same before and after.
+local function EffectsOn(self)
+    local result = {}
+    for _,instance in ipairs(self:try_get("ongoingEffects", {})) do
+        result["effect:" .. tostring(instance.id)] = {ongoingeffectid = instance.ongoingEffectid}
+    end
+    for conditionid,_ in pairs(self:try_get("inflictedConditions", {})) do
+        result["condition:" .. conditionid] = {conditionid = conditionid}
+    end
+    return result
+end
+
+--- Runs fn, which may end conditions or ongoing effects on this creature, then tells play
+--- observers what ended. Any code that takes something off a creature goes through this,
+--- so what ended is worked out from what changed, not by each caller. A nested call joins
+--- the outer one, so the outer cause wins. fn must not yield.
+--- @param cause nil|string "endturn", "endround", "dying", "saved", "endofencounter", or words to show.
+--- @param fn function
+--- @return any ...
+function creature:EndingEffects(cause, fn)
+    if g_endingEffects[self] then
+        return fn()
+    end
+
+    local before = EffectsOn(self)
+    g_endingEffects[self] = true
+    local results = table.pack(pcall(fn))
+    g_endingEffects[self] = nil
+    if not results[1] then
+        error(results[2], 0)
+    end
+
+    local after = EffectsOn(self)
+    local ended = nil
+    for key,item in pairs(before) do
+        if after[key] == nil then
+            ended = ended or {}
+            ended[#ended+1] = item
+        end
+    end
+    if ended ~= nil then
+        GameSystem.NotifyPlayObservers("effectsended", self, ended, cause)
+    end
+    return table.unpack(results, 2, results.n)
+end
+
 local g_baseRemoveOngoingEffect = creature.RemoveOngoingEffect
 function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
     if g_propagatingTargetingGroupEnd or not g_targetingGroupEffectIds[ongoingEffectid] then
-        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        end)
     end
     local key = self:CalculateNamedCustomAttribute("Targeting Group")
-    local r = g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    local r = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    end)
     if not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
@@ -8965,11 +9117,15 @@ end
 local g_baseRemoveOngoingEffectBySeq = creature.RemoveOngoingEffectBySeq
 function creature:RemoveOngoingEffectBySeq(seq, numStacks)
     if g_propagatingTargetingGroupEnd then
-        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        end)
     end
     local hadGroup = CreatureHasTargetingGroupEffect(self)
     local key = hadGroup and self:CalculateNamedCustomAttribute("Targeting Group") or 0
-    local r = g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    local r = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    end)
     if hadGroup and not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
@@ -11160,6 +11316,7 @@ function creature:BeginTurn(options)
                                 amount = damageInfo.damage,
                                 instances = 1,
                                 aura = auraInstance,
+                                startofturn = true,
                             })
                         end
                     end
@@ -11453,7 +11610,9 @@ function creature:EndTurn(token)
 		token:ModifyProperties{
 			description = "Remove ongoing effects",
 			execute = function()
-				self.ongoingEffects = newOngoingEffects
+				self:EndingEffects("endturn", function()
+					self.ongoingEffects = newOngoingEffects
+				end)
 			end,
 		}
 	end
@@ -11463,6 +11622,7 @@ function creature:EndTurn(token)
 	--acted on, which for a summon is its summoner's.
 	Aura.ExpireOrphanedTurnScopedAurasOnTurn(InitiativeQueue.GetInitiativeId(token), "endturn")
 
+	GameSystem.NotifyPlayObservers("turnended", self)
 end
 
 function creature:EndRound(token)
@@ -11499,7 +11659,9 @@ function creature:EndRound(token)
                         end
                     end
 
-                    self.ongoingEffects = newOngoingEffects
+                    self:EndingEffects("endround", function()
+                        self.ongoingEffects = newOngoingEffects
+                    end)
                 end,
             }
         end
@@ -11636,9 +11798,11 @@ function creature:RemoveOngoingEffectsOnTrigger(eventName, info)
 					description = "Remove ongoing effects",
 					undoable = false,
 					execute = function()
-						for i=#removeIndexes,1,-1 do
-							table.remove(self.ongoingEffects, removeIndexes[i])
-						end
+						self:EndingEffects(eventName == "dying" and "dying" or nil, function()
+							for i=#removeIndexes,1,-1 do
+								table.remove(self.ongoingEffects, removeIndexes[i])
+							end
+						end)
 					end,
 				}
 			end
@@ -11715,7 +11879,24 @@ end
 
 --an event is triggered which could cause triggered abilities to go off.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
+--Marks an event with the cast it came out of, so a trigger it sets off can say what
+--caused it. A plain id, so it survives the event being sent to another machine.
+local function StampEventCause(info)
+    if type(info) ~= "table" or info.causecastid ~= nil then
+        return
+    end
+    local running = ActivatedAbility.CurrentCastInfo()
+    if running ~= nil and running.options ~= nil and running.options.symbols ~= nil then
+        info.causecastid = running.options.symbols.castid
+    end
+end
+
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
+    StampEventCause(info)
+    --every other creature hears this event too, with subject set. Only this one landed.
+    if eventName == "fall" and info.subject == nil then
+        GameSystem.NotifyPlayObservers("fell", self, {distance = info.speed})
+    end
 
     if (not alreadyTriggeredOnOthers) and (info == nil or info.subject == nil) then
         self:TriggerEventOnOthers(eventName, info)
@@ -12286,6 +12467,7 @@ function creature:GetAIReactionDeliveryStatus(activityId)
 end
 
 function creature:DispatchEvent(eventName, info)
+    StampEventCause(info)
 
     --Stamp the Monster AI's in-flight activity on the event so any prompt it
     --raises on a hero is tracked as a reaction the AI waits on. A mover's
@@ -13858,15 +14040,18 @@ end
 --a respite begins, and also from Rest() for instant-respite flows.
 function creature:RemoveOngoingEffectsOnRest(restType)
 	if self:has_key("ongoingEffects") then
-		local newOngoingEffects = {}
-		for _,effectInstance in ipairs(self.ongoingEffects) do
-			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
-			if not remove then
-				newOngoingEffects[#newOngoingEffects+1] = effectInstance
+		--EndingEffects tells play observers (History) what this took off, with the cause "rest".
+		self:EndingEffects("rest", function()
+			local newOngoingEffects = {}
+			for _,effectInstance in ipairs(self.ongoingEffects) do
+				local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
+				if not remove then
+					newOngoingEffects[#newOngoingEffects+1] = effectInstance
+				end
 			end
-		end
 
-		self.ongoingEffects = newOngoingEffects
+			self.ongoingEffects = newOngoingEffects
+		end)
 	end
 end
 
@@ -13878,6 +14063,12 @@ end
 --the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
 function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
+
+	--Play observers (History) note what the creature has before a long rest, and what
+	--changed once it is over ("rested", at the end of this function).
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("resting", self)
+	end
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
@@ -13925,6 +14116,9 @@ function creature:Rest(restType, keepOngoingEffects, keepLevel)
 		self:RemoveOngoingEffectsOnRest(restType)
 	end
 
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("rested", self)
+	end
 end
 
 function creature:HasConcentration()

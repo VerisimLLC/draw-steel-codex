@@ -445,6 +445,68 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+--- Tells a record of play (History) that a test outside an ability finished, with what it
+--- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
+--- @param props creature The creature that rolled.
+--- @param testName string What the test is called, e.g. "Might test".
+--- @param rollInfo table The finished roll.
+--- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
+--- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
+    local value = nil
+    for id, info in pairs(creature.attributesInfo) do
+        if characteristic ~= nil and info.description == characteristic then
+            local attr = props:GetAttribute(id)
+            value = attr ~= nil and attr:Modifier() or nil
+        end
+    end
+    local dice = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            dice[#dice + 1] = roll.result
+        end
+    end
+    local overrideTier = rollInfo.properties ~= nil and rollInfo.properties:try_get("overrideTier") or nil
+    GameSystem.NotifyPlayObservers("tested", props, {
+        name = testName,
+        total = rollInfo.total,
+        tier = overrideTier or RollUtils.DiceResultToTier(rollInfo),
+        dice = dice,
+        natural = rollInfo.naturalRoll,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        characteristic = value ~= nil and {name = characteristic, value = value} or nil,
+        sources = details ~= nil and details.edgeSources or nil,
+        privacy = RollUtils.RollPrivacy(rollInfo, details),
+        cause = causeCastId,
+        --a tier someone chose after the dice landed: who, and what the dice gave.
+        overridden = overrideTier ~= nil and {
+            by = rollInfo.properties:try_get("overrideBy"),
+            dicetier = RollUtils.DiceResultToTier(rollInfo),
+        } or nil,
+    })
+end
+
+--- Who may see a finished roll, for a record of play (History): nil when everyone may.
+--- A GM-only roll reaches only its roller and the Director; a Dice Tower roll is seen
+--- by everyone but its result only by the Director.
+--- @param rollInfo table The finished roll (a chat roll message).
+--- @param details nil|{dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @return nil|{hidden: boolean, tower: nil|boolean, userid: nil|string, cause: nil|string} cause is filled in by History.
+function RollUtils.RollPrivacy(rollInfo, details)
+    local gmonly, userid = false, nil
+    pcall(function()
+        gmonly = rollInfo.gmonly == true
+        userid = rollInfo.userid
+    end)
+    local tower = details ~= nil and details.dicetower == true
+    if not gmonly and not tower then
+        return nil
+    end
+    return {hidden = true, tower = tower or nil, userid = userid}
+end
+
 --- One target's effective roll: the roll as rolled, plus that target's post-roll
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves
@@ -1020,6 +1082,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_tierFinished = i
                     rollProperties.overrideTier = i
                     rollProperties.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                    --who did it, for a record of play (History): the Director, or the player's name.
+                    rollProperties.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                     m_rollInfo:UploadProperties(rollProperties)
 
                     element.parent:FireEventTree("tier", i, true)
@@ -2050,6 +2114,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
+            --a roll the players could not see: History hides its numbers from them too (2.4).
+            local hiddenRoll = false
+            pcall(function() hiddenRoll = rollInfo.gmonly == true end)
+            options.symbols.cast.hiddenRoll = hiddenRoll or nil
         end,
 
         cancelRoll = function()
@@ -2165,6 +2233,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
+    --an overridden tier: who chose it and what the dice gave, for a record of play (History).
+    if rollProperties:try_get("overrideTier") ~= nil then
+        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+        options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -2341,6 +2414,38 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 local potencyApplied = 0
                 if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
                     surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
+
+                    --A target with its own edges or banes rolls a different total. Kept on the
+                    --cast beside its tier (tokenToTier) so History can show that target's roll.
+                    local multitarget = m_rollInfo.properties.multitargets[numTarget]
+                    if (multitarget.boons or 0) ~= 0 or (multitarget.banes or 0) ~= 0 then
+                        local effective = RollUtils.EffectiveRollForTarget(m_result, multitarget)
+                        local targetRolls = options.symbols.cast:get_or_add("targetRolls", {})
+                        targetRolls[targetToken.charid] = {edges = effective.boons, banes = effective.banes, total = effective.total}
+                    end
+                    --and what gave this target's roll its edges and banes, as the roll dialog named them.
+                    if multitarget.edgeSources ~= nil and #multitarget.edgeSources > 0 then
+                        local targetSources = options.symbols.cast:get_or_add("targetSources", {})
+                        targetSources[targetToken.charid] = multitarget.edgeSources
+                    end
+                    --what the dialog's modifiers added to this target's damage, and its surges, so
+                    --History can split the Tier line. Each surge adds the highest characteristic,
+                    --of the type a surge modifier names (as the roll dialog's surge icons do).
+                    if multitarget.damageSources ~= nil and #multitarget.damageSources > 0 then
+                        local targetDamage = options.symbols.cast:get_or_add("targetDamageSources", {})
+                        targetDamage[targetToken.charid] = multitarget.damageSources
+                    end
+                    if surges > 0 then
+                        local surgeType = nil
+                        for _, mod in ipairs(multitarget.modifiersUsed or {}) do
+                            local damageType = mod:try_get("surgeDamageType")
+                            if mod:try_get("rollRequirement") == "surges" and damageType ~= nil and damageType ~= "untyped" then
+                                surgeType = damageType
+                            end
+                        end
+                        local targetSurges = options.symbols.cast:get_or_add("targetSurges", {})
+                        targetSurges[targetToken.charid] = {count = surges, each = casterToken.properties:HighestCharacteristic(), damagetype = surgeType}
+                    end
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
@@ -3174,6 +3279,24 @@ function RollPropertiesPowerTable:GetDamageTypes()
     return result
 end
 
+--- The damage written in one tier's text, summed by type, so callers can measure what a
+--- kit, a modifier or a surge added by comparing before and after. Untyped damage is
+--- keyed "untyped"; a choice of types keys under its words as written ("cold, fire, or sonic").
+--- @param tier string|nil
+--- @return table<string, number>
+function RollPropertiesPowerTable.DamageByType(tier)
+    local result = {}
+    --the optional dice part keeps "3 + 1d6 damage" reading as 3, as ModifyDamage does.
+    for _, match in ipairs(regex.MatchAll(tier or "", "(\\d+)\\s+(?:\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage")) do
+        local typeName = string.lower(trim(match[3] or ""))
+        if typeName == "" then
+            typeName = "untyped"
+        end
+        result[typeName] = (result[typeName] or 0) + (tonumber(match[2]) or 0)
+    end
+    return result
+end
+
 function RollPropertiesPowerTable:HasForcedMovement()
     for _,tier in ipairs(self.tiers) do
         local t = string.lower(tier)
@@ -3662,6 +3785,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                                    self.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                                     message:UploadProperties(self)
 
                                     for j,row in ipairs(m_rows) do

@@ -142,6 +142,7 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		checks = checks,
 		silent = self.silent,
 		tokens = tokenInfo,
+		castid = options.symbols ~= nil and options.symbols.castid or "",
 	})
 	ActivatedAbility.TrackCastActionRequest(actionid)
 
@@ -169,6 +170,14 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 	for _,target in ipairs(targets) do
 		if target.token ~= nil then
 			local defenderRoll = dcaction.info.tokens[target.token.charid].result
+			--History: how the two totals compared, for this target's place on the ability's row.
+			if defenderRoll ~= nil then
+				GameSystem.NotifyPlayObservers("opposed", target.token.properties, {
+					attacker = attackerRoll,
+					defender = defenderRoll,
+					cast = options.symbols ~= nil and options.symbols.cast or nil,
+				})
+			end
 			--State does not change on ties
 			if defenderRoll ~= nil and defenderRoll < attackerRoll then
 				self:RecordHitTarget(target.token, options)

@@ -996,10 +996,23 @@ local CreateMontageTestUI = function(args)
                 return
             end
 
+            local before = montage[mode]
+            local limit = montageDoc:GetDifficultyInfo(montage:HeroCount())[mode]
             doc:BeginChange()
             montage[mode] = math.max(0, montage[mode] + delta)
-            montage[mode] = math.min(montage[mode], montageDoc:GetDifficultyInfo(montage:HeroCount())[mode])
+            montage[mode] = math.min(montage[mode], limit)
             doc:CompleteChange("Update montage " .. mode)
+            --play observers (History): the Director moved a counter.
+            if montage[mode] ~= before then
+                GameSystem.NotifyPlayObservers("montage", {
+                    kind = "counter",
+                    name = montageDoc.description,
+                    counter = mode,
+                    before = before,
+                    after = montage[mode],
+                    limit = limit,
+                })
+            end
         end
 
         local resultPanel

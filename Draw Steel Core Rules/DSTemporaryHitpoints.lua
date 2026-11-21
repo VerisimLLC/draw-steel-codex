@@ -199,6 +199,7 @@ function ActivatedAbilityGrantTemporaryStaminaBehavior:Cast(ability, casterToken
 
     if logMessage ~= nil and logMessage.amount > 0 then
         chat.SendCustom(logMessage)
+        GameSystem.NotifyPlayObservers("typedmessage", logMessage.chatMessage)
     end
 
     if granted then

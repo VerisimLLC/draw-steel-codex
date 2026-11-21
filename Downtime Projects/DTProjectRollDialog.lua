@@ -284,6 +284,7 @@ function DTEventRollDialog.ShowDialog(args)
             complete = function(info)
                 rolled = {total = info.total, tableRef = tableRef}
                 SetResult(EventTextForTotal(tableRef, info.total))
+                RollOnTableProperties.NotifyRolled(heroToken.properties, tableRef, info, {project = project:GetTitle()})
             end,
         }
     end

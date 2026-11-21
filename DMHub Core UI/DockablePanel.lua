@@ -2254,6 +2254,11 @@ local PanelPermittedForUser = function(p)
 	if p.devonly and not devmode() then
 		return false
 	end
+	--a panel behind a setting: available() says whether it exists right now. It runs
+	--several times a second on the rails, so keep it cheap.
+	if p.available ~= nil and not p.available() then
+		return false
+	end
 	--DirectorUIVisible rather than dmhub.isDM so dmonly panels also hide for
 	--a Director presenting as a player (Encounter of the Week host). Panel
 	--background processes (DockablePanel.StartProcess) are independent of
@@ -2310,7 +2315,8 @@ DockablePanel = {
 	--make the window vertically unresizable), dmonly, devonly, ...
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
-	--minWidth/maxWidth bound the window's width.
+	--minWidth/maxWidth bound the window's width; defaultWidth is the width
+	--a new window opens at (PanelDocument.DefaultWidth otherwise).
 	--popoutHeight (content px) gives the panel's native OS popout window
 	--its own default height, instead of inheriting the in-app window's
 	--footprint when popping out.
@@ -2325,6 +2331,7 @@ DockablePanel = {
 	--gets an icon, menu placement, dmonly/devonly gating, and rail
 	--membership like any panel. First client: the Body Banks, which
 	--launches the companion app.
+	--available = function() hides the panel from every list while it returns false.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return

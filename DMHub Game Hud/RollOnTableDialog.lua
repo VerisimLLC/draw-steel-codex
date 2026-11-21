@@ -633,6 +633,53 @@ function RollOnTableProperties:GetOutcome(rollInfo)
     }
 end
 
+--- Tells a record of play (History) that a roll on a table finished. Call it once, on the
+--- client that rolled, once the result stands: after an override it is the row picked.
+--- @param roller nil|creature Who rolled; nil for a player or the Director with no character.
+--- @param tableRef RollTableReference The table rolled on.
+--- @param rollInfo table The finished roll. The roll dialog adds rolledTotal and overrideMessage when the result was overridden.
+--- @param extra nil|{cause: nil|string, project: nil|string} cause: the cast id of the ability that asked for the roll. project: the downtime project whose event the Director rolled.
+function RollOnTableProperties.NotifyRolled(roller, tableRef, rollInfo, extra)
+    --a choice table (the Conduit's Pray / Do Not Pray) hands the dice to the table chosen;
+    --the roll's own properties name the table they landed on.
+    pcall(function()
+        local rolledOn = rollInfo.properties ~= nil and rollInfo.properties:try_get("tableRef") or nil
+        if rolledOn ~= nil and rolledOn:GetTable() ~= nil then
+            tableRef = rolledOn
+        end
+    end)
+    local t = tableRef:GetTable()
+    if t == nil or rollInfo == nil or rollInfo.total == nil then
+        return
+    end
+    --a real roll is an engine object, which raises on a field it doesn't have.
+    local rolled, overridden = rollInfo.total, nil
+    pcall(function()
+        rolled = rollInfo.rolledTotal or rolled
+        overridden = rollInfo.overrideMessage
+    end)
+    local faces = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+    local outcome = RollOnTableProperties.new{tableRef = tableRef}:GetOutcome({total = rollInfo.total})
+    local result = outcome ~= nil and outcome.outcome or nil
+    if result ~= nil and roller ~= nil then
+        result = StringInterpolateGoblinScript(result, roller)
+    end
+    GameSystem.NotifyPlayObservers("tablerolled", roller, {
+        table = t.name,
+        rolled = rolled,
+        dice = faces,
+        result = result,
+        overridden = overridden,
+        cause = extra ~= nil and extra.cause or nil,
+        project = extra ~= nil and extra.project or nil,
+    })
+end
+
 
 function RollOnTableProperties:CustomPanel(message)
 

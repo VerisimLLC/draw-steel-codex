@@ -625,12 +625,15 @@ Commands.RegisterMacro{
         local points = tonumber(str) or 1
         for _, token in ipairs(dmhub.allTokens) do
             if token.properties:IsHero() then
+                local before = token.properties:GetVictories()
                 token:ModifyProperties {
                     description = "Award Victories",
                     execute = function()
-                        token.properties:SetVictories(token.properties:GetVictories() + points)
+                        token.properties:SetVictories(before + points)
                     end,
                 }
+                --a record of play (History) hears of each award from the client that gave it.
+                GameSystem.NotifyPlayObservers("awarded", token.properties, {kind = "victories", before = before, after = before + points})
             end
         end
     end,
@@ -1826,10 +1829,14 @@ Commands.RegisterMacro{
 
         local tokens = tokenSearch(tokenName, allTokens)
 
+        local item = (dmhub.GetTable("tbl_Gear") or {})[itemID]
         for _, token in pairs(tokens) do
             token:BeginChanges()
             token.properties:GiveItem(itemID, quantity)
             token:CompleteChanges('Receive item')
+            if item ~= nil then
+                GameSystem.NotifyPlayObservers("awarded", token.properties, {kind = "item", name = item.name, quantity = quantity or 1})
+            end
         end
     end,
 }
@@ -2682,6 +2689,7 @@ Commands.RegisterMacro{
 
         local tokens = tokenSearch(tokenName, allTokens)
 
+        local title = (dmhub.GetTable(Title.tableName) or {})[titleID]
         for _, token in pairs(tokens) do
             token:ModifyProperties {
                 description = "Add Title",
@@ -2689,6 +2697,9 @@ Commands.RegisterMacro{
                     token.properties:AddTitle(titleID)
                 end,
             }
+            if title ~= nil then
+                GameSystem.NotifyPlayObservers("awarded", token.properties, {kind = "title", name = title.name})
+            end
         end
     end,
 }
@@ -3047,11 +3058,15 @@ Commands.RegisterMacro{
         local points = tonumber(str) or 1
         for _, token in ipairs(dmhub.allTokens) do
             if token.properties:IsHero() then
+                local before = nil
+                pcall(function() before = token.properties:CalculateNamedCustomAttribute("Renown") end)
+                local granted = false
                 token:ModifyProperties {
                     description = "Award Renown",
                     execute = function()
                         local feature = DeepCopy(MCDMImporter.GetStandardFeature("Renown Modification"))
                         if feature ~= nil then
+                            granted = true
                             feature.guid = dmhub.GenerateGuid()
                             feature.modifiers[1].sourceguid = feature.guid
                             feature.name = "Custom Modification"
@@ -3068,6 +3083,9 @@ Commands.RegisterMacro{
                         end
                     end,
                 }
+                if granted and before ~= nil then
+                    GameSystem.NotifyPlayObservers("awarded", token.properties, {kind = "renown", before = before, after = before + points})
+                end
             end
         end
     end,
@@ -3085,11 +3103,15 @@ Commands.RegisterMacro{
         local points = tonumber(str) or 1
         for _, token in ipairs(dmhub.allTokens) do
             if token.properties:IsHero() then
+                local before = nil
+                pcall(function() before = token.properties:CalculateNamedCustomAttribute("Wealth") end)
+                local granted = false
                 token:ModifyProperties {
                     description = "Award Wealth",
                     execute = function()
                         local feature = DeepCopy(MCDMImporter.GetStandardFeature("Wealth Modification"))
                         if feature ~= nil then
+                            granted = true
                             feature.guid = dmhub.GenerateGuid()
                             feature.modifiers[1].sourceguid = feature.guid
                             feature.name = "Custom Modification"
@@ -3106,6 +3128,9 @@ Commands.RegisterMacro{
                         end
                     end,
                 }
+                if granted and before ~= nil then
+                    GameSystem.NotifyPlayObservers("awarded", token.properties, {kind = "wealth", before = before, after = before + points})
+                end
             end
         end
     end,

@@ -6385,11 +6385,14 @@ DockablePanel.Register{
 --Puts the log this user sees (History, or the old Action Log if they chose it) directly
 --below Chat, once; a button already on their rail stays where they put it.
 local function PlaceRailButton()
-    --the one shown takes the hidden one's slot if it has none of its own, else goes below Chat.
     if History.UsingOldLog() then
-        if not PanelDocument.RailSwapPanel("history", "action log") then
+        --the rail draws the old log in History's slot (its standsInFor), so a stored layout
+        --keeps History's key and matches its View; only a layout with no History gets one.
+        local layout = dmhub.GetSettingValue("iconraillayout") or {}
+        if layout["history"] == nil then
             PanelDocument.RailPlaceBelow("action log", "chat")
         end
+    --a layout from before History: History takes the old log's slot, else goes below Chat.
     elseif not PanelDocument.RailSwapPanel("action log", "history") then
         PanelDocument.RailPlaceBelow("history", "chat")
     end

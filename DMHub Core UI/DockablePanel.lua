@@ -2932,6 +2932,15 @@ DockablePanel = {
 	end,
 }
 
+--- The registration shown in place of one that can't show for this user: the registration
+--- itself when it can, else the one registered to stand in for it (standsInFor). Nil when
+--- neither can show. The icon rail uses it as the docks do.
+--- @param registration table|nil
+--- @return table|nil
+DockablePanel.StandIn = function(registration)
+	return DockStandIn(registration)
+end
+
 --=============================================================================
 --Panel background processes.
 --

@@ -12332,8 +12332,14 @@ RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
 --g_iconRailPanels list only provides first-run defaults for panels
 --without a stored entry. Legacy entries (ord, no slot) compact into the
 --lowest free slots; slot collisions bump downward.
+--Panels drawn on the rail in another's stored slot, by their key: the key saved for them.
+--Set by each RailLayout (a field: this file is at Lua's 200-local limit).
+--- @type table<string, string>
+PanelDocument.railStandIns = {}
+
 local function RailLayout()
     local stored = dmhub.GetSettingValue("iconraillayout") or {}
+    PanelDocument.railStandIns = {}
     local sides = { left = {}, right = {} }
     local inert = {}
     local seen = {}
@@ -12456,6 +12462,20 @@ local function RailLayout()
             local reg = DockablePanel.GetRegistration(displayName)
             available = PanelDocument.Get(displayName) ~= nil
                 and (reg == nil or reg.available == nil or reg.available())
+            --a panel that can't show lends its slot to the one registered to stand in for it
+            --(the old Action Log in History's), so the stored layout keeps its own key and
+            --still matches the View it came from.
+            if not available and reg ~= nil then
+                local standIn = DockablePanel.StandIn(reg)
+                if standIn ~= nil and standIn ~= reg then
+                    local standInKey = string.lower(standIn.name)
+                    if not seen[standInKey] and stored[standInKey] == nil and PanelDocument.Get(standIn.name) ~= nil then
+                        seen[standInKey] = true
+                        PanelDocument.railStandIns[standInKey] = key
+                        key, displayName, available = standInKey, standIn.name, true
+                    end
+                end
+            end
         end
 
         if not available then
@@ -12591,7 +12611,9 @@ local function SaveRailLayout(sides, inert)
     local stored = {}
     for side, list in pairs(sides) do
         for _, e in ipairs(list) do
-            stored[e.key] = { side = side, slot = e.slot }
+            --a stand-in's slot is saved under the panel it stands in for (see RailLayout).
+            local storedKey = PanelDocument.railStandIns[e.key] or e.key
+            stored[storedKey] = { side = side, slot = e.slot }
         end
     end
     for _, e in ipairs(inert or {}) do

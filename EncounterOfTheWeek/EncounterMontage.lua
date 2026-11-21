@@ -335,6 +335,52 @@ function EncounterMontage.SeedStory(doc, part, carried)
     return true
 end
 
+--Host: tells play observers (History) what the montage's log gained since last time: a
+--line per test, per threat whose consequence landed, and one when the montage ends.
+--historyLogged counts the log entries already told, and lives on the montage so a new
+--host does not tell them again.
+function EncounterMontage.NoteHistory(montage)
+    if type(montage) ~= "table" then
+        return
+    end
+    local log = montage.log or {}
+    for i = (tonumber(montage.historyLogged) or 0) + 1, #log do
+        local entry = log[i]
+        if entry.consequence then
+            GameSystem.NotifyPlayObservers("montage", {kind = "threat", name = entry.entryName, applied = entry.applied})
+        elseif not entry.delve and not entry.passed and not entry.interrupted and type(entry.tier) == "number" and entry.tier > 0 and entry.total ~= nil then
+            GameSystem.NotifyPlayObservers("montage", {
+                kind = "test",
+                heroid = entry.heroid,
+                total = entry.total,
+                tier = entry.tier,
+                entry = entry.entryName,
+                option = entry.optionName,
+            })
+        end
+    end
+    montage.historyLogged = #log
+    if montage.phase == "done" and not montage.historyEnded then
+        montage.historyEnded = true
+        local totals = EncounterMontage.TotalsFromLog(montage)
+        --how many tests the montage held, so a beat nobody rolled in (a "Proceed") can
+        --be told apart from one whose tests all came out Tier 2.
+        local tests = 0
+        for _, entry in ipairs(log) do
+            if not entry.consequence and not entry.delve and type(entry.tier) == "number" and entry.tier > 0 then
+                tests = tests + 1
+            end
+        end
+        GameSystem.NotifyPlayObservers("montage", {
+            kind = "ended",
+            successes = totals.successes,
+            failures = totals.failures,
+            unvanquished = totals.unvanquished,
+            tests = tests,
+        })
+    end
+end
+
 --One montage's totals, from its log: successes (tier 3, or the critical
 --tier 4), failures (tier 1) and threats whose consequence landed. Delve
 --turns carry no tier and count for nothing; a passed turn neither.
@@ -7268,6 +7314,12 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
     local upkeepOk, upkeepErr = pcall(MaintainMontageUses, m, doc, heroes)
     if not upkeepOk then
         printf("EotW montage: item upkeep failed: %s", tostring(upkeepErr))
+    end
+
+    --History reads the montage's own log; a failure there must not stop the montage.
+    local historyOk, historyErr = pcall(EncounterMontage.NoteHistory, m)
+    if not historyOk then
+        printf("EotW montage: History note failed: %s", tostring(historyErr))
     end
 
     --a finished montage's totals go into the part's score (a series'

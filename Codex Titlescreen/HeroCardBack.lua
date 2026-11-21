@@ -2814,6 +2814,73 @@ local function CreateFlipButton(charid)
     }
 end
 
+--- The History chip: just left of the flip button, in its look, shown only while the card
+--- is hovered. Opens History showing only this hero.
+--- @param charid string
+--- @param offsetX number Its x offset from the card's centre.
+--- @return Panel
+local function CreateHistoryButton(charid, offsetX)
+    return gui.Panel{
+        classes = {"heroCardHistory"},
+        floating = true,
+        halign = "center",
+        valign = "top",
+        x = offsetX,
+        y = 4,
+        width = 26,
+        height = 26,
+        cornerRadius = 13,
+        border = 1,
+        borderColor = "#ffffff66",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000c0",
+        swallowPress = true,
+        styles = {
+            {
+                selectors = {"heroCardHistory"},
+                hidden = 1,
+            },
+            {
+                selectors = {"heroCardHistory", "parent:hover"},
+                hidden = 0,
+            },
+            --as on the flip button: with the pointer on the chip the card is no longer
+            --hovered, so the chip's own hover keeps it shown.
+            {
+                selectors = {"heroCardHistory", "hover"},
+                hidden = 0,
+                borderColor = COLOR_GOLD,
+                scale = 1.15,
+            },
+            {
+                selectors = {"heroCardHistoryIcon", "parent:hover"},
+                bgcolor = COLOR_GOLD,
+            },
+        },
+        gui.Panel{
+            classes = {"heroCardHistoryIcon"},
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/clock-counter-clockwise-bold.png",
+            bgcolor = "#ffffffee",
+            interactable = false,
+        },
+        hover = gui.Tooltip("History"),
+        --a handled click stops here instead of opening the hero's sheet.
+        click = function(element)
+            local history = rawget(_G, "History")
+            local token = dmhub.GetTokenById(charid)
+            if history == nil or token == nil then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            history.OpenFor(token)
+        end,
+    }
+end
+
 --every decorated card while it lives, weakly held: lets a dev session turn a
 --card over from Lua (HeroCardBack.TurnAll()).
 local g_cards = setmetatable({}, {__mode = "k"})
@@ -2839,6 +2906,12 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
     cardArgs[#cardArgs+1] = backFace
     local flipButton = CreateFlipButton(charid)
     cardArgs[#cardArgs+1] = flipButton
+    --History sits just left of the centred flip button, unless this user is on the old Action
+    --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
+    local history = rawget(_G, "History")
+    if history ~= nil and not history.UsingOldLog() then
+        cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
+    end
     cardArgs.turnCard = function(element)
         local turned = not backFace:HasClass("turned")
         flipButton:SetClass("turning", true)

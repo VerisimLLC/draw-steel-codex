@@ -647,6 +647,7 @@ local g_rulePatterns = {
             if targetToken.properties:CannotBeForceMoved() then
                 print("Target is immune to forced movement, not executing")
                 ShowFailMessage("Immune to Forced Movement")
+                ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, match.movement)
                 return
             end
 
@@ -714,8 +715,10 @@ local g_rulePatterns = {
             if match.ignorestabilityifally then
                 ignoreForAlly = casterToken:IsFriend(targetToken)
             end
+            local stabilityIgnored = false
             if stability ~= 0 and (match.ignorestability or ignoreForCompanion or ignoreForAlly or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
                 stability = 0
+                stabilityIgnored = true
                 adjustments[#adjustments+1] = "Ignoring Stability"
             else
                 --Monster Info: a hero pushing, pulling or sliding a monster
@@ -756,6 +759,11 @@ local g_rulePatterns = {
                 ShowFailMessage("Forced Movement Negated")
                 return
             end
+
+            --History hears what stability did; a push it stops entirely is reported now.
+            local stabilityFacts = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken,
+                cond(match.vertical, "vertical_", "") .. match.movement,
+                tonumber(match.distance) + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 
             if range <= 0 then
                 --don't execute forced movement of 0?
@@ -855,6 +863,7 @@ local g_rulePatterns = {
                     end
                 end
                 abilityClone.forcedMovementStraightUp = true
+                abilityClone._tmp_forcedMoveStability = stabilityFacts
 
                 options.targetArgs = {
                     {
@@ -872,6 +881,7 @@ local g_rulePatterns = {
                 for k,v in pairs(abilityAttr) do
                     abilityClone[k] = v
                 end
+                abilityClone._tmp_forcedMoveStability = stabilityFacts
 
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil
@@ -2058,6 +2068,10 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
     end
 
     --print("Rule:: Before normalize:  " .. rule)
+    --the text after a "#" stop marker is applied by another behavior (an ongoing
+    --effect), so it is cut from what runs here. Kept for the "resisted" observers, so
+    --a resisted potency can still say what the target escaped ("M<2 #weakened").
+    local stoppedText = string.match(rule, "<alpha=#00><alpha=#ff>([^;]*)")
     rule = rule:gsub("<alpha=#00><alpha=#ff>.*", "")
     rule = regex.ReplaceAll(rule, "<[^<>]*?>", "")
     --Mirror the name normalization done by GetTableNameRegex, which strips
@@ -2142,10 +2156,24 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
         --reveals that characteristic to the players (self-guarding).
         MonsterKnowledge.RecordCharacteristicTest(targetToken, attrid)
 
+        --every potency test, either way, for a record of play: what was tested, against what.
+        if options.powerRollPass == "target" then
+            GameSystem.NotifyPlayObservers("potency", targetToken.properties, {
+                attrid = attrid,
+                letter = string.upper(gateMatch.attr),
+                value = resistanceValue,
+                gate = gate,
+                resisted = result,
+                text = gateMatch.tail,
+                stopped = stoppedText,
+            })
+        end
+
         if result then
 
             if options.powerRollPass == "target" then
                 ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
+                GameSystem.NotifyPlayObservers("resisted", targetToken.properties, gateMatch.tail, stoppedText)
             end
 
             --resisted don't do the gated part, but keep anything after the semicolon.

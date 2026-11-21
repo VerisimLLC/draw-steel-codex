@@ -276,6 +276,7 @@ function HeroSheetDowntimeWindows.Event(token, project)
             properties = RollOnTableProperties.new{tableRef = tableRef},
             complete = function(info)
                 Rolled(info ~= nil and info.total or nil, rolledOn)
+                RollOnTableProperties.NotifyRolled(token.properties, tableRef, info, {project = project:GetTitle()})
             end,
         }
     end

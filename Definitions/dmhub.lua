@@ -881,6 +881,12 @@ function dmhub.ClearRollBonusTypes() end
 --- @return nil|{image: string, width: number, height: number}
 function dmhub.SetMovementCrossSection(args) end
 
+--- Builds a path from a list of squares, such as a move recorded earlier, so it can be drawn again: pass it to CharacterToken:MarkMovementArrow as options.path, or to dmhub.SetMovementCrossSection. floor defaults to 0 and altitude to the ground there. options.forced marks it forced movement (a push, pull or slide; the side view then keeps it airborne), options.flying makes it a flight, options.teleport a teleport (a purple arrow). Nothing moves. Returns nil with fewer than two steps.
+--- @param steps {x: integer, y: integer, floor: nil|integer, altitude: nil|integer}[] The squares moved through, start first.
+--- @param options nil|{forced: nil|boolean, flying: nil|boolean, teleport: nil|boolean}
+--- @return nil|LuaPath
+function dmhub.CreatePath(steps, options) end
+
 --- Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
 function dmhub.ClearMovementCrossSection() end
 

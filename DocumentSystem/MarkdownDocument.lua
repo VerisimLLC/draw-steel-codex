@@ -4637,6 +4637,9 @@ local function RenderMarkdownTokens(ctx, tokens)
                             rollProperties = RollOnTableProperties.new{
                                 tableRef = ref,
                             },
+                            completeRoll = function(rollInfo)
+                                RollOnTableProperties.NotifyRolled(charToken and charToken.properties or nil, ref, rollInfo)
+                            end,
                         }
 
                         GameHud.instance.rollDialog.data.ShowDialog(rollArgs)

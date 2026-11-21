@@ -1,0 +1,35 @@
+-- History chunk 0.1 probe: the cost of reading a full document on a client. Fill ARG_DOC.
+local mod = nil
+for i = 1, 10 do
+    local n, v = debug.getupvalue(BattleLog.GetDocPath, i)
+    if n == "mod" then mod = v end
+end
+local doc = mod:GetDocumentSnapshot(ARG_DOC)
+local clock = dmhub.Stopwatch()
+local entries = doc.data.entries or {}
+local keys = {}
+for k in pairs(entries) do keys[#keys+1] = k end
+local t1 = clock.milliseconds
+table.sort(keys)
+local t2 = clock.milliseconds
+print("entries", #keys, "keys ms", t1, "sort ms", t2 - t1)
+local clock2 = dmhub.Stopwatch()
+local json = dmhub.ToJson(doc.data)
+local t3 = clock2.milliseconds
+local back = dmhub.FromJson(json)
+local t4 = clock2.milliseconds
+print("doc bytes", #json, "ToJson ms", t3, "FromJson ms", t4 - t3)
+if #keys > 0 and type(entries[keys[1]]) == "string" then
+    local clock3 = dmhub.Stopwatch()
+    local n = 0
+    for i = #keys, math.max(1, #keys - 39), -1 do
+        local rec = dmhub.FromJson(entries[keys[i]])
+        n = n + 1
+    end
+    print("parse newest", n, "ms", clock3.milliseconds)
+    local clock4 = dmhub.Stopwatch()
+    for i = 1, #keys do
+        local rec = dmhub.FromJson(entries[keys[i]])
+    end
+    print("parse all", #keys, "ms", clock4.milliseconds)
+end

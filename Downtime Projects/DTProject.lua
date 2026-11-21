@@ -635,6 +635,37 @@ function DTProject:ChangeProjectGoal(goal)
     return self
 end
 
+--- Tells play observers (History) that this project's points changed. item is the roll or
+--- adjustment just added; before is the progress it started from and statusBefore the
+--- status then, so observers can see a milestone reached or the project completed.
+--- @param kind string "roll" or "adjust"
+--- @param item DTRoll|DTAdjustment|DTProgressItem
+--- @param before number
+--- @param statusBefore string
+function DTProject:_notePoints(kind, item, before, statusBefore)
+    local STATUS = DTConstants.STATUS
+    local status = self:GetStatus()
+    local facts = {
+        kind = kind,
+        project = self:GetTitle(),
+        ownerid = self:GetOwnerID(),
+        total = item:GetAmount(),
+        before = before,
+        after = before + item:GetAmount(),
+        goal = self:GetProjectGoal(),
+        milestone = status == STATUS.MILESTONE.key and statusBefore ~= STATUS.MILESTONE.key,
+        completed = status == STATUS.COMPLETE.key and statusBefore ~= STATUS.COMPLETE.key,
+    }
+    if kind == "roll" then
+        --- @cast item DTRoll
+        facts.rollerid = item:GetRolledByID()
+        facts.rollername = item:GetRolledBy()
+        facts.followerid = item:GetRolledByFollowerID()
+        facts.natural = item:GetNaturalRoll()
+    end
+    GameSystem.NotifyPlayObservers("downtime", facts)
+end
+
 --- Adds a project roll to this project
 --- **NOTE:** This method automatically calculates status
 --- @param roll DTRoll The roll to add (only DTRoll has GetBreakthrough; AddRolls is the sole caller)
@@ -652,10 +683,12 @@ function DTProject:AddRoll(roll)
         -- re-sums projectRolls when the cache is dirty) already includes this roll
         -- and the status check double-counts it.
         local priorProgress = self:GetProgress()
+        local statusBefore = self:GetStatus()
         roll:SetCommitInfo()
         self.projectRolls[#self.projectRolls + 1] = roll
         self:_setStateFromProgressChange(roll, 1, priorProgress)
         self:_invalidateProgressCache()
+        self:_notePoints("roll", roll, priorProgress, statusBefore)
 
     end
 
@@ -709,10 +742,13 @@ function DTProject:AddAdjustment(adjustment)
         self.progressAdjustments = {}
     end
 
+    local priorProgress = self:GetProgress()
+    local statusBefore = self:GetStatus()
     self:_setStateFromProgressChange(adjustment, 1)
     adjustment:SetCommitInfo()
     self.progressAdjustments[#self.progressAdjustments + 1] = adjustment
     self:_invalidateProgressCache()
+    self:_notePoints("adjust", adjustment, priorProgress, statusBefore)
     return self
 end
 

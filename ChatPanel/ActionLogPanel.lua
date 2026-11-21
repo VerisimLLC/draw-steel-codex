@@ -92,6 +92,14 @@ end
 DockablePanel.Register{
 	name = "Action Log",
 	icon = "icons/standard/Icon_App_ActivityLog.png",
+	--History replaced it; it shows only for a user who chose it back (History's
+	--"Use Old Action Log" setting), or where History is not loaded at all.
+	available = function()
+		local history = rawget(_G, "History")
+		return history == nil or history.UsingOldLog == nil or history.UsingOldLog()
+	end,
+	--a dock saved with History shows the Action Log in its place.
+	standsInFor = "History",
 	minHeight = 200,
 	vscroll = false,
 	content = function()

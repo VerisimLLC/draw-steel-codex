@@ -283,6 +283,10 @@ CreateDicePanel = function()
 		if readoutPanel ~= nil and readoutPanel.valid and rollInfo ~= nil then
 			readoutPanel:FireEvent("showRoll", kind, rollInfo)
 		end
+		--a record of play (History) hears of the roll, on the client that rolled it.
+		if rollInfo ~= nil then
+			GameSystem.NotifyPlayObservers("diceroll", rollInfo, kind)
+		end
 	end
 
 	local diceStyle = dmhub.GetDiceStyling(dmhub.GetSettingValue("diceequipped"), dmhub.GetSettingValue("playercolor"))

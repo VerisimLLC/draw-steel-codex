@@ -1,0 +1,50 @@
+-- History chunk 0.1 probe: watcher. Run on the OTHER client before the writer starts.
+-- Sees each write arrive, timing latency from the writer's server-time stamp and frame cost.
+local mod = nil
+for i = 1, 10 do
+    local n, v = debug.getupvalue(BattleLog.GetDocPath, i)
+    if n == "mod" then mod = v end
+end
+local DOC = "historyProbe2"
+local TOTAL, BUCKET = ARG_TOTAL, 50
+local stats = {}
+local g = {stats = stats, done = false, seen = 0}
+rawset(_G, "g_hprobew", g)
+local function Bucket(n)
+    local b = (n // BUCKET) * BUCKET
+    stats[b] = stats[b] or {n = 0, lat = 0, latWorst = 0, frames = 0, frameSum = 0, frameWorst = 0}
+    return stats[b]
+end
+local clock = dmhub.Stopwatch()
+local lastF, lastT, lastSeq = dmhub.FrameCount(), 0, 0
+local giveUp = 0
+local function Frames()
+    local f, t = dmhub.FrameCount(), clock.milliseconds
+    if f ~= lastF then
+        local dt = (t - lastT) / (f - lastF)
+        local data = mod:GetDocumentSnapshot(DOC).data
+        local seq = data.lastSeq or 0
+        local b = Bucket(lastSeq)
+        b.frames = b.frames + 1
+        b.frameSum = b.frameSum + dt
+        b.frameWorst = math.max(b.frameWorst, t - lastT)
+        if seq ~= lastSeq then
+            local lat = dmhub.serverTimeMilliseconds - (data.lastMs or 0)
+            local nb = Bucket(seq)
+            nb.n = nb.n + (seq - lastSeq)
+            nb.lat = nb.lat + lat
+            nb.latWorst = math.max(nb.latWorst, lat)
+            lastSeq = seq
+            g.seen = seq
+        end
+        lastF, lastT = f, t
+    end
+    if lastSeq >= TOTAL or t > 900000 then
+        g.done = true
+        print("HPROBEW:: done", lastSeq)
+    else
+        dmhub.Schedule(0.001, Frames)
+    end
+end
+dmhub.Schedule(0.001, Frames)
+return "watching"

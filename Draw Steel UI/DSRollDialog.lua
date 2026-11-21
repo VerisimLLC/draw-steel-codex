@@ -3778,6 +3778,20 @@ function GameHud.CreateRollDialog(self)
                                     cond(#sourceNames > 0, table.concat(sourceNames, ", "), "Modifier"), freeGranted,
                                     cond(freeGranted > 1, "surges", "surge"), targetName, freeUsed,
                                     cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
+                                --and on the cast, for a record of play (History).
+                                if freeUsed > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                    m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames}
+                                end
+                            end
+                            --surges a modifier gave to keep ("you gain 1 surge"), for the same record.
+                            if thisTargetNonWastedSurgesGained > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                local keptNames = {}
+                                for _, usedMod in ipairs(target.modifiersUsed or {}) do
+                                    if usedMod:try_get("surges", "") ~= "" and usedMod:try_get("surgesCanBeKept", false) then
+                                        keptNames[#keptNames + 1] = trim(usedMod.name)
+                                    end
+                                end
+                                m_symbols.cast:get_or_add("targetGainedSurges", {})[target.token.charid] = {count = thisTargetNonWastedSurgesGained, sources = keptNames}
                             end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed
@@ -3868,7 +3882,11 @@ function GameHud.CreateRollDialog(self)
                                             undoable = false,
                                             execute = function()
                                                 --this also triggers the modifier's custom trigger
-                                                local consume = modifier:ConsumeResource(c)
+                                                --filed under the cast, so History shows the cost on the action's row.
+                                                local consume = false
+                                                GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                                    consume = modifier:ConsumeResource(c)
+                                                end)
                                                 resourceConsumed = consume or resourceConsumed
                                             end,
                                         }
@@ -3892,7 +3910,11 @@ function GameHud.CreateRollDialog(self)
                                     description = "Consume resources",
                                     undoable = false,
                                     execute = function()
-                                        local consume = modifier:ConsumeResource(creatureUsed)
+                                        --filed under the cast, so History shows the cost on the action's row.
+                                        local consume = false
+                                        GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                            consume = modifier:ConsumeResource(creatureUsed)
+                                        end)
                                         resourceConsumed = consume or resourceConsumed
                                     end,
                                 }
@@ -3927,7 +3949,10 @@ function GameHud.CreateRollDialog(self)
                                 description = "Consume surges",
                                 undoable = false,
                                 execute = function()
-                                    creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    --filed under the cast, so History shows it on the action's row.
+                                    GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    end)
                                 end,
                             }
                         end
@@ -3980,7 +4005,8 @@ function GameHud.CreateRollDialog(self)
                     end
 
                     if completeRollFn ~= nil then
-                        completeRollFn(rollInfo)
+                        --the second argument is for a record of play (History); callers may ignore it.
+                        completeRollFn(rollInfo, {dicetower = dicetower})
                     end
                 end
 

@@ -986,7 +986,7 @@ local WriteAudioLogSubscription  --forward decl: the setting onchange closures c
 local audioEventLog = setting{
     id = "audioeventlog",
     description = "Audio event log",
-    help = "Show music, mood, and anthem changes in your chat as muted notes, so you can see audio you can't hear. This only changes what you see.",
+    help = "Show music, mood, and anthem changes as short captions beside the Chat button, so you can see audio you can't hear. This only changes what you see.",
     editor = "check",
     default = false,
     storage = "preference",
@@ -998,7 +998,7 @@ local audioEventLog = setting{
 local audioEventLogSfx = setting{
     id = "audioeventlogsfx",
     description = "Also show sound effects",
-    help = "Also show soundboard sound effects in your chat log.",
+    help = "Also show soundboard sound effects as captions.",
     editor = "check",
     default = false,
     storage = "preference",
@@ -1073,12 +1073,10 @@ function AudioLogChatMessage.Render(self, message)
     }
 end
 
---Coalescing state for the effects sub-log: consecutive fires of the SAME effect
---(same key -- assetid or poolid) update one chat line with a "(xN)" count rather
---than spamming a new line per press. Any transition line (music/ambience/anthem)
---breaks continuity so a later identical effect starts a fresh line instead of
---incrementing a line that is now above an unrelated transition.
-local m_audioLogLastEffect = nil   -- { key, guid, count, name, nonce }
+--Coalescing state for effect captions: consecutive fires of the SAME effect (same key:
+--assetid or poolid) within a few seconds share one caption rather than one per press.
+--A transition (music/ambience/anthem) breaks the run, so the effect captions again after it.
+local m_audioLogLastEffect = nil   -- { key, nonce }
 local m_audioLogEffectSeq = 0
 --Set true while a variant pool is broadcasting its chosen member (VariantPools.Fire ->
 --PlayBroadcastClip) so PlayBroadcastClip's own transition log is skipped: a pool fire is
@@ -1227,9 +1225,35 @@ local function AudioLogShouldSendElected(needEffects)
 	return best == dmhub.userid
 end
 
-local function AudioLogSend(text)
-    m_audioLogLastEffect = nil
-    chat.SendCustom(AudioLogChatMessage.new{ text = text })
+--Captions travel in this small shared document, not in chat: only the last few are kept,
+--so one listener's captions never push anyone's chat or rolls out of the message store.
+--Each listening client shows them itself (ShowNewAudioCaptions below).
+local AUDIO_CAPTIONS_KEPT = 4
+local function AudioCaptionDoc()
+    return mod:GetDocumentSnapshot("audioCaptions")
+end
+
+--- @param text string The caption as it reads.
+--- @param kind string|nil "effect" for a soundboard sound effect, nil for a transition.
+local function AudioLogSend(text, kind)
+    if kind ~= "effect" then
+        m_audioLogLastEffect = nil
+    end
+    local doc = AudioCaptionDoc()
+    doc:BeginChange()
+    local recent = {}
+    local latest = 0
+    for _, caption in ipairs(type(doc.data.recent) == "table" and doc.data.recent or {}) do
+        recent[#recent + 1] = caption
+        latest = math.max(latest, caption.n or 0)
+    end
+    --each caption's n counts up, so a listener knows which captions it has not shown yet.
+    recent[#recent + 1] = {n = latest + 1, text = text, kind = kind or "", t = dmhub.serverTimeMilliseconds}
+    while #recent > AUDIO_CAPTIONS_KEPT do
+        table.remove(recent, 1)
+    end
+    doc.data.recent = recent
+    doc:CompleteChange("Audio caption", {undoable = false})
 end
 
 --Narrow cross-module export (chunk L) so MCDMInitiativeBar's anthem hooks can reach
@@ -1275,16 +1299,11 @@ g_drawSteelAudioLog = {
         m_audioLogEffectSeq = m_audioLogEffectSeq + 1
         local myseq = m_audioLogEffectSeq
         if m_audioLogLastEffect ~= nil and m_audioLogLastEffect.key == key then
-            local e = m_audioLogLastEffect
-            e.count = e.count + 1
-            e.nonce = myseq
-            chat.UpdateCustom(e.guid, AudioLogChatMessage.new{
-                text = "Sound effect: " .. e.name .. " (x" .. e.count .. ")",
-                kind = "effect",
-            })
+            --the same effect fired again within a few seconds: one caption covers the burst.
+            m_audioLogLastEffect.nonce = myseq
         else
-            local guid = chat.SendCustom(AudioLogChatMessage.new{ text = "Sound effect: " .. tostring(name), kind = "effect" })
-            m_audioLogLastEffect = { key = key, guid = guid, count = 1, name = tostring(name), nonce = myseq }
+            AudioLogSend("Sound effect: " .. tostring(name), "effect")
+            m_audioLogLastEffect = { key = key, nonce = myseq }
         end
         dmhub.Schedule(4.0, function()
             if mod.unloaded then return end
@@ -1294,6 +1313,61 @@ g_drawSteelAudioLog = {
         end)
     end,
 }
+
+--How often a listening client looks for new captions, in seconds.
+local AUDIO_CAPTION_TICK = 0.5
+--A caption older than this is not news (one left in the document from before you joined).
+local AUDIO_CAPTION_FRESH_MS = 10000
+--The newest caption this client has dealt with, shown or not.
+local m_audioCaptionSeen = 0
+
+--Shows captions that arrived since the last look in the bubble beside the Chat button, for
+--this user only and only with the Audio event log setting on. Nothing is stored: the title
+--bar's Now playing tile is what says what is playing now.
+local function ShowNewAudioCaptions()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(AUDIO_CAPTION_TICK, ShowNewAudioCaptions)
+    if not audioEventLog:Get() then
+        return
+    end
+    local recent = AudioCaptionDoc().data.recent
+    if type(recent) ~= "table" then
+        return
+    end
+    local newest = 0
+    for _, caption in ipairs(recent) do
+        newest = math.max(newest, caption.n or 0)
+    end
+    --a count below ours means another game's document: start again (old ones are not fresh).
+    local seen = newest < m_audioCaptionSeen and 0 or m_audioCaptionSeen
+    local rows = {}
+    local texts = {}
+    for _, caption in ipairs(recent) do
+        local number = caption.n or 0
+        local fresh = dmhub.serverTimeMilliseconds - (caption.t or 0) < AUDIO_CAPTION_FRESH_MS
+        local wanted = caption.kind ~= "effect" or audioEventLogSfx:Get()
+        if number > seen and fresh and wanted and type(caption.text) == "string" then
+            texts[#texts + 1] = caption.text
+            rows[#rows + 1] = {
+                contents = {gui.Label{classes = {"chatBubbleText"}, text = caption.text, interactable = false}},
+                --a caption has nothing of its own to show: a press on it just opens Chat.
+                click = function() end,
+            }
+        end
+    end
+    m_audioCaptionSeen = newest
+    if #rows > 0 then
+        local shown = PanelDocument.ShowRailBubble{key = "chat", panelName = "Chat", rows = rows, evenInFront = true}
+        --no Chat button on the rail to hang them off (the dock UI, or Chat grouped away):
+        --the same words in the small toast the Views use, one toast for the batch.
+        if not shown and rawget(_G, "ViewsToast") ~= nil then
+            ViewsToast(table.concat(texts, " \194\183 "))
+        end
+    end
+end
+dmhub.Schedule(AUDIO_CAPTION_TICK, ShowNewAudioCaptions)
 
 --Register this client's current opt-in shortly after load (onchange covers later toggles);
 --also self-heals a stale entry left by a prior session where the setting was on.

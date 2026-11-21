@@ -1978,6 +1978,43 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 				end,
 			},
 
+			--limited walls: sight (or light) passes the first one and stops at the second.
+			gui.Check{
+				id = "limitedVisionCheck",
+				classes = {"formCheck", cond(not asset.occludesVision, "collapsed-anim")},
+				refreshAssets = function(element)
+					element:SetClass('collapsed-anim', not asset.occludesVision)
+				end,
+				text = "Limited Vision",
+				hover = gui.Tooltip("Vision passes through one limited wall and stops at the second."),
+				width = "auto",
+				height = 30,
+				borderWidth = 0,
+				value = asset.visionLimited,
+				change = function(element)
+					asset.visionLimited = element.value
+					RefreshAssets()
+				end,
+			},
+
+			gui.Check{
+				id = "limitedLightCheck",
+				classes = {"formCheck", cond(not asset.occludesLight, "collapsed-anim")},
+				refreshAssets = function(element)
+					element:SetClass('collapsed-anim', not asset.occludesLight)
+				end,
+				text = "Limited Light",
+				hover = gui.Tooltip("Light passes through one limited wall and stops at the second."),
+				width = "auto",
+				height = 30,
+				borderWidth = 0,
+				value = asset.lightLimited,
+				change = function(element)
+					asset.lightLimited = element.value
+					RefreshAssets()
+				end,
+			},
+
 			gui.Panel{
 				classes = {"formStackedRow", cond((not asset.occludesVision) and (not asset.occludesLight), "collapsed-anim")},
 				refreshAssets = function(element)

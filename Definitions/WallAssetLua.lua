@@ -18,6 +18,8 @@
 --- @field markupMapId any Map id this markup wall type is private to: stamped by the Map Markup panel on wall types it creates, hiding them from other maps' pickers until promoted with 'Make Available to All Maps'. Reads as an empty string (never nil) when unset so pcall probes can detect engine support; set to '' or nil to make the wall available game-wide.
 --- @field visionOneWay any
 --- @field visionWidth any
+--- @field visionLimited any Limited vision wall (Foundry's limited sight): sight passes through the first limited wall it meets and is stopped by the second. Only applies when occludesVision is on.
+--- @field lightLimited any Limited light wall (Foundry's limited light): light passes through the first limited wall it meets and is stopped by the second. Only applies when occludesLight is on.
 --- @field movementOneWay any
 --- @field occludesVision any
 --- @field occludesLight any

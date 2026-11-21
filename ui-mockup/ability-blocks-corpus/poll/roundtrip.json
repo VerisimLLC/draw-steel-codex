@@ -163,7 +163,8 @@
     "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
     "range: 3 => \"3\"",
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
-    "modeList: [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"rules\":\"Also => [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"text\":\"Spend"
+    "modeList: [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"rules\":\"Also => [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"text\":\"Spend",
+    "displayOverrides: undefined => {\"mode.m535\":\"Also affects a 3 burst originating from you; an enemy in both areas is only "
    ],
    "behDiffs": [
     "#0 PowerRoll: tiers [\"5 sonic damage; I < weak, banshee howl (save ends)\",\"10 sonic damage; I < average, banshee howl (save ends)\" => [\"5 sonic damage; I<weak, banshee howl (save ends)\",\"10 sonic damage; I<average, banshee howl (save ends)\",\"15"
@@ -222,7 +223,8 @@
     "keywords: undefined => {}",
     "targetFilter: \"not enemy\" => \"not Enemy\"",
     "modeList: [{\"rules\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Sanctified Weapon - Melee until you finish a respite.\",\"text\":\"",
-    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a"
+    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a",
+    "displayOverrides: undefined => {\"mode.m647\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\","
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -440,7 +442,8 @@
     "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
     "keywords: undefined => {}",
     "modeList: [{\"rules\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Improved Sanctified Weapon - Melee until you finish a respite.\"",
-    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a"
+    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a",
+    "displayOverrides: undefined => {\"mode.m1056\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\""
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -519,9 +522,7 @@
    "todo": 0,
    "todos": []
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {
@@ -687,9 +688,7 @@
    "todo": 0,
    "todos": []
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {
@@ -733,9 +732,7 @@
    "todo": 0,
    "todos": []
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {
@@ -875,9 +872,7 @@
    "todo": 0,
    "todos": []
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {
@@ -924,7 +919,6 @@
    "todos": []
   },
   "hidden": [
-   "objectTarget = true",
    "PowerRoll: has its own roll modifiers (e.g. an edge)"
   ],
   "problems": [],
@@ -1208,7 +1202,8 @@
    "fieldDiffs": [
     "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
     "range: 1 => \"1\"",
-    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility: a standard ability. The target spends 1 Heroic"
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility: a standard ability. The target spends 1 Heroic",
+    "displayOverrides: undefined => {\"mode.m2678\":\"An adjacent ally can shift alongside you\"}"
    ],
    "behDiffs": [
     "#2 Replenish: applyto undefined => \"targets\" | quantity undefined => \"1\""
@@ -1313,9 +1308,7 @@
     "DrawSteelCommand: {Reason*2} damage; R< Strong, slowed (save ends)"
    ]
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {
@@ -1483,7 +1476,6 @@
    ]
   },
   "hidden": [
-   "objectTarget = true",
    "proximityTargeting = true"
   ],
   "problems": [],
@@ -1493,7 +1485,8 @@
     "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
     "range: 10 => \"10\"",
     "modeList: [{\"text\":\"Normal\"},{\"rules\":\"When targeting an object with a solid reflective surface or a => [{\"text\":\"Normal\"},{\"text\":\"Reflective Surface\"}]",
-    "description: \"When targeting an object with a solid reflective surface or a creature carrying or wearin => \"When targeting an object with a solid reflective surface or a creature carrying or wearin"
+    "description: \"When targeting an object with a solid reflective surface or a creature carrying or wearin => \"When targeting an object with a solid reflective surface or a creature carrying or wearin",
+    "displayOverrides: undefined => {\"mode.m3172\":\"When targeting an object with a solid reflective surface or a creature carr"
    ],
    "behDiffs": [
     "#0 PowerRoll: tiers [\"2 + R damage; M < weak, prone\",\"4 + R damage; M < average, prone\",\"6 + R damage; M < strong, prone\"] => [\"2 + R damage; M<weak, prone\",\"4 + R damage; M<average, prone\",\"6 + R damage; M<strong, prone\"]",
@@ -1688,7 +1681,8 @@
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
     "resourceNumber: undefined => \"1\"",
     "modeList: [{\"text\":\"Normal\"},{\"condition\":\"Resources.Heroic Resource >= 2\",\"rules\":\"You gain 4 speed => [{\"rules\":\"The target gets Star Power (save ends).\",\"text\":\"Normal\"},{\"rules\":\"The target ",
-    "description: \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol => \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol"
+    "description: \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol => \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol",
+    "displayOverrides: undefined => {\"mode.m3668\":\"You gain 4 speed instead.\"}"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"4c781df8-6975-4cdb-839c-7f6547b94264\" | stacks undefined => \"1\"",
@@ -1750,9 +1744,7 @@
     "bleeding (eot), or if M < Strong, bleeding (save ends)"
    ]
   },
-  "hidden": [
-   "objectTarget = true"
-  ],
+  "hidden": [],
   "problems": [],
   "untouchedSame": true,
   "regen": {

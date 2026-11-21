@@ -428,7 +428,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
 const NUM_FIELDS = ["Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Stamina","Maximum Stamina","Recovery Value","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
 // Friendlier wording for stats on the card; the dropdowns keep the real GoblinScript names.
 const FIELD_PROSE = { "Heroic Resources Available to Spend": "Heroic Resource", "Recoveries Available to Spend": "Recoveries", "Combat Round": "round number", "Maximum Stamina": "maximum Stamina" };
-const BOOL_FIELDS = { "Minion": "a minion", "Hero": "a hero", "Flanked": "flanked", "Dying": "dying", "Concealed": "concealed", "Your Turn": "taking their turn" };
+const BOOL_FIELDS = { "Strained": "Strained", "Minion": "a minion", "Hero": "a hero", "Flanked": "flanked", "Dying": "dying", "Concealed": "concealed", "Your Turn": "taking their turn" };
 const TABLES = (() => { try { return JSON.parse(document.getElementById("compendiumTables").textContent); } catch (e) { return { conditions: [], effects: [], resources: [] }; } })();
 // The nine core Draw Steel conditions first, then the rest of the compendium's conditions.
 // Most-used first, so the common ones are visible without "Show more".
@@ -679,10 +679,6 @@ const STEPS = {
   // Condition Riders: an extra that rides on a condition already on the target ("and cannot stand").
   riders: { label: "Add to a condition", cat: "hinder", ctx: ["main"], desc: "Add a rider to a condition, such as prone \u201cand cannot stand\u201d.",
     make: () => S("riders", { cond: "Prone", rider: "" }) },
-  // "If you are Strained:" (Talent). Each step inside saves strainSelection, which the engine checks
-  // against the caster when the ability runs.
-  strain: { label: "If you are Strained", cat: "ctrl", ctx: ["main"], desc: "Steps that only happen if you are (or are not) Strained, as in a Talent's Strained: paragraph.",
-    make: () => S("strain", { when: "strained" }, {}, { then: [] }) },
   // Tier text "the target gains N surges".
   surges: { label: "Gain surges", cat: "help", ctx: ["tier"], desc: "The target gains surges.",
     make: () => S("surges", { n: "1" }) },
@@ -1077,7 +1073,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         if (f.unreducible === "yes") dmg.cannotBeReduced = true;
         out.push(Object.assign(dmg, base));
         const tail = f.unreducible === "yes" ? " that can't be reduced in any way" : "";
-        prose.push({ kind: "text", text: f.who === "caster" ? cap("you take " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) : cap("deal " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) }); break; }
+        prose.push({ kind: "text", text: f.who === "caster" ? cap("you take " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) : cap("the target takes " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) }); break; }
       case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: conditionText(f) }, base));
         prose.push({ kind: "text", text: cap("the target is " + conditionText(f) + fp) }); break;
       case "note": if (!f.text) bad(st.id, "Write the card text."); prose.push({ kind: "text", text: f.text.replace(/\.$/, "") }); break;
@@ -1093,15 +1089,6 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         if (!f.text) notes.push("\u201c" + f.name + "\u201d has no card text yet; the card says it by name.");
         notes.push("\u201c" + f.name + "\u201d: its modifiers are edited with the existing effect editor (the Settings button).");
         prose.push({ kind: "text", text: cap(f.text ? f.text.replace(/\.$/, "") : (f.who === "caster" ? "you have " : "each target has ") + f.name + " while this ability resolves") + fp }); break;
-      }
-      case "strain": {
-        const b2 = [], p2 = [];
-        compileSteps(st.branches.then, filters, b2, p2);
-        b2.forEach(b => { b.strainSelection = f.when; out.push(b); });
-        if (!st.branches.then.length) bad(st.id, "Nothing happens inside \u201cIf you are Strained\u201d.");
-        const text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(", and ");
-        if (text) prose.push({ kind: "mode", key: "strain." + st.id, label: f.when === "strained" ? "Strained" : "Not strained", text: text + "." });
-        break;
       }
       case "modes": {
         if (variationOf) { const o = f.opts.find(x => x.id === variationOf); if (o) compileSteps(st.branches["o" + o.id] || [], filters, out, prose); break; }
@@ -1142,7 +1129,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
             if (spend) b2.unshift(spend);
             b2.forEach(b => { b.modesSelected = [i + 1]; out.push(b); });
           }
-          if (text) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text + "." });
+          if (text || (ab.overrides || {})["mode." + o.id]) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text ? text + "." : "" });
           if (!o.name) bad(st.id, "Name each option.");
           if (text) m.rules = text + ".";
           return m;
@@ -1152,7 +1139,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         break;
       }
       case "forced": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: f.kind + " " + f.n }, base));
-        prose.push({ kind: "text", text: cap(f.kind + " the target " + f.n + fp) }); break;
+        prose.push({ kind: "text", text: cap(f.kind + " the target " + f.n + (f.n === "1" ? " square" : " squares") + fp) }); break;
       case "heal": { const a = cHolder(st.slots.amount);
         out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base));
         prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
@@ -1263,12 +1250,24 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         out.push(rec); prose.push({ kind: "text", text: cap(f.summary + fp) }); break;
       }
       case "invoke": out.push(Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "named", namedAbility: f.ability }, base));
-        prose.push({ kind: "text", text: cap("use " + f.ability + fp) }); break;
+        prose.push({ kind: "text", text: /free strike/i.test(f.ability) ? cap("you make a " + f.ability.toLowerCase().replace(/^(melee |ranged )?/, m => m) + fp) : cap("you use " + f.ability + fp) }); break;
       case "ifStep": {
-        const c = cHolder(st.slots.cond, 5);
-        if (c.empty) { bad(st.slots.cond.id, "This \"Only if\" needs a test."); }
         if (!st.branches.then.length) bad(st.id, "Nothing happens inside this \"Only if\".");
-        compileSteps(st.branches.then, c.empty ? filters : filters.concat([c]), out, prose);
+        // "You are Strained" is about the caster and has its own engine setting (strainSelection), so it
+        // is split off; whatever else the test says becomes the steps' filterTarget as usual.
+        const sp = splitStrained(st.slots.cond);
+        if (!sp.strain) {
+          const c = cHolder(st.slots.cond, 5);
+          if (c.empty) { bad(st.slots.cond.id, "This \"Only if\" needs a test."); }
+          compileSteps(st.branches.then, c.empty ? filters : filters.concat([c]), out, prose);
+          break;
+        }
+        const b2 = [], p2 = [];
+        compileSteps(st.branches.then, sp.rest ? filters.concat([sp.rest]) : filters, b2, p2);
+        b2.forEach(b => { b.strainSelection = sp.strain; out.push(b); });
+        // The book prints these as their own paragraph: "Strained: ...".
+        const text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(", and ");
+        if (text) prose.push({ kind: "mode", key: "strain." + st.id, label: sp.strain === "strained" ? "Strained" : "Not strained", text: text + "." });
         break;
       }
     }
@@ -1307,6 +1306,24 @@ function keepIfUnchanged(st, out, before) {
     if (!("filterTarget" in out[before])) delete merged.filterTarget;
     out[before] = merged;
   }
+}
+/* Split "you are Strained" out of an Only-if test: {strain: "strained" | "unstrained" | null, rest}.
+   rest is the remaining test, compiled, or null when Strained was the whole test. */
+function splitStrained(h) {
+  const isS = x => x && x.type === "is" && x.f.field === "Strained" && /^(You|Caster)$/.test(x.f.role);
+  const x = h.expr; if (!x) return { strain: null };
+  if (isS(x)) return { strain: "strained", rest: null };
+  if (x.type === "not" && isS(x.kids.a && x.kids.a.expr)) return { strain: "unstrained", rest: null };
+  if (x.type === "all") {
+    const items = x.f.items || [];
+    const k = items.findIndex(it => isS(it.expr) || (it.expr && it.expr.type === "not" && isS(it.expr.kids.a && it.expr.kids.a.expr)));
+    if (k < 0) return { strain: null };
+    const strain = isS(items[k].expr) ? "strained" : "unstrained";
+    const others = items.filter((_, i) => i !== k).map(it => cHolder(it, 5)).filter(r => !r.empty);
+    if (!others.length) return { strain, rest: null };
+    return { strain, rest: { s: others.map(r => r.s).join(" and "), prose: others.map(r => r.prose).join(" and "), p: 5 } };
+  }
+  return { strain: null };
 }
 /* Tier text is the DrawSteelCommand mini-language: "9 damage; M<1 slowed (save ends)". */
 function compileTier(list, prefix) {
@@ -1360,7 +1377,8 @@ const ENGINE_TEXT_FIELDS = { flavor: "flavor", distance: "rangeTextOverride", ta
 function engineTextFields(rec) {
   const o = ab.overrides || {}; for (const k in ENGINE_TEXT_FIELDS) if (o[k]) rec[ENGINE_TEXT_FIELDS[k]] = o[k].text;
   // Effect paragraphs opened from description save back to it, labels as "**Strained:**".
-  if (ab.descParas) rec.description = ab.descParas.map((d, i) => {
+  if (ab.descParas && !ab.descParas.length && o.desc0) ab.descParas.push({ label: "Effect", text: o.desc0.text });
+  if (ab.descParas && ab.descParas.length) rec.description = ab.descParas.map((d, i) => {
     const t = (o["desc" + i] || { text: "" }).text, l = (ab.labels || {})["desc" + i] || "Effect";
     return l === "Effect" ? t : "**" + l + ":** " + t; }).filter(x => x.trim()).join("\n\n");
 }
@@ -1606,7 +1624,6 @@ function renderStep(st, list, ctx, scope) {
     }
     case "surges": add(lbl("The target gains")); add(inp(f, "n", "num", "surges")); add(lbl(f.n === "1" ? "surge" : "surges")); break;
     case "note": { add(lbl("Card text:")); const ti = inp(f, "text", "name", "card text"); ti.placeholder = "words shown on the card"; ti.style.minWidth = "280px"; add(ti); break; }
-    case "strain": add(lbl("If you are")); add(sel(f, "when", [["strained", "Strained"], ["unstrained", "not Strained"]], null, "strained")); add(lbl(":")); break;
     case "modes":
       add(lbl("When you use it, choose one"));
       // Picking the target first can't work when an option changes what can be targeted.
@@ -1757,8 +1774,8 @@ function renderStep(st, list, ctx, scope) {
     addo.addEventListener("click", ev => { ev.stopPropagation(); snapshot(); const o = { id: "m" + uid++, name: "Option " + (st.f.opts.length + 1), extra: "0" }; st.f.opts.push(o); st.branches["o" + o.id] = []; insertAt = { id: listId(st.branches["o" + o.id]), idx: 0 }; refresh(); });
     row.appendChild(addo); e.appendChild(row);
     e.appendChild(E("div", "foot"));
-  } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo" || st.type === "strain") {
-    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : st.type === "strain" ? "inside \u201cIf you are Strained\u201d" : "inside \u201cOnly if\u201d";
+  } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo") {
+    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : "inside \u201cOnly if\u201d";
     e.appendChild(mouth(st.branches.then, ctx, scope));
     e.appendChild(E("div", "foot"));
   }
@@ -1846,7 +1863,12 @@ function distancePlain(o = ab) {
 function targetText(o, fm) {
   const num = cHolder(o.numTargets);
   return o.distance === "Self" || o.targetCount === "self" ? "Self" : o.targetCount === "special" ? "Special" : /^each/.test(o.targetCount) ? cap(o.targetCount)
-    : /^\d+$/.test(num.s) ? ({ 1: "One", 2: "Two", 3: "Three", 4: "Four" }[num.s] || num.s) + " " + o.targetCount : cap(o.targetCount) + " (" + fm(num) + ")";
+    : (/^\d+$/.test(num.s) || /^Mode$/i.test(num.s)) ? (() => {
+        const n = /^Mode$/i.test(num.s) ? "1" : num.s;
+        const plural = n !== "1", noun = plural ? ({ creature: "creatures", ally: "allies", enemy: "enemies" }[o.targetCount] || o.targetCount) : o.targetCount;
+        return ({ 1: "One", 2: "Two", 3: "Three", 4: "Four" }[n] || n) + " " + noun + (o.objects ? (plural ? " or objects" : " or object") : "");
+      })()
+    : cap(o.targetCount) + " (" + fm(num) + ")";
 }
 /* The Distance and Target rows, worded like the card, for the ability or for a mode option. */
 function targetingRows(o) {
@@ -2351,7 +2373,7 @@ function cardLine(parent, key, label, genHtml, kind) {
     return;
   }
   const txt = E("span", "ctext"); txt.tabIndex = 0; txt.setAttribute("role", "button");
-  if (ov) txt.textContent = ov.text; else if (gen) txt.innerHTML = genHtml; else { txt.textContent = kind === "flavor" ? "Add flavor text" : "\u2014"; txt.classList.add("placeholder"); }
+  if (ov) txt.textContent = ov.text; else if (gen) txt.innerHTML = genHtml; else { txt.textContent = kind === "flavor" ? "Add flavor text" : /^desc/.test(key) ? "Add effect text (optional)" : "\u2014"; txt.classList.add("placeholder"); }
   txt.title = "Click to change the wording";
   const edit = ev => { ev.stopPropagation(); cardEditing = key; refresh(); };
   txt.addEventListener("click", edit); txt.addEventListener("keydown", ev => { if (ev.key === "Enter") edit(ev); });
@@ -2394,7 +2416,7 @@ function renderSide(c) {
   if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the full editor can change. They are kept as they are when you save."));
   if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
-  const card = E("div", "card");
+  const card = E("div", "card"); const cardNotes = [];
   /* Card text is generated from the blocks. Any line can be reworded by clicking it; the override
      remembers the generated text it replaced, so a later rules change flags it instead of drifting. */
   // Header: name (cost), flavor over a rule, keywords and action, distance and target.
@@ -2413,7 +2435,9 @@ function renderSide(c) {
     dtCell(ICON_DISTANCE, "distance", t.who === "self" ? "Self" : "Ranged " + esc(c.range.s));
     dtCell(ICON_TARGET, "target", { self: "Self", selfally: "Self or one ally", ally: "One ally", enemy: "One enemy", any: "One creature" }[t.who] || "One creature", true);
     const sq = c.range.s === "1" ? " square " : " squares ";
-    const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + c.range.s + sq + ev.other;
+    // As printed: "The target takes damage." when the triggering creature is the one affected; otherwise
+    // the creature that sets it off, "within distance" (the distance is on the line above).
+    const subj = t.who === "self" ? "you " + ev.you : t.affects === "subject" ? "the target " + ev.other : cap(who.label) + " within distance " + ev.other;
     cardLine(card, "trigger", "Trigger", esc(cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + "."), "effect");
     const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
     // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
@@ -2425,23 +2449,35 @@ function renderSide(c) {
     const tgt = targetText(ab, fm);
     dtCell(ICON_DISTANCE, "distance", dist); dtCell(ICON_TARGET, "target", tgt, true);
     // Effect text can come before the power roll as well as after it; each is one paragraph.
-    let effects = [], seenRoll = false;
+    let effects = [], seenRoll = false; const savedModes = [];
     const flush = key => { if (effects.length) cardLine(card, key, "Effect", esc(effects.join(" ")), "effect"); effects = []; };
     for (const p of c.prose) {
       if (p.kind === "roll") {
         flush("effectBefore"); seenRoll = true;
         card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
         ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
-      } else if (ab.descParas) continue;   // the saved description is the effect text (below)
+      } else if (ab.descParas) {
+        // Opened ability, book first: effect text is the saved description (below). An option line shows
+        // only with its saved wording, after the effect, as the book orders them ("Spend 1 Ferocity: ...").
+        if (p.kind === "mode" && ((ab.overrides || {})[p.key] || {}).saved && !ab.descParas.length) savedModes.push(p);
+        continue;
+      }
       else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); cardLine(card, p.key, p.label, esc(p.text), "effect"); }
       else effects.push(p.text + ".");
     }
     flush(seenRoll ? "effect" : "effect");
-    if (ab.descParas) ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
-    if (!c.tf.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Only affects creatures where " + c.tf.prose + "." }));
-    c.reqs.forEach(r => { if (!r.c.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Can only be used if " + r.c.prose + (r.reason ? " (“" + r.reason + "”)" : "") + "." })); });
+    if (ab.descParas) {
+      ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
+      // No saved effect text: offer a line to write one, rather than inventing wording the book doesn't have.
+      if (!ab.descParas.length) cardLine(card, "desc0", "Effect", "", "effect");
+      savedModes.forEach(p => cardLine(card, p.key, p.label, esc(p.text), "effect"));
+    }
+    // The book doesn't print filters or requirements on the card; they are listed under it instead.
+    if (!c.tf.empty) cardNotes.push("Only affects creatures where " + c.tf.prose + ".");
+    c.reqs.forEach(r => { if (!r.c.empty) cardNotes.push("Can only be used if " + r.c.prose + (r.reason ? " (\u201c" + r.reason + "\u201d)" : "") + "."); });
   }
   side.appendChild(card);
+  cardNotes.forEach(n => side.appendChild(E("p", "note", n)));
   side.appendChild(E("p", "note", "Click any line on the card to change its wording. Reworded lines are marked, and flagged if the rules change later."));
   if (c.triggered) {
     const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
@@ -2537,6 +2573,12 @@ function pickerOptions(h) {
   const item = (txt, desc, make, key, test) => ({ chip: { txt, test }, d: desc, make, key });
   const exItems = d.examples.filter(([src]) => { try { const a = parseGS(src); return (["cmp","and","or","not","has","is"].includes(a.k) || (a.k === "id" && d.symbols.some(y => y.type === "boolean" && norm(y.name) === norm(a.path.join(""))))) === wantBool; } catch (e) { return false; } })
     .map(([src, t]) => ({ chip: { txt: src, ex: true }, d: t, make: () => holderFromText(h.kind, h.docs, src).expr || X("num", { v: src }) }));
+  if (wantBool && h.docs === "stepIf") {
+    groups.push(["Strained (Talent)", "Steps that only happen when you are, or are not, Strained. The card labels them \u201cStrained:\u201d.", [
+      item("You are Strained", "", () => holderFromText("boolean", h.docs, "Caster.Strained").expr, "strain talent psionic", true),
+      item("You are not Strained", "", () => holderFromText("boolean", h.docs, "not Caster.Strained").expr, "strain talent unstrained", true),
+    ]]);
+  }
   if (wantBool) {
     groups.push(["Check a condition", "Prone, slowed, grabbed, and so on.",
       CONDITIONS.map(c => item(Who + " " + is + " " + c.toLowerCase(), "", () => X("hasCond", { role: who, cond: c }), "condition", true))]);
@@ -2756,7 +2798,7 @@ const PALETTE_BASE = [
   ["hinder", "Hinder", ["condition", "forced", "riders"]],
   ["ctrl2", "Abilities", ["useNew", "invoke"]],
   ["effect", "Effects", ["applyEffect", "durEffect"]],
-  ["ctrl", "Logic", ["ifStep", "modes", "strain"]],
+  ["ctrl", "Logic", ["ifStep", "modes"]],
   ["help", "Help", ["endEffects", "heal", "tempStamina", "surges"]],
   ["res", "Resources", ["resource"]],
   ["create", "Create", ["aura"]],
@@ -3305,6 +3347,7 @@ function openAbility(rec) {
   const H2 = (key, v) => holderFromText("number", key, String(v == null ? "" : v));
   let m;
   a.range = H2("range", rec.range == null ? 1 : rec.range); a.numTargets = H2("numTargets", rec.numTargets == null ? 1 : rec.numTargets);
+  if (rec.objectTarget) a.objects = true;   // "One creature or object"
   if (tt === "self") { a.distance = "Self"; a.targetCount = "self"; }
   else if (tt === "all") { a.distance = /aura/i.test(rto) ? "Aura" : "Burst"; a.areaSize = H2("areaSize", rec.range); }
   else if (tt === "cube") { a.distance = "Cube"; a.areaSize = H2("areaSize", rec.radius); }
@@ -3321,14 +3364,17 @@ function openAbility(rec) {
   if (rec.flavor) a.overrides.flavor = { text: rec.flavor, basis: null, saved: true };
   if (rec.targetFilter) a.targetFilter = holderFromText("boolean", "targetFilter", rec.targetFilter);
   a.requirements = (rec.reasonedFilters || []).map(r => ({ h: holderFromText("boolean", "requirement", r.formula || ""), reason: r.reason || "" }));
-  ["abilityFilters", "selfTarget", "objectTarget", "targetAllegiance", "repeatTargets", "proximityTargeting", "channeledResource", "usageLimitOptions", "persistence", "mandatory"].forEach(k => {
+  ["abilityFilters", "selfTarget", "targetAllegiance", "repeatTargets", "proximityTargeting", "channeledResource", "usageLimitOptions", "persistence", "mandatory"].forEach(k => {
     const v = rec[k]; if (v != null && v !== false && v !== "" && !(Array.isArray(v) && !v.length) && !(typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)) hidden.push(k + " = " + JSON.stringify(v).slice(0, 60));
   });
-  a.steps = openBehaviours(rec.behaviors || [], hidden, rec);
+  a.steps = openBehaviours(rec.behaviors || [], hidden, rec, a);
   a.openHidden = hidden;
   // The saved description is the card's effect wording, paragraph by paragraph ("**Strained:** ..." keeps
   // its label). It replaces the generated effect lines; edits save back to description.
-  if (rec.description && String(rec.description).trim()) {
+  // Some descriptions are an implementation summary that repeats the power roll ("3 burst; each enemy...
+  // Power Roll + Intuition: ..."), not the book's effect text: those stay saved but aren't shown as the card.
+  a.descParas = [];   // opened: effect text comes only from what was saved (book first)
+  if (rec.description && String(rec.description).trim() && !/power roll \+/i.test(rec.description)) {
     a.descParas = String(rec.description).split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map((x, i) => {
       const m = x.match(/^\*\*([^*]+?):\*\*\s*([\s\S]*)$/);
       return m ? { label: m[1], text: m[2] } : { label: "Effect", text: x };
@@ -3337,7 +3383,8 @@ function openAbility(rec) {
   }
   return a;
 }
-function openBehaviours(list, hidden, rec) {
+function openBehaviours(list, hidden, rec, a0) {
+  a0 = a0 || {};
   // Modes: options from modeList; behaviours tagged with modesSelected go into their option.
   const modes = rec && rec.multipleModes && (rec.modeList || []).length ? rec.modeList : null;
   let mb = null;
@@ -3345,6 +3392,7 @@ function openBehaviours(list, hidden, rec) {
     mb = S("modes", { when: rec.chooseModeAfterTargeting ? "after" : "before", opts: [] }, {}, {});
     modes.forEach(md => {
       const o = { id: "m" + uid++, name: md.text || "Option", extra: "0", own: "no", src: md };
+      if (md.rules && String(md.rules).trim()) (a0.overrides = a0.overrides || {})["mode." + o.id] = { text: String(md.rules).trim(), basis: null, saved: true };
       const sp = (md.condition || "").match(/^Heroic Resources Available to Spend >= (\d+)$/); if (sp) o.extra = sp[1];
       else if (md.condition) hidden.push("option \u201c" + md.text + "\u201d has condition " + md.condition);
       if (md.hasAbility && md.variation) { o.own = "yes"; const va = openAbility(md.variation); o.t = { distance: va.distance, targetCount: va.targetCount, range: va.range, numTargets: va.numTargets, areaSize: va.areaSize, lineWidth: va.lineWidth, lineWithin: va.lineWithin, meleeRange: va.meleeRange }; o.varSteps = va.steps; }
@@ -3372,10 +3420,11 @@ function openBehaviours(list, hidden, rec) {
         target = mb.branches["o" + o.id];
       }
     }
-    // Strained-only steps go inside "If you are Strained"; neighbours with the same setting share it.
+    // Strained-only steps go inside "Only if you are Strained"; neighbours with the same setting share it.
     if (b.strainSelection) {
       if (lastStrain && lastStrain.list === target && lastStrain.when === b.strainSelection) target = lastStrain.st.branches.then;
-      else { const w = STEPS.strain.make(); w.f.when = b.strainSelection; target.push(w); lastStrain = { st: w, when: b.strainSelection, list: target }; target = w.branches.then; lastIf = null; }
+      else { const w = STEPS.ifStep.make(); w.slots.cond = holderFromText("boolean", "stepIf", b.strainSelection === "unstrained" ? "not Caster.Strained" : "Caster.Strained");
+        target.push(w); lastStrain = { st: w, when: b.strainSelection, list: target }; target = w.branches.then; lastIf = null; }
     } else lastStrain = null;
     if (b.filterTarget && st.type !== "opaque") {
       if (lastIf && lastIf.list === target && lastIf.ft === b.filterTarget) { lastIf.st.branches.then.push(st); return; }
@@ -3459,7 +3508,8 @@ function loadDraft() {
 const exSel = document.getElementById("exSel");
 // "open:Name" opens a real saved ability from the compendium sample, as the editor would open content.
 const SAVED_ABILITIES = (() => { try { return JSON.parse(document.getElementById("savedAbilities").textContent); } catch (e) { return {}; } })();
-exSel.addEventListener("change", e => { const v = e.target.value; ab = v.startsWith("open:") ? openForEditing(SAVED_ABILITIES[v.slice(5)]) : EXAMPLES[v](); insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
+const SAVED_OWNERS = { "Optic Blast": "Talent", "Banshee Howl": "Beastheart", "Faster than the Eye": "Null", "Blood on the Stage": "Troubadour" };
+exSel.addEventListener("change", e => { const v = e.target.value; ab = v.startsWith("open:") ? openForEditing(SAVED_ABILITIES[v.slice(5)]) : EXAMPLES[v](); if (v.startsWith("open:")) ab.owner = SAVED_OWNERS[v.slice(5)] || ""; insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
 const draft = loadDraft();
 if (draft) {
   const o = document.createElement("option"); o.value = "draft"; o.textContent = "Your draft (kept in this browser)";

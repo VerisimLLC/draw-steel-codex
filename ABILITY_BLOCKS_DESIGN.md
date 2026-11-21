@@ -726,6 +726,23 @@ original, field by field. Triggers (10 CharacterModifiers) were not part of this
   `displayCondition: Caster.Strained`), not tied to the Reflective Surface mode; the Reflective Surface mode
   works through `numTargets: Mode` and proximity targeting. It now shows inside "If you are Strained".
 
+**Book first, and Strained inside Only if (2026-11-21)**
+- Standing rule: **the card always follows how the book displays an ability**, and saved book wording wins
+  over generated text. For an opened ability the effect text comes only from its saved `description`
+  (paragraphs and "**Label:**" labels); option lines use the saved mode `rules`, after the effect, as the
+  book orders them; nothing generated is added. A description that is really an implementation summary
+  (it repeats "Power Roll + ...") is kept but not shown; an ability with no usable description shows an
+  "Add effect text" line instead of invented wording.
+- Generated wording, when there is no saved text, follows the book's phrasing: "The target takes 5 damage",
+  "Push the target 2 squares", "You make a free strike", "Trigger: The target takes damage" (when the
+  triggering creature is the target) or "an ally within distance ...", "One creature or object",
+  "Two creatures or objects". A formula target count of `Mode` shows its usual value ("One").
+- Filters and requirements are no longer printed on the card (the book doesn't); they are listed under it.
+- **Strained is a test in Only if**, not its own block: the picker has "You are Strained" / "You are not
+  Strained" at the top for Only if. An Only if whose test is Strained saves as `strainSelection` on each step
+  inside; "you are Strained and <other test>" saves `strainSelection` plus `filterTarget` for the rest. The
+  card labels it "Strained:". Opening content turns `strainSelection` into "Only if you are (not) Strained".
+
 **Still open**
 - Advanced steps (16): invoking a standard ability 8, Summon 2, Modify Power Roll 2, and one each of
   Relocate Creature, a power roll with a non-2d10 roll, a rule the tier grammar can't read, and a Script.
@@ -819,6 +836,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **The card preview (tooltip) is styled after the printed card.** Name with cost in brackets ("It Is Justice You Fear (5 Wrath)"); a ruled left edge with diamond marks; italic flavor over a rule; keywords left and action right in bold ("Triggered" for triggers); distance and target with the book's icons; tier badges; characteristics and potencies as black boxes ("8 + [M]", "[P<WEAK], frightened"). Triggers show a distance and target line too ("Ranged 10 / Self or one ally"). Saved potency tier text now has the comma content uses ("P<weak, frightened"). | Asked for: the tooltip should look like the book. |
 | 2026-11-21 | **Opening existing content: anything unchanged saves back exactly as it was.** Steps, tiers, formulas and fields that compile to what they compiled to at open keep their saved form; changed steps write over the original record so hidden fields survive; unread words are kept, never dropped. On 45 real class abilities: untouched saves identical 45/45, single-tier edits touch only that tier 18/18. | Ship-safety: the simple editor will mostly be used on existing content, and must never damage what it doesn't understand. |
 | 2026-11-21 | **Opened abilities show their saved description as the effect text; Strained is a visible container; damage says who takes it.** Description edits save to `description`; "If you are Strained" saves `strainSelection`; damage gets "to you" and "that can't be reduced". | Review of Optic Blast: the card rewrote existing wording, and Strained and self-damage were invisible. |
+| 2026-11-21 | **Book first for the card.** The card always follows how the book displays an ability; saved book wording (description, mode rules, flavor, distance and target text) wins over generated text, and generated text uses the book's phrasing. Filters and requirements move off the card. **Strained is a test inside Only if** ("You are Strained"), saved as `strainSelection`, labelled "Strained:" on the card. | Asked for: "always preference the way the book displays it", and one place for conditions. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

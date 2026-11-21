@@ -3773,40 +3773,26 @@ local function OpenHallEntry(host, entry)
     end)
 end
 
---The Hall of Heroes location's card: tabs, sort and the list of entries (the
---scene above it carries the title). host mounts the victory-screen replays.
---A Hall entry's "Played by" line. With any Player Tags it is a wrapping row of
---names, each followed by its plaque badge; without, the plain line as before.
----@param players {name: string, tag: string|nil}[]
----@param anyTag boolean
----@param playerNames string[]
+--A Hall entry's "Played by" line. When any player shows an achievement it is
+--a wrapping row of names with their badges; otherwise one plain line.
+---@param players EotwTagNameListPerson[]
 ---@return Panel
-local function HallPlayedBy(players, anyTag, playerNames)
+local function HallPlayedBy(players)
+    local playerNames = {}
+    local anyTag = false
+    for _, player in ipairs(players) do
+        playerNames[#playerNames+1] = player.name
+        anyTag = anyTag or EotwPlayerTags.Def(player.tag) ~= nil
+    end
     if not anyTag then
         return gui.Label{ text = T("roster.hall.played_by", { players = table.concat(playerNames, ", ") }), fontSize = 14, color = DIM, width = "100%", height = "auto" }
     end
-    local function Text(text)
-        return gui.Label{ text = text, fontSize = 14, color = DIM, width = "auto", height = "auto", valign = "center", textWrap = false }
-    end
-    local heading = Text(T("roster.hall.played_by", { players = "" }))
-    --labels drop a trailing space, so the gap after "Played by" is a margin.
-    heading.selfStyle.rmargin = 5
-    local items = { heading }
-    for i, p in ipairs(players) do
-        local parts = { Text(p.name) }
-        local badge = EotwPlayerTags.Badge(p.tag, { fontSize = 11, maxWidth = 170 })
-        if badge ~= nil then
-            badge.selfStyle.lmargin = 5
-            parts[#parts+1] = badge
-        end
-        if i < #players then
-            parts[#parts+1] = Text(",")
-        end
-        items[#items+1] = gui.Panel{ width = "auto", height = 22, flow = "horizontal", rmargin = 5, children = parts }
-    end
+    local items = EotwPlayerTags.NameList(T("roster.hall.played_by_heading"), players, { fontSize = 14, color = DIM, rowHeight = 22, badgeMaxWidth = 170 })
     return gui.Panel{ width = "100%", height = "auto", flow = "horizontal", wrap = true, children = items }
 end
 
+--The Hall of Heroes location's card: tabs, sort and the list of entries (the
+--scene above it carries the title). host mounts the victory-screen replays.
 function EotwRoster.HallPanel(host)
     local listPanel = nil
     local tabsPanel = nil
@@ -3875,16 +3861,12 @@ function EotwRoster.HallPanel(host)
                 portraits[#portraits+1] = Portrait(h.portrait, 45, 60, "left")
             end
         end
-        local playerNames = {}
         local playerTags = type(e.playerTags) == "table" and e.playerTags or {}
-        --{ name, tag } per player; anyTag says whether the line needs plaques.
+        ---@type EotwTagNameListPerson[]
         local players = {}
-        local anyTag = false
         for _,p in ipairs(summary.players or {}) do
-            playerNames[#playerNames+1] = p.name or "?"
             local tag = p.userid ~= nil and playerTags[p.userid] or nil
             players[#players+1] = { name = p.name or "?", tag = tag }
-            anyTag = anyTag or EotwPlayerTags.Def(tag) ~= nil
             if p.userid == dmhub.loginUserid then
                 mine = true
             end
@@ -3924,7 +3906,7 @@ function EotwRoster.HallPanel(host)
             valign = "center",
             lmargin = 14,
             gui.Label{ text = table.concat(names, ", "), fontSize = 20, bold = true, color = TEXT, width = "100%", height = "auto" },
-            HallPlayedBy(players, anyTag, playerNames),
+            HallPlayedBy(players),
             gui.Label{ text = when, fontSize = 14, color = DIM, width = "100%", height = "auto" },
             gui.Label{ text = stats, fontSize = 14, color = TEXT, width = "100%", height = "auto" },
         }

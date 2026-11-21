@@ -42,12 +42,16 @@ EotwPlayerTags.revision = 0
 
 --The tag list the server awards (list-heroes tags.defs), or nil before the
 --first listing; until then the codex copy (EotwPlayerTagDefs) stands in.
+---@type EotwPlayerTagDef[]|nil
 local m_defs = nil
---This account's earned tags, oldest first: { {id, at, seen}, ... }.
+--This account's earned tags, oldest first.
+---@type EotwEarnedTag[]
 local m_earned = {}
 --The tag this account shows, or nil.
+---@type string|nil
 local m_chosen = nil
 --Tag ids newly earned and not yet announced by the banner on this machine.
+---@type string[]
 local m_toAnnounce = {}
 
 --Tags this machine has already announced, so the banner shows each tag once.
@@ -87,8 +91,22 @@ end
 
 --- data -------------------------------------------------------------------
 
+--One tag as EotwPlayerTagDefs.lua describes it (the server sends the same shape).
+---@class EotwPlayerTagDef
+---@field id string
+---@field name string
+---@field description string|nil
+---@field style string a key of EotwPlayerTags.STYLES
+---@field hidden boolean|nil
+
+--One tag this account has earned.
+---@class EotwEarnedTag
+---@field id string
+---@field at any when it was earned, as the server sent it
+---@field seen boolean
+
 --Every tag, as the server describes it (or the codex copy before it has).
----@return table[] defs each {id, name, description, style, hidden}
+---@return EotwPlayerTagDef[]
 function EotwPlayerTags.Defs()
     if m_defs ~= nil then
         return m_defs
@@ -98,7 +116,7 @@ function EotwPlayerTags.Defs()
 end
 
 ---@param tagid string|nil
----@return table|nil def {id, name, description, style}
+---@return EotwPlayerTagDef|nil
 function EotwPlayerTags.Def(tagid)
     if type(tagid) ~= "string" or tagid == "" then
         return nil
@@ -111,14 +129,16 @@ function EotwPlayerTags.Def(tagid)
     return nil
 end
 
+---@param def EotwPlayerTagDef
 local function StyleOf(def)
     return EotwPlayerTags.STYLES[def.style] or EotwPlayerTags.STYLES.slate
 end
 
+---@param tagid string|nil
 ---@return boolean
 function EotwPlayerTags.HasEarned(tagid)
-    for _, e in ipairs(m_earned) do
-        if e.id == tagid then
+    for _, earnedTag in ipairs(m_earned) do
+        if earnedTag.id == tagid then
             return true
         end
     end
@@ -132,16 +152,17 @@ end
 
 ---@return integer count earned tags not yet looked at in the picker
 function EotwPlayerTags.UnseenCount()
-    local n = 0
-    for _, e in ipairs(m_earned) do
-        if not e.seen and EotwPlayerTags.Def(e.id) ~= nil then
-            n = n + 1
+    local count = 0
+    for _, earnedTag in ipairs(m_earned) do
+        if not earnedTag.seen and EotwPlayerTags.Def(earnedTag.id) ~= nil then
+            count = count + 1
         end
     end
-    return n
+    return count
 end
 
 --Take in list-heroes' `tags` for this account: {defs, earned, chosen}.
+---@param tags any the server's reply; anything but a table is ignored
 function EotwPlayerTags.Apply(tags)
     if type(tags) ~= "table" then
         return
@@ -151,19 +172,13 @@ function EotwPlayerTags.Apply(tags)
     end
     local earned = {}
     local announced = nil
-    for _, e in ipairs(tags.earned or {}) do
-        if type(e) == "table" and type(e.id) == "string" then
-            earned[#earned+1] = { id = e.id, at = e.at, seen = e.seen == true }
-            if e.seen ~= true then
+    for _, earnedTag in ipairs(tags.earned or {}) do
+        if type(earnedTag) == "table" and type(earnedTag.id) == "string" then
+            earned[#earned+1] = { id = earnedTag.id, at = earnedTag.at, seen = earnedTag.seen == true }
+            if earnedTag.seen ~= true then
                 announced = announced or AnnouncedSet()
-                if not announced[e.id] then
-                    local queued = false
-                    for _, id in ipairs(m_toAnnounce) do
-                        queued = queued or id == e.id
-                    end
-                    if not queued then
-                        m_toAnnounce[#m_toAnnounce+1] = e.id
-                    end
+                if not announced[earnedTag.id] and not table.contains(m_toAnnounce, earnedTag.id) then
+                    m_toAnnounce[#m_toAnnounce+1] = earnedTag.id
                 end
             end
         end
@@ -195,6 +210,10 @@ function EotwPlayerTags.TagOf(userid)
     return nil
 end
 
+--Send one request to the town server; onDone(ok) is optional.
+---@param action string
+---@param args table
+---@param onDone nil|fun(ok: boolean)
 local function Request(action, args, onDone)
     local conn = EotwRoster.Connection()
     if conn == nil or not conn.connected then
@@ -219,14 +238,16 @@ local function Request(action, args, onDone)
     }
 end
 
---Show this earned tag beside your name (nil shows none). onDone(ok) optional.
+--Show this earned tag beside your name (nil shows none).
+---@param tagid string|nil
+---@param onDone nil|fun(ok: boolean)
 function EotwPlayerTags.Select(tagid, onDone)
     Request("select-tag", { tagid = tagid }, function(ok)
         if ok then
             m_chosen = tagid
-            for _, e in ipairs(m_earned) do
-                if e.id == tagid then
-                    e.seen = true
+            for _, earnedTag in ipairs(m_earned) do
+                if earnedTag.id == tagid then
+                    earnedTag.seen = true
                 end
             end
             EotwPlayerTags.revision = EotwPlayerTags.revision + 1
@@ -244,8 +265,8 @@ function EotwPlayerTags.MarkAllSeen()
     end
     Request("mark-tags-seen", {}, function(ok)
         if ok then
-            for _, e in ipairs(m_earned) do
-                e.seen = true
+            for _, earnedTag in ipairs(m_earned) do
+                earnedTag.seen = true
             end
             EotwPlayerTags.revision = EotwPlayerTags.revision + 1
         end
@@ -336,12 +357,76 @@ function EotwPlayerTags.Badge(tagid, opts)
     }
 end
 
+---@class EotwTagNameListPerson
+---@field name string
+---@field tag string|nil
+---@field note string|nil shown after the badge, e.g. "(away)"
+
+---@class EotwTagNameListOpts
+---@field fontSize number
+---@field color string
+---@field opacity nil|number
+---@field rowHeight number
+---@field badgeMaxWidth number
+
+--A list of names, each followed by its badge: "Here now (2): Ann [Legend], Bo".
+--Returns the pieces to put in a horizontal panel with wrap = true; each name
+--stays together with its badge when the line wraps.
+---@param heading string text before the names
+---@param people EotwTagNameListPerson[]
+---@param opts EotwTagNameListOpts
+---@return Panel[]
+function EotwPlayerTags.NameList(heading, people, opts)
+    local function Text(text)
+        return gui.Label{
+            text = text,
+            fontSize = opts.fontSize,
+            color = opts.color,
+            opacity = opts.opacity or 1,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            textWrap = false,
+        }
+    end
+    local headingLabel = Text(heading)
+    --labels drop a trailing space, so the gap after the heading is a margin.
+    headingLabel.selfStyle.rmargin = 5
+    local items = { headingLabel }
+    for i, person in ipairs(people) do
+        local parts = { Text(person.name) }
+        local badge = EotwPlayerTags.Badge(person.tag, { fontSize = 11, maxWidth = opts.badgeMaxWidth })
+        if badge ~= nil then
+            badge.selfStyle.lmargin = 5
+            parts[#parts+1] = badge
+        end
+        if person.note ~= nil then
+            parts[#parts+1] = Text(" " .. person.note)
+        end
+        if i < #people then
+            parts[#parts+1] = Text(",")
+        end
+        items[#items+1] = gui.Panel{
+            width = "auto",
+            height = opts.rowHeight,
+            flow = "horizontal",
+            rmargin = 5,
+            children = parts,
+        }
+    end
+    return items
+end
+
 --- the picker ----------------------------------------------------------------
 
 local TEXT = "#efe4cc"
 local DIM = "#c9bfa9"
 local GOLD = "#d9b56a"
 
+---@param text string
+---@param click fun()
+---@param width nil|number defaults to 160
+---@return Panel
 local function FrameButton(text, click, width)
     return gui.Button{
         text = text,
@@ -354,14 +439,15 @@ local function FrameButton(text, click, width)
 end
 
 --The Hero's Guild's tag picker: every tag, earned ones selectable, the rest
---dimmed and marked Locked (only you see those). Opening it marks your new
---tags seen; their dots show this once.
+--dimmed and marked as not earned yet (only you see those). Tags earned since
+--you last opened it get a gold dot this one time.
+---@param host Panel the screen the picker opens over
 function EotwPlayerTags.ShowPicker(host)
     local dlg
     local unseen = {}
-    for _, e in ipairs(m_earned) do
-        if not e.seen then
-            unseen[e.id] = true
+    for _, earnedTag in ipairs(m_earned) do
+        if not earnedTag.seen then
+            unseen[earnedTag.id] = true
         end
     end
     local statusLabel = nil
@@ -574,7 +660,10 @@ function EotwPlayerTags.ShowPicker(host)
     EotwPlayerTags.MarkAllSeen()
 end
 
---The Hero's Guild's "Tags" button, with a gold dot while tags are unseen.
+--The Hero's Guild button that opens the picker, with a gold dot while any
+--earned tag has not been looked at yet.
+---@param host Panel the screen the picker opens over
+---@return Panel
 function EotwPlayerTags.GuildButton(host)
     local dot
     return gui.Button{
@@ -627,8 +716,9 @@ end
 local m_banner = nil
 
 --Show a card for tags earned since the last call (the town screen calls this
---from its think, with itself as the host). One tag offers "Show This Tag";
---several offer the picker. It never blocks the town; Esc or Later closes it.
+--from its think). With one new tag, its main button puts that tag beside
+--your name; with several, it opens the picker. It never blocks the town.
+---@param host Panel|nil the town screen (nil or gone: nothing happens)
 function EotwPlayerTags.AnnounceEarned(host)
     if #m_toAnnounce == 0 or host == nil or not host.valid then
         return

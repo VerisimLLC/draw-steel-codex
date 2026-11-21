@@ -2019,7 +2019,7 @@ function EncounterOfTheWeek.SetEncounterNotch(moduleid, mapName, notch, callback
     }
 end
 
---── pregen hero cache ────────────────────────────────────────────────
+-- pregen hero cache ------------------------------------------------
 --The codex-encounteroftheweek module ships premade heroes as module
 --characters. We eagerly download its content snapshot (engine API
 --module.DownloadModuleSnapshot; the snapshot is permanently disk-cached,
@@ -2246,7 +2246,7 @@ function EncounterOfTheWeek.GetPregens()
     return result
 end
 
---── Hero module pregens ──────────────────────────────────────────────
+-- Hero module pregens ----------------------------------------------
 --Heroes shipped inside the player's Hero modules (classes and ancestries
 --from their inventory, see HeroModules.lua) are pregens too. Only modules
 --actually installed in the lobby count: that is every switched-on module the
@@ -4651,7 +4651,7 @@ CreateScreen = function(args)
         }
     end
 
-    --── refreshers: rebuild each region from the lobby document ─────────
+    -- refreshers: rebuild each region from the lobby document ---------
 
     --One action button on a game row.
     local RowButton = function(text, clickfn)
@@ -5691,7 +5691,7 @@ CreateScreen = function(args)
         }
     end
 
-    --── the game lobby view: slots, heroes, membership controls ─────────
+    -- the game lobby view: slots, heroes, membership controls ---------
 
     --One filled slot row. myIndex is this hero's position in OUR claim
     --list (nil for other players' heroes); it drives the Remove button.
@@ -7676,22 +7676,8 @@ CreateScreen = function(args)
         if presenceLabel == nil or not presenceLabel.valid or m_conn == nil then
             return
         end
-        --One small label of the row, dimmed like the line used to be. (Local to
-        --this function: the town screen's function is at Lua's local limit.)
-        local function PresenceText(text)
-            return gui.Label{
-                text = text,
-                fontSize = 16,
-                color = Styles.textColor,
-                opacity = 0.7,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                textWrap = false,
-            }
-        end
         local presence = m_conn:GetPath("/presence")
-        --{ name, tag, note } per person, sorted by name.
+        ---@type EotwTagNameListPerson[]
         local people = {}
         local heading
         if m_viewGameid ~= nil and m_chatTab == "game" then
@@ -7700,44 +7686,35 @@ CreateScreen = function(args)
                 local away = presence == nil or presence[userid] == nil
                 people[#people+1] = { name = ChatPlain(player.name or "?"), tag = player.tag, note = cond(away, T("eotw.chat.presence_away"), nil) }
             end
-            heading = T("eotw.chat.presence_party", { count = #people, names = "" })
+            heading = T("eotw.chat.presence_party", { count = #people })
         else
             for _,entry in pairs(presence or {}) do
                 people[#people+1] = { name = ChatPlain(entry.name or "?"), tag = entry.tag }
             end
-            heading = T("eotw.chat.presence_town", { count = #people, names = "" })
+            heading = T("eotw.chat.presence_town", { count = #people })
         end
         table.sort(people, function(a, b) return a.name < b.name end)
-        if #people == 0 then
-            presenceLabel.children = { PresenceText(T("eotw.chat.presence_empty")) }
+
+        --this runs on every chat message, so stop when the row would look the same.
+        --The tag revision is in the key because badges can change when the tag list arrives.
+        local keyParts = { heading, tostring(EotwPlayerTags.revision) }
+        for _, person in ipairs(people) do
+            keyParts[#keyParts+1] = string.format("%s|%s|%s", person.name, person.tag or "", person.note or "")
+        end
+        local key = table.concat(keyParts, "\n")
+        if presenceLabel.data.key == key then
             return
         end
-        local headingLabel = PresenceText(heading)
-        --labels drop a trailing space, so the gap after the colon is a margin.
-        headingLabel.selfStyle.rmargin = 5
-        local items = { headingLabel }
-        for i, person in ipairs(people) do
-            local parts = { PresenceText(person.name) }
-            local badge = EotwPlayerTags.Badge(person.tag, { fontSize = 11, maxWidth = 160 })
-            if badge ~= nil then
-                badge.selfStyle.lmargin = 5
-                parts[#parts+1] = badge
-            end
-            if person.note ~= nil then
-                parts[#parts+1] = PresenceText(" " .. person.note)
-            end
-            if i < #people then
-                parts[#parts+1] = PresenceText(",")
-            end
-            items[#items+1] = gui.Panel{
-                width = "auto",
-                height = 21,
-                flow = "horizontal",
-                rmargin = 5,
-                children = parts,
+        presenceLabel.data.key = key
+
+        local rowStyle = { fontSize = 16, color = Styles.textColor, opacity = 0.7, rowHeight = 21, badgeMaxWidth = 160 }
+        if #people == 0 then
+            presenceLabel.children = {
+                gui.Label{ text = T("eotw.chat.presence_empty"), fontSize = rowStyle.fontSize, color = rowStyle.color, opacity = rowStyle.opacity, width = "auto", height = "auto", valign = "center" },
             }
+            return
         end
-        presenceLabel.children = items
+        presenceLabel.children = EotwPlayerTags.NameList(heading, people, rowStyle)
     end
 
     RefreshChat = function()
@@ -8006,7 +7983,7 @@ CreateScreen = function(args)
         RefreshChat()
     end
 
-    --── add-hero picker ─────────────────────────────────────────────────
+    -- add-hero picker -------------------------------------------------
     --Fills one of our (up to 4) slots with a hero: either one of the
     --local titlescreen heroes, or a pregen from the weekly module.
 
@@ -8222,7 +8199,7 @@ CreateScreen = function(args)
         resultPanel:AddChild(dlg)
     end
 
-    --── create-game dialog ──────────────────────────────────────────────
+    -- create-game dialog ----------------------------------------------
     --The two-layer create flow: reserve with the lobby (one hosted game per
     --user, arbitrated server-side), create the real DMHub game through the
     --engine, then confirm the gameid so the lobby publishes the roster
@@ -10058,7 +10035,7 @@ CreateScreen = function(args)
         end)
     end
 
-    --── the town ──────────────────────────────────────────────────────────
+    -- the town ----------------------------------------------------------
 
     --The map covers the screen (it is wider than tall but not as wide as
     --16:9) and pans by dragging. Everything on it -- the location nodes --
@@ -12357,6 +12334,8 @@ CreateScreen = function(args)
             wrap = true,
             clip = true,
             halign = "center",
+            --remembers who the row shows, so a refresh with no change skips the rebuild.
+            data = { key = nil },
             create = function(element)
                 presenceLabel = element
                 RefreshPresence()
@@ -13109,7 +13088,7 @@ CreateScreen = function(args)
     return resultPanel
 end
 
---── stale-screen sweep ──────────────────────────────────────────────────
+-- stale-screen sweep --------------------------------------------------
 --Returning from a game reloads the titlescreen codemods but PRESERVES the
 --titlescreen's panel tree -- including any EotW screen that was open when
 --the game was entered (which is always the case for a game launched from

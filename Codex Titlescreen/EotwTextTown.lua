@@ -189,12 +189,12 @@ text("eotw.chat.tab_game", [[Game Chat]])
 text("eotw.chat.tab_new", [[NEW]])
 --The small red marker on the line between read and unread messages.
 text("eotw.chat.new_divider", [[NEW]])
---The line above the messages: who is in town. {count} is how many, {names}
---their names.
-text("eotw.chat.presence_town", [[Here now ({count}): {names}]])
+--The line above the messages: who is in town. {count} is how many; their
+--names (with any achievement badges) follow it.
+text("eotw.chat.presence_town", [[Here now ({count}):]])
 text("eotw.chat.presence_empty", [[Nobody is here yet.]])
 --On the Game Chat tab: who is in the party.
-text("eotw.chat.presence_party", [[In this party ({count}): {names}]])
+text("eotw.chat.presence_party", [[In this party ({count}):]])
 --After a party member's name when they are not in town.
 text("eotw.chat.presence_away", [[(away)]])
 --The message box's placeholder.
@@ -1014,6 +1014,9 @@ text("roster.hall.hero_fallback", [[Hero]])
 text("roster.hall.encounter_fallback", [[An Encounter of the Week]])
 --{players} is the players' names, separated by commas.
 text("roster.hall.played_by", [[Played by {players}]])
+--The same line when the players show achievement badges: this heading, then
+--each name with its badge.
+text("roster.hall.played_by_heading", [[Played by]])
 --Under the names: the encounter and when it was won. {encounter} is the
 --encounter's name, {when} the date.
 text("roster.hall.encounter_when", [[{encounter}, {when}]])

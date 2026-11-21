@@ -54,9 +54,13 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      strike-only surges be banked: worth naming in the PR); History treats a type-only
      modifier (A Champion's Cry psychic) as no change. Both checked on real casts. Two
      HISTORYDIAG prints stay uncommitted (MCDMAbilityRollBehavior, EmbeddedRollDialog).
-  4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"
-     setting (off) brings the old log back and hides History (name and tooltip to propose).
-     Plus the Encounter of the Week corner strip (Stage 6 notes).
+  4. **6.4 done** `6d1419b3` (COPY Round 28, L112-L114): History always records and shows;
+     "Use Old Action Log" (preference, off) swaps in the old log. Built-in Views v7/v8 put
+     History under Chat on its own (David: heads-up only, the bump prompts users once).
+     RailLayout now honours `available`; PanelDocument.RebuildRails added. Checked live:
+     the setting hides/shows History on the rail. Not run: the built-in View switch, EotW
+     strip. The old "historyenabled" game setting is gone: History now runs in every game,
+     so the Crows load test matters.
   5. **Testing before PRs:** Crows (load a Crows game with the branch), a real Encounter of the
      Week run, negotiation lines (Director side only: the player side of negotiations is
      unfinished, not History's), failed or tied opposed rolls and a double bane, a respite

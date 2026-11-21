@@ -105,6 +105,10 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
     }
     local commandActorIsTarget = casterBenefitApplyTo[self:try_get("applyto", "targets")] == true
 
+    --"Targets Perform Rule": each target is the actor, so "shift {MovementSpeed}"
+    --moves the target by its own speed. It takes priority over applyto's choice of actor.
+    local targetsPerformRule = self:try_get("targetPerformsRule", false)
+
     repeat
         if promptWhenResolving and #targets > 0 then
 
@@ -166,7 +170,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 --rules like "shift 1", not the cast's lead minion. Without squad
                 --pairing the mapped target IS the caster, so this is a no-op.
                 local commandCaster = casterToken
-                if self.applyto == "caster" then
+                if self.applyto == "caster" or targetsPerformRule then
                     commandCaster = target.token
                 end
                 local rule = StringInterpolateGoblinScript(self.rule, commandCaster.properties:LookupSymbol(ruleSymbols))
@@ -178,7 +182,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 --ability's caster: {Intuition} in a companion shift refers to
                 --the hero.
                 local commandCasterToken = commandCaster
-                if commandActorIsTarget then
+                if commandActorIsTarget or targetsPerformRule then
                     commandCasterToken = target.token
                 else
                     --Squad coordinated strike with applyto targets: the command
@@ -821,6 +825,13 @@ local g_rulePatterns = {
                 --squad-coordinated action, so opt out explicitly.
                 disableSquadCoordination = true,
             }
+
+            --The behavior can swap the generic "You may slide..." line for its own
+            --guidance, e.g. which way to move each target.
+            local customPrompt = behavior:try_get("forcedMovementPromptText", "")
+            if trim(customPrompt) ~= "" then
+                abilityAttr.promptOverride = StringInterpolateGoblinScript(customPrompt, casterToken.properties:LookupSymbol(options.symbols))
+            end
 
             if stability > 0 then
                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
@@ -3888,6 +3899,15 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Check{
+        text = "Targets Perform Rule",
+        hover = gui.Tooltip("Each target does the rule itself, e.g. \"shift {MovementSpeed}\" moves the target by its own speed. Overrides Apply To for who acts."),
+        value = self:try_get("targetPerformsRule", false),
+        change = function(element)
+            self.targetPerformsRule = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
         text = "Prompt When Resolving",
         value = self:try_get("promptWhenResolving", false),
         change = function(element)
@@ -3914,6 +3934,24 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
             }
         }
     end
+
+    --Only used when the rule includes forced movement (push/pull/slide).
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Forced Movement Prompt:",
+        },
+        gui.Input{
+            classes = {"formInput"},
+            text = self:try_get("forcedMovementPromptText", ""),
+            placeholderText = "You may slide the target 3 squares",
+            characterLimit = 400,
+            change = function(element)
+                self.forcedMovementPromptText = element.text
+            end
+        }
+    }
 
 	return result
 end

@@ -6614,6 +6614,36 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
+--Damage taken from the most recent ability, shown to Take Damage triggers as Ability
+--Damage. Saved on the creature so hits that resolve on different clients still add up.
+--A hit from another ability starts a new total.
+creature.abilityDamageCastId = ""
+creature.abilityDamageTotal = 0
+
+--- Adds this hit to the total for the ability that dealt it.
+--- Collision damage carries the pushing cast's id (abilitydamagecastid, set by the
+--- damage behavior from the collide event), so it counts toward the ability that
+--- moved the creature. Any other ability damage is keyed by its own cast.
+--- @param self creature the creature taking the damage
+--- @param info table the TakeDamage info
+--- @param amount number damage this hit dealt, including any absorbed by temporary Stamina
+--- @return number total damage from that ability so far, or amount when no ability dealt it
+local function AccumulateAbilityDamage(self, info, amount)
+    local castid = info.abilitydamagecastid
+    if (castid == nil or castid == "") and info.cast ~= nil then
+        castid = info.cast:EnsureGuid()
+    end
+    if type(castid) ~= "string" or castid == "" then
+        return amount
+    end
+    if self.abilityDamageCastId ~= castid then
+        self.abilityDamageCastId = castid
+        self.abilityDamageTotal = 0
+    end
+    self.abilityDamageTotal = self.abilityDamageTotal + amount
+    return self.abilityDamageTotal
+end
+
 --True only on TargetableObject (a map object with a Targetable component). Lets the
 --damage path skip creature-only outcomes such as the hero "dying" branch.
 creature.isMapObject = false
@@ -6782,6 +6812,7 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
+        eventArg.abilitydamage = AccumulateAbilityDamage(self, info, amount)
         --the minion path never draws on temporary Stamina, so the two are equal.
         eventArg.fulldamage = amount
         eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, amount))
@@ -6977,6 +7008,9 @@ function creature.TakeDamage(self, amount, note, info)
     --damage is the Stamina actually lost; fulldamage also counts what temporary
     --Stamina absorbed (the damage the creature took, by the rules).
     eventArg.fulldamage = original_amount
+    --Counts the full damage, like Damage This Turn, so temporary Stamina does not
+    --hide part of a hit from "10+ damage from one ability" triggers.
+    eventArg.abilitydamage = AccumulateAbilityDamage(self, info, math.max(0, original_amount))
     eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, original_amount))
     --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
     --immunity applied, so its raw damage is just the amount.

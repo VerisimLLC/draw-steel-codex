@@ -390,6 +390,63 @@ clearing the roll-change fields.
 6. **Round-trip test against the corpus**: open all 1,532 + 152 records in the model and save them
    back unchanged, before any conversion is allowed.
 
+## 4i. Critique round 1: Hodent lens (2026-11-21)
+
+An independent reviewer worked through the prototype (four tasks, desktop and phone width);
+findings below are merged with the designer's own pass. **Proposals, not decisions.**
+
+| Pillar | Rating |
+|---|---|
+| Signs and feedback | Mixed: card and status panel strong; list selection and trigger timing switch are silent |
+| Clarity | Mixed: card reads well; potency block and nested pills are hard to decode |
+| Form follows function | Mixed: actions ("Target is Slowed") read like tests ("Target is Prone") |
+| Consistency | Weak: potency has four names and two colours; four phrasings for conditions |
+| Minimum workload | Mixed: about 18 clicks for a standard strike |
+| Error prevention and recovery | Weak: easy to nest in the wrong place; no undo |
+| Flexibility and accessibility | Mixed: menus exist; narrow width, tab order, close hues and colour-only categories weak |
+| Motivation | Good: GoblinScript hidden, card language |
+| Emotion | Mixed: polished, a few glitches (off-screen picker, drag ghost) |
+| Flow | Mixed: selection mode and scrolling to pickers interrupt |
+
+Ranked problems:
+1. **Click-to-add goes to an invisible "selected list"** that does not follow new wrappers: a
+   condition added after "If potency fails" lands beside it, not inside, and the card shows it
+   ungated. The palette hint names the wrong list inside an Only if.
+2. **Potency has four names and two colours** ("If potency fails" purple in the palette, orange in
+   the stack; "is affected: ... below ..." in tests; "M<AVERAGE" on the card).
+3. **The potency test is 6-7 dropdowns long** and wraps badly; its warning note is engine jargon.
+4. **Trigger timing switches silently and changes the rules** (deleting "Halve the damage" moves the
+   shift from during to after the strike). Status text still says "ordinary ability".
+5. **No undo**, no confirmation on delete.
+6. **Actions and tests look alike** in words ("Target is Slowed" vs "Target is Prone").
+7. **Picker:** opens off-screen, never flips up; Prone hidden behind "Show 24 more"; the
+   spaced-name trap error is not plain English.
+8. **Narrow width and keyboard:** palette sits far above the stack; tab passes 14 palette buttons
+   first; "Who its steps affect" overlaps each step's own You/The target choice.
+9. (Designer) **Too many hues and too much chrome:** about ten colours and white dropdown chips on
+   every token make a finished ability noisy; categories are shown by colour only once in the stack.
+10. (Designer) **The most common shape costs the most work:** a strike's three tiers are three stacked
+    mouths, though the card shows them as one three-row table.
+
+Keep: the live card, plain-language status with one-click repairs, parent information without
+wiring, dimmed blocks with reasons, the value box plus fx, the ... menu.
+
+More elegant alternatives considered:
+- **A. Card as editor** (edit the card's lines in place, blocks as a structure view). Failure: nesting
+  and follow-ups do not fit card prose; edits map ambiguously back to data.
+- **B. Insertion points instead of a selection mode:** a "+" between steps and inside every tier and
+  wrapper opens a type-ahead list of only the steps valid there; the palette becomes a collapsible
+  drag shelf. Fixes 1 and 8. Failure: less browsable (the shelf covers that).
+- **C. Explicit timing for triggers:** "Changes the roll as it happens / Reacts after" chosen first,
+  pre-filled from the event, filtering events and steps. Fixes 4. Failure: one more decision.
+- **D. Formulas as a typed line with chips** for power users. Failure: brings parse errors back for
+  directors; offer it only as a mode of the existing "Type a formula" box.
+- **E. (Designer) Read mode:** finished blocks render as plain sentences with underlined editable
+  tokens ("Deal **3 + your Might** damage"); the dropdowns appear only on the token being edited.
+  Fixes 3 and 9. Failure: editing needs one more click; tokens must look clickable.
+- **F. (Designer) Power roll as a tier table:** three columns or rows matching the card, each a
+  drop zone, plus "starter" templates (Strike, Area, Reduce damage trigger). Fixes 10.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.

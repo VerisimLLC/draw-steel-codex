@@ -1303,6 +1303,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     if abilityTemplate ~= nil then
                         local abilityClone = abilityTemplate:MakeTemporaryClone()
 
+                        --A custom ability is written into the ability that invokes it: a step of
+                        --that ability, not an ability of its own. Records of play (History) file it,
+                        --whatever card it shows, under the invoker's name.
+                        if self.abilityType == "custom" then
+                            abilityClone._tmp_partOfAbility = ability.name
+                        end
+
                         --The invoked ability is cast through the normal path, which pays
                         --its own action cost as well as the invoking ability's. When the
                         --invoker already charges the action for the whole package, that

@@ -1640,9 +1640,12 @@ local function OpposedRow(who, showTotals, named)
 end
 
 local function TriggerRow(index, entry)
-    --T15: free first, then where it fell against the action's roll.
+    --T15: free first, then where it fell against the action's roll. An ability used as part
+    --of the action says what kind of action it is, if it is one.
     local tagText = "Triggered"
-    if entry.ability.free then
+    if entry.kind == "action" then
+        tagText = ACTION_WORDS[entry.ability.action or ""] or ""
+    elseif entry.ability.free then
         tagText = "Free"
     elseif entry.when == "before" then
         tagText = "Before the roll"
@@ -1651,7 +1654,7 @@ local function TriggerRow(index, entry)
     elseif entry.when == "after" then
         tagText = "After the roll"
     end
-    local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
+    local used = 15 + 6 + (tagText ~= "" and (TextWidth(tagText, 7.5) + 5) or 0)
     --- @type Panel[]
     local children = {
         gui.Label{
@@ -1672,15 +1675,17 @@ local function TriggerRow(index, entry)
         children[#children + 1] = face
         used = used + 26
     end
-    children[#children + 1] = gui.Label{
-        classes = {"historySmallCaps"},
-        text = tagText,
-        width = "auto",
-        height = "auto",
-        lmargin = 6,
-        halign = "left",
-        valign = "center",
-    }
+    if tagText ~= "" then
+        children[#children + 1] = gui.Label{
+            classes = {"historySmallCaps"},
+            text = tagText,
+            width = "auto",
+            height = "auto",
+            lmargin = 6,
+            halign = "left",
+            valign = "center",
+        }
+    end
 
     --what it did, each part after a caret; resultWidth is their estimated width.
     local results = {}
@@ -1958,7 +1963,9 @@ local function BuildAction(item)
     local rolls = {}
     local tableRolls = {}
     for _, kid in ipairs(item.triggers or {}) do
-        if kid.kind == "trigger" then
+        --a triggered action, or a real ability used as part of this one (Agonizing Harmony in
+        --Running Cacophony): both read as a numbered line under the action.
+        if kid.kind == "trigger" or kid.kind == "action" then
             triggers[#triggers + 1] = kid
             for _, who in ipairs(kid.targets) do
                 extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
@@ -3171,6 +3178,8 @@ local function RowText(entry, kids)
         for _, kid in ipairs(kids) do
             if kid.kind == "trigger" then
                 Add("triggered")
+                Add(kid.ability.name)
+            elseif kid.kind == "action" and kid.ability ~= nil then
                 Add(kid.ability.name)
             end
         end

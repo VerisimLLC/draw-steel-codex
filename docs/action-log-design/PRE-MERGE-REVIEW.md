@@ -51,9 +51,15 @@ Out's nested strike (Tier line "Cloak and Dagger +1"); audio caption bubble, sti
 Chat in front; dock UI (caption toast; a docked Action Log restored as History); a new game's
 first entry (built-in Director View, History on the rail). Whole-codex type check: 0.
 Not covered: the promptWhenResolving target-order path itself; surges spent per target.
-Found and fixed: Get In Get Out wrote two rows (the outer ability, aimed at the Shadow and
-changing nothing, and the strike with its own card). An outer row that changes nothing now
-folds into the inner row (its costs, gains, notes and cast ids move there); checked live.
+Invoked abilities (James 2026-11-21, after a content scan: 263 actions invoke one that opens
+its own card): the row is always the outer ability. A Custom Ability invoke is a step of that
+ability (marked _tmp_partOfAbility on the clone) and joins its row whatever card it shows, so
+"Invoked Ability" rows are gone and Get In Get Out is one row. A real ability invoked by name,
+as a standard ability or chosen (Hide, Agonizing Harmony, Throw, Prism's picks) keeps its own
+row, nested under the action like a triggered action, tagged with its action kind. An
+untouched user listed as the outer's only target is dropped once steps or nested abilities
+show. Checked live: Get In Get Out (one row, kit part), a test action invoking Catch Breath
+(nested). Not run: a remote invoke on another client (it keeps its own row there).
 
 ## 1. Fix before merge
 

@@ -322,9 +322,18 @@ local function CastBegan(ability, casterToken, targets, options)
         return
     end
 
+    local symbols = options.symbols
+    --a step written into the ability that invoked it (a Custom Ability invoke) is part of that
+    --ability's row, whatever card it shows: its targets, rolls and results go there.
+    local partOf = ability:try_get("_tmp_partOfAbility")
+    local outer = symbols ~= nil and symbols.cast ~= nil and g_byCast[symbols.cast] or nil
+    if partOf ~= nil and outer ~= nil and not outer.finished then
+        JoinParentRow(options, ability)
+        return
+    end
+
     --a card from an earlier cast means this one shares it (an invoked ability).
     local card = options.chatMessage
-    local symbols = options.symbols
     local sharesCard = card ~= nil and (symbols == nil or card.castid ~= symbols.castid)
     local automatic = ability.typeName == "TriggeredAbility" and not ability:ShowChatMessageOnCast()
     if sharesCard or (not automatic and not ability:ShowChatMessageOnCast()) then
@@ -365,8 +374,12 @@ local function CastBegan(ability, casterToken, targets, options)
         kind = "action",
         map = casterToken.mapid,
         actor = History.Creature(actor),
+        --a real ability used as part of another action (Running Cacophony's Agonizing Harmony)
+        --sits under that action's row.
+        cause = outer ~= nil and not outer.finished and outer.entry.id or nil,
         ability = {
-            name = ability.name,
+            --a written-in step with no outer row here reads as the ability it belongs to.
+            name = partOf or ability.name,
             icon = ability:try_get("iconid"),
             action = ActionKind(ability),
             area = ability:IsTargetTypeAOE(ability.targetType) or nil,
@@ -376,6 +389,9 @@ local function CastBegan(ability, casterToken, targets, options)
         player = not dmhub.isDM and dmhub.GetDisplayName(dmhub.userid) or nil,
         targets = {},
     }, targets, options)
+    if state.entry.cause ~= nil and outer ~= nil then
+        outer.hasNested = true
+    end
     History.AddCombatFacts(state.entry)
     ClaimUpfrontSpend(state, casterToken, ability.name)
     --L33: a free strike for moving away keeps who moved away.
@@ -432,12 +448,17 @@ local function CastBegan(ability, casterToken, targets, options)
     end
 end
 
+--True if anything shows a change on one of an entry's creatures.
+local function WhoChanged(who)
+    return (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
+        or (who.immunity ~= nil and who.immunity.amount ~= 0)
+        or who.conds ~= nil or who.ended ~= nil or who.state ~= nil or who.moved ~= nil
+end
+
 --True if anything on the entry shows a change. More families join this as they land.
 local function ChangedTheTable(entry)
     for _, who in ipairs(entry.targets) do
-        if (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
-            or (who.immunity ~= nil and who.immunity.amount ~= 0)
-            or who.conds ~= nil or who.ended ~= nil or who.state ~= nil or who.moved ~= nil then
+        if WhoChanged(who) then
             return true
         end
     end
@@ -786,41 +807,6 @@ local function SourcesKey(sources)
     return table.concat(keys, ";")
 end
 
---An ability whose own row would say nothing wraps one it invoked that has a row of its own
---(Get In Get Out: an outer ability aimed at its user, around the strike). One row, the
---inner one, takes what the outer one spent or gained, its notes, and its cast ids, so what
---names the outer cast still finds it.
-local function MergeIntoInnerRow(outer, inner)
-    for _, field in ipairs({"costs", "gains"}) do
-        for name, item in pairs(outer[field] or {}) do
-            inner[field] = inner[field] or {}
-            local into = inner[field][name] or {amount = 0, style = item.style, icon = item.icon}
-            into.amount = into.amount + item.amount
-            inner[field][name] = into
-        end
-    end
-    for _, message in ipairs(outer.messages or {}) do
-        inner.messages = inner.messages or {}
-        local have = false
-        for _, existing in ipairs(inner.messages) do
-            if existing == message then
-                have = true
-            end
-        end
-        if not have then
-            inner.messages[#inner.messages + 1] = message
-        end
-    end
-    inner.aliases = inner.aliases or {}
-    if outer.id ~= nil then
-        table.insert(inner.aliases, outer.id)
-    end
-    for _, alias in ipairs(outer.aliases or {}) do
-        table.insert(inner.aliases, alias)
-    end
-    History.Rewrite(inner)
-end
-
 local function CastFinished(ability, casterToken, options)
     local state = g_casts[options]
     if state == nil then
@@ -909,19 +895,23 @@ local function CastFinished(ability, casterToken, options)
     if not ok then
         print("History:: roll details failed:", err)
     end
-    if state.innerRows ~= nil and not ChangedTheTable(entry) then
-        MergeIntoInnerRow(entry, state.innerRows[1])
-        return
+    --an ability aimed at its user only to run its steps (Get In Get Out) lists that user as a
+    --target; once the steps' targets, or the abilities it used, are on the row, an untouched
+    --user is just noise.
+    if (#entry.targets > 1 or state.hasNested) and entry.actor ~= nil then
+        local kept = {}
+        for _, who in ipairs(entry.targets) do
+            if who.id ~= entry.actor.id or WhoChanged(who) then
+                kept[#kept + 1] = who
+            end
+        end
+        if #kept > 0 or state.hasNested then
+            entry.targets = kept
+        end
     end
     History.Write(entry)
     --the user's own card folds into the row it became (S5, 6.5d).
     History.FoldIn(entry)
-    --an outer cast still running learns of this row (MergeIntoInnerRow).
-    local parent = state.parent
-    if parent ~= nil and not parent.finished and not parent.automatic then
-        parent.innerRows = parent.innerRows or {}
-        table.insert(parent.innerRows, entry)
-    end
 end
 
 --The row a result belongs to: the running cast's own, else one it shares through its

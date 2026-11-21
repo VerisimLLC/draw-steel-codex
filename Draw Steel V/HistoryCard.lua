@@ -471,7 +471,7 @@ local function AddKid(rows, kid)
         return
     end
     --an entry from an earlier build may lack its ability: nothing to name, so no row.
-    if kid.kind ~= "trigger" or kid.ability == nil then
+    if (kid.kind ~= "trigger" and kid.kind ~= "action") or kid.ability == nil then
         return
     end
 
@@ -2287,7 +2287,7 @@ local function NumbersRows(entry, kids, width)
 
     local triggered = {}
     for _, kid in ipairs(kids or {}) do
-        if kid.kind == "trigger" and kid.actor ~= nil then
+        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil then
             local net = 0
             for _, who in ipairs(kid.targets or {}) do
                 net = net - (who.taken or 0) + (who.healed or 0)

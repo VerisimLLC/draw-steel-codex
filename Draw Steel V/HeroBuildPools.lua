@@ -1792,9 +1792,9 @@ function HeroBuild.Create(options)
         hero:Invalidate()
     end
 
-    --Set the class, at the Hero's current Level (Level 1 for a new Hero; EotW
-    --Heroes are always Level 1). Clears the old class's picks, kit and
-    --characteristics.
+    --Set the class, at the Hero's current Level (for a new Hero, the Level
+    --Build at Level chose; EotW Heroes are always Level 1). Clears the old
+    --class's picks, kit and characteristics.
     ---@param hero character
     ---@param classid string
     function Build.hero.SetClass(hero, classid)
@@ -1802,7 +1802,11 @@ function HeroBuild.Create(options)
         if current ~= nil and current.id == classid then
             return
         end
-        local level = 1
+        --a first class takes the Level chosen in Build at Level.
+        local level = hero:try_get("levelOverride")
+        if type(level) ~= "number" then
+            level = 1
+        end
         local classes = hero:try_get("classes")
         if type(classes) == "table" and classes[1] ~= nil and type(classes[1].level) == "number" then
             level = classes[1].level

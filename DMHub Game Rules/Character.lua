@@ -1075,6 +1075,22 @@ end
 
 function character:GetNameGeneratorTable()
 	local key = self:Race():try_get("nameGenerator")
+	--an ancestry without names of its own (a Revenant) names the Hero from
+	--the ancestry of their former life.
+	if key == nil then
+		local inherited = self:InheritedAncestry()
+		key = inherited ~= nil and inherited:try_get("nameGenerator") or nil
+	end
+	--any other ancestry without names uses human names. A Revenant still
+	--waiting on a former life gets none, so the sheet asks for one first.
+	if key == nil and not self:Race():IsInherited() then
+		for _, race in unhidden_pairs(GetTableCached(Race.tableName) or {}) do
+			if race.name == "Human" then
+				key = race:try_get("nameGenerator")
+				break
+			end
+		end
+	end
 	if key == nil then
 		return nil
 	end

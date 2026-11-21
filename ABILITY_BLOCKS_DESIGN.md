@@ -624,9 +624,9 @@ never picks between them: the editor decides how to save, as it does for trigger
   block saves as Multiple Modes (`multipleModes: true`, steps gated by `modesSelected`).
 - When any option targets differently, it saves as Ability Variations (`multipleModes: "variations"`). That
   option shows its own Distance and Target rows (the same card-worded rows as the header) and saves as
-  `hasAbility: true` plus `variation`: a whole ability with that targeting, whose behaviours are the full What
-  happens list with only that option's steps from the block (untagged), and `resourceCost: "none"` so the
-  base ability's cost is kept. Options that keep the same targets stay as gated steps on the base ability,
+  `hasAbility: true` plus `variation`: a whole ability with that targeting holding that option's steps only
+  (corrected in 4q: the engine swaps it in, so steps outside the block don't run with it), and
+  `resourceCost: "none"` so the base ability's cost is kept. Options that keep the same targets stay as gated steps on the base ability,
   which the engine supports in variations mode too.
 - "After picking the target" only works with plain modes, so the block shows "before picking targets" as
   fixed text once an option targets differently.
@@ -825,6 +825,65 @@ and effect text; it should store them verbatim (`rangeTextOverride`, `targetText
 with "**Trigger:**" and "**N Malice:**" paragraphs). Then book-first cards work for monsters as they do for
 heroes. Worth a content pass for existing monsters.
 
+## 4q. Trigger cards, adding paragraphs, and every trigger in the compendium (2026-11-21)
+
+**"+ Add paragraph".** Under the card's effect text, in the same quiet style as "Add flavor text". It adds a
+paragraph in editing mode labelled "Effect"; the label renames by click (suggestions: Effect, Special,
+Strained, Persistent, Spend N, N Malice). Hovering a paragraph shows up / down / remove. Added paragraphs are
+card text only. Adding one to a card still made from the blocks first turns the card into saved paragraphs,
+each remembering the generated text it came from, so a later change to the blocks flags it "rules changed"
+(with "Use new wording"); a paragraph reworded by hand shows "custom wording". Saved to `description` with
+"**Label:**" labels (to the display record for triggers that have one).
+
+**Display toggle.** In a trigger's header: "It [shows a triggered ability card / has no card (works in the
+background)]". New triggers default by action (triggered and free triggered: card; no action: none). Opening
+sets it from whether a Triggered Ability Display exists. Off: the card preview is marked "No card", and an
+opened display is noted as removed on save.
+
+**Display wording is the card.** Opening a trigger finds its Triggered Ability Display (matched by name, as
+`FindLivePartner` does) and shows its book wording: Trigger and Effect paragraphs, flavor, distance, target,
+cost. Edits save back to the display record (`ability.trigger`, `.effect`, `.flavor`, `.distance`,
+`.target`, `.cost`); the trigger itself is untouched. A new trigger with the toggle on gets a display built
+from the card. In the data: 1,148 triggers; 328 have a display (triggered 170 of 212, free triggered 45 of 99,
+no action 113 of 837).
+
+**Every trigger, opened and saved** (`ui-mockup/ability-blocks-corpus/poll3/`)
+| Check | Result |
+|---|---|
+| Opens without error | 1,148 of 1,148 |
+| Trigger saves back identical | 1,148 of 1,148 |
+| Its display saves back identical (or stays absent) | 1,148 of 1,148 |
+| Rename changes only names (trigger, its inner record, its display, a variation) | 1,148 of 1,148 |
+| Can be saved as opened | 1,148 of 1,148 |
+| Event has words in the editor | 1,144 (4 rare ids open with their raw name) |
+| Opens entirely as blocks | 621 of 1,148 (Advanced steps: invoke a standard ability 240, Remove Creature 90, unread rules 63, Float Text 42, Loyalty Collar 40, Summon 33, Augmented Ability 32, Aura 31) |
+| **Trigger condition reads entirely as blocks** | **46 of 571** |
+| Card matches the book (display + printed text found) | 100 of 114; Trigger lines 109 of 113, Effect 100 of 114 |
+
+Fixed along the way: triggers can use "Choose one when used" (27 content triggers do), and so can a follow-up
+ability (5), each saving its own modeList; a power roll trigger's custom trigger keeps its own name; an
+opened follow-up with no steps, and saved formulas with dice in a test, no longer block saving; a saved
+"Change the roll" value the wording didn't know no longer crashes the card; 10 more trigger events
+(move through a creature, finish using an ability, regain Stamina, use a resource, move away, kill...) and
+the "another creature" subject.
+
+**Correction to 4n (variations).** Content's variation abilities hold only that option's steps: when the
+option is picked the engine swaps in the variation (`SwitchModes`), so steps outside the choice block don't
+run with it. The editor now saves a variation with only that option's steps, and the note says so.
+
+**Display cards beat monster descriptions for book fidelity.** Where a display exists, the card matches the
+book 100 of 114 times; the misses are content (Skitter's display says shift 2, the book 3; Final Orders'
+display trigger differs from the book; one display is empty).
+
+**The biggest trigger problem left is the condition.** Only 46 of 571 trigger conditions become blocks.
+The parts that stay as formula, by count: string comparisons (99), `HasAttacker` (48), `SaveEndsEffects`
+(45), `Self.OngoingEffects has "..."` (32), bare `Self` / `Subject` / `Attacker` / `target` (76), damage
+type tests (`DamageType is fire`, 45), the used ability's keywords or name (46), `TriggerName` (18),
+`Distance(Attacker)` (11), class-specific fields (`Self.DragonsealArmed`, `Self.Rampaging`). Symbols used:
+Self 247, Subject 156, Damage 109, Attacker 83, Target 54, Used Ability 63. This is the GoblinScript authors
+find hardest; a trigger-condition vocabulary (who set it off, the attacker, the damage, the ability used)
+is the next piece of work.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -908,6 +967,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Opened abilities show their saved description as the effect text; Strained is a visible container; damage says who takes it.** Description edits save to `description`; "If you are Strained" saves `strainSelection`; damage gets "to you" and "that can't be reduced". | Review of Optic Blast: the card rewrote existing wording, and Strained and self-damage were invisible. |
 | 2026-11-21 | **Book first for the card.** The card always follows how the book displays an ability; saved book wording (description, mode rules, flavor, distance and target text) wins over generated text, and generated text uses the book's phrasing. Filters and requirements move off the card. **Strained is a test inside Only if** ("You are Strained"), saved as `strainSelection`, labelled "Strained:" on the card. | Asked for: "always preference the way the book displays it", and one place for conditions. |
 | 2026-11-21 | **Second poll (60: monsters, new class abilities, triggers) passes open-and-save 60/60.** Triggers now open (and the power roll trigger condition field is fixed to `targetFilter`); monster power rolls, villain actions, saved step order in modes, and text-only abilities are handled. The book check shows the remaining card differences come from data that doesn't store the printed wording, mainly monsters: the importer should store distance, target, trigger and effect text verbatim. | Evidence for shipping the editor on existing content, and a concrete content/import task for book-first monster cards. |
+| 2026-11-21 | **Triggers: display toggle, display wording as the card, "+ Add paragraph", and all 1,148 triggers open and save identically (trigger and display).** Toggle defaults by action and opens from whether a display exists; display text is the card and edits save to it; added paragraphs are card text that saves to description / the display. Variations corrected to hold only the option's steps. | Asked for (toggle, paragraphs, trigger poll). Next: trigger conditions read as blocks only 46 of 571 times. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

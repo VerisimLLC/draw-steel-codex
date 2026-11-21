@@ -350,6 +350,15 @@ input.f.name { min-width: 120px; font-weight: 600; }
 .card .clabel { cursor: pointer; border-radius: 3px; }
 .card .clabel:hover, .card .clabel:focus-visible { background: rgba(140,106,36,.18); outline: none; }
 .card .clabel-edit { font: 700 14px var(--font-card); width: 11em; border: 1px solid #8c6a24; border-radius: 3px; padding: 0 4px; color: var(--card-fg); background: #fff; }
+.card .cline.has-pctl { position: relative; padding-right: 58px; }
+.card .pctl { position: absolute; right: 0; top: 0; display: none; gap: 2px; }
+.card .cline.has-pctl:hover .pctl, .card .cline.has-pctl:focus-within .pctl { display: inline-flex; }
+.card .pctl button { background: none; border: 1px solid #c9bea6; border-radius: 3px; font: 11px/1 var(--font-ui); padding: 2px 4px; cursor: pointer; color: var(--card-fg); }
+.card .pctl button:disabled { opacity: .3; cursor: default; }
+.card .addpara { margin-top: 6px; background: none; border: none; padding: 0; font: 12.5px var(--font-card); color: #8a7a5a; cursor: pointer; }
+.card .addpara:hover { color: var(--card-fg); text-decoration: underline; }
+.card.off { opacity: .85; }
+.card .offnote { font: 600 11px var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: #8a7a5a; margin-bottom: 6px; }
 .card .creset { background: none; border: 1px solid #b9a27a; color: #2a2418; border-radius: 3px; font-size: 11px; padding: 0 5px; cursor: pointer; }
 .card .cedit { width: 100%; min-height: 44px; font: inherit; color: var(--card-fg); background: #fff; border: 1px solid #8c6a24; border-radius: 3px; padding: 4px 6px; }
 .status { display: flex; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; line-height: 1.4; }
@@ -932,6 +941,9 @@ function holderFromText(kind, docs, text) {
   catch (e) { h.expr = X("raw", { src: t, bool: kind === "boolean" }); }
   // Remember how it was written, so an unchanged formula saves back in its original spelling.
   const keep = problems; try { problems = []; h.origS = cHolder(h).s; h.orig = t; } catch (e) {} finally { problems = keep; }
+  // Parts of a saved formula are saved too: checks that only guide new writing don't block them.
+  const mark = x => { if (!x || typeof x !== "object") return; for (const k in x.kids || {}) { x.kids[k].fromSaved = true; mark(x.kids[k].expr); } (x.f && x.f.items || []).forEach(it => { it.fromSaved = true; mark(it.expr); }); };
+  mark(h.expr);
   return h;
 }
 
@@ -944,7 +956,8 @@ let problems = [];
 let paramSink = null;
 // Set while compiling: whether a move has marked a trail, and fields a step writes on the ability itself.
 let moveTrail = false, abilityPatch = {};
-let variationOf = null;   // set while compiling one mode option's swapped-in ability (Ability Variations)
+let variationOf = null;
+let modesHost = null;   // the list whose ability gets the modeList: What happens, or a follow-up's own steps   // set while compiling one mode option's swapped-in ability (Ability Variations)
 // Non-blocking notes for the side panel (things that save fine but need engine work to run right).
 let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
@@ -964,7 +977,7 @@ function cX(x, h) {
   const kidBool = (k, minP) => { const r = cHolder(x.kids[k], minP); if (r.empty) { bad(x.kids[k].id, "A test is missing."); return { s: "false", p: 10, prose: "(missing test)" }; } return r; };
   switch (x.type) {
     case "num": return { s: String(+f.v || 0), p: 10, prose: String(+f.v || 0) };
-    case "dice": if (h.kind !== "roll") bad(x.id, "Dice only work in damage and healing."); return { s: f.n + "d" + f.s, p: 10, prose: f.n + "d" + f.s };
+    case "dice": if (h.kind !== "roll" && h.orig == null && !h.fromSaved) bad(x.id, "Dice only work in damage and healing."); return { s: f.n + "d" + f.s, p: 10, prose: f.n + "d" + f.s };
     case "stat": { const r = role();
       if (f.field === "Combat Round") return { s: r.prefix + "CombatRound", p: 10, prose: "the round number" };
       return { s: r.prefix + nospace(f.field), p: 10, prose: r.poss + " " + (FIELD_PROSE[f.field] || f.field) }; }
@@ -1092,8 +1105,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
       }
       case "modes": {
         if (variationOf) { const o = f.opts.find(x => x.id === variationOf); if (o) compileSteps(st.branches["o" + o.id] || [], filters, out, prose); break; }
-        if (list !== ab.steps) { bad(st.id, "\u201cChoose one when used\u201d must be at the top level of What happens."); break; }
-        if (ab.kind === "triggered") { bad(st.id, "Choices on a triggered ability are not in this prototype yet."); break; }
+        if (list !== modesHost) { bad(st.id, "\u201cChoose one when used\u201d must be at the top level of What happens."); break; }
         if (abilityPatch.modeList) { bad(st.id, "An ability can only have one \u201cChoose one when used\u201d."); break; }
         const heroic = (RESOURCE_TABLE.find(r => r[1] === "Heroic Resource") || [""])[0];
         // How it is saved is decided here, not by the author: if any option targets differently it becomes
@@ -1102,7 +1114,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         const variations = f.opts.some(o => o.own === "yes");
         abilityPatch.multipleModes = variations ? "variations" : true;
         if (f.when === "after" && !variations) abilityPatch.chooseModeAfterTargeting = true;
-        if (variations) notes.push("Saved as Ability Variations, because " + f.opts.filter(o => o.own === "yes").map(o => "\u201c" + o.name + "\u201d").join(" and ") + " target" + (f.opts.filter(o => o.own === "yes").length === 1 ? "s" : "") + " differently.");
+        if (variations) notes.push("Saved as Ability Variations, because " + f.opts.filter(o => o.own === "yes").map(o => "\u201c" + o.name + "\u201d").join(" and ") + " target" + (f.opts.filter(o => o.own === "yes").length === 1 ? "s" : "") + " differently. When such an option is picked, it replaces the whole ability, so steps outside the choice don't happen with it.");
         const modeOut = [];
         const modeList = f.opts.map((o, i) => {
           const b2 = [], p2 = [];
@@ -1114,14 +1126,11 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
           const m = { text: o.name };
           if (n) m.condition = "Heroic Resources Available to Spend >= " + n;
           if (o.own === "yes") {
-            // The swapped-in ability: the whole What happens list with only this option's steps from the
-            // block (untagged), and this option's targeting. Cost "none" keeps the base ability's cost.
+            // The swapped-in ability replaces the whole ability when this option is picked (the engine's
+            // SwitchModes), so it holds this option's steps only, untagged, with this option's targeting.
+            // Steps outside the block don't happen with this option. Cost "none" keeps the base cost.
             const fm = r => /^\d+$/.test(r.s) ? r.s : r.prose;
-            const vb = [];
-            const savedProblems = problems.length, savedPatch = abilityPatch;
-            abilityPatch = {}; variationOf = o.id;
-            compileSteps(ab.steps, [], vb, []);
-            variationOf = null; abilityPatch = savedPatch; problems.length = savedProblems;   // reported once, by the main pass
+            const vb = b2.map(b => { const c = JSON.parse(JSON.stringify(b)); delete c.modesSelected; return c; });
             if (spend) vb.unshift(spend);
             m.hasAbility = true;
             m.variation = Object.assign({ __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
@@ -1134,6 +1143,9 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
           if (text || (ab.overrides || {})["mode." + o.id]) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text ? text + "." : "" });
           if (!o.name) bad(st.id, "Name each option.");
           if (text) m.rules = text + ".";
+          // An option opened from saved data keeps its saved fields (rules wording, its variation's own
+          // settings) except what the author changed.
+          if (o.src && sigMode !== "off") { if (sigMode === "record") o.openEntry = JSON.parse(JSON.stringify(m)); else return mergeSaved(o.src, m, o.openEntry); }
           return m;
         });
         abilityPatch.modeList = modeList;
@@ -1156,7 +1168,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         if (st.type === "rollEdge") { rollSink.modtype = f.mod; text = { edge: "the roll gets an edge", double_edge: "the roll gets a double edge", bane: "the roll gets a bane", double_bane: "the roll gets a double bane", tier1: "the roll becomes tier 1", tier3: "the roll becomes tier 3" }[f.mod]; }
         if (st.type === "potencyShift") { rollSink.potencymod = f.n.replace("+", ""); text = "the roll's potency changes by " + f.n; }
         if (st.type === "changeTarget") { rollSink.changeTarget = true; rollSink.changeTargetRange = f.range; if (f.range === "distance") rollSink.changeTargetDistance = +f.n || 1; text = "pick a new target" + (f.range === "distance" ? " within " + f.n + " squares" : " within the ability's distance"); }
-        prose.push({ kind: "text", during: true, text: cap(text) });
+        prose.push({ kind: "text", during: true, text: cap(text || "the roll changes (" + (f.mod || st.type) + ")") });
         break;
       }
       case "applyEffect": {
@@ -1216,10 +1228,13 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
       case "useNew": {
         const cb = [], cp = [];
         const outerSink = paramSink; paramSink = {};
+        const outerHost = modesHost, outerPatch = abilityPatch; modesHost = st.branches.steps; abilityPatch = {};
         compileSteps(st.branches.steps, [], cb, cp);
+        const childPatch = abilityPatch; modesHost = outerHost; abilityPatch = outerPatch;
         let child = { __typeName: "ActivatedAbility", name: f.name, behaviors: cb };
         // Opened from a saved follow-up: keep its own fields (targeting, keywords, ids), new steps only.
         if (st.srcList && st.srcList[0].customAbility && sigMode !== "off") child = Object.assign(JSON.parse(JSON.stringify(st.srcList[0].customAbility)), { name: f.name, behaviors: cb });
+        ["multipleModes", "modeList", "chooseModeAfterTargeting"].forEach(k => { if (childPatch[k] !== undefined) child[k] = childPatch[k]; });
         if (f.targeting === "prompt") { child.numTargets = cHolder(st.slots.num).s; child.range = cHolder(st.slots.range).s; }
         if (f.targeting !== "self") { const t = cHolder(st.slots.tf); if (!t.empty) child.targetFilter = t.s; }
         const params = {}; for (const k in paramSink) params[k] = "<<" + paramSink[k] + ">>";
@@ -1231,7 +1246,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         // Fields the saved record left at their defaults stay absent while the author hasn't changed them.
         if (src0) { if (!("abilityType" in src0)) delete inv.abilityType; if (!("targeting" in src0) && f.targeting === f.openTargeting) delete inv.targeting; if (!("standardAbilityParams" in src0) && !Object.keys(params).length) delete inv.standardAbilityParams; }
         out.push(Object.assign(inv, base));
-        if (!cb.length) bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add a step inside it.");
+        if (!cb.length && !(st.srcList && !((st.srcList[0].customAbility || {}).behaviors || []).length)) bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add a step inside it.");
         const tgt = f.targeting === "self" ? "you" : f.targeting === "inherit" ? "the same targets" : cHolder(st.slots.num).prose + " " + f.count + " within " + cHolder(st.slots.range).prose;
         const tfp = f.targeting !== "self" ? cHolder(st.slots.tf) : { empty: true };  // after the sink closes: prose only
         const inner = (tfp.empty ? "" : "only creatures where " + tfp.prose + "; ") + cp.map(q => q.kind === "roll" ? "make a power roll" : q.text.charAt(0).toLowerCase() + q.text.slice(1)).join(", then ");
@@ -1281,21 +1296,39 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
 }
 /* Field by field: a field that still compiles to what it compiled to when the ability was opened keeps
    its original saved value (or stays absent); fields the editor never writes ride along untouched. */
-function preserveFields(rec) {
-  if (sigMode === "record") { ab.openRec = JSON.parse(JSON.stringify(rec)); return rec; }
+function preserveFields(rec, srcKey = "source", openKey = "openRec") {
+  if (sigMode === "record") { ab[openKey] = JSON.parse(JSON.stringify(rec)); return rec; }
   const isObj = v => v && typeof v === "object" && !Array.isArray(v);
-  // Recurse into nested records (a trigger's triggeredAbility, a power roll trigger's modifier).
-  const merge = (src, now, open) => {
-    const out = JSON.parse(JSON.stringify(src || {}));
-    for (const k in now) {
-      if (k === "behaviors") { out[k] = now[k]; continue; }   // steps already restored themselves
-      if (open && JSON.stringify(open[k]) === JSON.stringify(now[k])) continue;   // unchanged: keep the original
-      out[k] = isObj(now[k]) && isObj(src && src[k]) && isObj(open && open[k]) ? merge(src[k], now[k], open[k]) : now[k];
-    }
-    for (const k in (open || {})) if (!(k in now) && k !== "behaviors") delete out[k];   // cleared by the author
-    return out;
-  };
-  return merge(ab.source, rec, ab.openRec);
+  return mergeSaved(ab[srcKey], rec, ab[openKey]);
+}
+/* Field by field, recursing into nested records (a trigger's triggeredAbility, a power roll trigger's
+   modifier, a mode's variation): unchanged since open keeps the saved value; cleared fields go. */
+function mergeSaved(src, now, open) {
+  const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+  const out = JSON.parse(JSON.stringify(src || {}));
+  for (const k in now) {
+    if (k === "behaviors") { out[k] = now[k]; continue; }   // steps already restored themselves
+    if (open && JSON.stringify(open[k]) === JSON.stringify(now[k])) continue;   // unchanged: keep the original
+    out[k] = isObj(now[k]) && isObj(src && src[k]) && isObj(open && open[k]) ? mergeSaved(src[k], now[k], open[k]) : now[k];
+  }
+  for (const k in (open || {})) if (!(k in now) && k !== "behaviors") delete out[k];   // cleared by the author
+  return out;
+}
+/* The Triggered Ability Display for this trigger: the card players see, matched to it by name. Its text
+   comes from the card (saved paragraphs, or the generated wording). */
+function buildDisplay(c) {
+  const o = ab.overrides || {}, tt = triggerCardTexts(c);
+  let trigger = tt.trigger, effect = tt.effect;
+  if (ab.descParas) {
+    const paras = ab.descParas.map((d, i) => ({ label: (ab.labels || {})["desc" + i] || (i === 0 && ab.descFrom === "display" && d.label === "Trigger" ? "Trigger" : "Effect"), text: (o["desc" + i] || { text: "" }).text }));
+    const ti = paras.findIndex(p => p.label === "Trigger");
+    trigger = ti >= 0 ? paras[ti].text : "";
+    effect = paras.filter((p, i) => i !== ti && p.text.trim()).map((p, i) => p.label === "Effect" && i === 0 ? p.text : "**" + p.label + ":** " + p.text).join("\n\n");
+  }
+  const cost = o.cost ? o.cost.text : ab.resource !== "no cost" ? cHolder(ab.cost).s + " " + resName(ab.resource) : "";
+  return { __typeName: "CharacterModifier", behavior: "triggerdisplay", name: ab.name,
+    ability: { __typeName: "TriggeredAbilityDisplay", name: ab.name, cost, keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
+      flavor: o.flavor ? o.flavor.text : "", type: ab.trig.action, distance: o.distance ? o.distance.text : tt.distance, target: o.target ? o.target.text : tt.target, trigger, effect } };
 }
 /* Opening an existing ability: whatever the author has not changed is saved back exactly as it was.
    When a step opened from saved behaviours still compiles to what it compiled to when opened, its
@@ -1424,6 +1457,7 @@ function compileTriggered() {
         targetType: ab.trig.affects, conditionFormula: cond.empty ? "" : cond.s, behaviors,
         keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])) } };
     if (ab.resource !== "no cost") { rec.triggeredAbility.resourceCost = "<" + ab.resource + ">"; rec.triggeredAbility.resourceNumber = cHolder(ab.cost).s; }
+    ["multipleModes", "modeList", "chooseModeAfterTargeting"].forEach(k => { if (abilityPatch[k] !== undefined) rec.triggeredAbility[k] = abilityPatch[k]; });
   } else {
     const mod = Object.assign({ __typeName: "CharacterModifier", behavior: "power", name: ab.name, rollType: "ability_power_roll" }, roll);
     // Power roll triggers carry their cost on the power modifier (resourceCostType / resourceCostAmount in content).
@@ -1431,15 +1465,21 @@ function compileTriggered() {
       mod.resourceCostType = "cost"; mod.resourceCostAmount = cHolder(ab.cost).s;
       if (ab.resource !== "Heroic Resource") notes.push("A power roll trigger's cost is saved as resourceCostType \"cost\"; content only shows that used for Heroic Resource, so how a Malice cost is stored needs checking in the engine.");
     }
-    if (behaviors.length) { mod.hasCustomTrigger = true; mod.customTrigger = { __typeName: "TriggeredAbility", name: ab.name, trigger: "d20roll", targetType: ab.trig.affects, behaviors }; }
+    if (behaviors.length) { mod.hasCustomTrigger = true; mod.customTrigger = { __typeName: "TriggeredAbility", name: ab.customTriggerName || ab.name, trigger: "d20roll", targetType: ab.trig.affects, behaviors }; }
+    if (mod.customTrigger) ["multipleModes", "modeList", "chooseModeAfterTargeting"].forEach(k => { if (abilityPatch[k] !== undefined) mod.customTrigger[k] = abilityPatch[k]; });
     rec = { __typeName: "CharacterModifier", behavior: "powertabletrigger", name: ab.name, type: ab.trig.action, targetType: who.prt, trigger: ev.prt, range: range.s,
       targetFilter: cond.empty ? undefined : cond.s, powerRollModifier: mod };   // the engine reads targetFilter (PowerTableTriggers.lua)
   }
-  engineTextFields(rec.triggeredAbility || rec); const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs;
-  return { rec: ab.source && sigMode !== "off" ? preserveFields(rec) : rec, storage, cond, range, prose, triggered: true };
+  // With a display record, the card's wording lives there (as content does), not on the trigger.
+  if (!ab.displaySource) { engineTextFields(rec.triggeredAbility || rec); const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs; }
+  const c0 = { cond, range, prose };
+  let display = displayOn() ? buildDisplay(c0) : null;
+  if (display && ab.displaySource && sigMode !== "off") display = preserveFields(display, "displaySource", "openDisplay");
+  if (!display && ab.displaySource) notes.push("This trigger's card (its Triggered Ability Display) will be removed when you save.");
+  return { rec: ab.source && sigMode !== "off" ? preserveFields(rec) : rec, display, storage, cond, range, prose, triggered: true };
 }
 function compileAbility() {
-  problems = []; notes = []; moveTrail = false; abilityPatch = {};
+  problems = []; notes = []; moveTrail = false; abilityPatch = {}; modesHost = ab.steps;
   if (ab.kind === "triggered") return compileTriggered();
   const range = cHolder(ab.range), num = cHolder(ab.numTargets), cost = cHolder(ab.cost);
   const tf = cHolder(ab.targetFilter);
@@ -2070,13 +2110,17 @@ function renderTriggeredHeader() {
   main.appendChild(section("What is it"));
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
   main.appendChild(headBlock(whatRows(nm, sel(t, "action", TRIG_ACTIONS, null, "action")), "hdr-what"));
+  // Whether players see a card for it. Saved as a Triggered Ability Display (kept with the trigger).
+  const dh = { v: displayOn() ? "on" : "off" };
+  const dsel = sel(dh, "v", [["on", "shows a triggered ability card"], ["off", "has no card (works in the background)"]], () => { snapshot(); t.display = dh.v; refresh(); }, "card");
+  const db = headBlock([[lbl("It"), dsel]], "hdr-disp"); db.style.marginTop = "3px"; main.appendChild(db);
   main.appendChild(section("What sets it off"));
   const during = compiledCache && compiledCache.storage === "prt";
   const chip = E("span", "timing" + (during ? "" : " after"), during ? "Happens during the roll" : "Happens after the event");
   chip.title = during ? "It changes the power roll while it is being made." : "It reacts once the event has happened.";
   const row = [lbl("When"), sel(t, "who", Object.entries(TRIG_WHO).map(([k, v]) => [k, v.label]), null, "who")];
   if (t.who !== "self") { row.push(lbl("within")); row.push(renderHolder(t.range)); row.push(lbl("squares")); }
-  row.push(sel(t, "event", EVENT_OPTS, null, "event"));
+  row.push(sel(t, "event", eventOptions(), null, "event"));
   const b = headBlock([row, [chip]], "hdr-trig");
   main.appendChild(b);
   const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ add a test (optional)" })]], "hdr-cond");
@@ -2390,12 +2434,14 @@ function cardLine(parent, key, label, genHtml, kind) {
   if (cardEditing === key) {
     const ta = E("textarea", "cedit"); ta.value = ov ? ov.text : gen; ta.setAttribute("aria-label", "Wording for " + (label || key));
     const done = save => { cardEditing = null; if (save) { const v = ta.value.trim(); ab.overrides = ab.overrides || {};
-        if (!v || v === gen) delete ab.overrides[key]; else ab.overrides[key] = { text: v, basis: gen }; } refresh(); };
+        // A card paragraph always keeps its own text (and where it came from); other lines fall back to generated.
+        if (/^desc\d+$/.test(key)) { const prev = ab.overrides[key] || {}; ab.overrides[key] = Object.assign({}, prev, { text: v, saved: true }); }
+        else if (!v || v === gen) delete ab.overrides[key]; else ab.overrides[key] = { text: v, basis: gen }; } refresh(); };
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); done(true); } if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); done(false); } });
     ta.addEventListener("blur", () => { if (cardEditing === key) done(true); });
     line.appendChild(ta); parent.appendChild(line);
     setTimeout(() => { ta.focus(); ta.select(); }, 0);
-    return;
+    return line;
   }
   const txt = E("span", "ctext"); txt.tabIndex = 0; txt.setAttribute("role", "button");
   if (ov) txt.textContent = ov.text; else if (gen) txt.innerHTML = genHtml; else { txt.textContent = kind === "flavor" ? "Add flavor text" : /^desc/.test(key) ? "Add effect text (optional)" : "\u2014"; txt.classList.add("placeholder"); }
@@ -2403,18 +2449,82 @@ function cardLine(parent, key, label, genHtml, kind) {
   const edit = ev => { ev.stopPropagation(); cardEditing = key; refresh(); };
   txt.addEventListener("click", edit); txt.addEventListener("keydown", ev => { if (ev.key === "Enter") edit(ev); });
   line.appendChild(txt);
-  if (ov && !ov.saved) {
-    const stale = ov.basis && ov.basis !== gen;
+  // Tags: "rules changed" when the blocks now say something else than when the words were written;
+  // "custom wording" for a reworded line (a paragraph made from the blocks counts once its words differ).
+  const paraCustom = ov && ov.saved && ov.gen && gen && ov.text !== gen && !(ov.basis && ov.basis !== gen);
+  if (ov && (!ov.saved || (ov.basis && gen && ov.basis !== gen) || paraCustom)) {
+    const stale = ov.basis && gen && ov.basis !== gen;
     line.classList.add("edited"); if (stale) line.classList.add("stale");
     const tag = E("span", "ctag", stale ? "rules changed" : "custom wording");
     tag.title = stale ? "The rules changed after this wording was written.\nNow generated: " + gen : "Generated wording: " + (gen || "(none)");
     const meta = E("span", "cmeta"); meta.appendChild(tag);
     if (gen) { const r = E("button", "creset", stale ? "Use new wording" : "Reset"); r.type = "button"; r.title = "Go back to the generated wording";
-      r.addEventListener("click", ev => { ev.stopPropagation(); delete ab.overrides[key]; refresh(); }); meta.appendChild(r); }
+      // A card paragraph keeps its own text, so "use new wording" copies the generated text into it.
+      r.addEventListener("click", ev => { ev.stopPropagation(); if (/^desc\d+$/.test(key)) ab.overrides[key] = { text: gen, basis: gen, saved: true, gen: ov.gen }; else delete ab.overrides[key]; refresh(); }); meta.appendChild(r); }
     line.appendChild(meta);
   }
   parent.appendChild(line);
+  return line;
 }
+/* Card paragraphs (ab.descParas): saved effect wording, one entry per paragraph, text in
+   ab.overrides["descN"] and label in ab.labels["descN"]. These move, add and remove them. */
+function paraSwap(i, j) {
+  const o = ab.overrides, l = ab.labels = ab.labels || {};
+  [o["desc" + i], o["desc" + j]] = [o["desc" + j], o["desc" + i]];
+  const li = l["desc" + i], lj = l["desc" + j]; if (lj === undefined) delete l["desc" + i]; else l["desc" + i] = lj; if (li === undefined) delete l["desc" + j]; else l["desc" + j] = li;
+  [ab.descParas[i], ab.descParas[j]] = [ab.descParas[j], ab.descParas[i]];
+}
+function paraDelete(i) {
+  for (let k = i; k < ab.descParas.length - 1; k++) paraSwap(k, k + 1);
+  const n = ab.descParas.length - 1; delete ab.overrides["desc" + n]; delete (ab.labels || {})["desc" + n]; ab.descParas.pop();
+}
+/* "+ Add paragraph". A card still made from the blocks is first turned into saved paragraphs (each
+   remembering the generated text it came from, so a later rules change is flagged). */
+function paraAdd(genParas) {
+  snapshot();
+  ab.overrides = ab.overrides || {}; ab.labels = ab.labels || {};
+  if (!ab.descParas) {
+    ab.descParas = [];
+    genParas.forEach(g => {
+      const i = ab.descParas.length, ov = ab.overrides[g.key];
+      ab.descParas.push({ label: g.label, text: "" });
+      ab.overrides["desc" + i] = { text: ov ? ov.text : g.text, basis: g.text, saved: true, gen: g.key };
+      const lab = (ab.labels[g.key]) || g.label; if (lab !== "Effect") ab.labels["desc" + i] = lab;
+    });
+  }
+  const n = ab.descParas.length;
+  ab.descParas.push({ label: "Effect", text: "" });
+  ab.overrides["desc" + n] = { text: "", basis: null, saved: true };
+  cardEditing = "desc" + n; refresh();
+}
+function paraControls(line, i) {
+  const box = E("span", "pctl");
+  const mk = (txt, title, fn, dis) => { const b = E("button", null, txt); b.type = "button"; b.title = title; b.setAttribute("aria-label", title); b.disabled = !!dis; b.addEventListener("click", ev => { ev.stopPropagation(); snapshot(); fn(); refresh(); }); box.appendChild(b); };
+  mk("\u2191", "Move paragraph up", () => paraSwap(i, i - 1), i === 0);
+  mk("\u2193", "Move paragraph down", () => paraSwap(i, i + 1), i === ab.descParas.length - 1);
+  const ov = ab.overrides["desc" + i] || {};
+  mk("\u00d7", ov.gen ? "Remove this paragraph from the card (the blocks still work)" : "Remove this paragraph", () => paraDelete(i));
+  line.classList.add("has-pctl"); line.appendChild(box);
+}
+/* Generated trigger card text (book phrasing), used by the card and by a new display record. */
+function triggerCardTexts(c) {
+  const t = ab.trig, ev = EVENTS[t.event] || { you: t.event, other: t.event }, who = TRIG_WHO[t.who] || { label: t.who };
+  // As printed: "The target takes damage." when the triggering creature is the one affected; otherwise
+  // the creature that sets it off, "within distance" (the distance is on the line above).
+  const subj = t.who === "self" ? "you " + ev.you : t.affects === "subject" ? "the target " + ev.other : cap(who.label) + " within distance " + ev.other;
+  const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
+  // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
+  const parts = during.concat(after.map(x => x.charAt(0).toLowerCase() + x.slice(1)));
+  return {
+    distance: t.who === "self" ? "Self" : "Ranged " + c.range.s,
+    target: { self: "Self", selfally: "Self or one ally", ally: "One ally", enemy: "One enemy", any: "One creature" }[t.who] || "One creature",
+    trigger: cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + ".",
+    effect: parts.length ? cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1]) + "." : "",
+  };
+}
+/* Whether a trigger has a card (a Triggered Ability Display). New ones default by action: triggered and
+   free triggered actions do, no-action triggers (passive features) don't. */
+function displayOn() { return (ab.trig.display || (ab.trig.action === "passive" ? "off" : "on")) === "on"; }
 /* Card art, drawn inline: the diamond marks on the header's left rule, and the distance and target icons. */
 const CARD_MARKS = '<svg class="marks" viewBox="0 0 14 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 1 13 7 7 13 1 7Z" fill="currentColor"/><path d="M7 13 13 19 7 25 1 19Z"/><path d="M7 25 13 31 7 37 1 31Z" fill="currentColor"/></g></svg>';
 const ICON_DISTANCE = '<svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 2V18H19Z"/><path d="M6.5 10V14.5H11Z"/></g><g stroke="currentColor" stroke-width="1.4"><path d="M3 6H5.5M3 9H4.5M3 12H5.5M7 18V15.5M10 18V16.5M13 18V15.5"/></g></svg>';
@@ -2448,72 +2558,71 @@ function renderSide(c) {
   const hdr = E("div", "hdr"); card.appendChild(hdr);
   hdr.insertAdjacentHTML("beforeend", CARD_MARKS);
   const h2 = E("h2", null, ab.name || "Unnamed");
-  if (ab.resource !== "no cost") h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (" + cHolder(ab.cost).s + " " + resName(ab.resource) + ")" }));
+  const costText = (ab.overrides || {}).cost ? ab.overrides.cost.text : ab.resource !== "no cost" ? cHolder(ab.cost).s + " " + resName(ab.resource) : "";
+  if (costText) h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (" + costText + ")" }));
   hdr.appendChild(h2);
   cardLine(hdr, "flavor", null, "", "flavor");
   const actText = c.triggered ? ({ trigger: "Triggered", free: "Free triggered", passive: "Passive" }[ab.trig.action] || "Triggered") : ab.action;
   const kwrow = E("div", "kwrow"); kwrow.appendChild(E("span", null, keywordsOf(ab).join(", ") || "\u00a0")); kwrow.appendChild(E("span", null, actText)); hdr.appendChild(kwrow);
   const dtrow = E("div", "dtrow"); hdr.appendChild(dtrow);
   const dtCell = (icon, key, html, right) => { const cell = E("div", "dt" + (right ? " right" : "")); cell.insertAdjacentHTML("beforeend", icon); cardLine(cell, key, null, html, "fixed"); dtrow.appendChild(cell); };
+  // The generated card, as a sequence: power rolls (shown as tiers) and paragraphs made from the blocks.
+  const seq = [];
   if (c.triggered) {
-    const t = ab.trig, ev = EVENTS[t.event], who = TRIG_WHO[t.who];
-    dtCell(ICON_DISTANCE, "distance", t.who === "self" ? "Self" : "Ranged " + esc(c.range.s));
-    dtCell(ICON_TARGET, "target", { self: "Self", selfally: "Self or one ally", ally: "One ally", enemy: "One enemy", any: "One creature" }[t.who] || "One creature", true);
-    const sq = c.range.s === "1" ? " square " : " squares ";
-    // As printed: "The target takes damage." when the triggering creature is the one affected; otherwise
-    // the creature that sets it off, "within distance" (the distance is on the line above).
-    const subj = t.who === "self" ? "you " + ev.you : t.affects === "subject" ? "the target " + ev.other : cap(who.label) + " within distance " + ev.other;
-    if (ab.descParas) {
-      // Opened trigger: show its saved wording (book first), labels included; never generated text.
-      ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
-      if (!ab.descParas.length) cardLine(card, "desc0", "Trigger", "", "effect");
-    } else {
-    cardLine(card, "trigger", "Trigger", esc(cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + "."), "effect");
-    const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
-    // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
-    const parts = during.concat(after.map(x => x.charAt(0).toLowerCase() + x.slice(1)));
-    if (parts.length) cardLine(card, "effect", "Effect", esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1]) + "."), "effect");
-    }
+    const tt = triggerCardTexts(c);
+    dtCell(ICON_DISTANCE, "distance", esc(tt.distance)); dtCell(ICON_TARGET, "target", esc(tt.target), true);
+    seq.push({ type: "para", key: "trigger", label: "Trigger", html: esc(tt.trigger) });
+    if (tt.effect) seq.push({ type: "para", key: "effect", label: "Effect", html: esc(tt.effect) });
   } else {
     const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
-    const dist = distanceText(fm);
-    const tgt = targetText(ab, fm);
-    dtCell(ICON_DISTANCE, "distance", dist); dtCell(ICON_TARGET, "target", tgt, true);
+    dtCell(ICON_DISTANCE, "distance", distanceText(fm)); dtCell(ICON_TARGET, "target", targetText(ab, fm), true);
     // Effect text can come before the power roll as well as after it; each is one paragraph.
-    let effects = [], seenRoll = false; const savedModes = [];
-    const flush = key => { if (effects.length) cardLine(card, key, "Effect", esc(effects.join(" ")), "effect"); effects = []; };
+    let effects = [], seenRoll = false;
+    const flush = key => { if (effects.length) seq.push({ type: "para", key, label: "Effect", html: esc(effects.join(" ")) }); effects = []; };
     for (const p of c.prose) {
-      if (p.kind === "roll") {
-        flush("effectBefore"); seenRoll = true;
-        if (/^(\d+|Highest Characteristic)$/.test(p.char)) { const h2 = card.querySelector("h2"); if (h2 && !/\(2d10/.test(h2.textContent)) h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (2d10 + " + (/^\d+$/.test(p.char) ? p.char : "highest") + ")" })); }
-        else card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
-        ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
-      } else if (ab.descParas) {
-        // Opened ability, book first: effect text is the saved description (below). An option line shows
-        // only with its saved wording, after the effect, as the book orders them ("Spend 1 Ferocity: ...").
-        if (p.kind === "mode" && ((ab.overrides || {})[p.key] || {}).saved && !ab.descParas.length) savedModes.push(p);
-        continue;
-      }
-      else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); cardLine(card, p.key, p.label, esc(p.text), "effect"); }
+      if (p.kind === "roll") { flush("effectBefore"); seenRoll = true; seq.push({ type: "roll", p }); }
+      else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); seq.push({ type: "para", key: p.key, label: p.label, html: esc(p.text), mode: true }); }
       else effects.push(p.text + ".");
     }
-    flush(seenRoll ? "effect" : "effect");
-    if (ab.descParas) {
-      ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
-      // No saved effect text: offer a line to write one, rather than inventing wording the book doesn't have.
-      if (!ab.descParas.length) cardLine(card, "desc0", "Effect", "", "effect");
-      savedModes.forEach(p => cardLine(card, p.key, p.label, esc(p.text), "effect"));
-    }
+    flush("effect");
     // The book doesn't print filters or requirements on the card; they are listed under it instead.
     if (!c.tf.empty) cardNotes.push("Only affects creatures where " + c.tf.prose + ".");
     c.reqs.forEach(r => { if (!r.c.empty) cardNotes.push("Can only be used if " + r.c.prose + (r.reason ? " (\u201c" + r.reason + "\u201d)" : "") + "."); });
+  }
+  const genParas = seq.filter(x => x.type === "para").map(x => ({ key: x.key, label: x.label, text: plainText(x.html) }));
+  const genMap = Object.fromEntries(seq.filter(x => x.type === "para").map(x => [x.key, x.html]));
+  const savedModes = [];
+  for (const x of seq) {
+    if (x.type === "roll") {
+      const p = x.p;
+      if (/^(\d+|Highest Characteristic)$/.test(p.char)) { const h2 = card.querySelector("h2"); if (h2 && !/\(2d10/.test(h2.textContent)) h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (2d10 + " + (/^\d+$/.test(p.char) ? p.char : "highest") + ")" })); }
+      else card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
+      ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
+    } else if (!ab.descParas) cardLine(card, x.key, x.label, x.html, "effect");
+    // Saved paragraphs replace generated ones (book first). An option's saved wording still shows when
+    // there is no saved description, after the effect, as the book orders them ("Spend 1 Ferocity: ...").
+    else if (x.mode && ((ab.overrides || {})[x.key] || {}).saved && !ab.descParas.length) savedModes.push(x);
+  }
+  if (ab.descParas) {
+    ab.descParas.forEach((d, i) => { const ov = ab.overrides["desc" + i] || {}; const line = cardLine(card, "desc" + i, "Effect", ov.gen ? (genMap[ov.gen] || "") : "", "effect"); if (line && cardEditing !== "desc" + i) paraControls(line, i); });
+    // No saved effect text: offer a line to write one, rather than inventing wording the book doesn't have.
+    if (!ab.descParas.length) cardLine(card, "desc0", c.triggered ? "Trigger" : "Effect", "", "effect");
+    savedModes.forEach(x => cardLine(card, x.key, x.label, x.html, "effect"));
+  }
+  if (!(ab.descParas && !ab.descParas.length)) {
+    const addp = E("button", "addpara", "+ Add paragraph"); addp.type = "button"; addp.title = "Add words to the card (Special, Strained, Persistent...). They don't do anything by themselves.";
+    addp.addEventListener("click", ev => { ev.stopPropagation(); paraAdd(genParas); }); card.appendChild(addp);
+  }
+  if (c.triggered && !displayOn()) {
+    card.classList.add("off");
+    card.insertBefore(E("div", "offnote", "No card: this trigger works in the background"), card.firstChild);
   }
   side.appendChild(card);
   cardNotes.forEach(n => side.appendChild(E("p", "note", n)));
   side.appendChild(E("p", "note", "Click any line on the card to change its wording. Reworded lines are marked, and flagged if the rules change later."));
   if (c.triggered) {
     const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
-    det.appendChild(E("pre", null, JSON.stringify(c.rec, null, 2))); side.appendChild(det);
+    det.appendChild(E("pre", null, JSON.stringify(c.display ? { trigger: c.rec, display: c.display } : c.rec, null, 2))); side.appendChild(det);
     return;
   }
   side.appendChild(E("p", "note", "Dotted text comes from a formula: hover it to see the GoblinScript."));
@@ -2775,10 +2884,23 @@ const EVENTS = {
   startrespite:{ you: "start a respite", other: "starts a respite", ta: "startrespite" },
   endrespite:  { you: "finish a respite", other: "finishes a respite", ta: "endrespite" },
   custom:      { you: "trigger a custom event", other: "triggers a custom event", ta: "custom" },
+  // Found by opening every trigger in the compendium (MCDMRules.lua / TriggeredAbility.lua).
+  movethrough: { you: "move through a creature's space", other: "moves through a creature's space", ta: "movethrough" },
+  finishability: { you: "finish using an ability", other: "finishes using an ability", ta: "finishability" },
+  regainstamina: { you: "regain Stamina", other: "regains Stamina", ta: "regainhitpoints" },
+  useresource: { you: "use a resource", other: "uses a resource", ta: "useresource" },
+  departadjacent: { you: "move away from a creature", other: "moves away from a creature", ta: "departadjacent" },
+  leaveadjacent: { you: "have a creature move away from you", other: "has a creature move away from them", ta: "leaveadjacent" },
+  prestartturn: { you: "are about to start your turn", other: "is about to start their turn", ta: "prestartturn" },
+  attacked:    { you: "are attacked", other: "is attacked", ta: "attacked" },
+  kill:        { you: "kill a creature", other: "kills a creature", ta: "kill" },
+  gaintempstamina: { you: "gain temporary Stamina", other: "gains temporary Stamina", ta: "gaintempstamina" },
 };
 const EVENT_OPTS = [["damaged", "take(s) damage"], ["struck", "is targeted by a strike"], ["rolls", "make(s) a power roll"], ["dealsdamage", "deal(s) damage"], ["forcemoved", "is force moved"],
   ["startturn", "start(s) their turn"], ["endturn", "end(s) their turn"], ["winded", "become(s) winded"], ["zero", "drop(s) to 0 Stamina"], ["dies", "die(s)"],
   ["condition", "gain(s) a condition"], ["usesability", "use(s) an ability"], ["finishmove", "finish(es) moving"], ["drawsteel", "roll(s) initiative"]];
+// The common events first, then every other event the engine has (and any opened from content).
+function eventOptions() { const known = new Set(EVENT_OPTS.map(o => o[0])); return EVENT_OPTS.concat(Object.keys(EVENTS).filter(k => !known.has(k)).map(k => [k, EVENTS[k].other])); }
 // Who sets it off. Stored as TriggeredAbility.subject or the power roll trigger's targetType.
 const TRIG_WHO = {
   self:     { label: "you", ta: "self", prt: "self" },
@@ -2788,6 +2910,7 @@ const TRIG_WHO = {
   any:      { label: "any creature", ta: "any", prt: "anycreature" },
   otherheroes:   { label: "another hero", ta: "otherheroes" },
   selfandheroes: { label: "you or another hero", ta: "selfandheroes" },
+  other:    { label: "another creature", ta: "other" },
 };
 const TRIG_ACTIONS = [["trigger", "Triggered action"], ["free", "Free triggered action"], ["passive", "Passive (no action)"]];
 // Which storage the formulas are being written for; the triggering creature is spelled differently in each.
@@ -3537,7 +3660,7 @@ function openBehaviour(b, hidden) {
 }
 /* Open a saved trigger. Event, who and action map onto the trigger header; events or subjects the
    editor has no words for are added on the fly (and listed as hidden) so nothing is lost. */
-function openTrigger(rec) {
+function openTrigger(rec, display) {
   const hidden = [];
   const prt = rec.behavior === "powertabletrigger";
   const ta = prt ? null : (rec.triggeredAbility || {});
@@ -3562,6 +3685,7 @@ function openTrigger(rec) {
   if (prt) {
     // Roll changes become "Change the roll" blocks; the rest of the modifier rides along.
     const m = rec.powerRollModifier || {}; const steps = [];
+    if (m.customTrigger && m.customTrigger.name) a.customTriggerName = m.customTrigger.name;
     if (m.damageMultiplier === "half") steps.push(STEPS.halveDamage.make());
     if (m.damageModifier) { const c = STEPS.changeDamage.make(); c.slots.amount = holderFromText("number", "rollDamage", String(m.damageModifier)); steps.push(c); }
     if (m.modtype && m.modtype !== "none") { const c = STEPS.rollEdge.make(); c.f.mod = m.modtype; steps.push(c); }
@@ -3572,12 +3696,29 @@ function openTrigger(rec) {
     for (const k in MEANT) if (m[k] != null && m[k] !== "" && m[k] !== true && m[k] !== "none" && !(k === "rollType" && m[k] === "ability_power_roll")) hidden.push("power roll trigger " + MEANT[k]);
     if ((m.keywords || []).length) hidden.push("only for rolls with keywords " + JSON.stringify(m.keywords));
   }
+  // Its card: the display record's wording is the book text (trigger line, effect, flavor, cost...).
+  a.trig.display = display ? "on" : "off";
+  if (display) {
+    a.displaySource = JSON.parse(JSON.stringify(display)); a.descFrom = "display";
+    const d = display.ability || {};
+    a.overrides = a.overrides || {}; a.labels = {};
+    if (d.flavor) a.overrides.flavor = { text: d.flavor, basis: null, saved: true };
+    if (d.distance) a.overrides.distance = { text: d.distance, basis: null, saved: true };
+    if (d.target) a.overrides.target = { text: d.target, basis: null, saved: true };
+    if (d.cost) a.overrides.cost = { text: d.cost, basis: null, saved: true };
+    a.descParas = [];
+    const push = (label, text) => { const i = a.descParas.length; a.descParas.push({ label, text }); a.overrides["desc" + i] = { text, basis: null, saved: true }; if (label !== "Effect") a.labels["desc" + i] = label; };
+    if (d.trigger) push("Trigger", d.trigger);
+    String(d.effect || "").split(/\n\s*\n|\s(?=\*\*[^*]{1,30}?:?\*\*:?\s)/).map(x => x.trim()).filter(Boolean).forEach(x => {
+      const m = x.match(/^\*\*([^*]+?):?\*\*:?\s*([\s\S]*)$/); push(m ? m[1] : "Effect", m ? m[2] : x); });
+    if (!Object.keys(rec.keywords || {}).length && d.keywords && !Array.isArray(d.keywords)) a.keywords = Object.keys(d.keywords).filter(k => d.keywords[k]);
+  }
   a.openHidden = hidden;
   return a;
 }
 /* Open, then fingerprint what every step compiles to, so untouched steps save back as they were. */
-function openForEditing(rec) {
-  const a = rec.__typeName === "CharacterModifier" ? openTrigger(rec) : openAbility(rec); const saved = ab; ab = a;
+function openForEditing(rec, display) {
+  const a = rec.__typeName === "CharacterModifier" ? openTrigger(rec, display) : openAbility(rec); const saved = ab; ab = a;
   registerScopes(ab); sigMode = "record"; compileAbility(); sigMode = null;
   return a;
 }

@@ -330,6 +330,66 @@ core ones first), 1,034 ongoing effects (searched by typing, never a plain dropd
 resources. Field mappings for the five new steps follow content usage; their less common options
 (duration rounds, stacks, relocate vicinity, purge by duration) are not modelled yet.
 
+## 4h. Triggered abilities and power roll triggers in one editor
+
+**Today they are two different modifier types** (content counts from draw-steel-data):
+
+| | Triggered Ability | Power Roll Trigger |
+|---|---|---|
+| Stored as | `CharacterModifier` behaviour `trigger` with `triggeredAbility` (a `TriggeredAbility`) | `CharacterModifier` behaviour `powertabletrigger` with `powerRollModifier` (a `power` modifier) |
+| In content | 1,532 | 152 |
+| When it acts | after an event (`TriggeredAbility.triggers`: losehitpoints, beginturn, creaturedeath...) | while another creature's power roll is open (`PowerTableTriggers.lua` g_triggerChoices: takedamage, strike, powerroll, dealdamage, forcemoved, forcemove, casting) |
+| What it does | behaviours (the same steps as an ability) | changes the roll: `damageMultiplier: half` (66), `changeTarget` (41), `modtype` edge/bane/tier (bane 6, tier 7), `damageModifier`, `potencymod`; plus optional behaviours in `powerRollModifier.customTrigger` (61) and `triggerBefore` (27), both `TriggeredAbility` |
+| Who sets it off | `subject`: self, selfandallies, allies, enemy, any, other... (+ `subjectRange`) | `targetType`: self, selforally, ally, enemy, anycreature (+ `range`) |
+| Action cost | action resource on the TriggeredAbility | `type`: trigger / free / passive |
+| Extra condition | `conditionFormula` | `filterCondition`, `targetFilter`, `abilityFilter` |
+| Triggering creature in formulas | `Subject` (plus event symbols such as `Attacker`, `Damage`) | `Triggerer` |
+
+Key observation: a Power Roll Trigger already contains `TriggeredAbility` objects for its ordinary
+effects (`customTrigger`), so "the steps" are the same kind of data in both. Converting is mostly
+moving one `TriggeredAbility` between `modifier.triggeredAbility` and
+`modifier.powerRollModifier.customTrigger`, mapping the event and the "who", and writing or
+clearing the roll-change fields.
+
+**Design in the prototype** (examples *Deflect* and *Retaliate*):
+- "This is an ability / a triggered ability" at the top.
+- *What sets it off*: "When [you / you or an ally / an ally / an enemy / any creature] within [10]
+  squares [event]" with one merged, plain-language event list. Five events exist in both systems
+  (takes damage, is targeted by a strike, makes a power roll, deals damage, is force moved); the
+  rest exist only as Triggered Abilities.
+- A *Change the roll* palette group (halve the damage, change the damage, edge or bane, change
+  potency, change the target) appears for triggered abilities. Its blocks are only allowed in the
+  top list and only for events that happen during a roll; otherwise they are dimmed with the reason.
+- Storage is decided on save: any roll-change step means Power Roll Trigger, with the other steps
+  in `customTrigger`; none means Triggered Ability. Removing the last roll-change step turns it back.
+- *Who its steps affect*: the triggering creature, you, or the attacker (where the event has one).
+
+**Coding work this would need** (planning only; nothing has been changed):
+1. **One in-memory model and a two-way converter** (`TriggerModel` or similar, Lua): load from either
+   modifier type, save to the one the steps require. Tables: event mapping (above), who mapping
+   (`self/selfandallies/allies/enemy/any` to `self/selforally/ally/enemy/anycreature`), range
+   (`subjectRange` to `range`), action cost (action resource to `type`), condition
+   (`conditionFormula` to `filterCondition`).
+2. **Switch the modifier type in place, keeping its `guid`.** Set `behavior`, run the target type's
+   `TypeInfo.init` defaults, copy mapped fields, and remove the other type's fields so no dead data
+   is saved. Check everything that finds a modifier by guid or by behaviour: `sourceguid` links,
+   `TriggeredAbilityDisplay` (`triggerdisplay`, 345 in content) cards on the character sheet, the
+   character builder's filter on `activated/triggerdisplay/routine`, and the action bar.
+3. **Rewrite formulas when the type changes.** Blocks compile the triggering creature as `Subject.`
+   or `Triggerer.` automatically (the prototype does this); raw formulas cannot be rewritten safely
+   and need a warning. Event-only symbols (`Attacker`, `Damage`, `Used Ability`) must be mapped or
+   flagged, because a Power Roll Trigger's filters do not have them.
+4. **Fill parity gaps or block the switch.** Events that exist on one side only (Power Roll
+   Trigger `casting`, `forcemove` "target force moves another"; every after-only Triggered Ability
+   event) must disable roll-change steps with a reason, as the prototype does. Power-roll-only
+   settings with no block yet (`triggerBefore`, `multitarget`, `abilityFilter`, `rollType`,
+   `additionalCostModifiers`, `armEffect`) open as Advanced settings and keep their values.
+5. **Verify before building**, by reading the engine and testing in the app: which symbols
+   `filterCondition` sees, how `rollType` (`ability_power_roll` vs `enemy_ability_power_roll`)
+   relates to the event and the "who", and whether `subject` "other" and "any" both map to `anycreature`.
+6. **Round-trip test against the corpus**: open all 1,532 + 152 records in the model and save them
+   back unchanged, before any conversion is allowed.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -377,6 +437,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-20 | **Five more steps** (most-used after the core five): apply an effect (searchable over the compendium's ongoing effects; also allowed in tiers as tier text), gain or spend a resource, temporary Stamina, end conditions or effects, move a creature. Each has a "The target / You" choice saved as `applyto`. | Content uses these 1,666 / 355 / 81 / 570 / 166 times; most target the user ("caster"). |
 | 2026-11-21 | **Step palette (exploring).** A column of step blocks grouped and coloured by what they do: Harm, Hinder, Effects, Help, Move, Resources, Rolls, Logic. Drag a block into any list it is allowed in, or click it to add it to the selected list (outlined in gold; click inside a list or tier to select it). Blocks that cannot go in the selected list are dimmed for clicking but can still be dragged elsewhere. The "+ add step" menu stays as the keyboard path. Step colours in the stack match their palette group. | Building by picking up blocks is more direct than a dropdown, and colour by purpose shows the shape of an ability at a glance. |
 | 2026-11-21 | **Palette sits directly right of the stack** (stack, palette, card). On narrow windows it moves above the stack. | Shorter drag distance from palette to stack. |
+| 2026-11-21 | **Triggered abilities use the same editor (exploring).** The first choice is "This is an ability / a triggered ability". The author never picks between a Triggered Ability and a Power Roll Trigger: the editor stores it as a Power Roll Trigger exactly when it contains a "Change the roll" step, otherwise as a Triggered Ability, and switches silently as steps are added or removed. The only visible sign is a timing chip: "Happens during the roll" / "Happens after the event". | The two types are one idea to authors; the split is an engine detail. Timing is the part that matters to the rules, so that is what is shown. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

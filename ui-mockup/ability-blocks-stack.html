@@ -25,6 +25,7 @@
   --c-effect: #2b6f86;
   --c-move: #3c5fa8;
   --c-res: #9a6d1c;
+  --c-rollchg: #b0457a;
   --c-num: #3c8656;
   --c-test: #2c7391;
   --c-raw: #5b564e;
@@ -106,6 +107,12 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-effect { --c: var(--c-effect); }
 .cat-move { --c: var(--c-move); }
 .cat-res { --c: var(--c-res); }
+.cat-rollchg { --c: var(--c-rollchg); }
+.timing { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.35); }
+.timing::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c-rollchg); }
+.timing.after::before { background: #fff; }
+.kindbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.kindbar .q { color: var(--dim); }
 .inner.nested { background: color-mix(in srgb, var(--c-act) 14%, var(--bg)); padding: 8px 8px 8px 10px; border-left: 1px dashed rgba(255,255,255,.25); }
 .nest-title { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 6px; }
 .nest-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #fff; background: var(--c-head); border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 6px 10px; margin-bottom: 3px; }
@@ -251,6 +258,8 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <option value="gouge">Gouge (hero strike)</option>
       <option value="drain">Draining Strike (follow-up ability with passed-in information)</option>
       <option value="butcher">Gorge (existing content with a missing value)</option>
+      <option value="deflect">Deflect (triggered: changes the roll)</option>
+      <option value="retaliate">Retaliate (triggered: reacts after)</option>
       <option value="potency">Potency checks (real formulas from content)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
       <option value="smoke">Smoke Bomb (has an advanced step)</option>
@@ -295,6 +304,9 @@ const TARGET_SYM = { label: "Target", prefix: "Target.", prose: "the target", po
 // bare names and Self mean the target, and the caster is reached through Caster.
 const STEP_TARGET = { label: "Target", prefix: "Target.", prose: "the target", poss: "the target's", aliases: ["target", "self"] };
 const YOU_CASTER = { label: "You", prefix: "Caster.", prose: "you", poss: "your", aliases: ["caster"] };
+// The creature that set the trigger off: Subject in a Triggered Ability, Triggerer in a Power Roll Trigger.
+const TRIGGERER = { label: "Triggering creature", get prefix() { return currentStorage === "prt" ? "Triggerer." : "Subject."; },
+  prose: "the triggering creature", poss: "the triggering creature's", aliases: ["subject", "triggerer"] };
 const CHARGES = { name: "Charges", type: "number", desc: "Charges left on this ability.", prose: "the charges left" };
 const DOCS = {
   range: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Range", output: "number", help: "The range of this ability in squares. If left empty the ability has a range of 1 (melee).",
@@ -320,6 +332,11 @@ const DOCS = {
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["2d6 + Might", "2d6 plus your Might."], ["Might * 2", "Twice your Might."]] },
   tierDamage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Tier damage", output: "roll", help: "Damage for this tier of the power roll. Usually a flat number, or a number plus a characteristic.",
     roles: [YOU], symbols: [], examples: [["3 + Might", "3 plus your Might."]] },
+  trigCond: { who: "Checked when the event happens. \u201cYou\u201d own this ability; \u201cthe triggering creature\u201d is whoever set it off.", defaultRole: "Triggering creature", title: "Only triggers if", output: "boolean",
+    help: "The ability only triggers when this is true. Leave empty to trigger every time.", roles: [YOU, TRIGGERER], symbols: [],
+    examples: [["Subject.Stamina <= Subject.MaximumStamina / 2", "Only if the triggering creature is winded."]] },
+  rollDamage: { who: "Worked out when the roll resolves.", defaultRole: "You", title: "Damage change", output: "number", help: "Added to the roll's damage. Use a negative number to reduce it.",
+    roles: [YOU, TRIGGERER], symbols: [], examples: [["2", "2 more damage."], ["-2", "2 less damage."]] },
   tempStamina: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Temporary Stamina", output: "number", help: "How much temporary Stamina is granted.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["10", "10 temporary Stamina."], ["Recovery Value", "One recovery's worth."], ["Intuition * 2", "Twice your Intuition."]] },
   quantity: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Amount", output: "number", help: "How many of the resource to gain or spend.",
@@ -414,6 +431,16 @@ const STEPS = {
     make: () => S("endEffects", { who: "caster", what: "conditions_and_effects", how: "one" }) },
   move: { label: "Move a creature", cat: "move", ctx: ["main"], desc: "Shift, move, jump or teleport (the player picks the square).",
     make: () => S("move", { who: "caster", how: "shift" }) },
+  halveDamage: { label: "Halve the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "The damage from the roll is halved.",
+    make: () => S("halveDamage", {}) },
+  changeDamage: { label: "Change the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "Add to or subtract from the roll's damage.",
+    make: () => S("changeDamage", {}, { amount: H("number", "rollDamage", "-2") }) },
+  rollEdge: { label: "Edge or bane", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "Give the roll an edge or a bane, or set its tier.",
+    make: () => S("rollEdge", { mod: "bane" }) },
+  potencyShift: { label: "Change potency", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "Raise or lower the roll's potency.",
+    make: () => S("potencyShift", { n: "-1" }) },
+  changeTarget: { label: "Change the target", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "The roll targets a different creature.",
+    make: () => S("changeTarget", { range: "ability", n: "1" }) },
   // A behaviour the simple editor does not model (aura, summon, script...). Its record is kept as-is
   // and saved back untouched; only its position and any "Only if" around it are editable here.
   opaque: { label: "Advanced step", cat: "raw", ctx: ["main"], hidden: true, desc: "",
@@ -783,6 +810,18 @@ function compileSteps(list, filters, out, prose) {
       case "heal": { const a = cHolder(st.slots.amount);
         out.push(Object.assign({ __typeName: "ActivatedAbilityHealBehavior", roll: a.s }, base));
         prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
+      case "halveDamage": case "changeDamage": case "rollEdge": case "potencyShift": case "changeTarget": {
+        if (!rollSink) { bad(st.id, ab.kind !== "triggered" ? "Changing the roll only works in a triggered ability." : "Nothing is being rolled when " + (ab.trig.who === "self" ? "you " + EVENTS[ab.trig.event].you : TRIG_WHO[ab.trig.who].label + " " + EVENTS[ab.trig.event].other) + ". Pick an event such as taking damage or being targeted by a strike, or remove this step."); break; }
+        if (filters.length) bad(st.id, "A roll change cannot sit inside \u201cOnly if\u201d; use \u201cOnly triggers if\u201d instead.");
+        let text;
+        if (st.type === "halveDamage") { rollSink.damageMultiplier = "half"; text = "halve the damage"; }
+        if (st.type === "changeDamage") { const a = cHolder(st.slots.amount); rollSink.damageModifier = a.s; text = (/^-/.test(a.s) ? "reduce the damage by " + a.prose.replace(/^-/, "") : "increase the damage by " + a.prose); }
+        if (st.type === "rollEdge") { rollSink.modtype = f.mod; text = { edge: "the roll gets an edge", double_edge: "the roll gets a double edge", bane: "the roll gets a bane", double_bane: "the roll gets a double bane", tier1: "the roll becomes tier 1", tier3: "the roll becomes tier 3" }[f.mod]; }
+        if (st.type === "potencyShift") { rollSink.potencymod = f.n.replace("+", ""); text = "the roll's potency changes by " + f.n; }
+        if (st.type === "changeTarget") { rollSink.changeTarget = true; rollSink.changeTargetRange = f.range; if (f.range === "distance") rollSink.changeTargetDistance = +f.n || 1; text = "pick a new target" + (f.range === "distance" ? " within " + f.n + " squares" : " within the ability's distance"); }
+        prose.push({ kind: "text", during: true, text: cap(text) });
+        break;
+      }
       case "applyEffect": {
         if (!f.effectId) bad(st.id, f.effectName ? "\u201c" + f.effectName + "\u201d is not an effect in the compendium. Pick one from the list." : "Choose which effect to apply.");
         const durText = (EFFECT_DURATIONS.find(d => d[0] === f.dur) || ["", f.dur])[1];
@@ -872,8 +911,36 @@ const whoText = w => w === "caster" ? "you" : "the target";
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+// Does this list (top level only) contain a step that changes the roll?
+const hasRollChange = list => list.some(st => STEPS[st.type] && STEPS[st.type].rollChange);
+function compileTriggered() {
+  const ev = EVENTS[ab.trig.event], who = TRIG_WHO[ab.trig.who];
+  const storage = hasRollChange(ab.steps) && ev.prt ? "prt" : "ta";
+  currentStorage = storage;
+  rollSink = storage === "prt" ? {} : null;
+  const cond = cHolder(ab.trigCond);
+  const behaviors = [], prose = [];
+  compileSteps(ab.steps, [], behaviors, prose);
+  const roll = rollSink; rollSink = null; currentStorage = "ta";
+  if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  const range = cHolder(ab.trig.range);
+  let rec;
+  if (storage === "ta") {
+    rec = { __typeName: "CharacterModifier", behavior: "trigger", name: ab.name,
+      triggeredAbility: { __typeName: "TriggeredAbility", name: ab.name, trigger: ev.ta, subject: who.ta, subjectRange: who.ta === "self" ? undefined : range.s,
+        actionResourceId: ab.trig.action === "passive" ? "none" : "<" + (TRIG_ACTIONS.find(a => a[0] === ab.trig.action) || [0, ""])[1] + ">",
+        targetType: ab.trig.affects, conditionFormula: cond.empty ? "" : cond.s, behaviors } };
+  } else {
+    const mod = Object.assign({ __typeName: "CharacterModifier", behavior: "power", name: ab.name, rollType: "ability_power_roll" }, roll);
+    if (behaviors.length) { mod.hasCustomTrigger = true; mod.customTrigger = { __typeName: "TriggeredAbility", name: ab.name, trigger: "d20roll", targetType: ab.trig.affects, behaviors }; }
+    rec = { __typeName: "CharacterModifier", behavior: "powertabletrigger", name: ab.name, type: ab.trig.action, targetType: who.prt, trigger: ev.prt, range: range.s,
+      filterCondition: cond.empty ? undefined : cond.s, powerRollModifier: mod };
+  }
+  return { rec, storage, cond, range, prose, triggered: true };
+}
 function compileAbility() {
   problems = []; notes = [];
+  if (ab.kind === "triggered") return compileTriggered();
   const range = cHolder(ab.range), num = cHolder(ab.numTargets), cost = cHolder(ab.cost);
   const tf = cHolder(ab.targetFilter);
   const reqs = ab.requirements.map(r => { const c = cHolder(r.h); if (c.empty) bad(r.h.id, "This requirement needs a test."); return { c, reason: r.reason }; });
@@ -1064,6 +1131,11 @@ function renderStep(st, list, ctx, scope) {
     case "resource": add(sel(f, "who", WHO_OPTS, null, "who")); add(sel(f, "mode", [["replenish", "gain"], ["expend", "spend"]], null, "gain or spend")); add(renderHolder(st.slots.qty)); add(sel(f, "res", RESOURCE_TABLE, null, "resource")); gsHolder = st.slots.qty; break;
     case "endEffects": add(lbl("End")); add(sel(f, "how", [["one", "one"], ["all", "all"], ["chosen", "chosen"]], null, "how many")); add(sel(f, "what", [["conditions", "conditions"], ["effect", "effects"], ["conditions_and_effects", "conditions and effects"]], null, "what")); add(lbl("on")); add(sel(f, "who", WHO_OPTS_OBJ, null, "who")); break;
     case "move": add(sel(f, "who", WHO_OPTS, null, "who")); add(sel(f, "how", [["shift", "shifts"], ["move", "moves"], ["jump", "jumps"], ["teleport", "teleports"]], null, "how")); add(lbl("to a square the player picks")); break;
+    case "halveDamage": add(lbl("Halve the damage")); break;
+    case "changeDamage": add(lbl("Change the damage by")); add(renderHolder(st.slots.amount)); gsHolder = st.slots.amount; break;
+    case "rollEdge": add(lbl("The roll")); add(sel(f, "mod", [["edge", "gets an edge"], ["double_edge", "gets a double edge"], ["bane", "gets a bane"], ["double_bane", "gets a double bane"], ["tier1", "becomes tier 1"], ["tier3", "becomes tier 3"]], null, "edge or bane")); break;
+    case "potencyShift": add(lbl("The roll's potency changes by")); add(sel(f, "n", ["-2", "-1", "+1", "+2"], null, "potency change")); break;
+    case "changeTarget": add(lbl("Pick a new target")); add(sel(f, "range", [["ability", "within the ability's distance"], ["distance", "within"]], null, "range")); if (f.range === "distance") { add(inp(f, "n", "num", "squares")); add(lbl("squares")); } break;
     case "useNew": add(lbl("Then use a new ability:")); add(inp(f, "name", "name", "follow-up name")); break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
@@ -1134,9 +1206,51 @@ function headBlock(rows) {
   return e;
 }
 
+function kindBar() {
+  const bar = E("div", "kindbar");
+  bar.appendChild(E("span", "q", "This is"));
+  const seg = E("div", "seg"); seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Kind of ability");
+  [["ability", "an ability"], ["triggered", "a triggered ability"]].forEach(([k, t]) => {
+    const b = E("button", null, t); b.type = "button"; b.setAttribute("aria-pressed", String(ab.kind === k));
+    b.addEventListener("click", () => { if (ab.kind !== k) { ab.kind = k; activeListId = null; refresh(); } });
+    seg.appendChild(b);
+  });
+  bar.appendChild(seg);
+  return bar;
+}
+function renderTriggeredHeader() {
+  const t = ab.trig, ev = EVENTS[t.event];
+  main.appendChild(section("What is it"));
+  const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
+  main.appendChild(headBlock([[nm, lbl("is a"), sel(t, "action", TRIG_ACTIONS, null, "action")],
+    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()]]));
+  main.appendChild(section("What sets it off"));
+  const during = compiledCache && compiledCache.storage === "prt";
+  const chip = E("span", "timing" + (during ? "" : " after"), during ? "Happens during the roll" : "Happens after the event");
+  chip.title = during ? "It changes the power roll while it is being made." : "It reacts once the event has happened.";
+  const row = [lbl("When"), sel(t, "who", Object.entries(TRIG_WHO).map(([k, v]) => [k, v.label]), null, "who")];
+  if (t.who !== "self") { row.push(lbl("within")); row.push(renderHolder(t.range)); row.push(lbl("squares")); }
+  row.push(sel(t, "event", EVENT_OPTS, null, "event"));
+  const b = headBlock([row, [chip]]);
+  main.appendChild(b);
+  const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ add a test (optional)" })]]);
+  c.style.marginTop = "3px"; c.appendChild(gsLine(ab.trigCond)); main.appendChild(c);
+  main.appendChild(section("Who its steps affect"));
+  // "The attacker" only exists for events with one (TriggeredAbility targetType "attacker").
+  const hasAttacker = ["damaged", "struck", "forcemoved"].includes(t.event);
+  if (!hasAttacker && t.affects === "attacker") t.affects = "subject";
+  main.appendChild(headBlock([[sel(t, "affects", [["subject", t.who === "self" ? "you (the triggering creature)" : "the triggering creature"], ["self", "you"]].concat(hasAttacker ? [["attacker", "the attacker"]] : []), null, "who its steps affect")]]));
+  if (document.getElementById("showGs").checked && compiledCache) {
+    main.appendChild(E("span", "gs-line", "Saved as: " + (compiledCache.storage === "prt" ? "Power Roll Trigger (CharacterModifier \"powertabletrigger\")" : "Triggered Ability (CharacterModifier \"trigger\")")));
+  }
+  main.appendChild(section("What happens"));
+  main.appendChild(renderList(ab.steps, "main"));
+}
 function renderMain() {
   main.innerHTML = "";
   main.classList.toggle("show-gs-off", !document.getElementById("showGs").checked);
+  main.appendChild(kindBar());
+  if (ab.kind === "triggered") return renderTriggeredHeader();
   main.appendChild(section("What is it"));
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
   main.appendChild(headBlock([[lbl("When"), nm, lbl("is used as a"), sel(ab, "action", ACTIONS, null, "action")],
@@ -1184,6 +1298,22 @@ function renderSide(c) {
   if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
   const card = E("div", "card");
+  if (c.triggered) {
+    const t = ab.trig, ev = EVENTS[t.event], who = TRIG_WHO[t.who];
+    const sq = c.range.s === "1" ? " square " : " squares ";
+    const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + esc(c.range.s) + sq + ev.other;
+    let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc((TRIG_ACTIONS.find(a => a[0] === t.action) || ["", ""])[1]) + "</span></div>";
+    html += '<div class="kw">' + esc(ab.keywords) + "</div>";
+    html += '<div class="eff"><b>Trigger:</b> ' + cap(esc(subj)) + (c.cond.empty ? "" : ", if " + esc(c.cond.prose)) + ".</div>";
+    const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
+    // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
+    const parts = during.concat(after.map(x => x.charAt(0).toLowerCase() + x.slice(1)));
+    if (parts.length) html += '<div class="eff"><b>Effect:</b> ' + esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1])) + ".</div>";
+    card.innerHTML = html; side.appendChild(card);
+    const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
+    det.appendChild(E("pre", null, JSON.stringify(c.rec, null, 2))); side.appendChild(det);
+    return;
+  }
   const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
   const dist = ab.distance === "Self" ? "Self" : ab.distance + " " + fm(c.range);
   const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
@@ -1375,6 +1505,45 @@ function plumbingLine(st) {
   return E("span", "gs-line", keys.length ? "Passed to it: " + keys.map(k => k + " = <<" + used[k] + ">>").join(", ") : "Passed to it: nothing");
 }
 
+/* Triggered abilities. The author picks an event in plain words; the editor decides how it is stored:
+   - a Triggered Ability (CharacterModifier "trigger" + TriggeredAbility) reacts AFTER something happens;
+   - a Power Roll Trigger (CharacterModifier "powertabletrigger" + a "power" modifier) acts WHILE a
+     power roll is being made, so it can change the roll (halve damage, add a bane, retarget...).
+   It becomes a Power Roll Trigger exactly when it contains a "Change the roll" step. Ordinary steps
+   then run as that trigger's follow-up (powerRollModifier.customTrigger, a TriggeredAbility). */
+const EVENTS = {
+  damaged:     { you: "take damage", other: "takes damage", ta: "losehitpoints", prt: "takedamage" },
+  struck:      { you: "are targeted by a strike", other: "is targeted by a strike", ta: "targetwithability", prt: "strike" },
+  rolls:       { you: "make a power roll", other: "makes a power roll", ta: "rollpower", prt: "powerroll" },
+  dealsdamage: { you: "deal damage", other: "deals damage", ta: "dealdamage", prt: "dealdamage" },
+  forcemoved:  { you: "are force moved", other: "is force moved", ta: "forcemove", prt: "forcemoved" },
+  startturn:   { you: "start your turn", other: "starts their turn", ta: "beginturn" },
+  endturn:     { you: "end your turn", other: "ends their turn", ta: "endturn" },
+  winded:      { you: "become winded", other: "becomes winded", ta: "winded" },
+  zero:        { you: "drop to 0 Stamina", other: "drops to 0 Stamina", ta: "zerohitpoints" },
+  dies:        { you: "die", other: "dies", ta: "creaturedeath" },
+  condition:   { you: "gain a condition", other: "gains a condition", ta: "inflictcondition" },
+  usesability: { you: "use an ability", other: "uses an ability", ta: "useability" },
+  finishmove:  { you: "finish moving", other: "finishes moving", ta: "finishmove" },
+  drawsteel:   { you: "roll initiative", other: "rolls initiative", ta: "rollinitiative" },
+};
+const EVENT_OPTS = [["damaged", "take(s) damage"], ["struck", "is targeted by a strike"], ["rolls", "make(s) a power roll"], ["dealsdamage", "deal(s) damage"], ["forcemoved", "is force moved"],
+  ["startturn", "start(s) their turn"], ["endturn", "end(s) their turn"], ["winded", "become(s) winded"], ["zero", "drop(s) to 0 Stamina"], ["dies", "die(s)"],
+  ["condition", "gain(s) a condition"], ["usesability", "use(s) an ability"], ["finishmove", "finish(es) moving"], ["drawsteel", "roll(s) initiative"]];
+// Who sets it off. Stored as TriggeredAbility.subject or the power roll trigger's targetType.
+const TRIG_WHO = {
+  self:     { label: "you", ta: "self", prt: "self" },
+  selfally: { label: "you or an ally", ta: "selfandallies", prt: "selforally" },
+  ally:     { label: "an ally", ta: "allies", prt: "ally" },
+  enemy:    { label: "an enemy", ta: "enemy", prt: "enemy" },
+  any:      { label: "any creature", ta: "any", prt: "anycreature" },
+};
+const TRIG_ACTIONS = [["trigger", "Triggered action"], ["free", "Free triggered action"], ["passive", "Passive (no action)"]];
+// Which storage the formulas are being written for; the triggering creature is spelled differently in each.
+let currentStorage = "ta";
+// Steps that change a roll in progress write into this power modifier while compiling (null = not allowed here).
+let rollSink = null;
+
 // "Who" on the new steps. Saved as the behaviour's applyto.
 const WHO_OPTS = [["targets", "The target"], ["caster", "You"]];
 const WHO_OPTS_OBJ = [["targets", "the target"], ["caster", "you"]];
@@ -1401,7 +1570,16 @@ const PALETTE = [
   ["res", "Resources", ["resource"]],
   ["roll", "Rolls", ["powerRoll", "potency"]],
   ["ctrl", "Logic", ["ifStep", "invoke", "useNew"]],
+  ["rollchg", "Change the roll", ["halveDamage", "changeDamage", "rollEdge", "potencyShift", "changeTarget"], "triggered"],
 ];
+// Can this step go in a list of this kind? Roll-changing steps only go in the top list of a
+// triggered ability whose event happens during a power roll.
+function allowed(type, ctx, scope) {
+  const d = STEPS[type];
+  if (!d.ctx.includes(ctx)) return false;
+  if (d.rollChange) return !scope && ab.kind === "triggered" && !!EVENTS[ab.trig.event].prt;
+  return true;
+}
 let activeListId = null;
 const listCtx = {};
 function activeList() {
@@ -1412,15 +1590,16 @@ function renderPalette() {
   const pal = document.getElementById("palette"); pal.innerHTML = "";
   const act = activeList();
   pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it to <b>" + (act.ctx === "tier" ? "the selected tier" : act.scope ? "\u201c" + esc(act.scope.f.name) + "\u201d" : "What happens") + "</b>." }));
-  for (const [cat, title, types] of PALETTE) {
+  for (const [cat, title, types, only] of PALETTE) {
+    if (only === "triggered" && ab.kind !== "triggered") continue;
     const g = E("div", "pgroup cat-" + cat);
     const h = E("h3"); h.appendChild(E("span", "sw")); h.appendChild(E("span", null, title)); g.appendChild(h);
     for (const t of types) {
       const d = STEPS[t];
       const b = E("button", "pal-step cat-" + cat); b.type = "button"; b.dataset.palette = t;
       const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(E("span", null, d.label));
-      const ok = d.ctx.includes(act.ctx);
-      b.title = d.desc + (ok ? "" : " (Can't go in a power roll tier: drag it to another list instead.)");
+      const ok = allowed(t, act.ctx, act.scope);
+      b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, such as taking damage or being targeted by a strike, and only in the main list.)" : " (Can't go in a power roll tier: drag it to another list instead.)");
       if (!ok) b.setAttribute("aria-disabled", "true");
       b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) addStepTo(t, act); });
       g.appendChild(b);
@@ -1457,7 +1636,7 @@ function addMenu(list, ctx, anchor, scope) {
   const m = E("div", "menu"); m.addEventListener("click", ev => ev.stopPropagation());
   m.appendChild(E("div", "mh", ctx === "tier" ? "Add a tier result" : "Add a step"));
   for (const [k, d] of Object.entries(STEPS)) {
-    if (!d.ctx.includes(ctx) || d.hidden) continue;
+    if (!allowed(k, ctx, scope) || d.hidden) continue;
     const b = E("button"); b.type = "button";
     const sw = E("span", "sw"); sw.style.background = "var(--c-" + d.cat + ")"; b.appendChild(sw);
     const tx = E("span"); tx.appendChild(E("div", null, d.label)); tx.appendChild(E("div", "md", d.desc)); b.appendChild(tx);
@@ -1549,10 +1728,10 @@ document.addEventListener("pointermove", ev => {
   main.querySelectorAll(".holder.hot").forEach(l => l.classList.remove("hot"));
   drag.target = null;
   if (drag.kind === "step" || drag.kind === "new") {
-    const ctxOk = c => STEPS[drag.st.type].ctx.includes(c);
+    const ctxOk = (c, sEl) => allowed(drag.st.type, c, listScopes[sEl.dataset.list] || null);
     let best = null;
     main.querySelectorAll(".stack[data-list]").forEach(s => {
-      if (drag.el.contains(s) || !ctxOk(s.dataset.ctx)) return;
+      if (drag.el.contains(s) || !ctxOk(s.dataset.ctx, s)) return;
       const r = s.getBoundingClientRect();
       if (ev.clientX < r.left - 10 || ev.clientX > r.right + 10 || ev.clientY < r.top - 12 || ev.clientY > r.bottom + 12) return;
       if (!best || best.r.width > r.width) best = { s, r };
@@ -1607,8 +1786,10 @@ document.addEventListener("pointerup", () => {
 function newAbility() {
   return { name: "New Ability", action: "Main action", keywords: "Melee, Strike, Weapon", resource: "no cost",
     cost: H("number", "cost", "1"), numTargets: H("number", "numTargets", "1"), targetCount: "creature", distance: "Melee", range: H("number", "range", "1"),
-    targetFilter: H("boolean", "targetFilter"), requirements: [], steps: [] };
+    targetFilter: H("boolean", "targetFilter"), requirements: [], steps: [],
+    kind: "ability", trig: triggerDefaults(), trigCond: H("boolean", "trigCond") };
 }
+function triggerDefaults() { return { event: "struck", who: "self", range: H("number", "range", "10"), action: "trigger", affects: "subject" }; }
 const EXAMPLES = {
   blank: newAbility,
   gouge: () => {
@@ -1666,6 +1847,22 @@ const EXAMPLES = {
     a.steps.push(pr, fu);
     return a;
   },
+  deflect: () => {
+    const a = newAbility();
+    Object.assign(a, { kind: "triggered", name: "Deflect", keywords: "Weapon" });
+    a.trig = { event: "struck", who: "selfally", range: H("number", "range", "1"), action: "trigger", affects: "self" };
+    const sh = STEPS.move.make(); sh.f.who = "caster"; sh.f.how = "shift";
+    a.steps.push(STEPS.halveDamage.make(), sh);
+    return a;
+  },
+  retaliate: () => {
+    const a = newAbility();
+    Object.assign(a, { kind: "triggered", name: "Retaliate", keywords: "Melee, Weapon" });
+    a.trig = { event: "damaged", who: "self", range: H("number", "range", "10"), action: "free", affects: "attacker" };
+    const d = STEPS.damage.make("main"); d.slots.amount = holderFromText("roll", "damage", "Might");
+    a.steps.push(d);
+    return a;
+  },
   potency: () => {
     // Each "Only if" test is loaded from a formula used in the compendium today.
     const a = newAbility();
@@ -1715,6 +1912,9 @@ function loadDraft() {
     const ids = JSON.stringify(d).match(/"id":"[hxs](\d+)"/g) || [];
     ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
     registerScopes(d);
+    if (!d.kind) d.kind = "ability";                 // drafts saved before triggered abilities existed
+    if (!d.trig) d.trig = triggerDefaults();
+    if (!d.trigCond) d.trigCond = H("boolean", "trigCond");
     return d;
   } catch (e) { return null; }
 }

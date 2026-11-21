@@ -1,0 +1,574 @@
+[
+ {
+  "name": "Throw",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "One creature or object",
+    "One creature"
+   ]
+  ]
+ },
+ {
+  "name": "Acid and Claws",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Sedating Stinger",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Death Roll",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "One grabbed creature or object",
+    "One creature or object"
+   ],
+   [
+    "effect Effect",
+    "The target is no longer grabbed by the deathrex, and the deathrex slides them up to 5 squares.",
+    "Effect: The target is released from the grab and slides 5."
+   ]
+  ]
+ },
+ {
+  "name": "Your Obsession With Me Betrays You",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "The triggering creature",
+    "One creature"
+   ]
+  ]
+ },
+ {
+  "name": "Corrupted Ash Teleport",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "Self",
+    "Ranged 5"
+   ],
+   [
+    "target",
+    "Self",
+    "One creature"
+   ]
+  ]
+ },
+ {
+  "name": "Lay Waste ",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "Five 2 cubes within 20",
+    "Self"
+   ],
+   [
+    "target",
+    "Each creature and object in the area",
+    "Self"
+   ],
+   [
+    "effect Effect",
+    "The area is set ablaze until the end of the encounter. While ablaze, the area is difficult terrain, and any creature takes 2 fire damage for each square in the area they enter for the first time in a round.",
+    "Effect: The cubes are set ablaze. Until the end of the encounter, the affected area is considered difficult terrain, and a creature takes 2 fire damage for each affected square they enter."
+   ]
+  ]
+ },
+ {
+  "name": "Rotting Fist",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "One creature or object per minion",
+    "One creature"
+   ],
+   [
+    "tier 3",
+    "5 damage; M<2] prone if size 1, or slowed (save ends) otherwise",
+    "5 damage; effect"
+   ]
+  ]
+ },
+ {
+  "name": "Shoot!",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Haymaker Greataxe",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "One creature or object",
+    "One creature"
+   ]
+  ]
+ },
+ {
+  "name": "Corpse Bomb",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "4 cube within 20",
+    "Ranged 4"
+   ],
+   [
+    "target",
+    "Each enemy in the area",
+    "One enemy"
+   ]
+  ]
+ },
+ {
+  "name": "Valiar Cloak",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "Melee 2",
+    "Self"
+   ],
+   [
+    "effect Trigger",
+    "One ally within distance is targeted by an enemy's ability. The bodyguard can use this ability after seeing the outcome of the power roll.",
+    "Effect: The bodyguard becomes the new target."
+   ],
+   [
+    "effect Effect",
+    "The bodyguard becomes the triggering ability's target instead. ---",
+    "Effect: The bodyguard becomes the new target."
+   ]
+  ]
+ },
+ {
+  "name": "Psionic Boom",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Lumina Assault",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Effect",
+    "The next ability used against the target has a double edge. 5 Malice: Each non-minion ally within 3 squares of the target can make a free strike against them.",
+    "Effect: The next ability used against the target has a double edge. || 5 Malice: Each non-minion ally within 3 squares of the target can make a free strike against them."
+   ]
+  ]
+ },
+ {
+  "name": "Blight Rain ",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "5 cube within 1",
+    "5 burst"
+   ],
+   [
+    "effect Special",
+    "The blight phage must create the cube beneath themself.",
+    "Effect: Add effect text (optional)"
+   ],
+   [
+    "effect Effect",
+    "The blight phage spins and sheds corruptive blight to fill the area, which is treated as if affected by Seeping Blight.",
+    "Effect: Add effect text (optional)"
+   ],
+   [
+    "effect 2 Malice",
+    "The blight phage chooses three 2 cube areas within 10 squares of the phage. Each area is covered with blight and treated as if affected by Seeping Blight.",
+    "Effect: Add effect text (optional)"
+   ]
+  ]
+ },
+ {
+  "name": "Reactive Rebuke ",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "Ranged 10",
+    "Self"
+   ],
+   [
+    "target",
+    "The triggering creature",
+    "Self"
+   ],
+   [
+    "effect Trigger",
+    "A creature within distance makes a strike against Rhodar.",
+    "Effect: The target isI<5 frightened. This effect ends if the target is ever more than 10 squares from Rhodar."
+   ]
+  ]
+ },
+ {
+  "name": "Acidic Stun",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "3 x 1 line within 1",
+    "Self"
+   ],
+   [
+    "target",
+    "Each enemy in the area",
+    "Self"
+   ],
+   [
+    "effect Effect",
+    "While dazed this way, a target takes an extra 6 damage from Locratix's abilities.",
+    "Effect: Lokratix deals an additional 6 damage on abilities targeting enemies dazed by this ability."
+   ]
+  ]
+ },
+ {
+  "name": "Spinning Spit",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Blade Rake",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "Two creatures or objects",
+    "Two creatures"
+   ]
+  ]
+ },
+ {
+  "name": "Arise, My Children",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "Special",
+    "One creature"
+   ]
+  ]
+ },
+ {
+  "name": "Barbed Stinger ",
+  "source": "monster",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "The Silver Wolf's Final Stratagem",
+  "source": "monster",
+  "kind": "ability",
+  "issues": [
+   [
+    "distance",
+    "5 burst",
+    "Self"
+   ],
+   [
+    "target",
+    "Each creature in the area",
+    "Self"
+   ],
+   [
+    "effect Effect",
+    "Until the start of the next round, each target enemy who has i<4] is dazed, each target enemy who has m<4] is restrained, and each target enemy who has a<4] can't use triggered actions. Additionally, until the end of the encounter, Alkestis and each target ally have damage immunity 3 and deal an extra 5 damage with strikes. ---",
+    "Effect: Each enemy within distance becomes I<4 dazed, M<4 restrained, and A<4 cannot use triggered actions until the start of the next round. Until the end of the encounter, Alkestis and each ally within distance has damage immunity 3 and deals an additional 5 damage on strikes."
+   ]
+  ]
+ },
+ {
+  "name": "Force Redirected",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Flip the Script",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "Self and each ally in the area",
+    "Each ally in the area"
+   ]
+  ]
+ },
+ {
+  "name": "Iron",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "Self or one ally",
+    "One ally"
+   ]
+  ]
+ },
+ {
+  "name": "Stink Bomb",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Ray of Agonizing Self-Reflection",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "A Squad Unto Myself",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Effect",
+    "You can take the Disengage move action as a free maneuver before or after you use this ability.In the woods, a human null kicks a gnoll, who trails a glowing blue The light-skinned human has dark hair pulled back into two ribbon-tied braids. They wear a vibrant yellow shirt with red sleeves and a sash, blue pants, and brown leather gauntlets and boots. They kick the werewolf in the flank, sending it flying sideways. The blue, glowing image is moments in the future, the wolf's legs higher off the ground.",
+    "Effect: You can take the Disengage move action as a free maneuver before or after you make this ability."
+   ]
+  ]
+ },
+ {
+  "name": "Burden of Evil",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "target",
+    "Three enemies",
+    "Three creatures"
+   ]
+  ]
+ },
+ {
+  "name": "Ripples in the Earth",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Gravitic Charge",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "tier 1",
+    "Vertical slide 5",
+    "Vertical slide 5, ignoring stability"
+   ],
+   [
+    "tier 2",
+    "Vertical slide 7",
+    "Vertical slide 7, ignoring stability"
+   ],
+   [
+    "tier 3",
+    "Vertical slide 9",
+    "Vertical slide 9, ignoring stability"
+   ]
+  ]
+ },
+ {
+  "name": "Wall of Ice",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Debilitating Strike",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Effect",
+    "While slowed this way, the target takes 1 damage for every square they move, including from forced movement. My Turn! (9 Ferocity) You quickly strike back at a foe. Melee, Strike, Weapon Free triggered o Melee 1 x The triggering creature",
+    "Effect: While slowed this way, the target takes 1 damage for every square they move, including from forced movement."
+   ],
+   [
+    "effect Trigger",
+    "A creature causes you to be winded or dying, or damages you while you are winded or dying.",
+    "Effect: While slowed this way, the target takes 1 damage for every square they move, including from forced movement."
+   ],
+   [
+    "effect Effect",
+    "You can spend a Recovery.",
+    "Effect: While slowed this way, the target takes 1 damage for every square they move, including from forced movement."
+   ]
+  ]
+ },
+ {
+  "name": "Win This Day!",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Steel",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Strained",
+    "You can't use maneuvers (save ends).A devil conjures a swirling gust of wind, sweeping away a werewolf foe Glass hovers, one arm outstretched, the other lifted to their face. A blue-white halo of energy rings their head. A powerful g",
+    "Effect: The target has damage immunity 5 and can\u2019t be made slowed or weakened until the start of your next turn. Whenever the target force moves a creature or object while under this effect, the forced movement distance gains a +5 bonus. || Strained: You can't use maneuvers (save ends)."
+   ]
+  ]
+ },
+ {
+  "name": "To Stone!",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Phase Hurl",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Shower of Blood",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "Thorn Cage",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Effect",
+    "While restrained this way, the target takes 10 damage at the start of each of your turns. Word of Final Redemption (11 Piety) Your death will fuel our victory. Magic, Ranged Free triggered o Ranged 10 x One creature",
+    "Effect: While restrained this way, the target takes 10 damage at the start of each of your turns."
+   ],
+   [
+    "effect Trigger",
+    "The target dies.",
+    "Effect: While restrained this way, the target takes 10 damage at the start of each of your turns."
+   ],
+   [
+    "effect Effect",
+    "Before the target dies, you can look at their stat block and force them to use one ability that is a main action or a maneuver. If the ability costs a Heroic Resource or Malice, the creature can use it without any cost. For the purpose of using this ability, your allies and enemies are the target's allies and enemies, and you decide who the ability targets.",
+    "Effect: While restrained this way, the target takes 10 damage at the start of each of your turns."
+   ]
+  ]
+ },
+ {
+  "name": "Deluge",
+  "source": "class",
+  "kind": "ability",
+  "issues": []
+ },
+ {
+  "name": "I'll Open and You'll Close",
+  "source": "class",
+  "kind": "ability",
+  "issues": [
+   [
+    "effect Effect",
+    "One ally within 10 squares of you can use a heroic ability against the target as a free triggered action without spending any of their Heroic Resource, as long as they have enough Heroic Resource to pay for the ability. If the target is reduced to 0 Stamina before the chosen ally has used their ability, the ally can pick a different target.",
+    "Effect: One ally within 10 can use a heroic ability against the target as a free triggered action without spending any heroic resources, as long as they have enough heroic resources to pay for the ability. If an ability is left to be resolved and the target was reduced to 0 Stamina, the ability user can pick a different target."
+   ]
+  ]
+ },
+ {
+  "name": "Final Orders",
+  "source": "monster",
+  "kind": "trigger",
+  "issues": [
+   [
+    "effect Trigger",
+    "The target takes damage, is force moved, or is reduced to 0 Stamina.",
+    "Trigger: Add effect text (optional)"
+   ],
+   [
+    "effect Effect",
+    "Even if reduced to 0 Stamina, the target moves up to their speed and can make a free strike after the triggering effect is resolved. The target then immediately dies.",
+    "Trigger: Add effect text (optional)"
+   ]
+  ]
+ },
+ {
+  "name": "Abyssal Protectors",
+  "source": "monster",
+  "kind": "trigger",
+  "issues": [
+   [
+    "distance",
+    "5 burst",
+    "Ranged 1"
+   ],
+   [
+    "target",
+    "Special",
+    "One ally"
+   ],
+   [
+    "effect Trigger",
+    "The last ally minion on the encounter map dies, or the egress is reduced below 25 Stamina.",
+    "Effect: Eight ensnarers appear anywhere in the area."
+   ]
+  ]
+ },
+ {
+  "name": "Retaliatory Dive",
+  "source": "monster",
+  "kind": "trigger",
+  "issues": [
+   [
+    "distance",
+    "Ranged 5",
+    "Self"
+   ],
+   [
+    "target",
+    "The triggering creature",
+    "Self"
+   ],
+   [
+    "effect Trigger",
+    "A creature within distance deals damage to the lurker with a ranged ability.",
+    "Effect: The lurker flies into a square adjacent to the target and makes a free strike against them."
+   ]
+  ]
+ }
+]

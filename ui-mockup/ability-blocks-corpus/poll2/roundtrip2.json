@@ -1,0 +1,2536 @@
+[
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Bugbear Roughneck",
+  "level": 2,
+  "name": "Throw",
+  "steps": {
+   "block": 2,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "DrawSteelCommand"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "duration effect lingers 10"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Throw",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [],
+   "effects": [
+    [
+     "Special",
+     "The target must be grabbed by the roughneck."
+    ],
+    [
+     "Effect",
+     "The target is vertical pushed up to 5 squares. An ally doesn’t take damage from being force moved this way."
+    ]
+   ]
+  },
+  "book": "### Throw\n*Melee, Strike*\n*Maneuver*\n*Melee 1 | One creature or object*\n\n**Special:** The target must be grabbed by the roughneck.\n**Effect:** The target is vertical pushed up to 5 squares. An ally doesn't take damage from being force moved this way."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Arixx duplicate",
+  "level": 1,
+  "name": "Acid and Claws",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"en"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "5 acid damage; M<1 weakened (save ends)",
+     "6 acid damage; M<1, weakened (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Acid and Claws (2d10 + 3)",
+   "dist": "2 burst",
+   "target": "Each creature in the area",
+   "tiers": [
+    "5 acid damage; M<1, weakened (save ends)",
+    "8 acid damage; M<2, weakened (save ends)",
+    "11 acid damage; M<3, weakened (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "### Acid and Claws (2d10 + 3)\n*Villain Action 3*\n*Area, Weapon*\n*2 burst | Each creature in the area*\n\n- **Tier 1 (<=11):** 5 acid damage; m<1] weakened (save ends)\n- **Tier 2 (12-16):** 8 acid damage; m<2] weakened (save ends)\n- **Tier 3 (17+):** 11 acid damage; m<3] weakened (save ends)\n\n---"
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Wyvern Predator",
+  "level": 4,
+  "name": "Sedating Stinger",
+  "steps": {
+   "block": 14,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "RemoveOngoingEffect"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "DrawSteelCommand: only on some tiers",
+   "DrawSteelCommand: only on some tiers"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "9 damage",
+     "10 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Sedating Stinger (2d10 + highest)",
+   "dist": "Melee 3",
+   "target": "Two creatures or objects",
+   "tiers": [
+    "9 damage",
+    "14 damage; M<2, slowed (save ends)",
+    "17 damage; M<3, slowed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "If a target slowed this way is already slowed, they are instead restrained (save ends)."
+    ]
+   ]
+  },
+  "book": "### Sedating Stinger (2d10 + 3)\n*Signature Ability*\n*Magic, Strike, Weapon*\n*Main action*\n*Melee 3 | Two creatures or objects*\n\n- **Tier 1 (<=11):** 9 damage\n- **Tier 2 (12-16):** 14 damage; m<2] slowed (save ends)\n- **Tier 3 (17+):** 17 damage; m<3] slowed (save ends)\n\n**Effect:** If a target slowed this way is already slowed, they are instead restrained (save ends)."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Lizardfolk Deathrex",
+  "level": 1,
+  "name": "Death Roll",
+  "steps": {
+   "block": 12,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "8 damage; M<1 dazed (save ends)",
+     "9 damage; M<1, dazed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Death Roll (3 Malice) (2d10 + highest)",
+   "dist": "Melee 1",
+   "target": "One creature or object",
+   "tiers": [
+    "8 damage; M<1, dazed (save ends)",
+    "12 damage; M<2, dazed (save ends)",
+    "15 damage; M<3, dazed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The target is released from the grab and slides 5."
+    ]
+   ]
+  },
+  "book": "### Death Roll (2d10 + 3) (3 Malice)\n*Melee, Strike, Weapon*\n*Main action*\n*Melee 1 | One grabbed creature or object*\n\n- **Tier 1 (<=11):** 8 damage; M < 1 dazed (save ends)\n- **Tier 2 (12-16):** 12 damage; M < 2 dazed (save ends)\n- **Tier 3 (17+):** 15 damage; M < 3 dazed (save ends)\n\n**Effect:** The target is no longer grabbed by the deathrex, and the deathrex slides them up to 5 squares."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Ajax the Invincible",
+  "level": 11,
+  "name": "Your Obsession With Me Betrays You",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Your Obsession With Me Betrays You",
+   "dist": "Ranged 10",
+   "target": "One creature",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Ajax causes a creature within distance to gain ferocity or wrath."
+    ],
+    [
+     "Effect",
+     "If the target has I<4, they use a signature ability against a target of Ajax's choice."
+    ]
+   ]
+  },
+  "book": "### Your Obsession With Me Betrays You\n*Magic, Ranged*\n*Triggered action*\n*Ranged 10 | The triggering creature*\n\n**Trigger:** Ajax causes a creature within distance to gain ferocity or wrath.\n**Effect:** If the target has i<4], they use a signature ability against a target of Ajax's choice."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "War Dog Portalite",
+  "level": 1,
+  "name": "Corrupted Ash Teleport",
+  "steps": {
+   "block": 1,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "RelocateCreature"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "targets “emptyspace” (no distance form for it)"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Corrupted Ash Teleport (1 Malice)",
+   "dist": "Ranged 5",
+   "target": "One creature",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The portalite teleports up to 5 squares and has an edge on strikes until the end of their turn."
+    ]
+   ]
+  },
+  "book": "### Corrupted Ash Teleport (1 Malice)\n*Magic*\n*Maneuver*\n*Self | Self*\n\n**Effect:** The teletalite can teleport up to 5 squares and gains an edge on strikes until the end of their turn."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "War Dog Tetrarch",
+  "level": 6,
+  "name": "Lay Waste ",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"en"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 fire damage; A<2 slowed (EoT)",
+     "8 fire damage; A<2, slowed (EoT)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Lay Waste (2d10 + highest)",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [
+    "7 fire damage; A<2, slowed (EoT)",
+    "13 fire damage; A<3, slowed (save ends)",
+    "16 fire damage; A<4, slowed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The cubes are set ablaze. Until the end of the encounter, the affected area is considered difficult terrain, and a creature takes 2 fire damage for each affected square they enter."
+    ]
+   ]
+  },
+  "book": "### Lay Waste (2d10 + 4)\n*Villain Action 2*\n*Area, Ranged, Weapon*\n*Five 2 cubes within 20 | Each creature and object in the area*\n\n- **Tier 1 (<=11):** 7 fire damage; a<2] slowed (EoT)\n- **Tier 2 (12-16):** 13 fire damage; a<3] slowed (save ends)\n- **Tier 3 (17+):** 16 fire damage; a<4] slowed (save ends)\n\n**Effect:** The area is set ablaze until the end of the encounter. While ablaze, the area is difficult terrain, and any creature takes 2 fire damage for each square in the area they enter for the first time in a round."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Rotting Zombie duplicate",
+  "level": 1,
+  "name": "Rotting Fist",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 1,
+   "advTypes": [],
+   "todos": [
+    "effect"
+   ]
+  },
+  "hidden": [
+   "persistence = {\"enabled\":true}",
+   "DrawSteelCommand: only on some tiers",
+   "DrawSteelCommand: only on some tiers"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "2 damage",
+     "3 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Rotting Fist (2d10 + 2)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "2 damage",
+    "4 damage",
+    "5 damage; effect"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "On a Tier 3 result: M<2 prone if size 1, or slowed (save ends) otherwise."
+    ]
+   ]
+  },
+  "book": "### Rotting Fist (2d10 + 2)\n*Signature Ability*\n*Melee, Strike, Weapon*\n*Main action*\n*Melee 1 | One creature or object per minion*\n\n- **Tier 1 (<=11):** 2 damage\n- **Tier 2 (12-16):** 4 damage\n- **Tier 3 (17+):** 5 damage; M<2] prone if size 1, or slowed (save ends) otherwise"
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Human Bandit Chief",
+  "level": 3,
+  "name": "Shoot!",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"ally\"",
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"en"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Shoot!",
+   "dist": "10 burst",
+   "target": "Each artillery ally in the area",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Each target makes a ranged free strike."
+    ]
+   ]
+  },
+  "book": "### Shoot! (Villain Action 1)\n*Area*\n*10 burst | Each artillery ally in the area*\n\n**Effect:** Each target makes a ranged free strike."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Orc Juggernaut",
+  "level": 3,
+  "name": "Haymaker Greataxe",
+  "steps": {
+   "block": 8,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 damage",
+     "8 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Haymaker Greataxe (2d10 + highest)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "7 damage",
+    "11 damage; prone",
+    "14 damage; prone; M<2, bleeding (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "A target who is already prone takes an extra 6 damage."
+    ]
+   ]
+  },
+  "book": "### Haymaker Greataxe (2d10 + 2)\n*Signature Ability*\n*Melee, Strike, Weapon*\n*Main action*\n*Melee 1 | One creature or object*\n\n- **Tier 1 (<=11):** 7 damage\n- **Tier 2 (12-16):** 11 damage; prone\n- **Tier 3 (17+):** 14 damage; prone; M < 2 bleeding (save ends)\n\n**Effect:** A target who is already prone takes an extra 6 damage."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Ashen Hoarder",
+  "level": 4,
+  "name": "Corpse Bomb",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "4 damage; A<2 weakened (save ends)",
+     "5 damage; A<2, weakened (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Corpse Bomb (2 when Mode = 2 else 0 Malice) (2d10 + highest)",
+   "dist": "Ranged 4",
+   "target": "One enemy",
+   "tiers": [
+    "4 damage; A<2, weakened (save ends)",
+    "8 damage; A<3, weakened (save ends)",
+    "11 damage; A<4, weakened (save ends)"
+   ],
+   "effects": [
+    [
+     "3 Malice",
+     "The ashen hoarder targets a second 4 cube within distance."
+    ],
+    [
+     "2 Malice",
+     "Any enemy weakened this way is instead slowed and weakened (save ends)."
+    ]
+   ]
+  },
+  "book": "### Corpse Bomb (2d10 + 4)\n*Area, Magic, Ranged*\n*Main action*\n*4 cube within 20 | Each enemy in the area*\n\n- **Tier 1 (<=11):** 4 damage; a<2] weakened (save ends)\n- **Tier 2 (12-16):** 8 damage; a<3] weakened (save ends)\n- **Tier 3 (17+):** 11 damage; a<4] weakened (save ends)\n\n**2 Malice:** Any enemy weakened this way is instead slowed and weakened (save ends).\n**3 Malice:** The ashen hoarder targets a second 4 cube within distance."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Multivok Bodyguard",
+  "level": 9,
+  "name": "Valiar Cloak",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Valiar Cloak",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The bodyguard becomes the new target."
+    ]
+   ]
+  },
+  "book": "### Valiar Cloak\n*Melee*\n*Triggered action*\n*Melee 2 | Self*\n\n**Trigger:** One ally within distance is targeted by an enemy's ability. The bodyguard can use this ability after seeing the outcome of the power roll.\n\n**Effect:** The bodyguard becomes the triggering ability's target instead.\n\n---"
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Voiceless Talker Invader",
+  "level": 6,
+  "name": "Psionic Boom",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "6 psychic damage; R<1 push 2",
+     "7 psychic damage; R<1, push 2"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Psionic Boom (3 Malice) (2d10 + highest)",
+   "dist": "3 burst",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "6 psychic damage; R<1, push 2",
+    "10 psychic damage; R<2, push 3",
+    "12 psychic damage; R<3, push 4; prone"
+   ],
+   "effects": [
+    [
+     "2 Malice",
+     "The size of the burst increases to 5."
+    ]
+   ]
+  },
+  "book": "### Psionic Boom (2d10 + 3)\n*3 Malice*\n*Area, Psionic*\n*Main action*\n*3 burst | Each enemy in the area*\n\n- **Tier 1 (<=11):** 6 psychic damage; r<1] push 2\n- **Tier 2 (12-16):** 10 psychic damage; r<2] push 3\n- **Tier 3 (17+):** 12 psychic damage; r<3] push 4 and prone\n\n2 Malice: The size of the burst increases to 5."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Medusa Death-Bride",
+  "level": 9,
+  "name": "99 Snake Bites",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "13 damage; A<3 bleeding (save ends)",
+     "14 damage; A<3, bleeding (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "99 Snake Bites (2 * (Mode - 1) Malice) (2d10 + highest)",
+   "dist": "Melee 4",
+   "target": "Creature (2 plus Mode)",
+   "tiers": [
+    "13 damage; A<3, bleeding (save ends)",
+    "17 damage; A<4, bleeding (save ends)",
+    "20 damage; A<5, bleeding (save ends)"
+   ],
+   "effects": [
+    [
+     "2+ Malice",
+     "This ability targets one additional creature for every 2 Malice spent."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Shadow Elf Assassin",
+  "level": 6,
+  "name": "Lumina Assault",
+  "steps": {
+   "block": 10,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "10 damage",
+     "11 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Lumina Assault (2d10 + highest)",
+   "dist": "Ranged 15",
+   "target": "One creature or object",
+   "tiers": [
+    "10 damage",
+    "15 damage",
+    "18 damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The next ability used against the target has a double edge."
+    ],
+    [
+     "5 Malice",
+     "Each non-minion ally within 3 squares of the target can make a free strike against them."
+    ]
+   ]
+  },
+  "book": "### Lumina Assault (2d10 + 3)\n*Signature Ability*\n*Ranged, Strike, Weapon*\n*Main action*\n*Ranged 15 | One creature or object*\n\n- **Tier 1 (<=11):** 10 damage\n- **Tier 2 (12-16):** 15 damage\n- **Tier 3 (17+):** 18 damage\n\n**Effect:** The next ability used against the target has a double edge. 5 Malice: Each non-minion ally within 3 squares of the target can make a free strike against them."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Kingfissure Worm",
+  "level": 7,
+  "name": "Swallow",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Swallow (2 Malice)",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The target becomes swallowed (see Swallowed)."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Soulraker Stinger",
+  "level": 7,
+  "name": "Blight Rain ",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Blight Rain (3 Malice)",
+   "dist": "5 burst",
+   "target": "Each enemy in the area",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "### Blight Rain\n*3 Malice*\n*Area, Magic*\n*Maneuver*\n*5 cube within 1 | Each enemy in the area*\n\n**Special:** The blight phage must create the cube beneath themself.\n**Effect:** The blight phage spins and sheds corruptive blight to fill the area, which is treated as if affected by Seeping Blight.\n**2 Malice:** The blight phage chooses three 2 cube areas within 10 squares of the phage. Each area is covered with blight and treated as if affected by Seeping Blight."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Count Rhodar Von Glauer",
+  "level": 10,
+  "name": "Reactive Rebuke ",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Reactive Rebuke (2 Malice)",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The target isI<5 frightened. This effect ends if the target is ever more than 10 squares from Rhodar."
+    ]
+   ]
+  },
+  "book": "### Reactive Rebuke (2 Malice)\n*Magic, Ranged*\n*Triggered action*\n*Ranged 10 | The triggering creature*\n\n**Trigger:** A creature within distance makes a strike against Rhodar.\n\n**Effect:** A target who has i<5] is frightened. This effect ends if the target is 11 or more squares from Rhodar."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Lokratix The Morningstar",
+  "level": 6,
+  "name": "Acidic Stun",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 acid damage; M<1 dazed (save ends)",
+     "8 acid damage; M<1, dazed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Acidic Stun (2 Malice) (2d10 + highest)",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [
+    "7 acid damage; M<1, dazed (save ends)",
+    "12 acid damage; M<2, dazed (save ends)",
+    "15 acid damage; M<3, dazed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Lokratix deals an additional 6 damage on abilities targeting enemies dazed by this ability."
+    ]
+   ]
+  },
+  "book": "### Acidic Stun (2d10 + 3) (2 Malice)\n*Area, Magic*\n*Main action*\n*3 x 1 line within 1 | Each enemy in the area*\n\n- **Tier 1 (<=11):** 7 acid damage; m<1] dazed (save ends)\n- **Tier 2 (12-16):** 12 acid damage; m<2] dazed (save ends)\n- **Tier 3 (17+):** 15 acid damage; m<3] dazed (save ends)\n\n**Effect:** While dazed this way, a target takes an extra 6 damage from Locratix's abilities."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Phrrygalax The Subduer",
+  "level": 6,
+  "name": "Spinning Spit",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 fire damage",
+     "8 fire damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Spinning Spit (2 Malice) (2d10 + highest)",
+   "dist": "1 burst",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "7 fire damage",
+    "13 fire damage",
+    "16 fire damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "### Spinning Spit (2d10 + 3) (2 Malice)\n*Area, Magic*\n*Main action*\n*1 burst | Each enemy in the area*\n\n- **Tier 1 (<=11):** 7 fire damage\n- **Tier 2 (12-16):** 13 fire damage\n- **Tier 3 (17+):** 16 fire damage"
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Servok War Engine",
+  "level": 10,
+  "name": "Blade Rake",
+  "steps": {
+   "block": 6,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "15 damage",
+     "16 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Blade Rake (2d10 + highest)",
+   "dist": "Melee 3",
+   "target": "Two creatures",
+   "tiers": [
+    "15 damage",
+    "21 damage; pull 3",
+    "25 damage; pull 6"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "### Blade Rake (2d10 + 5)\n*Signature Ability*\n*Melee, Strike, Weapon*\n*Main action*\n*Melee 3 | Two creatures or objects*\n\n- **Tier 1 (<=11):** 15 damage\n- **Tier 2 (12-16):** 21 damage; pull 3\n- **Tier 3 (17+):** 25 damage; pull 6"
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Demon Blight Phage",
+  "level": 7,
+  "name": "Blight Puss ",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 corruption damage",
+     "8 corruption damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Blight Puss (2d10 + highest)",
+   "dist": "Ranged 10",
+   "target": "One creature",
+   "tiers": [
+    "7 corruption damage",
+    "10 corruption damage",
+    "11 corruption damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Vampire Lord",
+  "level": 7,
+  "name": "Arise, My Children",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Arise, My Children (2 Malice)",
+   "dist": "Ranged 10",
+   "target": "One creature",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Two blood-starved vampires appear in unoccupied spaces within distance."
+    ]
+   ]
+  },
+  "book": "### Arise, My Children\n*2 Malice*\n*Ranged*\n*Maneuver*\n*Ranged 10 | Special*\n\n**Effect:** Two blood-starved vampires appear in unoccupied spaces within distance."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Soulraker Handmaiden",
+  "level": 8,
+  "name": "Barbed Stinger ",
+  "steps": {
+   "block": 9,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 poison damage; push 2",
+     "8 poison damage; push 2"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Barbed Stinger (2d10 + highest)",
+   "dist": "Melee 2",
+   "target": "One creature",
+   "tiers": [
+    "7 poison damage; push 2",
+    "10 poison damage; push 2",
+    "11 poison damage; push 4; A<4, grabbed"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The praetorian shifts into each square the target leaves."
+    ]
+   ]
+  },
+  "book": "### Barbed Stinger (2d10 + 4)\n*Signature Ability*\n*Melee, Strike, Weapon*\n*Main action*\n*Melee 2 | One creature*\n\n- **Tier 1 (<=11):** 7 poison damage; push 2\n- **Tier 2 (12-16):** 10 poison damage; push 2\n- **Tier 3 (17+):** 11 poison damage; push 4; a<4] grabbed\n\n**Effect:** The praetorian can shift into each square the target leaves."
+ },
+ {
+  "source": "monster",
+  "kind": "ability",
+  "who": "Strategos Alkestis",
+  "level": 10,
+  "name": "The Silver Wolf's Final Stratagem",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"en"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "The Silver Wolf's Final Stratagem",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Each enemy within distance becomes I<4 dazed, M<4 restrained, and A<4 cannot use triggered actions until the start of the next round. Until the end of the encounter, Alkestis and each ally within distance has damage immunity 3 and deals an additional 5 damage on strikes."
+    ]
+   ]
+  },
+  "book": "### The Silver Wolf's Final Stratagem\n*Villain Action 3*\n*Area, Magic*\n*5 burst | Each creature in the area*\n\n**Effect:** Until the start of the next round, each target enemy who has i<4] is dazed, each target enemy who has m<4] is restrained, and each target enemy who has a<4] can't use triggered actions. Additionally, until the end of the encounter, Alkestis and each target ally have damage immunity 3 and deal an extra 5 damage with strikes.\n\n---"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Disciple of the Chronokinetic",
+  "level": 2,
+  "name": "Force Redirected",
+  "steps": {
+   "block": 7,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "8 + A damage; slide 1",
+     "9 + A damage; slide 1"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Force Redirected (5 Heroic Resource)",
+   "dist": "Melee 3",
+   "target": "One creature",
+   "tiers": [
+    "8 + A damage; slide 1",
+    "12 + A damage; slide 3",
+    "16 + A damage; slide 5"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "Force Redirected (5 Discipline)\nThe force of your strike moves your target in a surprising direction.\nMelee, Psionic, Strike, Weapon\t\nMain action\no Melee 3\t\nx One creature\nPower Roll + Agility:\na \t 8 + A damage; slide 1\ne \t 12 + A damage; slide 3\ni \t 16 + A damage; slide 5"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Troubadour",
+  "level": 3,
+  "name": "Flip the Script",
+  "steps": {
+   "block": 1,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Flip the Script (5 Heroic Resource)",
+   "dist": "3 burst",
+   "target": "Each ally in the area",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Each target can immediately teleport up to 5 squares. Any teleported target who was slowed is no longer slowed."
+    ]
+   ]
+  },
+  "book": "Flip the Script (5 Drama)\nYou try a different take on events, justifying the new locations everyone \nended up in.\nArea, Magic\t\nMain action\no 3 burst\t\nx Self and each ally in the area\nEffect: Each target can teleport up to 5 squares. Any teleported target \nwho was slowed is no longer slowed."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Summoner",
+  "level": 9,
+  "name": "10,000 Minions",
+  "steps": {
+   "block": 1,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Aura"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "10,000 Minions (11 Heroic Resource)",
+   "dist": "Special",
+   "target": "Special",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Until the end of the encounter or you are dying, each square on the ground is considered teeming with minions. An enemy that ends their turn in an affected square takes 5 damage. This damage can’t be reduced. Additionally, you can use Minion Bridge treating each affected square as an eligible minion (up to a maximum of 10 additional squares)."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Talent",
+  "level": 3,
+  "name": "Iron",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Iron (5 Heroic Resource)",
+   "dist": "Ranged 10",
+   "target": "One ally",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The target’s stability increases by an amount equal to your Reason score and they gain 10 temporary stamina and two surges. The stability increase lasts as long as the target has temporary Stamina from this ability."
+    ],
+    [
+     "Strained",
+     "You can’t use maneuvers (save ends)."
+    ]
+   ]
+  },
+  "book": "Iron (5 Clarity) \nThe target's skin turns to hard, dark metal, impenetrable and dense. \nMetamorphosis, Psionic, Ranged\t\nManeuver \no Ranged 10\t\nx Self or one ally \nEffect: The target's stability increases by an amount equal to your \nReason score, and they gain 10 temporary Stamina and 2 surges. \nThis stability increase lasts until the target no longer has temporary \nStamina from this ability.\nStrained: You can't use maneuvers (save ends). "
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Auteur",
+  "level": 6,
+  "name": "Here's How Your Story End",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "2 psychic damage; P < Weak, frightened (save ends)",
+     "3 psychic damage; P<weak, frightened (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Here's How Your Story End (9 Heroic Resource)",
+   "dist": "5 burst",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "2 psychic damage; P<WEAK, frightened (save ends)",
+    "5 psychic damage; P<AVERAGE, frightened (save ends)",
+    "7 psychic damage; P<STRONG, frightened (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "College of Caustic Alchemy",
+  "level": 2,
+  "name": "Stink Bomb",
+  "steps": {
+   "block": 4,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Aura"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "2 poison damage",
+     "3 poison damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Stink Bomb (5 Heroic Resource)",
+   "dist": "3 cube within 10",
+   "target": "Each creature in the area",
+   "tiers": [
+    "2 poison damage",
+    "5 poison damage",
+    "7 poison damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The gas remains in the area until the end of the encounter. A creature who starts their turn in the area and has M < Average is weakened (save ends)."
+    ]
+   ]
+  },
+  "book": "Stink Bomb (5 Insight)\nPutrid yellow gas explodes from a bomb you toss.\nArea, Ranged\t\nMain action\no 3 cube within 10\t\nx Each creature in the area\nPower Roll + Agility:\na\t  2 poison damage\ne\t  5 poison damage\ni\t  7 poison damage\nEffect: The gas remains in the area until the end of the encounter. \nAny creature who starts their turn in the area and has m<v is \nweakened (save ends)."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Elementalist",
+  "level": 1,
+  "name": "Ray of Agonizing Self-Reflection",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "2 + R corruption damage; R < weak, slowed (save ends)",
+     "3 + R corruption damage; R<weak, slowed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Ray of Agonizing Self-Reflection",
+   "dist": "Ranged 10",
+   "target": "One creature or object",
+   "tiers": [
+    "2 + R corruption damage; R<WEAK, slowed (save ends)",
+    "4 + R corruption damage; R<AVERAGE, slowed (save ends)",
+    "6 + R corruption damage; R<STRONG, slowed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "Ray of Agonizing Self-Reflection\nYou inflict pain and doubt in equal measure.\nMagic, Ranged, Strike, Void\t\nMain action\no Ranged 10\t\nx One creature or object\nPower Roll + Reason:\na \t 2 + R corruption damage; r<w , slowed (save ends)\ne \t 4 + R corruption damage; r<v , slowed (save ends)\ni \t 6 + R corruption damage; r<s , slowed (save ends)\nUnquiet Ground"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Null",
+  "level": 3,
+  "name": "A Squad Unto Myself",
+  "steps": {
+   "block": 10,
+   "advanced": 2,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility",
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "option “Attack then Disengage” has condition Select your target, complete the power roll, and then move your Hero.",
+   "follow-up invokeOnCaster = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": []
+  },
+  "card": {
+   "title": "A Squad Unto Myself (5 Heroic Resource)",
+   "dist": "2 burst",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "6 damage",
+    "9 damage",
+    "13 damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "You can take the Disengage move action as a free maneuver before or after you make this ability."
+    ]
+   ]
+  },
+  "book": "A Squad Unto Myself (5 Discipline)\nYou move so quickly, it seems as though an army assaulted your foes.\nArea, Psionic, Weapon\t\nMain action\no 2 burst\t\nx Each enemy in the area\nPower Roll + Agility:\na \t 6 damage\ne \t 9 damage\ni \t 13 damage\nEffect: You can take the Disengage move action as a free maneuver \nbefore or after you use this ability.In the woods, a human null kicks a gnoll, who trails a glowing blue \n\nThe light-skinned human has dark hair pulled back into two ribbon-tied braids. They wear a vibrant yellow shirt with red sleeves and a sash, blue pants, and brown leather gauntlets and boots. They kick the werewolf in the flank, sending it flying sideways. The blue, glowing image is moments in the future, the wolf's legs higher off the ground.\n"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Oracle",
+  "level": 6,
+  "name": "Burden of Evil",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Burden of Evil (9 Heroic Resource)",
+   "dist": "Ranged 10",
+   "target": "Three creatures",
+   "tiers": [
+    "slide 3; I<WEAK, dazed (save ends)",
+    "slide 5; I<AVERAGE, dazed (save ends)",
+    "slide 7; I<STRONG, dazed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "Burden of Evil (9 Wrath)\nYou reveal a vision of your enemies' fate that causes them to scramble as it \nstaggers them.\nMagic, Ranged, Strike\t\nManeuver\no Ranged 10\t\nx Three enemies\nPower Roll + Presence:\na \t Slide 3; i<w , dazed (save ends)\ne \t Slide 5; i<v , dazed (save ends)\ni \t Slide 7; i<s , dazed (save ends)"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Elementalist",
+  "level": 2,
+  "name": "Ripples in the Earth",
+  "steps": {
+   "block": 7,
+   "advanced": 2,
+   "todo": 0,
+   "advTypes": [
+    "Terraform Elevation",
+    "Terraform Terrain"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "follow-up inheritRange = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "3 damage",
+     "4 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Ripples in the Earth (3 Heroic Resource)",
+   "dist": "2 burst",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "3 damage",
+    "5 damage",
+    "8 damage; M<STRONG, prone"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "You must be touching the ground to use this ability. Additionally, you can choose a square of ground in the area that is unoccupied or is occupied by you or any ally. A pillar of earth rises out of the ground in that square, with a height in squares up to your Reason score. The pillar can't collide with any creatures or objects, nor can it force creatures raised by it to collide with other creatures or objects."
+    ]
+   ]
+  },
+  "book": "Ripples in the Earth (3 Essence)\nLike a stone was dropped into a pond, waves in the earth radiate from you.\nArea, Earth, Magic\t\nMain action\no 2 burst\t\nx Each enemy in the area\nPower Roll + Reason:\na \t 3 damage\ne \t 5 damage\ni \t 8 damage; m<s , prone\nEffect: You must be touching the ground to use this ability. Ad\nditionally, you can choose a square of ground in the area that is \nunoccupied or is occupied by you or any ally. A pillar of earth rises \nout of the ground in that square, with a height in squares up to your \nReason score. The pillar can't collide with any creatures or objects, \nnor can it force creatures raised by it to collide with other creatures \nor objects.\n"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Disciple of the Metakinetic",
+  "level": 6,
+  "name": "Gravitic Charge",
+  "steps": {
+   "block": 7,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "RelocateCreature"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "persistence = {\"enabled\":true}"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Gravitic Charge (9 Heroic Resource)",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [
+    "Vertical slide 5, ignoring stability",
+    "Vertical slide 7, ignoring stability",
+    "Vertical slide 9, ignoring stability"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "This movement ignores stability. If you slide into another creature, you resolve damage to both of you as if your force movement had ended, but you keep moving through that creature’s space."
+    ]
+   ]
+  },
+  "book": "Gravitic Charge (9 Discipline)\nYou channel your discipline into momentum that defies gravity.\nPsionic\t\nManeuver\no Self\t\nx Self\nPower Roll + Intuition:\na \t Vertical slide 5\ne \t Vertical slide 7\ni \t Vertical slide 9\nEffect: This movement ignores stability. If you slide into anoth\ner creature, you resolve damage to both of you as if your force \nmovement had ended, but you keep moving through that creature's \nspace."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Disciple of the Cryokinetic",
+  "level": 6,
+  "name": "Wall of Ice",
+  "steps": {
+   "block": 2,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Aura"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "targets “anyspace” (no distance form for it)"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Wall of Ice",
+   "dist": "10 wall within 10",
+   "target": "Special",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "You can place this wall in occupied squares, sliding each creature in the area into the nearest unoccupied space of your choice. The wall remains until the end of the encounter or until you are dying. The wall’s squares are treated as stone squares for the purpose of damage, and you and allies can move freely through the wall. Each enemy who enters a square adjacent to the wall and has M < Average is slowed (save ends). Each enemy who is force moved into the wall and has M < Average is restrained (save ends)."
+    ]
+   ]
+  },
+  "book": "Wall of Ice (9 Discipline)\nYou create a wall of ice.\nArea, Psionic, Ranged\t\nMain action \no 10 wall within 10\t\nx Special \nEffect: You can place this wall in occupied squares, sliding each \ncreature in the area into the nearest unoccupied space of your \nchoice. The wall remains until the end of the encounter or until you \nare dying. The wall's squares are treated as stone squares for the \npurpose of damage, and you and allies can move freely through the \nwall. Each enemy who enters a square adjacent to the wall and has \nm<v is slowed (save ends). Each enemy who is force moved \ninto the wall and has m<v is restrained (save ends)."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Fury",
+  "level": 5,
+  "name": "Debilitating Strike",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "10 + M damage; M < Weak, slowed (save ends)",
+     "11 + M damage; M<weak, slowed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Debilitating Strike (9 Heroic Resource)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "10 + M damage; M<WEAK, slowed (save ends)",
+    "14 + M damage; M<AVERAGE, slowed (save ends)",
+    "20 + M damage; M<STRONG, slowed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "While slowed this way, the target takes 1 damage for every square they move, including from forced movement."
+    ]
+   ]
+  },
+  "book": "Debilitating Strike (9 Ferocity)\nYou need just one blow to sabotage your target.\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Might:\na \t 10 + M damage; m<w , slowed (save ends)\ne \t 14 + M damage; m<v , slowed (save ends)\ni \t 20 + M damage; m<s , slowed (save ends)\nEffect: While slowed this way, the target takes 1 damage for every \nsquare they move, including from forced movement.\nMy Turn! (9 Ferocity)\nYou quickly strike back at a foe.\nMelee, Strike, Weapon\t\nFree triggered\no Melee 1\t\nx The triggering creature\nTrigger: A creature causes you to be winded or dying, or damages \nyou while you are winded or dying.\nPower Roll + Might:\na \t 6 + M damage\ne \t 9 + M damage\ni \t 13 + M damage\nEffect: You can spend a Recovery."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Tactician",
+  "level": 5,
+  "name": "Win This Day!",
+  "steps": {
+   "block": 2,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Win This Day! (9 Heroic Resource)",
+   "dist": "3 burst",
+   "target": "Self and each ally in the area",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Each target gains 2 surges. Additionally, they can spend a Recovery, remove any conditions or effects on them, and stand up if they are prone."
+    ]
+   ]
+  },
+  "book": "Win This Day! (9 Focus)\nYou inspire your allies to recover and gather their strength.\nArea\t\nMain action\no 3 burst\t\nx Self and each ally in the area\nEffect: Each target gains 2 surges. Additionally, they can spend a \nRecovery, remove any conditions or effects on them, and stand up if \nthey are prone."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Talent",
+  "level": 8,
+  "name": "Steel",
+  "steps": {
+   "block": 3,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\"",
+   "effect duration “1”"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Steel (11 Heroic Resource)",
+   "dist": "Ranged 10",
+   "target": "Self or one ally",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The target has damage immunity 5 and can’t be made slowed or weakened until the start of your next turn. Whenever the target force moves a creature or object while under this effect, the forced movement distance gains a +5 bonus."
+    ],
+    [
+     "Strained",
+     "You can't use maneuvers (save ends)."
+    ]
+   ]
+  },
+  "book": "Steel (11 Clarity)\nThe target's skin becomes covered in tough metal. \nMetamorphosis, Psionic, Ranged\t\nManeuver\no Ranged 10\t\nx Self or one ally\nEffect: The target has damage immunity 5 and can't be made slowed \nor weakened until the start of your next turn. Whenever the target \nforce moves a creature or object while under this effect, the forced \nmovement distance gains a +5 bonus. \nStrained: You can't use maneuvers (save ends).A devil conjures a swirling gust of wind, sweeping away a werewolf foe\n\nGlass hovers, one arm outstretched, the other lifted to their face. A blue-white halo of energy rings their head. A powerful g\n"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Fury",
+  "level": 5,
+  "name": "To Stone!",
+  "steps": {
+   "block": 12,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "9 + M damage; M < weak, slowed (save ends)",
+     "10 + M damage; M<weak, slowed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "To Stone! (9 Heroic Resource)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "9 + M damage; M<WEAK, slowed (save ends)",
+    "13 + M damage; M<AVERAGE, slowed (save ends)",
+    "18 + M damage; M<STRONG, restrained (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "While the target is slowed this way, any other effect that would make the target slowed instead makes them restrained by this ability. Additionally, a creature who fails the saving throw while restrained this way is petrified until they are given a supernatural cure or you choose to reverse the effect (no action required)"
+    ]
+   ]
+  },
+  "book": "To Stone! (9 Ferocity)\nYou channel the Primordial Chaos into blows that petrify your foe ... literally.\nMagic, Melee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Might:\na \t 9 + M damage; m<w , slowed (save ends)\ne \t 13 + M damage; m<v , slowed (save ends)\ni \t 18 + M damage; m<s , restrained (save ends)\nEffect: While the target is slowed this way, any other effect that \nwould make the target slowed instead makes them restrained by \nthis ability. Additionally, a creature who fails the saving throw while \nrestrained this way is petrified until they are given a supernatural \ncure or you choose to reverse the effect (no action required).\n"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Null",
+  "level": 8,
+  "name": "Phase Hurl",
+  "steps": {
+   "block": 14,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Custom Trigger"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "9 + A damage; push 5; I < Weak, dazed (save ends)",
+     "10 + A damage; push 5; I<weak, dazed (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Phase Hurl (11 Heroic Resource)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "9 + A damage; push 5; I<WEAK, dazed (save ends)",
+    "13 + A damage; push 7; I<AVERAGE, dazed (save ends)",
+    "18 + A damage; push 10; I<STRONG, dazed (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "The target and each creature or object they collide with from this forced movement takes psychic damage equal to the total number of squares the target was force moved. While the target is dazed this way, they see glimpses of creatures from other parts of the timescape."
+    ]
+   ]
+  },
+  "book": "Phase Hurl (11 Discipline)\nYou throw your foe out of phase with this manifold, causing them to harm \nother enemies as they return.\nMelee, Psionic, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Agility:\na \t 9 + A damage; push 5; i<w , dazed (save ends)\ne \t 13 + A damage; push 7; i<v , dazed (save ends)\ni \t 18 + A damage; push 10; i<s , dazed (save ends)\nEffect: The target and each creature or object they collide with from \nthis forced movement takes psychic damage equal to the total \nnumber of squares the target was force moved. While the target is \ndazed this way, they see glimpses of creatures from other parts of \nthe timescape.\nScalar Assault (11 Discipline)"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Fury",
+  "level": 10,
+  "name": "Primordial Power",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "channeledResource = \"e7b04a7e-61fc-4e17-b999-d95d7e751abb\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Primordial Power",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity. Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent. You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power. Primordial power remains until you spend it."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Reaver",
+  "level": 9,
+  "name": "Shower of Blood",
+  "steps": {
+   "block": 6,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "effect duration “endround”"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "12 + M damage",
+     "13 + M damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Shower of Blood (11 Heroic Resource)",
+   "dist": "Melee 1",
+   "target": "One creature",
+   "tiers": [
+    "12 + M damage",
+    "18 + M damage",
+    "24 + M damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "Each enemy within 5 squares of you is distracted until the end of the round. While a creature is distracted this way, they can’t take triggered actions or free triggered actions, ability rolls made against them gain an edge, and their characteristic scores are considered 1 lower for the purpose of resisting potencies."
+    ]
+   ]
+  },
+  "book": "Shower of Blood (11 Ferocity)\nYou shock your foes with the brutality of your strike, resetting the balance of \ncombat.\nMelee, Strike, Weapon\t\nMain action\no Melee 1\t\nx One creature\nPower Roll + Might:\na \t 12 + M damage\ne \t 18 + M damage\ni \t 24 + M damage\nEffect: Each enemy within 5 squares of you is distracted until the \nend of the round. While a creature is distracted this way, they can't \ntake triggered actions or free triggered actions, ability rolls made \nagainst them gain an edge, and their characteristic scores are consid\nered 1 lower for the purpose of resisting potencies."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Conduit",
+  "level": 9,
+  "name": "Thorn Cage",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "10 + I damage; A<WEAK, restrained (save ends)",
+     "11 + I damage; A<weak, restrained (save ends)"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Thorn Cage (11 Heroic Resource)",
+   "dist": "Ranged 10",
+   "target": "One creature",
+   "tiers": [
+    "10 + I damage; A<WEAK, restrained (save ends)",
+    "15 + I damage; A<AVERAGE, restrained (save ends)",
+    "21 + I damage; A<STRONG, restrained (save ends)"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "While restrained this way, the target takes 10 damage at the start of each of your turns."
+    ]
+   ]
+  },
+  "book": "Thorn Cage (11 Piety)\nVines burst forth from the ground and bind your foe, slowly closing around \nthem.\nMagic, Ranged, Strike\t\nMain action\no Ranged 10\t\nx One creature\nPower Roll + Intuition:\na \t 10 + I damage; a<w , restrained (save ends)\ne \t 15 + I damage; a<v , restrained (save ends)\ni \t 21 + I damage; a<s , restrained (save ends)\nEffect: While restrained this way, the target takes 10 damage at the \nstart of each of your turns.\nWord of Final Redemption (11 Piety)\nYour death will fuel our victory.\nMagic, Ranged\t\nFree triggered \no Ranged 10\t\nx One creature\nTrigger: The target dies.\nEffect: Before the target dies, you can look at their stat block and force \nthem to use one ability that is a main action or a maneuver. If the ability \ncosts a Heroic Resource or Malice, the creature can use it without any \ncost. For the purpose of using this ability, your allies and enemies are the \ntarget's allies and enemies, and you decide who the ability targets."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Stormwight",
+  "level": 9,
+  "name": "Deluge",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "7 damage",
+     "8 damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "Deluge (11 Heroic Resource)",
+   "dist": "5 cube within 10",
+   "target": "Each enemy in the area",
+   "tiers": [
+    "7 damage",
+    "10 damage",
+    "15 damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "This ability deals your primordial damage type and ignores damage immunity."
+    ]
+   ]
+  },
+  "book": "Deluge (11 Ferocity)\nYou summon your primordial storm.\nArea, Magic, Ranged\t\nMain action\no 5 cube within 10\t\nx Each enemy in the area\nPower Roll + Might:\na \t 7 damage\ne \t 10 damage\ni \t 15 damage\nEffect: This ability deals your primordial damage type and ignores \ndamage immunity.\n"
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Beastheart",
+  "level": 10,
+  "name": "Ferox",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "costs Epic Resource"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Ferox",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Spend 1 ferox as a free maneuver to allow you and your companion to each take a main action on your turn, instead of a main action and a maneuver. On that turn, the Ferocity cost of your heroic abilities is reduced by 1."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Tactician",
+  "level": 8,
+  "name": "I'll Open and You'll Close",
+  "steps": {
+   "block": 6,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Augmented Ability"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "topChanged": [],
+   "behChanged": 1,
+   "tiers": [
+    [
+     "6 + M damage",
+     "7 + M damage"
+    ]
+   ]
+  },
+  "card": {
+   "title": "I'll Open and You'll Close (11 Heroic Resource)",
+   "dist": "Melee 1 or ranged 5",
+   "target": "One creature",
+   "tiers": [
+    "6 + M damage",
+    "10 + M damage",
+    "14 + M damage"
+   ],
+   "effects": [
+    [
+     "Effect",
+     "One ally within 10 can use a heroic ability against the target as a free triggered action without spending any heroic resources, as long as they have enough heroic resources to pay for the ability. If an ability is left to be resolved and the target was reduced to 0 Stamina, the ability user can pick a different target."
+    ]
+   ]
+  },
+  "book": "I'll Open and You'll Close (11 Focus)\nYou create an opening for an ally.\nMelee, Ranged, Strike, Weapon\t\nMain action\no Melee 1 or ranged 5\t\nx One creature\nPower Roll + Might:\na\t  6 + M damage\ne\t  10 + M damage\ni\t  14 + M damage\nEffect: One ally within 10 squares of you can use a heroic ability \nagainst the target as a free triggered action without spending any of \ntheir Heroic Resource, as long as they have enough Heroic Resource \nto pay for the ability. If the target is reduced to 0 Stamina before the \nchosen ally has used their ability, the ally can pick a different target."
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Elementalist",
+  "level": 10,
+  "name": "Breath",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "channeledResource = \"e7b04a7e-61fc-4e17-b999-d95d7e751abb\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Breath",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "You have an epic resource called breath. Each time you finish a respite, you gain breath equal to the XP you gain. You can spend any number of breath to gain essence (no action required). When you do, 1 breath becomes 3 essence."
+    ],
+    [
+     "Effect",
+     "Breath remains until you convert it to essence."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "ability",
+  "who": "Summoner",
+  "level": 10,
+  "name": "Among Our Ranks",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "uses “Respite Activity” as its action"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name"
+  ],
+  "card": {
+   "title": "Among Our Ranks",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "As a respite activity, you summon a willing and not-restrained NPC or player ally to join your party, regardless of distance or manifold. The target stays until the start of your next respite or until they are killed, in which they are immediately dismissed to the place from which they were summoned. You can't have more than one character summoned in this way."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "trigger",
+  "who": "College of the Harlequin Mask",
+  "level": 8,
+  "name": "Harlequin Gambit",
+  "steps": {
+   "block": 1,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "mandatory = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Harlequin Gambit",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "You can use your Harlequin Gambit feature as a free triggered action when a creature is reduced to 0 Stamina by your Clever Trick ability."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "trigger",
+  "who": "Telekinesis",
+  "level": 5,
+  "name": "Triangulate",
+  "steps": {
+   "block": 2,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Triangulate (1 Heroic Resource)",
+   "dist": "Ranged 1",
+   "target": "One creature",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "powertabletrigger",
+  "who": "Censor",
+  "level": 1,
+  "name": "Judgment - Bane",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "power roll trigger applies to all rolls"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "powerRollModifier"
+  ],
+  "card": {
+   "title": "Judgment - Bane",
+   "dist": "Ranged 1000",
+   "target": "One enemy",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "When a judged target makes a power roll, the Censor can spend 1 wrath to add a bane to the roll."
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "trigger",
+  "who": "Elementalist",
+  "level": 1,
+  "name": "Ward of Nature's Affection",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "DrawSteelCommand"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Ward of Nature's Affection",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "class",
+  "kind": "powertabletrigger",
+  "who": "Virtuoso",
+  "level": 2,
+  "name": "Harmonize",
+  "steps": {
+   "block": 0,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "power roll trigger only when false"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "powerRollModifier"
+  ],
+  "card": {
+   "title": "Harmonize",
+   "dist": "Ranged 5",
+   "target": "One ally",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "powertabletrigger",
+  "who": "Rival Null",
+  "level": 2,
+  "name": "Inertial Shield",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "advTypes": [],
+   "todos": []
+  },
+  "hidden": [
+   "power roll trigger only when Ability.Keywords has \"Strike\"",
+   "power roll trigger applies to enemy_ability_power_roll rolls",
+   "power roll trigger usable once per round"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "powerRollModifier"
+  ],
+  "card": {
+   "title": "Inertial Shield",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "trigger",
+  "who": "Lizardfolk Scaletooth",
+  "level": 1,
+  "name": "Reptilian Escape",
+  "steps": {
+   "block": 2,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [
+   "effect duration “indefinite”"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Reptilian Escape",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": null
+ },
+ {
+  "source": "monster",
+  "kind": "trigger",
+  "who": "War Dog Ground Commander",
+  "level": 3,
+  "name": "Final Orders",
+  "steps": {
+   "block": 0,
+   "advanced": 4,
+   "todo": 0,
+   "advTypes": [
+    "Raise Corpse",
+    "Float Text",
+    "InvokeAbility",
+    "Remove Creature"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Final Orders",
+   "dist": "Ranged 10",
+   "target": "One ally",
+   "tiers": [],
+   "effects": [
+    [
+     "Trigger",
+     "Add effect text (optional)"
+    ]
+   ]
+  },
+  "book": "### Final Orders\n*Magic, Ranged*\n*Triggered action*\n*Ranged 10 | One ally*\n\n**Trigger:** The target takes damage, is force moved, or is reduced to 0 Stamina.\n\n**Effect:** Even if reduced to 0 Stamina, the target moves up to their speed and can make a free strike after the triggering effect is resolved. The target then immediately dies."
+ },
+ {
+  "source": "monster",
+  "kind": "trigger",
+  "who": "Lumbering Egress",
+  "level": 6,
+  "name": "Abyssal Protectors",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "advTypes": [
+    "Summon Creatures"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Abyssal Protectors (2 Malice)",
+   "dist": "Ranged 1",
+   "target": "One ally",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "Eight ensnarers appear anywhere in the area."
+    ]
+   ]
+  },
+  "book": "### Abyssal Protectors\n*2 Malice*\n*Area, Magic*\n*Triggered action*\n*5 burst | Special*\n\n**Trigger:** The last ally minion on the encounter map dies, or the egress is reduced below 25 Stamina.\n**Effect:** Eight ensnarers appear anywhere in the area."
+ },
+ {
+  "source": "monster",
+  "kind": "trigger",
+  "who": "Wyvern Lurker",
+  "level": 4,
+  "name": "Retaliatory Dive",
+  "steps": {
+   "block": 1,
+   "advanced": 3,
+   "todo": 0,
+   "advTypes": [
+    "InvokeAbility",
+    "RelocateCreature",
+    "InvokeAbility"
+   ],
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "renameDiff": [
+   "name",
+   "triggeredAbility"
+  ],
+  "card": {
+   "title": "Retaliatory Dive",
+   "dist": "Self",
+   "target": "Self",
+   "tiers": [],
+   "effects": [
+    [
+     "Effect",
+     "The lurker flies into a square adjacent to the target and makes a free strike against them."
+    ]
+   ]
+  },
+  "book": "### Retaliatory Dive\n*Ranged*\n*Triggered action*\n*Ranged 5 | The triggering creature*\n\n**Trigger:** A creature within distance deals damage to the lurker with a ranged ability.\n\n**Effect:** The lurker flies adjacent to the target and can make a free strike against them.\n# Chunk 07 -- Pages 334-383"
+ }
+]

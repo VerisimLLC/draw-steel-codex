@@ -526,7 +526,7 @@ function rescope(o, scope, top) {
   if (typeof o.kind === "string" && typeof o.docs === "string") o.docs = o.docs.split("@")[0] + (scope ? "@" + scope.id : "");
   for (const k in o) rescope(o[k], scope, false);
 }
-const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver",["No action", "no-action ability"]];
+const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","Villain action",["No action", "no-action ability"]];
 const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","special"];
 const AREA_TARGETS = ["each enemy in the area","each creature in the area","each ally in the area","special"];
 // Distance forms, worded the way a card words them ("4 cube within 10" = a 4-square cube placed within
@@ -1103,12 +1103,14 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         abilityPatch.multipleModes = variations ? "variations" : true;
         if (f.when === "after" && !variations) abilityPatch.chooseModeAfterTargeting = true;
         if (variations) notes.push("Saved as Ability Variations, because " + f.opts.filter(o => o.own === "yes").map(o => "\u201c" + o.name + "\u201d").join(" and ") + " target" + (f.opts.filter(o => o.own === "yes").length === 1 ? "s" : "") + " differently.");
+        const modeOut = [];
         const modeList = f.opts.map((o, i) => {
           const b2 = [], p2 = [];
           compileSteps(st.branches["o" + o.id] || [], filters, b2, p2);
           const n = +o.extra || 0;
           const spend = n ? { __typeName: "ActivatedAbilityReplenishBehavior", applyto: "caster", mode: "expend", quantity: String(n), resourceid: heroic } : null;
-          let text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(". ");
+          p2.filter(q => q.kind === "roll").forEach(q => prose.push(q));
+          let text = p2.filter(q => q.kind !== "roll").map(q => q.text).join(". ");
           const m = { text: o.name };
           if (n) m.condition = "Heroic Resources Available to Spend >= " + n;
           if (o.own === "yes") {
@@ -1127,7 +1129,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
             text = distanceText(fm, o.t) + ", " + targetText(o.t, fm).toLowerCase() + (text ? ". " + text : "");
           } else {
             if (spend) b2.unshift(spend);
-            b2.forEach(b => { b.modesSelected = [i + 1]; out.push(b); });
+            b2.forEach(b => { b.modesSelected = [i + 1]; modeOut.push(b); });
           }
           if (text || (ab.overrides || {})["mode." + o.id]) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text ? text + "." : "" });
           if (!o.name) bad(st.id, "Name each option.");
@@ -1135,6 +1137,8 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
           return m;
         });
         abilityPatch.modeList = modeList;
+        // Saved content may list option 2's steps before option 1's: keep its order, new steps last.
+        modeOut.map((b, i) => [b, i]).sort((x, y) => ((SAVED_ORDER.get(x[0]) ?? 1e9 + x[1]) - (SAVED_ORDER.get(y[0]) ?? 1e9 + y[1]))).forEach(([b]) => out.push(b));
         if (f.opts.length < 2) bad(st.id, "Add at least two options to choose between.");
         break;
       }
@@ -1266,7 +1270,8 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         compileSteps(st.branches.then, sp.rest ? filters.concat([sp.rest]) : filters, b2, p2);
         b2.forEach(b => { b.strainSelection = sp.strain; out.push(b); });
         // The book prints these as their own paragraph: "Strained: ...".
-        const text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(", and ");
+        p2.filter(q => q.kind === "roll").forEach(q => prose.push(q));
+        const text = p2.filter(q => q.kind !== "roll").map(q => q.text).join(", and ");
         if (text) prose.push({ kind: "mode", key: "strain." + st.id, label: sp.strain === "strained" ? "Strained" : "Not strained", text: text + "." });
         break;
       }
@@ -1277,28 +1282,35 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
 /* Field by field: a field that still compiles to what it compiled to when the ability was opened keeps
    its original saved value (or stays absent); fields the editor never writes ride along untouched. */
 function preserveFields(rec) {
-  if (sigMode === "record") { ab.openFields = {}; for (const k in rec) if (k !== "behaviors") ab.openFields[k] = JSON.stringify(rec[k]); return rec; }
-  const src = ab.source, outRec = JSON.parse(JSON.stringify(src));
-  for (const k in rec) {
-    if (k === "behaviors") continue;
-    if (ab.openFields && ab.openFields[k] === JSON.stringify(rec[k])) continue;   // unchanged: keep the original
-    outRec[k] = rec[k];
-  }
-  for (const k in (ab.openFields || {})) if (!(k in rec) && k !== "behaviors") delete outRec[k];   // cleared by the author
-  outRec.behaviors = rec.behaviors;
-  return outRec;
+  if (sigMode === "record") { ab.openRec = JSON.parse(JSON.stringify(rec)); return rec; }
+  const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+  // Recurse into nested records (a trigger's triggeredAbility, a power roll trigger's modifier).
+  const merge = (src, now, open) => {
+    const out = JSON.parse(JSON.stringify(src || {}));
+    for (const k in now) {
+      if (k === "behaviors") { out[k] = now[k]; continue; }   // steps already restored themselves
+      if (open && JSON.stringify(open[k]) === JSON.stringify(now[k])) continue;   // unchanged: keep the original
+      out[k] = isObj(now[k]) && isObj(src && src[k]) && isObj(open && open[k]) ? merge(src[k], now[k], open[k]) : now[k];
+    }
+    for (const k in (open || {})) if (!(k in now) && k !== "behaviors") delete out[k];   // cleared by the author
+    return out;
+  };
+  return merge(ab.source, rec, ab.openRec);
 }
 /* Opening an existing ability: whatever the author has not changed is saved back exactly as it was.
    When a step opened from saved behaviours still compiles to what it compiled to when opened, its
    original records go back instead (keeping fields the blocks don't show, and the original wording). */
-let sigMode = null;   // "record" while taking the at-open fingerprints, "off" to measure raw regeneration
+let sigMode = null;
+const SAVED_ORDER = new WeakMap();   // compiled behaviour -> its position in the saved list (never saved itself)   // "record" while taking the at-open fingerprints, "off" to measure raw regeneration
 function keepIfUnchanged(st, out, before) {
-  if (!st.srcList || sigMode === "off") return;
+  // Every opened step (Advanced ones too) carries its saved position for reordering inside modes.
+  if (!st.srcList || sigMode === "off") { if (st.srcOrder != null) out.slice(before).forEach((o, i) => { if (o && typeof o === "object") SAVED_ORDER.set(o, st.srcOrder + i / 100); }); return; }
   const sig = JSON.stringify(out.slice(before));
   // Recording happens in the same pass as restoring, so a step's fingerprint already includes its
   // inner steps restored to their originals (exactly what a later save will see).
   if (sigMode === "record") st.openSig = sig;
-  if (st.openSig === sig) { out.splice(before, out.length - before, ...JSON.parse(JSON.stringify(st.srcList))); return; }
+  const tag = () => { if (st.srcOrder != null) out.slice(before).forEach((o, i) => { if (o && typeof o === "object") SAVED_ORDER.set(o, st.srcOrder + i / 100); }); };
+  if (st.openSig === sig) { out.splice(before, out.length - before, ...JSON.parse(JSON.stringify(st.srcList))); tag(); return; }
   // Changed: write the new settings over the original record, so fields no block shows (Strained,
   // chat messages, ids) survive the edit. An "Only if" the author removed takes its filter with it.
   if (st.srcList.length === 1 && out.length - before === 1 && out[before].__typeName === st.srcList[0].__typeName) {
@@ -1306,6 +1318,7 @@ function keepIfUnchanged(st, out, before) {
     if (!("filterTarget" in out[before])) delete merged.filterTarget;
     out[before] = merged;
   }
+  tag();
 }
 /* Split "you are Strained" out of an Only-if test: {strain: "strained" | "unstrained" | null, rest}.
    rest is the remaining test, compiled, or null when Strained was the whole test. */
@@ -1381,6 +1394,8 @@ function engineTextFields(rec) {
   if (ab.descParas && ab.descParas.length) rec.description = ab.descParas.map((d, i) => {
     const t = (o["desc" + i] || { text: "" }).text, l = (ab.labels || {})["desc" + i] || "Effect";
     return l === "Effect" ? t : "**" + l + ":** " + t; }).filter(x => x.trim()).join("\n\n");
+  // A power roll trigger keeps its wording in "rules".
+  if (rec.behavior === "powertabletrigger" && "description" in rec) { rec.rules = rec.description; delete rec.description; }
 }
 function displayOverrides() {
   const o = ab.overrides || {}, l = ab.labels || {}; const r = {};
@@ -1390,14 +1405,15 @@ function displayOverrides() {
 }
 function compileTriggered() {
   const ev = EVENTS[ab.trig.event], who = TRIG_WHO[ab.trig.who];
-  const storage = hasRollChange(ab.steps) && ev.prt ? "prt" : "ta";
+  // An opened trigger keeps the record type it was saved as; a new one is decided by its steps.
+  const storage = ab.source ? (ab.source.behavior === "powertabletrigger" ? "prt" : "ta") : hasRollChange(ab.steps) && ev.prt ? "prt" : "ta";
   currentStorage = storage;
   rollSink = storage === "prt" ? {} : null;
   const cond = cHolder(ab.trigCond);
   const behaviors = [], prose = [];
   compileSteps(ab.steps, [], behaviors, prose);
   const roll = rollSink; rollSink = null; currentStorage = "ta";
-  if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  if (!ab.steps.length && !ab.source) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
   if (storage === "prt" && keywordsOf(ab).length) notes.push("Keywords on a power roll trigger are shown on its card but not saved yet in this prototype (the field to use needs checking in the engine).");
   const range = cHolder(ab.trig.range);
   let rec;
@@ -1417,10 +1433,10 @@ function compileTriggered() {
     }
     if (behaviors.length) { mod.hasCustomTrigger = true; mod.customTrigger = { __typeName: "TriggeredAbility", name: ab.name, trigger: "d20roll", targetType: ab.trig.affects, behaviors }; }
     rec = { __typeName: "CharacterModifier", behavior: "powertabletrigger", name: ab.name, type: ab.trig.action, targetType: who.prt, trigger: ev.prt, range: range.s,
-      filterCondition: cond.empty ? undefined : cond.s, powerRollModifier: mod };
+      targetFilter: cond.empty ? undefined : cond.s, powerRollModifier: mod };   // the engine reads targetFilter (PowerTableTriggers.lua)
   }
   engineTextFields(rec.triggeredAbility || rec); const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs;
-  return { rec, storage, cond, range, prose, triggered: true };
+  return { rec: ab.source && sigMode !== "off" ? preserveFields(rec) : rec, storage, cond, range, prose, triggered: true };
 }
 function compileAbility() {
   problems = []; notes = []; moveTrail = false; abilityPatch = {};
@@ -1430,7 +1446,7 @@ function compileAbility() {
   const reqs = ab.requirements.map(r => { const c = cHolder(r.h); if (c.empty) bad(r.h.id, "This requirement needs a test."); return { c, reason: r.reason }; });
   const behaviors = [], prose = [];
   compileSteps(ab.steps, [], behaviors, prose);
-  if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  if (!ab.steps.length && !(ab.source && !(ab.source.behaviors || []).length)) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
   const rec = {
     __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
     keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
@@ -1599,7 +1615,13 @@ function renderStep(st, list, ctx, scope) {
   const add = n => bar.appendChild(n);
   let gsHolder = null;
   switch (st.type) {
-    case "powerRoll": add(lbl("Power roll 2d10 +")); add(sel(f, "char", CHARS, null, "characteristic")); break;
+    case "powerRoll": {
+      // Heroes add a characteristic; monsters add a flat bonus (their highest characteristic, as printed).
+      add(lbl("Power roll 2d10 +"));
+      const opts = CHARS.concat([["Highest Characteristic", "highest characteristic"]], ["1", "2", "3", "4", "5", "6"].map(n => [n, n]));
+      if (!opts.some(o => (Array.isArray(o) ? o[0] : o) === f.char)) opts.push([f.char, f.char]);   // e.g. "Might or Agility", or a bonus
+      add(sel(f, "char", opts, null, "characteristic or bonus")); break;
+    }
     case "damage":
       add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage"));
       // Only outside a tier: tier damage always hits the target.
@@ -2207,6 +2229,9 @@ function parseTierText(text, ctx) {
       const eff = EFFECTS.find(r => r[1].toLowerCase() === m[1].toLowerCase());
       if (eff) { const a = STEPS.applyEffect.make("tier"); a.f.effectName = eff[1]; a.f.effectId = eff[0]; a.f.dur = /eot/i.test(m[2]) ? "eot" : "save_ends"; steps.push(a); continue; }
     }
+    // "push 4 and prone": two results joined by "and"; split only if both halves read.
+    const andParts = seg.split(/\s+and\s+/);
+    if (andParts.length === 2) { const c2 = Object.assign({}, ctx, { todo: 0 }); const both = parseTierText(andParts.join("; "), c2); if (!c2.todo) { steps.push(...both); continue; } }
     const t = STEPS.todo.make(); t.f.text = seg; steps.push(t); ctx.todo++;
   }
   return steps;
@@ -2438,11 +2463,17 @@ function renderSide(c) {
     // As printed: "The target takes damage." when the triggering creature is the one affected; otherwise
     // the creature that sets it off, "within distance" (the distance is on the line above).
     const subj = t.who === "self" ? "you " + ev.you : t.affects === "subject" ? "the target " + ev.other : cap(who.label) + " within distance " + ev.other;
+    if (ab.descParas) {
+      // Opened trigger: show its saved wording (book first), labels included; never generated text.
+      ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
+      if (!ab.descParas.length) cardLine(card, "desc0", "Trigger", "", "effect");
+    } else {
     cardLine(card, "trigger", "Trigger", esc(cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + "."), "effect");
     const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
     // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
     const parts = during.concat(after.map(x => x.charAt(0).toLowerCase() + x.slice(1)));
     if (parts.length) cardLine(card, "effect", "Effect", esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1]) + "."), "effect");
+    }
   } else {
     const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
     const dist = distanceText(fm);
@@ -2454,7 +2485,8 @@ function renderSide(c) {
     for (const p of c.prose) {
       if (p.kind === "roll") {
         flush("effectBefore"); seenRoll = true;
-        card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
+        if (/^(\d+|Highest Characteristic)$/.test(p.char)) { const h2 = card.querySelector("h2"); if (h2 && !/\(2d10/.test(h2.textContent)) h2.appendChild(Object.assign(E("span", "cost"), { textContent: " (2d10 + " + (/^\d+$/.test(p.char) ? p.char : "highest") + ")" })); }
+        else card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
         ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
       } else if (ab.descParas) {
         // Opened ability, book first: effect text is the saved description (below). An option line shows
@@ -2726,6 +2758,23 @@ const EVENTS = {
   usesability: { you: "use an ability", other: "uses an ability", ta: "useability" },
   finishmove:  { you: "finish moving", other: "finishes moving", ta: "finishmove" },
   drawsteel:   { you: "roll initiative", other: "rolls initiative", ta: "rollinitiative" },
+  // Also in the engine (TriggeredAbility.TriggerConditions / PowerTableTriggers), found by opening content.
+  attack:      { you: "attack an enemy", other: "attacks an enemy", ta: "attack" },
+  forcemoves:  { you: "force move a creature", other: "force moves a creature", prt: "forcemove" },
+  casting:     { you: "use an ability", other: "uses an ability", prt: "casting" },
+  move:        { you: "start moving", other: "starts moving", ta: "move" },
+  teleport:    { you: "teleport", other: "teleports", ta: "teleport" },
+  startround:  { you: "a round starts", other: "a round starts", ta: "beginround" },
+  endround:    { you: "a round ends", other: "a round ends", ta: "endround" },
+  endcombat:   { you: "combat ends", other: "combat ends", ta: "endcombat" },
+  collide:     { you: "collide with a creature or object", other: "collides with a creature or object", ta: "collide" },
+  fall:        { you: "land from a fall", other: "lands from a fall", ta: "fall" },
+  dying:       { you: "become dying", other: "becomes dying", ta: "dying" },
+  savefail:    { you: "fail a saving throw", other: "fails a saving throw", ta: "savefail" },
+  fumble:      { you: "fumble an attack", other: "fumbles an attack", ta: "fumble" },
+  startrespite:{ you: "start a respite", other: "starts a respite", ta: "startrespite" },
+  endrespite:  { you: "finish a respite", other: "finishes a respite", ta: "endrespite" },
+  custom:      { you: "trigger a custom event", other: "triggers a custom event", ta: "custom" },
 };
 const EVENT_OPTS = [["damaged", "take(s) damage"], ["struck", "is targeted by a strike"], ["rolls", "make(s) a power roll"], ["dealsdamage", "deal(s) damage"], ["forcemoved", "is force moved"],
   ["startturn", "start(s) their turn"], ["endturn", "end(s) their turn"], ["winded", "become(s) winded"], ["zero", "drop(s) to 0 Stamina"], ["dies", "die(s)"],
@@ -2737,6 +2786,8 @@ const TRIG_WHO = {
   ally:     { label: "an ally", ta: "allies", prt: "ally" },
   enemy:    { label: "an enemy", ta: "enemy", prt: "enemy" },
   any:      { label: "any creature", ta: "any", prt: "anycreature" },
+  otherheroes:   { label: "another hero", ta: "otherheroes" },
+  selfandheroes: { label: "you or another hero", ta: "selfandheroes" },
 };
 const TRIG_ACTIONS = [["trigger", "Triggered action"], ["free", "Free triggered action"], ["passive", "Passive (no action)"]];
 // Which storage the formulas are being written for; the triggering creature is spelled differently in each.
@@ -3333,9 +3384,9 @@ function openAbility(rec) {
   a.source = JSON.parse(JSON.stringify(rec));
   a.name = rec.name || "Unnamed";
   const act = resourceNameById(rec.actionResourceId);
-  a.action = { "Main Action": "Main action", "Maneuver": "Maneuver", "Trigger": "Triggered action", "Free Triggered Action": "Free triggered action", "Free Maneuver": "Free maneuver" }[act] || "No action";
+  a.action = { "Main Action": "Main action", "Maneuver": "Maneuver", "Trigger": "Triggered action", "Free Triggered Action": "Free triggered action", "Free Maneuver": "Free maneuver", "Villain Action": "Villain action" }[act] || "No action";
   if (rec.actionResourceId && !act) hidden.push("action " + rec.actionResourceId);
-  if (rec.actionResourceId && act && !["Main Action", "Maneuver", "Trigger", "Free Triggered Action", "Free Maneuver"].includes(act)) hidden.push("uses \u201c" + act + "\u201d as its action");
+  if (rec.actionResourceId && act && !["Main Action", "Maneuver", "Trigger", "Free Triggered Action", "Free Maneuver", "Villain Action"].includes(act)) hidden.push("uses \u201c" + act + "\u201d as its action");
   const rc = resourceNameById(rec.resourceCost);
   a.resource = rc === "Heroic Resource" ? "Heroic Resource" : rc === "Malice" ? "Malice" : "no cost";
   if (rec.resourceCost && rec.resourceCost !== "none" && !["Heroic Resource", "Malice"].includes(rc)) hidden.push("costs " + (rc || rec.resourceCost));
@@ -3358,7 +3409,10 @@ function openAbility(rec) {
     else a.distance = kw("Ranged") && !kw("Melee") ? "Ranged" : kw("Melee") ? "Melee" : "Ranged";
   } else { hidden.push("targets \u201c" + tt + "\u201d (no distance form for it)"); a.distance = "Ranged"; }
   ensureDistance(a);
-  if (!["self"].includes(a.targetCount)) a.targetCount = AREA_FORMS.includes(a.distance) ? "each enemy in the area" : "creature";
+  // The noun comes from the saved target filter: "Enemy" means enemies, "not Enemy" / "Ally" allies.
+  const tfil = String(rec.targetFilter || "").trim().toLowerCase();
+  const noun = /^enemy$/.test(tfil) ? "enemy" : /^(not enemy|ally|friend)$/.test(tfil) ? "ally" : "creature";
+  if (!["self"].includes(a.targetCount)) a.targetCount = AREA_FORMS.includes(a.distance) ? "each " + noun + " in the area" : (Number(rec.numTargets) > 1 ? noun : noun);
   if (rto) a.overrides.distance = { text: rto, basis: null, saved: true };
   if (rec.targetTextOverride) a.overrides.target = { text: rec.targetTextOverride, basis: null, saved: true };
   if (rec.flavor) a.overrides.flavor = { text: rec.flavor, basis: null, saved: true };
@@ -3375,8 +3429,8 @@ function openAbility(rec) {
   // Power Roll + Intuition: ..."), not the book's effect text: those stay saved but aren't shown as the card.
   a.descParas = [];   // opened: effect text comes only from what was saved (book first)
   if (rec.description && String(rec.description).trim() && !/power roll \+/i.test(rec.description)) {
-    a.descParas = String(rec.description).split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map((x, i) => {
-      const m = x.match(/^\*\*([^*]+?):\*\*\s*([\s\S]*)$/);
+    a.descParas = String(rec.description).split(/\n\s*\n|\s(?=\*\*[^*]{1,30}?:?\*\*:?\s)|\s(?=\d+\+? Malice:\s)/).map(x => x.trim()).filter(Boolean).map((x, i) => {
+      const m = x.match(/^\*\*([^*]+?):?\*\*:?\s*([\s\S]*)$/) || x.match(/^(\d+\+? Malice|Effect|Special|Trigger|Strained):\s*([\s\S]*)$/);
       return m ? { label: m[1], text: m[2] } : { label: "Effect", text: x };
     });
     a.descParas.forEach((d, i) => { a.overrides["desc" + i] = { text: d.text, basis: null, saved: true }; if (d.label !== "Effect") a.labels["desc" + i] = d.label; });
@@ -3401,9 +3455,9 @@ function openBehaviours(list, hidden, rec, a0) {
   }
   const top = [];
   let lastIf = null, lastStrain = null;
-  list.forEach(b => {
+  list.forEach((b, bi) => {
     if (!b || typeof b !== "object") return;
-    const st = openBehaviour(b, hidden);
+    const st = openBehaviour(b, hidden); st.srcOrder = bi;
     // Behaviours with a filter go inside an "Only if"; neighbours with the same filter share it.
     let target = top;
     const ms = b.modesSelected && b.modesSelected.length && mb ? b.modesSelected : null;
@@ -3444,7 +3498,7 @@ function openBehaviour(b, hidden) {
     return (g ? g[1] : shortType(b)) + (what ? ": " + String(what).slice(0, 90) : ""); };
   const opaque = () => { const o = STEPS.opaque.make(Object.assign({}, b, { summary: friendly() })); o.f.record = JSON.parse(JSON.stringify(b)); o.srcList = null; return o; };
   try {
-    if (t === "ActivatedAbilityPowerRollBehavior" && (m = String(b.roll || "").match(/^2d10 \+ (Might|Agility|Reason|Intuition|Presence)$/))) {
+    if (t === "ActivatedAbilityPowerRollBehavior" && (m = String(b.roll || "").trim().match(/^2d10 ?\+ ?((?:Might|Agility|Reason|Intuition|Presence)(?: or (?:Might|Agility|Reason|Intuition|Presence))?|Highest Characteristic|\d+)$/))) {
       st = STEPS.powerRoll.make(); st.f.char = m[1];
       st.f.srcTiers = {}; st.f.openTiers = {};
       (b.tiers || []).slice(0, 3).forEach((tx, i) => { const ctx = { todo: 0, matched: 0, tier: "t" + (i + 1), rollChar: m[1], guesses: 0 }; st.branches["t" + (i + 1)] = parseTierText(String(tx), ctx); st.f.srcTiers["t" + (i + 1)] = tx; });
@@ -3481,9 +3535,49 @@ function openBehaviour(b, hidden) {
   }
   return st;
 }
+/* Open a saved trigger. Event, who and action map onto the trigger header; events or subjects the
+   editor has no words for are added on the fly (and listed as hidden) so nothing is lost. */
+function openTrigger(rec) {
+  const hidden = [];
+  const prt = rec.behavior === "powertabletrigger";
+  const ta = prt ? null : (rec.triggeredAbility || {});
+  const inner = prt ? ((rec.powerRollModifier || {}).customTrigger || { behaviors: [] }) : ta;
+  const a = openAbility(Object.assign({}, inner, { name: rec.name || inner.name, description: (prt ? rec.rules : ta.description) || inner.description || "" }));
+  a.source = JSON.parse(JSON.stringify(rec)); a.kind = "triggered"; a.trig = triggerDefaults();
+  hidden.push(...(a.openHidden || []).filter(h => !/^(action |selfTarget|uses |targets \u201c(subject|attacker|self)\u201d)/.test(h)));
+  const evId = prt ? rec.trigger : ta.trigger;
+  let ek = Object.keys(EVENTS).find(k => (prt ? EVENTS[k].prt : EVENTS[k].ta) === evId);
+  if (!ek) { ek = "raw_" + evId; EVENTS[ek] = { you: "trigger on \u201c" + evId + "\u201d", other: "triggers on \u201c" + evId + "\u201d", [prt ? "prt" : "ta"]: evId }; hidden.push("trigger event \u201c" + evId + "\u201d has no wording yet"); }
+  a.trig.event = ek;
+  const whoId = prt ? rec.targetType : ta.subject;
+  let wk = Object.keys(TRIG_WHO).find(k => (prt ? TRIG_WHO[k].prt : TRIG_WHO[k].ta) === whoId);
+  if (!wk && whoId) { wk = "raw_" + whoId; TRIG_WHO[wk] = { label: whoId, ta: whoId, prt: whoId }; hidden.push("triggered by \u201c" + whoId + "\u201d"); }
+  a.trig.who = wk || "self";
+  a.trig.range = holderFromText("number", "range", String((prt ? rec.range : ta.subjectRange) ?? 1));
+  if (prt) a.trig.action = rec.type || "trigger";
+  else { const act = resourceNameById(ta.actionResourceId); a.trig.action = act === "Free Triggered Action" ? "free" : act === "Trigger" ? "trigger" : "passive"; }
+  a.trig.affects = prt ? "subject" : (ta.targetType || "subject");
+  const cond = prt ? rec.targetFilter : ta.conditionFormula;
+  a.trigCond = holderFromText("boolean", "trigCond", cond || "");
+  if (prt) {
+    // Roll changes become "Change the roll" blocks; the rest of the modifier rides along.
+    const m = rec.powerRollModifier || {}; const steps = [];
+    if (m.damageMultiplier === "half") steps.push(STEPS.halveDamage.make());
+    if (m.damageModifier) { const c = STEPS.changeDamage.make(); c.slots.amount = holderFromText("number", "rollDamage", String(m.damageModifier)); steps.push(c); }
+    if (m.modtype && m.modtype !== "none") { const c = STEPS.rollEdge.make(); c.f.mod = m.modtype; steps.push(c); }
+    if (m.potencymod) { const c = STEPS.potencyShift.make(); c.f.n = (+m.potencymod > 0 ? "+" : "") + m.potencymod; steps.push(c); }
+    if (m.changeTarget) { const c = STEPS.changeTarget.make(); c.f.range = m.changeTargetRange || "ability"; c.f.n = String(m.changeTargetDistance || 1); steps.push(c); }
+    a.steps = steps.concat(a.steps);
+    const MEANT = { activationCondition: "only when " + m.activationCondition, rollType: "applies to " + m.rollType + " rolls", surges: "grants " + m.surges + " surges", resourceRefreshType: "usable once per " + m.resourceRefreshType, triggerBefore: "before the roll" };
+    for (const k in MEANT) if (m[k] != null && m[k] !== "" && m[k] !== true && m[k] !== "none" && !(k === "rollType" && m[k] === "ability_power_roll")) hidden.push("power roll trigger " + MEANT[k]);
+    if ((m.keywords || []).length) hidden.push("only for rolls with keywords " + JSON.stringify(m.keywords));
+  }
+  a.openHidden = hidden;
+  return a;
+}
 /* Open, then fingerprint what every step compiles to, so untouched steps save back as they were. */
 function openForEditing(rec) {
-  const a = openAbility(rec); const saved = ab; ab = a;
+  const a = rec.__typeName === "CharacterModifier" ? openTrigger(rec) : openAbility(rec); const saved = ab; ab = a;
   registerScopes(ab); sigMode = "record"; compileAbility(); sigMode = null;
   return a;
 }

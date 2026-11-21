@@ -755,6 +755,76 @@ original, field by field. Triggers (10 CharacterModifiers) were not part of this
 - Triggers (CharacterModifier records) still need the same open-and-save test.
 - Content question: Dramatic Reversal's "Spend 1 Drama" option has the condition "Resources.Heroic Resource >= 2".
 
+## 4p. Second poll: monsters, new class abilities, triggers, and the book check (2026-11-21)
+
+A fresh random sample (new seed): 25 monster abilities across level bands (one per monster), 25 class
+abilities not in the first poll, and 10 player-facing triggers (5 class, 5 monster; 3 are power roll
+triggers). Each was opened, saved, edited, and its card compared with the printed text (monster-reference.md,
+the rulebook PDF text, the Beastheart reference). Scripts and results: `ui-mockup/ability-blocks-corpus/poll2/`.
+
+**Open and save**
+| Check | Result |
+|---|---|
+| Opens without error | 60 of 60 |
+| Untouched save identical to the original | 60 of 60 |
+| Rename changes only the name (a trigger's inner record takes the same name, by design) | 60 of 60 |
+| Raising one tier's damage changes only that power roll | 28 of 28 |
+| Can be saved as opened | 60 of 60 |
+| Opens entirely as blocks | monsters 17/25, class 15/25, triggers 4/10 |
+| Steps: blocks / Advanced / unread words | 297 / 29 / 1 |
+
+**Editor problems found and fixed in this round**
+- Triggers could not be opened at all. Now: trigger and power roll trigger records open into the trigger
+  header (event, who, distance, action, condition) and steps; a power roll trigger's roll changes become
+  "Change the roll" blocks; an opened trigger keeps its saved record type.
+- **The editor saved a power roll trigger's condition as `filterCondition`; the engine reads `targetFilter`**
+  (PowerTableTriggers.lua). Fixed.
+- The trigger event list had 14 of the engine's ~30 events (e.g. no "attack an enemy", used by Triangulate);
+  subjects lacked "another hero" and "you or another hero". Added; any other id opens with its raw name.
+- Monster power rolls ("2d10 + 3", "2d10 + Highest Characteristic") opened as Advanced steps, so their cards
+  had no tiers. The roll block now takes a flat bonus or "highest characteristic", and the card shows it
+  beside the name as monster cards do ("Acid and Claws (2d10 + 3)"). Also "Might or Agility", and a roll
+  saved with a trailing space.
+- Saved content can list option 2's steps before option 1's; editing anything in the choice block put them
+  in option order (one edit rewrote four steps). The saved order is now kept; new steps go last.
+- A power roll inside an option or "Only if you are Strained" showed as "make a power roll" instead of its tiers.
+- Abilities saved with no steps (text-only villain actions and the like) were blocked from saving.
+- "Villain action" was missing from the action list (4 monster abilities opened as "No action").
+- Target wording now comes from the saved filter ("Enemy" gives "each enemy in the area"; otherwise
+  "creature"), instead of always "enemy" for areas.
+- Tier grammar: "push 4 and prone" (two results joined by "and").
+- Descriptions with inline labels ("**2 Malice**:", "3 Malice:") split into labelled paragraphs.
+- Opened triggers show only saved wording on the card (no generated "Raise Corpse, float Text..." line).
+
+**Book check (44 with printed text)**
+| Part | Matches the book |
+|---|---|
+| Tiers | 77 of 81 |
+| Distance | 34 of 44 |
+| Target | 26 of 44 |
+| Effect paragraphs | 28 of 52 |
+| Whole card | 16 of 44 |
+
+None of the remaining mismatches come from the editor rewriting anything; they are what the saved data
+holds:
+- **Distance and target wording isn't stored for most monsters.** Class abilities carry `rangeTextOverride` /
+  `targetTextOverride`; monster records almost never do, so the card has to derive "Self" or "Ranged 5"
+  from targeting that is really done by a nested ability ("Five 2 cubes within 20", "The triggering
+  creature", "3 x 1 line within 1", "Special"). `objectTarget` is often unset where the book says
+  "creature or object", and "Self or one ally" / "Self and each ally" have no field.
+- **Effect text is paraphrased in many monster descriptions** ("The target is released from the grab and
+  slides 5." for "The target is no longer grabbed by the deathrex, and the deathrex slides them up to 5
+  squares."), and **triggered monster abilities' descriptions usually lack the Trigger line**.
+- Tier text doubles as automation, so where content adds parse-only words the card shows them too
+  (Gravitic Charge: "Vertical slide 5, ignoring stability"; the book puts that in the effect). One tier is a
+  placeholder in the data ("5 damage; effect", Rotting Fist).
+- 9 of the 24 effect mismatches are the check's own extraction picking up the next feature's text.
+
+**Recommendation from this:** the monster importer already parses the statblock's distance, target, trigger
+and effect text; it should store them verbatim (`rangeTextOverride`, `targetTextOverride`, `description`
+with "**Trigger:**" and "**N Malice:**" paragraphs). Then book-first cards work for monsters as they do for
+heroes. Worth a content pass for existing monsters.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -837,6 +907,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Opening existing content: anything unchanged saves back exactly as it was.** Steps, tiers, formulas and fields that compile to what they compiled to at open keep their saved form; changed steps write over the original record so hidden fields survive; unread words are kept, never dropped. On 45 real class abilities: untouched saves identical 45/45, single-tier edits touch only that tier 18/18. | Ship-safety: the simple editor will mostly be used on existing content, and must never damage what it doesn't understand. |
 | 2026-11-21 | **Opened abilities show their saved description as the effect text; Strained is a visible container; damage says who takes it.** Description edits save to `description`; "If you are Strained" saves `strainSelection`; damage gets "to you" and "that can't be reduced". | Review of Optic Blast: the card rewrote existing wording, and Strained and self-damage were invisible. |
 | 2026-11-21 | **Book first for the card.** The card always follows how the book displays an ability; saved book wording (description, mode rules, flavor, distance and target text) wins over generated text, and generated text uses the book's phrasing. Filters and requirements move off the card. **Strained is a test inside Only if** ("You are Strained"), saved as `strainSelection`, labelled "Strained:" on the card. | Asked for: "always preference the way the book displays it", and one place for conditions. |
+| 2026-11-21 | **Second poll (60: monsters, new class abilities, triggers) passes open-and-save 60/60.** Triggers now open (and the power roll trigger condition field is fixed to `targetFilter`); monster power rolls, villain actions, saved step order in modes, and text-only abilities are handled. The book check shows the remaining card differences come from data that doesn't store the printed wording, mainly monsters: the importer should store distance, target, trigger and effect text verbatim. | Evidence for shipping the editor on existing content, and a concrete content/import task for book-first monster cards. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

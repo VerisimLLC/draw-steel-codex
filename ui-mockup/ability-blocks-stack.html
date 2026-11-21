@@ -98,6 +98,19 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .tok:hover, .tok:focus-visible { background: rgba(255,255,255,.16); border-bottom-style: solid; outline: none; }
 .tok.bad { border-bottom: 2px solid var(--err); }
 .tok.quiet { font-weight: 400; opacity: .55; }
+.kwrow { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 2px; border-radius: 6px; }
+.kwrow.hot { outline: 2px solid #fff; outline-offset: 2px; background: rgba(255,255,255,.15); }
+.kwchip { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 999px; padding: 2px 4px 2px 9px; font-size: 12px; font-weight: 600; }
+.kwchip .clear { display: inline-block; background: rgba(0,0,0,.15); color: #1b1712; border: none; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; line-height: 1; cursor: pointer; padding: 0; }
+.kw-empty { opacity: .65; font-style: italic; font-size: 12px; }
+.kwadd { background: rgba(0,0,0,.25); border: 1px dashed rgba(255,255,255,.6); color: #fff; border-radius: 999px; padding: 2px 9px; font-size: 12px; cursor: pointer; }
+.kwgrid { display: flex; flex-wrap: wrap; gap: 4px; }
+.kwchip.pick, .kwchip.pal-kw { padding: 2px 9px; cursor: pointer; }
+.kwchip.pal-kw { background: var(--panel); color: var(--fg); border: 1px solid var(--line); font-weight: 500; cursor: grab; touch-action: none; user-select: none; }
+.kwchip.pal-kw:hover { border-color: var(--gold); }
+.kwchip.pal-kw.used { opacity: .35; cursor: default; }
+.kwchip.pick.hl { outline: 2px solid var(--gold); }
+.kwsw { background: var(--fg) !important; }
 .reading { gap: 4px !important; }
 .step.editing > .bar, .step.editing.cat-head > .bar { box-shadow: 0 0 0 2px var(--gold); position: relative; z-index: 1; }
 .edit-done { margin-left: 6px; background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 4px; height: 22px; padding: 0 8px; cursor: pointer; font-size: 12px; }
@@ -416,7 +429,7 @@ function rescope(o, scope, top) {
   if (typeof o.kind === "string" && typeof o.docs === "string") o.docs = o.docs.split("@")[0] + (scope ? "@" + scope.id : "");
   for (const k in o) rescope(o[k], scope, false);
 }
-const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","No action"];
+const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver",["No action", "no-action ability"]];
 const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","each enemy in the area","each creature in the area"];
 const DISTANCES = ["Melee","Ranged","Melee or ranged","Burst","Cube","Line","Self"];
 // Characteristics by their card letters, used wherever potency is shown (M < average).
@@ -427,7 +440,47 @@ const DURATIONS = ["save ends","EoT"];
 const FORCED = ["push","pull","slide","vertical push","vertical slide"];
 // Heroes use the caster's relative potency (weak/average/strong); monster content writes the number.
 const POT = [["weak","weak"],["average","average"],["strong","strong"],...["0","1","2","3","4","5","6"].map(n => [n, n])];
-const RESOURCES = ["no cost","Heroic Resource","Malice"];
+const RESOURCES = [["no cost", "nothing"], ["Heroic Resource", "Heroic Resource"], ["Malice", "Malice"]];
+/* Ability keywords: the registered list (GameSystem.RegisterAbilityKeyword in MCDMRules.lua; see
+   KEYWORDS.md). Keywords are picked or dragged in, never typed, so they always match the engine. */
+const ABILITY_KEYWORDS = ["Melee", "Ranged", "Strike", "Weapon", "Area", "Magic", "Psionic", "Charge", "Animal", "Focus", "Kit",
+  "Telepathy", "Telekinesis", "Chronopathy", "Air", "Earth", "Fire", "Green", "Rot", "Void", "Water", "Routine", "Performance", "Beastheart", "Companion"];
+// Older drafts and the examples store keywords as "A, B" text; everything else uses a list.
+function keywordsOf(a) { return Array.isArray(a.keywords) ? a.keywords : String(a.keywords || "").split(",").map(x => x.trim()).filter(Boolean); }
+function addKeyword(k) { const l = keywordsOf(ab); if (!l.includes(k)) { ab.keywords = l.concat([k]); refresh(); } }
+function removeKeyword(k) { ab.keywords = keywordsOf(ab).filter(x => x !== k); refresh(); }
+function keywordRow() {
+  const row = E("span", "kwrow"); row.dataset.kwdrop = "1";
+  const list = keywordsOf(ab);
+  if (!list.length) row.appendChild(E("span", "kw-empty", "none yet"));
+  list.forEach(k => {
+    const c = E("span", "kwchip", k);
+    const x = E("button", "clear", "\u00d7"); x.type = "button"; x.setAttribute("aria-label", "Remove keyword " + k);
+    x.addEventListener("click", ev => { ev.stopPropagation(); removeKeyword(k); });
+    c.appendChild(x); row.appendChild(c);
+  });
+  const add = E("button", "kwadd", "+ keyword"); add.type = "button";
+  add.addEventListener("click", ev => { ev.stopPropagation(); keywordMenu(add); });
+  row.appendChild(add);
+  return row;
+}
+/* Type-ahead of the keywords not yet on the ability: type a few letters, Enter adds the first. */
+function keywordMenu(anchor) {
+  closePopups();
+  const m = E("div", "menu typeahead"); m.addEventListener("click", ev => ev.stopPropagation());
+  const q = E("input"); q.placeholder = "Add a keyword: type to search"; q.setAttribute("aria-label", "Search keywords"); m.appendChild(q);
+  const box = E("div", "kwgrid"); m.appendChild(box);
+  let shown = [];
+  const draw = () => {
+    box.innerHTML = ""; const t = q.value.trim().toLowerCase(), have = keywordsOf(ab);
+    shown = ABILITY_KEYWORDS.filter(k => !have.includes(k) && (!t || k.toLowerCase().includes(t)));
+    shown.forEach((k, i) => { const b = E("button", "kwchip pick" + (i === 0 && t ? " hl" : ""), k); b.type = "button"; b.addEventListener("click", () => addKeyword(k)); box.appendChild(b); });
+    if (!shown.length) box.appendChild(E("div", "md", "No more keywords match."));
+  };
+  q.addEventListener("input", draw);
+  q.addEventListener("keydown", ev => { if (ev.key === "Enter" && shown[0]) { ev.preventDefault(); addKeyword(shown[0]); } });
+  draw(); place(m, anchor); q.focus();
+}
 
 /* =====================================================================
    Model. A holder is one formula slot: {kind, docs, expr, lit}. Number and
@@ -968,15 +1021,23 @@ function compileTriggered() {
   compileSteps(ab.steps, [], behaviors, prose);
   const roll = rollSink; rollSink = null; currentStorage = "ta";
   if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  if (storage === "prt" && keywordsOf(ab).length) notes.push("Keywords on a power roll trigger are shown on its card but not saved yet in this prototype (the field to use needs checking in the engine).");
   const range = cHolder(ab.trig.range);
   let rec;
   if (storage === "ta") {
     rec = { __typeName: "CharacterModifier", behavior: "trigger", name: ab.name,
       triggeredAbility: { __typeName: "TriggeredAbility", name: ab.name, trigger: ev.ta, subject: who.ta, subjectRange: who.ta === "self" ? undefined : range.s,
         actionResourceId: ab.trig.action === "passive" ? "none" : "<" + (TRIG_ACTIONS.find(a => a[0] === ab.trig.action) || [0, ""])[1] + ">",
-        targetType: ab.trig.affects, conditionFormula: cond.empty ? "" : cond.s, behaviors } };
+        targetType: ab.trig.affects, conditionFormula: cond.empty ? "" : cond.s, behaviors,
+        keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])) } };
+    if (ab.resource !== "no cost") { rec.triggeredAbility.resourceCost = "<" + ab.resource + ">"; rec.triggeredAbility.resourceNumber = cHolder(ab.cost).s; }
   } else {
     const mod = Object.assign({ __typeName: "CharacterModifier", behavior: "power", name: ab.name, rollType: "ability_power_roll" }, roll);
+    // Power roll triggers carry their cost on the power modifier (resourceCostType / resourceCostAmount in content).
+    if (ab.resource !== "no cost") {
+      mod.resourceCostType = "cost"; mod.resourceCostAmount = cHolder(ab.cost).s;
+      if (ab.resource !== "Heroic Resource") notes.push("A power roll trigger's cost is saved as resourceCostType \"cost\"; content only shows that used for Heroic Resource, so how a Malice cost is stored needs checking in the engine.");
+    }
     if (behaviors.length) { mod.hasCustomTrigger = true; mod.customTrigger = { __typeName: "TriggeredAbility", name: ab.name, trigger: "d20roll", targetType: ab.trig.affects, behaviors }; }
     rec = { __typeName: "CharacterModifier", behavior: "powertabletrigger", name: ab.name, type: ab.trig.action, targetType: who.prt, trigger: ev.prt, range: range.s,
       filterCondition: cond.empty ? undefined : cond.s, powerRollModifier: mod };
@@ -994,7 +1055,7 @@ function compileAbility() {
   if (!ab.steps.length) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
   const rec = {
     __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
-    keywords: Object.fromEntries(ab.keywords.split(",").map(s => s.trim()).filter(Boolean).map(k => [k, true])),
+    keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
     targetType: ab.distance === "Self" ? "self" : ["Burst", "Cube", "Line"].includes(ab.distance) ? ab.distance.toLowerCase() : "target",
     range: range.s, numTargets: num.s,
   };
@@ -1403,6 +1464,12 @@ document.addEventListener("keydown", ev => {
   if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z" && !ev.target.matches("input, textarea")) { ev.preventDefault(); undo(); }
 });
 
+/* The same three sentences for abilities and triggered abilities:
+   "[Name] is a [Main action]" / "which costs [nothing | 3 Heroic Resource]" / "and has the keywords [..]". */
+function whatRows(nameInput, actionSelect) {
+  const cost = ab.resource !== "no cost" ? [lbl("which costs"), renderHolder(ab.cost), sel(ab, "resource", RESOURCES, null, "resource")] : [lbl("which costs"), sel(ab, "resource", RESOURCES, null, "resource")];
+  return [[nameInput, lbl("is a"), actionSelect], cost, [lbl("and has the keywords"), keywordRow()]];
+}
 function kindBar() {
   const bar = E("div", "kindbar");
   bar.appendChild(E("span", "q", "This is"));
@@ -1419,8 +1486,7 @@ function renderTriggeredHeader() {
   const t = ab.trig, ev = EVENTS[t.event];
   main.appendChild(section("What is it"));
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
-  main.appendChild(headBlock([[nm, lbl("is a"), sel(t, "action", TRIG_ACTIONS, null, "action")],
-    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()]], "hdr-what"));
+  main.appendChild(headBlock(whatRows(nm, sel(t, "action", TRIG_ACTIONS, null, "action")), "hdr-what"));
   main.appendChild(section("What sets it off"));
   const during = compiledCache && compiledCache.storage === "prt";
   const chip = E("span", "timing" + (during ? "" : " after"), during ? "Happens during the roll" : "Happens after the event");
@@ -1450,9 +1516,7 @@ function renderMain() {
   if (ab.kind === "triggered") return renderTriggeredHeader();
   main.appendChild(section("What is it"));
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
-  main.appendChild(headBlock([[lbl("When"), nm, lbl("is used as a"), sel(ab, "action", ACTIONS, null, "action")],
-    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()],
-    ab.resource !== "no cost" ? [lbl("Costs"), renderHolder(ab.cost), sel(ab, "resource", RESOURCES, null, "resource")] : [lbl("Costs"), sel(ab, "resource", RESOURCES, null, "resource")]], "hdr-what"));
+  main.appendChild(headBlock(whatRows(nm, sel(ab, "action", ACTIONS, null, "action")), "hdr-what"));
 
   main.appendChild(section("Who it targets"));
   const t = headBlock([
@@ -1529,7 +1593,7 @@ function renderSide(c) {
     const sq = c.range.s === "1" ? " square " : " squares ";
     const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + esc(c.range.s) + sq + ev.other;
     let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc((TRIG_ACTIONS.find(a => a[0] === t.action) || ["", ""])[1]) + "</span></div>";
-    html += '<div class="kw">' + esc(ab.keywords) + "</div>";
+    html += '<div class="kw">' + esc(keywordsOf(ab).join(", ")) + "</div>";
     html += '<div class="eff"><b>Trigger:</b> ' + cap(esc(subj)) + (c.cond.empty ? "" : ", if " + esc(c.cond.prose)) + ".</div>";
     const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
     // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
@@ -1545,7 +1609,7 @@ function renderSide(c) {
   const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
     : /^\d+$/.test(c.num.s) ? c.num.s + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
   let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc(ab.action) + (ab.resource !== "no cost" ? " &middot; " + fm(c.cost) + " " + esc(ab.resource) : "") + "</span></div>";
-  html += '<div class="kw">' + esc(ab.keywords) + "</div>";
+  html += '<div class="kw">' + esc(keywordsOf(ab).join(", ")) + "</div>";
   html += '<div class="grid"><div><b>Distance:</b> ' + dist + "</div><div><b>Target:</b> " + tgt + "</div></div>";
   for (const p of c.prose) {
     if (p.kind === "roll") {
@@ -1853,6 +1917,16 @@ function renderPalette() {
   tg.addEventListener("click", () => { pal.classList.toggle("collapsed"); renderPalette(); });
   pal.appendChild(tg);
   pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it at the gold marker: <b>" + esc(where) + "</b>." }));
+  // Keywords: click to add, or drag onto "and has the keywords".
+  const kg = E("div", "pgroup kwgroup"); const kh = E("h3"); kh.appendChild(E("span", "sw kwsw")); kh.appendChild(E("span", null, "Keywords")); kg.appendChild(kh);
+  const kbox = E("div", "kwgrid"); const have = keywordsOf(ab);
+  ABILITY_KEYWORDS.forEach(k => {
+    const b = E("button", "kwchip pal-kw" + (have.includes(k) ? " used" : ""), k); b.type = "button"; b.dataset.kw = k;
+    b.title = have.includes(k) ? "Already on this ability" : "Click to add, or drag onto the keywords";
+    b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (!have.includes(k)) addKeyword(k); });
+    kbox.appendChild(b);
+  });
+  kg.appendChild(kbox);
   for (const [cat, title, types, only] of PALETTE) {
     if (only === "triggered" && ab.kind !== "triggered") continue;
     const g = E("div", "pgroup cat-" + cat);
@@ -1869,6 +1943,7 @@ function renderPalette() {
     }
     pal.appendChild(g);
   }
+  pal.appendChild(kg);   // steps are used far more often, so keywords sit at the bottom
 }
 function addStepTo(type, act, idx) {
   const st = STEPS[type].make(act.ctx);
@@ -1959,6 +2034,12 @@ function allHolders() {
 }
 document.addEventListener("pointerdown", ev => {
   if (ev.button !== 0) return;
+  const kwb = ev.target.closest(".pal-kw");
+  if (kwb && !kwb.classList.contains("used")) {
+    drag = { kind: "kw", kw: kwb.dataset.kw, el: kwb, sx: ev.clientX, sy: ev.clientY, fromPalette: true };
+    const r = kwb.getBoundingClientRect(); drag.ox = ev.clientX - r.left; drag.oy = ev.clientY - r.top;
+    return;
+  }
   const pb = ev.target.closest(".pal-step");
   if (pb) {
     drag = { kind: "new", st: { type: pb.dataset.palette }, el: pb, sx: ev.clientX, sy: ev.clientY, fromPalette: true };
@@ -1992,7 +2073,10 @@ document.addEventListener("pointermove", ev => {
   main.querySelectorAll(".drop-line").forEach(l => l.remove());
   main.querySelectorAll(".holder.hot").forEach(l => l.classList.remove("hot"));
   drag.target = null;
-  if (drag.kind === "step" || drag.kind === "new") {
+  if (drag.kind === "kw") {
+    const row = main.querySelector("[data-kwdrop]");
+    if (row) { const r = row.getBoundingClientRect(); const over = ev.clientX >= r.left - 10 && ev.clientX <= r.right + 10 && ev.clientY >= r.top - 10 && ev.clientY <= r.bottom + 10; row.classList.toggle("hot", over); drag.target = over ? row : null; }
+  } else if (drag.kind === "step" || drag.kind === "new") {
     const ctxOk = (c, sEl) => allowed(drag.st.type, c, listScopes[sEl.dataset.list] || null);
     let best = null;
     main.querySelectorAll(".stack[data-list]").forEach(s => {
@@ -2024,6 +2108,7 @@ document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null; ghost.innerHTML = "";
   if (!d.on) return;
+  if (d.kind === "kw") { main.querySelectorAll(".kwrow.hot").forEach(x => x.classList.remove("hot")); if (d.target) addKeyword(d.kw); else refresh(); return; }
   if (d.kind === "new") {
     if (d.target) { const id = listId(d.target.list); addStepTo(d.st.type, { list: d.target.list, ctx: listCtx[id] || "main", scope: listScopes[id] || null }, d.target.idx); }
     else refresh();

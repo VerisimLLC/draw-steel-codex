@@ -6322,11 +6322,9 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
---Running total of damage taken from one ability, seen by Take Damage triggers as
---Ability Damage ("10+ damage from a single ability"). It lives on the creature, not
---in a local table, because one ability's hits can land on different clients: a
---slide's collision damage runs as a Collision trigger on whoever controls the victim.
---Only the most recent ability is tracked; a hit from another one starts a new total.
+--Damage taken from the most recent ability, shown to Take Damage triggers as Ability
+--Damage. Saved on the creature so hits that resolve on different clients still add up.
+--A hit from another ability starts a new total.
 creature.abilityDamageCastId = ""
 creature.abilityDamageTotal = 0
 
@@ -6336,12 +6334,12 @@ creature.abilityDamageTotal = 0
 --- moved the creature. Any other ability damage is keyed by its own cast.
 --- @param self creature the creature taking the damage
 --- @param info table the TakeDamage info
---- @param amount number damage actually taken by this hit
+--- @param amount number damage this hit dealt, including any absorbed by temporary Stamina
 --- @return number total damage from that ability so far, or amount when no ability dealt it
 local function AccumulateAbilityDamage(self, info, amount)
     local castid = info.abilitydamagecastid
     if (castid == nil or castid == "") and info.cast ~= nil then
-        castid = info.cast:get_or_add("guid", dmhub.GenerateGuid())
+        castid = info.cast:EnsureGuid()
     end
     if type(castid) ~= "string" or castid == "" then
         return amount
@@ -6715,10 +6713,12 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.attacker = nil
     end
     eventArg.damage = amount
-    eventArg.abilitydamage = AccumulateAbilityDamage(self, info, amount)
     --damage is the Stamina actually lost; fulldamage also counts what temporary
     --Stamina absorbed (the damage the creature took, by the rules).
     eventArg.fulldamage = original_amount
+    --Counts the full damage, like Damage This Turn, so temporary Stamina does not
+    --hide part of a hit from "10+ damage from one ability" triggers.
+    eventArg.abilitydamage = AccumulateAbilityDamage(self, info, math.max(0, original_amount))
     eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, original_amount))
     --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
     --immunity applied, so its raw damage is just the amount.

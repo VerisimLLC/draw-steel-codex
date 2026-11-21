@@ -1754,7 +1754,7 @@ TriggeredAbility.RegisterTrigger{
         abilitydamage = {
             name = "Ability Damage",
             type = "number",
-            desc = "Total damage taken so far from the ability that dealt this damage, including this hit and any collision damage from forced movement that ability caused. An ability invoked by another counts separately, and a hit from a different ability starts a new total. Equals Damage when no ability dealt it. Use Ability Damage >= 10 and (Ability Damage - Damage) < 10 to fire once per ability.",
+            desc = "Total damage taken so far from the ability that dealt this damage, including this hit, any part absorbed by temporary Stamina, and any collision damage from forced movement that ability caused. An ability invoked by another counts separately, and a hit from a different ability starts a new total. Equals Full Damage when no ability dealt it. Use Ability Damage >= 10 and (Ability Damage - Full Damage) < 10 to fire once per ability.",
         },
         damagethisturn = {
             name = "Damage This Turn",

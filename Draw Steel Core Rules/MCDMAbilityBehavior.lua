@@ -76,7 +76,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
     --"Targets Perform Rule": each target is the actor, so "shift {MovementSpeed}"
     --moves the target by its own speed. It takes priority over applyto's choice of actor.
-    local targetsPerformRule = self:try_get("targetPerformsRule", false)
+    local targetsPerformRule = self:try_get("targetsPerformRule", false)
 
     repeat
         if promptWhenResolving and #targets > 0 then
@@ -797,11 +797,8 @@ local g_rulePatterns = {
             }
 
             --The behavior can swap the generic "You may slide..." line for its own
-            --guidance, e.g. which way to move each target (Spider Gerold's Now Our Debts Are Paid).
-            local customPrompt = ""
-            if behavior ~= nil and behavior.typeName ~= nil then
-                customPrompt = behavior:try_get("forcedMovementPromptText", "")
-            end
+            --guidance, e.g. which way to move each target.
+            local customPrompt = behavior:try_get("forcedMovementPromptText", "")
             if trim(customPrompt) ~= "" then
                 abilityAttr.promptOverride = StringInterpolateGoblinScript(customPrompt, casterToken.properties:LookupSymbol(options.symbols))
             end
@@ -3874,9 +3871,9 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
     result[#result+1] = gui.Check{
         text = "Targets Perform Rule",
         hover = gui.Tooltip("Each target does the rule itself, e.g. \"shift {MovementSpeed}\" moves the target by its own speed. Overrides Apply To for who acts."),
-        value = self:try_get("targetPerformsRule", false),
+        value = self:try_get("targetsPerformRule", false),
         change = function(element)
-            self.targetPerformsRule = element.value
+            self.targetsPerformRule = element.value
         end,
     }
 

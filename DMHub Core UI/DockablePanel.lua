@@ -2828,6 +2828,8 @@ DockablePanel = {
 				for _,panelInfo in ipairs(dockInfo.panels) do
 					
 					local panelInstances = {}
+					--a container saved with both the Action Log and History shows the one in use once.
+					local shownIds = {}
 
 					--try to find the panel with this identifier and create it.
 					
@@ -2839,7 +2841,8 @@ DockablePanel = {
 						--that can't show may have one standing in for it.
 						local shown = DockStandIn(dockablePanels[savedid])
 						local panelid = shown ~= nil and shown.identifier or savedid
-						if dockablePanels[savedid] == nil or shown ~= nil then
+						if (dockablePanels[savedid] == nil or shown ~= nil) and not shownIds[panelid] then
+							shownIds[panelid] = true
 							if existingInstances[panelid] ~= nil then
 								panelInstances[#panelInstances+1] = existingInstances[panelid]
 								existingInstances[panelid] = nil

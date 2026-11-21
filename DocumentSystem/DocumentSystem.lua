@@ -10479,8 +10479,9 @@ function PanelDocument:CreateInterface(args)
         end
         local active = FindTab(m_activeKey)
         if active ~= nil and active.reg.headerControl ~= nil and m_headerControls[active.key] == nil then
-            local control = active.reg.headerControl()
-            if control ~= nil then
+            --a panel's own control failing must not stop the window opening or switching tabs.
+            local ok, control = pcall(active.reg.headerControl)
+            if ok and control ~= nil then
                 --a holder per tab, so the window's show/hide never fights
                 --the control's own collapsed class.
                 m_headerControls[active.key] = gui.Panel{

@@ -541,6 +541,23 @@ and the Hellfire aura, and leaves only the aura's own effect to fill in (the car
 does). A monster strike with "M<3 prone; the target can't stand (EoT)" and an ally free-strike sentence
 builds everything except those two clauses.
 
+**Messy copies (third-party PDF test, Instant Cement).** Copying from a PDF loses the icons, and the icons
+carry meaning: the tier markers (the three result lines arrive bare), the distance and target icons, and
+sometimes the potency ("2 poison damage; , slowed (save ends)"). The reader now:
+- turns icons and odd spaces into plain spaces, and reads "Name (5-Wonder)" as well as "Name 5 Insight";
+- treats the first three bare lines after "Power Roll + X" as tiers 1-3;
+- reads a lone comma before a condition as a lost potency and **guesses** it (the roll's characteristic,
+  weak/average/strong by tier, as cards do), marking the block **check** so the author confirms it;
+- keeps a resource no core class has (Wonder) as the card's word;
+- builds "The area is difficult terrain for your enemies" as an aura on the target area, and "Each enemy who
+  ends their turn in the area and has M < AVERAGE slowed (save ends)" as a section of that aura with an
+  "Only if M < average" test.
+
+Finding: auras have no "end of the affected creature's turn" trigger (`Aura.TriggerConditions` has enter,
+first enter each round, start of the affected creature's turn, and start/end of the caster's turn). The
+prototype shows the section and blocks saving with "engine work: a new aura trigger".
+
+
 Engine work if adopted: a JS-free Lua path. The paste dialog calls the importer's parsing functions on one
 ability's text, maps the resulting behaviours to blocks (the same mapping the editor uses to open saved
 abilities), and "Save as pattern" writes an `importerAbilityEffects` row.
@@ -618,6 +635,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Paste ability text is an option on the start row and in the header.** It reuses the statblock importer's parsing (header, tiers, effect templates). Read text becomes blocks, the wording becomes the card text, and each unread sentence becomes a "To build" block with "Save as pattern" to teach the importer. | Most abilities are copied from a printed card; building from the text is fewer clicks, and every hand-built sentence teaches the next paste. |
 | 2026-11-21 | **Costs use the class's resource name when the ability belongs to a class** ("which costs 5 Insight" on a Shadow ability; the card says the same). It is only wording: the save still points at the Heroic Resource. Pasted text that names a class resource picks the class. Hellfire's own effect is out of scope for the Raise Hell test. | Authors and players think in Insight, Wrath and Piety, not "Heroic Resource". |
 | 2026-11-21 | **"Who it targets" stays as the author set it when a block (e.g. Move a creature) picks the targets.** No "set by..." wording. | Abilities with unusual targeting are already labeled Special targeting on the card, so authors expect the row to differ from what the blocks do. |
+| 2026-11-21 | **Pasting tolerates lost icons and marks guesses.** Bare tier lines are read in order; a potency lost with its icon is guessed (roll characteristic, weak/average/strong by tier) and marked "check"; unknown resource words (third-party) stay on the card. | Real copies from PDFs and third-party books drop the icons that carry meaning; a marked guess is fewer clicks than a blank. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

@@ -142,6 +142,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .menu.paste { width: min(560px, calc(100vw - 32px)); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .paste-box { width: 100%; min-height: 220px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font: 12.5px var(--font-mono); color: var(--fg); }
 .paste-row { display: flex; gap: 8px; }
+.adv-tag.guess { background: var(--gold); color: var(--bg); }
 .starter.paste-start { border-color: var(--gold); color: var(--gold); }
 .typeahead input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; }
 .typeahead .opt.hl { background: var(--panel); outline: 1px solid var(--gold); }
@@ -512,7 +513,7 @@ const RESOURCES = [["no cost", "nothing"], ["Heroic Resource", "Heroic Resource"
 // belongs to; the save still points at the Heroic Resource, only the words change.
 const CLASS_RESOURCES = { Beastheart: "Ferocity", Censor: "Wrath", Conduit: "Piety", Elementalist: "Essence", Fury: "Ferocity",
   Null: "Discipline", Shadow: "Insight", Summoner: "Essence", Tactician: "Focus", Talent: "Clarity", Troubadour: "Drama" };
-function resName(r) { return r === "Heroic Resource" && ab.owner && CLASS_RESOURCES[ab.owner] ? CLASS_RESOURCES[ab.owner] : r; }
+function resName(r) { if (r === "Heroic Resource" && ab.resourceWord) return ab.resourceWord; return r === "Heroic Resource" && ab.owner && CLASS_RESOURCES[ab.owner] ? CLASS_RESOURCES[ab.owner] : r; }
 function resourceOptions() { return RESOURCES.map(([v, l]) => [v, resName(l)]); }
 /* Ability keywords: the registered list (GameSystem.RegisterAbilityKeyword in MCDMRules.lua; see
    KEYWORDS.md). Keywords are picked or dragged in, never typed, so they always match the engine. */
@@ -1060,6 +1061,7 @@ function compileSteps(list, filters, out, prose) {
           const b2 = [], p2 = [];
           compileSteps(st.branches[id] || [], [], b2, p2);
           if (p2.length) parts.push(AURA_WHEN[id].toLowerCase().replace("a creature", AURA_WHO[f.applyto]) + ", " + p2.map(q => q.kind === "roll" ? "make a power roll" : q.text.charAt(0).toLowerCase() + q.text.slice(1)).join(", then "));
+          if (AURA_WHEN_MISSING[id]) bad(st.id, "Auras can't react to a creature ending its turn in them yet (engine work: a new aura trigger).");
           return { trigger: id, ability: { __typeName: "TriggeredAbility", name: f.name, trigger: id, targetType: "self", silent: true, behaviors: b2 } };
         });
         if (!parts.length && f.difficult !== "yes") bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add steps under \u201cWhen a creature enters it\u201d (or another \u201cwhen\u201d).");
@@ -1370,7 +1372,9 @@ function renderStep(st, list, ctx, scope) {
     case "damage": add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage")); gsHolder = st.slots.amount; break;
     case "condition": add(lbl("Make the target")); add(sel(f, "cond", CONDITIONS, null, "condition")); add(sel(f, "dur", DURATIONS, null, "duration")); break;
     case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
-    case "potency": add(lbl("If")); add(sel(f, "ch", POT_CHARS, null, "characteristic")); add(lbl("<")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency:")); break;
+    case "potency": add(lbl("If")); add(sel(f, "ch", POT_CHARS, null, "characteristic")); add(lbl("<")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency:"));
+      if (f.guess) { const g = E("span", "adv-tag guess", "check"); g.title = f.guess; add(g); }
+      break;
     case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
     case "applyEffect": {
       if (ctx !== "tier") add(sel(f, "who", WHO_OPTS, null, "who"));
@@ -1757,6 +1761,23 @@ const SENTENCE_PATTERNS = [
     build: (m, ctx) => { if (!ctx.lastMove) return null; Object.assign(ctx.lastMove.f, { catch: "through", catchWho: m[1] === "creature" ? "any" : m[1].toLowerCase() }); return []; } },
   { re: /^each space you (?:enter or leave|move through) during this movement is (?:burning with )?(.+)$/i,
     build: (m, ctx) => { if (!ctx.lastMove) return null; ctx.lastMove.f.trail = "yes"; const au = STEPS.aura.make(); au.f.name = cap(m[1].replace(/^burning with /i, "")); au.f.where = "trail"; return [au]; } },
+  { re: /^the area is difficult terrain(?: for (your enemies|enemies|all creatures|creatures|your allies))?(?: until the end of the encounter)?$/i,
+    build: (m, ctx) => { const au = STEPS.aura.make(); Object.assign(au.f, { name: ctx.abilityName, where: "area", difficult: "yes", applyto: !m[1] || /creatures/i.test(m[1]) ? "all" : /enem/i.test(m[1]) ? "enemies" : "friends", trigs: [] }); au.branches = {}; ctx.lastAura = au; return [au]; } },
+  { re: /^each (enemy|creature|ally) (?:who|that) (ends|starts) (?:their|its) turn in the area(?: and has)?\s+(?:([MARIP])\s*<\s*(weak|average|strong)\s*,?\s*)?(?:is\s+)?(\w+) \((save ends|eot)\)$/i,
+    build: (m, ctx) => {
+      if (!ctx.lastAura) return null;
+      const cond = CONDITIONS.find(x => x.toLowerCase() === m[5].toLowerCase()); if (!cond) return null;
+      const id = /ends/i.test(m[2]) ? "targetendturnaura" : "targetstartturnaura";
+      const au = ctx.lastAura; if (!au.f.trigs.includes(id)) { au.f.trigs.push(id); au.branches[id] = []; }
+      const c = STEPS.condition.make(); c.f.cond = cond; c.f.dur = /eot/i.test(m[6]) ? "EoT" : "save ends";
+      if (m[3]) {
+        // No power roll inside an aura, so this is the creature form (roll changes can't count).
+        const onlyIf = STEPS.ifStep.make();
+        onlyIf.slots.cond = holderFromText("boolean", "stepIf", 'not Target.PassesPotency("' + m[3].toUpperCase() + '", Caster.' + cap(m[4].toLowerCase()) + ")");
+        onlyIf.branches.then.push(c); au.branches[id].push(onlyIf);
+      } else au.branches[id].push(c);
+      return [];
+    } },
   { re: /^each target regains (\d+) stamina$/i, build: m => { const h = STEPS.heal.make(); h.slots.amount = holderFromText("roll", "heal", m[1]); return [h]; } },
   { re: /^(the target|you) gains? (\d+) temporary stamina$/i, build: m => { const t = STEPS.tempStamina.make(); t.f.who = /^you/i.test(m[1]) ? "caster" : "targets"; t.slots.amount = holderFromText("number", "tempStamina", m[2]); return [t]; } },
   { re: /^(?:the target is|each target is) (\w+) \((save ends|eot)\)$/i, build: m => { const c = STEPS.condition.make(); const cond = CONDITIONS.find(x => x.toLowerCase() === m[1].toLowerCase()); if (!cond) return null; c.f.cond = cond; c.f.dur = /eot/i.test(m[2]) ? "EoT" : "save ends"; return [c]; } },
@@ -1768,6 +1789,13 @@ function parseTierText(text, ctx) {
   const steps = [];
   for (let seg of text.split(/;\s*/)) {
     seg = seg.trim().replace(/\.$/, ""); if (!seg) continue;
+    // "; , slowed (save ends)": the potency (e.g. R < AVERAGE) was an icon and did not copy. Cards raise
+    // potency with the tier (weak, average, strong) and use the roll's characteristic, so guess that.
+    if (/^,/.test(seg) && ctx.tier) {
+      const pot = STEPS.potency.make(); pot.f.ch = ctx.rollChar; pot.f.tier = { t1: "weak", t2: "average", t3: "strong" }[ctx.tier];
+      pot.f.guess = "The potency was an icon and didn't copy. Guessed from the tier and the roll's characteristic: check it.";
+      pot.branches.then = parseTierText(seg.replace(/^,\s*/, ""), ctx); steps.push(pot); ctx.guesses++; continue;
+    }
     const pm = seg.match(/^([MARIP])\s*<\s*(weak|average|strong|\d+)\s*,?\s*(.+)$/i);
     if (pm) { const pot = STEPS.potency.make(); pot.f.ch = CHAR_BY_LETTER[pm[1].toLowerCase()]; pot.f.tier = pm[2].toLowerCase(); pot.branches.then = parseTierText(pm[3], ctx); steps.push(pot); continue; }
     let m;
@@ -1800,17 +1828,25 @@ function parseEffectParagraph(text, ctx) {
   }
   return out;
 }
+function cleanPastedText(raw) {
+  return raw.replace(/[\u00a0\u2000-\u200b\u202f\u3000]/g, " ")      // odd spaces
+    .replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
+    .replace(/[^\x09\x0a\x0d\x20-\x7e\u2264\u2013\u2014]/g, " "); // icons (tier, distance, target) become spaces
+}
 function importAbilityText(raw) {
+  raw = cleanPastedText(raw);
   const lines = raw.split(/\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
-  const a = newAbility(); a.keywords = []; a.overrides = {};
-  const ctx = { matched: 0, todo: 0, lastMove: null, report: [] };
+  const a = newAbility(); a.keywords = []; a.overrides = {}; a.resourceWord = null;
+  const ctx = { matched: 0, todo: 0, lastMove: null, lastAura: null, report: [], tiersSeen: 0, tier: null, rollChar: "Might", guesses: 0 };
   let i = 0;
   // Header: "Raise Hell 5 Insight" (name, cost, resource) or just a name.
-  const hm = lines[0] && lines[0].match(/^(.+?)\s+(\d+)\s+([A-Za-z][A-Za-z ]*)$/);
-  if (hm) { a.name = hm[1]; a.cost = H("number", "cost", hm[2]); a.resource = /malice/i.test(hm[3]) ? "Malice" : "Heroic Resource";
+  const hm = lines[0] && (lines[0].match(/^(.+?)\s*\(\s*(\d+)\s*[-\u2013 ]\s*([A-Za-z][A-Za-z ]*?)\s*\)$/) || lines[0].match(/^(.+?)\s+(\d+)\s+([A-Za-z][A-Za-z ]*)$/));
+  if (hm) { a.name = hm[1]; ctx.abilityName = hm[1]; a.cost = H("number", "cost", hm[2]); a.resource = /malice/i.test(hm[3]) ? "Malice" : "Heroic Resource";
     if (!ab.owner || CLASS_RESOURCES[ab.owner] !== cap(hm[3].toLowerCase())) { const cls = Object.keys(CLASS_RESOURCES).find(c => CLASS_RESOURCES[c].toLowerCase() === hm[3].toLowerCase()); if (cls) a.owner = cls; }
-    if (!a.owner && ab.owner) a.owner = ab.owner; ctx.report.push("Name and cost: " + hm[1] + ", " + hm[2] + " " + hm[3]); }
-  else if (lines[0]) { a.name = lines[0]; ctx.report.push("Name: " + lines[0]); }
+    if (!a.owner && ab.owner) a.owner = ab.owner;
+    // A resource no core class uses (third-party, e.g. Wonder) keeps its own word on the card.
+    if (a.resource === "Heroic Resource" && CLASS_RESOURCES[a.owner] !== cap(hm[3].toLowerCase())) a.resourceWord = cap(hm[3].toLowerCase()); ctx.report.push("Name and cost: " + hm[1] + ", " + hm[2] + " " + hm[3]); }
+  else if (lines[0]) { a.name = lines[0]; ctx.abilityName = lines[0]; ctx.report.push("Name: " + lines[0]); }
   i = 1;
   const actRe = /(main action|maneuver|free triggered action|triggered action|free maneuver|no action)$/i;
   const isKwLine = l => actRe.test(l) && /^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*\s+/.test(l);
@@ -1835,7 +1871,7 @@ function importAbilityText(raw) {
       let dm;
       if (/^self/i.test(dist)) { a.distance = "Self"; if (!/^self$/i.test(dist)) a.overrides.distance = { text: dist, basis: null }; }
       else if ((dm = dist.match(/^(melee|ranged)\s+(\d+)$/i))) { a.distance = cap(dm[1].toLowerCase()); a.range = H("number", "range", dm[2]); }
-      else if ((dm = dist.match(/^(\d+)\s+(burst|cube|line)/i))) { a.distance = cap(dm[2].toLowerCase()); a.range = H("number", "range", dm[1]); }
+      else if ((dm = dist.match(/^(\d+)\s+(burst|cube|line)/i))) { a.distance = cap(dm[2].toLowerCase()); a.range = H("number", "range", dm[1]); if (dm[0].length < dist.length) a.overrides.distance = { text: dist, basis: null }; }
       else a.overrides.distance = { text: dist, basis: null };
       ctx.report.push("Distance and target: " + dist + " / " + target); i++;
     }
@@ -1845,10 +1881,14 @@ function importAbilityText(raw) {
   const flushPara = () => { if (!para) return; a.overrides[paraKey] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})[paraKey] = para.label; a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
   for (; i < lines.length; i++) {
     const l = lines[i]; let m;
-    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; a.steps.push(pr); paraKey = "effect"; ctx.report.push("Power roll + " + pr.f.char); continue; }
+    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; ctx.rollChar = pr.f.char; a.steps.push(pr); paraKey = "effect"; ctx.report.push("Power roll + " + pr.f.char); continue; }
     if (pr && (m = l.match(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s+(.+)$/i))) {
       const k = /^(\u2264|11)/.test(m[1]) ? "t1" : /^12/.test(m[1]) ? "t2" : "t3";
-      pr.branches[k] = parseTierText(m[2], ctx); continue;
+      ctx.tier = k; pr.branches[k] = parseTierText(m[2], ctx); ctx.tiersSeen++; continue;
+    }
+    if (pr && ctx.tiersSeen < 3 && !para && !/^[A-Z][A-Za-z0-9 ]{1,30}:/.test(l)) {
+      const k = ["t1", "t2", "t3"][ctx.tiersSeen++]; ctx.tier = k; ctx.tierGuess = true;
+      pr.branches[k] = parseTierText(l, ctx); continue;
     }
     if ((m = l.match(/^([A-Z][A-Za-z0-9 ]{1,30}):\s*(.*)$/))) { flushPara(); para = { label: m[1], text: m[2] }; continue; }
     if (para) para.text += " " + l;   // a wrapped line continues the paragraph
@@ -1871,7 +1911,7 @@ function pasteDialog() {
   go.addEventListener("click", () => {
     const { ability, ctx } = importAbilityText(ta.value);
     ab = ability; registerScopes(ab); insertAt = null; editingId = null; compiledCache = null; closePopups(); refresh();
-    toast("Read: " + ctx.report.length + " lines of header and " + ctx.matched + " effect sentence" + (ctx.matched === 1 ? "" : "s") + " built. " + (ctx.todo ? ctx.todo + " to build by hand." : "Nothing left to build."), true);
+    toast("Read: " + ctx.report.length + " lines of header and " + ctx.matched + " effect sentence" + (ctx.matched === 1 ? "" : "s") + " built. " + (ctx.todo ? ctx.todo + " to build by hand." : "Nothing left to build.") + (ctx.guesses ? " " + ctx.guesses + " guess" + (ctx.guesses === 1 ? "" : "es") + " marked \u201ccheck\u201d." : ""), true);
   });
   row.appendChild(go); row.appendChild(sample); m.appendChild(row);
   document.body.appendChild(m); m.style.left = Math.max(8, (window.innerWidth - m.offsetWidth) / 2) + "px"; m.style.top = (window.scrollY + 90) + "px"; popup = m;
@@ -2274,7 +2314,10 @@ const stepDef = st => (st.type === "generic" && st.f && STEPS[st.f.key]) || STEP
 // Aura options, from Aura.ApplyOptions and Aura.TriggerConditions in Aura.lua.
 const AURA_APPLY = [["enemies", "enemies"], ["all", "all creatures"], ["allother", "all other creatures"], ["selfandfriends", "you and allies"], ["friends", "allies"]];
 const AURA_WHO = { enemies: "an enemy", all: "a creature", allother: "another creature", selfandfriends: "you or an ally", friends: "an ally" };
-const AURA_WHEN = { onenter: "When a creature enters it", onfirstenterround: "The first time each round a creature enters it", targetstartturnaura: "When a creature starts its turn in it", casterstartturnaura: "At the start of your turn", casterendturnaura: "At the end of your turn" };
+const AURA_WHEN = { onenter: "When a creature enters it", onfirstenterround: "The first time each round a creature enters it", targetstartturnaura: "When a creature starts its turn in it", casterstartturnaura: "At the start of your turn", casterendturnaura: "At the end of your turn",
+  // Not an Aura trigger in the engine yet (Aura.TriggerConditions); shown so pasted text that needs it has a home.
+  targetendturnaura: "When a creature ends its turn in it" };
+const AURA_WHEN_MISSING = { targetendturnaura: true };
 
 // "Who" on the new steps. Saved as the behaviour's applyto.
 const WHO_OPTS = [["targets", "The target"], ["caster", "You"]];

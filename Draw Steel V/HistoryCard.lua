@@ -2318,6 +2318,9 @@ end
 --Conditions whose name doesn't follow "cannot be" (G5).
 local CONDITION_PHRASES = {prone = "knocked prone"}
 
+--How many surges came from one place, starting a sentence (Y5b): "Two were gained from...".
+local SURGE_NUMBERS = {"One", "Two", "Three", "Four", "Five"}
+
 --How many minions died, in words (Y13): "killed two".
 local MINION_WORDS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
 
@@ -2819,6 +2822,31 @@ end
 --- @field clause string Its words in the damage line: "[Empyrean Boon] added 10 holy".
 --- @field after? string A sentence of its own after the line (Y5b, free surges).
 
+--- "One was gained from [Trained Assassin]..." (Y5b, Y5c): n of a target's count surges, and
+--- the modifiers they came from. Nil when n is 0.
+--- @param n integer
+--- @param count integer All the surges spent on the target.
+--- @param names string[]|nil
+--- @param tail string Added before the full stop.
+--- @return string|nil
+local function SurgeOrigin(n, count, names, tail)
+    if n <= 0 then
+        return nil
+    end
+    local from = {}
+    for _, name in ipairs(names or {}) do
+        from[#from + 1] = WhyName(name)
+    end
+    local source = #from > 0 and JoinClauses(from) or "a modifier"
+    local subject
+    if n == count then
+        subject = count == 1 and "It was" or "They were"
+    else
+        subject = string.format("%s %s", SURGE_NUMBERS[n] or tostring(n), n == 1 and "was" or "were")
+    end
+    return string.format("%s gained from %s%s.", subject, source, tail)
+end
+
 --- What changed one target's damage besides its tier and kit. A kit is the hero's normal
 --- damage, so it stays in the "from" number and is never named.
 --- @param who HistoryCreature
@@ -2848,27 +2876,16 @@ local function DamageBits(who, actor)
                 clause = string.format("%s (%s's highest characteristic, %s %d)", clause, History.ShownName(actor),
                     part.characteristic, part.each or 0)
             end
-            --Y5b: surges a modifier granted for this strike only.
-            local after = nil
+            --Y5b, Y5c: where some of the surges came from.
             local free = part.free or 0
-            if free > 0 then
-                local from = {}
-                for _, name in ipairs(part.freefrom or {}) do
-                    from[#from + 1] = WhyName(name)
-                end
-                local source = #from > 0 and JoinClauses(from) or "a modifier"
-                local NUMBERS = {"One", "Two", "Three", "Four", "Five"}
-                local subject
-                if free == count then
-                    subject = count == 1 and "It was" or "They were"
-                else
-                    subject = string.format("%s %s", NUMBERS[free] or tostring(free), free == 1 and "was" or "were")
-                end
-                after = string.format("%s gained from %s and could only be spent on this strike.", subject, source)
+            local after = SurgeOrigin(free, count, part.freefrom, " and could only be spent on this strike")
+            local gained = SurgeOrigin(math.min(part.gained or 0, count - free), count, part.gainedfrom, "")
+            if gained ~= nil then
+                after = after ~= nil and (after .. " " .. gained) or gained
             end
             bits[#bits + 1] = {
-                key = string.format("surge|%d|%d|%s|%s|%d|%s", count, part.each or 0, part.damagetype or "", part.characteristic or "",
-                    free, table.concat(part.freefrom or {}, ",")),
+                key = string.format("surge|%d|%d|%s|%s|%d|%s|%d|%s", count, part.each or 0, part.damagetype or "", part.characteristic or "",
+                    free, table.concat(part.freefrom or {}, ","), part.gained or 0, table.concat(part.gainedfrom or {}, ",")),
                 amount = amount,
                 order = 2,
                 clause = clause,
@@ -3207,7 +3224,16 @@ function History.Why(entry, kids)
     --Y8, Y9, L26: each potency test, and why it went the way it did. Targets with the same
     --test and outcome share a line.
     for _, who in ipairs(targets) do
+        --a condition the target is immune to never landed, whatever the potency did: G5's
+        --"cannot be frightened" line says why, so the test gets no line of its own.
+        local immuneTo = {}
+        for _, name in ipairs(who.immune or {}) do
+            immuneTo[string.lower(name)] = true
+        end
         for _, test in ipairs(who.potency or {}) do
+            if test.what ~= nil and immuneTo[test.what] then
+                goto nextTest
+            end
             local phrase = nil
             if test.what ~= nil then
                 phrase = "being " .. (CONDITION_PHRASES[test.what] or test.what)
@@ -3225,7 +3251,8 @@ function History.Why(entry, kids)
                     --L26: players don't know the monster's characteristic, only how it went.
                     local lead = phrase ~= nil and string.gsub(phrase, "^being ", "") or "Potency"
                     lead = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
-                    return {lead = lead, text = test.resisted and "It resisted." or "It did not resist."}
+                    --named, as the rest of the card names creatures (James 2026-11-21).
+                    return {lead = lead, text = string.format(test.resisted and "%s resisted." or "%s did not resist.", names)}
                 end
                 if test.surges ~= nil and (test.raised or 0) > 0 then
                     --Y8: surges raised the potency.
@@ -3251,6 +3278,7 @@ function History.Why(entry, kids)
                 end
                 return {lead = string.format("%s %d", test.attr, test.value), text = text}
             end, who)
+            ::nextTest::
         end
     end
 

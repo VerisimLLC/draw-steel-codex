@@ -3780,6 +3780,16 @@ function GameHud.CreateRollDialog(self)
                                     m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames}
                                 end
                             end
+                            --surges a modifier gave to keep ("you gain 1 surge"), for the same record.
+                            if thisTargetNonWastedSurgesGained > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                local keptNames = {}
+                                for _, usedMod in ipairs(target.modifiersUsed or {}) do
+                                    if usedMod:try_get("surges", "") ~= "" and usedMod:try_get("surgesCanBeKept", false) then
+                                        keptNames[#keptNames + 1] = trim(usedMod.name)
+                                    end
+                                end
+                                m_symbols.cast:get_or_add("targetGainedSurges", {})[target.token.charid] = {count = thisTargetNonWastedSurgesGained, sources = keptNames}
+                            end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed
                             if thisTargetSurgesUsed > 0 then

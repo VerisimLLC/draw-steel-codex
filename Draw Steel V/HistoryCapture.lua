@@ -58,6 +58,8 @@ local mod = dmhub.GetModLoading()
 --- @field characteristic? string On surges: that characteristic's name.
 --- @field free? integer On surges: how many a modifier granted for this strike only.
 --- @field freefrom? string[] On surges: the modifiers that granted them.
+--- @field gained? integer On surges: how many a modifier gave to keep ("you gain 1 surge").
+--- @field gainedfrom? string[] On surges: the modifiers that gave those.
 --- @field hovertext? string On a modifier, until History stores it: the roll dialog's hover text.
 --- @field hover? string On a modifier: id of that hover text in the map's History (History.HoverText).
 
@@ -273,6 +275,11 @@ end
 --Set below, beside OnResource: hands a spend made just before this cast to its row.
 local ClaimUpfrontSpend
 
+--An Opportunity Attack still running, by its owner's charid. The free strike it starts
+--is the row that matters, so it takes the cause and the Opportunity Attack writes none.
+--- @type table<string, table>
+local g_provoking = {}
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() or options.dismiss then
         return
@@ -353,6 +360,17 @@ local function CastBegan(ability, casterToken, targets, options)
         local moverToken = mover ~= nil and dmhub.LookupToken(mover) or nil
         if moverToken ~= nil then
             state.entry.provoker = History.Creature(moverToken)
+            g_provoking[actor.charid] = state
+        end
+    else
+        --the free strike an Opportunity Attack started: one row for both (James 2026-11-21).
+        local provoking = g_provoking[actor.charid]
+        if provoking ~= nil and not provoking.finished then
+            g_provoking[actor.charid] = nil
+            provoking.noRow = true
+            state.entry.provoker = provoking.entry.provoker
+            --what the triggered action cost travels with it.
+            state.entry.costs = provoking.entry.costs
         end
     end
     --Y11: a triggered action's own row says what set it off, in its Trigger line's words.
@@ -503,6 +521,7 @@ local function AddDamageParts(entry, cast, ability, caster)
     local targetDamage = cast:try_get("targetDamageSources", {})
     local targetSurges = cast:try_get("targetSurges", {})
     local freeSurges = cast:try_get("targetFreeSurges", {})
+    local gainedSurges = cast:try_get("targetGainedSurges", {})
     for _, who in ipairs(entry.targets) do
         local tier = who.tier
         if tier ~= nil and tier > 0 and who.taken ~= nil then
@@ -536,6 +555,7 @@ local function AddDamageParts(entry, cast, ability, caster)
             if surges ~= nil then
                 --surges a modifier granted for this strike only (Y5b): how many, and from what.
                 local free = freeSurges[who.id]
+                local gained = gainedSurges[who.id]
                 parts[#parts + 1] = {
                     kind = "surge",
                     count = surges.count,
@@ -545,6 +565,8 @@ local function AddDamageParts(entry, cast, ability, caster)
                     damagetype = surges.damagetype,
                     free = free ~= nil and math.min(free.count, surges.count) or nil,
                     freefrom = free ~= nil and #free.sources > 0 and free.sources or nil,
+                    gained = gained ~= nil and math.min(gained.count, surges.count) or nil,
+                    gainedfrom = gained ~= nil and #gained.sources > 0 and gained.sources or nil,
                 }
             end
             if #parts > 0 then

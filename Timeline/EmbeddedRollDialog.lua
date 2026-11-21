@@ -1146,6 +1146,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field surges nil|number
     --- @field modifiers EmbeddedRollModifierEntry[]
     --- @field modifiersUsed nil|CharacterModifier[] snapshot of the roll's active modifiers.
+    --- @field edgeSources nil|EmbeddedRollEdgeSource[] what gave this target's roll its edges and banes.
+    --- @field damageSources nil|EmbeddedRollDamageSource[] what each modifier added to this target's tier damage.
     --- @field rollProperties nil|RollProperties
     --- @field triggers table[] free-form trigger records.
 
@@ -1594,6 +1596,39 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local m_activeModifiers = {}
 
+    --- One thing that added or took away edges or banes, named as its badge in this dialog.
+    --- History shows them under the roll's edge and bane line.
+    --- @class EmbeddedRollEdgeSource
+    --- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
+    --- @field edges nil|integer Edges it added.
+    --- @field banes nil|integer Banes it added.
+    --- @field removedEdges nil|integer Edges it took away (Remove Edge, Ignore Edges, Edge becomes Bane).
+    --- @field removedBanes nil|integer Banes it took away.
+    --- @field ignore nil|boolean It ignores every edge or bane, rather than removing one.
+    --- @field tiers nil|integer Tiers it moved the roll (Tier Up +1, Tier Down -1).
+    --- @field autosuccess nil|boolean It made the roll Tier 3.
+    --- @field autofailure nil|boolean It made the roll Tier 1.
+    --- @field nottierthree nil|boolean It kept the roll from Tier 3.
+    --- @field nottierone nil|boolean It kept the roll off Tier 1.
+    --- @field bonus nil|integer A flat number it added to the roll (negative when it took some off).
+    --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
+    --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
+
+    --- Rebuilt by each CalculateRollText, beside m_activeModifiers.
+    --- @type EmbeddedRollEdgeSource[]
+    local m_edgeSources = {}
+
+    --- A modifier that changed the power table's damage (the Mark, "+1 on Fire abilities"),
+    --- named as its badge in this dialog. History splits the Tier line with these.
+    --- @class EmbeddedRollDamageSource
+    --- @field name string The modifier's name, spoiler markup kept.
+    --- @field charid nil|string On a trigger: the creature whose trigger it is.
+    --- @field tiers table<integer, table<string, number>> Per tier, the damage it added by type ("untyped" for none); negative when it took damage away.
+
+    --- Rebuilt by each CalculateRollText, beside m_edgeSources.
+    --- @type EmbeddedRollDamageSource[]
+    local m_damageSources = {}
+
     local m_rollResults
     local m_customContainer
     local m_tableContainer
@@ -1947,11 +1982,146 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
+    --A modifier badge's hover text before spoilers: its summary with formulas filled in for
+    --the roller, who inflicted it, and why it applies (green when on, red when off).
+    local function ModifierHoverText(mod, ischecked)
+        local tooltip = mod.modifier:GetSummaryText()
+        if creature ~= nil then
+            --nil only for a nil input, and GetSummaryText returns a string.
+            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
+        end
+        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
+        local hint = mod.hint
+        for i, justification in ipairs(hint ~= nil and hint.justification or {}) do
+            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                justification)
+        end
+        return tooltip
+    end
+
+    --The hover text History keeps for a modifier that changed the roll (2.3d). Spoilers stay
+    --as markup: History hides them for whoever looks. Nil when it says nothing past the name.
+    local function RecordedHoverText(mod)
+        local description = mod.modifier:try_get("description") or ""
+        local context = mod.context
+        local inflicted = context ~= nil and context.sourceDescription or nil
+        local hint = mod.hint
+        local justified = hint ~= nil and hint.justification ~= nil and #hint.justification > 0
+        if string.find(description, "%S") == nil and (inflicted == nil or inflicted == "") and not justified then
+            return nil
+        end
+        return ModifierHoverText(mod, true)
+    end
+
+    --What each modifier adds to or takes from the edges and banes, measured as it is applied,
+    --so the sources always add up to the roll's counts. History uses the removals to show an
+    --edge that was there but did not count.
+    local function RecordEdgeSource(mod, before, rollText)
+        local after = dmhub.ParseRoll(rollText)
+        if before == nil or after == nil then
+            return after
+        end
+        local edges = (after.boons or 0) - (before.boons or 0)
+        local banes = (after.banes or 0) - (before.banes or 0)
+        --tier modifiers (Tier 3, Tier Up, Not Tier 1...) are measured the same way.
+        local tiers = (after.tiers or 0) - (before.tiers or 0)
+        local function Began(flag)
+            return (after[flag] and not before[flag]) or nil
+        end
+        local autosuccess, autofailure = Began("autosuccess"), Began("autofailure")
+        local nottierthree, nottierone = Began("nottierthree"), Began("nottierone")
+        --a flat "+2 to the roll" is the change in the roll's fixed modifiers.
+        local function Flat(parsed)
+            local total = 0
+            for _, category in pairs(parsed.categories or {}) do
+                total = total + (category.mod or 0)
+            end
+            return total
+        end
+        local bonus = Flat(after) - Flat(before)
+        if edges == 0 and banes == 0 and tiers == 0 and bonus == 0 and not (autosuccess or autofailure or nottierthree or nottierone) then
+            return after
+        end
+        local name = mod.modifier.name or ""
+        local charid = mod.modifier:try_get("_tmp_triggerCharid")
+        local removes = edges < 0 or banes < 0
+        if mod.modFromTarget and removes and charid == nil then
+            --a remover is named as its owner's ("Ajax's Steadfast"), with the target's face.
+            local targetToken = dmhub.LookupToken(targetCreature)
+            charid = targetToken ~= nil and targetToken.charid or nil
+        end
+        if mod.modFromTarget and charid == nil then
+            name = string.format("Target is %s", name)
+        end
+        local modtype = mod.modifier:try_get("modtype")
+        m_edgeSources[#m_edgeSources + 1] = {
+            name = name,
+            edges = edges > 0 and edges or nil,
+            banes = banes > 0 and banes or nil,
+            removedEdges = edges < 0 and -edges or nil,
+            removedBanes = banes < 0 and -banes or nil,
+            ignore = (modtype == "ignore_edges" or modtype == "ignore_banes") or nil,
+            tiers = tiers ~= 0 and tiers or nil,
+            autosuccess = autosuccess,
+            autofailure = autofailure,
+            nottierthree = nottierthree,
+            nottierone = nottierone,
+            bonus = bonus ~= 0 and bonus or nil,
+            charid = charid,
+            hovertext = RecordedHoverText(mod),
+        }
+        return after
+    end
+
+    --Each tier's damage by type, to measure what one modifier adds to the power table.
+    local function TierDamage(props)
+        local result = {}
+        for i, tier in ipairs(props.tiers) do
+            result[i] = RollPropertiesPowerTable.DamageByType(tier)
+        end
+        return result
+    end
+
+    --What one modifier's ModifyRollProperties added to the damage, kept when it changed any.
+    local function RecordDamageSource(mod, before, after)
+        local tiers = {}
+        local changed = false
+        for i, afterTier in ipairs(after) do
+            local beforeTier = before[i] or {}
+            local delta = {}
+            for typeName, amount in pairs(afterTier) do
+                local d = amount - (beforeTier[typeName] or 0)
+                if d ~= 0 then
+                    delta[typeName] = d
+                    changed = true
+                end
+            end
+            for typeName, amount in pairs(beforeTier) do
+                if afterTier[typeName] == nil then
+                    delta[typeName] = -amount
+                    changed = true
+                end
+            end
+            tiers[i] = delta
+        end
+        if not changed then
+            return
+        end
+        local name = mod.modifier.name or ""
+        local charid = mod.modifier:try_get("_tmp_triggerCharid")
+        if mod.modFromTarget and charid == nil then
+            name = string.format("Target is %s", name)
+        end
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod)}
+    end
+
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
     --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
     CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
+        m_edgeSources = {}
+        m_damageSources = {}
 
         local rollDisallowed = nil
 
@@ -1994,6 +2164,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
         if GameSystem.UseBoons then
             roll = GameSystem.ApplyBoons(roll, m_boons)
+            if m_boons ~= 0 then
+                m_edgeSources[1] = {name = "", hand = true, edges = m_boons > 0 and m_boons or nil, banes = m_boons < 0 and -m_boons or nil}
+            end
         end
 
         if creature then
@@ -2012,9 +2185,13 @@ function GameHud.CreateEmbeddedRollDialog()
         local afterCritMods = {}
 
         if creature then
+            local edgesBefore = GameSystem.UseBoons and dmhub.ParseRoll(roll) or nil
             for i, mod in ipairs(enabledModifiers) do
                 --call this generic function which might be modified by mods.
                 roll = mod.modifier:ApplyToRoll(mod.context, creature, targetCreature, rollType, roll)
+                if edgesBefore ~= nil then
+                    edgesBefore = RecordEdgeSource(mod, edgesBefore, roll)
+                end
 
                 if rollType == 'damage' then
                     if mod.modFromTarget then
@@ -2095,8 +2272,13 @@ function GameHud.CreateEmbeddedRollDialog()
 
             rollProperties:ResetMods()
 
+            local measure = rollProperties.typeName == "RollPropertiesPowerTable" and rollProperties:try_get("tiers") ~= nil
             for i, mod in ipairs(enabledModifiers) do
+                local before = measure and TierDamage(rollProperties) or nil
                 mod.modifier:ModifyRollProperties(mod.context, creature, rollProperties, targetCreature)
+                if before ~= nil then
+                    RecordDamageSource(mod, before, TierDamage(rollProperties))
+                end
             end
         end
 
@@ -4310,16 +4492,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --it current: the checked state and spoiler reveal are read at hover time.
     local function ModifierTooltipText(mod, ischecked)
         local rawName = mod.modifier.name or ""
-        local tooltip = mod.modifier:GetSummaryText()
-        if creature ~= nil then
-            --nil only for a nil input, and GetSummaryText returns a string.
-            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-        end
-        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-        for i, justification in ipairs(mod.hint.justification) do
-            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                justification)
-        end
+        local tooltip = ModifierHoverText(mod, ischecked)
         if PowerRollSpoilers.HasSpoiler(rawName) then
             local spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
             if dmhub.isDM or spoilerRevealed then
@@ -5897,6 +6070,8 @@ function GameHud.CreateEmbeddedRollDialog()
             local rollInfo = dmhub.ParseRoll(roll, m_multitargets[index].token.properties)
 
             m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
+            m_multitargets[index].edgeSources = m_edgeSources
+            m_multitargets[index].damageSources = m_damageSources
             m_multitargets[index].rollProperties = DeepCopy(rollProperties)
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
@@ -6060,6 +6235,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     -- effects (surges etc.) are never applied on roll acceptance.
                     CalculateRollText{surges = m_multitargets[index].surges or 0}
                     m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
+                    m_multitargets[index].edgeSources = m_edgeSources
+                    m_multitargets[index].damageSources = m_damageSources
                     m_multitargets[index].rollProperties = DeepCopy(rollProperties)
                 end
             end

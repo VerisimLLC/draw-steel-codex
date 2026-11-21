@@ -2812,6 +2812,39 @@ function CreateTokenHud(token)
                     }
                 end
 
+                --History (Draw Steel): opens History showing only this creature. Looked
+                --up with rawget like Monster Info, and only while the game has History on.
+                local history = rawget(_G, "History")
+                if history ~= nil and history.Enabled() and history.OpenFor ~= nil then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(0),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(0),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                parentElement.popup = nil
+                                history.OpenFor(token)
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("History")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'phosphor/clock-counter-clockwise-bold.png',
+                                className = 'radial-menu-icon',
+                                width = 32,
+                                height = 32,
+                            }
+                        },
+                    }
+                end
+
 
                 --Rename option: shown for monsters when the DM has enabled the
                 --"players_rename_monsters" game setting. Lets anyone rename the monster;

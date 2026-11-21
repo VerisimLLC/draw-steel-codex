@@ -726,6 +726,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             reason = chatMessageOverride or self.chatMessage,
                         }
                     )
+                    GameSystem.NotifyPlayObservers("typedmessage", chatMessageOverride or self.chatMessage)
                 end
             end
 

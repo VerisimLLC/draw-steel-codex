@@ -454,19 +454,48 @@ Fields the sentence does not model are listed under it ("kept as they are"), as 
 
 ## 8. Open questions for the designer
 
-1. **Level 1 placement:** should authors see the slow start at all? Options: (a) one "1st-Level
+1. *(Decided, see 9.1.)* **Level 1 placement:** should authors see the slow start at all? Options: (a) one "1st-Level
    Features" section with an "arrives in encounter N" token (recommended); (b) four Encounter
    sections as today; (c) always save to `tutoriallevel-1`.
 2. **Improvements:** always a new feature at the later level (book first, recommended), or allow the
    "From level N" line inside the original feature as an authoring shortcut?
 3. **Modifier descriptions:** stop copying feature text into new modifiers (recommended), and offer a
    one-click cleanup for the 1,040 copies, or leave content alone?
-4. **Heroic resource:** is the checklist meant to be the source of truth (then triggers are
+4. *(Decided, see 9.2.)* **Heroic resource:** is the checklist meant to be the source of truth (then triggers are
    generated from it), or are the triggers (then the checklist is generated)? The editor can write
    both either way, but one should win when they disagree.
 5. **Hidden 5e fields** (`primary`, `multiclass`, Hit Die, spellcasting): hide entirely in the simple
    editor (recommended), or list them under Advanced?
 6. **Subclass editing:** a subclass as its own page (as stored), or shown inside its class page in
    the book's table form with a link to edit it?
-7. **Name matching:** accept an engine change so `modifyability` and similar filters match abilities
+7. *(Decided, see 9.3.)* **Name matching:** accept an engine change so `modifyability` and similar filters match abilities
    by guid, or keep name formulas and warn on rename?
+
+## 9. Decisions (2026-11-21)
+
+**1. Level 1 and the slow start rules: a class toggle.** "Uses the slow start rules (Encounters 1-4)".
+- On: the class page shows Encounter 1, 2, 3 and 4 sections, then "1st level, after the slow start".
+  Saved as today: `tutoriallevel-1`..`tutoriallevel-4`, and `level-1` for the last section. The engine
+  (`Class.lua`, levels before 1) gives a character in encounter N only the tutorial levels up to N, and
+  `level-1` only once the slow start is over, so that section is real: Censor and Conduit keep their
+  1st-Level Domain Feature there, Summoner its Circle choice, Troubadour Scene Partner.
+- Off: one "1st level" section, saved to `level-1`; nothing in the tutorial levels.
+- All 11 core classes are on (each has 9-16 features in the tutorial levels today). New classes default
+  to off. Turning it off on a class that has encounter features asks where they go (all into 1st level).
+
+**2. Heroic resource: the triggers win; the checklist is visual.** The resource sentence ("You gain [2]
+[wrath] at the start of each of your turns") is the trigger, and the checklist entry players see is
+generated from the same sentence, so the two can't disagree. They stay two records underneath, linked
+by `checklistid` as today; the checklist wording can be overridden for the sheet, book first. Opening
+existing content where they disagree (different quantity or wording) shows both and lets the author keep
+one; the poll should count how often that happens.
+
+**3. Matching abilities by id, as the author sees it.** The sentence reads "Abilities named [Free Strike]"
+and clicking the name opens a searchable list of the abilities this class (or creature) has, by name,
+grouped by where they come from. The author only ever picks a name; the editor saves the ability's
+`guid`, so renaming the ability later doesn't break the filter, and the sentence always shows the
+current name. Broad filters stay as they are ("abilities with the Strike keyword", "your signature
+ability"). Engine work: `modifyability` and similar filters need to accept an id list alongside the
+formula; until then the editor can write the name formula and warn on rename. Opening content: a name
+formula that matches exactly one ability by name opens as that ability (and can be converted to the id
+on save); anything more complex stays a formula.

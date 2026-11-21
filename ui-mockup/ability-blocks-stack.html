@@ -105,6 +105,10 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .tok.quiet { font-weight: 400; opacity: .55; }
 .kwrow { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 2px; border-radius: 6px; }
 .kwrow.hot { outline: 2px solid #fff; outline-offset: 2px; background: rgba(255,255,255,.15); }
+.kwrow:not(.editing) { cursor: pointer; }
+.kwrow:not(.editing):hover { background: rgba(255,255,255,.12); }
+.kwrow.editing { outline: 2px solid var(--gold); outline-offset: 2px; }
+.kwgroup { border: 1px solid var(--gold); border-radius: 6px; padding: 8px; background: color-mix(in srgb, var(--gold) 8%, var(--dlg)); }
 .kwchip { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 999px; padding: 2px 4px 2px 9px; font-size: 12px; font-weight: 600; }
 .kwchip .clear { display: inline-block; background: rgba(0,0,0,.15); color: #1b1712; border: none; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; line-height: 1; cursor: pointer; padding: 0; }
 .kw-empty { opacity: .65; font-style: italic; font-size: 12px; }
@@ -115,6 +119,10 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .kwchip.pal-kw:hover { border-color: var(--gold); }
 .kwchip.pal-kw.used { opacity: .35; cursor: default; }
 .kwchip.pick.hl { outline: 2px solid var(--gold); }
+/* Inside the "+ keyword" list, chips keep their chip look (the popup's row-button style would hide them). */
+.menu .kwgrid { max-width: 320px; padding: 2px; }
+.menu button.kwchip.pick { display: inline-flex; width: auto; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-weight: 500; }
+.menu button.kwchip.pick:hover { border-color: var(--gold); background: var(--panel); }
 .kwsw { background: var(--fg) !important; }
 .reading { gap: 4px !important; }
 .step.editing > .bar, .step.editing.cat-head > .bar { box-shadow: 0 0 0 2px var(--gold); position: relative; z-index: 1; }
@@ -482,8 +490,13 @@ const ABILITY_KEYWORDS = ["Melee", "Ranged", "Strike", "Weapon", "Area", "Magic"
 function keywordsOf(a) { return Array.isArray(a.keywords) ? a.keywords : String(a.keywords || "").split(",").map(x => x.trim()).filter(Boolean); }
 function addKeyword(k) { const l = keywordsOf(ab); if (!l.includes(k)) { ab.keywords = l.concat([k]); refresh(); } }
 function removeKeyword(k) { ab.keywords = keywordsOf(ab).filter(x => x !== k); refresh(); }
+/* "Editing keywords": opened by clicking the keywords line or "+ keyword"; while open the shelf shows
+   the keyword chips at its top. Clicking anywhere else closes it. */
+let kwEditing = false;
 function keywordRow() {
-  const row = E("span", "kwrow"); row.dataset.kwdrop = "1";
+  const row = E("span", "kwrow" + (kwEditing ? " editing" : "")); row.dataset.kwdrop = "1";
+  row.title = kwEditing ? "" : "Click to edit keywords";
+  row.addEventListener("click", ev => { if (!kwEditing) { ev.stopPropagation(); kwEditing = true; refresh(); } });
   const list = keywordsOf(ab);
   if (!list.length) row.appendChild(E("span", "kw-empty", "none yet"));
   list.forEach(k => {
@@ -493,8 +506,13 @@ function keywordRow() {
     c.appendChild(x); row.appendChild(c);
   });
   const add = E("button", "kwadd", "+ keyword"); add.type = "button";
-  add.addEventListener("click", ev => { ev.stopPropagation(); keywordMenu(add); });
+  add.addEventListener("click", ev => {
+    ev.stopPropagation();
+    if (!kwEditing) { kwEditing = true; refresh(); const a = main.querySelector(".kwadd"); if (a) keywordMenu(a); }
+    else keywordMenu(add);
+  });
   row.appendChild(add);
+  if (kwEditing) { const d = E("button", "edit-done", "Done"); d.type = "button"; d.addEventListener("click", ev => { ev.stopPropagation(); kwEditing = false; refresh(); }); row.appendChild(d); }
   return row;
 }
 /* Type-ahead of the keywords not yet on the ability: type a few letters, Enter adds the first. */
@@ -1495,6 +1513,16 @@ function applyFocus() {
   if (c.matches("input")) c.select();
   if (c.matches("select") && !req.first) { try { c.showPicker(); } catch (e) {} }
 }
+// Leaving "editing keywords": click outside the keywords line, the shelf's keyword chips and the keyword list.
+let kwExit = false;
+document.addEventListener("pointerdown", ev => {
+  if (!kwEditing) return;
+  kwExit = !ev.target.closest(".kwrow, .kwgroup, .menu, #dragGhost");
+}, true);
+document.addEventListener("pointerup", () => {
+  if (!kwExit) return; kwExit = false;
+  setTimeout(() => { if (kwEditing && !drag) { kwEditing = false; refresh(); } }, 0);
+});
 // Leaving edit mode: click outside the open step, press Esc, or press Enter in a text box.
 let exitFrom = null;
 document.addEventListener("pointerdown", ev => {
@@ -2069,6 +2097,7 @@ function renderPalette() {
   const q = norm(shelfQuery);
   // Keywords: click to add, or drag onto "and has the keywords".
   const kg = E("div", "pgroup kwgroup"); const kh = E("h3"); kh.appendChild(E("span", "sw kwsw")); kh.appendChild(E("span", null, "Keywords")); kg.appendChild(kh);
+  kg.appendChild(E("p", "phint", "Click a keyword to add it, or drag it onto the ability."));
   const kbox = E("div", "kwgrid"); const have = keywordsOf(ab);
   ABILITY_KEYWORDS.forEach(k => {
     const b = E("button", "kwchip pal-kw" + (have.includes(k) ? " used" : ""), k); b.type = "button"; b.dataset.kw = k;
@@ -2101,7 +2130,8 @@ function renderPalette() {
     else if (shelfOpen.has(cat) && !q && match.length > 4) { const less = E("button", "pal-more", "Show fewer"); less.type = "button"; less.addEventListener("click", () => { shelfOpen.delete(cat); renderPalette(); }); g.appendChild(less); }
     pal.appendChild(g);
   }
-  if (!q || ABILITY_KEYWORDS.some(k => norm(k).includes(q)) || "keywords".includes(q)) pal.appendChild(kg);   // steps are used far more often, so keywords sit at the bottom
+  // Keywords only appear while they are being edited, at the top of the shelf.
+  if (kwEditing) pal.insertBefore(kg, pal.querySelector(".pgroup"));   // steps are used far more often, so keywords sit at the bottom
 }
 function addStepTo(type, act, idx) {
   const st = STEPS[type].make(act.ctx);
@@ -2436,7 +2466,7 @@ function loadDraft() {
   } catch (e) { return null; }
 }
 const exSel = document.getElementById("exSel");
-exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); insertAt = null; editingId = null; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
+exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
 const draft = loadDraft();
 if (draft) {
   const o = document.createElement("option"); o.value = "draft"; o.textContent = "Your draft (kept in this browser)";

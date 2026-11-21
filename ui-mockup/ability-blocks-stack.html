@@ -482,6 +482,12 @@ const sourceFor = expr => SOURCES.find(y => norm(y.expr) === norm(expr || ""));
 const SCOPES = {};
 /* A formula box inside a follow-up ability uses the base description plus the hand-offs its
    parent step provides. Keys look like "stepIf@s42": base description @ the follow-up step. */
+Object.assign(DOCS, {
+  areaSize: Object.assign({}, DOCS.range, { title: "Area size", help: "How big the area is in squares: the 3 in \u201c3 burst\u201d or \u201c3 cube within 10\u201d, or a line's length.", examples: [["3", "A 3-square area."]] }),
+  lineWidth: Object.assign({}, DOCS.range, { title: "Line width", help: "How wide the line is in squares: the 1 in \u201c5 x 1 line within 1\u201d.", examples: [["1", "One square wide."]] }),
+  lineWithin: Object.assign({}, DOCS.range, { title: "Line starts within", help: "How far from you the line can start: the last number in \u201c5 x 1 line within 1\u201d.", examples: [["1", "Starts next to you."]] }),
+  meleeRange: Object.assign({}, DOCS.range, { title: "Melee distance", help: "The melee part of \u201cMelee 1 or ranged 10\u201d.", examples: [["1", "Adjacent creatures."]] }),
+});
 function docOf(key) {
   if (DOCS[key]) return DOCS[key];
   const [base, sid] = key.split("@");
@@ -498,8 +504,19 @@ function rescope(o, scope, top) {
   for (const k in o) rescope(o[k], scope, false);
 }
 const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver",["No action", "no-action ability"]];
-const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","each enemy in the area","each creature in the area"];
-const DISTANCES = ["Melee","Ranged","Melee or ranged","Burst","Cube","Line","Self"];
+const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","special"];
+const AREA_TARGETS = ["each enemy in the area","each creature in the area","each ally in the area","special"];
+// Distance forms, worded the way a card words them ("4 cube within 10" = a 4-square cube placed within
+// 10 squares of you). Saved like the statblock importer saves them: see compileAbility.
+const DISTANCES = [["Melee", "Melee"], ["Ranged", "Ranged"], ["Melee or ranged", "Melee or ranged"], ["Burst", "burst"], ["Cube", "cube"], ["Line", "line"], ["Self", "Self"]];
+const AREA_FORMS = ["Burst", "Cube", "Line"];
+// Older drafts and examples predate the area fields; add them with card-typical defaults.
+function ensureDistance(a) {
+  if (!a.areaSize) a.areaSize = H("number", "areaSize", a.distance === "Line" ? "5" : "3");
+  if (!a.lineWidth) a.lineWidth = H("number", "lineWidth", "1");
+  if (!a.lineWithin) a.lineWithin = H("number", "lineWithin", "1");
+  if (!a.meleeRange) a.meleeRange = H("number", "meleeRange", "1");
+}
 // Characteristics by their card letters, used wherever potency is shown (M < average).
 const POT_CHARS = [["Might", "M"], ["Agility", "A"], ["Reason", "R"], ["Intuition", "I"], ["Presence", "P"]];
 const CHARS = ["Might","Agility","Reason","Intuition","Presence"];
@@ -1203,9 +1220,17 @@ function compileAbility() {
   const rec = {
     __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
     keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
-    targetType: ab.distance === "Self" ? "self" : ["Burst", "Cube", "Line"].includes(ab.distance) ? ab.distance.toLowerCase() : "target",
-    range: range.s, numTargets: num.s,
+    targetType: "target", range: range.s, numTargets: num.s,
   };
+  // Same fields the statblock importer writes for each distance form.
+  ensureDistance(ab);
+  const size = cHolder(ab.areaSize).s;
+  if (ab.distance === "Self") rec.targetType = "self";
+  else if (ab.distance === "Melee or ranged") rec.meleeRange = cHolder(ab.meleeRange).s;
+  else if (ab.distance === "Burst") Object.assign(rec, { targetType: "all", range: size, numTargets: "1" });
+  else if (ab.distance === "Cube") Object.assign(rec, { targetType: "cube", radius: size, numTargets: "1" });
+  else if (ab.distance === "Line") Object.assign(rec, { targetType: "line", range: size, radius: cHolder(ab.lineWidth).s, lineDistance: cHolder(ab.lineWithin).s, numTargets: "1" });
+  if (ab.targetCount === "special") notes.push("\u201cSpecial\u201d targeting: what the blocks do decides the targets; the card says Special.");
   if (!tf.empty) rec.targetFilter = tf.s;
   if (ab.resource !== "no cost") { rec.resourceCost = "<" + ab.resource + ">"; rec.resourceNumber = cost.s; }
   if (reqs.length) rec.reasonedFilters = reqs.map(r => ({ formula: r.c.s, reason: r.reason }));
@@ -1543,6 +1568,33 @@ function listId(list) { if (!listIds.has(list)) { const id = "L" + listSeq++; li
 
 function section(title, hint) { const t = E("div", "section-title", title); if (hint) t.appendChild(E("span", "hint", hint)); return t; }
 // key: a read-mode id for this header block (null = always editable).
+/* The distance as card text ("4 cube within 10") and in plain words, from the same fields. */
+function distanceText(fm) {
+  ensureDistance(ab); const c = h => fm(cHolder(h));
+  switch (ab.distance) {
+    case "Self": return "Self";
+    case "Melee": case "Ranged": return ab.distance + " " + c(ab.range);
+    case "Melee or ranged": return "Melee " + c(ab.meleeRange) + " or ranged " + c(ab.range);
+    case "Burst": return c(ab.areaSize) + " burst";
+    case "Cube": return c(ab.areaSize) + " cube within " + c(ab.range);
+    case "Line": return c(ab.areaSize) + " x " + c(ab.lineWidth) + " line within " + c(ab.lineWithin);
+  }
+  return ab.distance;
+}
+function distancePlain() {
+  const n = h => { const x = cHolder(h); return /^\d+$/.test(x.s) ? x.s : x.prose; };
+  const sq = h => { const v = n(h); return v + (v === "1" ? " square" : " squares"); };
+  switch (ab.distance) {
+    case "Self": return "Only you.";
+    case "Melee": return "A creature within " + sq(ab.range) + " of you that you can reach.";
+    case "Ranged": return "A creature up to " + sq(ab.range) + " away.";
+    case "Melee or ranged": return "Either in melee within " + sq(ab.meleeRange) + ", or up to " + sq(ab.range) + " away.";
+    case "Burst": return "Everything within " + sq(ab.areaSize) + " of you.";
+    case "Cube": return "A cube " + n(ab.areaSize) + " squares on each side, placed anywhere within " + sq(ab.range) + " of you.";
+    case "Line": return "A line " + n(ab.areaSize) + " squares long and " + n(ab.lineWidth) + " wide, starting within " + sq(ab.lineWithin) + " of you.";
+  }
+  return "";
+}
 function headBlock(rows, key) {
   const e = E("div", "step cat-head");
   if (key) e.dataset.editKey = key;
@@ -1708,11 +1760,31 @@ function renderMain() {
   main.appendChild(headBlock(whatRows(nm, sel(ab, "action", ACTIONS, null, "action")), "hdr-what"));
 
   main.appendChild(section("Who it targets"));
-  const t = headBlock([
-    [renderHolder(ab.numTargets), sel(ab, "targetCount", TARGET_COUNTS, null, "target type"), lbl("within"), sel(ab, "distance", DISTANCES, null, "distance"), renderHolder(ab.range)],
-  ], "hdr-who");
-  t.querySelector(".bar").appendChild(gsWrap([ab.numTargets, ab.range]));
+  ensureDistance(ab);
+  const area = AREA_FORMS.includes(ab.distance);
+  // Keep the target wording matched to the distance form (an area targets "each ... in the area").
+  if (area && !AREA_TARGETS.includes(ab.targetCount)) ab.targetCount = "each enemy in the area";
+  if (!area && AREA_TARGETS.includes(ab.targetCount) && ab.targetCount !== "special") ab.targetCount = "creature";
+  if (ab.distance === "Self") ab.targetCount = "self";
+  const dsel = sel(ab, "distance", DISTANCES, null, "distance");
+  const distRow = [lbl("Distance:")];
+  switch (ab.distance) {
+    case "Melee": case "Ranged": distRow.push(dsel, renderHolder(ab.range)); break;
+    case "Melee or ranged": distRow.push(dsel, lbl("\u2014 melee"), renderHolder(ab.meleeRange), lbl("or ranged"), renderHolder(ab.range)); break;
+    case "Burst": distRow.push(renderHolder(ab.areaSize), dsel); break;
+    case "Cube": distRow.push(renderHolder(ab.areaSize), dsel, lbl("within"), renderHolder(ab.range)); break;
+    case "Line": distRow.push(renderHolder(ab.areaSize), lbl("x"), renderHolder(ab.lineWidth), dsel, lbl("within"), renderHolder(ab.lineWithin)); break;
+    default: distRow.push(dsel);
+  }
+  const tgtRow = [lbl("Target:")];
+  if (ab.distance === "Self") tgtRow.push(lbl("Self"));
+  else if (area) tgtRow.push(sel(ab, "targetCount", AREA_TARGETS, null, "target"));
+  else if (ab.targetCount === "self" || ab.targetCount === "special") tgtRow.push(sel(ab, "targetCount", TARGET_COUNTS, null, "target"));
+  else tgtRow.push(renderHolder(ab.numTargets), sel(ab, "targetCount", TARGET_COUNTS, null, "target"));
+  const t = headBlock([distRow, tgtRow], "hdr-who");
+  t.querySelector(".bar").appendChild(gsWrap([ab.range, ab.areaSize, ab.numTargets]));
   main.appendChild(t);
+  const plain = E("p", "note dist-plain", distancePlain()); plain.style.margin = "3px 0 0 10px"; main.appendChild(plain);
   const tf = headBlock([[lbl("Only affects creatures where"), renderHolder(ab.targetFilter, { placeholder: "+ add a test (optional)" })]], "hdr-tf");
   tf.style.marginTop = "3px"; tf.appendChild(gsLine(ab.targetFilter)); main.appendChild(tf);
 
@@ -1736,7 +1808,7 @@ const STARTERS = {
   ability: [
     ["Strike", a => { Object.assign(a, { keywords: "Melee, Strike, Weapon", distance: "Melee", targetCount: "creature" }); a.range = H("number", "range", "1"); a.steps.push(powerRollWith(["2 + Might", "5 + Might", "7 + Might"])); }],
     ["Ranged strike", a => { Object.assign(a, { keywords: "Ranged, Strike, Weapon", distance: "Ranged", targetCount: "creature" }); a.range = H("number", "range", "10"); a.steps.push(powerRollWith(["2 + Agility", "5 + Agility", "7 + Agility"], "Agility")); }],
-    ["Area attack", a => { Object.assign(a, { keywords: "Area, Magic", distance: "Burst", targetCount: "each enemy in the area" }); a.range = H("number", "range", "2"); a.steps.push(powerRollWith(["2", "4", "6"], "Reason")); }],
+    ["Area attack", a => { Object.assign(a, { keywords: "Area, Magic", distance: "Burst", targetCount: "each enemy in the area" }); a.areaSize = H("number", "areaSize", "2"); a.steps.push(powerRollWith(["2", "4", "6"], "Reason")); }],
     ["Heal an ally", a => { Object.assign(a, { keywords: "Magic", distance: "Ranged", targetCount: "ally", action: "Maneuver" }); a.range = H("number", "range", "5"); const h = STEPS.heal.make(); h.slots.amount = holderFromText("roll", "heal", "Target.Recovery Value"); a.steps.push(h); }],
   ],
   triggered: [
@@ -1783,7 +1855,7 @@ const SENTENCE_PATTERNS = [
   { re: /^(?:the target is|each target is) (\w+) \((save ends|eot)\)$/i, build: m => { const c = STEPS.condition.make(); const cond = CONDITIONS.find(x => x.toLowerCase() === m[1].toLowerCase()); if (!cond) return null; c.f.cond = cond; c.f.dur = /eot/i.test(m[2]) ? "EoT" : "save ends"; return [c]; } },
   { re: /^(push|pull|slide) the target (\d+) squares?$/i, build: m => { const fm = STEPS.forced.make(); fm.f.kind = m[1].toLowerCase(); fm.f.n = m[2]; return [fm]; } },
 ];
-const TARGET_TEXT = [[/^self$/i, "self", null], [/^one (creature|enemy|ally)$/i, "$1", "1"], [/^(two|three) (creatures|enemies|allies)$/i, "$2", null], [/^each (enemy|creature) in the area$/i, "each $1 in the area", null]];
+const TARGET_TEXT = [[/^special$/i, "special", null], [/^each (ally|creature) in the area$/i, "each $1 in the area", null], [/^self$/i, "self", null], [/^one (creature|enemy|ally)$/i, "$1", "1"], [/^(two|three) (creatures|enemies|allies)$/i, "$2", null], [/^each (enemy|creature) in the area$/i, "each $1 in the area", null]];
 const NUMBER_WORDS = { one: "1", two: "2", three: "3" };
 function parseTierText(text, ctx) {
   const steps = [];
@@ -1867,11 +1939,15 @@ function importAbilityText(raw) {
     }
     if (target) {
       if (/^self$/i.test(target)) { a.targetCount = "self"; }
+      else if (/^special$/i.test(target)) { a.targetCount = "special"; }
       else { const w = target.split(" "); a.numTargets = H("number", "numTargets", NUMBER_WORDS[w[0].toLowerCase()] || "1"); a.targetCount = /^each/i.test(target) ? target.toLowerCase() : w.slice(1).join(" ").toLowerCase(); }
       let dm;
       if (/^self/i.test(dist)) { a.distance = "Self"; if (!/^self$/i.test(dist)) a.overrides.distance = { text: dist, basis: null }; }
       else if ((dm = dist.match(/^(melee|ranged)\s+(\d+)$/i))) { a.distance = cap(dm[1].toLowerCase()); a.range = H("number", "range", dm[2]); }
-      else if ((dm = dist.match(/^(\d+)\s+(burst|cube|line)/i))) { a.distance = cap(dm[2].toLowerCase()); a.range = H("number", "range", dm[1]); if (dm[0].length < dist.length) a.overrides.distance = { text: dist, basis: null }; }
+      else if ((dm = dist.match(/^melee\s+(\d+)\s+or\s+ranged\s+(\d+)$/i))) { a.distance = "Melee or ranged"; a.meleeRange = H("number", "meleeRange", dm[1]); a.range = H("number", "range", dm[2]); }
+      else if ((dm = dist.match(/^(\d+)\s+burst$/i))) { a.distance = "Burst"; a.areaSize = H("number", "areaSize", dm[1]); }
+      else if ((dm = dist.match(/^(\d+)\s+cube\s+within\s+(\d+)(?:\s+squares?)?$/i))) { a.distance = "Cube"; a.areaSize = H("number", "areaSize", dm[1]); a.range = H("number", "range", dm[2]); }
+      else if ((dm = dist.match(/^(\d+)\s*x\s*(\d+)\s+line\s+within\s+(\d+)(?:\s+squares?)?$/i))) { a.distance = "Line"; a.areaSize = H("number", "areaSize", dm[1]); a.lineWidth = H("number", "lineWidth", dm[2]); a.lineWithin = H("number", "lineWithin", dm[3]); }
       else a.overrides.distance = { text: dist, basis: null };
       ctx.report.push("Distance and target: " + dist + " / " + target); i++;
     }
@@ -2014,9 +2090,9 @@ function renderSide(c) {
     if (parts.length) cardLine(card, "effect", "Effect", esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1]) + "."), "effect");
   } else {
     const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
-    const dist = ab.distance === "Self" ? "Self" : ab.distance + " " + fm(c.range);
-    const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
-      : /^\d+$/.test(c.num.s) ? c.num.s + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
+    const dist = distanceText(fm);
+    const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : ab.targetCount === "special" ? "Special" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
+      : /^\d+$/.test(c.num.s) ? ({ 1: "One", 2: "Two", 3: "Three", 4: "Four" }[c.num.s] || c.num.s) + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
     const grid = E("div", "grid"); card.appendChild(grid);
     cardLine(grid, "distance", "Distance", dist, "fixed"); cardLine(grid, "target", "Target", tgt, "fixed");
     // Effect text can come before the power roll as well as after it; each is one paragraph.
@@ -2608,7 +2684,7 @@ function allHolders() {
   const out = {};
   const visitH = h => { if (!h) return; out[h.id] = h; if (h.expr) visitX(h.expr); };
   const visitX = x => { for (const k in x.kids) visitH(x.kids[k]); (x.f.items || []).forEach(visitH); };
-  [ab.range, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h), ab.trigCond, ab.trig && ab.trig.range].forEach(visitH);
+  [ab.range, ab.areaSize, ab.lineWidth, ab.lineWithin, ab.meleeRange, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h), ab.trigCond, ab.trig && ab.trig.range].forEach(visitH);
   const visitS = l => l.forEach(st => { for (const k in st.slots) visitH(st.slots[k]); for (const k in st.branches || {}) visitS(st.branches[k]); });
   visitS(ab.steps);
   return out;
@@ -2739,7 +2815,7 @@ const EXAMPLES = {
   smoke: () => {
     const a = newAbility();
     Object.assign(a, { name: "Smoke Bomb", action: "Maneuver", keywords: "Area, Magic", distance: "Burst", targetCount: "each enemy in the area" });
-    a.range = holderFromText("number", "range", "2");
+    a.areaSize = holderFromText("number", "areaSize", "2");
     a.targetFilter = holderFromText("boolean", "targetFilter", "Enemy");
     const aura = STEPS.opaque.make({ __typeName: "ActivatedAbilityAuraBehavior", summary: "Create a smoke cloud aura (2 squares, until end of your next turn)",
       aura: { __typeName: "Aura", name: "Smoke Cloud", applyto: "enemies", damage: 0, difficult_terrain: false, concealment: true } });

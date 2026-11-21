@@ -76,7 +76,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
     --"Targets Perform Rule": each target is the actor, so "shift {MovementSpeed}"
     --moves the target by its own speed. It takes priority over applyto's choice of actor.
-    local targetsPerformRule = self:try_get("targetsPerformRule", false)
+    local targetsPerformRule = self:try_get("targetPerformsRule", false)
 
     repeat
         if promptWhenResolving and #targets > 0 then
@@ -3871,9 +3871,9 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
     result[#result+1] = gui.Check{
         text = "Targets Perform Rule",
         hover = gui.Tooltip("Each target does the rule itself, e.g. \"shift {MovementSpeed}\" moves the target by its own speed. Overrides Apply To for who acts."),
-        value = self:try_get("targetsPerformRule", false),
+        value = self:try_get("targetPerformsRule", false),
         change = function(element)
-            self.targetsPerformRule = element.value
+            self.targetPerformsRule = element.value
         end,
     }
 

@@ -1245,7 +1245,7 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
 end
 
 --Flight wheel: while a creature that is flying, or can fly and is walking, picks where an
---ability's pathfound move (Advance and the like) ends, the mouse wheel sets how far above or
+--ability's pathfound move or shift (Advance, Disengage and the like) ends, the mouse wheel sets how far above or
 --below its current altitude the move ends, as it does when dragging the token (a walker
 --takes off for a move that ends in the air). The hover handler turns it on for such a
 --pick (active), the poller panel inside the ability controller reads the wheel, and the
@@ -1272,11 +1272,12 @@ function DrawSteelActionBar._flight.CreatureCanDial()
 end
 
 --- Whether the flight wheel applies to the current pick: a creature that can dial (see
---- CreatureCanDial) on an ordinary (not shift) pathfound move. Shifting keeps its own rules.
+--- CreatureCanDial) on a pathfound move or shift (Disengage and the like). The engine keeps
+--- a shift a shift while it climbs, so it still provokes no opportunity attacks.
 --- @param movementType nil|string from ActivatedAbility:GetMovementType
 --- @return boolean
 function DrawSteelActionBar._flight.Applies(movementType)
-    return movementType ~= "shift" and DrawSteelActionBar._flight.CreatureCanDial()
+    return DrawSteelActionBar._flight.CreatureCanDial()
 end
 
 --Bottom-of-screen reminder that the wheel flies up or down (InputHint, GameHud.lua): while
@@ -8584,6 +8585,415 @@ local function BuildOverviewColumns()
     return columns
 end
 
+--The Movement panel at the top of the Move drawer's menu: one button per
+--movement mode (unusable ones dimmed, with the reason as a tooltip), the
+--current mode and speed, and up/down buttons for modes that change height.
+--Kept on DrawSteelActionBar, not a local: this file's main chunk is at Lua's
+--200-local limit. The menu fires "showMoveModes" when the Move drawer opens;
+--while it is up the panel polls the token so it follows moves and effects.
+--- @return Panel
+function DrawSteelActionBar._MovementModePanel()
+    local T = UIText.T
+    local resultPanel
+
+    --The token the panel is showing. Set by "showMoveModes".
+    --- @type CharacterToken|nil
+    local m_token = nil
+    local m_signature = nil
+
+    local function Controllable()
+        return m_token ~= nil and m_token.valid and m_token.properties ~= nil and m_token.canControl
+    end
+
+    local m_modeButtons = {}
+    for _, moveType in ipairs(creature.selectableMoveTypes) do
+        local info = creature.movementTypeById[moveType]
+        m_modeButtons[#m_modeButtons + 1] = gui.Panel {
+            classes = { "moveModeButton" },
+            data = { moveType = moveType, reason = nil },
+            gui.Panel {
+                classes = { "moveModeIcon" },
+                bgimage = info.icon,
+                interactable = false,
+            },
+            hover = function(element)
+                local tip = element.data.reason or info.name
+                gui.Tooltip { text = tip, valign = "top" }(element)
+            end,
+            press = function(element)
+                if element.data.reason ~= nil or not Controllable() then
+                    return
+                end
+                ---@cast m_token -nil
+                --Walk and swim both mean "on the ground": CurrentMoveType picks
+                --between them from the water under the token.
+                local setType = moveType
+                if moveType == "swim" then
+                    setType = "walk"
+                end
+                if m_token.properties:CurrentMoveType() ~= moveType then
+                    m_token.properties:SetAndUploadCurrentMoveType(setType)
+                end
+                m_signature = nil
+                resultPanel:FireEvent("refreshMoveModes")
+            end,
+        }
+    end
+
+    local m_nameLabel = gui.Label { classes = { "moveModeName" }, text = "" }
+    local m_speedLabel = gui.Label { classes = { "moveModeSpeed" }, text = "" }
+    local m_altitudeTitle = gui.Label { classes = { "moveModeAltitudeTitle" }, text = "" }
+    local m_altitudeValue = gui.Label { classes = { "moveModeAltitudeValue" }, text = "0" }
+
+    --Up (dir 1) or down (dir -1) one square in the current mode.
+    local function AltitudeButton(dir)
+        return gui.Label {
+            classes = { "moveModeAltitudeButton" },
+            text = cond(dir > 0, "+", "-"),
+            data = { reason = nil },
+            hover = function(element)
+                local tip = element.data.reason or cond(dir > 0, T("movemode.up"), T("movemode.down"))
+                gui.Tooltip { text = tip, valign = "top" }(element)
+            end,
+            press = function(element)
+                if element.data.reason ~= nil or not Controllable() then
+                    return
+                end
+                ---@cast m_token -nil
+                local token = m_token
+                local target = token.floorAltitude + dir
+                if dir < 0 and token.properties:CurrentMoveType() == "burrow" then
+                    --a creature that can't drag grabbed creatures underground lets
+                    --go first; that waits a game update, hence the coroutine.
+                    dmhub.Coroutine(function()
+                        ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+                        if token.valid then
+                            token:MoveVertical(target)
+                        end
+                    end)
+                else
+                    token:MoveVertical(target)
+                end
+            end,
+        }
+    end
+
+    local m_upButton = AltitudeButton(1)
+    local m_downButton = AltitudeButton(-1)
+
+    local m_altitudePanel = gui.Panel {
+        classes = { "moveModeAltitude" },
+        gui.Panel {
+            classes = { "moveModeAltitudeText" },
+            m_altitudeTitle,
+            m_altitudeValue,
+        },
+        gui.Panel {
+            classes = { "moveModeAltitudeButtons" },
+            m_upButton,
+            m_downButton,
+        },
+    }
+
+    resultPanel = gui.Panel {
+        classes = { "moveModePanel", "collapsed" },
+        styles = {
+            {
+                selectors = { "moveModePanel" },
+                width = 205,
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                valign = "bottom",
+                hmargin = 16,
+                bmargin = 8,
+                bgimage = true,
+                bgcolor = Styles.Ability.blurColor,
+            },
+            {
+                selectors = { "moveModeCard" },
+                width = 205,
+                height = "auto",
+                flow = "vertical",
+                vmargin = 4,
+                hpad = 8,
+                vpad = 6,
+                borderBox = true,
+                bgimage = true,
+                bgcolor = "#00000077",
+                borderColor = "#606060",
+                borderWidth = 1.5,
+            },
+            {
+                selectors = { "moveModeButtonRow" },
+                width = "100%",
+                height = 33,
+                flow = "horizontal",
+            },
+            {
+                selectors = { "moveModeButton" },
+                width = 33,
+                height = 33,
+                halign = "center",
+                bgimage = true,
+                bgcolor = "#1D1D1D",
+                borderColor = "#606060",
+                borderWidth = 1.5,
+            },
+            {
+                selectors = { "moveModeButton", "hover" },
+                borderColor = "white",
+                brightness = 1.5,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = { "moveModeButton", "selected" },
+                borderColor = Styles.Ability.accentColor,
+                bgcolor = "#2A2116",
+            },
+            {
+                selectors = { "moveModeButton", "unavailable" },
+                bgcolor = "#161616",
+                borderColor = "#3A3A3A",
+            },
+            {
+                selectors = { "moveModeButton", "unavailable", "hover" },
+                borderColor = "#3A3A3A",
+                brightness = 1,
+            },
+            {
+                selectors = { "moveModeIcon" },
+                width = 22,
+                height = 22,
+                halign = "center",
+                valign = "center",
+                bgcolor = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeIcon", "parent:selected" },
+                bgcolor = Styles.Ability.accentColor,
+            },
+            {
+                --Grey out the icon itself: the button's opacity does not reach its children.
+                selectors = { "moveModeIcon", "parent:unavailable" },
+                bgcolor = "#555555",
+            },
+            {
+                selectors = { "moveModeStatusRow" },
+                width = "100%",
+                height = 32,
+                flow = "horizontal",
+                tmargin = 6,
+            },
+            {
+                selectors = { "moveModeStatusText" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeName" },
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+                bold = true,
+                color = Styles.Ability.accentColor,
+            },
+            {
+                selectors = { "moveModeSpeed" },
+                width = "auto",
+                height = "auto",
+                maxWidth = 120,
+                fontSize = 11,
+                color = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeAltitude" },
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeAltitudeText" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+                rmargin = 6,
+            },
+            {
+                selectors = { "moveModeAltitudeTitle" },
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                fontSize = 11,
+                color = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeAltitudeValue" },
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                fontSize = 16,
+                bold = true,
+                color = "white",
+            },
+            {
+                selectors = { "moveModeAltitudeButtons" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeAltitudeButton" },
+                width = 20,
+                height = 15,
+                vmargin = 1,
+                fontSize = 12,
+                bold = true,
+                textAlignment = "center",
+                color = Styles.textColor,
+                bgimage = true,
+                bgcolor = "#1D1D1D",
+                borderColor = "#606060",
+                borderWidth = 1,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "hover" },
+                borderColor = "white",
+                brightness = 1.5,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "unavailable" },
+                opacity = 0.3,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "unavailable", "hover" },
+                borderColor = "#606060",
+                brightness = 1,
+            },
+        },
+
+        showMoveModes = function(element, token)
+            m_token = token
+            m_signature = nil
+            element:FireEvent("refreshMoveModes")
+        end,
+
+        thinkTime = 0.2,
+        think = function(element)
+            --the menu (our parent) hides itself when closed; stop polling then.
+            local menu = element.parent
+            if element:HasClass("collapsed") or (menu ~= nil and menu:HasClass("hidden")) then
+                return
+            end
+            element:FireEvent("refreshMoveModes")
+        end,
+
+        refreshMoveModes = function(element)
+            if m_token == nil or not m_token.valid or m_token.properties == nil then
+                return
+            end
+            local props = m_token.properties
+            local current = props:CurrentMoveType()
+
+            local reasons = {}
+            for i, button in ipairs(m_modeButtons) do
+                reasons[i] = props:MoveTypeUnavailableReason(button.data.moveType)
+            end
+
+            local depthMode = current == "swim" or current == "burrow"
+            local showAltitude = current == "climb" or depthMode or (current == "fly" and props:CanFlyVertically())
+            local altitude = 0
+            if depthMode then
+                altitude = m_token.distanceBelowGround
+            elseif showAltitude then
+                altitude = props:HeightAboveGround()
+            end
+
+            local speed = props:GetSpeed(current)
+            local doubled = false
+            if speed <= 0 then
+                speed = props:WalkingSpeed()
+                doubled = current == "swim"
+            end
+
+            --Rebuild only when something shown has changed (this runs 5 times a second).
+            local signature = string.format("%s|%s|%s|%s|%s", current, tostring(showAltitude), tostring(altitude), tostring(speed), tostring(doubled))
+            for i = 1, #m_modeButtons do
+                signature = signature .. "|" .. (reasons[i] or "")
+            end
+            if signature == m_signature then
+                return
+            end
+            m_signature = signature
+
+            for i, button in ipairs(m_modeButtons) do
+                button.data.reason = reasons[i]
+                button:SetClass("unavailable", reasons[i] ~= nil)
+                button:SetClass("selected", button.data.moveType == current)
+            end
+
+            local info = creature.movementTypeById[current] or creature.movementTypeById["walk"]
+            m_nameLabel.text = info.verb
+            if doubled then
+                m_speedLabel.text = T("movemode.speed_doubled", { speed = tostring(speed) })
+            else
+                m_speedLabel.text = T("movemode.speed", { speed = tostring(speed) })
+            end
+
+            m_altitudePanel:SetClass("hidden", not showAltitude)
+            m_altitudeTitle.text = cond(depthMode, T("movemode.depth"), T("movemode.altitude"))
+            m_altitudeValue.text = tostring(math.floor(altitude + 0.5))
+
+            --Swimming or burrowing can't rise above the surface; flying or climbing
+            --can't go below the ground.
+            local upReason = nil
+            local downReason = nil
+            if depthMode and altitude <= 0 then
+                upReason = T("movemode.at_surface")
+            end
+            if (not depthMode) and altitude <= 0 then
+                downReason = T("movemode.on_ground")
+            end
+            m_upButton.data.reason = upReason
+            m_upButton:SetClass("unavailable", upReason ~= nil)
+            m_downButton.data.reason = downReason
+            m_downButton:SetClass("unavailable", downReason ~= nil)
+        end,
+
+        gui.Panel {
+            classes = { "moveModeCard" },
+            gui.Panel {
+                classes = { "moveModeButtonRow" },
+                children = m_modeButtons,
+            },
+            gui.Panel {
+                classes = { "moveModeStatusRow" },
+                gui.Panel {
+                    classes = { "moveModeStatusText" },
+                    m_nameLabel,
+                    m_speedLabel,
+                },
+                m_altitudePanel,
+            },
+        },
+
+        gui.Label {
+            classes = { "submenuHeading" },
+            text = T("movemode.heading"),
+        },
+    }
+
+    return resultPanel
+end
+
 ActionMenu = function()
     local m_submenus = {}
     --Pooled per-statblock columns for the director overview ("unique"
@@ -8626,6 +9036,9 @@ ActionMenu = function()
             }
         end,
     }
+
+    --The Move drawer's Movement panel, above the ability columns.
+    local m_moveModePanel = DrawSteelActionBar._MovementModePanel()
 
     local m_containerPanel = gui.Panel {
         width = "auto",
@@ -9145,6 +9558,15 @@ ActionMenu = function()
 
             m_args = args
 
+            --Only the Move drawer shows the Movement panel. Its menu drops the
+            --container's minimum height so its abilities sit right under it.
+            local isMove = args.type == "move"
+            m_moveModePanel:SetClass("collapsed", not isMove)
+            m_containerPanel.selfStyle.minHeight = cond(isMove, 0, 200)
+            if isMove then
+                m_moveModePanel:FireEvent("showMoveModes", g_token)
+            end
+
             --Director multi-monster overview: one column per statblock in
             --the selection, each chip casting for that statblock's
             --representative token (AbilityHeading casterToken override).
@@ -9276,7 +9698,9 @@ ActionMenu = function()
                 triggers = g_token.properties:GetTriggeredActions()
             end
 
-            if #abilities == 0 and #triggers == 0 then
+            --The Move menu opens even with no move abilities: it still has the
+            --Movement panel.
+            if #abilities == 0 and #triggers == 0 and args.type ~= "move" then
                 DrawSteelActionBar._diag("menu-empty", "drawer=" .. tostring(args.type))
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
@@ -9411,6 +9835,7 @@ ActionMenu = function()
             end
         end,
 
+        m_moveModePanel,
         m_containerPanel,
         m_lensBar,
         g_manualSetResourcePanel,
@@ -9625,6 +10050,24 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     return effective
 end
 
+-- Obstruction descriptions the engine gives to ordinary geometry and creatures.
+-- Anything else came from an aura's GetCoverDescription (its name).
+DrawSteelActionBar.GenericObstructions = {
+    none = true, wall = true, floor = true, ridge = true,
+    Creature = true, ["Area of Effect"] = true,
+}
+
+-- "No Line of Effect", or "Blocked by X" naming the aura in the way when one blocks it.
+-- Kept short: arrow labels truncate at TargetingArrow.MaxLabelChars (28).
+--- @param description string|nil the engine's obstruction description
+--- @return string
+function DrawSteelActionBar.NoLineOfEffectText(description)
+    if type(description) == "string" and description ~= "" and not DrawSteelActionBar.GenericObstructions[description] then
+        return string.format("Blocked by %s", description)
+    end
+    return "No Line of Effect"
+end
+
 -- Why targetToken is outside line of effect, or nil when the ability can reach
 -- it. originToken is where the ability reaches from (the caster, or a
 -- casting-origin relay); sourceToken is the caster. The arrow label and the
@@ -9636,7 +10079,8 @@ function DrawSteelActionBar.LineOfEffectFailReason(sourceToken, targetToken, ori
 
     local pierceWalls = originToken.properties:GetPierceWalls()
     if originToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
-        return "No Line of Effect"
+        local coverInfo = dmhub.GetCoverInfo(originToken, targetToken, pierceWalls)
+        return DrawSteelActionBar.NoLineOfEffectText(coverInfo ~= nil and coverInfo.description or nil)
     end
 
     -- Per-creature line-of-effect cap (e.g. the Dazzled condition's "line of
@@ -10600,7 +11044,7 @@ end
 function DrawSteelActionBar.TeleportLineOfEffectFailReason(mover, loc)
     local info = mover:GetLineOfSightToSpaceInfo(loc, mover.properties:GetPierceWalls())
     if info.cover == 0 then
-        return "No Line of Effect", info.obstructionDist
+        return DrawSteelActionBar.NoLineOfEffectText(info.description), info.obstructionDist
     end
 
     local limit = mover.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
@@ -15518,6 +15962,8 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local failReason = nil
+                --set when failReason is a line of effect reason, shown on the arrow, not the token.
+                local failIsLineOfEffect = false
 
                 if canTarget then
                     canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
@@ -15607,6 +16053,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         and targetToken.charid ~= g_token.charid and not SquadStrikeActive() then
                         failReason = DrawSteelActionBar.LineOfEffectFailReason(g_token, targetToken,
                             targetProximityOrigin or DrawSteelActionBar.RangeMeasureOrigin(g_currentAbility, g_token, targetToken))
+                        failIsLineOfEffect = failReason ~= nil
                     end
 
                     --Target-first abilities (Heal): a creature in reach that no mode can be
@@ -15645,7 +16092,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         targetToken.sheet.data.targetValid = valid
                         --out-of-range and line of effect are shown as arrow labels instead of a token tooltip.
                         local tooltipReason = failReason
-                        if tooltipReason ~= nil and (string.starts_with(tooltipReason, "Out of range")
+                        if tooltipReason ~= nil and (failIsLineOfEffect or string.starts_with(tooltipReason, "Out of range")
                             or string.find(tooltipReason, "Line of Effect", 1, true) ~= nil) then
                             tooltipReason = nil
                         end

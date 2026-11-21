@@ -3607,6 +3607,16 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         local handler = entry.handler
         attemptedHandlers[#attemptedHandlers+1] = entry.name
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
+        --{decline = true} turns the offer down, as a player's Skip would. Needed for
+        --self-targeted abilities, which still resolve on the caster when given no targets.
+        if result ~= nil and result.decline == true then
+            self:LogDecision("PROMPT DECLINED", {
+                ability = abilityClone.name,
+                prompt = entry.name,
+                reason = result.reason,
+            })
+            return "skip"
+        end
         if result ~= nil then
             local selectedAbility = result.abilityOverride or abilityClone
             if selectedAbility.targetType == "target" then
@@ -6292,7 +6302,13 @@ function MonsterAI:ExecuteSquadStrike(ability)
             dmhub.Schedule(0.8, function()
                 if self.TokenIsLiveCombatant(memberToken)
                     and self.TokenIsLiveCombatant(targetToken) then
-                    rays[#rays+1] = dmhub.MarkLineOfSight(memberToken, targetToken,
+                    --Keyed like ExecuteAbility's arrows; a member planned again
+                    --in round 2 replaces its old arrow.
+                    local key = string.format("%s-%s", memberToken.charid, targetToken.charid)
+                    if rays[key] ~= nil then
+                        rays[key]:DestroyLineOfSight()
+                    end
+                    rays[key] = dmhub.MarkLineOfSight(memberToken, targetToken,
                         memberToken.properties:GetPierceWalls())
                 end
             end)
@@ -6411,7 +6427,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
             end
         end
 
-        self:ExecuteAbility(casterToken, castAbility, targets, {symbols = symbols, sleep = 2.0})
+        self:ExecuteAbility(casterToken, castAbility, targets, {symbols = symbols, sleep = 2.0, squadRays = rays})
         executed = true
         logMessage = string.format("Executed on %d targets", #targets)
     elseif #targetPairs > 0 then
@@ -6420,7 +6436,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
         logMessage = "Could not find any targets"
     end
 
-    for _,ray in ipairs(rays) do
+    for _,ray in pairs(rays) do
         ray:DestroyLineOfSight()
     end
 
@@ -10173,18 +10189,26 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         self:VoiceStrikeBark(casterToken, ability)
     end
 
+    --Keyed "<casterId>-<targetId>" like the action bar's arrows, so the roll
+    --dialog can find each target's arrow and badge it (Cover, High Ground).
+    --A squad strike passes in the arrows its members drew (squadRays).
     local rays = {}
     if symbols.targetPairs == nil then
         for _,target in ipairs(targets) do
             if target.token ~= nil then
-                rays[#rays+1] = dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
+                rays[string.format("%s-%s", casterToken.charid, target.token.charid)] =
+                    dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
             end
         end
+    elseif options.squadRays ~= nil then
+        rays = options.squadRays
     end
+    options.invokeMarkLineOfSight = rays
     --Every exit below must call this, errors included: an error that skipped
-    --it left Dread March's arrows on the map for good (B9NKW8HF).
+    --it left Dread March's arrows on the map for good (B9NKW8HF). The cast
+    --also destroys them when it finishes; destroying twice is safe.
     local function DestroyRays()
-        for _,ray in ipairs(rays) do
+        for _,ray in pairs(rays) do
             ray:DestroyLineOfSight()
         end
         rays = {}

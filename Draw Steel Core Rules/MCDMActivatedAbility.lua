@@ -5908,13 +5908,17 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
         local cache = g_includedInAreaCache
         local frame = dmhub.FrameCount()
         if cache.frame ~= frame or cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
+            --Fill the cache entry before the loop, not after: for an ability with custom target
+            --filters the base filter calls back into TargetPassesFilter and so into this
+            --function for the same area, which would otherwise miss the cache and recurse
+            --until the stack overflows. The nested call sees the set as filled so far.
             local charids = {}
+            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
             for _, tok in pairs(dmhub.tokenInfo.TokensInShape(targetArea) or {}) do
                 if tok.valid and tok.properties ~= nil and g_baseTargetPassesFilter(ability, casterToken, tok, symbols) then
                     charids[tok.charid] = true
                 end
             end
-            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
         end
         included = cache.charids
     end

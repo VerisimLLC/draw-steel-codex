@@ -1564,6 +1564,43 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 
 			},
 
+			--Drawn width only (1 = half a tile, times Scale); starts at image height / 64.
+			--Unlike Scale it leaves the texture's repeat length alone.
+			gui.Panel{
+				classes = {"formStackedRow"},
+
+				children = {
+					gui.Label{
+						text = 'Thickness:',
+						classes = {"formStacked"},
+					},
+
+					gui.Slider{
+						value = asset.thickness,
+						minValue = 0.1,
+						maxValue = math.max(4, asset.thickness),
+						sliderWidth = 300,
+						labelWidth = 60,
+
+						events = {
+							change = function(element)
+								asset.thickness = element.value
+								RefreshAssets()
+							end,
+						},
+
+						style = {
+							fontSize = '80%',
+							valign = 'center',
+							halign = 'right',
+							height = '50%',
+							width = '100%',
+							borderWidth = 0,
+						},
+					},
+				},
+			},
+
 			gui.Panel{
 				classes = {"formStackedRow"},
 

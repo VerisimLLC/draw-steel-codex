@@ -123,6 +123,16 @@ end
 --creature-typed properties.
 --Returns { monsterid, name, ev, level, minion, org, role, portraitId, meta,
 --           keywords, searchText }
+--False for a bestiary entry whose creature type was never registered: a
+--module's data can name a game type that only its (missing or disabled) code
+--defines, and the engine then loads it as a placeholder type with no methods,
+--so any read raises. One such entry used to abort the whole bestiary list
+--(DBVJBNJT: a homebrew module's 'Servitor' entries).
+local function IsUsableMonsterAsset(monsterAsset)
+    local props = monsterAsset.properties
+    return props == nil or not IsPlaceholderGameType(props.typeName)
+end
+
 local function MonsterBuildInfo(monsterid, monsterAsset)
     local info = {
         monsterid = monsterid,
@@ -496,6 +506,8 @@ local function BankedPositionQueues(group)
     local locs = group.spawnlocs or {}
     for slot = 1, #locs do
         local entry = {
+            --the slot this was banked in: saved mounts name riders and mounts by it.
+            slot = slot,
             --back on the floor it was saved on, in case the map's floors changed since.
             loc = Encounter.LocOnSavedFloor(locs[slot], (group.spawnfloors or {})[slot]),
             appearance = (group.appearances or {})[slot],
@@ -529,6 +541,18 @@ local function TakeBankedPosition(queues, legacy, monsterid)
         return table.remove(legacy, 1)
     end
     return nil
+end
+
+--The slot a monster spawned from a banked entry goes back into: the entry's own
+--banked slot, so saved mounts (recorded by banked slot) find the right tokens
+--even though monsters are now spawned in a different order (VZQFP3ZS). Monsters
+--with nothing banked take fresh slots after the banked ones. nextUnbanked is the
+--last fresh slot handed out; returns the slot and the updated counter.
+local function SpawnSlotFor(entry, nextUnbanked)
+    if entry ~= nil and entry.slot ~= nil then
+        return entry.slot, nextUnbanked
+    end
+    return nextUnbanked + 1, nextUnbanked + 1
 end
 
 --Bank one group's staged tokens into the group: positions (spawnlocs),
@@ -598,6 +622,9 @@ local function RestoreMountsForPlacedGroup(encounter, groupIndex, entries)
     for otherIndex, other in ipairs(encounter.groups) do
         if otherIndex ~= groupIndex then
             for slot, token in ipairs(PlacedTokensForGroup(other)) do
+                --a group restaged from saved positions keeps each token's banked
+                --slot, which is what the saved mounts refer to.
+                slot = token.properties:try_get("encounterSpawnSlot", slot)
                 all[#all + 1] = { group = otherIndex, slot = slot, token = token, mountOnly = true }
             end
         end
@@ -698,11 +725,13 @@ local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroe
     local floorIndex = game.currentFloorIndex
     local fallbackIndex = 0
 
-    local slot = 1
+    local unbankedSlot = #(group.spawnlocs or {})
     for _, monsterid in ipairs(SortedMonsterIds(group)) do
         local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
             local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local slot
+            slot, unbankedSlot = SpawnSlotFor(entry, unbankedSlot)
             local loc = entry ~= nil and entry.loc or nil
             --grid locs have no altitude: the engine stands them on the ground.
             local onGround = false
@@ -743,7 +772,6 @@ local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroe
                 tokens[#tokens + 1] = token
                 mountEntries[#mountEntries + 1] = { group = groupIndex, slot = slot, token = token }
             end
-            slot = slot + 1
         end
     end
     if #tokens > 0 then
@@ -2311,7 +2339,7 @@ local function CreateBestiaryPane(party, addMonster)
         if g_bestiaryInfoCache == nil then
             local infos = {}
             for monsterid, monsterAsset in pairs(assets.monsters) do
-                if not monsterAsset.hidden then
+                if not monsterAsset.hidden and IsUsableMonsterAsset(monsterAsset) then
                     infos[#infos + 1] = MonsterBuildInfo(monsterid, monsterAsset)
                 end
             end
@@ -2699,7 +2727,7 @@ local function CreateGroupCard(args)
     local entries = {}
     for monsterid, quantity in pairs(group.monsters) do
         local monsterAsset = assets.monsters[monsterid]
-        if monsterAsset ~= nil then
+        if monsterAsset ~= nil and IsUsableMonsterAsset(monsterAsset) then
             entries[#entries + 1] = {
                 monsterid = monsterid,
                 quantity = quantity,
@@ -3247,6 +3275,14 @@ local function CreateGroupCard(args)
                             if token ~= nil then
                                 token.properties.encounterPlacementId = placementid
                                 token.properties.encounterSpawnSlot = slot
+                                --the engine spawned these in its own order, so the slot
+                                --says nothing about which monster this is. Without the
+                                --stamp, a restage hands saved tiles and looks to the
+                                --wrong monster type (VZQFP3ZS).
+                                local monsterid = token.bestiaryId
+                                if monsterid ~= nil and (group.monsters or {})[monsterid] ~= nil then
+                                    token.properties.encounterSpawnMonster = monsterid
+                                end
                                 token.properties.encounterStaged = true
                                 token.properties.encounterStagedBy = dmhub.userid
                                 token:UploadToken()
@@ -5179,7 +5215,7 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
     local charids = {}
     --each spawned token tagged with its slot, for restoring saved mounts.
     local mountEntries = {}
-    local slot = 1
+    local unbankedSlot = #(group.spawnlocs or {})
     local fallbackIndex = 0
     local nsquad = 1
 
@@ -5189,6 +5225,8 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
         local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
             local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local slot
+            slot, unbankedSlot = SpawnSlotFor(entry, unbankedSlot)
             local loc = entry ~= nil and entry.loc or nil
             --a grid loc has no altitude of its own: the engine stands it on
             --the ground (down into a pit as well as up a cliff). A banked
@@ -5260,8 +5298,6 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 charids[#charids + 1] = token.charid
                 mountEntries[#mountEntries + 1] = { slot = slot, token = token }
             end
-
-            slot = slot + 1
         end
     end
 

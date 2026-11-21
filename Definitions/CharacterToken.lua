@@ -386,10 +386,10 @@ function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg) e
 --- @return number
 function CharacterToken:GetLineOfSightToSpace(loc, pierceSurfacesArg) end
 
---- GetLineOfSightToSpace with where the line is blocked. cover is the same 1 / 0.5 / 0.25 / 0 value; obstructionDist is how far (0-1) along the line from this creature to the space the obstacle that hides it lies, 1 when nothing does. A movement arrow can pass it as MarkMovementArrow's errorFrom.
+--- GetLineOfSightToSpace with where the line is blocked. cover is the same 1 / 0.5 / 0.25 / 0 value; obstructionDist is how far (0-1) along the line from this creature to the space the obstacle that hides it lies, 1 when nothing does. A movement arrow can pass it as MarkMovementArrow's errorFrom. description names that obstacle (wall, ridge, or an aura's GetCoverDescription such as its name) and is nil when the line is clear.
 --- @param loc Loc Where this creature's body would stand, with its absolute altitude (a space in the air is allowed).
 --- @param pierceSurfacesArg? number How many thin walls the line may pass through.
---- @return {cover: number, obstructionDist: number}
+--- @return {cover: number, obstructionDist: number, description: string|nil}
 function CharacterToken:GetLineOfSightToSpaceInfo(loc, pierceSurfacesArg) end
 
 --- The distance in native units to a loc, path, or another token. nil when either token no longer has a map token (deleted, or not built yet).

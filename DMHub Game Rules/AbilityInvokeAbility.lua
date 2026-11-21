@@ -2058,12 +2058,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 --almost always free custom abilities); callers that invoke a REAL costed ability
                 --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
                 --The selected area is cast state and must survive this invoke boundary.
+                --invokeMarkLineOfSight: targeting arrows the invoker drew (the Monster
+                --AI), handed to the cast so its roll dialog can badge them. Not
+                --markLineOfSight, which nested invokes inherit from their parent cast.
                 local castOptions = {
                     symbols = symbols,
                     targetArea = options.targetArea,
                     targetAreaList = options.targetAreaList,
                     pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
+                    markLineOfSight = options.invokeMarkLineOfSight,
                 }
                 abilityClone:Cast(casterToken, targets, castOptions)
             end

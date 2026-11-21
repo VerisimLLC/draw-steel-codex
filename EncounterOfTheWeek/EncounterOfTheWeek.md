@@ -4494,11 +4494,46 @@ User direction (2026-10-11):
   Victories leaves an unused carouse open.
 - **Lead tiers** (David 2026-11-17): every lead is ranked tier 1, 2 or 3
   (`CITY_LEADS` in city-core.ts, mirrored by `EotwLeads.TIERS`). A carouse
-  learns the next unlearned lead of its own tier; with none left there, the
-  next of the tier below, and so on down to tier 1; with none at or below
-  it, nothing. Never up a tier. The Arcane Market is tier 3 and the Temple
-  tier 2, so a tier 1 roll still learns nothing. The tier table shows
-  "learn a lead" on every tier that would learn one now.
+  learns an unlearned lead of its own tier; with none left there, one of
+  the tier below, and so on down to tier 1; with none at or below it,
+  nothing. Never up a tier. Within a tier the City picks **at random**
+  (David 2026-11-19; `pickLead`'s `random`). The Arcane Market is tier 3
+  and the Temple tier 2. The tier table shows "learn a lead" on every tier
+  that would learn one now.
+- **The town's buildings are tier 1 leads** (David 2026-11-19): the
+  **Graveyard**, **Hall of Heroes**, **Town Hall** and **Training Grounds**
+  (`graveyard`, `hall-of-heroes`, `town-hall`, `training-grounds`). Each
+  works like the Temple: off the map until heard, then the building site
+  (and its community project) if still being built, or the building if
+  done. The three build projects carry `requiresLead`, so rolls on them
+  are refused without the lead, and the Town Hall's ballots and petitions
+  need it too (`townHallRefusal`). Decisions (David 2026-11-19):
+  - **Only a rumour while shown**: a lead whose community project an
+    admin has hidden is not in the carouse pool (`leadAvailable` /
+    `EotwLeads.Available`, via the lead's `buildProject`). This applies to
+    the Temple too: `restore-temple` is `defaultHidden`, so on a server
+    where it is still hidden a tier 2 roll falls through to tier 1.
+  - **Existing accounts are grandfathered**: a one-time migration in the
+    City's schema setup (`grandfatherTier1Leads`, flag
+    `city_meta.tier1LeadsGrandfathered`) gives every account in
+    `city_accounts` or `city_heroes` all four, on each server the first
+    time the new code wakes. Only new accounts carouse for them.
+  - **The Graveyard is also learned on a player's first death**
+    (`applyRecordOutcome`), so a fallen Hakaan's Awaken is never out of
+    reach.
+  - **Tellers are PLACEHOLDERS**: invented names and borrowed bestiary
+    off-token art (Human Knave, Rogue, Apprentice Mage, Guard), draft
+    lines in `EotwTextTown.lua` (`leads.graveyard.*`, `leads.hall.*`,
+    `leads.town_hall.*`, `leads.training_grounds.*`), awaiting David's
+    text and portraits. The Human Guard art is a square painting with its
+    background, not a cutout, so it shows as a card in the conversation.
+  - Built 2026-11-19: server tests pass (495), City **deployed to staging
+    only** (`899a5f1b`); there the grandfathering ran (David's account has
+    all four), the map hides all four without the leads (client-faked),
+    and the training-grounds conversation plays. Not yet seen: a real new
+    account carousing them. **Release must get the server before the
+    codex ships**: the new client against the old release server hides
+    all four buildings from everyone.
 - **Leads that open a location** (David 2026-11-17): a lead may open a
   project (`project`), a town location (`location`), or both. A
   `CITY_LOCATIONS` row with `lead = "<id>"` stays off that player's map until

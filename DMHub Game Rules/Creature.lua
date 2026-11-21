@@ -2280,7 +2280,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 	amount = math.floor(amount)
 	local originalAmount = amount
 
-    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --continuesInstance = { raw = N, landed = N, sameTurn = bool }: this damage is added onto a hit that
     --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
     --two count as ONE damage instance. If the hit landed anything, flat immunity and
     --weakness were fully applied to it already, so the extra goes on unmodified. If it
@@ -2337,8 +2337,15 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     end
 
 	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
-    if skipResistance then
+    --sameTurn: the earlier part is this effect's own damage earlier this turn
+    --("One Damage Instance per Turn"), not a hit this damage was added to.
+    local sameTurn = continuesInstance ~= nil and continuesInstance.sameTurn
+    if skipResistance and sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn; immunity and weakness already applied)', note)
+    elseif skipResistance then
         note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn, which dealt none; resisted together as %d)', note, amount)
     elseif continuesInstance ~= nil then
         note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
     end
@@ -13755,6 +13762,11 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local ignoredShiftEntry = enteredViaShift == true
 		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
 		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
+	--An enter-only roll skipped at the start of a turn must not use up this
+	--turn's entry, or walking in later in the turn would not roll.
+	local skippedBeginTurnRoll = fromBeginTurn == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollEnterOnly", false) == true
 
 	if not adjacentOnly then
 		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
@@ -13785,6 +13797,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
 		adjacentOnly = adjacentOnly == true,
 		enteredViaShift = enteredViaShift == true,
+		fromBeginTurn = fromBeginTurn == true,
 	}
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
@@ -13817,7 +13830,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
 	--for every other kind of entry, including inert auras.
 	local turnid = self:GetTurnId()
-	local consumeEntry = result or not ignoredShiftEntry
+	local consumeEntry = result or not (ignoredShiftEntry or skippedBeginTurnRoll)
 	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
 		info.token:ModifyProperties{
 			description = "Enter Aura",

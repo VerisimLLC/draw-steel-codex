@@ -2776,6 +2776,10 @@ end
 --A character's still portrait image id, or nil ("#..." ids are live renders
 --of a token on this machine, and "anim:" ids are animations; neither loads
 --in town).
+--A custom avatar is a cloud asset id only its owner's games can resolve, so
+--it is recorded as its public "md5:<blob>" form, which any client loads
+--(as AdventurePage.PortableImageId does). Videos keep their asset id: an
+--md5: id loads as a still image.
 local function StillPortrait(tok)
     local portrait = nil
     pcall(function()
@@ -2785,6 +2789,15 @@ local function StillPortrait(tok)
             end
         end
     end)
+    if portrait ~= nil and string.sub(portrait, 1, 4) ~= "md5:" then
+        pcall(function()
+            local asset = assets.imagesTable[portrait]
+            local blob = asset ~= nil and not asset.isVideo and asset.imageid or nil
+            if type(blob) == "string" and blob ~= "" then
+                portrait = "md5:" .. blob
+            end
+        end)
+    end
     return portrait
 end
 

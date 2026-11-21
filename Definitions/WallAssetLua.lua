@@ -2,6 +2,7 @@
 
 --- @class WallAssetLua:AssetImageBaseLua
 --- @field scale any
+--- @field thickness number How wide the wall draws, in units where 1 = half a tile; multiplied by scale. Set from the image height (height / 64) when the wall is uploaded. Visual only: movement and vision blocking ignore it.
 --- @field cornerSize any
 --- @field shadowMask any
 --- @field previewRect any

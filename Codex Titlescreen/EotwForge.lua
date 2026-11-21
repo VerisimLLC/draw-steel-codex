@@ -665,8 +665,46 @@ local function ProjectGoal(item)
     return math.floor(n)
 end
 
+--Leveled treasures rated Silver or Bronze overall that are fully automated
+--through 4th level (David 2026-11-18). Each one's implementationDetails says
+--what is missing at 5th and 9th level. Reviewed 2026-11-18.
+EotwForge.GOLD_BELOW_5TH = {
+    ["aba29226-030c-4c1c-baa9-318c366b9b6d"] = true, --Abjurer's Bastion
+    ["9e8eea25-436a-4a04-975e-d28a87dca2e8"] = true, --Bloodbound Band
+    ["158b8282-86cd-48a4-bb23-9ea6d4c724fc"] = true, --Bloody Hand Wraps
+    ["403089f6-e0d6-4b23-9e76-1b68e1f35445"] = true, --Brittlebreaker
+    ["df49e435-f1e4-4a48-bba2-5f4b22db0307"] = true, --Chain of the Sea and Sky
+    ["4f0bb297-f296-4c8b-a3c8-52b0b7fa4333"] = true, --Horned Champion (beastheart only)
+    ["02d796d9-2e7f-4ab6-8125-b4e291e77af2"] = true, --Icemaker Maul
+    ["3cc6178c-ff64-4c19-aa07-3a9ccf64f528"] = true, --Knife of Nine
+    ["0fab2312-e2ab-4bf4-bb14-d71dfd9bd678"] = true, --Molten Constrictor
+    ["5b591629-185c-4451-86d1-60e7c0ffc919"] = true, --Onerous Bow
+    ["7ad4f615-5b3b-47ae-9c41-c2f0faed324d"] = true, --Steeltongue
+    ["021fbd10-0dff-40af-94ca-629a700715f1"] = true, --Third Eye Seeker
+    ["37303870-6a01-4f63-9111-dbd1a6fe6c0e"] = true, --Thunderhead Bident
+    ["c3c028c1-d3ce-452a-84d7-440c18010012"] = true, --Wetwork
+}
+
+--Silver echelon 1 consumables and trinkets whose gaps don't matter with no
+--Director (David 2026-11-19), like EotwMarket.EXTRA_STOCK. Each one's gap is
+--in its implementationDetails. Reviewed 2026-11-19. Deadweight is left out:
+--its free strike while falling is not built, so it only adds fall damage.
+EotwForge.EXTRA_TREASURES = {
+    ["5969d015-13fd-40e2-b2d5-be67a4169f5a"] = true, --Catapult Dust
+    ["19280d26-b619-4441-90d5-1d23d0deb9da"] = true, --Giant's-Blood Flame
+    ["b4ff06aa-75ae-4ed5-86e5-e6e22a29e09e"] = true, --Imp's Tongue
+    ["a6d7f43e-fb4d-488c-b588-2aaa58c54a28"] = true, --Mirror Token
+    ["229966c5-e4d5-419d-94e6-18dc9aba8159"] = true, --Portable Cloud
+    ["d71a0de3-99de-4a96-b3f3-0a65a21ff9db"] = true, --Snapdragon
+    ["b2f04f55-0275-4e4e-a6b4-23dc3ffce594"] = true, --Color Cloak - Red
+    ["cf2b74c7-e511-45c2-b0be-517eddf0bdcc"] = true, --Divine Vine
+    ["d20ae94a-9917-43be-b69b-38113b36fc97"] = true, --Gecko Gloves
+    ["15987441-aa72-4fad-bc72-85b841c53e2b"] = true, --Speaking Scarab (companion only)
+}
+
 --What the Forge can craft (David 2026-11-15: Gold echelon 1 treasures for
---now, prerequisites ignored; imbuements left out): { {itemid, item, goal}, ... } by name.
+--now, prerequisites ignored; imbuements left out; plus GOLD_BELOW_5TH and
+--EXTRA_TREASURES): { {itemid, item, goal}, ... } by name.
 function EotwForge.Treasures()
     local result = {}
     local gear = dmhub.GetTable("tbl_Gear") or {}
@@ -678,7 +716,7 @@ function EotwForge.Treasures()
             and item:try_get("imbueTargetType") == nil
             and item:try_get("hiddenFromPlayers", false) ~= true
             and (tonumber(item:try_get("echelon", 1)) or 1) == 1
-            and (tonumber(item:try_get("implementation", 1)) or 1) >= gui.ImplementationStatus.Gold then
+            and (EotwForge.GOLD_BELOW_5TH[itemid] or EotwForge.EXTRA_TREASURES[itemid] or (tonumber(item:try_get("implementation", 1)) or 1) >= gui.ImplementationStatus.Gold) then
             result[#result+1] = { itemid = itemid, item = item, goal = goal }
         end
     end

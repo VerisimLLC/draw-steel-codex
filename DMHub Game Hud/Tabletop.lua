@@ -1557,15 +1557,36 @@ function g_chrome.Sync()
     g_chrome.SyncShown()
 end
 
---The strip shows while a window owns it, except under the character sheet:
---the sheet lives in the main dialog layer, below this one, so the strip
---would cover its close button.
+--True while a full-screen dialog (the Compendium, any fillsScreen launchable)
+--is open in the main dialog layer. That layer is below this one, so the strip
+--would cover the dialog's close button (R4JRJE2Z). The framedPanel class skips
+--the layer's empty full-size holder panels.
+function g_chrome.FullScreenDialogOpen()
+    local hud = GameHud.instance
+    local layer = hud ~= nil and hud:try_get("mainDialogPanel") or nil
+    if layer == nil or not layer.valid then
+        return false
+    end
+    local w, h = layer.renderedWidth * 0.95, layer.renderedHeight * 0.95
+    for _, child in ipairs(layer.children) do
+        if child:HasClass("framedPanel") and not child:HasClass("hidden") and not child:HasClass("collapsed")
+            and child.renderedWidth >= w and child.renderedHeight >= h then
+            return true
+        end
+    end
+    return false
+end
+
+--The strip shows while a window owns it, except under the character sheet
+--or another full-screen dialog: those live in the main dialog layer, below
+--this one, so the strip would cover their close buttons.
 function g_chrome.SyncShown()
     local strip = g_chrome.strip
     if strip == nil or not strip.valid then
         return
     end
     local hide = g_chrome.owner == nil or dmhub.inCharacterSheet or g_chrome.suppressed == true
+        or g_chrome.FullScreenDialogOpen()
     if strip:HasClass("collapsed") ~= hide then
         strip:SetClass("collapsed", hide)
     end
@@ -1666,6 +1687,7 @@ function g_chrome.ShowImage(holder, image, color, saturation)
         end
         holder.data.imagePanel = child
         holder.data.image = image
+        holder.data.imageRect = nil
     end
     if child ~= nil then
         child.selfStyle.bgcolor = color or "white"
@@ -1688,13 +1710,26 @@ function g_chrome.CoverFit(holder, body, mapid)
     end
     local imageAspect = thumbnails.Aspect(mapid)
     local boxAspect = w / h
+    local rect
     if imageAspect > boxAspect then
         local f = boxAspect / imageAspect
-        child.selfStyle.imageRect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
+        rect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
     else
         local f = imageAspect / boxAspect
-        child.selfStyle.imageRect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
+        rect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
     end
+    g_chrome.SetImageRect(holder, rect)
+end
+
+--Crops the image ShowImage put in holder to rect (0-1 image coordinates),
+--and remembers the crop so a cover can show the picture the same way.
+function g_chrome.SetImageRect(holder, rect)
+    local child = holder ~= nil and holder.valid and holder.data.imagePanel or nil
+    if child == nil or not child.valid then
+        return
+    end
+    child.selfStyle.imageRect = rect
+    holder.data.imageRect = rect
 end
 
 --Adds or removes a class on a panel and everything inside it (opacity does
@@ -1811,7 +1846,15 @@ function g_chrome.UpdateCover(rec)
     end
 
     if not cover.placeholder then
-        g_chrome.ShowImage(panel.data.imageHolder, cover.image)
+        local holder = panel.data.imageHolder
+        if cover.imageRect == nil and holder.data.imageRect ~= nil then
+            --an earlier cover's crop: start the picture afresh, uncropped.
+            g_chrome.ShowImage(holder, nil)
+        end
+        g_chrome.ShowImage(holder, cover.image)
+        if cover.imageRect ~= nil then
+            g_chrome.SetImageRect(holder, cover.imageRect)
+        end
     else
         g_chrome.ShowImage(panel.data.imageHolder, nil)
     end
@@ -4020,12 +4063,20 @@ local function OnCurrentMapChanged(newMapId, fromMapId)
     g_chrome.cover = nil
     if target ~= nil and dmhub.mapTransitionMapId == newMapId then
         local image, placeholder
+        local imageRect = nil
         if target.id == prevLiveId and fromMapId ~= nil and dmhub.HasMapSnapshot(fromMapId) then
             image, placeholder = "#MapSnapshot:" .. fromMapId, false
         else
             image, placeholder = FrozenImage({mapid = prevMapIds[target.id] or newMapId})
+            --a whole-map picture (thumbnail, pack art) is cropped to the
+            --window's shape; uncropped, the picture jumped as the cover
+            --replaced the frozen window.
+            local shown = target.snapHolder
+            if shown ~= nil and shown.valid and shown.data.image == image then
+                imageRect = shown.data.imageRect
+            end
         end
-        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder}
+        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder, imageRect = imageRect}
         --a frozen window showing its map's live tokens: the cover shows them too.
         if target.id ~= prevLiveId and target.tokenLayer ~= nil and target.tokenLayer.valid and not target.tokenLayer:HasClass("collapsed") then
             g_chrome.cover.tokenLayer = target.tokenLayer

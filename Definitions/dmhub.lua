@@ -18,6 +18,7 @@
 --- @field versionStatus AppVersionStatus (Read-only) Where this build sits relative to the app versions published on each channel (/AppVersions). Available immediately from the on-disk cache when one exists; listen to versionStatusEvent to be told when it changes.
 --- @field versionStatusEvent nil|EventSourceLua (Read-only) Event source that fires 'appVersionStatus' on listening panels whenever versionStatus is recomputed, i.e. when the cached or fresh /AppVersions record is applied. nil before the monitor exists.
 --- @field safeMode boolean True if the app was launched with --safe-mode: the lobby game (the titlescreen) loads no module code, so a broken Hero module can be removed.
+--- @field launchedIntoGame boolean True while the app, launched with --gameid, is still in the game it was launched into. The titlescreen is not built until it leaves that game.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
 --- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field tokenFrames TokenFramesLuaInterface Registry of premium token frame materials. Register{...} defines a frame (albedo + normal + roughness maps and lighting parameters); a token uses it by setting token.portraitFrameMaterial to the id (and token.portraitFrame to the material's albedo asset).

@@ -534,6 +534,7 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
 - `{targets = {}}` does not decline an ability chooser (`Invoked Ability`): with one ability on offer the invoke casts it anyway, with no targets, and any prompt inside it still comes up. The Minotaur's retaliation once declined its Charge this way, so the strike prompt inside Charge found no target and went to a person (R6ATBX7P)
+- `{decline = true, reason = "..."}` turns the offer down, as a player's Skip would (`HandlePrompt` returns `"skip"`, logged `PROMPT DECLINED`). Use it for self-targeted abilities: given `{targets = {}}` they still resolve on the caster. The War Dog Commando's "Caster May Hide" declines this way when hiding would not stick
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 - `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
 - `answersForCaster` -- optional registration flag. When a hero's ability invokes this prompt on an AI-run monster (the monster is the caster), the AI answers it instead of the hero's player. Only for prompts where the monster acts on its own (To the Death!'s free strike); forced movement and other choices about the target stay with the invoker (`MonsterAI.PromptAnswersForCaster`)
@@ -554,11 +555,37 @@ wrapper names such as `Invoked Ability` when every synthesized choice is a Basic
 Attack. Monster-qualified prompt handlers are tried first and can fall through
 to this generic handler by returning `nil`.
 
-The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
-`vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's
-normal altitude calculator and gives altitude priority over its horizontal
-collision and positioning heuristics, selecting the highest legal requested
-altitude before breaking ties tactically.
+The generic `Push!`, `Pull!`, and `Slide!` handler picks the landing that deals
+the most net damage (`PredictForcedMoveDamage`): damage to the invoker's
+enemies minus damage to its friends, read from the same preview arrow the cast
+uses (through creatures, straight up and the mover's Rebound included). It
+mirrors the Collision global rule (1 per square left, +2 into an object or wall,
+the pusher's `BonusPushDamageIntoObjects` on a push, less `Forced Movement Damage
+Reduction`, the no-damage attributes and "No Collision Damage" objects), counts
+the creature hit as well as the mover, 1 each for creatures passed through,
+every rebound bounce, and a fall (`creature:PredictedFallDamage`). So it shoves
+heroes into walls, into each other and off ledges, and avoids slamming them into
+its own allies. Only equal damage falls to the older tie-breaks: altitude for
+`vertical_push`/`vertical_pull`/`vertical_slide` (from the ability's altitude
+calculator), then the positioning heuristics. A Force Into zone and a slid
+object aimed as a missile still come first. Each choice logs `FORCED MOVE` with
+its `damage`.
+
+Planning can ask the same question ahead of time:
+`MonsterAI.BestForcedMoveDamage(invoker, mover, "push"|"pull"|"slide",
+distance, originLoc)` gives the most net damage a horizontal forced move could
+deal with the invoker standing at `originLoc` (it sets the forced-movement
+origin symbols, so "away from the pusher" is judged from that square). The
+generic **Knockback** move (`PlanKnockback` in `MonsterAIMonsters.lua`) uses it:
+for each reachable square and adjacent target it reads the push distance of
+each power roll tier from the ability ("Push 1/2/3"), adjusts it as the rules do
+(Stability, Big Versus Little, Forced Movement Increase, the pusher's bonus),
+weights each by its chance on 2d10 + Might, and adds
+`MonsterAI.knockbackDamageWeight` (0.05) per point of expected damage to the old
+preference score. The total is capped at `MonsterAI.knockbackMaxScore` (0.9),
+under a signature strike, so the main action still goes first and the push
+cannot shove its target out of reach. The plan logs `TARGET PLAN` with
+`expected-push-damage`, and the execute strikes the planned target first.
 
 #### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 

@@ -584,8 +584,11 @@ local CITY_LOCATIONS = {
         end,
         open = function(ctx) ctx.OpenDangerRooms() end,
     },
+    --Off the map until the player hears of it carousing (a tier 1 lead) or
+    --one of their heroes falls.
     {
         id = "graveyard",
+        lead = "graveyard",
         label = T("eotw.locations.graveyard.label"),
         icon = "phosphor/hands-praying-fill.png",
         --the south-east corner, just north of the southern river and clear of
@@ -600,8 +603,10 @@ local CITY_LOCATIONS = {
     --Encounter of the Week, and the victory screen each saw. The Hall is
     --open to all; the Construction only with a hero at home
     --(SiteLockedReason). label and icon follow which it is (LocationNode).
+    --Off the map until the player hears of it carousing (a tier 1 lead).
     {
         id = "hall",
+        lead = "hall-of-heroes",
         label = function(ctx) return cond(EotwRoster.HallBuilt(), T("eotw.locations.hall.label"), T("eotw.locations.construction.label")) end,
         icon = function(ctx) return cond(EotwRoster.HallBuilt(), "phosphor/trophy-fill.png", "phosphor/hammer-fill.png") end,
         x = 0.33,
@@ -621,9 +626,11 @@ local CITY_LOCATIONS = {
     --The Town Hall's building site until the town has built it
     --(EotwRoster.TownHallBuilt); then the Town Hall: town votes and
     --petitions. The Town Hall is open to all, even with no hero yet (taking
-    --part needs one); the site only with a hero at home.
+    --part needs one); the site only with a hero at home. Off the map until
+    --the player hears of it carousing (a tier 1 lead).
     {
         id = "townhall",
+        lead = "town-hall",
         label = function(ctx) return cond(EotwRoster.TownHallBuilt(), T("eotw.locations.town_hall.label"), T("eotw.locations.town_hall_site.label")) end,
         icon = function(ctx) return cond(EotwRoster.TownHallBuilt(), "phosphor/scroll-fill.png", "phosphor/hammer-fill.png") end,
         --PLACEHOLDER spot, between the Gate and the Proving Pits: check it
@@ -645,9 +652,11 @@ local CITY_LOCATIONS = {
     --The Training Grounds' building site until the town has built them
     --(EotwRoster.TrainingGroundsBuilt); then the Training Grounds, where
     --heroes Level up. Open to all, even with no hero yet; the site only with
-    --a hero at home.
+    --a hero at home. Off the map until the player hears of them carousing
+    --(a tier 1 lead).
     {
         id = "traininggrounds",
+        lead = "training-grounds",
         label = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), T("eotw.locations.training_grounds.label"), T("eotw.locations.training_grounds_site.label")) end,
         --built: crossed swords (game-icons.net "crossed-swords" by Lorc, CC BY
         --3.0), a core image asset since the engine's game-icons/ set lacks it.

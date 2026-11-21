@@ -3024,6 +3024,86 @@ function creature:CanFlyVertically()
     return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
 end
 
+--- How many squares this creature's token is above the ground under it. In deep
+--- water the ground is the water surface, and a platform deck (a bridge) the
+--- creature is on or above counts as ground. 0 when standing, swimming at the
+--- surface, diving or burrowing.
+--- @return number
+function creature:HeightAboveGround()
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        return 0
+    end
+    local loc = token.loc
+    local ground = loc.withGroundAltitude.altitude
+    local platform = loc.platformAltitude
+    if platform ~= nil and platform > ground and platform <= loc.altitude then
+        ground = platform
+    end
+    return math.max(0, loc.altitude - ground)
+end
+
+--- The movement modes a player can pick in the Move drawer, in the order shown.
+creature.selectableMoveTypes = { "walk", "fly", "swim", "burrow", "climb" }
+
+--- Why this creature can't switch to the given movement mode right now, or nil if
+--- it can. The mode it is already in is always allowed. Walk and swim are not
+--- really chosen: CurrentMoveType picks between them from the ground under the
+--- token, so picking either one means "on the ground or in the water".
+--- @param moveType string one of creature.selectableMoveTypes
+--- @return nil|string reason player-facing text
+function creature:MoveTypeUnavailableReason(moveType)
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid or moveType == self:CurrentMoveType() then
+        return nil
+    end
+
+    local T = UIText.T
+    local inAir = self:HeightAboveGround() > 0
+    local inWater = token:GetGroundMoveType(false) == "swim"
+    local belowGround = token.distanceBelowGround > 0
+
+    if moveType == "walk" then
+        if self:GetSpeed("walk") <= 0 then
+            return T("movemode.reason.cannot_walk")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        elseif belowGround then
+            return T("movemode.reason.underground")
+        end
+    elseif moveType == "fly" then
+        if not self:CanFly() then
+            return T("movemode.reason.cannot_fly")
+        elseif belowGround then
+            return cond(inWater, T("movemode.reason.underwater"), T("movemode.reason.underground"))
+        end
+    elseif moveType == "swim" then
+        if inAir then
+            return T("movemode.reason.in_air")
+        elseif not inWater then
+            return T("movemode.reason.not_in_water")
+        end
+    elseif moveType == "burrow" then
+        if not self:CanBurrow() then
+            return T("movemode.reason.cannot_burrow")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        end
+    elseif moveType == "climb" then
+        if not self:CanClimb() then
+            return T("movemode.reason.prone")
+        elseif not token.canCurrentlyClimb and not self:IsClingingToCeiling() then
+            return T("movemode.reason.nothing_to_climb")
+        end
+    end
+
+    return nil
+end
+
 creature.stability = 0
 creature.reach = 1
 creature.range = 0
@@ -7571,6 +7651,16 @@ function creature:AuraDamage(token, info)
             end
         end,
     }
+
+    --A rider on the move damage (e.g. Poisonous Thorns: "bleeding (save ends)").
+    local riderAbility = info.amount > 0 and info.aura.aura:GetMoveDamageRuleAbility() or nil
+    if riderAbility ~= nil then
+        local riderCasterToken = casterToken
+        if riderCasterToken == nil or not riderCasterToken.valid or not riderCasterToken.uploadable then
+            riderCasterToken = token
+        end
+        info.aura:FireTriggeredAbility(riderAbility, self, riderCasterToken)
+    end
 end
 
 function creature:CanMoveThroughWalls()

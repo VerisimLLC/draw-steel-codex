@@ -206,7 +206,13 @@ proposals until the user rules on them.
   fixed dark palette. Rarest styles (gold, ember) get a 2px border.
 - *Earn banner:* each tag is announced once per machine (preference `eotw:announcedtags`);
   the Guild dot stays until the picker is opened.
-- *Not yet done:* hero sheet owner chip, Tribute defender rows, in-game surfaces (Phase 2).
+- *Tribute defender rows* show the badge too (2026-11-20), and the Deadly victors' names
+  carry the text form.
+- *Dropped (2026-11-20, user direction): the hero sheet owner chip and badges inside
+  encounters.* Tags are for shared social places in town. The hero sheet is about a hero,
+  and inside an encounter only the party sees each other, after seeing their tags in the
+  party view. This supersedes the in-game part of "Launch surfaces: all of them" and
+  Phase 2.
 
 **To ship:** deploy the server (staging first) and the codex together. Until the server is
 deployed, list-heroes has no `tags`: the Guild picker lists every tag as locked and selecting

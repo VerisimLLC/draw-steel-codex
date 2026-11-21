@@ -1307,7 +1307,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --that ability, not an ability of its own. Records of play (History) file it,
                         --whatever card it shows, under the invoker's name.
                         if self.abilityType == "custom" then
-                            abilityClone._tmp_partOfAbility = ability.name
+                            --a step inside a step belongs to the outermost ability.
+                            abilityClone._tmp_partOfAbility = ability:try_get("_tmp_partOfAbility") or ability.name
                         elseif self.abilityType == "named" or self.abilityType == "chooseClassAbility" then
                             --one of the creature's own abilities, used as part of the invoker.
                             abilityClone._tmp_usedAsAbility = true

@@ -3187,7 +3187,18 @@ function History.Why(entry, kids)
     for _, who in ipairs(targets) do
         for _, name in ipairs(who.immune or {}) do
             local condition = string.lower(name)
-            Add("immune|" .. condition, function(group)
+            --the feature that made it immune, named as players could already see it.
+            local source = who.immunefrom ~= nil and who.immunefrom[condition] or nil
+            if source ~= nil and not PlayersMaySeeAbility(who, source) then
+                source = nil
+            end
+            Add("immune|" .. condition .. "|" .. (source or ""), function(group)
+                if source ~= nil then
+                    return {
+                        lead = WhyName(source),
+                        text = string.format("%s %s immune to %s.", GroupNames(group), #group > 1 and "are" or "is", condition),
+                    }
+                end
                 return {
                     lead = "Immune to " .. condition,
                     text = string.format("%s cannot be %s.", GroupNames(group), CONDITION_PHRASES[condition] or condition),

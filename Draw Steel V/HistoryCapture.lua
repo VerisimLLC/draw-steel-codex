@@ -38,6 +38,7 @@ local mod = dmhub.GetModLoading()
 --- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
 --- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
+--- @field immunefrom? table<string, string> On a target: for each of those conditions, the feature that made it immune, when one did.
 --- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
 --- @field resistedeffect? string On a target that resisted: the ongoing effect it escaped (Can't Hide), when no condition was named.
 --- @field potency? HistoryPotency[] On a target: each potency test it faced.
@@ -2005,7 +2006,7 @@ local function OnEffectsEnded(creature, ended, cause)
     WriteEnded(token, names, causetext, hidden)
 end
 
-local function OnConditionImmune(creature, conditionid)
+local function OnConditionImmune(creature, conditionid, source)
     local facts = EffectFacts{conditionid = conditionid}
     local state = History.Enabled() and OpenCast(nil) or nil
     local token = dmhub.LookupToken(creature)
@@ -2014,8 +2015,13 @@ local function OnConditionImmune(creature, conditionid)
     end
     local target = RowTarget(state, token)
     if target ~= nil then
+        local name = string.lower(facts.name)
         target.immune = target.immune or {}
-        target.immune[#target.immune + 1] = string.lower(facts.name)
+        target.immune[#target.immune + 1] = name
+        if source ~= nil and source ~= "" then
+            target.immunefrom = target.immunefrom or {}
+            target.immunefrom[name] = source
+        end
     end
 end
 

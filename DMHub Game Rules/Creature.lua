@@ -58,7 +58,8 @@ local g_playObservers = {}
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.
 ---   effectsended(creature, ended, cause): conditions and ongoing effects ended. ended is
 ---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
----   conditionimmune(creature, conditionid): an infliction was stopped by immunity.
+---   conditionimmune(creature, conditionid, source): an infliction was stopped by immunity. source:
+---     the name of the modifier granting it, or nil. A silent immunity is not reported.
 ---   resisted(creature, text, stopped): a potency test was resisted. text and stopped are
 ---     as in potency's info.
 ---   captain(creature, info): the Director made a creature a squad's captain. info: squad.

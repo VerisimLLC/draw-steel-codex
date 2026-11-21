@@ -4746,6 +4746,18 @@ local function ConditionImmunityIsSilent(c, conditionid)
     return false
 end
 
+--The name of the modifier that makes this creature immune to a condition (a feature such as
+--Fearless), so a record of play can say why. Nil when no modifier of its own grants it.
+local function ConditionImmunitySource(c, conditionid)
+    for _,mod in ipairs(c:GetActiveModifiers()) do
+        local m = mod.mod
+        if m.behavior == "conditionimmunity" and table.contains(m:try_get("conditions", {}), conditionid) then
+            return m.name
+        end
+    end
+    return nil
+end
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
 --- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
@@ -4972,7 +4984,11 @@ function creature:InflictCondition(conditionid, args)
     local immune = self:GetConditionImmunities()[conditionid]
     local result = g_creatureInflictCondition(self, conditionid, args)
     if immune then
-        GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid)
+        --a silent immunity (bookkeeping such as Hampering Roots') shows nothing at the table,
+        --so play observers aren't told of it either.
+        if not args.silent and not ConditionImmunityIsSilent(self, conditionid) then
+            GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid, ConditionImmunitySource(self, conditionid))
+        end
     else
         local entry = self:try_get("inflictedConditions", {})[conditionid]
         if entry ~= nil then

@@ -9769,9 +9769,12 @@ end
 --  defaultScale  (number, optional) the scale a new item starts at
 --  cornerRadius  (number, optional, default 4) the face's corner radius at its
 --                own size, so the item's shadow on the table matches it
+--  place(lw, lh) (optional) where a new item goes, x and y on a layer of that size;
+--                the middle of the table if there is no such function
 --Tabletop.OpenItem(kind, key, {screen}) puts one on the table (at the mouse in
 --screen pixels); Tabletop.ItemRowDragging / ItemRowDragEnded preview a drag
---from a panel, like a journal row's.
+--from a panel, like a journal row's. Tabletop.HasItem, Tabletop.CloseItem and
+--Tabletop.ResizeItem are for a kind whose own button or face drives its item.
 local function DefineTableItems()
     --{kind, key, x, y, scale} for each item, plus its built parts (panel,
     --scaler, face, grips, titlebar) and baseSize.
@@ -10005,6 +10008,9 @@ local function DefineTableItems()
             y = math.floor(my - bh * scale / 2)
         end
         if item == nil then
+            if x == nil and spec.place ~= nil then
+                x, y = spec.place(lw, lh)
+            end
             item = {
                 kind = kind,
                 key = key,
@@ -10042,6 +10048,48 @@ local function DefineTableItems()
                 break
             end
         end
+        SaveSoon()
+    end
+
+    --- True if this item is on this user's table.
+    --- @param kind string
+    --- @param key string
+    --- @return boolean
+    function Tabletop.HasItem(kind, key)
+        local item = ItemByKey(kind, key)
+        return item ~= nil and item.panel ~= nil and item.panel.valid
+    end
+
+    --- Takes this item off this user's table, if it is there.
+    --- @param kind string
+    --- @param key string
+    function Tabletop.CloseItem(kind, key)
+        local item = ItemByKey(kind, key)
+        if item ~= nil then
+            CloseItem(item)
+        end
+    end
+
+    --- Applies a new size from the kind's size(key), for a face whose shape changed.
+    --- The item moves up if it would run off the bottom of the table.
+    --- @param kind string
+    --- @param key string
+    function Tabletop.ResizeItem(kind, key)
+        local item = ItemByKey(kind, key)
+        local spec = Kind(kind)
+        if item == nil or spec == nil or item.panel == nil or not item.panel.valid then
+            return
+        end
+        local w, h = spec.size(key)
+        item.baseSize = function()
+            return w, h
+        end
+        item.scaler.selfStyle.width = w
+        item.scaler.selfStyle.height = h
+        ApplyCardScale(item)
+        local _, lh = LayerSize()
+        item.y = math.max(CARD_TITLE_HEIGHT, math.min(item.y, lh - math.floor(h * (item.scale or 1))))
+        item.panel.y = item.y
         SaveSoon()
     end
 

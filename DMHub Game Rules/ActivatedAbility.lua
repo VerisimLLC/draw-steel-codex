@@ -3174,6 +3174,8 @@ function ActivatedAbility:FinishCast(casterToken, options)
         end
 	end
 
+	GameSystem.NotifyPlayObservers("finished", self, casterToken, options)
+
 	if self:has_key("OnFinishCast") then
 		self.OnFinishCast(self, options)
 	end
@@ -3563,6 +3565,8 @@ function ActivatedAbility:Cast(casterToken, targets, options)
             negatedForcedMovementType = options.symbols.negatedforcedmovementtype,
 		}
 	end
+
+	GameSystem.NotifyPlayObservers("began", self, casterToken, targets, options)
 
 	if self:has_key("OnBeginCast") then
 		--Pass options so OnBeginCast wrappers can install OnFinishCastHandlers that

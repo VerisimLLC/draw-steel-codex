@@ -212,6 +212,18 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                     end,
                 }
 
+                children[#children+1] = gui.Check{
+                    text = "Hidden from History",
+                    halign = "left",
+                    value = ongoingEffect.hiddenFromHistory,
+                    hover = gui.Tooltip("If this is checked, History won't show this effect starting or ending. Use it for markers that only track rules. It still appears in menus, so it can be removed by hand."),
+                    change = function(element)
+                        ongoingEffect.hiddenFromHistory = element.value
+                        UploadOngoingEffect()
+                        SetOngoingEffect(ongoingEffectid)
+                    end,
+                }
+
 
                 local associationOptions = {}
                 local associationRules = ongoingEffect:get_or_add("association", {})

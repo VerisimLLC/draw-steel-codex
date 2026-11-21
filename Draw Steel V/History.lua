@@ -148,16 +148,25 @@ local g_oldLogSetting = setting{
     end,
 }
 
---- True: History records in every game. Kept as a function for the code that asks.
+--- True if a game system layered on these rules says History can't describe its play
+--- (Crows: no winded, Armor Defense, Wounds). Its module sets
+--- `GameSystem.historyNotSupported = true`; that game then keeps the old Action Log.
 --- @return boolean
-function History.Enabled()
-    return true
+function History.NotSupported()
+    return rawget(GameSystem, "historyNotSupported") == true
 end
 
---- True if this user chose the old Action Log over History (their own preference).
+--- True unless the game system doesn't support History: then nothing is recorded.
+--- @return boolean
+function History.Enabled()
+    return not History.NotSupported()
+end
+
+--- True if this user sees the old Action Log: their own choice, or a game system History
+--- doesn't support.
 --- @return boolean
 function History.UsingOldLog()
-    return g_oldLogSetting:Get() == true
+    return History.NotSupported() or g_oldLogSetting:Get() == true
 end
 
 --- The document id for a map's History.

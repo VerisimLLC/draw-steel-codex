@@ -16867,6 +16867,25 @@ function PanelDocument.RailPlaceBelow(key, belowKey)
     RebuildIconRails()
 end
 
+--- Gives one panel's rail slot to another that has none (History and the old Action Log,
+--- which never show together): the second takes the first's place and nothing shifts.
+--- Returns true if it moved the slot; false when there was nothing to hand over.
+--- @param fromKey string
+--- @param toKey string
+--- @return boolean
+function PanelDocument.RailSwapPanel(fromKey, toKey)
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    local from = layout[fromKey]
+    if layout[toKey] ~= nil or type(from) ~= "table" or from.slot == nil then
+        return false
+    end
+    layout[toKey] = from
+    layout[fromKey] = nil
+    dmhub.SetSettingValue("iconraillayout", layout)
+    RebuildIconRails()
+    return true
+end
+
 --- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
 --- changed (History's "Use Old Action Log" swaps History and the Action Log).
 function PanelDocument.RebuildRails()

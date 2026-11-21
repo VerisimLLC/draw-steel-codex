@@ -6313,9 +6313,12 @@ DockablePanel.Register{
 --Puts the log this user sees (History, or the old Action Log if they chose it) directly
 --below Chat, once; a button already on their rail stays where they put it.
 local function PlaceRailButton()
+    --the one shown takes the hidden one's slot if it has none of its own, else goes below Chat.
     if History.UsingOldLog() then
-        PanelDocument.RailPlaceBelow("action log", "chat")
-    else
+        if not PanelDocument.RailSwapPanel("history", "action log") then
+            PanelDocument.RailPlaceBelow("action log", "chat")
+        end
+    elseif not PanelDocument.RailSwapPanel("action log", "history") then
         PanelDocument.RailPlaceBelow("history", "chat")
     end
 end

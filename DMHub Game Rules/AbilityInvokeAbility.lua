@@ -1148,6 +1148,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 elseif self:try_get("promptCard", false) and self.abilityType == "standard" and target.token ~= nil and target.token.valid then
                     --Posts a red "!" card on the target so its controller chooses when to resolve the
                     --standard ability on themselves (e.g. Swooping Torment: take damage or fall prone).
+                    local casterSymbols = casterToken.properties:LookupSymbol{}
                     AbilityInvocation.PromptStandardAbility{
                         token = target.token,
                         invoker = casterToken,
@@ -1156,9 +1157,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         targeting = "self",
                         hostile = true,
                         prompt = self:try_get("promptCardTitle", ability.name),
-                        rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
+                        rules = StringInterpolateGoblinScript(self.promptText, casterSymbols),
                         activateText = tr("Choose"),
-                        castPrompt = self:try_get("castPromptText", self.promptText),
+                        castPrompt = StringInterpolateGoblinScript(self:try_get("castPromptText", self.promptText), casterSymbols),
                     }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
@@ -1388,6 +1389,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --they had actually learned it.
                         if (self:CastsAsCustom() or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
+                            --A kit's signature ability already has its kit's bonus in its numbers. Mark the strike it
+                            --nests the same way, so the kit modifier below skips it, unless another creature makes the strike.
+                            if ability:try_get("_tmp_fromKit") and target.token.charid == casterToken.charid then
+                                abilityClone._tmp_fromKit = true
+                            end
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
                                 if abilityClone == nil then break end
@@ -1495,6 +1501,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
                             abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
                                 baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
+
+                            --Nothing else matters once the target can't be moved, so this replaces the other notes.
+                            if target.token.properties:CannotBeForceMoved() then
+                                adjustedRange = 0
+                                adjustments = {"Immune to Forced Movement"}
+                            end
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
@@ -2078,12 +2090,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 --almost always free custom abilities); callers that invoke a REAL costed ability
                 --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
                 --The selected area is cast state and must survive this invoke boundary.
+                --invokeMarkLineOfSight: targeting arrows the invoker drew (the Monster
+                --AI), handed to the cast so its roll dialog can badge them. Not
+                --markLineOfSight, which nested invokes inherit from their parent cast.
                 local castOptions = {
                     symbols = symbols,
                     targetArea = options.targetArea,
                     targetAreaList = options.targetAreaList,
                     pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
+                    markLineOfSight = options.invokeMarkLineOfSight,
                 }
                 abilityClone:Cast(casterToken, targets, castOptions)
             end
@@ -3045,6 +3061,12 @@ function AbilityInvocation:Invoke()
 		end
 		abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
 			baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
+
+		--Nothing else matters once the target can't be moved, so this replaces the other notes.
+		if targetToken.properties:CannotBeForceMoved() then
+			adjustedRange = 0
+			adjustments = {"Immune to Forced Movement"}
+		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare
 		local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")

@@ -2221,6 +2221,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
     end
 
+    --The roll properties (with the tier texts) to resolve one target with. A target
+    --with its own modifiers in the roll dialog has its own copy; the rest share one.
+    local function TierPropertiesFor(targetToken)
+        for i,multitarget in ipairs(multitargetResults or {}) do
+            if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
+                return multitargets[i].rollProperties or rollProperties
+            end
+        end
+        return rollProperties
+    end
+
     --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
     --stats, along with the edges and banes that were applied to the roll
     --(m_result.boons/banes -- the engine's names for edges/banes, captured from
@@ -2247,6 +2258,26 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         if banes > 0 then
             LiveEncounter.TrackHeroStats(casterToken.charid, "banes", banes)
         end
+    end
+
+    --Edges/banes for the use_ability analytics event (ActivatedAbility:RecordAbilityUsage).
+    --Uses the first target's effective roll, so per-target edges such as flanking count.
+    --Only the ability's first power roll is recorded.
+    if followUpDice == nil and options.usageAnalytics == nil then
+        local effective = m_result
+        local multitargets = m_rollInfo ~= nil and m_rollInfo.properties:try_get("multitargets") or nil
+        for _,target in ipairs(multitargets or {}) do
+            if target.tokenid then
+                effective = RollUtils.EffectiveRollForTarget(m_result, target)
+                break
+            end
+        end
+        options.usageAnalytics = {
+            powerRoll = true,
+            edges = effective.boons or 0,
+            banes = effective.banes or 0,
+            strike = ability.keywords["Strike"] and true or false,
+        }
     end
 
     --Allow modifiers to modify the casting of the power roll.
@@ -2301,6 +2332,23 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         for _,target in ipairs(targets or {}) do
             local targetToken = target.token
             targetChoices[#targetChoices+1] = targetToken
+        end
+    end
+
+    --promptWhenResolving asks which target to resolve next, so pushes land in the
+    --player's chosen order. Skip it when no target's tier pushes, pulls or slides:
+    --a tier 1 "2 damage" used to ask which target to push first.
+    if promptWhenResolving then
+        local orderMatters = false
+        for _,targetToken in ipairs(targetChoices) do
+            local tierText = TierPropertiesFor(targetToken).tiers[EffectiveTier(targetToken)]
+            if type(tierText) == "string" and regex.MatchGroups(string.lower(tierText), "(push|pull|slide)") ~= nil then
+                orderMatters = true
+                break
+            end
+        end
+        if not orderMatters then
+            promptWhenResolving = false
         end
     end
 
@@ -2365,17 +2413,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.total = m_result.total
 
             if targetToken ~= nil then
-                if multitargetResults ~= nil then
-                    for i,multitarget in ipairs(multitargetResults) do
-                        if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
-                            tier = multitarget.tier
-                            if multitargets[i].rollProperties ~= nil then
-                                targetRollProperties = multitargets[i].rollProperties
-                            end
-                            break
-                        end
-                    end
-                end
+                tier = EffectiveTier(targetToken)
+                targetRollProperties = TierPropertiesFor(targetToken)
 
                 local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)
 

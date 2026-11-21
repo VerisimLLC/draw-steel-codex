@@ -5,6 +5,9 @@ local mod = dmhub.GetModLoading()
 MonsterAI = RegisterGameType("MonsterAI")
 MonsterAI.moves = {} --a table of registered moves the ai can choose from.
 MonsterAI.prompts = {} --a table of prompted abilities the ai knows how to use.
+--Squares the AI picked for creatures an ability is about to shift, by charid.
+--A creature listed here shifts to its square when prompted, not a random one.
+MonsterAI.plannedShiftDestinations = {}
 MonsterAI.triggerHandlersByGuid = {}
 MonsterAI.triggerHandlersByMonsterAbility = {}
 MonsterAI.triggerHandlersByAbility = {}
@@ -3030,16 +3033,22 @@ end
 --thread is blocked in a wait, so its own trigger poll cannot run. The turn-start
 --wait uses this: a monster whose Before Start of Turn trigger is a prompt holds
 --its BeginTurn open until the prompt is answered. minionsOnly limits it to
---minions (the minion-death wait above). Each prompt is tried once per wait.
+--minions (the minion-death wait above); dyingOnly to recent prompts on
+--creatures at 0 Stamina still on the map. Each prompt is tried once per wait.
+--Returns how many prompts it tried this call.
 ---@param answered table<string, boolean> prompts already tried this wait
 ---@param minionsOnly? boolean
-function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
+---@param dyingOnly? boolean
+---@return integer
+function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly, dyingOnly)
     local work = {}
     for _,token in ipairs(dmhub.allTokens) do
         local props = token.valid and token.properties or nil
         local eligible = false
         if props ~= nil and not token.playerControlled then
-            if props.minion then
+            if dyingOnly then
+                eligible = MonsterAI.TokenIsDyingOnMap(token)
+            elseif props.minion then
                 eligible = not props.minionDead
             elseif not minionsOnly then
                 eligible = not props:IsDead()
@@ -3049,7 +3058,8 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
             ---@cast props creature
             for _,trigger in pairs(props:GetAvailableTriggers(true) or {}) do
                 local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
-                if not answered[key] and not trigger.triggered and not trigger.dismissed then
+                if not answered[key] and not trigger.triggered and not trigger.dismissed
+                    and (not dyingOnly or MonsterAI.IsRecentPrompt(trigger)) then
                     answered[key] = true
                     work[#work+1] = {token = token, trigger = trigger}
                 end
@@ -3097,6 +3107,50 @@ function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
             end
         end
     end
+    return #work
+end
+
+--True while an AI-run creature at 0 Stamina has a death trigger waiting for
+--running abilities to finish before it prompts.
+---@return boolean
+local function DyingCreatureTriggerQueued()
+    for _,token in ipairs(dmhub.allTokens) do
+        if not token.playerControlled and MonsterAI.TokenIsDyingOnMap(token)
+            and ActivatedAbility.HasDeferredCastFor(token) then
+            return true
+        end
+    end
+    return false
+end
+
+--Answers the prompts of AI-run creatures at 0 Stamina (a War Dog's Loyalty
+--Collar) so the blast lands before the AI acts again. These prompts only appear
+--once the killing ability has finished, and the AI's between-turns trigger
+--check does not run during a turn. Returns 0 at once when nothing is pending,
+--else how many prompts it answered.
+---@param timeout? number seconds, default 20
+---@return integer
+function MonsterAI:ResolveDyingCreatureTriggers(timeout)
+    local deadline = dmhub.Time() + (timeout or 20)
+    local answered = {}
+    local total = 0
+    while not mod.unloaded do
+        local count = self:AnswerAITriggersDuringWait(answered, false, true)
+        total = total + count
+        --Every open prompt was just tried, so only a queued one can still come.
+        if count == 0 and not DyingCreatureTriggerQueued() then
+            return total
+        end
+        if dmhub.Time() >= deadline then
+            self:LogDecision("DEATH TRIGGER WAIT TIMEOUT", {
+                category = "Triggered Action",
+                result = "continuing with a dying creature's trigger still pending",
+            })
+            return total
+        end
+        coroutine.yield(0.1)
+    end
+    return total
 end
 
 function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
@@ -3294,6 +3348,12 @@ function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
             self._tmp_abortTurn = reason
             error(reason)
         end
+        --An opportunity attack may have killed the mover; its death trigger
+        --(Loyalty Collar) fires now, not after the turn. During a cast it can't
+        --go off until that cast ends, and the cast waits for it then.
+        if creature.GetAIActivityInProgress() == nil then
+            self:ResolveDyingCreatureTriggers()
+        end
         if not self.TokenIsLiveCombatant(token) then
             if continueIfActorDies then
                 self:LogDecision("MOVEMENT ACTOR LOST", {
@@ -3437,6 +3497,18 @@ function MonsterAI:TelegraphAreaAbility(ability, area, symbols)
     end
 end
 
+--- True when a prompt the AI could not answer belongs to a hero played on
+--- this machine, so it should be shown here even with no Director.
+--- A hero played on another machine gets the prompt on that machine, and
+--- the host must never choose for someone else's hero.
+--- @param casterToken nil|CharacterToken
+--- @return boolean
+function MonsterAI.PromptBelongsToLocalHero(casterToken)
+    return casterToken ~= nil and casterToken.valid == true
+        and casterToken.playerControlled == true
+        and TokenPromptControllerId(casterToken) == nil
+end
+
 function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
     local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
     self:LogDecision("PROMPT RECEIVED", {
@@ -3535,6 +3607,16 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         local handler = entry.handler
         attemptedHandlers[#attemptedHandlers+1] = entry.name
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
+        --{decline = true} turns the offer down, as a player's Skip would. Needed for
+        --self-targeted abilities, which still resolve on the caster when given no targets.
+        if result ~= nil and result.decline == true then
+            self:LogDecision("PROMPT DECLINED", {
+                ability = abilityClone.name,
+                prompt = entry.name,
+                reason = result.reason,
+            })
+            return "skip"
+        end
         if result ~= nil then
             local selectedAbility = result.abilityOverride or abilityClone
             if selectedAbility.targetType == "target" then
@@ -3573,6 +3655,16 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     --retaliatory strike to choose (R6ATBX7P). Skip the choice instead; the
     --invoke ends as if it were declined.
     if dmhub.directorlessPlay == true then
+        --A hero played on this machine is the exception: that choice belongs
+        --to the hero's player, not to the Director.
+        if MonsterAI.PromptBelongsToLocalHero(casterToken) then
+            self:LogDecision("PROMPT DEFERRED", {
+                ability = abilityClone.name,
+                actor = self.TokenLogName(casterToken),
+                result = "prompt: the caster is a hero played on this machine",
+            })
+            return "prompt"
+        end
         self:LogDecision("PROMPT SKIPPED", {
             ability = abilityClone.name,
             prompt = #attemptedHandlers > 0 and table.concat(attemptedHandlers, ", ")
@@ -4418,6 +4510,36 @@ function MonsterAI.TokenIsLiveCombatant(token)
         and not token.properties:IsDead()
 end
 
+--- True for a creature at 0 Stamina that is still on the map. Death triggers
+--- set to "Fire after other abilities finish" (a War Dog's Loyalty Collar) keep
+--- their creature there and prompt on it, which live-combatant checks skip.
+--- A minion reads its squad's shared Stamina, so it often still looks alive
+--- here; its prompts are answered by the AI's wait for minion deaths and its
+--- between-turns trigger check instead.
+--- This is also true for any body left on the map, so the AI answers only
+--- recent prompts on these creatures (see IsRecentPrompt below).
+--- @param token CharacterToken|nil
+--- @return boolean
+function MonsterAI.TokenIsDyingOnMap(token)
+    if token == nil or not token.valid or token.despawned or token.properties == nil then
+        return false
+    end
+    local props = token.properties
+    if props.minion and props:try_get("minionDead", false) then
+        return false
+    end
+    return props:IsDead() or props:CurrentHitpoints() <= 0
+end
+
+--- True for a prompt younger than the age at which ordinary prompts expire.
+--- A body left on the map can keep an old prompt the Director chose not to
+--- answer; the AI leaves those alone.
+--- @param trigger ActiveTrigger
+--- @return boolean
+function MonsterAI.IsRecentPrompt(trigger)
+    return trigger:SecondsUntilExpiry() > 0
+end
+
 function MonsterAI:RefreshCombatants(queue, referenceToken)
     self.enemyTokens = {}
     self.allyTokens = {}
@@ -5066,6 +5188,9 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
     local execute = registration.execute or function(_, ai, token, scoringInfo, ability, context)
         ai:ExecuteAbility(token, ability)
     end
+    --Read now: the ability may destroy its own caster (Fodder Run spends the
+    --minion that cast it), leaving caster.properties nil afterwards.
+    local casterType = caster.properties.monster_type
     local ok, err = self:RunWithTokenControl(caster, function()
         execute(registration, self, caster, bestCandidate.scoringInfo, bestCandidate.ability, bestCandidate.context)
     end)
@@ -5075,12 +5200,12 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
             ability = bestCandidate.ability.name,
             reason = "execution failed: " .. tostring(err),
         })
-        self:LogMove(caster.properties.monster_type, registration.id, "Execution failed: " .. tostring(err))
+        self:LogMove(casterType, registration.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
-    self:LogMove(caster.properties.monster_type, registration.id, "Executed at the start of the turn")
+    self:LogMove(casterType, registration.id, "Executed at the start of the turn")
     self:LogDecision("MALICE FINISHED", {
         ability = bestCandidate.ability.name,
         result = "executed",
@@ -6177,7 +6302,13 @@ function MonsterAI:ExecuteSquadStrike(ability)
             dmhub.Schedule(0.8, function()
                 if self.TokenIsLiveCombatant(memberToken)
                     and self.TokenIsLiveCombatant(targetToken) then
-                    rays[#rays+1] = dmhub.MarkLineOfSight(memberToken, targetToken,
+                    --Keyed like ExecuteAbility's arrows; a member planned again
+                    --in round 2 replaces its old arrow.
+                    local key = string.format("%s-%s", memberToken.charid, targetToken.charid)
+                    if rays[key] ~= nil then
+                        rays[key]:DestroyLineOfSight()
+                    end
+                    rays[key] = dmhub.MarkLineOfSight(memberToken, targetToken,
                         memberToken.properties:GetPierceWalls())
                 end
             end)
@@ -6296,7 +6427,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
             end
         end
 
-        self:ExecuteAbility(casterToken, castAbility, targets, {symbols = symbols, sleep = 2.0})
+        self:ExecuteAbility(casterToken, castAbility, targets, {symbols = symbols, sleep = 2.0, squadRays = rays})
         executed = true
         logMessage = string.format("Executed on %d targets", #targets)
     elseif #targetPairs > 0 then
@@ -6305,7 +6436,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
         logMessage = "Could not find any targets"
     end
 
-    for _,ray in ipairs(rays) do
+    for _,ray in pairs(rays) do
         ray:DestroyLineOfSight()
     end
 
@@ -10058,18 +10189,26 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         self:VoiceStrikeBark(casterToken, ability)
     end
 
+    --Keyed "<casterId>-<targetId>" like the action bar's arrows, so the roll
+    --dialog can find each target's arrow and badge it (Cover, High Ground).
+    --A squad strike passes in the arrows its members drew (squadRays).
     local rays = {}
     if symbols.targetPairs == nil then
         for _,target in ipairs(targets) do
             if target.token ~= nil then
-                rays[#rays+1] = dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
+                rays[string.format("%s-%s", casterToken.charid, target.token.charid)] =
+                    dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
             end
         end
+    elseif options.squadRays ~= nil then
+        rays = options.squadRays
     end
+    options.invokeMarkLineOfSight = rays
     --Every exit below must call this, errors included: an error that skipped
-    --it left Dread March's arrows on the map for good (B9NKW8HF).
+    --it left Dread March's arrows on the map for good (B9NKW8HF). The cast
+    --also destroys them when it finishes; destroying twice is safe.
     local function DestroyRays()
-        for _,ray in ipairs(rays) do
+        for _,ray in pairs(rays) do
             ray:DestroyLineOfSight()
         end
         rays = {}
@@ -10185,6 +10324,11 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         completed, reason = self:WaitForActivityReactions(activityId)
         --A hero's cast this one set off may still be resolving (C7YTDXC6).
         if completed then
+            completed, reason = self:WaitForHeroCasts()
+        end
+        --A monster this cast killed may explode now (Loyalty Collar). Only the
+        --outermost cast waits, since a collar can't go off while an outer cast runs.
+        if completed and previousInProgress == nil and self:ResolveDyingCreatureTriggers() > 0 then
             completed, reason = self:WaitForHeroCasts()
         end
     end)

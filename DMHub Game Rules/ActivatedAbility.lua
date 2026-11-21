@@ -2121,7 +2121,8 @@ function ActivatedAbility:SwitchModes(i)
     end
     result.skippable = self:try_get("skippable")
     result.countsAsCast = self:try_get("countsAsCast")
-    result.promptOverride = self:try_get("promptOverride")
+    --A mode variation can carry its own prompt (e.g. a shift hint); otherwise keep the parent's.
+    result.promptOverride = result:try_get("promptOverride") or self:try_get("promptOverride")
     -- Keep the opt-out across the mode switch, or a minion gets asked for one target
     -- per squad member.
     result.disableSquadCoordination = self:try_get("disableSquadCoordination")
@@ -3130,6 +3131,12 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
 
     if game.currentMap ~= nil then
         params.mapName = game.currentMap.description
+    end
+
+    --Extra fields a game system's behaviors put on the cast, e.g. the power
+    --roll's edges and banes (Draw Steel's MCDMAbilityRollBehavior).
+    for k,v in pairs(options.usageAnalytics or {}) do
+        params[k] = v
     end
 
     if dmhub.GetSettingValue("telemetry_enabled") ~= false then
@@ -6565,7 +6572,8 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 	local targetsSorted = {}
 	for i,target in ipairs(targets) do
-		if target.token ~= nil and target.token.properties ~= nil then
+		--targets that can't be force moved are left where they are.
+		if target.token ~= nil and target.token.properties ~= nil and not target.token.properties:CannotBeForceMoved() then
 			targetsSorted[#targetsSorted+1] = target.token
 		end
 	end

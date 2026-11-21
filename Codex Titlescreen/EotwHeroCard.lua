@@ -365,15 +365,15 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwResIcon"},
-        width = 17,
-        height = 17,
+        width = 25,
+        height = 25,
         halign = "left",
         valign = "center",
         bgcolor = "white",
     },
     {
         selectors = {"eotwResValue"},
-        fontSize = 14,
+        fontSize = 21,
         bold = true,
         color = "#ffffff",
         width = "auto",
@@ -440,12 +440,12 @@ local g_heroCardRules = {
     --with a light ring and the count in white.
     {
         selectors = {"eotwRecoveriesCircle"},
-        width = 16,
-        height = 16,
+        width = 22,
+        height = 22,
         valign = "center",
         halign = "left",
         rmargin = 3,
-        cornerRadius = 8,
+        cornerRadius = 11,
         bgimage = "panels/square.png",
         bgcolor = "#000000aa",
         border = 1,
@@ -457,7 +457,7 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwRecoveriesLabel"},
-        fontSize = 10,
+        fontSize = 15,
         bold = true,
         color = "#ffffff",
         width = "100%",
@@ -471,12 +471,12 @@ local g_heroCardRules = {
     --disc the size of the recoveries circle, brighter on hover.
     {
         selectors = {"eotwSpendRecovery"},
-        width = 14,
-        height = 14,
+        width = 20,
+        height = 20,
         valign = "center",
         halign = "left",
         rmargin = 3,
-        cornerRadius = 7,
+        cornerRadius = 10,
         bgimage = "panels/square.png",
         bgcolor = "#2f7d3acc",
         border = 1,
@@ -489,7 +489,7 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwSpendRecoveryLabel"},
-        fontSize = 13,
+        fontSize = 19,
         bold = true,
         color = "#ffffff",
         width = "100%",
@@ -577,9 +577,15 @@ local CARD_WIDTH = 132
 --the player line grows the card and its overlay alike, so the artwork
 --above the overlay keeps its size.
 local CARD_HEIGHT = 176 + PLAYER_HEIGHT
-local OVERLAY_HEIGHT = 60 + PLAYER_HEIGHT
+--the stamina row and the resource row are drawn half again as large as
+--they were (user direction 2026-11-19); the plate grows up over the
+--artwork for them and the card keeps its size.
+local OVERLAY_HEIGHT = 76 + PLAYER_HEIGHT
 --the heroic resource row's share of the overlay (CreateResourceRow).
-local RESOURCE_ROW_HEIGHT = 19
+local RESOURCE_ROW_HEIGHT = 28
+--the card's stamina row and the bar inside it, and the bar's numbers.
+local STAMINA_ROW_HEIGHT = 23
+local CARD_STAMINA_BAR = { height = 21, fontSize = 15 }
 --condition chips in the card's top-right corner: the outer dark/red-bordered
 --chip and the condition icon inside it.
 local CONDITION_CHIP_SIZE = 26
@@ -637,6 +643,45 @@ end
 local STAMINA_SLIDE_TAU = 0.14
 local STAMINA_SLIDE_MAX_TIME = 0.7
 local STAMINA_SLIDE_THINK = 0.02
+
+--How much of a creature's Stamina the local user may see on a card, by the
+--same rules as its token's stamina bar (the "lifebar" in DrawSteelTokenHud):
+--"val" (the numbers), "pct" (a percentage), "bar" (the fill alone) or "none".
+--The Director and the creature's controller always see it all: the token's
+--"shown to Director / controlling player" settings are display preferences,
+--and both can open the sheet anyway. The lobby (the town) is not gated.
+local function StaminaDisplayFor(tok)
+    if dmhub.isDM or dmhub.isLobbyGame then
+        return "val"
+    end
+    local controlled, friend = false, false
+    pcall(function() controlled = tok.canControl == true end)
+    pcall(function() friend = tok.isFriendOfPlayer == true end)
+    if controlled then
+        return "val"
+    end
+    if friend then
+        local party = true
+        pcall(function() party = dmhub.GetSettingValue("hpbarforparty") ~= false end)
+        return cond(party, "val", "none")
+    end
+    local mode = "none"
+    pcall(function() mode = dmhub.GetSettingValue("enemystambardisplay") or "none" end)
+    if mode == "none" or mode == "val" then
+        return mode
+    end
+    --a monster whose Stamina the players have learned (Monster Info) shows
+    --its numbers, as on the token. rawget: Draw Steel Core Rules may not be loaded.
+    local knowledge = rawget(_G, "MonsterKnowledge")
+    if knowledge ~= nil and knowledge.PlayersKnowStaminaExactly ~= nil then
+        local knows = false
+        pcall(function() knows = knowledge.PlayersKnowStaminaExactly(tok.properties, tok) == true end)
+        if knows then
+            return "val"
+        end
+    end
+    return mode
+end
 
 --The stamina bar: the character panel's health bar in miniature -- a
 --theme-bordered track whose border and fill both track the
@@ -703,6 +748,8 @@ local function CreateStaminaBar(charid, opts)
     --counting it would flash the card green for it. nil on the same terms
     --as m_seenTotal.
     local m_seenCur = nil
+    --how much of the stamina the local user may see (StaminaDisplayFor).
+    local m_display = "val"
 
     --paint the two fills and the numbers from m_shownPct.
     local function Paint()
@@ -721,17 +768,25 @@ local function CreateStaminaBar(charid, opts)
         if m_shownPct ~= m_targetPct and m_cur > 0 then
             shown = math.ceil(pct * m_max)
         end
-        local text = string.format("%d/%d", shown, m_max)
-        if m_temp > 0 then
-            text = string.format("%s +%d", text, m_temp)
+        local text = ""
+        if m_display == "val" then
+            text = string.format("%d/%d", shown, m_max)
+            if m_temp > 0 then
+                text = string.format("%s +%d", text, m_temp)
+            end
+        elseif m_display == "pct" then
+            text = string.format("%d%%", round(100 * pct + 100 * m_temp / m_max))
         end
         numbers.text = text
     end
 
-    return gui.Panel{
+    --the visible bar. It sits in a plain holder that keeps the logic, so
+    --hiding it ("none", StaminaDisplayFor) never stops the refresh or the
+    --slide's think, which would leave it hidden for good.
+    local track = gui.Panel{
         classes = {"bordered"},
         width = "100%",
-        height = opts.height or 14,
+        height = "100%",
         flow = "horizontal",
         halign = "center",
         cornerRadius = 2,
@@ -741,6 +796,14 @@ local function CreateStaminaBar(charid, opts)
         fill,
         tempFill,
         numbers,
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = opts.height or 14,
+        halign = "center",
+        interactable = false,
+        track,
 
         --any character change (damage, healing, temp stamina) lands here
         --straight away, so the flash and the hit sound follow the hit
@@ -781,6 +844,8 @@ local function CreateStaminaBar(charid, opts)
             end
             m_cur, m_max, m_temp = cur, max, temp
             m_targetPct = math.max(0, math.min(1, cur / max))
+            m_display = StaminaDisplayFor(tok)
+            track:SetClass("collapsed", m_display == "none")
 
             --stamina lost: flash the card and play the hit. Temp stamina
             --is counted in, so a hit fully soaked by temp still reads as
@@ -813,9 +878,9 @@ local function CreateStaminaBar(charid, opts)
 
             fill:SetClass("winded", winded)
             fill:SetClass("dying", dying)
-            element:SetClass("borderSuccess", not winded and not dying)
-            element:SetClass("borderWarning", winded and not dying)
-            element:SetClass("borderDanger", dying)
+            track:SetClass("borderSuccess", not winded and not dying)
+            track:SetClass("borderWarning", winded and not dying)
+            track:SetClass("borderDanger", dying)
             Paint()
         end,
 
@@ -906,8 +971,9 @@ end
 
 --The recoveries circle: the hero's remaining recoveries (max minus the
 --ones spent this long rest), in a small ringed disc. The ring turns red
---when none are left.
-local function CreateRecoveriesCircle(charid)
+--when none are left. Hidden from anyone who may not see the hero's exact
+--Stamina (StaminaDisplayFor); barHolder then takes the circle's room.
+local function CreateRecoveriesCircle(charid, barHolder)
     local label = gui.Label{
         classes = {"eotwRecoveriesLabel"},
         text = "0",
@@ -920,6 +986,11 @@ local function CreateRecoveriesCircle(charid)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
                 return
+            end
+            local hide = StaminaDisplayFor(tok) ~= "val"
+            if hide ~= element:HasClass("collapsed") then
+                element:SetClass("collapsed", hide)
+                barHolder.selfStyle.width = cond(hide, "100%", "100%-25")
             end
             local current = 0
             pcall(function()
@@ -997,7 +1068,7 @@ local function CreateSpendRecoveryButton(charid, barHolder)
             local show = SpendableRecovery(dmhub.GetCharacterById(charid)) ~= nil
             if show ~= not element:HasClass("collapsed") then
                 element:SetClass("collapsed", not show)
-                barHolder.selfStyle.width = cond(show, "100%-36", "100%-19")
+                barHolder.selfStyle.width = cond(show, "100%-48", "100%-25")
             end
         end,
         linger = function(element)
@@ -1036,29 +1107,29 @@ local function CreateStaminaRow(charid, noRecoveries, spendRecovery)
     if noRecoveries then
         return gui.Panel{
             width = "100%",
-            height = 16,
+            height = STAMINA_ROW_HEIGHT,
             halign = "center",
             valign = "center",
             interactable = false,
-            CreateStaminaBar(charid),
+            CreateStaminaBar(charid, CARD_STAMINA_BAR),
         }
     end
     local barHolder = gui.Panel{
-        width = "100%-19",
+        width = "100%-25",
         height = "auto",
         valign = "center",
         interactable = false,
-        CreateStaminaBar(charid),
+        CreateStaminaBar(charid, CARD_STAMINA_BAR),
     }
     ---@type Panel[]
-    local children = { CreateRecoveriesCircle(charid) }
+    local children = { CreateRecoveriesCircle(charid, barHolder) }
     if spendRecovery then
         children[#children+1] = CreateSpendRecoveryButton(charid, barHolder)
     end
     children[#children+1] = barHolder
     return gui.Panel{
         width = "100%",
-        height = 16,
+        height = STAMINA_ROW_HEIGHT,
         flow = "horizontal",
         halign = "center",
         valign = "center",

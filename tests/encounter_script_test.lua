@@ -2031,6 +2031,20 @@ end)()
     check(v ~= nil and v.who == nil, "all the monsters")
     check(V("win the game") == nil, "not a victory line")
 
+    local NL = string.char(10)
+    local M = EncounterScript.ParseMarkInstruction
+    local m = M("The Choir.")
+    check(m ~= nil and m.kind == "mark" and #m.names == 1 and m.names[1].text == "choir" and m.whoText == "The Choir", "Mark: The Choir")
+    m = M("every Chorister and the Bone Singers")
+    check(m ~= nil and #m.names == 2 and m.names[1].text == "chorister" and m.names[2].text == "bone singers"
+        and m.names[2].singular == "bone singer", "two names, plural kept with its singular")
+    check(M("  ") == nil and M("the") == nil, "a Mark line naming nobody")
+    local markParse = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Mark: The Choir" .. NL .. "Targets: nothing" .. NL .. NL .. "[[encounter]]" .. NL)
+    local markSetup = markParse.beats[1].setup
+    check(markSetup[1].kind == "mark" and markSetup[1].label == "Mark" and markSetup[2].kind == "mark", "Mark: and Targets: lines on the encounter beat")
+    check(#markParse.warnings == 0, "Mark lines raise no warnings: " .. table.concat(markParse.warnings, " | "))
+    check(EncounterScript.Parse("# Encounter" .. NL .. NL .. "Mark: ." .. NL .. NL .. "[[encounter]]" .. NL).beats[1].setup[1].kind == "unknown", "an empty Mark line is unknown")
+
     local text = [==[
 # Encounter
 

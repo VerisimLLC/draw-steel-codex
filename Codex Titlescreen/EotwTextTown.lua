@@ -1483,6 +1483,41 @@ text("leads.temple.built_narration", [[You can now visit the Temple to revive yo
 text("leads.temple.site_npc", [[I hear a Temple is being built that will allow restoring of the dead. I do wonder if one such as yourself would like to help build it?]])
 text("leads.temple.site_narration", [[You may now access the project to build the temple.]])
 
+--The tier 1 leads: each puts a place on the player's map. DRAFT text and
+--PLACEHOLDER tellers. Each has a name (the "A New Lead!" banner), a teller
+--("{name}, {title}"), and the teller's line plus a narration line: one pair
+--for a building still being built (site_) and one once built (built_).
+--The Graveyard (no project; also learned when a hero first falls).
+text("leads.graveyard.title", [[The Graveyard]])
+text("leads.graveyard.npc_name", [[Mother Ash]])
+text("leads.graveyard.npc_title", [[Gravedigger]])
+text("leads.graveyard.npc", [[Every hero who falls in this town ends up with me, sooner or later. The Graveyard's past the southern river, if you want to pay your respects.]])
+text("leads.graveyard.narration", [[You can now visit the Graveyard.]])
+--The Hall of Heroes.
+text("leads.hall.title", [[The Hall of Heroes]])
+text("leads.hall.npc_name", [[Wren Lightfingers]])
+text("leads.hall.npc_title", [[Storyteller]])
+text("leads.hall.built_npc", [[They've finished the Hall of Heroes. Every party that beat the Encounter of the Week is up on its walls.]])
+text("leads.hall.built_narration", [[You can now visit the Hall of Heroes.]])
+text("leads.hall.site_npc", [[The town is raising a Hall of Heroes, to remember every party that wins the Encounter of the Week. They could use a strong back.]])
+text("leads.hall.site_narration", [[You may now help build the Hall of Heroes.]])
+--The Town Hall.
+text("leads.town_hall.title", [[The Town Hall]])
+text("leads.town_hall.npc_name", [[Clerk Odril]])
+text("leads.town_hall.npc_title", [[Town Clerk]])
+text("leads.town_hall.built_npc", [[The Town Hall is open. Vote on the town's business, or bring a petition of your own.]])
+text("leads.town_hall.built_narration", [[You can now visit the Town Hall.]])
+text("leads.town_hall.site_npc", [[Blackbottom needs a Town Hall, somewhere folk can have their say. The site is between the Gate and the Proving Pits.]])
+text("leads.town_hall.site_narration", [[You may now help build the Town Hall.]])
+--The Training Grounds.
+text("leads.training_grounds.title", [[The Training Grounds]])
+text("leads.training_grounds.npc_name", [[Sergeant Holt]])
+text("leads.training_grounds.npc_title", [[Veteran]])
+text("leads.training_grounds.built_npc", [[Heroes go to the Training Grounds in the east district to grow stronger. You look like you could use it.]])
+text("leads.training_grounds.built_narration", [[You can now visit the Training Grounds.]])
+text("leads.training_grounds.site_npc", [[There's talk of Training Grounds in the east district, where heroes can grow stronger. They need hands to build them.]])
+text("leads.training_grounds.site_narration", [[You may now help build the Training Grounds.]])
+
 --The name above an NPC's line in a conversation.
 text("leads.conversation.npc_speaker", [[{name}, {title}]])
 --A hero's name when the game cannot find it.

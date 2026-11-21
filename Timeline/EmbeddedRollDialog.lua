@@ -2824,6 +2824,19 @@ function GameHud.CreateEmbeddedRollDialog()
                 element:SetClass("afterroll", info.modifier:try_get("forceReroll", false))
 
                 local tok = dmhub.GetTokenById(info.charid)
+
+                --selftrigger = this client activates the trigger with a click;
+                --othertrigger = a click pings whoever answers for that token.
+                --The roller's own triggers are ours, and so is any token we
+                --control when no other online player should answer its prompts
+                --(e.g. our other heroes in Encounter of the Week).
+                local localAnswers = dmhub.LookupTokenId(creature) == info.charid
+                if (not localAnswers) and tok ~= nil and tok.valid and tok.canControl and TokenPromptControllerId(tok) == nil then
+                    localAnswers = true
+                end
+                element:SetClass("selftrigger", localAnswers)
+                element:SetClass("othertrigger", not localAnswers)
+
                 if tok ~= nil then
                     tokenPanel:FireEventTree("token", tok)
 
@@ -6044,6 +6057,9 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                 end
             end
+
+            --A triggered modifier can also take others off this row (removeModifiers).
+            ActiveTrigger.RemoveModifiersForTriggers(m_options.modifiers)
 
             -- Re-inject after-roll modifier entries so they survive this recalculation.
             -- The same entry objects are reused, preserving any mod.override values set by the user.

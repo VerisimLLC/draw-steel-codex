@@ -227,6 +227,27 @@ function EotwRoster.FormatDetails(level, ancestry, className)
     return table.concat(parts, " ")
 end
 
+--A portrait id other players can load. A custom avatar is a cloud asset id
+--only its owner's games resolve; its public "md5:<blob>" form loads anywhere
+--(as AdventurePage.PortableImageId does). Videos keep their asset id: an
+--md5: id loads as a still image.
+local function PortablePortrait(id)
+    if type(id) ~= "string" or id == "" or string.sub(id, 1, 4) == "md5:" then
+        return id
+    end
+    local result = id
+    pcall(function()
+        local asset = assets.imagesTable[id]
+        if asset ~= nil and not asset.isVideo then
+            local blob = asset.imageid
+            if type(blob) == "string" and blob ~= "" then
+                result = "md5:" .. blob
+            end
+        end
+    end)
+    return result
+end
+
 --The summary the city keeps beside the record: what other players see in
 --parties and town lists without loading the whole sheet.
 local function BuildSummary(tok)
@@ -242,7 +263,7 @@ local function BuildSummary(tok)
     pcall(function()
         local p = tok.offTokenPortrait
         if type(p) == "string" and p ~= "" then
-            summary.portrait = p
+            summary.portrait = PortablePortrait(p)
         end
     end)
     pcall(function()
@@ -773,6 +794,28 @@ local function PromoteSlowStart(tok)
     }
     printf("EotW town: %s promoted from the slow start to full level 1", tostring(tok.name))
     return true
+end
+
+--A recruited hero (a copy of the player's own, or a pregen) starts exactly
+--where a hero built in town does: Level 1 with no XP or Victories, so it
+--cannot Level up at once on what it earned elsewhere. Picks the source made
+--at higher Levels stay stored and pre-fill those Levels' Level up pages.
+--Call inside a ModifyProperties.
+---@param props character
+local function ResetToNewHeroLevel(props)
+    --CharacterLevel() is max(class levels, levelOverride).
+    if props:try_get("levelOverride", 1) ~= 1 then
+        props.levelOverride = 1
+    end
+    for _,entry in ipairs(props:try_get("classes", {})) do
+        entry.level = 1
+    end
+    if props:try_get("xp", 0) ~= 0 then
+        props.xp = 0
+    end
+    if props:try_get("victories", 0) ~= 0 then
+        props.victories = 0
+    end
 end
 
 --Import one hero's record from the city into its working copy.
@@ -1649,7 +1692,7 @@ function EotwRoster.CanRebuildHero(heroid)
 end
 
 --Recruit a pregen: copy the module's pregen into the lobby game under the
---player's chosen name, then add it to the roster.
+--player's chosen name, at Level 1, then add it to the roster.
 function EotwRoster.RecruitPregen(pregenId, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1676,6 +1719,14 @@ function EotwRoster.RecruitPregen(pregenId, name, onDone)
     end
     m_pendingCreates[charid] = true
     WhenCharacterExists(charid, function(tok)
+        --a Hero module's pregen may be authored above Level 1.
+        tok:ModifyProperties{
+            description = "Encounter of the Week: a fresh hire",
+            undoable = false,
+            execute = function()
+                ResetToNewHeroLevel(tok.properties --[[@as character]])
+            end,
+        }
         JoinRoster(tok, onDone, "pregen")
     end)
 end
@@ -1697,8 +1748,9 @@ end
 
 --Recruit one of the player's own titlescreen heroes: a COPY joins the town
 --roster, and the titlescreen hero is never touched. Town heroes start fresh,
---so the copy comes in at level 1 (and Levels up in town, at the Training
---Grounds) with no items (treasure is earned in town); its kit is kept.
+--so the copy comes in at level 1 with no XP or Victories (and Levels up in
+--town, at the Training Grounds) and no items (treasure is earned in town);
+--its kit is kept.
 function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1735,13 +1787,7 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
                 --JoinRoster re-points it, but do it here too so nothing ever
                 --saves this stripped copy over the original's char-cache.
                 props.originalid = charid
-                --level 1: CharacterLevel() is max(class levels, levelOverride).
-                if props:try_get("levelOverride", 1) ~= 1 then
-                    props.levelOverride = 1
-                end
-                for _,entry in ipairs(props:try_get("classes", {})) do
-                    entry.level = 1
-                end
+                ResetToNewHeroLevel(props)
                 --no items: the pack and every equipment slot.
                 props.inventory = {}
                 props.equipment = {}
@@ -2456,7 +2502,7 @@ local function ShowRecruitPicker(host, onDone)
                     rollName = function()
                         return RecruitName(pregen)
                     end,
-                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
+                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(1, pregen.ancestry, pregen.className) }),
                     confirm = function(name, done)
                         EotwRoster.RecruitPregen(pregen.id, name, done)
                     end,

@@ -83,8 +83,12 @@ local TABLE_SURFACES = {
 --table, not locals: this file is at Lua's 200-local limit.
 TABLE_SURFACES.owned = {}
 TABLE_SURFACES.Offered = function(surface)
+    --unpublished in the Table Studio (Who Gets It: Nobody): only admins still see it.
+    if surface.unpublished then
+        return dmhub.isAdminAccount and not TABLE_SURFACES.ViewingAsPlayer()
+    end
     local assetid = surface.dice
-    if assetid == nil or TABLE_SURFACES.owned[assetid] or dmhub.isAdminAccount then
+    if assetid == nil or TABLE_SURFACES.owned[assetid] or (dmhub.isAdminAccount and not TABLE_SURFACES.ViewingAsPlayer()) then
         return true
     end
     local now = dmhub.Time()
@@ -99,6 +103,79 @@ TABLE_SURFACES.Offered = function(surface)
     end
     return TABLE_SURFACES.owned[assetid] == true
 end
+
+--The Table Studio's View as Player switch: an admin sees the menus a player would.
+TABLE_SURFACES.ViewingAsPlayer = function()
+    local studio = rawget(_G, "tablestudio")
+    if studio == nil then
+        return false
+    end
+    local ok, value = pcall(function() return studio.viewAsPlayer end)
+    return ok and value == true
+end
+
+--The surfaces to offer, in menu order: each built-in, or its live Table Studio version (its menu
+--name and who gets it) if it has one, then the live tables made in the studio. Leather is
+--everyone's fallback, so it is never locked or unpublished. Rebuilt at most every two seconds:
+--SyncSurface asks every frame. Entries are {id, text, dice, position, unpublished}.
+TABLE_SURFACES.List = function()
+    local now = dmhub.Time()
+    if TABLE_SURFACES.listed ~= nil and now - TABLE_SURFACES.listedAt < 2 then
+        return TABLE_SURFACES.listed
+    end
+
+    local byBuiltin = {}
+    local extra = {}
+    local ok, tables = pcall(function() return dmhub.GetLiveTables() end)
+    if ok and type(tables) == "table" then
+        for _, live in ipairs(tables) do
+            if live.builtin ~= nil then
+                byBuiltin[live.builtin] = live
+            else
+                extra[#extra+1] = live
+            end
+        end
+    end
+
+    local result = {}
+    for i, surface in ipairs(TABLE_SURFACES) do
+        local live = byBuiltin[surface.id]
+        local entry = {id = surface.id, text = surface.text, dice = surface.dice, position = i}
+        if live ~= nil then
+            entry.text = live.name or surface.text
+            entry.dice = (live.access == "dice") and live.dice or nil
+            entry.position = live.position or i
+            entry.unpublished = live.access == "nobody"
+        end
+        if surface.id == "leather" then
+            entry.dice = nil
+            entry.unpublished = nil
+        end
+        result[#result+1] = entry
+    end
+    for _, live in ipairs(extra) do
+        result[#result+1] = {
+            id = live.id,
+            text = live.name,
+            dice = (live.access == "dice") and live.dice or nil,
+            position = live.position or 10,
+            unpublished = live.access == "nobody",
+        }
+    end
+    table.sort(result, function(a, b)
+        if a.position ~= b.position then
+            return a.position < b.position
+        end
+        return a.text < b.text
+    end)
+
+    TABLE_SURFACES.listed = result
+    TABLE_SURFACES.listedAt = now
+    return result
+end
+
+--The built-in surfaces, for the Table Studio (which shows who gets each).
+Tabletop.surfaces = TABLE_SURFACES
 
 local g_surfaceImageSetting = setting{
     id = "tabletop:surfaceimage",
@@ -129,7 +206,7 @@ local g_surfaceSetting = setting{
                 end
             end
         end
-        Add(TABLE_SURFACES)
+        Add(TABLE_SURFACES.List())
         if dmhub.GetSettingValue("tabletop:surfaceimage") ~= "" then
             result[#result+1] = {value = "custom", text = "Table Image"}
         end
@@ -1485,15 +1562,36 @@ function g_chrome.Sync()
     g_chrome.SyncShown()
 end
 
---The strip shows while a window owns it, except under the character sheet:
---the sheet lives in the main dialog layer, below this one, so the strip
---would cover its close button.
+--True while a full-screen dialog (the Compendium, any fillsScreen launchable)
+--is open in the main dialog layer. That layer is below this one, so the strip
+--would cover the dialog's close button (R4JRJE2Z). The framedPanel class skips
+--the layer's empty full-size holder panels.
+function g_chrome.FullScreenDialogOpen()
+    local hud = GameHud.instance
+    local layer = hud ~= nil and hud:try_get("mainDialogPanel") or nil
+    if layer == nil or not layer.valid then
+        return false
+    end
+    local w, h = layer.renderedWidth * 0.95, layer.renderedHeight * 0.95
+    for _, child in ipairs(layer.children) do
+        if child:HasClass("framedPanel") and not child:HasClass("hidden") and not child:HasClass("collapsed")
+            and child.renderedWidth >= w and child.renderedHeight >= h then
+            return true
+        end
+    end
+    return false
+end
+
+--The strip shows while a window owns it, except under the character sheet
+--or another full-screen dialog: those live in the main dialog layer, below
+--this one, so the strip would cover their close buttons.
 function g_chrome.SyncShown()
     local strip = g_chrome.strip
     if strip == nil or not strip.valid then
         return
     end
     local hide = g_chrome.owner == nil or dmhub.inCharacterSheet or g_chrome.suppressed == true
+        or g_chrome.FullScreenDialogOpen()
     if strip:HasClass("collapsed") ~= hide then
         strip:SetClass("collapsed", hide)
     end
@@ -1594,6 +1692,7 @@ function g_chrome.ShowImage(holder, image, color, saturation)
         end
         holder.data.imagePanel = child
         holder.data.image = image
+        holder.data.imageRect = nil
     end
     if child ~= nil then
         child.selfStyle.bgcolor = color or "white"
@@ -1616,13 +1715,26 @@ function g_chrome.CoverFit(holder, body, mapid)
     end
     local imageAspect = thumbnails.Aspect(mapid)
     local boxAspect = w / h
+    local rect
     if imageAspect > boxAspect then
         local f = boxAspect / imageAspect
-        child.selfStyle.imageRect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
+        rect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
     else
         local f = imageAspect / boxAspect
-        child.selfStyle.imageRect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
+        rect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
     end
+    g_chrome.SetImageRect(holder, rect)
+end
+
+--Crops the image ShowImage put in holder to rect (0-1 image coordinates),
+--and remembers the crop so a cover can show the picture the same way.
+function g_chrome.SetImageRect(holder, rect)
+    local child = holder ~= nil and holder.valid and holder.data.imagePanel or nil
+    if child == nil or not child.valid then
+        return
+    end
+    child.selfStyle.imageRect = rect
+    holder.data.imageRect = rect
 end
 
 --Adds or removes a class on a panel and everything inside it (opacity does
@@ -1739,7 +1851,15 @@ function g_chrome.UpdateCover(rec)
     end
 
     if not cover.placeholder then
-        g_chrome.ShowImage(panel.data.imageHolder, cover.image)
+        local holder = panel.data.imageHolder
+        if cover.imageRect == nil and holder.data.imageRect ~= nil then
+            --an earlier cover's crop: start the picture afresh, uncropped.
+            g_chrome.ShowImage(holder, nil)
+        end
+        g_chrome.ShowImage(holder, cover.image)
+        if cover.imageRect ~= nil then
+            g_chrome.SetImageRect(holder, cover.imageRect)
+        end
     else
         g_chrome.ShowImage(panel.data.imageHolder, nil)
     end
@@ -3948,12 +4068,20 @@ local function OnCurrentMapChanged(newMapId, fromMapId)
     g_chrome.cover = nil
     if target ~= nil and dmhub.mapTransitionMapId == newMapId then
         local image, placeholder
+        local imageRect = nil
         if target.id == prevLiveId and fromMapId ~= nil and dmhub.HasMapSnapshot(fromMapId) then
             image, placeholder = "#MapSnapshot:" .. fromMapId, false
         else
             image, placeholder = FrozenImage({mapid = prevMapIds[target.id] or newMapId})
+            --a whole-map picture (thumbnail, pack art) is cropped to the
+            --window's shape; uncropped, the picture jumped as the cover
+            --replaced the frozen window.
+            local shown = target.snapHolder
+            if shown ~= nil and shown.valid and shown.data.image == image then
+                imageRect = shown.data.imageRect
+            end
         end
-        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder}
+        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder, imageRect = imageRect}
         --a frozen window showing its map's live tokens: the cover shows them too.
         if target.id ~= prevLiveId and target.tokenLayer ~= nil and target.tokenLayer.valid and not target.tokenLayer:HasClass("collapsed") then
             g_chrome.cover.tokenLayer = target.tokenLayer
@@ -6665,6 +6793,21 @@ local function BuildCard(card)
         rightClick = function(element)
             if dmhub.isDM then
                 ShowCardMenu(element)
+            end
+        end,
+        --a hero card turned to its back grows over its titlebar, grips and
+        --sheet buttons, which sit on the card's resting size and would take
+        --the clicks meant for the back's tabs (HeroCardBack). The back has its
+        --own Full sheet link.
+        heroCardTurned = function(element, turned)
+            titlebar:SetClass("collapsed", turned)
+            for _, grip in ipairs(card.grips or {}) do
+                grip:SetClass("collapsed", turned)
+            end
+            for _, button in ipairs({card.sheetButton, card.heroSheetButton}) do
+                if button ~= nil and button.valid then
+                    button:SetClass("collapsed", turned)
+                end
             end
         end,
         beginDrag = function(element)
@@ -12392,23 +12535,26 @@ dmhub.RegisterEventHandler("ChangeCurrentFloor", function()
 end)
 
 --Keeps the engine's table surface in step with this user's choice. A
---surface no longer offered (Wood and Slate were removed) is changed to the
---default once, so the settings dropdown and the menu show what is drawn. One
---whose dice set this account doesn't own draws as leather but stays chosen:
---the inventory may just not have loaded yet.
+--retired surface (Wood and Slate were removed) is changed to the default
+--once, so the settings dropdown and the menu show what is drawn. Any other
+--surface this copy doesn't know (a Table Studio table it can't draw) draws as
+--leather but stays chosen, as does one whose dice set this account doesn't
+--own: the inventory may just not have loaded yet.
 SyncSurface = function()
     local surface = g_surfaceSetting:Get()
     if surface ~= "custom" then
         local known = nil
-        for _, entry in ipairs(TABLE_SURFACES) do
+        for _, entry in ipairs(TABLE_SURFACES.List()) do
             if entry.id == surface then
                 known = entry
                 break
             end
         end
         if known == nil then
+            if surface == "wood" or surface == "slate" then
+                g_surfaceSetting:Set("leather")
+            end
             surface = "leather"
-            g_surfaceSetting:Set(surface)
         elseif not TABLE_SURFACES.Offered(known) then
             surface = "leather"
         end
@@ -12880,7 +13026,7 @@ local function ShowTableMenu()
         disabled = #characterEntries == 0,
     }
 
-    --Background: the built-in surfaces. Only the current one carries a check
+    --Background: the surfaces (TABLE_SURFACES.List). Only the current one carries a check
     --(check = false would draw an empty box on every other row).
     local current = g_surfaceSetting:Get()
     local surfaceEntries = {}
@@ -12897,7 +13043,7 @@ local function ShowTableMenu()
             end
         end
     end
-    AddSurfaces(TABLE_SURFACES)
+    AddSurfaces(TABLE_SURFACES.List())
     entries[#entries+1] = {
         text = "Background",
         submenu = surfaceEntries,

@@ -234,6 +234,11 @@ local MODIFIER_METADATA = {
         tags = {"appearance", "visual", "alternate", "disguise", "form"},
         group = "identity",
     },
+    loyaltycollar = {
+        description = "Put a loyalty collar on the bearer.",
+        tags = {"collar", "war dog", "frame", "appearance"},
+        group = "identity",
+    },
     creaturetype = {
         description = "Change the bearer's creature-type classification.",
         tags = {"type", "creature", "undead", "construct", "classification"},

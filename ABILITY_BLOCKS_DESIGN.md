@@ -513,6 +513,38 @@ Findings:
 - To verify in the app: `straightpathignorecreatures` is supported in code (`IsStraightLineMove`) but no
   content uses it yet.
 
+## 4l. Paste ability text to build blocks (2026-11-21)
+
+The author pastes the ability as printed (book, PDF, Forge Steel export, statblock) and the editor
+builds what it can read. This reuses the monster importer's approach
+(`Draw Steel Importers/DrawSteelMonsterImporter.lua`), not new rules:
+
+- **Header lines:** "Name N Resource" gives the name and cost. An unlabelled line before the keyword line is
+  flavor. "Keywords... Action" gives the keyword chips and the action type. The distance/target line gives
+  range and targets. Text the blocks cannot say ("Self; see below") is kept as the card's wording.
+- **Power roll tiers** use the tier grammar the importer already has (`importerPowerTableEffects`):
+  damage with a type and a characteristic, conditions with (save ends)/(EoT), push/pull/slide N, and
+  potency `M<weak ...` with what follows nested inside the potency block.
+- **Effect sentences** are matched one by one against sentence patterns. In the app, these are the
+  importer's `importerAbilityEffects` templates (importMatch with `<<param>>`). Patterns can change a
+  block an earlier sentence built: "...targets each enemy whose space you move through" sets the move's
+  catch option, and "each space you enter or leave... is burning with X" turns on the trail and adds an aura.
+- **What it cannot read** becomes a "To build" block that quotes the sentence. The author drops blocks
+  inside it, and the ability won't save until each one is built. Once built, **Save as pattern** turns that
+  sentence (numbers become parameters) plus its blocks into a new importer template, so the next paste of
+  the same wording builds itself. This is the teach loop: every hand-built sentence shrinks future work.
+- **The pasted wording is the card's text** (overrides with no generated basis), so the card reads exactly
+  like the book even where the blocks are rough.
+
+Tests in the prototype: the Raise Hell text builds the move with its catch and trail options, the power roll
+and the Hellfire aura, and leaves only the aura's own effect to fill in (the card doesn't say what hellfire
+does). A monster strike with "M<3 prone; the target can't stand (EoT)" and an ally free-strike sentence
+builds everything except those two clauses.
+
+Engine work if adopted: a JS-free Lua path. The paste dialog calls the importer's parsing functions on one
+ability's text, maps the resulting behaviours to blocks (the same mapping the editor uses to open saved
+abilities), and "Save as pattern" writes an `importerAbilityEffects` row.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -583,6 +615,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **A "+" only moves the gold marker; the shelf is the one place to choose.** The separate type-ahead popup is gone. Clicking a "+" moves the marker, the shelf briefly glows and re-fits itself to that spot, and the cursor goes to the shelf search, so typing and Enter still add a block without the mouse. | Two places that change at once was redundant; one source of choices is simpler. |
 | 2026-11-21 | **"Move a creature" exposes Relocate Creature's targeting options as words:** how far (a square you pick / up to your speed), path (any / straight line), through enemies' spaces, "-> targets each enemy whose space it moves through / it moves next to" (Target Creatures in Move Vicinity: vicinity 0 or 1 plus filter), and "marks the squares it passes" (Target Passed Squares). **Create Aura** is a sentence block: "Leave [name] on the squares the move passed / on the target area / around you". | A real author request (Raise Hell) needed exactly these two checkboxes, which were hard to find. |
 | 2026-11-21 | **Create Aura holds its own effect.** A container block: "Leave [Hellfire] on [the squares the move passed] - affects [enemies] [normal / difficult terrain]", then "When a creature enters it:", "When a creature starts its turn in it:" (and the other aura trigger conditions via "+ when...") sections of ordinary steps. Saves as `aura.applyto`, `difficult_terrain` and `aura.triggers = [{trigger, ability: TriggeredAbility{behaviors}}]`, the shape content uses (e.g. Radiant Field). An aura that does nothing is flagged. | "Burning with hellfire" is an aura effect; the aura's behaviour belongs inside the aura, authored with the same blocks. |
+| 2026-11-21 | **Paste ability text is an option on the start row and in the header.** It reuses the statblock importer's parsing (header, tiers, effect templates). Read text becomes blocks, the wording becomes the card text, and each unread sentence becomes a "To build" block with "Save as pattern" to teach the importer. | Most abilities are copied from a printed card; building from the text is fewer clicks, and every hand-built sentence teaches the next paste. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

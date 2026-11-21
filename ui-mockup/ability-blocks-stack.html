@@ -139,6 +139,10 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .starter { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
 .starter:hover { border-color: var(--gold); color: var(--gold); }
 .typeahead { min-width: 280px; }
+.menu.paste { width: min(560px, calc(100vw - 32px)); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.paste-box { width: 100%; min-height: 220px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font: 12.5px var(--font-mono); color: var(--fg); }
+.paste-row { display: flex; gap: 8px; }
+.starter.paste-start { border-color: var(--gold); color: var(--gold); }
 .typeahead input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; }
 .typeahead .opt.hl { background: var(--panel); outline: 1px solid var(--gold); }
 .toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--gold); color: var(--fg); padding: 8px 12px; border-radius: 6px; display: flex; gap: 12px; align-items: center; z-index: 90; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: calc(100vw - 32px); font-size: 12.5px; }
@@ -359,6 +363,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <button aria-pressed="false" type="button" title="The existing full editor (not part of this prototype)">Full editor</button>
     </div>
     <span class="spacer"></span>
+    <button type="button" class="btn" id="pasteBtn" title="Build an ability from its text">Paste text</button>
     <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
     <label class="toggle"><input type="checkbox" id="showGs"> Show GoblinScript</label>
     <label for="exSel" class="note">Open</label>
@@ -613,6 +618,10 @@ const STEPS = {
     make: () => S("potencyShift", { n: "-1" }) },
   changeTarget: { label: "Change the target", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "The roll targets a different creature.",
     make: () => S("changeTarget", { range: "ability", n: "1" }) },
+  // A sentence the text import could not turn into blocks. Steps built inside it are the real effect;
+  // "Save as pattern" would teach the importer (importerAbilityEffects) to build it next time.
+  todo: { label: "To build", cat: "raw", ctx: ["main", "tier"], hidden: true, desc: "",
+    make: () => S("todo", { text: "" }, {}, { then: [] }) },
   // A behaviour the simple editor does not model (aura, summon, script...). Its record is kept as-is
   // and saved back untouched; only its position and any "Only if" around it are editable here.
   opaque: { label: "Advanced step", cat: "raw", ctx: ["main"], hidden: true, desc: "",
@@ -1068,6 +1077,10 @@ function compileSteps(list, filters, out, prose) {
         prose.push({ kind: "text", text: cap("then use " + f.name + " on " + tgt + fp + ": " + (inner || "nothing yet")) });
         break;
       }
+      case "todo": {
+        if (!st.branches.then.length) { bad(st.id, "Not built yet: \u201c" + f.text + "\u201d. Add blocks inside it."); break; }
+        compileSteps(st.branches.then, filters, out, prose); break;
+      }
       case "generic": {
         out.push(Object.assign({ __typeName: f.typeName }, base));
         prose.push({ kind: "text", text: cap(f.label + fp) }); break;
@@ -1102,6 +1115,10 @@ function compileTier(list, prefix) {
       parts.push(pre + a.s + " " + dt(f.dtype) + "damage"); prose.push((m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + "damage"); }
     else if (st.type === "condition") { parts.push(pre + f.cond.toLowerCase() + " (" + f.dur + ")"); prose.push(f.cond.toLowerCase() + " (" + f.dur + ")"); }
     else if (st.type === "forced") { parts.push(pre + f.kind + " " + f.n); prose.push(f.kind + " " + f.n); }
+    else if (st.type === "todo") {
+      if (!st.branches.then.length) bad(st.id, "Not built yet: \u201c" + f.text + "\u201d. Add results inside it.");
+      else { const r = compileTier(st.branches.then, prefix); if (r.s) parts.push(r.s); if (r.prose) prose.push(r.prose); }
+    }
     else if (st.type === "applyEffect") {
       if (!f.effectId) bad(st.id, "Choose which effect to apply.");
       const d = f.dur === "eot" ? "EoT" : "save ends";
@@ -1384,6 +1401,12 @@ function renderStep(st, list, ctx, scope) {
     case "rollEdge": add(lbl("The roll")); add(sel(f, "mod", [["edge", "gets an edge"], ["double_edge", "gets a double edge"], ["bane", "gets a bane"], ["double_bane", "gets a double bane"], ["tier1", "becomes tier 1"], ["tier3", "becomes tier 3"]], null, "edge or bane")); break;
     case "potencyShift": add(lbl("The roll's potency changes by")); add(sel(f, "n", ["-2", "-1", "+1", "+2"], null, "potency change")); break;
     case "changeTarget": add(lbl("Pick a new target")); add(sel(f, "range", [["ability", "within the ability's distance"], ["distance", "within"]], null, "range")); if (f.range === "distance") { add(inp(f, "n", "num", "squares")); add(lbl("squares")); } break;
+    case "todo": {
+      add(E("span", "adv-tag", st.branches.then.length ? "Built from" : "To build"));
+      add(lbl("\u201c" + f.text + "\u201d"));
+      if (st.branches.then.length) { const tb = E("button", "gen-cog", "Save as pattern"); tb.type = "button"; tb.addEventListener("click", ev => { ev.stopPropagation(); teachNote(tb, st); }); add(tb); }
+      break;
+    }
     case "useNew": add(lbl("Then use a new ability:")); add(inp(f, "name", "name", "follow-up name")); break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke": add(lbl("Use ability")); add(inp(f, "ability", "name", "ability name")); break;
@@ -1452,8 +1475,8 @@ function renderStep(st, list, ctx, scope) {
       row.appendChild(addw); e.appendChild(row);
     }
     e.appendChild(E("div", "foot"));
-  } else if (st.type === "potency" || st.type === "ifStep") {
-    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : "inside \u201cOnly if\u201d";
+  } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo") {
+    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : "inside \u201cOnly if\u201d";
     e.appendChild(mouth(st.branches.then, ctx, scope));
     e.appendChild(E("div", "foot"));
   }
@@ -1715,8 +1738,140 @@ function powerRollWith(dmg, ch) {
   dmg.forEach((t, i) => { const d = STEPS.damage.make("tier"); d.slots.amount = holderFromText("roll", "tierDamage", t); pr.branches["t" + (i + 1)].push(d); });
   return pr;
 }
+/* Paste ability text. Mirrors the Draw Steel statblock importer: header, keywords and action, distance
+   and target, power roll tiers (tier grammar), and effect sentences matched against patterns (the
+   importer's importerAbilityEffects table works the same way). Pasted wording becomes the card's text;
+   sentences no pattern matches become "To build" blocks. */
+const SENTENCE_PATTERNS = [
+  { re: /^you (shift|move|jump|teleport) up to your speed( in a straight line)?(, and enemy squares are not difficult terrain for this movement)?$/i,
+    build: (m, ctx) => { const mv = STEPS.move.make(); Object.assign(mv.f, { who: "caster", how: m[1].toLowerCase(), dist: "speed", line: m[2] ? "straight" : "free", through: m[3] ? "yes" : "no" }); ctx.lastMove = mv; return [mv]; } },
+  { re: /^you make one power roll that targets each (enemy|creature|ally) whose space you move through$/i,
+    build: (m, ctx) => { if (!ctx.lastMove) return null; Object.assign(ctx.lastMove.f, { catch: "through", catchWho: m[1] === "creature" ? "any" : m[1].toLowerCase() }); return []; } },
+  { re: /^each space you (?:enter or leave|move through) during this movement is (?:burning with )?(.+)$/i,
+    build: (m, ctx) => { if (!ctx.lastMove) return null; ctx.lastMove.f.trail = "yes"; const au = STEPS.aura.make(); au.f.name = cap(m[1].replace(/^burning with /i, "")); au.f.where = "trail"; return [au]; } },
+  { re: /^each target regains (\d+) stamina$/i, build: m => { const h = STEPS.heal.make(); h.slots.amount = holderFromText("roll", "heal", m[1]); return [h]; } },
+  { re: /^(the target|you) gains? (\d+) temporary stamina$/i, build: m => { const t = STEPS.tempStamina.make(); t.f.who = /^you/i.test(m[1]) ? "caster" : "targets"; t.slots.amount = holderFromText("number", "tempStamina", m[2]); return [t]; } },
+  { re: /^(?:the target is|each target is) (\w+) \((save ends|eot)\)$/i, build: m => { const c = STEPS.condition.make(); const cond = CONDITIONS.find(x => x.toLowerCase() === m[1].toLowerCase()); if (!cond) return null; c.f.cond = cond; c.f.dur = /eot/i.test(m[2]) ? "EoT" : "save ends"; return [c]; } },
+  { re: /^(push|pull|slide) the target (\d+) squares?$/i, build: m => { const fm = STEPS.forced.make(); fm.f.kind = m[1].toLowerCase(); fm.f.n = m[2]; return [fm]; } },
+];
+const TARGET_TEXT = [[/^self$/i, "self", null], [/^one (creature|enemy|ally)$/i, "$1", "1"], [/^(two|three) (creatures|enemies|allies)$/i, "$2", null], [/^each (enemy|creature) in the area$/i, "each $1 in the area", null]];
+const NUMBER_WORDS = { one: "1", two: "2", three: "3" };
+function parseTierText(text, ctx) {
+  const steps = [];
+  for (let seg of text.split(/;\s*/)) {
+    seg = seg.trim().replace(/\.$/, ""); if (!seg) continue;
+    const pm = seg.match(/^([MARIP])\s*<\s*(weak|average|strong|\d+)\s*,?\s*(.+)$/i);
+    if (pm) { const pot = STEPS.potency.make(); pot.f.ch = CHAR_BY_LETTER[pm[1].toLowerCase()]; pot.f.tier = pm[2].toLowerCase(); pot.branches.then = parseTierText(pm[3], ctx); steps.push(pot); continue; }
+    let m;
+    if ((m = seg.match(/^(\d+)(?:\s*\+\s*([MARIP]))?\s*(?:(\w+)\s+)?damage$/i)) && (!m[3] || DMG_TYPES.includes(m[3].toLowerCase()))) {
+      const d = STEPS.damage.make("tier"); d.f.dtype = m[3] ? m[3].toLowerCase() : "untyped";
+      d.slots.amount = holderFromText("roll", "tierDamage", m[2] ? m[1] + " + " + CHAR_BY_LETTER[m[2].toLowerCase()] : m[1]); steps.push(d); continue;
+    }
+    if ((m = seg.match(/^(push|pull|slide|vertical push|vertical slide) (\d+)$/i))) { const fm = STEPS.forced.make(); fm.f.kind = m[1].toLowerCase(); fm.f.n = m[2]; steps.push(fm); continue; }
+    if ((m = seg.match(/^(\w+)$/)) && CONDITIONS.some(x => x.toLowerCase() === m[1].toLowerCase()) && /^(prone|grabbed)$/i.test(m[1])) {
+      const c = STEPS.condition.make(); c.f.cond = CONDITIONS.find(x => x.toLowerCase() === m[1].toLowerCase()); steps.push(c); continue;
+    }
+    if ((m = seg.match(/^(\w+) \((save ends|eot)\)$/i))) {
+      const cond = CONDITIONS.find(x => x.toLowerCase() === m[1].toLowerCase());
+      if (cond) { const c = STEPS.condition.make(); c.f.cond = cond; c.f.dur = /eot/i.test(m[2]) ? "EoT" : "save ends"; steps.push(c); continue; }
+      const eff = EFFECTS.find(r => r[1].toLowerCase() === m[1].toLowerCase());
+      if (eff) { const a = STEPS.applyEffect.make("tier"); a.f.effectName = eff[1]; a.f.effectId = eff[0]; a.f.dur = /eot/i.test(m[2]) ? "eot" : "save_ends"; steps.push(a); continue; }
+    }
+    const t = STEPS.todo.make(); t.f.text = seg; steps.push(t); ctx.todo++;
+  }
+  return steps;
+}
+function parseEffectParagraph(text, ctx) {
+  const out = [];
+  for (let sen of text.split(/(?<=\.)\s+/)) {
+    sen = sen.trim().replace(/\.$/, ""); if (!sen) continue;
+    let built = null;
+    for (const p of SENTENCE_PATTERNS) { const m = sen.match(p.re); if (m) { built = p.build(m, ctx); if (built) break; } }
+    if (built) { out.push(...built); ctx.matched++; }
+    else { const t = STEPS.todo.make(); t.f.text = sen + "."; out.push(t); ctx.todo++; }
+  }
+  return out;
+}
+function importAbilityText(raw) {
+  const lines = raw.split(/\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const a = newAbility(); a.keywords = []; a.overrides = {};
+  const ctx = { matched: 0, todo: 0, lastMove: null, report: [] };
+  let i = 0;
+  // Header: "Raise Hell 5 Insight" (name, cost, resource) or just a name.
+  const hm = lines[0] && lines[0].match(/^(.+?)\s+(\d+)\s+([A-Za-z][A-Za-z ]*)$/);
+  if (hm) { a.name = hm[1]; a.cost = H("number", "cost", hm[2]); a.resource = /malice/i.test(hm[3]) ? "Malice" : "Heroic Resource"; ctx.report.push("Name and cost: " + hm[1] + ", " + hm[2] + " " + hm[3]); }
+  else if (lines[0]) { a.name = lines[0]; ctx.report.push("Name: " + lines[0]); }
+  i = 1;
+  const actRe = /(main action|maneuver|free triggered action|triggered action|free maneuver|no action)$/i;
+  const isKwLine = l => actRe.test(l) && /^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*\s+/.test(l);
+  if (lines[i] && !isKwLine(lines[i]) && !/^(effect|power roll|distance)/i.test(lines[i])) { a.overrides.flavor = { text: lines[i], basis: null }; i++; ctx.report.push("Flavor text"); }
+  if (lines[i] && isKwLine(lines[i])) {
+    const act = lines[i].match(actRe)[1];
+    a.action = ACTIONS.map(x => Array.isArray(x) ? x[0] : x).find(x => x.toLowerCase() === act.toLowerCase()) || a.action;
+    a.keywords = lines[i].slice(0, lines[i].length - act.length).split(",").map(x => x.trim()).filter(k => ABILITY_KEYWORDS.includes(k));
+    ctx.report.push("Keywords and action: " + a.keywords.join(", ") + "; " + a.action); i++;
+  }
+  // Distance and target, on one line (icons lost in copying) or labelled.
+  if (lines[i] && !/^(effect|power roll)/i.test(lines[i])) {
+    const l = lines[i].replace(/^distance:\s*/i, "");
+    let target = null, dist = l;
+    for (const [re, count, n] of TARGET_TEXT) {
+      const mm = l.match(new RegExp("\\s(" + re.source.replace(/^\^|\$$/g, "") + ")$", "i"));
+      if (mm) { target = mm[1]; dist = l.slice(0, l.length - mm[0].length).replace(/\s*target:?\s*$/i, "").trim(); break; }
+    }
+    if (target) {
+      if (/^self$/i.test(target)) { a.targetCount = "self"; }
+      else { const w = target.split(" "); a.numTargets = H("number", "numTargets", NUMBER_WORDS[w[0].toLowerCase()] || "1"); a.targetCount = /^each/i.test(target) ? target.toLowerCase() : w.slice(1).join(" ").toLowerCase(); }
+      let dm;
+      if (/^self/i.test(dist)) { a.distance = "Self"; if (!/^self$/i.test(dist)) a.overrides.distance = { text: dist, basis: null }; }
+      else if ((dm = dist.match(/^(melee|ranged)\s+(\d+)$/i))) { a.distance = cap(dm[1].toLowerCase()); a.range = H("number", "range", dm[2]); }
+      else if ((dm = dist.match(/^(\d+)\s+(burst|cube|line)/i))) { a.distance = cap(dm[2].toLowerCase()); a.range = H("number", "range", dm[1]); }
+      else a.overrides.distance = { text: dist, basis: null };
+      ctx.report.push("Distance and target: " + dist + " / " + target); i++;
+    }
+  }
+  // Effect paragraphs and the power roll, in order.
+  let pr = null, para = null, paraKey = "effectBefore";
+  const flushPara = () => { if (!para) return; a.overrides[paraKey] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})[paraKey] = para.label; a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
+  for (; i < lines.length; i++) {
+    const l = lines[i]; let m;
+    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; a.steps.push(pr); paraKey = "effect"; ctx.report.push("Power roll + " + pr.f.char); continue; }
+    if (pr && (m = l.match(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s+(.+)$/i))) {
+      const k = /^(\u2264|11)/.test(m[1]) ? "t1" : /^12/.test(m[1]) ? "t2" : "t3";
+      pr.branches[k] = parseTierText(m[2], ctx); continue;
+    }
+    if ((m = l.match(/^([A-Z][A-Za-z0-9 ]{1,30}):\s*(.*)$/))) { flushPara(); para = { label: m[1], text: m[2] }; continue; }
+    if (para) para.text += " " + l;   // a wrapped line continues the paragraph
+  }
+  flushPara();
+  return { ability: a, ctx };
+}
+function pasteDialog() {
+  closePopups();
+  const m = E("div", "menu paste"); m.addEventListener("click", ev => ev.stopPropagation());
+  m.appendChild(E("div", "mh", "Paste ability text"));
+  m.appendChild(E("div", "md", "Copy an ability from a book, PDF or statblock. What can be read becomes blocks; the rest becomes \u201cTo build\u201d sentences. Your text becomes the card wording."));
+  const ta = E("textarea", "paste-box"); ta.setAttribute("aria-label", "Ability text");
+  ta.placeholder = "Raise Hell 5 Insight\nYou rush through your enemies, leaving a blazing trail behind.\nMagic, Melee, Weapon Main action\nSelf; see below Self\nEffect: ...\nPower Roll + Agility:\n\u226411 3 fire damage\n...";
+  m.appendChild(ta);
+  const row = E("div", "paste-row");
+  const go = E("button", "btn", "Build blocks"); go.type = "button";
+  const sample = E("button", "btn", "Use the Raise Hell text"); sample.type = "button";
+  sample.addEventListener("click", () => { ta.value = RAISE_HELL_TEXT; ta.focus(); });
+  go.addEventListener("click", () => {
+    const { ability, ctx } = importAbilityText(ta.value);
+    ab = ability; registerScopes(ab); insertAt = null; editingId = null; compiledCache = null; closePopups(); refresh();
+    toast("Read: " + ctx.report.length + " lines of header and " + ctx.matched + " effect sentence" + (ctx.matched === 1 ? "" : "s") + " built. " + (ctx.todo ? ctx.todo + " to build by hand." : "Nothing left to build."), true);
+  });
+  row.appendChild(go); row.appendChild(sample); m.appendChild(row);
+  document.body.appendChild(m); m.style.left = Math.max(8, (window.innerWidth - m.offsetWidth) / 2) + "px"; m.style.top = (window.scrollY + 90) + "px"; popup = m;
+  ta.focus();
+}
+const RAISE_HELL_TEXT = "Raise Hell 5 Insight\nYou rush through your enemies, leaving a blazing trail behind.\nMagic, Melee, Weapon Main action\nSelf; see below Self\nEffect: You shift up to your speed in a straight line, and enemy squares are not difficult terrain for this movement. You make one power roll that targets each enemy whose space you move through.\nPower Roll + Agility:\n\u226411 3 fire damage\n12-16 5 fire damage\n17+ 8 fire damage\nEffect: Each space you enter or leave during this movement is burning with hellfire.";
 function starters() {
   const w = E("div", "starters"); w.appendChild(E("span", "q", "Start from:"));
+  const pb = E("button", "starter paste-start", "Paste ability text\u2026"); pb.type = "button";
+  pb.addEventListener("click", ev => { ev.stopPropagation(); pasteDialog(); }); w.appendChild(pb);
   for (const [name, fill] of STARTERS[ab.kind]) {
     const b = E("button", "starter", name); b.type = "button";
     b.addEventListener("click", () => { fill(ab); insertAt = null; editingId = null; refresh(); toast("Started from \u201c" + name + "\u201d. Click any underlined word to change it.", true); });
@@ -1883,6 +2038,7 @@ function toast(msg, withUndo, kind) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 6000);
 }
 document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("pasteBtn").addEventListener("click", ev => { ev.stopPropagation(); pasteDialog(); });
 // While typing, only the card updates; the stack re-renders when the field loses focus.
 function refreshSide() { compiledCache = compileAbility(); renderSide(compiledCache); saveDraft(); }
 document.getElementById("showGs").addEventListener("change", refresh);
@@ -2310,6 +2466,17 @@ function addStepTo(type, act, idx) {
   const h = st.slots && st.slots.cond; if (h) { const b = main.querySelector('[data-holder="' + h.id + '"] button'); if (b) openPicker(h, b); }
 }
 
+
+/* Prototype stand-in for teaching the importer a new sentence pattern. */
+function teachNote(anchor, st) {
+  closePopups();
+  const pattern = st.f.text.replace(/\b\d+\b/g, "<<n>>");
+  const m = E("div", "menu"); m.style.maxWidth = "340px"; m.style.padding = "10px 12px"; m.addEventListener("click", ev => ev.stopPropagation());
+  m.appendChild(E("div", null, "In the app this saves a new importer pattern:"));
+  m.appendChild(Object.assign(E("div", "md"), { textContent: "\u201c" + pattern + "\u201d \u2192 the blocks inside, with numbers as parameters." }));
+  m.appendChild(E("div", "md", "Next time anyone pastes this sentence (with any numbers), it builds itself."));
+  place(m, anchor);
+}
 
 /* Prototype stand-in for a behaviour's own settings panel (the same fields its editor shows today). */
 function genericNote(anchor, f) {

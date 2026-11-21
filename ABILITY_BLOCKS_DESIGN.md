@@ -618,6 +618,26 @@ does. The option's card line is labelled with its name ("Spend 1 Ferocity: ...")
 as the mode's `rules`. One per ability, at the top level; not yet on triggered abilities. 288 compendium
 abilities use modes. Pasted "Spend N Resource:" paragraphs become options.
 
+**Modes vs Ability Variations (decided 2026-11-21).** The engine has two kinds of modes, and the author
+never picks between them: the editor decides how to save, as it does for triggers.
+- Each option has "same targets / targets differently". When every option uses the ability's targets, the
+  block saves as Multiple Modes (`multipleModes: true`, steps gated by `modesSelected`).
+- When any option targets differently, it saves as Ability Variations (`multipleModes: "variations"`). That
+  option shows its own Distance and Target rows (the same card-worded rows as the header) and saves as
+  `hasAbility: true` plus `variation`: a whole ability with that targeting, whose behaviours are the full What
+  happens list with only that option's steps from the block (untagged), and `resourceCost: "none"` so the
+  base ability's cost is kept. Options that keep the same targets stay as gated steps on the base ability,
+  which the engine supports in variations mode too.
+- "After picking the target" only works with plain modes, so the block shows "before picking targets" as
+  fixed text once an option targets differently.
+- Switching an option back to "same targets" keeps its steps (now gated) and says so in a toast; Undo restores
+  its targeting.
+- The option's card line starts with its own distance and target ("Slide a creature: Ranged 30, one
+  creature. Slide the target 2.").
+- Example: "Reposition" in the Open menu. About 64 compendium abilities use variations (30 monsters).
+- Content finding: Coat the Blade (College of Caustic Alchemy) has two modes but `multipleModes: false`, so
+  the choice is probably never offered.
+
 **Tier grammar additions** (each saves as tier text the engine's existing patterns already read):
 - conditions can carry a **rider**: "prone and cannot stand (EoT)" (the rider list comes from the
   conditionriders table, filtered to the chosen condition);
@@ -720,6 +740,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **"Who it targets" uses the card's own wording, as two lines: "Distance: [4] cube within [10]" and "Target: each enemy in the area".** Each form puts its numbers where the card does: Melee N, Ranged N, Melee N or ranged M, N burst, N cube within M, L x W line within D, Self. Area forms only offer "each ... in the area" (and Special) as targets. A plain-words line underneath explains it ("A cube 4 squares on each side, placed anywhere within 10 squares of you."). Saved the way the statblock importer saves them: burst = targetType all with range = size; cube = radius size, range within; line = range length, radius width, lineDistance; melee or ranged = meleeRange. The card shows "One creature", not "1 creature". | The old row ("1 each enemy in the area within Cube 4") didn't match how the book says it and lost the cube's "within" distance. |
 | 2026-11-21 | **Class ability poll (55 random abilities, all classes, levels 1-10).** 15 map to blocks fully. The gaps, by count: nested abilities 14, modes 12 (not modelled), advanced behaviours 12, distance as text 11, unreadable tier text 11, unknown symbols 9. Book PDF paste: 3 of 33 clean, because of icon letters (a/e/i, o/x, m<w), split action lines and broken word wraps. | Evidence for what to build next: modes, the aura distance form, tier grammar additions, and copy-format rules. |
 | 2026-11-21 | **Modes are a block: "When you use it, choose one".** Options have a name and an optional extra cost; steps inside an option save with modesSelected; extra cost adds the condition and the spend step. Tier grammar gains riders, no-duration conditions, vertical push straight up, surges, card-text-only results, and the N aura distance. Ability Duration Effect and Condition Riders get sentence blocks. | Poll items 1, 3 and 4: modes were the largest gap, and tier text was the most common reason a pasted ability failed. |
+| 2026-11-21 | **Modes vs Ability Variations is decided by the editor.** Each option is "same targets" or "targets differently"; any option that targets differently makes the block save as Ability Variations, with that option as a swapped-in ability (its own targeting, the full step list with only its steps from the block, cost kept from the base). Otherwise it saves as Multiple Modes. | Same principle as triggers: authors describe what happens, the editor picks the storage type. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

@@ -143,6 +143,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .paste-box { width: 100%; min-height: 220px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font: 12.5px var(--font-mono); color: var(--fg); }
 .paste-row { display: flex; gap: 8px; }
 .adv-tag.guess { background: var(--gold); color: var(--bg); }
+.mid.opt-target { padding-left: 26px; gap: 6px; flex-wrap: wrap; }
 .starter.paste-start { border-color: var(--gold); color: var(--gold); }
 .typeahead input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; }
 .typeahead .opt.hl { background: var(--panel); outline: 1px solid var(--gold); }
@@ -380,6 +381,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <option value="retaliate">Retaliate (triggered: reacts after)</option>
       <option value="potency">Potency checks (real formulas from content)</option>
       <option value="raisehell">Raise Hell (shift through enemies, trail of hellfire)</option>
+      <option value="reposition">Reposition (one option targets differently)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
       <option value="smoke">Smoke Bomb (has an advanced step)</option>
     </optgroup>
@@ -651,7 +653,7 @@ const STEPS = {
   // Modes: "choose one when you use it". Saved as the ability's modeList; each step inside an option
   // gets modesSelected = [that option's number], steps outside the block happen in every mode.
   modes: { label: "Choose one when used", cat: "ctrl", ctx: ["main"], desc: "Options picked when the ability is used: a damage type, or \u201cSpend 1 more\u201d for an extra effect.",
-    make: () => { const a = { id: "m" + uid++, name: "Standard", extra: "0" }, b = { id: "m" + uid++, name: "Spend 1 more", extra: "1" };
+    make: () => { const a = { id: "m" + uid++, name: "Standard", extra: "0", own: "no" }, b = { id: "m" + uid++, name: "Spend 1 more", extra: "1", own: "no" };
       return S("modes", { when: "before", opts: [a, b] }, {}, { ["o" + a.id]: [], ["o" + b.id]: [] }); } },
   // Ability Duration Effect: a nameless ongoing effect that only lasts while this ability resolves
   // (instant), carrying modifiers such as "ignore cover" or "gain an edge on this roll".
@@ -923,6 +925,7 @@ let problems = [];
 let paramSink = null;
 // Set while compiling: whether a move has marked a trail, and fields a step writes on the ability itself.
 let moveTrail = false, abilityPatch = {};
+let variationOf = null;   // set while compiling one mode option's swapped-in ability (Ability Variations)
 // Non-blocking notes for the side panel (things that save fine but need engine work to run right).
 let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
@@ -1054,26 +1057,50 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         prose.push({ kind: "text", text: cap(f.text ? f.text.replace(/\.$/, "") : (f.who === "caster" ? "you have " : "each target has ") + f.name + " while this ability resolves") + fp }); break;
       }
       case "modes": {
+        if (variationOf) { const o = f.opts.find(x => x.id === variationOf); if (o) compileSteps(st.branches["o" + o.id] || [], filters, out, prose); break; }
         if (list !== ab.steps) { bad(st.id, "\u201cChoose one when used\u201d must be at the top level of What happens."); break; }
         if (ab.kind === "triggered") { bad(st.id, "Choices on a triggered ability are not in this prototype yet."); break; }
         if (abilityPatch.modeList) { bad(st.id, "An ability can only have one \u201cChoose one when used\u201d."); break; }
         const heroic = (RESOURCE_TABLE.find(r => r[1] === "Heroic Resource") || [""])[0];
-        abilityPatch.multipleModes = true;
-        if (f.when === "after") abilityPatch.chooseModeAfterTargeting = true;
-        abilityPatch.modeList = f.opts.map((o, i) => {
+        // How it is saved is decided here, not by the author: if any option targets differently it becomes
+        // Ability Variations (that option swaps in a whole ability with its own targeting); otherwise it is
+        // plain Multiple Modes (one ability, steps gated by modesSelected).
+        const variations = f.opts.some(o => o.own === "yes");
+        abilityPatch.multipleModes = variations ? "variations" : true;
+        if (f.when === "after" && !variations) abilityPatch.chooseModeAfterTargeting = true;
+        if (variations) notes.push("Saved as Ability Variations, because " + f.opts.filter(o => o.own === "yes").map(o => "\u201c" + o.name + "\u201d").join(" and ") + " target" + (f.opts.filter(o => o.own === "yes").length === 1 ? "s" : "") + " differently.");
+        const modeList = f.opts.map((o, i) => {
           const b2 = [], p2 = [];
           compileSteps(st.branches["o" + o.id] || [], filters, b2, p2);
           const n = +o.extra || 0;
-          if (n) b2.unshift({ __typeName: "ActivatedAbilityReplenishBehavior", applyto: "caster", mode: "expend", quantity: String(n), resourceid: heroic });
-          b2.forEach(b => { b.modesSelected = [i + 1]; out.push(b); });
-          const text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(". ");
-          if (text) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text + "." });
-          if (!o.name) bad(st.id, "Name each option.");
+          const spend = n ? { __typeName: "ActivatedAbilityReplenishBehavior", applyto: "caster", mode: "expend", quantity: String(n), resourceid: heroic } : null;
+          let text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(". ");
           const m = { text: o.name };
           if (n) m.condition = "Heroic Resources Available to Spend >= " + n;
+          if (o.own === "yes") {
+            // The swapped-in ability: the whole What happens list with only this option's steps from the
+            // block (untagged), and this option's targeting. Cost "none" keeps the base ability's cost.
+            const fm = r => /^\d+$/.test(r.s) ? r.s : r.prose;
+            const vb = [];
+            const savedProblems = problems.length, savedPatch = abilityPatch;
+            abilityPatch = {}; variationOf = o.id;
+            compileSteps(ab.steps, [], vb, []);
+            variationOf = null; abilityPatch = savedPatch; problems.length = savedProblems;   // reported once, by the main pass
+            if (spend) vb.unshift(spend);
+            m.hasAbility = true;
+            m.variation = Object.assign({ __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
+              keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])), resourceCost: "none" }, targetFields(o.t), { behaviors: vb });
+            text = distanceText(fm, o.t) + ", " + targetText(o.t, fm).toLowerCase() + (text ? ". " + text : "");
+          } else {
+            if (spend) b2.unshift(spend);
+            b2.forEach(b => { b.modesSelected = [i + 1]; out.push(b); });
+          }
+          if (text) prose.push({ kind: "mode", key: "mode." + o.id, label: o.name, text: text + "." });
+          if (!o.name) bad(st.id, "Name each option.");
           if (text) m.rules = text + ".";
           return m;
         });
+        abilityPatch.modeList = modeList;
         if (f.opts.length < 2) bad(st.id, "Add at least two options to choose between.");
         break;
       }
@@ -1290,19 +1317,8 @@ function compileAbility() {
   const rec = {
     __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
     keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
-    targetType: "target", range: range.s, numTargets: num.s,
   };
-  // Same fields the statblock importer writes for each distance form.
-  ensureDistance(ab);
-  const size = cHolder(ab.areaSize).s;
-  if (ab.distance === "Self") rec.targetType = "self";
-  else if (ab.distance === "Melee or ranged") rec.meleeRange = cHolder(ab.meleeRange).s;
-  else if (ab.distance === "Burst") Object.assign(rec, { targetType: "all", range: size, numTargets: "1" });
-  // No aura target type exists for an ability: saved as a burst of the same size, as the importer does,
-  // with the card wording kept.
-  else if (ab.distance === "Aura") Object.assign(rec, { targetType: "all", range: size, numTargets: "1", rangeTextOverride: size + " aura" });
-  else if (ab.distance === "Cube") Object.assign(rec, { targetType: "cube", radius: size, numTargets: "1" });
-  else if (ab.distance === "Line") Object.assign(rec, { targetType: "line", range: size, radius: cHolder(ab.lineWidth).s, lineDistance: cHolder(ab.lineWithin).s, numTargets: "1" });
+  Object.assign(rec, targetFields(ab));
   if (ab.targetCount === "special") notes.push("\u201cSpecial\u201d targeting: what the blocks do decides the targets; the card says Special.");
   if (!tf.empty) rec.targetFilter = tf.s;
   if (ab.resource !== "no cost") { rec.resourceCost = "<" + ab.resource + ">"; rec.resourceNumber = cost.s; }
@@ -1487,7 +1503,12 @@ function renderStep(st, list, ctx, scope) {
     }
     case "surges": add(lbl("The target gains")); add(inp(f, "n", "num", "surges")); add(lbl(f.n === "1" ? "surge" : "surges")); break;
     case "note": { add(lbl("Card text:")); const ti = inp(f, "text", "name", "card text"); ti.placeholder = "words shown on the card"; ti.style.minWidth = "280px"; add(ti); break; }
-    case "modes": add(lbl("When you use it, choose one")); add(sel(f, "when", [["before", "before picking targets"], ["after", "after picking the target"]], null, "when")); break;
+    case "modes":
+      add(lbl("When you use it, choose one"));
+      // Picking the target first can't work when an option changes what can be targeted.
+      if (f.opts.some(o => o.own === "yes")) { const l = lbl("before picking targets"); l.title = "An option targets differently, so the choice comes first."; add(l); }
+      else add(sel(f, "when", [["before", "before picking targets"], ["after", "after picking the target"]], null, "when"));
+      break;
     case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
     case "potency": add(lbl("If")); add(sel(f, "ch", POT_CHARS, null, "characteristic")); add(lbl("<")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency:"));
       if (f.guess) { const g = E("span", "adv-tag guess", "check"); g.title = f.guess; add(g); }
@@ -1611,11 +1632,20 @@ function renderStep(st, list, ctx, scope) {
     st.f.opts.forEach((o, i) => {
       const mid = E("div", "mid");
       const ni = inp(o, "name", "name", "option name"); mid.appendChild(ni);
+      mid.appendChild(sel(o, "own", [["no", "same targets"], ["yes", "targets differently"]], () => {
+        snapshot();
+        if (o.own === "yes" && !o.t) o.t = newTargeting();
+        if (o.own !== "yes") toast("\u201c" + o.name + "\u201d now uses the ability's own distance and targets.", true);
+        refresh(); }, "targets"));
       mid.appendChild(sel(o, "extra", [["0", "no extra cost"], ["1", "costs 1 more"], ["2", "costs 2 more"], ["3", "costs 3 more"]], () => {
         const auto = /^(Spend \d+ |Spend 1 more$|Standard$|Option)/.test(o.name); if (auto && +o.extra) o.name = "Spend " + o.extra + " " + resName("Heroic Resource"); refresh(); }, "extra cost"));
       const x = E("button", "clear", "\u00d7"); x.type = "button"; x.style.marginLeft = "auto"; x.title = "Remove this option"; x.setAttribute("aria-label", "Remove " + o.name);
       x.addEventListener("click", ev => { ev.stopPropagation(); snapshot(); st.f.opts.splice(i, 1); delete st.branches["o" + o.id]; refresh(); }); mid.appendChild(x);
       e.appendChild(mid);
+      if (o.own === "yes") {
+        if (!o.t) o.t = newTargeting();
+        targetingRows(o.t).forEach(r => { const row = E("div", "mid opt-target"); row.style.paddingLeft = "24px"; r.forEach(n => row.appendChild(n)); e.appendChild(row); });
+      }
       listLabels[listId(st.branches["o" + o.id])] = "inside \u201c" + o.name + "\u201d";
       e.appendChild(mouth(st.branches["o" + o.id], ctx, scope));
     });
@@ -1680,33 +1710,84 @@ function listId(list) { if (!listIds.has(list)) { const id = "L" + listSeq++; li
 function section(title, hint) { const t = E("div", "section-title", title); if (hint) t.appendChild(E("span", "hint", hint)); return t; }
 // key: a read-mode id for this header block (null = always editable).
 /* The distance as card text ("4 cube within 10") and in plain words, from the same fields. */
-function distanceText(fm) {
-  ensureDistance(ab); const c = h => fm(cHolder(h));
-  switch (ab.distance) {
+function distanceText(fm, o = ab) {
+  ensureDistance(o); const c = h => fm(cHolder(h));
+  switch (o.distance) {
     case "Self": return "Self";
-    case "Melee": case "Ranged": return ab.distance + " " + c(ab.range);
-    case "Melee or ranged": return "Melee " + c(ab.meleeRange) + " or ranged " + c(ab.range);
-    case "Burst": return c(ab.areaSize) + " burst";
-    case "Aura": return c(ab.areaSize) + " aura";
-    case "Cube": return c(ab.areaSize) + " cube within " + c(ab.range);
-    case "Line": return c(ab.areaSize) + " x " + c(ab.lineWidth) + " line within " + c(ab.lineWithin);
+    case "Melee": case "Ranged": return o.distance + " " + c(o.range);
+    case "Melee or ranged": return "Melee " + c(o.meleeRange) + " or ranged " + c(o.range);
+    case "Burst": return c(o.areaSize) + " burst";
+    case "Aura": return c(o.areaSize) + " aura";
+    case "Cube": return c(o.areaSize) + " cube within " + c(o.range);
+    case "Line": return c(o.areaSize) + " x " + c(o.lineWidth) + " line within " + c(o.lineWithin);
   }
-  return ab.distance;
+  return o.distance;
 }
-function distancePlain() {
+function distancePlain(o = ab) {
   const n = h => { const x = cHolder(h); return /^\d+$/.test(x.s) ? x.s : x.prose; };
   const sq = h => { const v = n(h); return v + (v === "1" ? " square" : " squares"); };
-  switch (ab.distance) {
+  switch (o.distance) {
     case "Self": return "Only you.";
-    case "Melee": return "A creature within " + sq(ab.range) + " of you that you can reach.";
-    case "Ranged": return "A creature up to " + sq(ab.range) + " away.";
-    case "Melee or ranged": return "Either in melee within " + sq(ab.meleeRange) + ", or up to " + sq(ab.range) + " away.";
-    case "Burst": return "Everything within " + sq(ab.areaSize) + " of you.";
-    case "Aura": return "Everything within " + sq(ab.areaSize) + " of you, moving with you while it lasts.";
-    case "Cube": return "A cube " + n(ab.areaSize) + " squares on each side, placed anywhere within " + sq(ab.range) + " of you.";
-    case "Line": return "A line " + n(ab.areaSize) + " squares long and " + n(ab.lineWidth) + " wide, starting within " + sq(ab.lineWithin) + " of you.";
+    case "Melee": return "A creature within " + sq(o.range) + " of you that you can reach.";
+    case "Ranged": return "A creature up to " + sq(o.range) + " away.";
+    case "Melee or ranged": return "Either in melee within " + sq(o.meleeRange) + ", or up to " + sq(o.range) + " away.";
+    case "Burst": return "Everything within " + sq(o.areaSize) + " of you.";
+    case "Aura": return "Everything within " + sq(o.areaSize) + " of you, moving with you while it lasts.";
+    case "Cube": return "A cube " + n(o.areaSize) + " squares on each side, placed anywhere within " + sq(o.range) + " of you.";
+    case "Line": return "A line " + n(o.areaSize) + " squares long and " + n(o.lineWidth) + " wide, starting within " + sq(o.lineWithin) + " of you.";
   }
   return "";
+}
+/* Card target wording ("One creature", "Each enemy in the area", "Self") for any targeting object. */
+function targetText(o, fm) {
+  const num = cHolder(o.numTargets);
+  return o.distance === "Self" || o.targetCount === "self" ? "Self" : o.targetCount === "special" ? "Special" : /^each/.test(o.targetCount) ? cap(o.targetCount)
+    : /^\d+$/.test(num.s) ? ({ 1: "One", 2: "Two", 3: "Three", 4: "Four" }[num.s] || num.s) + " " + o.targetCount : cap(o.targetCount) + " (" + fm(num) + ")";
+}
+/* The Distance and Target rows, worded like the card, for the ability or for a mode option. */
+function targetingRows(o) {
+  ensureDistance(o);
+  const area = AREA_FORMS.includes(o.distance);
+  // Keep the target wording matched to the distance form (an area targets "each ... in the area").
+  if (area && !AREA_TARGETS.includes(o.targetCount)) o.targetCount = "each enemy in the area";
+  if (!area && AREA_TARGETS.includes(o.targetCount) && o.targetCount !== "special") o.targetCount = "creature";
+  if (o.distance === "Self") o.targetCount = "self";
+  const dsel = sel(o, "distance", DISTANCES, null, "distance");
+  const distRow = [lbl("Distance:")];
+  switch (o.distance) {
+    case "Melee": case "Ranged": distRow.push(dsel, renderHolder(o.range)); break;
+    case "Melee or ranged": distRow.push(dsel, lbl("\u2014 melee"), renderHolder(o.meleeRange), lbl("or ranged"), renderHolder(o.range)); break;
+    case "Burst": case "Aura": distRow.push(renderHolder(o.areaSize), dsel); break;
+    case "Cube": distRow.push(renderHolder(o.areaSize), dsel, lbl("within"), renderHolder(o.range)); break;
+    case "Line": distRow.push(renderHolder(o.areaSize), lbl("x"), renderHolder(o.lineWidth), dsel, lbl("within"), renderHolder(o.lineWithin)); break;
+    default: distRow.push(dsel);
+  }
+  const tgtRow = [lbl("Target:")];
+  if (o.distance === "Self") tgtRow.push(lbl("Self"));
+  else if (area) tgtRow.push(sel(o, "targetCount", AREA_TARGETS, null, "target"));
+  else if (o.targetCount === "self" || o.targetCount === "special") tgtRow.push(sel(o, "targetCount", TARGET_COUNTS, null, "target"));
+  else tgtRow.push(renderHolder(o.numTargets), sel(o, "targetCount", TARGET_COUNTS, null, "target"));
+  return [distRow, tgtRow];
+}
+/* The saved targeting fields for each distance form: the same fields the statblock importer writes. */
+function targetFields(o) {
+  ensureDistance(o);
+  const size = cHolder(o.areaSize).s;
+  const r = { targetType: "target", range: cHolder(o.range).s, numTargets: cHolder(o.numTargets).s };
+  if (o.distance === "Self") r.targetType = "self";
+  else if (o.distance === "Melee or ranged") r.meleeRange = cHolder(o.meleeRange).s;
+  else if (o.distance === "Burst") Object.assign(r, { targetType: "all", range: size, numTargets: "1" });
+  // No aura target type exists for an ability: saved as a burst of the same size, as the importer does,
+  // with the card wording kept.
+  else if (o.distance === "Aura") Object.assign(r, { targetType: "all", range: size, numTargets: "1", rangeTextOverride: size + " aura" });
+  else if (o.distance === "Cube") Object.assign(r, { targetType: "cube", radius: size, numTargets: "1" });
+  else if (o.distance === "Line") Object.assign(r, { targetType: "line", range: size, radius: cHolder(o.lineWidth).s, lineDistance: cHolder(o.lineWithin).s, numTargets: "1" });
+  return r;
+}
+/* Fresh targeting for a mode option that targets differently. */
+function newTargeting() {
+  const t = { distance: "Ranged", targetCount: "creature", range: H("number", "range", "10"), numTargets: H("number", "numTargets", "1") };
+  ensureDistance(t); return t;
 }
 function headBlock(rows, key) {
   const e = E("div", "step cat-head");
@@ -1873,28 +1954,7 @@ function renderMain() {
   main.appendChild(headBlock(whatRows(nm, sel(ab, "action", ACTIONS, null, "action")), "hdr-what"));
 
   main.appendChild(section("Who it targets"));
-  ensureDistance(ab);
-  const area = AREA_FORMS.includes(ab.distance);
-  // Keep the target wording matched to the distance form (an area targets "each ... in the area").
-  if (area && !AREA_TARGETS.includes(ab.targetCount)) ab.targetCount = "each enemy in the area";
-  if (!area && AREA_TARGETS.includes(ab.targetCount) && ab.targetCount !== "special") ab.targetCount = "creature";
-  if (ab.distance === "Self") ab.targetCount = "self";
-  const dsel = sel(ab, "distance", DISTANCES, null, "distance");
-  const distRow = [lbl("Distance:")];
-  switch (ab.distance) {
-    case "Melee": case "Ranged": distRow.push(dsel, renderHolder(ab.range)); break;
-    case "Melee or ranged": distRow.push(dsel, lbl("\u2014 melee"), renderHolder(ab.meleeRange), lbl("or ranged"), renderHolder(ab.range)); break;
-    case "Burst": case "Aura": distRow.push(renderHolder(ab.areaSize), dsel); break;
-    case "Cube": distRow.push(renderHolder(ab.areaSize), dsel, lbl("within"), renderHolder(ab.range)); break;
-    case "Line": distRow.push(renderHolder(ab.areaSize), lbl("x"), renderHolder(ab.lineWidth), dsel, lbl("within"), renderHolder(ab.lineWithin)); break;
-    default: distRow.push(dsel);
-  }
-  const tgtRow = [lbl("Target:")];
-  if (ab.distance === "Self") tgtRow.push(lbl("Self"));
-  else if (area) tgtRow.push(sel(ab, "targetCount", AREA_TARGETS, null, "target"));
-  else if (ab.targetCount === "self" || ab.targetCount === "special") tgtRow.push(sel(ab, "targetCount", TARGET_COUNTS, null, "target"));
-  else tgtRow.push(renderHolder(ab.numTargets), sel(ab, "targetCount", TARGET_COUNTS, null, "target"));
-  const t = headBlock([distRow, tgtRow], "hdr-who");
+  const t = headBlock(targetingRows(ab), "hdr-who");
   t.querySelector(".bar").appendChild(gsWrap([ab.range, ab.areaSize, ab.numTargets]));
   main.appendChild(t);
   const plain = E("p", "note dist-plain", distancePlain()); plain.style.margin = "3px 0 0 10px"; main.appendChild(plain);
@@ -2237,8 +2297,7 @@ function renderSide(c) {
   } else {
     const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
     const dist = distanceText(fm);
-    const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : ab.targetCount === "special" ? "Special" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
-      : /^\d+$/.test(c.num.s) ? ({ 1: "One", 2: "Two", 3: "Three", 4: "Four" }[c.num.s] || c.num.s) + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
+    const tgt = targetText(ab, fm);
     const grid = E("div", "grid"); card.appendChild(grid);
     cardLine(grid, "distance", "Distance", dist, "fixed"); cardLine(grid, "target", "Target", tgt, "fixed");
     // Effect text can come before the power roll as well as after it; each is one paragraph.
@@ -2836,7 +2895,8 @@ function allHolders() {
   const visitH = h => { if (!h) return; out[h.id] = h; if (h.expr) visitX(h.expr); };
   const visitX = x => { for (const k in x.kids) visitH(x.kids[k]); (x.f.items || []).forEach(visitH); };
   [ab.range, ab.areaSize, ab.lineWidth, ab.lineWithin, ab.meleeRange, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h), ab.trigCond, ab.trig && ab.trig.range].forEach(visitH);
-  const visitS = l => l.forEach(st => { for (const k in st.slots) visitH(st.slots[k]); for (const k in st.branches || {}) visitS(st.branches[k]); });
+  const visitS = l => l.forEach(st => { for (const k in st.slots) visitH(st.slots[k]); for (const k in st.branches || {}) visitS(st.branches[k]);
+    if (st.type === "modes") st.f.opts.forEach(o => { if (o.t) ["range", "numTargets", "areaSize", "lineWidth", "lineWithin", "meleeRange"].forEach(k => visitH(o.t[k])); }); });
   visitS(ab.steps);
   return out;
 }
@@ -3038,6 +3098,21 @@ const EXAMPLES = {
       const w = STEPS.ifStep.make(); w.slots.cond = holderFromText("boolean", "stepIf", src);
       const c = STEPS.condition.make(); c.f.cond = cond; w.branches.then.push(c); a.steps.push(w);
     }
+    return a;
+  },
+  reposition: () => {
+    const a = newAbility();
+    Object.assign(a, { name: "Reposition", action: "Maneuver", keywords: [], distance: "Self", targetCount: "self" });
+    const mb = STEPS.modes.make();
+    const [o1, o2] = mb.f.opts;
+    Object.assign(o1, { name: "You shift", extra: "0", own: "no" });
+    Object.assign(o2, { name: "Slide a creature", extra: "0", own: "yes", t: newTargeting() });
+    o2.t.range = H("number", "range", "30");
+    const mv = STEPS.move.make(); mv.f.how = "shift";
+    mb.branches["o" + o1.id] = [mv];
+    const sl = STEPS.forced.make(); sl.f.kind = "slide"; sl.f.n = "2";
+    mb.branches["o" + o2.id] = [sl];
+    a.steps.push(mb);
     return a;
   },
   raisehell: () => {

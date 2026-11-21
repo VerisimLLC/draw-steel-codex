@@ -48,7 +48,8 @@ local function HeroPlayerName(tok)
     end
     local name = owner
     pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
-    return name
+    --their Player Tag, known while the town is connected (not inside a game yet).
+    return name .. EotwPlayerTags.Inline(EotwPlayerTags.TagOf(owner), 90)
 end
 
 --

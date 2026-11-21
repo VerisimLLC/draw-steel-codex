@@ -1395,6 +1395,7 @@ function EotwRoster.Refresh()
                 end
             end
             EotwRoster.SetListedLeads(result.leads, result.carouse)
+            EotwPlayerTags.Apply(result.tags)
             Bump()
             SyncWorkingCopies()
             FlushPendingHall()
@@ -3255,6 +3256,8 @@ function EotwRoster.GuildPanel(host)
                     EotwModeration.ShowFindHeroesDialog()
                 end,
             },
+            --the player's achievements, after the hero buttons and set apart from them.
+            EotwPlayerTags.GuildButton(host),
         },
 
         --rebuild whenever the roster (or a working copy) changes.
@@ -3816,6 +3819,24 @@ local function OpenHallEntry(host, entry)
     end)
 end
 
+--A Hall entry's "Played by" line. When any player shows an achievement it is
+--a wrapping row of names with their badges; otherwise one plain line.
+---@param players EotwTagNameListPerson[]
+---@return Panel
+local function HallPlayedBy(players)
+    local playerNames = {}
+    local anyTag = false
+    for _, player in ipairs(players) do
+        playerNames[#playerNames+1] = player.name
+        anyTag = anyTag or EotwPlayerTags.Def(player.tag) ~= nil
+    end
+    if not anyTag then
+        return gui.Label{ text = T("roster.hall.played_by", { players = table.concat(playerNames, ", ") }), fontSize = 14, color = DIM, width = "100%", height = "auto" }
+    end
+    local items = EotwPlayerTags.NameList(T("roster.hall.played_by_heading"), players, { fontSize = 14, color = DIM, rowHeight = 22, badgeMaxWidth = 170 })
+    return gui.Panel{ width = "100%", height = "auto", flow = "horizontal", wrap = true, children = items }
+end
+
 --The Hall of Heroes location's card: tabs, sort and the list of entries (the
 --scene above it carries the title). host mounts the victory-screen replays.
 function EotwRoster.HallPanel(host)
@@ -3848,6 +3869,8 @@ function EotwRoster.HallPanel(host)
             end
             loading = false
             for _,e in ipairs(result.entries or {}) do
+                --the players' Player Tags, as the city reported them with this page.
+                e.playerTags = type(result.tags) == "table" and result.tags or {}
                 entries[#entries+1] = e
             end
             more = result.more == true
@@ -3884,9 +3907,12 @@ function EotwRoster.HallPanel(host)
                 portraits[#portraits+1] = Portrait(h.portrait, 45, 60, "left")
             end
         end
-        local playerNames = {}
+        local playerTags = type(e.playerTags) == "table" and e.playerTags or {}
+        ---@type EotwTagNameListPerson[]
+        local players = {}
         for _,p in ipairs(summary.players or {}) do
-            playerNames[#playerNames+1] = p.name or "?"
+            local tag = p.userid ~= nil and playerTags[p.userid] or nil
+            players[#players+1] = { name = p.name or "?", tag = tag }
             if p.userid == dmhub.loginUserid then
                 mine = true
             end
@@ -3926,7 +3952,7 @@ function EotwRoster.HallPanel(host)
             valign = "center",
             lmargin = 14,
             gui.Label{ text = table.concat(names, ", "), fontSize = 20, bold = true, color = TEXT, width = "100%", height = "auto" },
-            gui.Label{ text = T("roster.hall.played_by", { players = table.concat(playerNames, ", ") }), fontSize = 14, color = DIM, width = "100%", height = "auto" },
+            HallPlayedBy(players),
             gui.Label{ text = when, fontSize = 14, color = DIM, width = "100%", height = "auto" },
             gui.Label{ text = stats, fontSize = 14, color = TEXT, width = "100%", height = "auto" },
         }

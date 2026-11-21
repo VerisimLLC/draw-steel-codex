@@ -44,6 +44,12 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      modifier costs on the row. Checked live: Y8, Y9, Y13, captain, rampage, modifier cost.
      Checked on test entries only: Y5b, Y11, L33, Y7, L108, L109, strained; L16 through its
      observer. Never run: L25, L26 (player views). See "Morning checklist" below.
+     James's checks 2026-11-21: 1, 2, 3, 5, 9 good. Fixed in `da686a44`: OA + free strike
+     one row (not run live: the OA prompt won't fire from the bridge), kept surges named
+     (Y5c, wording awaiting James; live: I Work Better Alone gave 2 surges, rule says 1),
+     L26 names the creature, immune targets get no potency line (checked on his real row).
+     L16 not run live: Monster Builder Test doesn't load the data folder (Local Assets off),
+     so its Elementalist class still has the old script; needs the class updated in-game.
   4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"
      setting (off) brings the old log back and hides History (name and tooltip to propose).
      Plus the Encounter of the Week corner strip (Stage 6 notes).

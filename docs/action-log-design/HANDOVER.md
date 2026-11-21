@@ -48,8 +48,12 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      one row (not run live: the OA prompt won't fire from the bridge), kept surges named
      (Y5c, wording awaiting James; live: I Work Better Alone gave 2 surges, rule says 1),
      L26 names the creature, immune targets get no potency line (checked on his real row).
-     L16 not run live: Monster Builder Test doesn't load the data folder (Local Assets off),
-     so its Elementalist class still has the old script; needs the class updated in-game.
+     L16 checked live 2026-11-21 after patching the test game's cloud Elementalist class
+     (Local Assets is off there, so the data commit doesn't reach it). `4d265199`: a rules
+     fix, ResetMods now clears nonwastedSurges (kept surges grew per recalculation and let
+     strike-only surges be banked: worth naming in the PR); History treats a type-only
+     modifier (A Champion's Cry psychic) as no change. Both checked on real casts. Two
+     HISTORYDIAG prints stay uncommitted (MCDMAbilityRollBehavior, EmbeddedRollDialog).
   4. **6.4** switch-over, reshaped by James: History is the default; a "Use Old Action Log"
      setting (off) brings the old log back and hides History (name and tooltip to propose).
      Plus the Encounter of the Week corner strip (Stage 6 notes).

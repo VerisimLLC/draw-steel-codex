@@ -60,14 +60,13 @@ button, select, input, textarea { font: inherit; color: inherit; }
 /* Palette sits right next to the stack (stack | palette | card) to keep drags short. */
 .dlg-body { display: grid; grid-template-columns: minmax(0, 1fr) 210px 340px; }
 .dlg-body > .main { order: 1; } .dlg-body > .palette { order: 2; } .dlg-body > .side { order: 3; }
+/* The block shelf always stays directly right of the stack. On narrower windows the card moves
+   below the two instead. (Phone layouts are out of scope for this editor.) */
 @media (max-width: 1150px) {
-  .dlg-body { grid-template-columns: minmax(0, 1fr) 320px; }
-  .dlg-body > .palette { order: 0; }
-  .palette { grid-column: 1 / -1; border-left: none !important; border-bottom: 1px solid var(--line); flex-direction: row !important; flex-wrap: wrap; }
-  .palette .pgroup { min-width: 180px; }
-  .palette .phint { flex-basis: 100%; }
+  .dlg-body { grid-template-columns: minmax(0, 1fr) 200px; }
+  .dlg-body > .side { grid-column: 1 / -1; border-left: none !important; border-top: 1px solid var(--line); }
+  .dlg-body > .palette { position: static; max-height: none; }   /* sticky would slide over the card below */
 }
-@media (max-width: 860px) { .dlg-body { grid-template-columns: 1fr; } .side { border-left: none !important; border-top: 1px solid var(--line); } }
 .palette { border-left: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 12px; align-self: start; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
 .palette .phint { color: var(--dim); font-size: 11.5px; line-height: 1.4; margin: 0; }
 .palette .phint b { color: var(--fg); font-weight: 600; }
@@ -117,10 +116,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--gold); color: var(--fg); padding: 8px 12px; border-radius: 6px; display: flex; gap: 12px; align-items: center; z-index: 90; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: calc(100vw - 32px); font-size: 12.5px; }
 .toast button { background: none; border: 1px solid var(--gold); color: var(--gold); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
 .shelf-toggle { display: none; }
-@media (max-width: 860px) {
-  .shelf-toggle { display: inline-block; }
-  .palette.collapsed .pgroup { display: none; }
-}
+
 .main { padding: 16px; min-width: 0; overflow-x: auto; }
 .side { border-left: 1px solid var(--line); padding: 16px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 
@@ -311,7 +307,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
   </div>
   <div class="dlg-body">
     <div class="main" id="main"></div>
-    <div class="palette collapsed" id="palette" aria-label="Block shelf"></div>
+    <div class="palette" id="palette" aria-label="Block shelf"></div>
     <div class="side" id="side"></div>
   </div>
 </div>
@@ -1325,6 +1321,14 @@ function headBlock(rows, key) {
    current value. Clicking a word opens that step or block for editing with the same control focused.
    Empty tests stay as buttons, because clicking them should open the picker straight away. */
 let editingId = null, focusReq = null, holderCache = null;
+// True when the open step was opened by clicking one word: choosing a value closes it again.
+let editSingle = false;
+function closeIfSingle() { if (editSingle && editingId) { editingId = null; editSingle = false; return true; } return false; }
+document.addEventListener("change", ev => {
+  if (!ev.target.closest || !ev.target.matches("select.f, input.f")) return;
+  if (ev.target.closest(".picker, .menu")) return;
+  if (closeIfSingle()) refresh();
+});
 const CTRL = "select.f, input.f, .holder";
 function tokenText(ch) {
   if (ch.matches("select")) return ch.options[ch.selectedIndex] ? ch.options[ch.selectedIndex].text : "";
@@ -1348,7 +1352,7 @@ function readify(container, key, base) {
     if (ch.matches("select") && QUIET_VALUES.has(ch.value)) tok.classList.add("quiet");
     tok.setAttribute("aria-label", "Edit " + (ch.getAttribute("aria-label") || "value") + ": " + tok.textContent);
     if (ch.classList.contains("holder")) { const hid = ch.dataset.holder; if (problems.some(p => p.id === hid) || ch.querySelector(".flag")) tok.classList.add("bad"); }
-    const go = ev => { ev.stopPropagation(); editingId = key; focusReq = { key, index: i }; refresh(); };
+    const go = ev => { ev.stopPropagation(); editingId = key; editSingle = true; focusReq = { key, index: i }; refresh(); };
     tok.addEventListener("click", go);
     tok.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(ev); } });
     ch.replaceWith(tok);
@@ -1721,7 +1725,7 @@ function openPicker(h, anchor) {
         b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
         if (o.d) b.appendChild(E("span", "d", o.d));
         if (!o.make) { b.disabled = true; b.style.opacity = .6; }
-        else b.addEventListener("click", () => { h.expr = o.make(); refresh(); flash(h.id); });
+        else b.addEventListener("click", () => { h.expr = o.make(); closeIfSingle(); refresh(); flash(h.id); });
         pb.appendChild(b); n++;
       }
       if (cap4) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button";
@@ -1741,7 +1745,7 @@ function openPicker(h, anchor) {
     catch (e) { res.className = "res bad"; res.textContent = e.message; }
   };
   ta.addEventListener("input", check); check();
-  ins.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, ta.value); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; refresh(); flash(h.id); });
+  ins.addEventListener("click", () => { const nh = holderFromText(h.kind, h.docs, ta.value); h.expr = nh.expr; if (!nh.expr) h.lit = nh.lit; closeIfSingle(); refresh(); flash(h.id); });
   tb.appendChild(ta); tb.appendChild(res); tb.appendChild(ins); p.appendChild(tb);
   place(p, anchor);
   search.focus();
@@ -1875,7 +1879,7 @@ function addStepTo(type, act, idx) {
   // and the new step opens for editing with its first value ready to type.
   const inner = st.branches && (st.branches.then || st.branches.steps || st.branches.t1);
   insertAt = inner ? { id: listId(inner), idx: 0 } : { id: listId(act.list), idx: idx + 1 };
-  editingId = st.id; focusReq = { key: st.id, first: true, skipTests: true };
+  editingId = st.id; editSingle = false; focusReq = { key: st.id, first: true, skipTests: true };
   refresh();
   const el = main.querySelector('[data-step="' + st.id + '"]');
   if (el) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 400); }

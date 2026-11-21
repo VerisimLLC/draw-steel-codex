@@ -786,6 +786,41 @@ local function SourcesKey(sources)
     return table.concat(keys, ";")
 end
 
+--An ability whose own row would say nothing wraps one it invoked that has a row of its own
+--(Get In Get Out: an outer ability aimed at its user, around the strike). One row, the
+--inner one, takes what the outer one spent or gained, its notes, and its cast ids, so what
+--names the outer cast still finds it.
+local function MergeIntoInnerRow(outer, inner)
+    for _, field in ipairs({"costs", "gains"}) do
+        for name, item in pairs(outer[field] or {}) do
+            inner[field] = inner[field] or {}
+            local into = inner[field][name] or {amount = 0, style = item.style, icon = item.icon}
+            into.amount = into.amount + item.amount
+            inner[field][name] = into
+        end
+    end
+    for _, message in ipairs(outer.messages or {}) do
+        inner.messages = inner.messages or {}
+        local have = false
+        for _, existing in ipairs(inner.messages) do
+            if existing == message then
+                have = true
+            end
+        end
+        if not have then
+            inner.messages[#inner.messages + 1] = message
+        end
+    end
+    inner.aliases = inner.aliases or {}
+    if outer.id ~= nil then
+        table.insert(inner.aliases, outer.id)
+    end
+    for _, alias in ipairs(outer.aliases or {}) do
+        table.insert(inner.aliases, alias)
+    end
+    History.Rewrite(inner)
+end
+
 local function CastFinished(ability, casterToken, options)
     local state = g_casts[options]
     if state == nil then
@@ -874,9 +909,19 @@ local function CastFinished(ability, casterToken, options)
     if not ok then
         print("History:: roll details failed:", err)
     end
+    if state.innerRows ~= nil and not ChangedTheTable(entry) then
+        MergeIntoInnerRow(entry, state.innerRows[1])
+        return
+    end
     History.Write(entry)
     --the user's own card folds into the row it became (S5, 6.5d).
     History.FoldIn(entry)
+    --an outer cast still running learns of this row (MergeIntoInnerRow).
+    local parent = state.parent
+    if parent ~= nil and not parent.finished and not parent.automatic then
+        parent.innerRows = parent.innerRows or {}
+        table.insert(parent.innerRows, entry)
+    end
 end
 
 --The row a result belongs to: the running cast's own, else one it shares through its

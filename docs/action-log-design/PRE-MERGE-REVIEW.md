@@ -51,8 +51,9 @@ Out's nested strike (Tier line "Cloak and Dagger +1"); audio caption bubble, sti
 Chat in front; dock UI (caption toast; a docked Action Log restored as History); a new game's
 first entry (built-in Director View, History on the rail). Whole-codex type check: 0.
 Not covered: the promptWhenResolving target-order path itself; surges spent per target.
-Found: Get In Get Out writes two rows (the outer ability, aimed at the Shadow and changing
-nothing, and the strike), since the nested strike has its own card.
+Found and fixed: Get In Get Out wrote two rows (the outer ability, aimed at the Shadow and
+changing nothing, and the strike with its own card). An outer row that changes nothing now
+folds into the inner row (its costs, gains, notes and cast ids move there); checked live.
 
 ## 1. Fix before merge
 

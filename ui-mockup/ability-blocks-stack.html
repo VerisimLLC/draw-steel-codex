@@ -371,6 +371,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <option value="deflect">Deflect (triggered: changes the roll)</option>
       <option value="retaliate">Retaliate (triggered: reacts after)</option>
       <option value="potency">Potency checks (real formulas from content)</option>
+      <option value="raisehell">Raise Hell (shift through enemies, trail of hellfire)</option>
       <option value="cleave">Reaving Cleave (loaded from existing formulas)</option>
       <option value="smoke">Smoke Bomb (has an advanced step)</option>
     </optgroup>
@@ -593,8 +594,13 @@ const STEPS = {
     make: () => S("resource", { who: "caster", mode: "replenish", res: (RESOURCE_TABLE.find(r => r[1] === "Heroic Resource") || RESOURCE_TABLE[0] || ["", ""])[0] }, { qty: H("number", "quantity", "1") }) },
   endEffects: { label: "End conditions or effects", cat: "help", ctx: ["main"], desc: "Remove conditions, effects, or both.",
     make: () => S("endEffects", { who: "caster", what: "conditions_and_effects", how: "one" }) },
-  move: { label: "Move a creature", cat: "move", ctx: ["main"], desc: "Shift, move, jump or teleport (the player picks the square).",
-    make: () => S("move", { who: "caster", how: "shift" }) },
+  // Relocate Creature. "catch" is "Target Creatures in Move Vicinity" (targetMoveVicinity, vicinity,
+  // vicinityFilter): the creatures it reaches become the targets of the steps after it. "trail" is
+  // "Target Passed Squares": the squares it moved through become the area for the steps after it.
+  move: { label: "Move a creature", cat: "move", ctx: ["main"], desc: "Shift, move, jump or teleport; can target the creatures it moves through and leave a trail.",
+    make: () => S("move", { who: "caster", how: "shift", line: "free", dist: "pick", through: "no", catch: "none", catchWho: "enemy", trail: "no" }) },
+  aura: { label: "Create Aura", cat: "create", ctx: ["main"], desc: "Place an aura: on an area, around you, or on the squares a move passed through.",
+    make: () => S("aura", { name: "New Aura", where: "area" }) },
   halveDamage: { label: "Halve the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "The damage from the roll is halved.",
     make: () => S("halveDamage", {}) },
   changeDamage: { label: "Change the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "Add to or subtract from the roll's damage.",
@@ -856,6 +862,8 @@ function holderFromText(kind, docs, text) {
 let problems = [];
 // While a follow-up compiles, every piece of parent information it uses is recorded here (id -> expression).
 let paramSink = null;
+// Set while compiling: whether a move has marked a trail, and fields a step writes on the ability itself.
+let moveTrail = false, abilityPatch = {};
 // Non-blocking notes for the side panel (things that save fine but need engine work to run right).
 let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
@@ -1008,8 +1016,26 @@ function compileSteps(list, filters, out, prose) {
         prose.push({ kind: "text", text: cap((f.how === "all" ? "end all " + what.replace("condition or effect", "conditions and effects").replace(/^(condition|effect)$/, "$1s") : f.how === "one" ? "end one " + what : "end any chosen " + what + "s") + " on " + whoText(f.who) + fp) }); break;
       }
       case "move": {
-        out.push(Object.assign({ __typeName: "ActivatedAbilityRelocateCreatureBehavior", applyto: f.who, movementType: f.how }, base));
-        prose.push({ kind: "text", text: cap(whoText(f.who) + " can " + f.how + fp) }); break;
+        const rec = { __typeName: "ActivatedAbilityRelocateCreatureBehavior", applyto: f.who, movementType: f.how };
+        if (f.catch !== "none") { rec.targetMoveVicinity = true; rec.vicinity = f.catch === "adjacent" ? 1 : 0; rec.vicinityFilter = f.catchWho === "any" ? "" : f.catchWho === "enemy" ? "Enemy" : "not Enemy"; }
+        if (f.trail === "yes") { rec.targetPassedSquares = true; moveTrail = true; }
+        out.push(Object.assign(rec, base));
+        // A straight-line move and its distance live on the ability itself (Relocate reads ability.targeting / range).
+        if (f.line === "straight") abilityPatch.targeting = f.through === "yes" ? "straightpathignorecreatures" : "straightpath";
+        if (f.dist === "speed") abilityPatch.range = "MovementSpeed";
+        // As in content (Writ of Execution, Crash Through, Charge): the ability's target is the square to move to.
+        if (f.who === "caster" && (f.line === "straight" || f.dist === "speed")) abilityPatch.targetType = "emptyspace";
+        const youSub = f.who === "caster";
+        let t = whoText(f.who) + " " + f.how + (youSub ? "" : "s") + (f.dist === "speed" ? " up to " + (youSub ? "your" : "their") + " speed" : "") + (f.line === "straight" ? " in a straight line" : "");
+        if (f.through === "yes") t += ", and enemy squares are not difficult terrain for this movement";
+        t += fp + ".";
+        if (f.catch !== "none") t += " " + cap((f.catchWho === "any" ? "each creature" : "each " + f.catchWho) + (f.catch === "adjacent" ? " " + (youSub ? "you" : "it") + " move" + (youSub ? "" : "s") + " next to" : " whose space " + (youSub ? "you" : "it") + " move" + (youSub ? "" : "s") + " through") + " is a target of what follows");
+        prose.push({ kind: "text", text: cap(t.replace(/\.$/, "")) }); break;
+      }
+      case "aura": {
+        if (f.where === "trail" && !moveTrail) bad(st.id, "There is no trail yet: set an earlier \u201cMove a creature\u201d step to mark the squares it passes.");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityAuraBehavior", aura: { __typeName: "Aura", name: f.name } }, base));
+        prose.push({ kind: "text", text: f.where === "trail" ? "Each space you move through is " + f.name.toLowerCase() : f.where === "self" ? cap(f.name) + " surrounds you" : cap(f.name) + " fills the area" }); break;
       }
       case "useNew": {
         const cb = [], cp = [];
@@ -1126,7 +1152,7 @@ function compileTriggered() {
   return { rec, storage, cond, range, prose, triggered: true };
 }
 function compileAbility() {
-  problems = []; notes = [];
+  problems = []; notes = []; moveTrail = false; abilityPatch = {};
   if (ab.kind === "triggered") return compileTriggered();
   const range = cHolder(ab.range), num = cHolder(ab.numTargets), cost = cHolder(ab.cost);
   const tf = cHolder(ab.targetFilter);
@@ -1143,6 +1169,7 @@ function compileAbility() {
   if (!tf.empty) rec.targetFilter = tf.s;
   if (ab.resource !== "no cost") { rec.resourceCost = "<" + ab.resource + ">"; rec.resourceNumber = cost.s; }
   if (reqs.length) rec.reasonedFilters = reqs.map(r => ({ formula: r.c.s, reason: r.reason }));
+  Object.assign(rec, abilityPatch);
   rec.behaviors = behaviors;
   const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs;
   return { rec, range, num, cost, tf, reqs, prose };
@@ -1317,7 +1344,26 @@ function renderStep(st, list, ctx, scope) {
     case "tempStamina": add(sel(f, "who", WHO_OPTS, null, "who")); add(lbl(f.who === "caster" ? "get" : "gets")); add(renderHolder(st.slots.amount)); add(lbl("temporary Stamina")); gsHolder = st.slots.amount; break;
     case "resource": add(sel(f, "who", WHO_OPTS, null, "who")); add(sel(f, "mode", [["replenish", "gain"], ["expend", "spend"]], null, "gain or spend")); add(renderHolder(st.slots.qty)); add(sel(f, "res", RESOURCE_TABLE, null, "resource")); gsHolder = st.slots.qty; break;
     case "endEffects": add(lbl("End")); add(sel(f, "how", [["one", "one"], ["all", "all"], ["chosen", "chosen"]], null, "how many")); add(sel(f, "what", [["conditions", "conditions"], ["effect", "effects"], ["conditions_and_effects", "conditions and effects"]], null, "what")); add(lbl("on")); add(sel(f, "who", WHO_OPTS_OBJ, null, "who")); break;
-    case "move": add(sel(f, "who", WHO_OPTS, null, "who")); add(sel(f, "how", [["shift", "shifts"], ["move", "moves"], ["jump", "jumps"], ["teleport", "teleports"]], null, "how")); add(lbl("to a square the player picks")); break;
+    case "move": {
+      const you = f.who === "caster";
+      add(sel(f, "who", WHO_OPTS, null, "who"));
+      add(sel(f, "how", [["shift", you ? "shift" : "shifts"], ["move", you ? "move" : "moves"], ["jump", you ? "jump" : "jumps"], ["teleport", you ? "teleport" : "teleports"]], null, "how"));
+      add(sel(f, "dist", [["pick", "to a square the player picks"], ["speed", "up to your speed"]], null, "how far"));
+      add(sel(f, "line", [["free", "by any path"], ["straight", "in a straight line"]], null, "path"));
+      add(sel(f, "through", [["no", "around creatures"], ["yes", "through enemies' spaces"]], null, "through creatures"));
+      add(lbl("\u2192 targets"));
+      // One choice covers both how close and which creatures (vicinity + vicinityFilter).
+      const catchKey = f.catch === "none" ? "none" : f.catch + ":" + f.catchWho;
+      const ce = { enemy: "enemy", ally: "ally", any: "creature" };
+      const catchOpts = [["none", "stay the same"]].concat(["through", "adjacent"].flatMap(c => ["enemy", "ally", "any"].map(w => [c + ":" + w, "each " + ce[w] + (c === "through" ? " whose space it moves through" : " it moves next to")])));
+      const holder = { v: catchKey };
+      add(sel(holder, "v", catchOpts, () => { if (holder.v === "none") f.catch = "none"; else { const [c, w] = holder.v.split(":"); f.catch = c; f.catchWho = w; } refresh(); }, "creatures it reaches become targets"));
+      add(sel(f, "trail", [["no", "no trail"], ["yes", "and marks the squares it passes"]], null, "trail"));
+      break;
+    }
+    case "aura": add(lbl("Leave")); add(inp(f, "name", "name", "aura name")); add(sel(f, "where", [["trail", "on the squares the move passed"], ["area", "on the target area"], ["self", "around you"]], null, "where"));
+      { const cog = E("button", "gen-cog", "Settings"); cog.type = "button"; cog.addEventListener("click", ev => { ev.stopPropagation(); genericNote(cog, { label: "Create Aura: what the aura does, how long it lasts", typeName: "ActivatedAbilityAuraBehavior" }); }); add(cog); }
+      break;
     case "halveDamage": add(lbl("Halve the damage")); break;
     case "changeDamage": add(lbl("Change the damage by")); add(renderHolder(st.slots.amount)); gsHolder = st.slots.amount; break;
     case "rollEdge": add(lbl("The roll")); add(sel(f, "mod", [["edge", "gets an edge"], ["double_edge", "gets a double edge"], ["bane", "gets a bane"], ["double_bane", "gets a double bane"], ["tier1", "becomes tier 1"], ["tier3", "becomes tier 3"]], null, "edge or bane")); break;
@@ -2010,6 +2056,8 @@ let rollSink = null;
    full editor to be added. Usage counts come from draw-steel-data. */
 const GENERIC_BEHAVIORS = [["aura","Create Aura","ActivatedAbilityAuraBehavior",181,"create"],["temporary_effect","Ability Duration Effect","ActivatedAbilityApplyAbilityDurationEffect",148,"effect"],["mod_power_roll","Modify Power Roll","ActivatedAbilityModifyPowerRollBehavior",130,"roll"],["summon","Summon Creatures","ActivatedAbilitySummonBehavior",122,"create"],["remove_creature","Remove Creature","ActivatedAbilityRemoveCreatureBehavior",120,"harm"],["augmentedability","Augmented Ability","ActivatedAbilityAugmentedAbilityBehavior",116,"ctrl2"],["conditionriders","Add Condition Riders","ActivatedAbilityApplyRidersBehavior",105,"effect"],["floattext","Float Text","ActivatedAbilityFloatTextBehavior",81,"show"],["customtrigger","Custom Trigger","ActivatedAbilityCustomTriggerBehavior",62,"ctrl2"],["destroy","Destroy","ActivatedAbilityDestroyBehavior",47,"harm"],["delay","Delay","ActivatedAbilityDelayBehavior",43,"ctrl"],["loyalty_collar_explosion","Loyalty Collar Explosion","ActivatedAbilityLoyaltyCollarExplosionBehavior",40,"harm"],["manipulate_targets","Manipulate Targets","ActivatedAbilityAddNewTargetsBehavior",30,"ctrl"],["lua","Lua Script","ActivatedAbilityScriptBehavior",26,"script"],["terraform_elevation","Terraform Elevation","ActivatedAbilityChangeElevationBehavior",25,"create"],["remember","Remember","ActivatedAbilityRememberBehavior",24,"ctrl"],["create_object","Create Object","ActivatedAbilityCreateObjectBehavior",19,"create"],["fall","Fall","ActivatedAbilityFallBehavior",19,"move"],["setstamina","Set Stamina","ActivatedAbilitySetStaminaBehavior",18,"help"],["limit","Limit Ability Uses","ActivatedAbilityLimitBehavior",17,"ctrl"],["forcedmovementloc","Forced Movement Origin","ActivatedAbilityForcedMovementLocBehavior",17,"hinder"],["raise_corpse","Raise Corpse","ActivatedAbilityRaiseCorpseBehavior",17,"create"],["disguise","Disguise","ActivatedAbilityDisguiseBehavior",15,"show"],["roll","Roll Dice","ActivatedAbilityRollBehavior",14,"tests"],["save_ends_to_eot","Save Ends To End Of Turn","ActivatedAbilitySaveEndsToEotBehavior",14,"effect"],["character_speech","Character Speech","ActivatedAbilityCharacterSpeechBehavior",14,"show"],["terraform_terrain","Terraform Terrain","ActivatedAbilityChangeTerrainBehavior",14,"create"],["modify_cast","Modify Cast","ActivatedAbilityModifyCastBehavior",13,"ctrl"],["play_sound","Play Sound","ActivatedAbilityPlaySoundBehavior",12,"show"],["change_initiative","Manipulate Combat Order","ActivatedAbilityInitiativeBehavior",11,"tests"],["revertloc","Revert Location","ActivatedAbilityRevertLocBehavior",10,"move"],["draw_steel_save","Draw Steel Save","ActivatedAbilitySaveBehavior",9,"tests"],["condition_source","Set Source of Condition","ActivatedAbilityConditionSourceBehavior",8,"effect"],["build_wall","Build Wall","ActivatedAbilityBuildWallBehavior",7,"create"],["fizzle","Fizzle","ActivatedAbilityFizzleBehavior",6,"ctrl"],["transform","Transform Creatures","ActivatedAbilityTransformBehavior",5,"create"],["climb_creature","Climb Creature","ActivatedAbilityClimbCreatureBehavior",5,"move"],["transform_zone","Transform Zone","ActivatedAbilityTransformZoneBehavior",5,"create"],["change_movement_type","Change Movement Type","ActivatedAbilityChangeMovementTypeBehavior",4,"move"],["lift_vertical","Lift Into The Air","ActivatedAbilityLiftVerticalBehavior",4,"move"],["stealAbility","Steal Ability","ActivatedAbilityStealAbilityBehavior",4,"ctrl2"],["manifest_treasure","Manifest Treasure","ActivatedAbilityManifestTreasureBehavior",3,"res"],["recast","Recast Ability","ActivatedAbilityRecastBehavior",3,"ctrl2"],["opposed","Opposed Power Roll","ActivatedAbilityOpposedRollBehavior",3,"tests"],["creature_set","Creature List","ActivatedAbilityCreatureSetBehavior",2,"ctrl"],["jump_test","Jump (Roll to Target)","ActivatedAbilityJumpBehavior",2,"move"],["create_lane_object","Create Lane Object","ActivatedAbilityCreateLaneObjectBehavior",2,"create"],["Macro","Macro Execution","ActivatedAbilityMacroBehavior",2,"script"],["open_sheet","Open Character Sheet","ActivatedAbilityOpenSheetBehavior",2,"show"],["recoverySelection","Recovery Selection","ActivatedAbilityRecoverySelectionBehavior",2,"help"],["dig_vertical","Dig Vertical Movement","ActivatedAbilityDigVerticalBehavior",2,"move"],["ordertargets","Order Targets","ActivatedAbilityOrderTargetsBehavior",1,"ctrl"],["table_roll","Roll on Table","ActivatedAbilityTableRollBehavior",1,"tests"],["throw_object","Throw Object","ActivatedAbilityThrowObjectBehavior",1,"move"],["persistenceControl","Persistence Control","ActivatedAbilityPersistenceControlBehavior",1,"ctrl2"],["hop_in_place","Hop In Place","ActivatedAbilityHopBehavior",1,"move"],["swing_object","Swing Object","ActivatedAbilitySwingObjectBehavior",1,"move"],["relocate_aura","Relocate Aura","ActivatedAbilityRelocateAuraBehavior",1,"create"],["portal_transit","Portal Transit","ActivatedAbilityPortalTransitBehavior",1,"create"],["hurl_grabbed","Hurl Grabbed Creature","ActivatedAbilityHurlGrabbedBehavior",1,"move"],["chain_reach","Chain To Nearby Enemies","ActivatedAbilityChainReachBehavior",1,"harm"],["track_stat","Track Stat","ActivatedAbilityTrackStatBehavior",1,"ctrl"],["shift_wall_voxel","Shift Wall Voxel","ActivatedAbilityShiftWallVoxelBehavior",1,"create"],["tauntbynearest","Taunt By Nearest","ActivatedAbilityTauntByNearestBehavior",1,"hinder"],["dramatic_banner","Dramatic Banner","ActivatedAbilityDramaticBannerBehavior",1,"show"],["show_journal","Show Journal Entry","ActivatedAbilityShowJournalBehavior",0,"show"],["movement_carrier","Assign Movement Carrier","ActivatedAbilityMovementCarrierBehavior",0,"move"],["summon_companion","Summon Companion","ActivatedAbilitySummonCompanionBehavior",0,"create"],["patron_gaze_resolve","Patron","ActivatedAbilityPatronGazeResolveBehavior",0,"ctrl2"],["resetrollstatus","Reset Roll Status","ActivatedAbilityResetRollStatusBehavior",0,"ctrl"],["skill_check","Skill Check","ActivatedAbilitySkillCheckBehavior",0,"tests"],["drop_items","Discard Items","ActivatedAbilityDropItemsBehavior",0,"create"],["create_item","Create Item","ActivatedAbilityCreateItemBehavior",0,"create"],["apply_free_strike_power_modifiers","Apply Flagged Power Modifiers (Free Strike)","ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior",0,"roll"],["stash_target","Remember Target","ActivatedAbilityStashTargetBehavior",0,"ctrl"],["pull_into_caster","Pull Into Caster Space","ActivatedAbilityPullIntoCasterBehavior",0,"move"],["displace_overlapping","Displace Creatures Overlapping Caster","ActivatedAbilityDisplaceOverlappingBehavior",0,"move"],["routineControl","Routine Control","ActivatedAbilityRoutineControlBehavior",0,"ctrl2"],["limit_caster_effects","Limit Active Effects","ActivatedAbilityLimitCasterEffectsBehavior",0,"effect"],["manipulate_target_locs","Manipulate Target Locations","ActivatedAbilityManipulateTargetLocs",0,"ctrl"],["teleport_to_line_end","Teleport To Line End","ActivatedAbilityTeleportToLineEndBehavior",0,"move"],["pay_ability_cost","Pay Ability Cost","ActivatedAbilityPayAbilityCostBehavior",0,"res"],["confer_conditions","Confer Conditions","ActivatedAbilityConferConditionsBehavior",0,"effect"]];
 const STEP_USE = {"powerRoll": 1627, "potency": 1783, "damage": 4990, "condition": 2341, "forced": 922, "useNew": 1738, "invoke": 120, "applyEffect": 1681, "endEffects": 571, "resource": 355, "move": 166, "heal": 109, "tempStamina": 81, "ifStep": 860};
+// Create Aura now has its own sentence block (below), so it leaves the generic list.
+for (let i = GENERIC_BEHAVIORS.length - 1; i >= 0; i--) if (GENERIC_BEHAVIORS[i][0] === "aura") { STEP_USE.aura = GENERIC_BEHAVIORS[i][3]; GENERIC_BEHAVIORS.splice(i, 1); }
 GENERIC_BEHAVIORS.forEach(([id, name, typeName, uses, group]) => {
   STEPS["g_" + id] = { label: name, cat: group, ctx: ["main"], generic: true, uses,
     desc: "Used " + uses.toLocaleString() + " times in the compendium.",
@@ -2047,7 +2095,7 @@ const PALETTE_BASE = [
   ["ctrl", "Logic", ["ifStep"]],
   ["help", "Help", ["endEffects", "heal", "tempStamina"]],
   ["res", "Resources", ["resource"]],
-  ["create", "Create", []],
+  ["create", "Create", ["aura"]],
   ["move", "Move", ["move"]],
   ["tests", "Tests", []],
   ["show", "Display", []],
@@ -2087,7 +2135,7 @@ const SYNONYMS = {
   endEffects: "remove cure purge cleanse end save", heal: "stamina recover recovery", tempStamina: "temporary shield temp",
   resource: "malice heroic surge spend gain", useNew: "follow-up follow up invoke", invoke: "free strike invoke named",
   ifStep: "if filter only condition", powerRoll: "roll tiers 2d10 test", potency: "potency resist characteristic",
-  "g_delay": "wait later", "g_aura": "zone field cloud", "g_summon": "minion call", "g_teleport_to_line_end": "teleport line",
+  "g_delay": "wait later", aura: "zone field cloud trail burning", "g_summon": "minion call", "g_teleport_to_line_end": "teleport line",
   "g_floattext": "text message", "g_lua": "code script", "g_remember": "memory store", "g_destroy": "break object",
 };
 function matchScore(k, q) {
@@ -2500,6 +2548,24 @@ const EXAMPLES = {
       const w = STEPS.ifStep.make(); w.slots.cond = holderFromText("boolean", "stepIf", src);
       const c = STEPS.condition.make(); c.f.cond = cond; w.branches.then.push(c); a.steps.push(w);
     }
+    return a;
+  },
+  raisehell: () => {
+    const a = newAbility();
+    Object.assign(a, { name: "Raise Hell", keywords: ["Magic", "Melee", "Weapon"], resource: "Heroic Resource", distance: "Self", targetCount: "self" });
+    a.cost = H("number", "cost", "5");
+    const mv = STEPS.move.make(); Object.assign(mv.f, { who: "caster", how: "shift", dist: "speed", line: "straight", through: "yes", catch: "through", catchWho: "enemy", trail: "yes" });
+    const pr = powerRollWith(["3", "5", "8"], "Agility");
+    ["t1", "t2", "t3"].forEach(t => pr.branches[t][0].f.dtype = "fire");
+    const au = STEPS.aura.make(); Object.assign(au.f, { name: "Hellfire", where: "trail" });
+    a.steps.push(mv, pr, au);
+    // The book's wording, kept as card overrides (basis null: written with the ability, not reworded later).
+    a.overrides = {
+      flavor: { text: "You rush through your enemies, leaving a blazing trail behind.", basis: null },
+      distance: { text: "Self; see below", basis: null },
+      effectBefore: { text: "You shift up to your speed in a straight line, and enemy squares are not difficult terrain for this movement. You make one power roll that targets each enemy whose space you move through.", basis: null },
+      effect: { text: "Each space you enter or leave during this movement is burning with hellfire.", basis: null },
+    };
     return a;
   },
   cleave: () => {

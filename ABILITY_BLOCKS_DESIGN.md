@@ -482,6 +482,36 @@ prose (`description`) is typed by hand.
    listings, and `FindLivePartner` range-modification lookups (no longer needed once the card is the
    trigger's own).
 
+## 4k. Real test: Raise Hell (2026-11-21)
+
+A user asked for help implementing this ability (5 Insight, Magic/Melee/Weapon, main action, Self; see
+below): "You shift up to your speed in a straight line, and enemy squares are not difficult terrain for
+this movement. You make one power roll that targets each enemy whose space you move through. Power Roll +
+Agility: 3 / 5 / 8 fire damage. Effect: Each space you enter or leave during this movement is burning
+with hellfire." It is not in the compendium. The user's working setup: Relocate Creature with **Target
+Creatures in Move Vicinity** and **Target Passed Squares** checked.
+
+In the simple editor (example "Raise Hell"):
+1. *You shift up to your speed in a straight line through enemies' spaces -> targets each enemy whose
+   space it moves through and marks the squares it passes.* Saves as Relocate Creature
+   (`movementType: shift`, `targetMoveVicinity`, `vicinity: 0`, `vicinityFilter: Enemy`,
+   `targetPassedSquares`) and sets the ability's `targeting: straightpathignorecreatures`,
+   `targetType: emptyspace`, `range: MovementSpeed`, as content does (Writ of Execution, Crash Through).
+2. *Power roll 2d10 + Agility: 3 / 5 / 8 fire damage.* Its targets are the enemies the move reached.
+3. *Leave Hellfire on the squares the move passed.* Create Aura on the trail.
+4. Card: flavor, "Self; see below", and the two Effect paragraphs are the book's wording as overrides.
+
+Findings:
+- The two checkboxes that made this work are invisible in today's editor unless you know them; as words on
+  the Move block they are the obvious next choice.
+- "Who it targets" reads "1 self within Self" when targets come from a step. It should say "set by
+  Move a creature" (proposal).
+- Heroic Resource should show the class's name (Insight) on the card (proposal).
+- Open: what "burning with hellfire" does (damage, duration) belongs in the aura's settings; the rules
+  text needs to be found.
+- To verify in the app: `straightpathignorecreatures` is supported in code (`IsStraightLineMove`) but no
+  content uses it yet.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -550,6 +580,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **One search for the shelf and the "+" list:** ranks name-starts, word-starts, name-contains, synonyms (push, wait, teleport...), then description; ties by usage. Enter adds the highlighted result at the marker; Esc clears; it clears itself after adding; "/" jumps to it. | The two searches disagreed and Enter could add the wrong block. |
 | 2026-11-21 | **The marker advances through the power roll:** after a result is added to a tier, the next empty tier becomes the place for the next block. The shelf stays beside the stack (sticky) at narrower widths, with the card below the stack only. | Two clicks fewer per strike; no scrolling away from the stack. |
 | 2026-11-21 | **A "+" only moves the gold marker; the shelf is the one place to choose.** The separate type-ahead popup is gone. Clicking a "+" moves the marker, the shelf briefly glows and re-fits itself to that spot, and the cursor goes to the shelf search, so typing and Enter still add a block without the mouse. | Two places that change at once was redundant; one source of choices is simpler. |
+| 2026-11-21 | **"Move a creature" exposes Relocate Creature's targeting options as words:** how far (a square you pick / up to your speed), path (any / straight line), through enemies' spaces, "-> targets each enemy whose space it moves through / it moves next to" (Target Creatures in Move Vicinity: vicinity 0 or 1 plus filter), and "marks the squares it passes" (Target Passed Squares). **Create Aura** is a sentence block: "Leave [name] on the squares the move passed / on the target area / around you". | A real author request (Raise Hell) needed exactly these two checkboxes, which were hard to find. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

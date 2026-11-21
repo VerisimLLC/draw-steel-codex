@@ -1550,8 +1550,6 @@ ActivatedAbility.RegisterPowerTableRule{
     execute = function(behavior, ability, casterToken, targetToken, options, match)
         --Surge-sharing summons bank their surges on their summoner, so operate on
         --the token that actually holds them (mirrors targetgainssurges above).
-        --ConsumeResource would redirect internally anyway, but then the mutation
-        --would land outside the ModifyProperties wrap and never upload.
         local recipientToken = targetToken
         local summonerToken = targetToken.properties:GetSurgeSharingSummonerToken()
         if summonerToken ~= nil then

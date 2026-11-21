@@ -866,6 +866,39 @@ function History.KeyOf(entry)
     return EntryKey(entry)
 end
 
+--- The entry as it is stored, read afresh: the copy to change and write back. A player's
+--- own copy (History.Entry) has parts cut out, and writing it would cut them for everyone.
+--- Nil if the entry is gone or unreadable.
+--- @param entry HistoryEntry
+--- @return HistoryEntry|nil
+function History.Stored(entry)
+    local entries = mod:GetDocumentSnapshot(History.DocId(entry.map)).data.entries
+    local raw = type(entries) == "table" and entries[EntryKey(entry)] or nil
+    if raw == nil then
+        return nil
+    end
+    local ok, decoded = pcall(dmhub.FromJson, raw)
+    if not ok or not decoded.success then
+        return nil
+    end
+    return decoded.result
+end
+
+--- An entry this client just wrote, as this client may show it: for a player, a copy cut
+--- down the way History.Entry cuts it. Nil when nothing of it is left to show.
+--- @param entry HistoryEntry
+--- @return HistoryEntry|nil
+function History.ForViewer(entry)
+    if dmhub.isDM then
+        return entry
+    end
+    local ok, decoded = pcall(dmhub.FromJson, dmhub.ToRawJson(entry))
+    if not ok or not decoded.success then
+        return nil
+    end
+    return ForPlayers(decoded.result)
+end
+
 --- Removes entries from a map's History, for everyone (the Director's Delete entry, L41).
 --- @param mapid string
 --- @param entries HistoryEntry[]

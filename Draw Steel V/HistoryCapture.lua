@@ -1680,7 +1680,12 @@ function History.UndoResource(entry)
         end,
     }
     entry.undone = true
-    History.Rewrite(entry)
+    --write the stored entry, not this one: a player's copy has parts cut out for them.
+    local stored = History.Stored(entry)
+    if stored ~= nil then
+        stored.undone = true
+        History.Rewrite(stored)
+    end
 end
 
 --Malice is shown to the Director only, except a spend, which is on its row for all (gap 4).

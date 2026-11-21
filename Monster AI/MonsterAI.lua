@@ -3012,7 +3012,7 @@ end
 
 --True when the creature, or the mount it rides, is on loc's square, floor and altitude.
 --Tiny-creature slots ("x,y,floor|4") are ignored: the engine can tag any token's loc
---with one, even a size 2 creature's, so comparing loc.str missed real arrivals.
+--with one, even a size 2 creature's.
 function MonsterAI:MovementTokenIsAtLoc(token, loc)
     if loc == nil then
         return false

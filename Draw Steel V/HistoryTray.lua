@@ -2958,19 +2958,23 @@ local function TallySignature(tally)
 end
 
 --The action a trigger or a minion death hangs from, following triggers set off by
---triggers. Nil when nothing it came from has a row: it stands alone in its turn.
+--triggers, and up past an ability nested in another action (Prism's picks) to the row
+--that action is on. Nil when nothing it came from has a row: it stands alone in its turn.
 local function RootAction(entry, rowsById)
+    local root = nil
     local parent = rowsById[entry.cause]
     for _ = 1, 8 do
-        if parent == nil or parent.kind ~= "trigger" then
+        if parent == nil then
+            break
+        end
+        if parent.kind == "action" then
+            root = parent
+        elseif parent.kind ~= "trigger" then
             break
         end
         parent = rowsById[parent.cause]
     end
-    if parent ~= nil and parent.kind == "action" then
-        return parent
-    end
-    return nil
+    return root
 end
 
 --Search (3.1). Chips come from suggestions (or, in 3.2, from History on a token); chips

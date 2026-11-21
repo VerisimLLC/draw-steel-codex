@@ -5473,7 +5473,10 @@ end
 local g_pendingQueuedRoll = {}
 
 local function NotifyTested(creature, attrInfo, rollInfo, details)
-    RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+    --runs before the test's own completion: History's notice must never stop that.
+    pcall(function()
+        RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+    end)
 end
 
 --options (optional): { modifiers = { modifierEntry, ... } } -- extra

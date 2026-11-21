@@ -8,6 +8,8 @@ local mod = dmhub.GetModLoading()
 --- @field categorization string Always "Triggered Ability".
 --- @field despawnBehavior string What to do when a targeted token despawns: "remove" or "corpse".
 --- @field mandatory boolean|string If true, fires automatically; if false, prompts the player; if a string, uses that setting id.
+--- @field waitForOtherCasts boolean If false, waits only for casts by or targeting its creature, not every cast.
+--- @field triggerAfterCasts boolean If true, a prompted trigger waits until the abilities resolving when its event fired have finished, then checks its subject and trigger condition, picks targets and prompts. Its cost, action use and on/off switch are still checked when the event fires.
 --- @field trigger string The event id that triggers this ability.
 --- @field triggerFilter nil|string GoblinScript formula that must be truthy for the trigger to fire.
 --- @field characterConditionRequired? string Condition id the subject must have for the trigger to fire ("none"/nil for no requirement); read with try_get.
@@ -77,8 +79,8 @@ TriggeredAbility.mandatoryTriggerSettings = {
 --- Returns true if this triggered ability should fire automatically without prompting the player.
 --- @return boolean
 function TriggeredAbility:IsMandatory(token)
-    print("MANDATORY:: IS =", self.mandatory, json(token ~= nil and token.charid), json(token ~= nil and token.activeControllerId == nil))
-    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and token ~= nil and token.activeControllerId == nil) then
+    local controlledHere = token ~= nil and TokenPromptControllerId(token) == nil
+    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and controlledHere) then
         return true
     elseif self.mandatory == "prompt_remote" or self.mandatory == false then
         return false
@@ -102,6 +104,19 @@ function TriggeredAbility:MayBePrompted()
     end
 
     return true
+end
+
+--- True when one of the trigger's own behaviors invokes another ability. An
+--- invoke can open a prompt for the player even when the trigger itself is
+--- mandatory, so the Monster AI must wait for it (see Trigger).
+--- @return boolean
+function TriggeredAbility:HasInvokeBehavior()
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            return true
+        end
+    end
+    return false
 end
 
 ActivatedAbility.OnTypeRegistered = function()
@@ -136,6 +151,12 @@ TriggeredAbility.TargetTypes = {
 	{
 		id = 'all',
 		text = 'Burst',
+	},
+	{
+		--every creature in the encounter passing the target filter, ignoring range
+		--and line of effect. Resolved in TriggeredAbility:Trigger (targetType 'map').
+		id = 'map',
+		text = 'All Creatures in Encounter',
 	},
 	{
 		id = 'attacker',
@@ -969,6 +990,14 @@ TriggeredAbility.mandatory = true
 --damage) rather than a beneficial reaction offer. Its prompt shows a red icon,
 --never ages out, and must be manually activated or dismissed.
 TriggeredAbility.hostile = false
+--If false, the trigger waits only for casts by or targeting its creature
+--(and the cast it fired in), not every cast on this machine. Only for
+--mandatory triggers that show nothing, such as the Monster Death rule.
+TriggeredAbility.waitForOtherCasts = true
+--If true, a prompted trigger runs once the abilities resolving when its event fired
+--are done, so its condition and targets see the board after them (e.g. after a killing
+--blow's push). A death trigger needs its creature kept on the map until then.
+TriggeredAbility.triggerAfterCasts = false
 
 function TriggeredAbility.OnDeserialize(self)
 	ActivatedAbility.OnDeserialize(self)
@@ -1064,16 +1093,82 @@ end
 local g_departureTriggers = {
     move = true,
     teleport = true,
+    teleportmove = true,
+}
+
+--Events dispatched on the creature using an ability (most carry it as usedability).
+local g_abilityUserTriggers = {
+    useability = true,
+    targetwithability = true,
+    finishability = true,
+    dealdamage = true,
+    attack = true,
+    rollpower = true,
 }
 
 --Distance for a subjectRange gate. On a departure trigger the subject's token
 --may already sit at its destination -- the observer's client applies the moved
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
---live token.
-local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+--live token, unless the subject used the ability from another creature's space (below).
+--How tall a token is for range purposes, in squares. Objects count as one square
+--tall, as targeting has always treated them.
+local function RangeHeightInTiles(tok)
+    if tok.isObject then
+        return 1
+    end
+    return math.max(1, tok.tileSize or 1)
+end
+
+--Squares of height between two bodies: 0 when their heights overlap, 1 when one
+--is right on top of the other. The same rule as RuleUtils.VerticalGapInTiles, which
+--ability targeting uses; repeated here so these base rules don't need the DS layer.
+local function VerticalGapInTiles(aAltitude, aHeight, bAltitude, bHeight)
+    return math.max(0, bAltitude - (aAltitude + aHeight - 1), aAltitude - (bAltitude + bHeight - 1))
+end
+
+--token:Distance is flat, so a creature far above or below would count as
+--adjacent (KQQJU7BS). Like ability range, use the larger of the two.
+local function WithVerticalGap(distance, gapInTiles)
+    return math.max(distance, gapInTiles * dmhub.unitsPerSquare)
+end
+
+local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    local subjectHeight = RangeHeightInTiles(subjectToken)
+    local casterHeight = RangeHeightInTiles(casterToken)
+
+    --A subject using an ability as if it stood in another creature's space is measured
+    --from that space. Only for events whose subject is the ability's user: a damage
+    --event on the victim carries the ability too.
+    if g_abilityUserTriggers[triggerName] then
+        --power-roll events carry the ability as "ability" rather than "usedability".
+        local usedAbility = symbols and (symbols.usedability or symbols.ability) or nil
+        local actingFromId = nil
+        local isAbility = false
+        if type(usedAbility) == "table" then
+            actingFromId = rawget(usedAbility, "actingFromTokenId")
+            --pcall: some events pass a plain symbol table, which has no IsDerivedFrom.
+            pcall(function() isAbility = usedAbility.IsDerivedFrom("ActivatedAbility") == true end)
+        end
+        local actingFromToken = nil
+        if actingFromId ~= nil then
+            actingFromToken = dmhub.GetTokenById(actingFromId)
+        elseif not isAbility then
+            --A strike event passes the ability as a symbol table with no actingFromTokenId, so
+            --ask the open cast instead (known only on the casting client). A real ability without
+            --actingFromTokenId, such as a trigger firing mid-cast, is measured from the subject.
+            actingFromToken = ActivatedAbility.ActingFromToken(subjectToken.charid)
+        end
+        if actingFromToken ~= nil then
+            local actingFromHeight = RangeHeightInTiles(actingFromToken)
+            local gap = VerticalGapInTiles(actingFromToken.altitude, actingFromHeight, casterToken.altitude, casterHeight)
+            return WithVerticalGap(actingFromToken:Distance(casterToken), gap)
+        end
+    end
+
     if not g_departureTriggers[triggerName] then
-        return subjectToken:Distance(casterToken)
+        local gap = VerticalGapInTiles(subjectToken.altitude, subjectHeight, casterToken.altitude, casterHeight)
+        return WithVerticalGap(subjectToken:Distance(casterToken), gap)
     end
 
     --pcall: PathMoved has no default for 'path', so reading it can raise.
@@ -1088,12 +1183,16 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
     end
 
     if steps == nil or #steps == 0 then
-        return subjectToken:Distance(casterToken)
+        local gap = VerticalGapInTiles(subjectToken.altitude, subjectHeight, casterToken.altitude, casterHeight)
+        return WithVerticalGap(subjectToken:Distance(casterToken), gap)
     end
 
+    --Path step altitudes are measured from their own floor, so compare them with
+    --floorAltitude rather than the map-wide altitude.
     local origin = steps[1]
+    local originGap = VerticalGapInTiles(origin.altitude, subjectHeight, casterToken.floorAltitude, casterHeight)
     if size <= 1 then
-        return casterToken:Distance(origin)
+        return WithVerticalGap(casterToken:Distance(origin), originGap)
     end
 
     --A size-N token covers N x N squares from that step; take the nearest.
@@ -1107,7 +1206,22 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
         end
     end
 
-    return result
+    return WithVerticalGap(result, originGap)
+end
+
+--Safe wrapper: token:Distance can raise or return nil when either token's
+--map object is gone or not yet built (a minion Explosive Parade just removed,
+--a monster EotW is still spawning). Treat that as out of range, so the
+--trigger is skipped instead of erroring and aborting the caller (it used to
+--kill the EotW host beat that spawns the next part's monsters).
+---@return number
+local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    local ok, distance = pcall(RawSubjectRangeDistance, triggerName, subjectToken, casterToken, symbols)
+    distance = ok and tonumber(distance) or nil
+    if distance == nil then
+        return math.huge
+    end
+    return distance
 end
 
 --- Options for TriggeredAbility:Trigger. Every field is optional (nil options = {}).
@@ -1117,7 +1231,13 @@ end
 --- @field remoteExecution nil|{targets: table, dismiss: boolean, alreadyPaid: boolean, aiActivityId: string|false|nil, aiReactionId: string|false|nil} An accepted trigger shipped to this client to execute.
 --- @field aiActivityId nil|string
 --- @field aiReactionId nil|string
+--- @field aiReactionForceComplete nil|boolean Completion writes the marker even when this client cannot see it (a mandatory trigger's marker; see Trigger).
+--- @field aiReactionAbility nil|string The ability name a force-completed marker records.
 --- @field alreadyPaid nil|boolean
+--- @field triggerDispatched nil|boolean Set by Trigger once a cast is started or scheduled; that cast answers complete.
+--- @field triggerPrompting nil|boolean Set by Trigger while a prompt is open; the prompt's end answers complete.
+--- @field evaluatingAfterCasts nil|boolean Set on the second run of a triggerAfterCasts trigger, so it does not wait again.
+--- @field gatedByModifier nil|boolean Set by CharacterModifier:TriggerEvent, whose TriggerGatesPass a triggerAfterCasts trigger runs again after waiting.
 
 --- The square at the centre of an area: the one of its squares nearest the mean of
 --- them all (the exact centre of an odd cube or burst). nil for an empty area.
@@ -1147,6 +1267,12 @@ function TriggeredAbility.AreaCenterLoc(area)
 end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
+--- Fires this trigger for creature. argOptions.complete, when given, is a
+--- callback the caller waits on (the trigger-before flows: the triggering
+--- roll is held until it runs). It is called exactly once on EVERY route:
+--- after the cast finishes, or at once if the trigger does not fire (a gate
+--- or its condition fails) or its prompt ends without a cast. A caller never
+--- has to guess whether it will come.
 --- @param characterModifier CharacterModifier
 --- @param creature Creature
 --- @param symbols table
@@ -1155,6 +1281,40 @@ end
 --- @param argOptions TriggeredAbilityTriggerOptions
 --- @return nil
 function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    argOptions = argOptions or {}
+    local complete = argOptions.complete
+    if complete == nil then
+        return self:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    end
+
+    local completed = false
+    argOptions.complete = function()
+        if completed then
+            return
+        end
+        completed = true
+        complete()
+    end
+
+    self:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+
+    --Not handed to a cast and no prompt still open: the trigger did not fire.
+    if not argOptions.triggerDispatched and not argOptions.triggerPrompting then
+        argOptions.complete()
+    end
+end
+
+--- The body of Trigger. argOptions.triggerDispatched is set once a cast is
+--- started or scheduled (that cast then calls argOptions.complete), and
+--- argOptions.triggerPrompting while a prompt is open for the player.
+--- @param characterModifier CharacterModifier
+--- @param creature Creature
+--- @param symbols table
+--- @param auraControllerToken nil|CharacterToken
+--- @param modContext table
+--- @param argOptions TriggeredAbilityTriggerOptions
+--- @return nil
+function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 
     argOptions = argOptions or {}
 
@@ -1339,6 +1499,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 
 	modContext = modContext or {}
+	--The event's own table, kept for a triggerAfterCasts rerun (see below).
+	local eventSymbols = symbols
 	symbols = table.shallow_copy(symbols or {})
     symbols.mode = symbols.mode or 1
 
@@ -1374,6 +1536,25 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		local candidates = cond(self.objectTarget, dmhub.allTokensIncludingObjects, dmhub.allTokens)
 		for i,tok in ipairs(candidates) do
 			if (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) and range >= tok:Distance(casterToken) then
+				targets[#targets+1] = {
+					loc = tok.loc,
+					token = tok,
+				}
+			end
+		end
+	elseif self.targetType == 'map' then
+		--"All Creatures in Encounter": every creature passing the target filter,
+		--with no range or line of effect (Ravenous Horde's end-of-round zombies
+		--beside each marked hero). In combat only creatures in initiative count,
+		--the same rule the action bar applies to a cast "map" ability.
+		targets = {}
+		local q = dmhub.initiativeQueue
+		if q ~= nil and q.hidden then
+			q = nil
+		end
+		for _,tok in ipairs(dmhub.allTokens) do
+			local inEncounter = q == nil or q:HasInitiative(InitiativeQueue.GetInitiativeId(tok))
+			if inEncounter and (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) then
 				targets[#targets+1] = {
 					loc = tok.loc,
 					token = tok,
@@ -1574,6 +1755,44 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		}
 	end
 
+	--"Fire after other abilities finish": it passed every check now, so wait for the
+	--abilities resolving now, then run it again from the top: it must still pass every
+	--check, and picks its targets, on the board they leave. Not when something waits on
+	--its answer (a held roll, an AI turn, a turn start): waiting would stall that.
+	local aiWaitsOnAnswer = casterToken.playerControlled
+		and type(symbols.aiActivityId) == "string" and symbols.aiActivityId ~= ""
+	if self.triggerAfterCasts and self:MayBePrompted() and not argOptions.evaluatingAfterCasts
+		and argOptions.complete == nil and not aiWaitsOnAnswer
+		and rawget(symbols, "eventwaitid") == nil then
+		if argOptions.debugLog then
+			argOptions.debugLog[#argOptions.debugLog+1] = {
+				name = self.name,
+				success = true,
+				reason = "Waiting for other abilities to finish",
+			}
+		end
+
+		--The event's table is shared with the other triggers on this event, which can
+		--still change it, so keep a copy of it as it is now.
+		local symbolsAtFire = table.shallow_copy_with_meta(eventSymbols or {})
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not casterToken.valid or casterToken.despawned or casterToken.properties == nil then
+				return
+			end
+			--Fired from a modifier's event: its checks (resources, triggered actions
+			--allowed, switched on, in combat) must still pass too.
+			if argOptions.gatedByModifier and not characterModifier:TriggerGatesPass(casterToken.properties, nil) then
+				return
+			end
+			local laterOptions = table.shallow_copy(argOptions)
+			laterOptions.evaluatingAfterCasts = true
+			laterOptions.debugLog = nil
+			self:TriggerUnguarded(characterModifier, casterToken.properties, symbolsAtFire, auraControllerToken, modContext, laterOptions)
+		end, {casterid = casterToken.charid})
+		return
+	end
+
     --Past every gate: this trigger fires or prompts. See TriggeredAbility.FiredCount.
     g_triggersFiredCount = g_triggersFiredCount + 1
 
@@ -1586,6 +1805,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
     end
 
 	local executeTrigger = function(isDismiss)
+		argOptions.triggerDispatched = true
 		self:ExecuteTriggerCast{
 			dismiss = isDismiss,
 			argOptions = argOptions,
@@ -1600,6 +1820,20 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	end
 
 	local isMandatory = self:IsMandatory(cond(symbols.remote, nil, casterToken))
+
+	--"Prompt Remote, Auto Local" fires mode 1 by itself for the local player. When a
+	--later mode is also open (Spend Recovery offered 3 Recoveries, 63QYDSCF), that
+	--would silently pick 1, so ask instead, as a remote player is already asked.
+	if isMandatory and self.mandatory == "prompt_remote" and self.multipleModes then
+		local modeList = self:try_get("modeList", {})
+		for i = 2, #modeList do
+			local formula = modeList[i].condition or ""
+			if formula == "" or tonumber(ExecuteGoblinScript(formula, creature:LookupSymbol(symbols), 0, "Trigger condition")) ~= 0 then
+				isMandatory = false
+				break
+			end
+		end
+	end
 
 	--The AI reaction marker exists to hold a monster's activity open while a
 	--HERO MAKES A CHOICE: the prompt card that appears on the player's client,
@@ -1623,6 +1857,22 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		argOptions.aiActivityId = aiActivityId
 		argOptions.aiReactionId = aiReactionId
 		casterToken.properties:BeginPendingAIActivityReaction(aiActivityId, aiReactionId, self.name)
+	elseif isMandatory and casterToken.playerControlled and type(aiActivityId) == "string" and aiActivityId ~= ""
+			and argOptions.aiReactionId == nil and self:HasInvokeBehavior() then
+		--The exception to the above: a mandatory trigger whose invoke asks the
+		--player something (Metakinetic Mastery's Knockback after Inertial Shield,
+		--N3/6BP3KFZ6). Its cast is deferred until the provoking cast ends, so the
+		--provoking cast's marker completes first and the AI moved on while the
+		--prompt was open. Made now, inside that cast, so the AI never sees a gap.
+		--ExecuteTriggerCast takes it over and every exit completes it;
+		--aiReactionForceComplete covers the lost-marker race described above.
+		aiReactionId = dmhub.GenerateGuid()
+		argOptions.aiActivityId = aiActivityId
+		argOptions.aiReactionId = aiReactionId
+		argOptions.aiReactionForceComplete = true
+		argOptions.aiReactionAbility = self.name
+		casterToken.properties:BeginPendingAIActivityReaction(aiActivityId, aiReactionId, self.name, "resolving")
+		aiActivityId = nil
 	else
 		aiActivityId = nil
 	end
@@ -1643,7 +1893,10 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	else
 		local guid = aiReactionId or dmhub.GenerateGuid()
 
-		dmhub.Coroutine(function()
+		--A waiting caller (argOptions.complete) is answered when the prompt
+		--ends: by the cast if it was accepted, else after promptBody returns.
+		argOptions.triggerPrompting = true
+		local promptBody = function()
 			--Register as the live watcher for this prompt before it becomes
 			--visible: an acceptance is consumed by this coroutine, never by
 			--the orphan-recovery path -- see ActivateOrphanedTrigger.
@@ -2071,12 +2324,14 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				--machine happened to process the trigger event (e.g. the
 				--Director's client raising creaturedeath locally when confirming
 				--a minion death). When another connected client is better suited
-				--to respond (activeControllerId ~= nil), ship the execution there
+				--to respond (TokenPromptControllerId returns a userid), ship the execution there
 				--via the remoteInvokes queue. Run locally when we are the
 				--controller, when the ability has no guid for the remote side to
 				--look it up by, or when the caller is waiting on a completion
 				--callback (the triggerBefore flows), which cannot cross machines.
-				local controllerid = casterToken.activeControllerId
+				local controllerid = TokenPromptControllerId(casterToken)
+				--the cast below owns answering argOptions.complete from here.
+				argOptions.triggerDispatched = true
 				if controllerid ~= nil and self:try_get("guid") ~= nil and argOptions.complete == nil then
 					self:SendTriggerCastToController(controllerid, {
 						dismiss = isDismiss,
@@ -2102,6 +2357,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			else
 				CompleteAIReaction()
 			end
+		end
+
+		dmhub.Coroutine(function()
+			promptBody()
+			if argOptions.complete ~= nil and not argOptions.triggerDispatched then
+				argOptions.complete()
+			end
 		end)
 	end
 
@@ -2117,8 +2379,26 @@ local function CompleteAIReactionFromOptions(casterToken, argOptions)
 	if casterToken ~= nil and casterToken.valid
 		and type(argOptions.aiActivityId) == "string"
 		and type(argOptions.aiReactionId) == "string" then
-		casterToken.properties:CompletePendingAIActivityReaction(
-			argOptions.aiActivityId, argOptions.aiReactionId)
+		--A mandatory trigger's marker (see Trigger) is written as completed even
+		--when this client cannot see it: a properties rebuild can hide the begin
+		--write before it flushes, and the server would then keep it open (WTUDE5S5).
+		local props = casterToken.properties
+		if argOptions.aiReactionForceComplete
+				and props:try_get("pendingAIActivityReactions", {})[argOptions.aiReactionId] == nil then
+			casterToken:ModifyProperties{
+				description = "Complete AI Reaction",
+				undoable = false,
+				combine = true,
+				execute = function()
+					props:get_or_add("pendingAIActivityReactions", {})[argOptions.aiReactionId] = {
+						activityId = argOptions.aiActivityId, timestamp = ServerTimestamp(),
+						state = "completed", ability = argOptions.aiReactionAbility,
+					}
+				end,
+			}
+			return
+		end
+		props:CompletePendingAIActivityReaction(argOptions.aiActivityId, argOptions.aiReactionId)
 	end
 end
 
@@ -2157,7 +2437,7 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if not isDismissExec and self:ActionResource() == CharacterResource.triggerResourceId then
 		casterToken.properties:DispatchEvent("usetriggeredaction", {usedability = self, cast = symbols and symbols.cast})
 	end
-	local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
+	local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec, modContext = args.modContext }
 	local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 	if not needCoroutine then
 		--A dismissed trigger never costs resources, even when On Dismiss
@@ -2170,10 +2450,15 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 		-- Call OnFinishCastHandlers so that instant behaviors
 		-- (e.g. ActivatedAbilityApplyAbilityDurationEffect) can
-		-- schedule their cleanup and the triggerBefore complete
-		-- callback fires.
+		-- schedule their cleanup.
 		for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
 			handler(self, casterToken, options)
+		end
+		--The cast is done, so release a trigger-before caller (e.g. Inertial
+		--Shield's Elemental Absorption, which is instant). These handlers come
+		--from the behaviors, not argOptions, so it would never be called otherwise.
+		if argOptions.complete then
+			argOptions.complete()
 		end
 		CompleteAIReactionFromOptions(casterToken, argOptions)
 		AckEventWaitFromSymbols(casterToken, symbols)
@@ -2202,6 +2487,9 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 	if g_triggerDepth > 8 then
 		printf("Too many triggers stacked in the same frame, aborting.")
+		if argOptions.complete then
+			argOptions.complete()
+		end
 		CompleteAIReactionFromOptions(casterToken, argOptions)
 		return
 	end
@@ -2229,12 +2517,21 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if argOptions.complete ~= nil then
 		dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
 	else
+		--A trigger set not to wait for other casts (e.g. Monster Death, after a
+		--skull click) waits only for the cast it fired in and casts by or
+		--targeting its creature. A trigger that may prompt always waits.
+		--A dismissed trigger waits the same way: it only runs its On Dismiss
+		--steps (e.g. removing a minion), which show nothing.
+		local involving = nil
+		if isDismissExec or (not self.waitForOtherCasts and not self:MayBePrompted()) then
+			involving = casterToken
+		end
 		ActivatedAbility.RunWhenCastsComplete(function()
 			if casterToken == nil or not casterToken.valid then
 				return
 			end
 			dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
-		end, {casterid = casterToken ~= nil and casterToken.charid or nil})
+		end, {casterid = casterToken ~= nil and casterToken.charid or nil, involving = involving})
 	end
 
 	g_triggerDepth = g_triggerDepth - 1
@@ -2287,7 +2584,8 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 	--here, and delivering mid-cast prompts the remote player while this
 	--machine is still resolving. The timestamp is refreshed at delivery so
 	--the deferral doesn't consume the 30-second staleness window checked by
-	--PumpRemoteInvokes.
+	--PumpRemoteInvokes. A dismissed trigger only runs its On Dismiss steps, so
+	--it waits only for casts by or targeting the creature.
 	print("RemoteTrigger:: shipping", self.name, "to controller", controllerid)
 
 	ActivatedAbility.RunWhenCastsComplete(function()
@@ -2303,7 +2601,7 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 				invokes[#invokes+1] = DeepCopy(invocation)
 			end,
 		}
-	end, {casterid = casterToken.charid})
+	end, {casterid = casterToken.charid, involving = args.dismiss and casterToken or nil})
 end
 
 --Invoked by PumpRemoteInvokes on the controlling client. Reconstructs the
@@ -2594,6 +2892,12 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
             range = 0,
             radius = self:GetRange(creature),
         }
+    elseif self.targetType == 'map' then
+        --the same whole-map area a cast "map" ability uses.
+        targetArea = dmhub.CalculateShape{
+            shape = "map",
+            token = casterToken,
+        }
     end
 
 	self:Cast(auraControllerToken, targets,
@@ -2604,6 +2908,9 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
 		alreadyInCoroutine = true,
 		alreadyPaid = argOptions.alreadyPaid,
 		dismiss = argOptions.dismiss == true,
+		--the modifier's context (its ongoing effect, if any), for behaviors
+		--that act for whoever applied the effect.
+		modContext = modContext,
         OnFinishCastHandlers = {
             function()
                 if argOptions.complete then

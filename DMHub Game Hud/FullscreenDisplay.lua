@@ -1110,7 +1110,7 @@ function DramaticBanner.Create()
                 portraitPanel.bgimage = portrait
                 local rect = nil
                 if not token.hasSpineAnimation then
-                    rect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    rect = CardPortraitRect(token, Styles.portraitWidthPercentOfHeight*0.01, portrait)
                 end
                 portraitPanel.selfStyle.imageRect = rect
 

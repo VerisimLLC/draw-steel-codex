@@ -1011,6 +1011,7 @@ text("author.validator.negotiation.no_argument", [[no argument appeals to {trait
 text("author.validator.negotiation.no_clue", [[{trait} has no clue, so players can only find it by failing]])
 text("author.validator.negotiation.few_motivations", [[the book gives every NPC at least two motivations]])
 text("author.validator.negotiation.no_opening", [[no 'Opening:' line, so the NPC does not speak first]])
+text("author.validator.negotiation.no_pc", [[argument '{argument}' has no 'PC:' line, so the hero has nothing to say when it is chosen]])
 text("author.validator.negotiation.no_offer", [[no '## Offer: {offer}']])
 text("author.validator.negotiation.no_uncover", [[{trait} is 'Unlocked by {label}', but nothing in this script says 'You uncover {label}']])
 text("author.negotiation_builder.intro", [[You write what is said; the negotiation rules work out interest and patience.]])
@@ -1127,6 +1128,7 @@ text("author.script_edit.starter.negotiation.argument_greed", [[Offer them a sha
 text("author.script_edit.starter.negotiation.argument_protection", [[Promise to keep their people safe]])
 text("author.script_edit.starter.negotiation.argument_authority", [[Invoke someone with more power]])
 text("author.script_edit.starter.negotiation.argument_neutral", [[Try to win them over]])
+text("author.script_edit.starter.negotiation.say", [[What the hero says out loud.]])
 text("author.script_edit.starter.negotiation.offer", [[What they agree to at this level of interest.]])
 --The sub-documents the script pulls in. {list} is their names.
 text("author.validator.report.includes.one", [[includes {count} sub-document: {list}]])
@@ -1139,6 +1141,7 @@ text("author.validator.report.part_first", [[Part 1 of a series: always open; wi
 text("author.validator.report.part_first_titled", [[Part 1: {title} of a series: always open; winning it unlocks Part 2]])
 text("author.validator.report.part_later", [[Part {number} of a series: the town offers it once Part {previous} is won]])
 text("author.validator.report.part_later_titled", [[Part {number}: {title} of a series: the town offers it once Part {previous} is won]])
+text("author.validator.report.no_watermark", [[this map has no watermark chosen and is not from a map pack: if the art is a partner's (e.g. Czepeku), pick them in Map Settings > Display > Watermark so it carries their credit; if not, pick None]])
 text("author.validator.report.part_no_region", [[this part's encounter has no region, so heroes can walk into the other parts' areas: draw one in the encounter builder, then load it into the island]])
 --{count} is the builder's "Victories awarded", {challenge} the Challenge Mode total, {limit} the warning threshold.
 text("author.validator.report.victories.one", [[winning is worth {count} Victory ({challenge} in Challenge Mode)]])
@@ -1162,6 +1165,10 @@ text("author.validator.problems.option_problem", [[{where}: option '{option}' --
 text("author.validator.problems.setup_not_understood", [[{where}: setup instruction '{text}' is not understood]])
 --{behavior} is the name the line gave, {known} the Monster AI's behavior names.
 text("author.validator.problems.unknown_ai_behavior", [[{where}: '{behavior}' is not a Monster AI behavior (known: {known})]])
+--A "## Reinforcements:" island that brings nobody. {name} is the section's
+--name, {island} which of its [[encounter]] islands (1, 2, ...).
+text("author.validator.problems.reinforcement_island_no_encounter", [=[{where}: reinforcements '{name}' island {island} has no encounter behind its [[encounter]] tag; nothing arrives from it]=])
+text("author.validator.problems.reinforcement_island_no_monsters", [=[{where}: reinforcements '{name}' island {island} has an encounter with no monsters; nothing arrives from it. Add groups in the encounter builder]=])
 
 --The Names section: every item, monster, object and zone the script names,
 --and whether the game can find it. {name} is the name as written.
@@ -1192,6 +1199,10 @@ text("author.validator.report.setup_place", [[setup {label}: place {qty} x '{obj
 text("author.validator.report.setup_place_delete", [[setup {label}: place {qty} x '{object}' in {zone} zones, delete the other {zone} zones]])
 text("author.validator.report.setup_bystanders", [[setup {label}: bystanders (no initiative): {names}]])
 text("author.validator.report.setup_unrecognized", [[setup {label}: UNRECOGNIZED '{text}']])
+--{who} is what the "Mark:" line names, as the author wrote it (e.g. The Choir).
+text("author.validator.report.setup_mark", [[marked on the map for the heroes: {who}]])
+text("author.validator.report.setup_parallax", [[parallax set to {level} while this is played]])
+text("author.validator.report.setup_hero_level", [[balanced for Level {level} heroes: monsters are leveled up or down by the party's average Level minus {level}]])
 --A "Monster AI:" line. {text} reads like "Bully on for Goblin Sniper".
 text("author.validator.report.setup_ai_behavior", [[setup {label}: {text}]])
 --Reinforcements. {name} is the group's name, {schedule} when they arrive
@@ -1219,6 +1230,23 @@ text("author.validator.report.scaling", [[scaling: {text}]])
 --nothing). The tag words are below.
 text("author.validator.report.entry_threat", [[Threat: {name}{tags}]])
 text("author.validator.report.entry_opportunity", [[Opportunity: {name}{tags}]])
+--A Gauntlet section. {kind} is one of the three kinds below, {name} the
+--section, {tags} its tags in brackets (or nothing).
+text("author.validator.report.gauntlet_section", [[{kind}: {name}{tags}]])
+text("author.validator.report.gauntlet_kind_challenge", [[Challenge]])
+text("author.validator.report.gauntlet_kind_vote", [[Vote]])
+text("author.validator.report.gauntlet_kind_event", [[Custom event point]])
+text("author.validator.report.gauntlet_tag_detour", [[detour]])
+--{min} and {max} are numbers of players.
+text("author.validator.report.gauntlet_tag_min", [[{min}+ players]])
+text("author.validator.report.gauntlet_tag_range", [[{min}-{max} players]])
+--{prompt} is the vote's question.
+text("author.validator.report.gauntlet_prompt", [[asks: {prompt}]])
+--{count} is how many lines the arrival scene plays.
+text("author.validator.report.gauntlet_arrival", [[arrival scene: {count} lines]])
+--{target} is a section's name (or End).
+text("author.validator.report.gauntlet_exit", [[leaves to '{target}']])
+text("author.validator.report.gauntlet_option_route", [[this option goes to '{target}']])
 text("author.validator.report.tag_required", [[Required]])
 text("author.validator.report.tag_locked", [[Locked]])
 text("author.validator.report.tag_temporary", [[Temporary]])
@@ -1258,6 +1286,20 @@ text("author.validator.coverage.opportunities", [[Opportunities with a secret op
 --{entry} is an opportunity's name.
 text("author.validator.coverage.opportunity_none", [[none: {entry}]])
 text("author.validator.coverage.threats", [[Threats with a secret option or knack: {with} of {total} (standard: some)]])
+text("author.validator.coverage.gauntlet_challenges", [[Narrative challenges with a secret option or knack: {with} of {total} (standard: all)]])
+
+--The route map of a narrative. {number} is the beat's number, {title} its
+--heading; {heroes} a party size; {routes} how many ways through; {fewest}
+--and {most} the tests along the shortest and longest of them; {path} the
+--sections of one route joined by arrows, {count} its tests; {rolls} how many
+--rolls the busiest hero must make at least; {count} routes not listed.
+text("author.validator.routes.heading", [[Narrative routes: beat {number} ({title})]])
+text("author.validator.routes.party", [[{heroes} heroes: {routes} ways through, {fewest} to {most} tests each]])
+text("author.validator.routes.weary", [[The longest way has {tests} tests for {heroes} heroes: someone makes at least {rolls} of them, so is Weary for some (assists add more rolls)]])
+text("author.validator.routes.route.one", [[{path}  ({count} test)]])
+text("author.validator.routes.route.other", [[{path}  ({count} tests)]])
+text("author.validator.routes.more", [[... and {count} more]])
+text("author.validator.routes.truncated", [[(there are more ways through than were counted)]])
 --{hooks} is how many knacks in all, {list} the overused requirements.
 text("author.validator.coverage.leaning", [[Leaning on one knack (over 15% of {hooks} hooks): {list}]])
 --{count} is how many heroes are listed below it.
@@ -1287,6 +1329,7 @@ text("author.script.unknown_beat", [[unknown beat '{title}' (expected Montage, N
 text("author.script.second_story", [[a second '# {title}'; only the first is used]])
 --{part} is the part number already given.
 text("author.script.second_part", [[a second '# {title}'; a script is one part, so only '# Part {part}' counts (give each part its own document)]])
+text("author.script.rest_free_placement", [['Rest does not lock this part' goes under a '# Part N' heading; ignored]])
 text("author.script.section_outside_beat", [['## {title}' outside a montage or narrative beat; ignored]])
 
 --Sub-documents linked into the script. {target} is the link as written,
@@ -1383,13 +1426,16 @@ text("author.script.negotiation.no_test", [[argument '{argument}' has no test li
 text("author.script.narrative.option_outside_section", [['### {title}' outside a narrative '## section'; ignored]])
 text("author.script.narrative.rules_outside_option", [['|{rules}' is not under a '### option'; ignored]])
 text("author.script.narrative.no_mode", [[section '{section}' does not say 'Choose together:' or 'Choose individually:'; assuming together]])
-text("author.script.narrative.names_montage_test", [['{clause}' is in a narrative beat; only a montage beat has entries and tests to name]])
+text("author.script.narrative.names_montage_test", [['{clause}' is in a narrative beat; only a montage has locked cards to unlock]])
 
 --Encounter beats. {label} is the word before the colon, {instruction} the
 --rest of the line, {victory} what follows "Victory:".
 text("author.script.encounter.no_island", [=[encounter beat has no [[encounter]] island under it]=])
 text("author.script.encounter.unknown_section", [['## {title}' in an encounter beat is not 'Reinforcements: <Name>'; ignored]])
 text("author.script.encounter.victory_not_understood", [['Victory: {victory}' is not understood (write 'Victory: every enemy on the map is defeated' or 'Victory: every Dwarf on the map is defeated'); ignored]])
+text("author.script.encounter.parallax_not_understood", [['Parallax: {parallax}' is not understood (write 'Parallax: None', 'Parallax: Slight', 'Parallax: Normal' or 'Parallax: Pronounced'); ignored]])
+text("author.script.encounter.level_not_understood", [['Level: {level}' is not understood (write the hero Level this encounter is balanced for, 1 to {max}, e.g. 'Level: 2'); ignored]])
+text("author.script.encounter.mark_not_understood", [['Mark:' names nobody (write e.g. 'Mark: The Choir' or 'Mark: Chorister and Bone Singer'); ignored]])
 text("author.script.encounter.unknown_setup", [[unrecognized encounter setup instruction '{label}: {instruction}'; ignored]])
 
 --Reinforcements ("## Reinforcements: <Name>"). {name} is the group's name,
@@ -1413,6 +1459,7 @@ text("author.script.delve.chest_second_table", [[the chest already has a table; 
 text("author.script.delve.missing", [[option '{option}' enters the delve '{delve}', but there is no '# Delve: {delve}']])
 text("author.script.delve.option_roll_ignored", [[option '{option}' enters a delve; its power roll is ignored]])
 text("author.script.delve.no_obstacles", [[delve '{delve}' has no '## Obstacle: ...']])
+text("author.script.delve.obstacle_dice", [[delve option '{option}': '{clause}' rolls dice, but a delve shows no roll; use a flat number]])
 text("author.script.delve.no_chest", [[delve '{delve}' has no '## Chest'; no treasure will turn up]])
 text("author.script.delve.chest_no_table", [[delve '{delve}': '## Chest' has no dice table ('|Treasure: 1d6' then '|1-2: ...' rows)]])
 text("author.script.delve.finish_unordered", [['## {section}' plays only in an in-order delve ('Order: in sequence'); a random delve ignores it]])
@@ -1420,6 +1467,42 @@ text("author.script.delve.section_options", [['## {section}' of delve '{delve}' 
 text("author.script.delve.obstacle_no_options", [[obstacle '{obstacle}' has no options]])
 text("author.script.delve.option_no_rules", [[option '{option}' has no power roll and no rules]])
 text("author.script.delve.option_nested_delve", [[option '{option}' is inside a delve already; 'Delve: {delve}' is ignored]])
+
+--Narrative sections, options, routes and tags (the structure built for the
+--Gauntlet, which folded into Narrative). {section} is a "## <Name>"
+--section's name, {option} an option's name, {target} the name after "Go to",
+--{tag} a heading tag as written, {path} a list of section names joined by
+--arrows.
+text("author.script.narrative.montage_tag", [[section '{section}': '({tag})' is a montage tag and does nothing in a narrative]])
+text("author.script.narrative.duplicate_name", [[a second section named '{section}'; a 'Go to' naming it finds the first]])
+text("author.script.narrative.section_named_end", [[a section named '{section}' can never be reached by 'Go to' ('Go to: End' ends the narrative); rename it]])
+text("author.script.narrative.vote_roll_ignored", [[option '{option}' is in a section the party decides by choosing ('Choose together:' or 'Choose individually:'), which has no tests, so its power roll is ignored]])
+text("author.script.narrative.all_secret", [[section '{section}': every option is secret (an 'Allow' rider), so a party with no hero who qualifies cannot get past; add an option anyone can take]])
+text("author.script.narrative.delve_option", [[option '{option}': a narrative cannot enter a delve; 'Delve: {delve}' is ignored]])
+text("author.script.narrative.event_body", [[custom event point '{section}' takes only a 'Go to:' line; '{text}' is ignored]])
+text("author.script.narrative.event_options", [[custom event point '{section}' cannot have options; the game writes the event that plays there]])
+text("author.script.narrative.goto_empty", [['Go to:' names no section]])
+text("author.script.narrative.goto_twice", [[a second 'Go to:' for '{section}'; the first one counts]])
+text("author.script.narrative.goto_unknown", [['Go to {target}' names no section of this narrative (nor 'End')]])
+text("author.script.narrative.goto_outside", [['Go to: {target}' only works in a narrative; ignored]])
+text("author.script.narrative.loop", [['Go to' makes a loop: {path}. A narrative may only go forward or sideways]])
+text("author.script.narrative.unreachable", [[section '{section}' is never reached: nothing goes to it and the section above never falls through to it]])
+text("author.script.narrative.falls_into_detour", [[section '{from}' falls through into the detour '{section}' below it; give '{from}' a 'Go to:' line (above its options) so the party only takes the detour when sent there]])
+text("author.script.narrative.size_tag_bad", [['({tag})' looks like a party size but is not one a narrative reads (write '(5+ Players)', '(3-4 Players)' or '(6 Players)'); it stays part of the section's name]])
+text("author.script.narrative.everyone_no_roll", [[section '{section}' says everyone rolls, but its first option has no power roll; the section is played as a vote]])
+text("author.script.narrative.everyone_extra_option", [[section '{section}': everyone makes the first option's test, so option '{option}' is ignored]])
+text("author.script.narrative.everyone_interrupted", [[section '{section}': a test everyone makes cannot be an interrupted roll; it is rolled normally]])
+text("author.script.narrative.everyone_secret", [[section '{section}': everyone makes this test, so its 'Allow' rider does nothing]])
+text("author.script.narrative.party_result_unknown", [['{result}' is not a party result this game knows (write 'Party result: median'); each hero's result applies to them]])
+text("author.script.narrative.party_result_not_group", [[section '{section}' has a 'Party result:' line but is not an 'Everyone rolls:' section; it is ignored]])
+text("author.script.narrative.option_gate_twice", [[option '{option}' already has a 'When ...:' line; only the first counts]])
+text("author.script.narrative.everyone_route", [[section '{section}': everyone makes this test, so the party always leaves by the section's own exit; the option's routes and 'go to' results are ignored]])
+text("author.script.narrative.spotlight_not_challenge", [[section '{section}' is tagged (Spotlight), which only works on a section with a test one hero takes on; the tag is ignored]])
+text("author.script.narrative.spotlight_first", [[section '{section}' is tagged (Spotlight) but is the first section, so no hero has taken a test yet; until one has, any hero may take it]])
+text("author.script.roll.interrupted_outside", [['{roll}' is marked Interrupted, which only works in a narrative; it is rolled normally]])
+text("author.script.roll.interrupted_critical", [['{roll}' is an interrupted roll, which never lands, so its critical line is ignored]])
+text("author.script.roll.interrupted_effect", [['{roll}' is an interrupted roll, which never lands, so '{clause}' never applies; put what happens in the lines after the roll, or in the next section]])
+text("author.script.narrative.arrival_pc",[[section '{section}': '{text}' uses PC, but no hero has stepped up while the party arrives; PC belongs in an option's own lines. This line is not played]])
 
 ----------------------------------------------------------------------------
 -- THE MONTAGE BUILDER: the outcome picker's list of rules
@@ -1448,6 +1531,8 @@ text("author.script.clause.maxstamina", [[Maximum Stamina reduced]])
 text("author.script.clause.malice", [[Malice for the Director]])
 text("author.script.clause.initiative", [[Initiative]])
 text("author.script.clause.nosurprise", [[Cannot be surprised]])
+text("author.script.clause.herosurprised", [[This hero is surprised]])
+text("author.script.clause.retreatkill", [[One of the fleeing monsters is destroyed]])
 text("author.script.clause.fairinitiative", [[Fair roll for initiative]])
 text("author.script.clause.knowstamina", [[Know monsters' Stamina]])
 text("author.script.clause.foeimmunity", [[Monsters gain immunity]])

@@ -482,7 +482,7 @@ local function Portrait(tok, width, height)
         }
     end
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(width / height, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, width / height, portrait) end)
     return gui.Panel{
         interactable = false,
         width = width,

@@ -145,6 +145,15 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 
 See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**. For the panel-level design language — row grammar, section headers, separators, hover/selected states, iconography, and the checklist for bringing an old panel onto it — see **[STYLE_GUIDE.md](STYLE_GUIDE.md)**.
 
+### Dice Rolls
+Every Draw Steel roll uses the new roll UI: the roll is a card in the timeline sidebar with the roll dialog embedded in it. Do not open the old pop-up (`GameHud.instance.rollDialog.data.ShowDialog`) or call the generic 5e helpers (`ShowAttributeRollDialog`, `RollAttributeCheck`, d20 checks) in new code. The pop-up is acceptable only as the fallback when no sidebar surface exists.
+
+- **A test:** `creature:RollCustomPowerTableTest` (characteristics, skills, tiers; `options.onComplete` / `onCancel` / `modifiers`) or `creature:ShowCharacteristicRollDialog`, both in `Draw Steel Core Rules/MCDMCreature.lua`. With Encounter of the Week loaded, `EncounterMontage.BuildTestRoll` + `ShowTestRoll`; `Puzzle.RollTest` shows how to choose between them.
+- **A roll asked of a player by an action request:** `CharacterPanel.EmbedPromptRollDialog`.
+- **An ability's own roll:** `CharacterPanel.AcquireAbilityRollDialog`.
+- **A roll on a table:** pass `tableRef`; the roll dialog sends it to the embedded roller.
+- **A quick roll (no options step):** pass `autoroll = true`, e.g. `creature:ShowCharacteristicRollDialog(attrid, { autoroll = true })`; the dice are thrown as soon as the card is up.
+
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.
 
@@ -209,6 +218,10 @@ handling; see "Checking Lua Yourself" in the root [`CLAUDE.md`](../CLAUDE.md).
 contributor-facing statement of the standard (it is all that someone with only this
 repository has); CI (`.github/workflows/lua-typecheck.yml`) runs LuaLS on every push to
 `main` and every pull request. `luac -p` only catches syntax.
+**With only this repository** (no `../tools/` beside it), use `python tools/typing/check.py`
+-- changed files by default, `--all` for the whole codex -- or the `/typecheck` skill, which
+also runs the generators below and fixes what it finds; the rest of this section is about
+the DMHub developer setup.
 The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root), and its
 ceiling is **zero** (since 2026-10-14): one problem anywhere exits 1, naming the file. Run
 it before you call Lua work finished: `-Changed` while editing (~45 s; only the
@@ -240,10 +253,11 @@ keep new code clean -- `@cast` in event handlers, typed locals for `panel.data`,
 `core.Vector2` on property writes.
 
 Game types and data-table rows are typed at the root: `X.new{...}` returns an `X` (every
-`@class` carries `--- @field new fun(o?: table): X`; `annotate_gametypes.py` adds it to a
-new registration), and `dmhub.GetTable(X.tableName)` / `GetTableCached` return rows typed
-`X`. After adding or renaming an `X.tableName = "..."`, run
-`python ../tools/lua-typing/gen_table_overloads.py` (from the codex root). When the table
+`@class` carries `--- @field new fun(o?: table): X`; `python tools/typing/annotate_gametypes.py`
+adds it to a new registration), and `dmhub.GetTable(X.tableName)` / `GetTableCached` return
+rows typed `X`. After adding or renaming an `X.tableName = "..."`, run
+`python tools/typing/gen_table_overloads.py` (from the codex root; in a DMHub checkout it
+also updates the engine's `core-definitions.txt`). When the table
 name is a variable, cast the row where it comes out:
 `local class = classTable[classid] --[[@as Class]]` (inline `@as`, not `---@type`).
 
@@ -304,7 +318,7 @@ Do NOT edit `C:\MCDM\dmhubclient\draw-steel-codex\` -- that is a separate, stale
 
 ## Deploying Changes to the Running Codex
 
-**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (e.g. `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
+**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\Codex\settings.json`, or in `...\mods\settings.json` when the first has none (e.g. `C:\Users\theli\codex-dev-mods`). The app reads it only at startup. If it points at this repo itself, the app already loads your edits: just reload (F4), no deploy needed. Inside it, each checked-out module is a folder named exactly like the repo's module directory:
 
 ```
 <gitfolder>\Draw Steel V\EncounterPanel.lua

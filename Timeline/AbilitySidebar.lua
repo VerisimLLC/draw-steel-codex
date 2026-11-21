@@ -44,6 +44,13 @@ end
 -- Shared document for broadcasting the active ability timeline to other players.
 local g_abilityShareDocId = "abilityTimelineShare"
 
+-- Only UI reads this document (the remote ability card, the EotW montage stage), each
+-- watching its path. Rules-neutral, so its writes -- a heartbeat, the section and dialog
+-- state, several times per ability use -- no longer rebuild every creature's modifiers.
+if CreatureCache ~= nil and CreatureCache.RegisterRulesNeutralDocument ~= nil then
+    CreatureCache.RegisterRulesNeutralDocument(g_abilityShareDocId)
+end
+
 -- Current sharing state: nil when not sharing, otherwise a table of shared data.
 local g_sharingData = nil
 
@@ -609,6 +616,9 @@ local function CreateReadOnlyRollInfo(shareData)
                     bgimage = "panels/square.png",
                     textAlignment = "center",
                     bold = isSelected,
+                    updateRollDialog = function(element, newDs)
+                        element.selfStyle.bold = (newDs.boonValue or 0) == entryBoon
+                    end,
                 },
                 isBoon and iconPanel or nil,
             }
@@ -760,6 +770,13 @@ local function CreateReadOnlyRollInfo(shareData)
                 width = "auto", height = 18,
                 lmargin = 6,
                 halign = "left", valign = "center",
+                --a post-roll trigger rewrites the formula with rollState still
+                --"finished", so this card is not rebuilt (N6TSGZYU).
+                updateRollDialog = function(element, newDs)
+                    if newDs.rollText ~= nil and newDs.rollText ~= "" then
+                        element.text = newDs.rollText
+                    end
+                end,
             },
         }
     end
@@ -789,6 +806,12 @@ local function CreateReadOnlyRollInfo(shareData)
             color = "white",
             vmargin = 2,
             text = string.format("Total: %s", tostring(math.tointeger(ds.total) or ds.total)),
+            --a post-roll edge/bane from a trigger moves the total without a rebuild.
+            updateRollDialog = function(element, newDs)
+                if newDs.rollState == "finished" and newDs.total ~= nil then
+                    element.text = string.format("Total: %s", tostring(math.tointeger(newDs.total) or newDs.total))
+                end
+            end,
         }
     end
 
@@ -804,12 +827,13 @@ local function CreateReadOnlyRollInfo(shareData)
         for i = 1, #ds.tierTexts do
             local tierText = FormatReadOnlyTierText(ds.tierTexts[i])
 
-            tierRows[#tierRows+1] = gui.TableRow{
-                width = "100%",
-                height = "auto",
-                bgimage = true,
-
-                gui.Label{
+            --the glyph font has no Critical glyph: a 4th tier reads "Critical",
+            --as on the roller's own power table.
+            local tierIcon
+            if i == 4 then
+                tierIcon = gui.Label{ hpad = 0, textAlignment = "left", text = "Critical", width = "16%", fontSize = 14, height = 20, valign = "center" }
+            else
+                tierIcon = gui.Label{
                     hpad = 0,
                     textAlignment = "left",
                     fontFace = "DrawSteelGlyphs",
@@ -818,7 +842,15 @@ local function CreateReadOnlyRollInfo(shareData)
                     fontSize = 34,
                     height = 20,
                     valign = "center",
-                },
+                }
+            end
+
+            tierRows[#tierRows+1] = gui.TableRow{
+                width = "100%",
+                height = "auto",
+                bgimage = true,
+
+                tierIcon,
 
                 gui.Panel{
                     width = "84%",
@@ -930,9 +962,11 @@ local function CreateReadOnlyRollInfo(shareData)
             -- stays "finished", so RefreshRemoteAbilityDisplay does not
             -- rebuild this panel; re-apply the highlight here. Skipped
             -- while a live dice animation is driving the highlight.
+            -- element.data is {} by default, so test rollMsg (set only when
+            -- the animation starts) or a static table never updates (N6TSGZYU).
             updateRollDialog = function(element, ds)
                 local d = element.data
-                if d ~= nil and not d.m_finished then
+                if d ~= nil and d.rollMsg ~= nil and not d.m_finished then
                     return
                 end
                 if ds.highlightedTier ~= nil then
@@ -2353,7 +2387,8 @@ end
 --aiDriven: true when the roller is under Monster AI control. The AI drives and
 --completes its own rolls, so the card must not offer a cancel affordance for
 --one (the close X). Fired as a second event AFTER embedRollDialog, which is
---what reveals the button -- order matters. ESC still cancels.
+--what reveals the button -- order matters. ESC still cancels until the dice
+--are thrown (the roll dialog's submit withdraws it for an AI roll).
 function CharacterPanel.EmbedDialogInAbility(aiDriven)
     local panel = LiveHostPanel("abilityDisplay")
     if panel == nil then
@@ -2814,6 +2849,11 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     return true, lockId
 end
 
+--The cast coroutine that is between showing its card and embedding its roll
+--dialog in AcquireAbilityRollDialog, or nil. It yields one frame there with no
+--dialog up yet, so other casts queue on this claim until the dialog is tagged.
+local g_acquiringRollDialogCoid = nil
+
 --Acquire an embedded roll dialog for an ability-roll behavior, serializing
 --against any other ability roll in progress.
 --
@@ -2828,6 +2868,8 @@ end
 --                                         includes the not-yet-shown window
 --                                         right after creation)
 --   * relinquished / owner dead / untracked -> displace the lingering panel
+--Before any of that, a live cast holding g_acquiringRollDialogCoid (card shown,
+--dialog not yet embedded) is queued behind as well.
 --
 --Classifying by rollRelinquished rather than IsShown is what makes the
 --not-yet-shown init window safe (IsShown is false there too), while still
@@ -2868,6 +2910,20 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             coroutine.yield(0.01)
             --re-evaluate from the top: the standalone roll may have cleared,
             --or an embedded dialog may now need classifying.
+            goto continue
+        end
+
+        --Another cast has shown its card and is yielding before it embeds its
+        --dialog. There is no dialog to classify yet, but going ahead would take
+        --over that cast's card and its dialog would then be destroyed.
+        if coid ~= nil and (not mod.unloaded) and g_acquiringRollDialogCoid ~= nil
+            and g_acquiringRollDialogCoid ~= coid
+            and coroutine.IsCoroutineWithIdStillRunning(g_acquiringRollDialogCoid) then
+            if not waited then
+                waited = true
+                print(string.format("AcquireRollDialog:: QUEUE behind acquiring castCoroutine=%s", tostring(g_acquiringRollDialogCoid)))
+            end
+            coroutine.yield(0.01)
             goto continue
         end
 
@@ -2964,6 +3020,16 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
 
     local displayed, lockId = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
 
+    --Rebuilding the card, building the roll dialog and filling it ran in one frame
+    --(~70 ms when a target is clicked). Inside the cast coroutine, which already yields
+    --while the dice roll, let the card's frame end before the dialog is built.
+    if coid ~= nil and coroutine.isyieldable() then
+        --Hold the claim across the yield; it is released once the dialog is
+        --embedded below. A cast that dies meanwhile is ignored by the queue loop.
+        g_acquiringRollDialogCoid = coid
+        coroutine.yield()
+    end
+
     --True while the Monster AI holds the token (MonsterAI:BeginTokenControl).
     --The dialog itself asks options.creature the same thing to hide its own
     --buttons; the card's close X is outside the dialog's subtree, so it has to
@@ -2987,6 +3053,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     end
 
     local dialog = CharacterPanel.EmbedDialogInAbility(aiDriven)
+    --The dialog is tagged with this cast just below, in this same frame, so the
+    --queue loop's dialog check takes over from the claim.
+    if g_acquiringRollDialogCoid == coid then
+        g_acquiringRollDialogCoid = nil
+    end
     if dialog ~= nil then
         if dialog.data ~= nil then
             dialog.data.castCoroutine = coid

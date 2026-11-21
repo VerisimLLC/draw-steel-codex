@@ -15,7 +15,36 @@ RollDialog = {
     --Fired (no args) when a roll dialog is cancelled, so intercepting mods
     --(e.g. physical dice) can abandon any pending external roll request.
     OnRollCancelled = false,
+    --How many roll dialogs (this pop-up and the embedded one) are preparing a roll
+    --right now. Kept by each dialog's OnShow/OnHide; read by ClearStrandedPreviewDice.
+    shownCount = 0,
 }
+
+--Each dialog calls these from its OnShow/OnHide. Clamped at 0 because a hot reload
+--resets the count while dialogs that were already open still call NoteHidden.
+function RollDialog.NoteShown()
+    RollDialog.shownCount = RollDialog.shownCount + 1
+end
+
+function RollDialog.NoteHidden()
+    RollDialog.shownCount = math.max(0, RollDialog.shownCount - 1)
+end
+
+--Call after a roll dialog throws its dice or is cancelled. Once no roll dialog is
+--preparing a roll, no transient preview die should remain, so clear any that do.
+--They get stranded when two dialogs overlap: a preview die is anchored to the cage
+--that was newest when it was placed, but the throw picks the cage that is newest
+--then, so it can throw another dialog's die and leave this one behind. A stranded
+--die keeps __previewdice true and hides the action bar until restart (MYWPRZ28).
+--ClearChatPreviewDice leaves the Dice dock and shop dice alone.
+function RollDialog.ClearStrandedPreviewDice()
+    dmhub.Schedule(0.05, function()
+        if mod.unloaded or RollDialog.shownCount > 0 then
+            return
+        end
+        pcall(function() dmhub.ClearChatPreviewDice() end)
+    end)
+end
 
 --== Re-roll rules ==========================================================
 --
@@ -388,6 +417,7 @@ function GameHud.CreateRollDialog(self)
         m_richStatus = dmhub.PushUserRichStatus(richStatus)
 
         m_shown = m_shown + 1
+        RollDialog.NoteShown()
     end
 
     local OnHide = function()
@@ -400,6 +430,7 @@ function GameHud.CreateRollDialog(self)
         if m_shown > 0 then
             chat.events:Pop()
             m_shown = m_shown - 1
+            RollDialog.NoteHidden()
         end
     end
 
@@ -776,7 +807,8 @@ function GameHud.CreateRollDialog(self)
 
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
-    CalculateRollText = function(calculationOptions)
+    --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
+    CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
 
         local rollDisallowed = nil
@@ -874,6 +906,14 @@ function GameHud.CreateRollDialog(self)
         if rollProperties ~= nil then
             -- Check for roll requirements and update modifiers that fail
             resultPanel:FireEventTree("prepareBeforeRollProperties", rollInfo, enabledModifiers, rollProperties)
+
+            --The check may have turned on or off a modifier whose own edge/bane the text
+            --above already counted (e.g. Convocation of Quartz's "bane unless it already
+            --has one"). Build the text again; that check ignores its own bane, so it is stable.
+            if not requirementPass and CharacterModifier.RollRequirementChangedRollText(enabledModifiers, GetEnabledModifiers()) then
+                return CalculateRollText(calculationOptions, true)
+            end
+
             resultPanel:FireEventTree('prepare', m_options)
 
             enabledModifiers = GetEnabledModifiers()
@@ -2920,6 +2960,9 @@ function GameHud.CreateRollDialog(self)
                 end
             end
 
+            --A triggered modifier can also take others off this row (removeModifiers).
+            ActiveTrigger.RemoveModifiersForTriggers(m_options.modifiers)
+
             resultPanel:FireEventTree('prepare', m_options)
             local roll = CalculateRollText {
                 surges = m_multitargets[index].surges or 0,
@@ -4054,6 +4097,7 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 chat.PreviewChat('')
+                RollDialog.ClearStrandedPreviewDice()
             end,
         },
     }

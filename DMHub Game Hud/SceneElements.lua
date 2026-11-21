@@ -154,7 +154,7 @@ end
 SceneElements.EDIT_MODES = {
     {
         id = "none",
-        text = "Only the Director",
+        text = "Only the " .. UIText.Term("director"),
         icon = "phosphor/lock-simple-fill.png",
         tip = "Only you can change what is in this scene",
     },
@@ -2626,6 +2626,11 @@ function SceneElements.CreateLayer(sceneid, options)
             width = 10,
             height = 10,
             cornerRadius = 8,
+            --a clear surface to catch the mouse: a picture's or sound's face
+            --is not interactable, and a panel with no bgimage is never hit,
+            --so without it those could not be hovered, dragged or resized.
+            bgimage = true,
+            bgcolor = "clear",
             flow = "none",
             draggable = true,
             --the drag moves the card itself (Dragging), within the scene.
@@ -2834,6 +2839,9 @@ function SceneElements.CreateLayer(sceneid, options)
         bgimage = "panels/square.png",
         bgcolor = "clear",
         tokenDropTarget = true,
+        --players' mouse cursors are shared over the picture, as fractions of it,
+        --so they land on the same spot of the art in every window showing it.
+        cursorSurface = "scene:" .. sceneid,
         data = {sceneid = sceneid, sw = 1, sh = 1, background = false, count = 0, items = m_items, selSeq = nil},
 
         --with creature cards in it, a click on an empty part of the scene

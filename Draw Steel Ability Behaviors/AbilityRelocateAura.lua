@@ -486,6 +486,8 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     pickAbility.numTargets = "1"
     pickAbility.countsAsCast = false
     pickAbility.skippable = true
+    --This pick is fully automated, so mark it Gold. Otherwise its prompt shows a "Not Automated" badge.
+    pickAbility.implementation = gui.ImplementationStatus.Gold
     pickAbility.promptOverride = labels.prompt or "Choose where you emerge"
     pickAbility.behaviors = { captureBehavior }
     pickAbility._tmp_restrictLocs = candidates
@@ -866,14 +868,16 @@ local function WalkableSquaresAround(tok, radius)
 end
 
 --The nearest free squares to fromLoc (all ties returned so the director can pick).
-local function NearestFreeLocs(tok, fromLoc, searchRadius)
+--accept (optional): a function(loc) that returns false for squares to skip,
+--e.g. squares inside a lane the caster is about to move through.
+local function NearestFreeLocs(tok, fromLoc, searchRadius, accept)
     local walkable = WalkableSquaresAround(tok, searchRadius)
     local nearest = {}
     local nearestDist = nil
     for _, loc in ipairs(fromLoc:LocsInRadius(searchRadius) or {}) do
         local dist = loc:DistanceInTiles(fromLoc)
         local reachable = walkable == nil or walkable[string.format("%d,%d", loc.x, loc.y)] == true
-        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) then
+        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) and (accept == nil or accept(loc)) then
             if nearestDist == nil or dist < nearestDist then
                 nearest = { loc }
                 nearestDist = dist
@@ -1689,3 +1693,133 @@ function ActivatedAbilityHurlGrabbedBehavior:EditorItems(parentPanel)
 
     return result
 end
+
+----------------------------------------------------------------------------
+-- RelocateHelpers: square-finding and free-move helpers for Lua Script ability
+-- behaviors. See the RelocateHelpers table at the end of this section for what
+-- each one does and how to call it from a script.
+----------------------------------------------------------------------------
+
+--Key for a square in a set of squares, e.g. set[LocKey(loc)] = true.
+--- @param loc Loc
+--- @return string
+local function LocKey(loc)
+    return string.format("%d,%d", loc.x, loc.y)
+end
+
+--True if tok, standing at loc, would cover any square in the set (keyed by LocKey).
+--- @param tok CharacterToken
+--- @param loc Loc
+--- @param set table<string, boolean>
+--- @return boolean
+local function FootprintTouches(tok, loc, set)
+    for _, occLoc in ipairs(tok:LocsOccupyingWhenAt(loc) or {}) do
+        if set[LocKey(occLoc)] then
+            return true
+        end
+    end
+    return false
+end
+
+--Adds every square tok would cover at loc to the set, e.g. to reserve a landing spot.
+--- @param tok CharacterToken
+--- @param loc Loc
+--- @param set table<string, boolean>
+local function ClaimFootprint(tok, loc, set)
+    for _, occLoc in ipairs(tok:LocsOccupyingWhenAt(loc) or {}) do
+        set[LocKey(occLoc)] = true
+    end
+end
+
+--True if tok can be slid in a straight line to loc: the engine stops the path at walls.
+--- @param tok CharacterToken
+--- @param loc Loc
+--- @return boolean
+local function CanSlideStraightTo(tok, loc)
+    local info = tok:MarkMovementArrow(loc, { straightline = true, ignorecreatures = true })
+    tok:ClearMovementArrow()
+    if info == nil or info.path == nil then
+        return false
+    end
+    local dest = info.path.destination
+    return dest ~= nil and dest.x == loc.x and dest.y == loc.y
+end
+
+--/castprompt <text> shows the bottom-centre cast prompt, /castprompt alone hides it.
+--Broadcast it so every player can see why a cast is paused. It hides itself after
+--15 seconds unless re-sent, so a crashed caster cannot leave it stuck.
+local g_castPromptSerial = 0
+--Other features (summon choices, "Operating X [Stop]") use the same prompt, so only hide one this macro put up.
+local g_castPromptShown = false
+Commands.RegisterMacro{
+    name = "castprompt",
+    summary = "show a cast prompt",
+    doc = "Usage: /castprompt <text>\nShows the cast prompt text; no text hides it.",
+    command = function(str)
+        g_castPromptSerial = g_castPromptSerial + 1
+        local serial = g_castPromptSerial
+        local actionBar = rawget(_G, "DrawSteelActionBar")
+        if actionBar == nil then
+            return
+        end
+        if str == nil or str == "" then
+            if g_castPromptShown then
+                actionBar.ShowCastPrompt(nil)
+            end
+            g_castPromptShown = false
+            return
+        end
+        g_castPromptShown = actionBar.ShowCastPrompt(str) == true
+        dmhub.Schedule(15, function()
+            if (not mod.unloaded) and serial == g_castPromptSerial and g_castPromptShown then
+                g_castPromptShown = false
+                actionBar.ShowCastPrompt(nil)
+            end
+        end)
+    end,
+}
+
+--Shows text as the cast prompt on every client; nil or "" hides it.
+--- @param text nil|string
+local function BroadcastCastPrompt(text)
+    local command = "castprompt " .. (text or "")
+    dmhub.Execute(command)
+    dmhub.Broadcast("map", command)
+end
+
+--- Helpers a Lua Script ability behavior can call, e.g. to push creatures aside.
+--- From a script: local helpers = RelocateHelpers, then helpers.NearestFreeLocs(...).
+--- ChooseTransitDestination and WaitForNextGameUpdate pause until the game responds, so
+--- call them from the script itself (which runs as a coroutine), not from a scheduled callback.
+---
+--- Sets of squares: build them with ClaimFootprint, test them with FootprintTouches.
+---   local lane = {}
+---   helpers.ClaimFootprint(casterToken, casterToken.loc, lane)
+---   if helpers.FootprintTouches(tok, tok.loc, lane) then ... end
+---
+---   LocKey(loc) -> "x,y"                            key for a square in such a set
+---   FootprintTouches(tok, loc, set) -> bool         would tok, standing at loc, cover a square in set?
+---   ClaimFootprint(tok, loc, set)                   add every square tok covers at loc to set
+---   CanSlideStraightTo(tok, loc) -> bool            can tok move to loc in a straight line with no wall?
+---                                                   (briefly draws, then clears, tok's movement arrow)
+---   LocIsFreeForToken(tok, loc) -> bool             is loc on the map with no other token in tok's footprint?
+---   NearestFreeLocs(tok, fromLoc, radius, accept?) -> Loc[]
+---                                                   the closest free squares (all ties); accept filters them
+---   ChooseTransitDestination(tok, locs, symbols, chooserToken?, {name=, prompt=}?) -> Loc|nil
+---                                                   chooserToken's player (tok's by default) picks one of locs on the map
+---   FreeMoveOntoSquare(tok, loc)                    move tok straight to loc for free (counts as forced, passes
+---                                                   through creatures, teleports if the move is refused)
+---   WaitForNextGameUpdate()                         pause until the game has applied recent moves
+---   BroadcastCastPrompt(text)                       show text at the bottom of every player's screen; nil hides it
+RelocateHelpers = {
+    LocKey = LocKey,
+    FootprintTouches = FootprintTouches,
+    ClaimFootprint = ClaimFootprint,
+    CanSlideStraightTo = CanSlideStraightTo,
+    LocIsFreeForToken = LocIsFreeForToken,
+    NearestFreeLocs = NearestFreeLocs,
+    ChooseTransitDestination = ChooseTransitDestination,
+    FreeMoveOntoSquare = FreeMoveOntoSquare,
+    WaitForNextGameUpdate = WaitForNextGameUpdate,
+    BroadcastCastPrompt = BroadcastCastPrompt,
+}

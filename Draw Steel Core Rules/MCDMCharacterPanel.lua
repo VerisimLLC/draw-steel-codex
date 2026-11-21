@@ -44,6 +44,66 @@ function TacPanel.IsReadOnly(element)
     return element:HasClass("readonly") or element:FindParentWithClass("readonly") ~= nil
 end
 
+--- True when the movement controls (the altitude + / -) may move this token.
+--- A player always moves a token they control, even in a read-only panel:
+--- Encounter of the Week shows every hero's panel read-only, and without
+--- this a hero with Wings had no way to take off. Elsewhere a read-only
+--- panel only ever shows tokens the local player can't control.
+--- @param element Panel
+--- @param token nil|CharacterToken
+--- @return boolean
+function TacPanel.CanMoveToken(element, token)
+    if token == nil or not token.valid then
+        return false
+    end
+    return token.canControl or not TacPanel.IsReadOnly(element)
+end
+
+--- The move type for a voluntary step up or down by a creature that can fly.
+--- A creature that may only fly horizontally (the levitation from the Ghost's
+--- Spirited Away) has to climb instead. With nothing to climb, the step is
+--- refused: a note floats over the token and nil is returned.
+--- @param token CharacterToken
+--- @return nil|string
+function TacPanel.VerticalFlightMoveTypeOrWarn(token)
+    if token.properties:CanFlyVertically() then
+        return "fly"
+    end
+    if token.canCurrentlyClimb then
+        return "climb"
+    end
+    token.properties:FloatLabel("Can only fly horizontally", "#ff8822ff")
+    return nil
+end
+
+--Alt+Up / Alt+Down fly any creature that can fly; send them through the same
+--check as the +/- buttons. Lua reloads don't reset these commands, so the
+--engine originals are kept in a global and only ever wrapped once.
+local g_engineFlyCommands = rawget(_G, "g_engineFlyCommands")
+if g_engineFlyCommands == nil then
+    g_engineFlyCommands = { flyup = rawget(Commands, "flyup"), flydown = rawget(Commands, "flydown") }
+    rawset(_G, "g_engineFlyCommands", g_engineFlyCommands)
+end
+
+for name, engineCommand in pairs(g_engineFlyCommands) do
+    Commands[name] = function(...)
+        local token = dmhub.currentToken
+        if token ~= nil and token.valid and token.properties ~= nil and token.properties:CanFly() then
+            local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+            if moveType == nil then
+                return
+            end
+            if moveType == "climb" then
+                --The engine command would switch the creature back to flying.
+                token.properties:SetAndUploadCurrentMoveType("climb")
+                token:MoveVertical(token.floorAltitude + (name == "flyup" and 1 or -1))
+                return
+            end
+        end
+        return engineCommand(...)
+    end
+end
+
 local TacPanelSizes = {}
 
 TacPanelSizes.Panels = {
@@ -2832,6 +2892,23 @@ local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
 * You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.
 ]]
 
+--- The Hero Tokens rules and the party's recent changes, as the Hero Tokens
+--- box shows them on hover; for other surfaces that show hero tokens (the
+--- EotW hero card's back).
+--- @param creature any
+--- @return string
+function TacPanel.HeroTokenTooltipText(creature)
+    local text = HERO_TOKEN_TOOLTIP
+    local history = creature:GetHeroTokenHistory()
+    if history ~= nil and #history > 0 then
+        text = text .. "\n<b>Recent Changes:</b>"
+        for _,entry in ipairs(history) do
+            text = string.format("%s\n%s: %d by %s %s", text, entry.note, entry.value, entry.who, entry.when)
+        end
+    end
+    return text
+end
+
 --- Build a linger handler that shows an attribute's base value and each
 --- modification in a tooltip.
 --- @param tokenInfo table Holds the live `.token`
@@ -2988,7 +3065,7 @@ function TacPanel.Portrait()
                 if portrait.hasSpineAnimation or (portrait ~= token.portrait and not token.popoutPortrait) then
                     element.selfStyle.imageRect = nil
                 else
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    element.selfStyle.imageRect = CardPortraitRect(token, Styles.portraitWidthPercentOfHeight*0.01, portrait)
                 end
             end,
         },
@@ -3966,6 +4043,9 @@ local function KitStatsTooltip(kit)
     end
     return string.format("%s\n%s", name, string.join(lines, "\n"))
 end
+
+--for other surfaces that show a hero's kit (the EotW hero card's back).
+TacPanel.KitStatsTooltip = KitStatsTooltip
 
 --- The identity strip: name, class and subclass against level, ancestry and
 --- kit (monsters: type and keywords against EV, level/role, size and free
@@ -5135,7 +5215,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetCurrentHitpoints(value)
+                        token.properties:SetStaminaDirect(value)
                     end,
                 }
             end
@@ -5971,20 +6051,34 @@ function TacPanel.AltitudeBox()
                 classes = {"altitude-btn-stack"},
                 floating = true,
                 halign = "right",
+                --editOnly (hidden in a read-only panel) only for tokens the
+                --player can't control: see TacPanel.CanMoveToken.
+                refreshCharacter = function(element, token)
+                    local canControl = token ~= nil and token.valid and token.canControl
+                    element:SetClass("editOnly", not canControl)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "+",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
                             --a diver swims up toward the surface; only at the surface can it take off.
                             local diving = token.properties:CurrentMoveType() == "swim" and token.distanceBelowGround > 0
                             if diving then
                                 --swim up.
                             elseif token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
@@ -6004,27 +6098,43 @@ function TacPanel.AltitudeBox()
                     end,
                 },
                 gui.Label{
-                    classes = {"altitude-btn-sep", "editOnly"},
+                    classes = {"altitude-btn-sep"},
                     text = "/",
                 },
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "-",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
+                            local burrowingDown = false
                             if token.properties:CurrentMoveType() == "swim" then
                                 --in the water, down is a dive (the engine stops it at the bed).
                             elseif token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
                                 token.properties:SetAndUploadCurrentMoveType("burrow")
+                                burrowingDown = true
                             end
-                            token:MoveVertical(token.floorAltitude - 1)
+                            local targetAltitude = token.floorAltitude - 1
+                            if burrowingDown and token.properties:CalculateNamedCustomAttribute("Cannot Drag Underground") > 0 then
+                                --can't drag grabbed creatures underground: let go first (this
+                                --waits a game update, hence the coroutine), then dig.
+                                dmhub.Coroutine(function()
+                                    ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+                                    if token.valid then
+                                        token:MoveVertical(targetAltitude)
+                                    end
+                                end)
+                            else
+                                token:MoveVertical(targetAltitude)
+                            end
                         end
                     end,
                     refreshCharacter = function(element, token)
@@ -8050,6 +8160,23 @@ function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end
 
+--- Every registered heroic-resource display, ordered by `ord`, for other
+--- surfaces that show them (the EotW hero card's resource tab).
+--- @return {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean}[]
+function TacPanel.GetHeroicResourceDisplays()
+    local result = {}
+    for _, entry in pairs(g_heroicResourceDisplays) do
+        result[#result+1] = entry
+    end
+    table.sort(result, function(a, b)
+        if (a.ord or 0) ~= (b.ord or 0) then
+            return (a.ord or 0) < (b.ord or 0)
+        end
+        return a.id < b.id
+    end)
+    return result
+end
+
 TacPanel.RegisterHeroicResourceDisplay{
     id = "victories",
     create = TacPanel.VictoriesBox,
@@ -8598,7 +8725,7 @@ local function KnownLanguages(creature)
             languages[#languages + 1] = language
         end
     end
-    table.sort(languages, function(a, b) return a.name < b.name end)
+    table.sort(languages, function(a, b) return a:DisplayName() < b:DisplayName() end)
     return languages
 end
 
@@ -8702,8 +8829,9 @@ function TacPanel.SkillLanguages()
 
                 -- Languages
                 local names = {}
-                for _, language in ipairs(KnownLanguages(creature)) do
-                    names[#names + 1] = language.name
+                local knownLanguages = KnownLanguages(creature)
+                for _, language in ipairs(knownLanguages) do
+                    names[#names + 1] = language:DisplayName()
                 end
                 if #names > 0 then
                     --The prefix now carries the labelling for monsters too:
@@ -8715,6 +8843,7 @@ function TacPanel.SkillLanguages()
                         textWrap = true,
                         markdown = true,
                         text = ThemeEngine.ResolveTokens(text),
+                        hover = Language.ListTooltipHover(knownLanguages),
                     }
                 end
                 element.children = children
@@ -10743,9 +10872,13 @@ function TacPanel.ConditionsRow()
                 children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
             end
 
+            --One chip per aura name: several casters (e.g. each wyvern's Tenacious Hunter) would repeat it.
+            local seenAuraKeys = {}
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then
+                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then
+                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -11402,7 +11535,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetCurrentHitpoints(n)
+                                    token.properties:SetStaminaDirect(n)
                                 end,
                             }
                         end
@@ -12921,8 +13054,11 @@ function TacPanel.Conditions()
 
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
+            local seenAuraKeys = {}
             for _, auraInfo in ipairs(aurasTouching) do
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then --we'll see our own auras because we emit them.
+                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then --we'll see our own auras because we emit them.
+                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -13713,7 +13849,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 
                 refreshCharacter = function(element, token)
                     m_token = token
-                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and token.properties.typeName ~= "AnimalCompanion"))
+                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and not token.properties:IsCompanion()))
                 end,
 
                 gui.Label{

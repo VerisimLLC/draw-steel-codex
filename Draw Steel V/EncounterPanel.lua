@@ -94,6 +94,7 @@ Encounter = RegisterGameType('Encounter')
 --- @class EncounterFolder: GameType
 --- @field new fun(o?: table): EncounterFolder
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field hidden? boolean True once the folder is deleted (unhidden_pairs skips it).
 EncounterFolder = RegisterGameType('EncounterFolder')
 
 EncounterFolder.tableName = 'encounterfolders'
@@ -495,7 +496,8 @@ local function BankedPositionQueues(group)
     local locs = group.spawnlocs or {}
     for slot = 1, #locs do
         local entry = {
-            loc = locs[slot],
+            --back on the floor it was saved on, in case the map's floors changed since.
+            loc = Encounter.LocOnSavedFloor(locs[slot], (group.spawnfloors or {})[slot]),
             appearance = (group.appearances or {})[slot],
             invisible = (group.invisibleToPlayers or {})[slot],
             hidden = (group.startsHidden or {})[slot],
@@ -540,6 +542,7 @@ local function BankGroupPositions(group, saveAppearances)
         return tokens
     end
     group.spawnlocs = {}
+    group.spawnfloors = {}
     group.appearances = {}
     group.invisibleToPlayers = {}
     group.startsHidden = {}
@@ -547,6 +550,9 @@ local function BankGroupPositions(group, saveAppearances)
     group.stagemapid = game.currentMapId
     for slot, token in ipairs(tokens) do
         group.spawnlocs[slot] = token.loc
+        --which floor that is, by id: the loc's floor number alone goes stale
+        --when the map's floors change.
+        group.spawnfloors[slot] = Encounter.StampSavedFloor(token.loc)
         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
         --a monster staged with the Hidden condition starts every run hidden.
         group.startsHidden[slot] = token.properties:IsHidden()
@@ -625,6 +631,7 @@ end
 --Forget a group's saved staging: positions, appearances, visibility, mounts.
 local function ClearGroupStaging(group)
     group.spawnlocs = nil
+    group.spawnfloors = nil
     group.appearances = nil
     group.invisibleToPlayers = nil
     group.startsHidden = nil
@@ -1632,7 +1639,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
         data = { tip = "" },
         refreshBuilder = function(element)
             element.data.tip = string.format(
-                "Keep the encounter as it is for %d heroes and rebuild the balancing for every other party size (3-7) to match its difficulty: whole groups are removed from the highest lettered down for smaller parties, and new groups of the same monster types are added for larger ones.",
+                "Keep the encounter as it is for %d heroes and rebuild the balancing for every other party size (3-7) to match its difficulty: whole groups are removed from the highest lettered down for smaller parties, and new groups of the same monster types are added for larger ones. Reinforcement waves are scaled separately, in proportion to the party size, and always keep at least one group. Minion squads may then gain or lose up to two minions each to get closer.",
                 party.numHeroes)
         end,
         create = function(element)
@@ -1648,6 +1655,9 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                 local entry = summary[n]
                 if entry ~= nil then
                     lines[#lines + 1] = string.format("%d heroes: %d EV (target %d), %d groups", n, entry.ev, entry.target, entry.groups)
+                    for _, wave in ipairs(entry.waves or {}) do
+                        lines[#lines + 1] = string.format("    %s: %d EV (target %d), %d groups", wave.name, wave.ev, round(wave.target), wave.groups)
+                    end
                 end
             end
             print("Encounter rebalanced:\n" .. table.concat(lines, "\n"))
@@ -2792,8 +2802,10 @@ local function CreateGroupCard(args)
             end,
         }
 
-        --minions spawn in squads; once there are 8+ the DM can cycle the
-        --squad size (4/8/12/...) which wave deployment and spawn honor.
+        --minions spawn in squads (Encounter.MinionSquadCount); once there are
+        --8+ the DM can cycle the squad size (4/8/12/...) which wave
+        --deployment and spawn honor. Shown whenever there is more than one
+        --squad, since 6 or 7 minions now make two.
         local squadSizeLabel = nil
         if info.minion then
             squadSizeLabel = gui.Label {
@@ -2813,7 +2825,7 @@ local function CreateGroupCard(args)
                 end,
                 refreshBuilder = function(element)
                     local quantity = group.monsters[monsterid] or 0
-                    if quantity < 8 then
+                    if quantity < 8 and Encounter.MinionSquadCount(quantity, group.squadSize) < 2 then
                         element:SetClass("hidden", true)
                         return
                     end
@@ -3338,6 +3350,7 @@ local function CreateGroupCard(args)
                         --original group; the copy starts unplaced.
                         copy.placementid = nil
                         copy.spawnlocs = nil
+                        copy.spawnfloors = nil
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
                         copy.startsHidden = nil
@@ -4536,6 +4549,8 @@ end
 --The MapTools id the builder's rectangle tool claims (DMHub Core UI/MapToolArbiter.lua).
 local AREA_TOOL_ID = "encounterarea"
 local START_ZONE_EDIT_COLOR = "#79d2a0"
+local RETREAT_ZONE_EDIT_COLOR = "#e0a15a"
+local STRAGGLER_ZONE_EDIT_COLOR = "#b48ce0"
 
 --The tiles a closed rectangle stroke covers: those whose centers it contains
 --(tile (x, y) is centred on world (x, y)). A click-sized stroke gives the tile
@@ -4578,17 +4593,70 @@ end
 --The region shrinks the map's bounds during combat, and the start zone confines
 --the heroes until combat starts: see "Encounter region and hero start zone" in
 --MCDMEncounter.lua.
+--Script zones (SCRIPT_ZONES below) get a badge once the encounter has a
+--script that uses them, or already has their tiles: the Retreat Zone (the
+--Retreat built-in) and the Stragglers Zone (Monsters Fled from Last Fight).
 local function CreateEncounterAreaBadges(encounter, refresh)
     local column
 
-    --nil, "region" (one rectangle, then done) or "start" (rectangles add
-    --tiles until the badge is pressed again).
+    --nil, "region" (one rectangle, then done), "start" or a script zone's
+    --mode (rectangles add tiles until the badge is pressed again).
     local drawing = nil
 
     local startMarker = nil
     local startMarkerKey = nil
     --bumped by every start zone edit, so the outline is rebuilt.
     local startVersion = 0
+
+    --Zones an attached Encounter Script asks the author to draw, each kept
+    --like the start zone ({x, y, floor} tiles on the encounter). `defField`
+    --is the script definition field that asks for it. Each also gets
+    --marker/markerKey/version at run time.
+    local scriptZones = {
+        {
+            mode = "retreat",
+            defField = "retreat",
+            color = RETREAT_ZONE_EDIT_COLOR,
+            get = function() return encounter:GetRetreatLocs() end,
+            set = function(locs) encounter:SetRetreatLocs(locs) end,
+            none = "No Retreat Zone",
+            label = "Retreat Zone",
+            drawingTip = "Drag rectangles on the map to add the tiles retreating monsters run to. Click when you are done.",
+            emptyTip = "Click, then drag rectangles on the map to mark where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map.",
+            tip = "Where monsters run to when this encounter's Retreat script makes them retreat. A monster that reaches it leaves the map. Click to add more tiles.",
+            clearTip = "Clear the Retreat Zone.",
+        },
+        {
+            mode = "stragglers",
+            defField = "stragglers",
+            color = STRAGGLER_ZONE_EDIT_COLOR,
+            get = function() return encounter:GetStragglerLocs() end,
+            set = function(locs) encounter:SetStragglerLocs(locs) end,
+            none = "No Stragglers Zone",
+            label = "Stragglers Zone",
+            drawingTip = "Drag rectangles on the map to add the tiles where monsters that fled the last fight appear. Click when you are done.",
+            emptyTip = "Click, then drag rectangles on the map to mark where the monsters that fled the last fight appear when this fight starts.",
+            tip = "Where the monsters that fled the last fight appear when this fight starts. Click to add more tiles.",
+            clearTip = "Clear the Stragglers Zone.",
+        },
+    }
+    local scriptZoneByMode = {}
+    for _, zone in ipairs(scriptZones) do
+        zone.version = 0
+        scriptZoneByMode[zone.mode] = zone
+    end
+
+    --does an attached script ask for this zone?
+    local function HasZoneScript(zone)
+        for _, instance in ipairs(encounter:GetScripts()) do
+            local def = nil
+            pcall(function() def = instance:GetDefinition() end)
+            if def ~= nil and def[zone.defField] ~= nil then
+                return true
+            end
+        end
+        return false
+    end
 
     local function OnEncounterMap()
         return encounter.mapid ~= "" and encounter.mapid == game.currentMapId
@@ -4629,6 +4697,38 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         startMarkerKey = nil
     end
 
+    local function ClearZoneMarker(zone)
+        if zone.marker ~= nil then
+            local marker = zone.marker
+            pcall(function() marker:Destroy() end)
+            zone.marker = nil
+        end
+        zone.markerKey = nil
+    end
+
+    local function UpdateZoneMarker(zone, floorCount)
+        local zoneLocs = zone.get()
+        local key = nil
+        if OnEncounterMap() and #zoneLocs > 0 then
+            key = string.format("%s|%d|%d", encounter.mapid, zone.version, floorCount)
+        end
+        if key == zone.markerKey then
+            return
+        end
+        ClearZoneMarker(zone)
+        if key == nil then
+            return
+        end
+        zone.markerKey = key
+        local locs = Encounter.StartLocsOnCurrentMap(zoneLocs)
+        if #locs > 0 then
+            zone.marker = dmhub.MarkLocs {
+                locs = locs,
+                color = zone.color,
+            }
+        end
+    end
+
     --the desaturated surround and the start zone outline, kept matching the
     --encounter and whatever map is on screen.
     local function UpdateMapVisuals()
@@ -4648,6 +4748,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         local startLocs = encounter:GetHeroStartLocs()
         local floorCount = 0
         pcall(function() floorCount = #game.currentMap.floors end)
+        for _, zone in ipairs(scriptZones) do
+            UpdateZoneMarker(zone, floorCount)
+        end
         local key = nil
         if OnEncounterMap() and #startLocs > 0 then
             key = string.format("%s|%d|%d", encounter.mapid, startVersion, floorCount)
@@ -4695,7 +4798,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         refresh()
     end
 
-    local function DrawStartTiles(x1, y1, x2, y2)
+    --adds a rectangle of tiles on the current floor to the start zone, or
+    --to a script zone (an entry of scriptZones).
+    local function DrawStartTiles(x1, y1, x2, y2, zone)
         local floor = game.currentFloor
         if floor == nil then
             return
@@ -4704,7 +4809,11 @@ local function CreateEncounterAreaBadges(encounter, refresh)
 
         local locs = {}
         local seen = {}
-        for _, l in ipairs(encounter:GetHeroStartLocs()) do
+        local existing = encounter:GetHeroStartLocs()
+        if zone ~= nil then
+            existing = zone.get()
+        end
+        for _, l in ipairs(existing) do
             local k = string.format("%s:%d:%d", l.floor, l.x, l.y)
             if not seen[k] then
                 seen[k] = true
@@ -4721,8 +4830,13 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             end
         end
 
-        encounter:SetHeroStartLocs(locs)
-        startVersion = startVersion + 1
+        if zone ~= nil then
+            zone.set(locs)
+            zone.version = zone.version + 1
+        else
+            encounter:SetHeroStartLocs(locs)
+            startVersion = startVersion + 1
+        end
         refresh()
     end
 
@@ -4847,6 +4961,82 @@ local function CreateEncounterAreaBadges(encounter, refresh)
         end,
     }
 
+    --one script zone's row: its badge (draw / done) and its clear button,
+    --collapsed until a script asks for the zone or it has tiles.
+    local function ScriptZoneRow(zone)
+        local badge = gui.Label {
+            classes = { "encounterBadge", "encounterAreaBadge" },
+            width = "100%-22",
+            height = "auto",
+            textAlignment = "center",
+            text = "",
+
+            refreshBuilder = function(element)
+                local count = #zone.get()
+                element:SetClass("drawing", drawing == zone.mode)
+                if drawing == zone.mode then
+                    element.text = "Done Drawing"
+                elseif count == 0 then
+                    element.text = zone.none
+                else
+                    element.text = string.format("%s: %d %s", zone.label, count, cond(count == 1, "tile", "tiles"))
+                end
+            end,
+
+            hover = function(element)
+                local text
+                if drawing == zone.mode then
+                    text = zone.drawingTip
+                elseif #zone.get() == 0 then
+                    text = zone.emptyTip
+                else
+                    text = zone.tip
+                end
+                gui.Tooltip(text)(element)
+            end,
+
+            press = function(element)
+                if drawing == zone.mode then
+                    StopDrawing()
+                    refresh()
+                else
+                    StartDrawing(zone.mode)
+                end
+            end,
+        }
+
+        local clear = gui.DeleteItemButton {
+            width = 16,
+            height = 16,
+            valign = "center",
+            lmargin = 6,
+            hover = gui.Tooltip(zone.clearTip),
+            refreshBuilder = function(element)
+                element:SetClass("hidden", #zone.get() == 0)
+            end,
+            click = function(element)
+                zone.set(nil)
+                zone.version = zone.version + 1
+                if drawing == zone.mode then
+                    StopDrawing()
+                end
+                refresh()
+            end,
+        }
+
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            refreshBuilder = function(element)
+                element:SetClass("collapsed", #zone.get() == 0 and drawing ~= zone.mode and not HasZoneScript(zone))
+            end,
+            badge,
+            clear,
+        }
+    end
+
     column = gui.Panel {
         width = MAP_CARD_WIDTH,
         height = "auto",
@@ -4875,6 +5065,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             StopDrawing()
             MapTools.Unregister(AREA_TOOL_ID)
             ClearStartMarker()
+            for _, zone in ipairs(scriptZones) do
+                ClearZoneMarker(zone)
+            end
             dmhub.SetMapFocusRegion(nil)
         end,
 
@@ -4907,7 +5100,7 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             if drawing == "region" then
                 DrawRegion(x1, y1, x2, y2)
             else
-                DrawStartTiles(x1, y1, x2, y2)
+                DrawStartTiles(x1, y1, x2, y2, scriptZoneByMode[drawing])
             end
         end,
 
@@ -4930,6 +5123,9 @@ local function CreateEncounterAreaBadges(encounter, refresh)
             startBadge,
             startClear,
         },
+
+        ScriptZoneRow(scriptZones[1]),
+        ScriptZoneRow(scriptZones[2]),
     }
 
     return column
@@ -4959,9 +5155,10 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
         local monsterAsset = assets.monsters[monsterid]
         if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
             minionName = monsterAsset.properties.monster_type
-            if quantity >= 8 then
-                nsquads = math.ceil(quantity / (group.squadSize or 4))
-            end
+            --count squads from the quantity actually spawned below (balancing
+            --deltas and party size applied), never fewer than one.
+            quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+            nsquads = math.max(1, Encounter.MinionSquadCount(quantity, group.squadSize))
             break
         end
     end
@@ -7654,6 +7851,136 @@ CreateEncounterPanel = function()
     --- @type table<string, boolean>
     local openDelveNodes = {}
 
+    --the same for the Director's own encounter folders, keyed by folder id.
+    --A folder not in openFolderNodes yet (e.g. just made) starts open.
+    --- @type table<string, Panel>
+    local folderNodes = {}
+    --- @type table<string, boolean>
+    local openFolderNodes = {}
+
+    --Drag-and-drop filing and ordering. A card dropped on a folder header goes
+    --to the end of that folder; dropped on one of the thin gaps between cards
+    --it is put there. Each gap remembers its folder and the encounter below it.
+
+    --Over the board (or the table, where the card becomes a map window) no
+    --list target counts: the engine picks drag targets by overlap, so a gap
+    --scrolled out of sight could otherwise catch a drop meant for the map.
+    local function DragIsOffPanel()
+        return dmhub.panelDropSurface ~= nil or Tabletop.MapRowOverTable()
+    end
+
+    --The folder an encounter shows under: "" (top level) when it has none or
+    --its folder has been deleted.
+    --- @param encounter Encounter
+    --- @param folders table<string, EncounterFolder>
+    --- @return string
+    local function EncounterFolderId(encounter, folders)
+        local id = encounter.folderid
+        if id ~= "" then
+            local folder = folders[id]
+            if folder ~= nil and not folder:try_get("hidden") then
+                return id
+            end
+        end
+        return ""
+    end
+
+    --- @param a Encounter
+    --- @param b Encounter
+    local function CompareEncounters(a, b)
+        if a.ord ~= b.ord then
+            return a.ord < b.ord
+        end
+        local an = string.lower(a.name or "")
+        local bn = string.lower(b.name or "")
+        if an ~= bn then
+            return an < bn
+        end
+        return a.id < b.id
+    end
+
+    --The encounters listed in one folder, in display order. Book encounters
+    --at the top level are not in the top-level list: they show under Delves.
+    --- @param folderid string
+    --- @return Encounter[]
+    local function ListMembers(folderid)
+        local folders = dmhub.GetTable(EncounterFolder.tableName) or {}
+        local result = {}
+        for _, enc in unhidden_pairs(dmhub.GetTable(Encounter.tableName) or {}) do
+            if EncounterFolderId(enc, folders) == folderid and (folderid ~= "" or enc:GetBookInfo() == nil) then
+                result[#result + 1] = enc
+            end
+        end
+        table.sort(result, CompareEncounters)
+        return result
+    end
+
+    --Files an encounter under folderid, just before the encounter beforeid
+    --(nil = at the end), and renumbers that list so the order sticks. Only
+    --the rows whose folder or place changed are uploaded.
+    --- @param encounter Encounter
+    --- @param folderid string
+    --- @param beforeid string|nil
+    local function MoveEncounter(encounter, folderid, beforeid)
+        if beforeid == encounter.id then
+            return
+        end
+        local list = {}
+        local placed = false
+        for _, enc in ipairs(ListMembers(folderid)) do
+            if enc.id ~= encounter.id then
+                if enc.id == beforeid then
+                    list[#list + 1] = encounter
+                    placed = true
+                end
+                list[#list + 1] = enc
+            end
+        end
+        if not placed then
+            list[#list + 1] = encounter
+        end
+        for i, enc in ipairs(list) do
+            if enc.ord ~= i or enc.folderid ~= folderid then
+                enc.ord = i
+                enc.folderid = folderid
+                dmhub.SetAndUploadTableItem(Encounter.tableName, enc)
+            end
+        end
+    end
+
+    --A drop point between two cards (beforeid = the card below it), or after
+    --the last card in a list (beforeid = nil). It is the whole space between
+    --the cards so the mouse can land on it; the bar inside lights up on hover.
+    --- @param folderid string
+    --- @param beforeid string|nil
+    --- @return Panel
+    local function DropGap(folderid, beforeid)
+        return gui.Panel {
+            classes = { "encounterDropGap" },
+            dragTarget = true,
+            data = { folderid = folderid, beforeid = beforeid },
+            gui.Panel {
+                classes = { "encounterDropBar" },
+                interactable = false,
+            },
+        }
+    end
+
+    --A list's cards, sorted, with a drop gap above each and one at the end.
+    --- @param entries {encounter: Encounter, card: Panel}[]
+    --- @param folderid string
+    --- @return Panel[]
+    local function CardsWithGaps(entries, folderid)
+        table.sort(entries, function(a, b) return CompareEncounters(a.encounter, b.encounter) end)
+        local result = {}
+        for _, entry in ipairs(entries) do
+            result[#result + 1] = DropGap(folderid, entry.encounter.id)
+            result[#result + 1] = entry.card
+        end
+        result[#result + 1] = DropGap(folderid, nil)
+        return result
+    end
+
     --monsters dragged off the map and dropped on the list become a new
     --encounter (Encounter.CreateFromTokens); minHeight keeps a drop zone when
     --the list is short or empty.
@@ -7664,6 +7991,33 @@ CreateEncounterPanel = function()
                 borderColor = "@accent",
                 borderWidth = 2,
                 cornerRadius = 4,
+            },
+            --drop gaps between cards: the gap itself stays clear (overriding
+            --the default drag-target fills, hence the priority) and its bar
+            --becomes an accent line where a dragged card will land.
+            {
+                selectors = { "encounterDropGap" },
+                bgimage = true,
+                bgcolor = "clear",
+                borderWidth = 0,
+                width = "90%",
+                halign = "left",
+                height = 16,
+                priority = 10,
+            },
+            {
+                selectors = { "encounterDropBar" },
+                bgimage = true,
+                bgcolor = "clear",
+                width = "100%",
+                height = 4,
+                valign = "center",
+                cornerRadius = 2,
+            },
+            {
+                selectors = { "encounterDropBar", "parent:drag-target-hover" },
+                bgcolor = "@accent",
+                priority = 10,
             },
         })
     end
@@ -7683,7 +8037,7 @@ CreateEncounterPanel = function()
 
         tokenDropTarget = true,
 
-        xrightClick = function(panel)
+        rightClick = function(panel)
             panel.popup = gui.ContextMenu {
                 entries = {
 
@@ -7727,35 +8081,23 @@ CreateEncounterPanel = function()
                 local children = {}
 
                 local encounters = dmhub.GetTable('encounters')
-                local encounterfolders = dmhub.GetTable('encounterfolders')
+                local encounterfolders = dmhub.GetTable('encounterfolders') or {}
 
                 local index = 1
 
-                for key, encounterfolder in unhidden_pairs(encounterfolders) do
-                    local folder = gui.TreeNode {
+                --cards by the folder they show in ("" = top level), built
+                --below and laid out once every card exists.
+                --- @type table<string, {encounter: Encounter, card: Panel}[]>
+                local folderCards = {}
+                --- @type {encounter: Encounter, card: Panel}[]
+                local rootCards = {}
 
-                        text = encounterfolder.name,
-                        width = "100%",
-                        editable = true,
-                        dragTarget = true,
-
-                        change = function(self, newname)
-                            encounterfolder.name = newname
-                            dmhub.SetAndUploadTableItem(encounterfolder.tableName, encounterfolder)
-                        end,
-
-                        contentPanel = gui.Panel {
-
-                            classes = { "bg" },
-                            height = 100,
-                            width = 100,
-                        }
-
-                    }
-
-                    children[index] = folder
-                    index = index + 1
+                for key, node in pairs(folderNodes) do
+                    if node.valid then
+                        openFolderNodes[key] = not node.data.isCollapsed()
+                    end
                 end
+                folderNodes = {}
 
                 --shipped book encounters (Encounter:GetBookInfo) go under a
                 --Delves section, grouped by delve, instead of the flat list.
@@ -7800,6 +8142,12 @@ CreateEncounterPanel = function()
 
                     --boss/headmonster code over
 
+                    --a card filed in a folder shows there, even a book one;
+                    --otherwise book encounters go under Delves.
+                    local folderid = EncounterFolderId(encounter, encounterfolders)
+                    local book = encounter:GetBookInfo()
+                    local inDelves = folderid == "" and book ~= nil
+
                     local card = gui.Panel {
 
                         classes = { "featureCard" },
@@ -7808,17 +8156,26 @@ CreateEncounterPanel = function()
                         halign = "left",
                         flow = "vertical",
                         pad = 1,
-                        vmargin = 8,
+                        --in a folder or the top-level list the drop gaps
+                        --between cards are the spacing.
+                        vmargin = cond(inDelves, 8, 0),
                         draggable = true,
 
-                        --The engine finds drag targets by rectangle overlap, so a
-                        --folder BEHIND a map window would catch a drop on the map:
-                        --over the board (panelDropSurface set) nothing else counts.
+                        --in the list it drops on a folder header (files it there)
+                        --or a gap between cards (puts it there). Only the one
+                        --under the mouse counts: the engine offers every target
+                        --the dragged card's rectangle overlaps, and a card is
+                        --tall enough to overlap several. See DragIsOffPanel for
+                        --why nothing counts over the board.
                         canDragOnto = function(self, target)
-                            if dmhub.panelDropSurface ~= nil then
+                            if DragIsOffPanel() or target == nil then
                                 return false
                             end
-                            return target ~= nil and target:HasClass("folder")
+                            if not (target:HasClass("encounterFolderDrop") or target:HasClass("encounterDropGap")) then
+                                return false
+                            end
+                            local under = dmhub.panelDropPanel
+                            return under ~= nil and (under == target or under:IsDescendantOf(target))
                         end,
 
                         --over the bare table the card turns into the encounter's
@@ -7866,6 +8223,17 @@ CreateEncounterPanel = function()
                         drag = function(self, target)
                             Tabletop.MapRowDragEnded(self)
                             if ChatItemLinks.Dropped() then
+                                return
+                            end
+                            --dropped in the list: refile or reorder it. A folder
+                            --header is the TreeNode's first child, so the folder
+                            --id is on its parent.
+                            if target ~= nil then
+                                if target:HasClass("encounterDropGap") then
+                                    MoveEncounter(encounter, target.data.folderid, target.data.beforeid)
+                                elseif target:HasClass("encounterFolderDrop") and target.parent ~= nil then
+                                    MoveEncounter(encounter, target.parent.data.folderid, nil)
+                                end
                                 return
                             end
                             local surface = dmhub.panelDropSurface
@@ -7987,16 +8355,16 @@ CreateEncounterPanel = function()
                                     --proportions rather than letting it stretch to
                                     --fill. The panel is a tall slice of the card, so
                                     --an uncropped portrait came out visibly squashed.
-                                    --GetPortraitRectForAspect wants width as a
-                                    --fraction of height, and lives on the token view
-                                    --of the asset (MonsterAsset.info), not on the
-                                    --asset itself. Measured from the rendered size so
+                                    --CardPortraitRect takes width as a fraction of
+                                    --height, and the token view of the asset
+                                    --(MonsterAsset.info), not the asset itself.
+                                    --Measured from the rendered size so
                                     --the crop stays right at any dock width.
                                     local token = mainmonster.info
                                     local w = panel.renderedWidth
                                     local h = panel.renderedHeight
                                     if token ~= nil and w ~= nil and h ~= nil and w > 0 and h > 0 then
-                                        panel.selfStyle.imageRect = token:GetPortraitRectForAspect(w/h, portrait)
+                                        panel.selfStyle.imageRect = CardPortraitRect(token, w/h, portrait)
                                     end
                                 end
 
@@ -8082,8 +8450,14 @@ CreateEncounterPanel = function()
 
                     }
 
-                    local book = encounter:GetBookInfo()
-                    if book ~= nil then
+                    if folderid ~= "" then
+                        local list = folderCards[folderid]
+                        if list == nil then
+                            list = {}
+                            folderCards[folderid] = list
+                        end
+                        list[#list + 1] = { encounter = encounter, card = card }
+                    elseif book ~= nil then
                         local delve = delves[book.delve]
                         if delve == nil then
                             delve = { name = book.delve, level = tonumber(book.level) or 0, cards = {} }
@@ -8092,9 +8466,79 @@ CreateEncounterPanel = function()
                         end
                         delve.cards[#delve.cards + 1] = { area = tostring(book.area or ""), name = encounter.name, card = card }
                     else
-                        children[index] = card
-                        index = index + 1
+                        rootCards[#rootCards + 1] = { encounter = encounter, card = card }
                     end
+                end
+
+                --the Director's folders first (by name), each holding its
+                --cards, then the top-level cards, then Delves.
+                --- @type {id: string, folder: EncounterFolder}[]
+                local folderList = {}
+                for key, encounterfolder in unhidden_pairs(encounterfolders) do
+                    folderList[#folderList + 1] = { id = key, folder = encounterfolder }
+                end
+                table.sort(folderList, function(a, b)
+                    local an = string.lower(a.folder.name or "")
+                    local bn = string.lower(b.folder.name or "")
+                    if an ~= bn then
+                        return an < bn
+                    end
+                    return a.id < b.id
+                end)
+
+                for _, entry in ipairs(folderList) do
+                    local folderid = entry.id
+                    local encounterfolder = entry.folder
+                    local node = gui.TreeNode {
+                        text = encounterfolder.name,
+                        width = "100%",
+                        editable = true,
+                        dragTarget = true,
+                        headerExtraClasses = { "encounterFolderDrop" },
+                        expanded = openFolderNodes[folderid] ~= false,
+                        data = { folderid = folderid },
+
+                        change = function(self, newname)
+                            encounterfolder.name = newname
+                            dmhub.SetAndUploadTableItem(EncounterFolder.tableName, encounterfolder)
+                        end,
+
+                        --deleting a folder keeps its encounters: they move
+                        --to the end of the top-level list.
+                        contextMenu = function(self)
+                            self.popup = gui.ContextMenu {
+                                entries = {
+                                    {
+                                        text = "Delete folder",
+                                        click = function()
+                                            self.popup = nil
+                                            for _, enc in ipairs(ListMembers(folderid)) do
+                                                MoveEncounter(enc, "", nil)
+                                            end
+                                            encounterfolder.hidden = true
+                                            dmhub.SetAndUploadTableItem(EncounterFolder.tableName, encounterfolder)
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+
+                        contentPanel = gui.Panel {
+                            width = "100%",
+                            height = "auto",
+                            flow = "vertical",
+                            lmargin = 12,
+                            children = CardsWithGaps(folderCards[folderid] or {}, folderid),
+                        },
+                    }
+                    folderNodes[folderid] = node
+                    children[index] = node
+                    index = index + 1
+                end
+
+                for _, child in ipairs(CardsWithGaps(rootCards, "")) do
+                    children[index] = child
+                    index = index + 1
                 end
 
                 if #delveList > 0 then

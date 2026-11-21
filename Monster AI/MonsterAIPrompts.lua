@@ -3,6 +3,16 @@ local mod = dmhub.GetModLoading()
 MonsterAI:RegisterPrompt{
     prompts = {"Shift"},
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local planned = MonsterAI.plannedShiftDestinations[casterToken.charid]
+        if planned ~= nil then
+            MonsterAI.plannedShiftDestinations[casterToken.charid] = nil
+            --Already standing on its square: the shift moves nowhere.
+            if ai:MovementTokenIsAtLoc(casterToken, planned) then
+                return {targets = {}}
+            end
+            return {targets = {{loc = planned}}}
+        end
+
         local range = abilityClone:GetRange(casterToken.properties)
         local paths = casterToken:CalculatePathfindingArea(range*10, {"shift"})
         local bestLoc = nil
@@ -96,7 +106,9 @@ local function FreeStrikeTargetScore(targetInfo)
 end
 
 --onlyTarget (optional) limits the plan to strikes against that one creature.
-local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
+--allowedTargets (optional, charid -> true) limits it to the creatures a
+--prompt_inherit invoke offers: the targets of the ability granting the strike.
+local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget, allowedTargets)
     --Death-triggered grants resolve before the creature is removed, so the
     --caster can already report dead while still being allowed this strike.
     if not AIControlledCreature(actor) then
@@ -136,6 +148,7 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
                 actor, scoringAbility, actor.loc, range)) do
                 local utility = FreeStrikeTargetScore(targetInfo)
                 if (onlyTarget == nil or targetInfo.token.charid == onlyTarget.charid)
+                    and (allowedTargets == nil or allowedTargets[targetInfo.token.charid])
                     and (best == nil or utility > best.utility) then
                     local activation = DeepCopy(ability)
                     activation.disableSquadCoordination = true
@@ -322,7 +335,10 @@ local function HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClon
         end
     end
 
-    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized)
+    --A grant that inherits its targets ("a free strike against one of the
+    --targets") sets allowedtargets; without this the ally could strike anyone.
+    local allowedTargets = symbols ~= nil and symbols.allowedtargets or nil
+    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized, nil, allowedTargets)
     if plan == nil then
         return {targets = {}}
     end
@@ -338,6 +354,26 @@ MonsterAI:RegisterPrompt{
     id = "Generic Free Strike",
     prompts = {"Free Strike", "Invoked Ability"},
     handler = HandleFreeStrikePrompt,
+}
+
+--A free strike a monster must aim at one creature (To the Death!'s target
+--striking the hero, SASGFH6V). The invoke writes that creature into each
+--synthesized strike's target filter, which the planner honors. With no strike
+--that reaches it, nil lets HandlePrompt skip the strike in directorless play;
+--an empty target list would still cast the chooser and prompt a person.
+MonsterAI:RegisterPrompt{
+    id = "Generic Free Strike Against Specific Target",
+    prompts = {"Free Strike Against Specific Target"},
+    --The monster makes this strike itself (To the Death! has it strike the hero),
+    --so the AI answers it even though a hero's ability raised the prompt.
+    answersForCaster = true,
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local result = HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if result ~= nil and result.abilityOverride == nil then
+            return nil
+        end
+        return result
+    end,
 }
 
 local verticalForcedMovementTypes = {
@@ -370,9 +406,10 @@ end
 --A vertical push/pull target carries an absolute altitude (the ability's own
 --calculator), and stays that way as the prompt's answer. Only the arrow probes
 --need it as height above the destination ground, which the engine expects.
-local function ArrowLoc(forcedMovement, loc)
+--moverToken is the creature being moved (the one the arrow is drawn for).
+local function ArrowLoc(moverToken, forcedMovement, loc)
     if verticalForcedMovementTypes[forcedMovement] then
-        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverToken.loc.altitude)
     end
     return loc
 end
@@ -412,7 +449,7 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     for _,testLoc in ipairs(shape.locations) do
         if filterTargetPredicate(testLoc) then
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -533,6 +570,99 @@ local function FindForceIntoLocation(invokerToken, casterToken, abilityClone, sy
     return bestLoc
 end
 
+--Answer a forced-move prompt with loc, showing the AI's arrow for a moment first.
+local function AnswerForcedMoveLoc(moverToken, loc, forcedMovement, range)
+    moverToken:MarkMovementArrow(ArrowLoc(moverToken, forcedMovement, loc), ForcedMovementArrowOptions(forcedMovement, range))
+    MonsterAI.Sleep(1)
+    moverToken:ClearMovementArrow()
+    return {
+        targets = {{loc = loc}},
+    }
+end
+
+--The undead object throws (Paranormal Fling, Paranormal Activity) aim at the
+--nearest enemy within 3 squares of the object.
+local objectMissileReach = 3
+
+--A slid object is a missile (Paranormal Fling, AME33M5U): aim it to hit an enemy
+--within reach, nearest first. The victim scoring below would rate a wall hit higher.
+--nil when no enemy is in reach or no line moves the object at all.
+local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPredicate)
+    local enemies = {}
+    for _,enemy in ipairs(ai.enemyTokens or {}) do
+        if MonsterAI.TokenIsLiveCombatant(enemy) and not enemy.isObject
+            and enemy:Distance(objectToken.loc) <= objectMissileReach then
+            enemies[#enemies+1] = enemy
+        end
+    end
+    if #enemies == 0 then
+        return nil
+    end
+    table.sort(enemies, function(a, b)
+        return a:Distance(objectToken.loc) < b:Distance(objectToken.loc)
+    end)
+    local enemyRank = {}
+    for i,enemy in ipairs(enemies) do
+        enemyRank[enemy.charid] = i
+    end
+
+    --Aim at every square of each enemy and its border; the arrow stops at the
+    --first creature in the way, so each line is scored by what it actually hits.
+    local candidates = {}
+    local seen = {}
+    for _,enemy in ipairs(enemies) do
+        for _,occupied in ipairs(enemy.locsOccupying) do
+            for dx = -1,1 do
+                for dy = -1,1 do
+                    local loc = occupied:dir(dx, dy):WithAltitude(0)
+                    if not seen[loc.str] and filterTargetPredicate(loc) then
+                        seen[loc.str] = true
+                        candidates[#candidates+1] = loc
+                    end
+                end
+            end
+        end
+    end
+
+    local bestLoc = nil
+    local bestScore = nil
+    for _,testLoc in ipairs(candidates) do
+        local movementInfo = objectToken:MarkMovementArrow(testLoc, ForcedMovementArrowOptions("slide", range))
+        if movementInfo ~= nil then
+            local destination = movementInfo.path.destination
+            if destination:DistanceInTiles(movementInfo.path.origin) > 0 then
+                local hitAlly = false
+                local hitRank = nil
+                for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                    local rank = enemyRank[collideToken.charid]
+                    if rank ~= nil then
+                        hitRank = math.min(hitRank or rank, rank)
+                    elseif not collideToken.isObject and collideToken:IsFriend(ai.token) then
+                        hitAlly = true
+                    end
+                end
+                --Never throw into an ally. Hitting the nearest enemy beats a farther one;
+                --a line that hits no one ends as close to the nearest enemy as it can.
+                if not hitAlly then
+                    local score
+                    if hitRank ~= nil then
+                        score = 1000 - hitRank
+                    else
+                        score = -enemies[1]:Distance(destination)
+                    end
+                    if bestScore == nil or score > bestScore then
+                        bestScore = score
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    objectToken:ClearMovementArrow()
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
@@ -564,6 +694,16 @@ MonsterAI:RegisterPrompt{
             return loc:WithAltitude(maxAltitude)
         end
 
+        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
+
+        --Before Force Into: that zone is for creatures, and would take a thrown object off its enemy.
+        if forcedMovement == "slide" and casterToken.isObject then
+            local missileLoc = FindObjectMissileLocation(ai, casterToken, range, filterTargetPredicate)
+            if missileLoc ~= nil then
+                return AnswerForcedMoveLoc(casterToken, missileLoc, forcedMovement, range)
+            end
+        end
+
         local forceIntoLoc = FindForceIntoLocation(invokerToken, casterToken, abilityClone,
             movementSymbols, range, forcedMovement)
         if forceIntoLoc ~= nil then
@@ -572,30 +712,17 @@ MonsterAI:RegisterPrompt{
                 to = ai.LocLogName(forceIntoLoc),
                 plan = forcedMovement,
             })
-            casterToken:MarkMovementArrow(forceIntoLoc, ForcedMovementArrowOptions(forcedMovement, range))
-            MonsterAI.Sleep(1)
-            casterToken:ClearMovementArrow()
-            return {
-                targets = {{loc = forceIntoLoc}},
-            }
+            return AnswerForcedMoveLoc(casterToken, forceIntoLoc, forcedMovement, range)
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
             local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
-                casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
-                MonsterAI.Sleep(1)
-                casterToken:ClearMovementArrow()
-                return {
-                    targets = {{loc = bestLoc}},
-                }
+                return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
             end
             return nil
         end
-
-        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
-
 
         --TODO: implement custom target shape for ai
         --local customLocs = abilityClone:CustomTargetShape(casterToken, range, symbols, {})
@@ -643,7 +770,7 @@ MonsterAI:RegisterPrompt{
         local bestAltitude = nil
         for _,testLoc in ipairs(possibleLocs) do
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -686,13 +813,7 @@ MonsterAI:RegisterPrompt{
         end
 
         if bestLoc ~= nil then
-            casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
-            MonsterAI.Sleep(1)
-            casterToken:ClearMovementArrow()
-
-            return {
-                targets = { {loc = bestLoc } }
-            }
+            return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
         end
     end,
 }
@@ -813,8 +934,10 @@ MonsterAI:RegisterPrompt{
             end
         end
 
+        --No legal second target: answer with no targets so the follow-up is
+        --skipped. HandlePrompt only accepts a table (or nil to ask the Director).
         if #possibleTokens == 0 then
-            return "skip"
+            return {targets = {}}
         end
 
         return {
@@ -1037,5 +1160,25 @@ MonsterAI:RegisterTrigger{
             reason = reason,
         })
         return decision
+    end,
+}
+
+--A Beastheart's Covering Fire puts Taking Fire on each target that is not
+--prone: a free triggered action to fall prone, or take extra damage equal to
+--twice the Beastheart's Intuition. It is offered to any creature the hero
+--shoots, so it is registered by its prompt text for every monster. The trigger
+--costs nothing, and prone is the very thing the shot is meant to force, so the
+--monster always ducks.
+MonsterAI:RegisterTrigger{
+    id = "Covering Fire: Fall Prone",
+    triggers = {"Taking Fire"},
+    description = "Fall prone when targeted by a Beastheart's Covering Fire, rather than take the extra damage.",
+    handler = function(ai, token, triggerInfo)
+        ai:LogDecision("TAKING FIRE", {
+            ability = triggerInfo:GetText(),
+            result = "activate",
+            reason = "falling prone avoids twice the Beastheart's Intuition in extra damage",
+        })
+        return {activate = true}
     end,
 }

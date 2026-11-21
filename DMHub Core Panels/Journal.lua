@@ -700,7 +700,7 @@ local function CreateCharacterRow(charid)
                 iconPanel.bgimage = portrait
                 iconPanel.selfStyle.bgcolor = "white"
                 pcall(function()
-                    iconPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(1, portrait)
+                    iconPanel.selfStyle.imageRect = CardPortraitRect(token, 1, portrait)
                 end)
             else
                 iconPanel.bgimage = "icons/standard/Icon_App_Character.png"
@@ -1222,9 +1222,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     elseif member.nodeType == "pdffragment" then
                                         chat.ShareData(member)
                                     elseif type(member) == "table" and member.IsDerivedFrom("CustomDocument") then
-                                        chat.ShareData(CustomDocumentRef.new {
-                                            docid = k
-                                        })
+                                        --the same card a puzzle or a drop on chat posts
+                                        ChatItemLinks.Send({ ChatItemLinks.DocItem(k) })
                                     else
                                         local imageWrapper = ImageDocument.new {
                                             imageid = k,

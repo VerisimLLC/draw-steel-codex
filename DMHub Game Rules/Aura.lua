@@ -32,6 +32,7 @@ local mod = dmhub.GetModLoading()
 --- @field climbersOnly? boolean With climbable, restricts climbing to natural climbers; read with try_get.
 --- @field stepped? boolean Stepped Terrain: a 1-square height change whose higher tile is in the area is a sharp step for forced movement, not a slope (AuraInstance:GetStepped); read with try_get.
 --- @field entryEffectRule? string Flat effect rule text applied to creatures entering or starting a turn in the area (Aura:GetSimpleEntryEffectTrigger); read with try_get.
+--- @field hideFromPlayers? boolean If true, only the Director sees this aura in aura-listing UI (chips, action bar). Distinct from AuraInstance.hiddenFromPlayers, which hides a Map Markup zone on the map. Set in data; read with try_get.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
 Aura.TriggerConditions = {
@@ -198,6 +199,7 @@ end
 --- @field spellcastingFeature? SpellcastingFeature Spellcasting feature of the ability that cast it, copied onto triggered abilities.
 --- @field persistenceId? string Guid of the caster's persistent ability this aura's lifetime follows; read with try_get.
 --- @field keywords? table<string, boolean> Keywords of the ability that cast this aura (e.g. {Fire = true, Magic = true}), passed with its move damage; read with try_get.
+--- @field anchorTokenId? string Token id of the creature an ability placed this aura around (a creature target with no chosen area), so a creature's own effects can find "the area around me" later (forcedmovementloc auraName); read with try_get.
 AuraInstance = RegisterGameType("AuraInstance")
 
 Aura.Flags = {
@@ -1885,7 +1887,23 @@ end
 
 --Whether aura-listing UI should skip this aura (see hideFromAuraLists).
 function AuraInstance:IsHiddenFromAuraLists()
-    return self:try_get("hideFromAuraLists", false) == true
+    if self:try_get("hideFromAuraLists", false) == true then
+        return true
+    end
+    --hideFromPlayers on the Aura definition: only the Director sees it in aura lists.
+    return (not dmhub.isDM) and self.aura:try_get("hideFromPlayers", false) == true
+end
+
+--Key used to merge identical aura chips (several casters giving the same aura, e.g. each
+--wyvern's Tenacious Hunter). Returns nil when merging is unsafe: no name, or the default
+--"Aura" name that every map-object aura shares.
+--- @return string|nil
+function AuraInstance:ChipDedupeKey()
+    local name = rawget(self, "name")
+    if name == nil or name == "" or name == Aura.name then
+        return nil
+    end
+    return name .. "|" .. tostring(self.aura:try_get("description", ""))
 end
 
 --- True when the aura's only effect is granting activated abilities to creatures in it
@@ -2392,7 +2410,7 @@ function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, option
                     shape = "RadiusFromCreature",
                     radius = 0,
                 }
-                self:CastOnArea(ability,casterToken, targets, options, shape)
+                self:CastOnArea(ability,casterToken, targets, options, shape, target.token)
             end
         end
     end
@@ -2403,7 +2421,8 @@ end
 --- @param targets table
 --- @param options table
 --- @param targetArea LuaShape
-function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea)
+--- @param anchorToken? CharacterToken The creature the area was placed around, recorded as anchorTokenId.
+function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea, anchorToken)
     --copy the 'shallow' parts from the symbols to include with the aura.
     local symbols = {}
     for k, v in pairs(options.symbols) do
@@ -2455,6 +2474,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --carries them like the ability's own damage does (see creature:AuraDamage).
             keywords = abilityKeywords and DeepCopy(abilityKeywords) or nil,
             casterid = casterToken.charid,
+            anchorTokenId = anchorToken ~= nil and anchorToken.charid or nil,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
             --caster token/record is gone. Empty string means no party, which the engine
@@ -3742,6 +3762,47 @@ local LANE_THINK_INTERVAL = 0.25
 --Last initiative turn id seen by the watcher, for start-of-turn slides.
 local g_laneLastTurnId = nil
 
+--The map's directional-lane aura objects, as {obj, comp} entries. Finding them
+--means reading every object on every floor (floor.objects builds a fresh table
+--each call), so the list is kept until map objects can have changed
+--(nonCharacterUpdateSeq moves) or the map changes, with a full rescan at least
+--every LANE_RESCAN_SECONDS in case a floor finished loading in between.
+local LANE_RESCAN_SECONDS = 5
+local g_laneObjects = {}
+local g_laneObjectsMapId = nil
+local g_laneObjectsSeq = nil
+local g_laneObjectsTime = -1
+
+local function LaneObjects(map)
+    local seq = dmhub.nonCharacterUpdateSeq
+    local now = dmhub.Time()
+    if map.id == g_laneObjectsMapId and seq == g_laneObjectsSeq and now - g_laneObjectsTime < LANE_RESCAN_SECONDS then
+        return g_laneObjects
+    end
+
+    local result = {}
+    for _,floor in ipairs(map.floors or {}) do
+        --floor.objects can be transiently nil for floors that are not
+        --currently loaded, and the objects getter itself raises on a
+        --floor that is tearing down, so gate on floor.valid first.
+        for _,obj in pairs((floor.valid and floor.objects) or {}) do
+            local comp = obj:GetComponent("Aura")
+            if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
+                local inst = comp.properties.aura
+                if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
+                    result[#result+1] = { obj = obj, comp = comp }
+                end
+            end
+        end
+    end
+
+    g_laneObjects = result
+    g_laneObjectsMapId = map.id
+    g_laneObjectsSeq = seq
+    g_laneObjectsTime = now
+    return result
+end
+
 local function LaneThink()
     if mod.unloaded then
         return
@@ -3778,19 +3839,8 @@ local function LaneThink()
             g_laneLastTurnId = nil
         end
 
-        for _,floor in ipairs(map.floors or {}) do
-            --floor.objects can be transiently nil for floors that are not
-            --currently loaded, and the objects getter itself raises on a
-            --floor that is tearing down, so gate on floor.valid first.
-            for _,obj in pairs((floor.valid and floor.objects) or {}) do
-                local comp = obj:GetComponent("Aura")
-                if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
-                    local inst = comp.properties.aura
-                    if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
-                        ProcessLaneObject(obj, comp, turnStartInitiativeId)
-                    end
-                end
-            end
+        for _,entry in ipairs(LaneObjects(map)) do
+            ProcessLaneObject(entry.obj, entry.comp, turnStartInitiativeId)
         end
     end)
 

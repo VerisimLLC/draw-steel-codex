@@ -18,6 +18,10 @@ CharacterModifier.displayCondition = ""
 CharacterModifier.afterRollExclusiveGroup = ""
 CharacterModifier.consumeOncePerRoll = false
 
+-- The name of another roll-dialog option this one follows: ticking or unticking
+-- that option does the same to this one, which can still be changed on its own.
+CharacterModifier.ticksWith = ""
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -147,6 +151,30 @@ local function RollTypeMatches(modifier, rollType, options)
     return true
 end
 
+--- True when the modifier is one of the rolled ability's own options: it comes from a
+--- Modify Power Roll behavior on that ability (Blood for Blood!, Star Solo's sonic damage).
+--- The ability's own text offers these to whoever uses it, so they are the roller's choice.
+--- @param modifier CharacterModifier
+--- @param ability nil|ActivatedAbility the ability being rolled (options.ability).
+--- @return boolean
+local function IsOptionOfRolledAbility(modifier, ability)
+    if ability == nil then
+        return false
+    end
+    local guid = modifier:try_get("guid")
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" then
+            local option = behavior:try_get("modifier")
+            --Match by guid too: the ability being cast can be a copy of the one
+            --that supplied the modifier.
+            if option ~= nil and (option == modifier or (guid ~= nil and option:try_get("guid") == guid)) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 
 CharacterModifier.RegisterType('power', "Modify Power Rolls")
 
@@ -240,6 +268,64 @@ for k,v in pairs(g_powerRollsAbilityAdditionalSymbols) do
     g_powerRollSymbols[k] = v
 end
 
+--Edges and banes a power-roll modifier adds by itself, by modtype. Only the plain adders
+--are listed: their share of a roll's tally can be taken back out exactly.
+local g_ownRollCountByModtype = {
+    edge = {edges = 1, banes = 0},
+    double_edge = {edges = 2, banes = 0},
+    bane = {edges = 0, banes = 1},
+    double_bane = {edges = 0, banes = 2},
+}
+
+--The roll requirements that read the roll's edge/bane tally.
+local g_edgeBaneRequirements = {
+    bane = true, doublebane = true, edge = true, doubleedge = true, nobane = true, noedge = true,
+}
+
+--- A modifier that adds its own edge or bane and has an edge/bane roll requirement
+--- (e.g. Convocation of Quartz: "takes a bane if it doesn't already have a bane") has
+--- that requirement judged on the roll WITHOUT its own edge/bane. Returns what it adds,
+--- or nil when that rule does not apply to this modifier.
+--- @return nil|{edges: integer, banes: integer}
+function CharacterModifier:RollRequirementOwnContribution()
+    if self:try_get("behavior") ~= "power" or not g_edgeBaneRequirements[self:try_get("rollRequirement", "none")] then
+        return nil
+    end
+    return g_ownRollCountByModtype[self:try_get("modtype", "none")]
+end
+
+--- The roll dialogs build the roll text first and check roll requirements after. If the
+--- check turns on or off a modifier whose own edge/bane counts in the text (see
+--- RollRequirementOwnContribution), the text is stale and must be built again.
+--- @param before table[] the enabled modifier entries the roll text was built from
+--- @param after table[] the enabled modifier entries after the requirement check
+--- @return boolean
+function CharacterModifier.RollRequirementChangedRollText(before, after)
+    local function Collect(entries)
+        local result = {}
+        for _,entry in ipairs(entries) do
+            if entry.modifier ~= nil and entry.modifier:RollRequirementOwnContribution() ~= nil then
+                result[entry] = true
+            end
+        end
+        return result
+    end
+
+    local a = Collect(before)
+    local b = Collect(after)
+    for entry,_ in pairs(a) do
+        if not b[entry] then
+            return true
+        end
+    end
+    for entry,_ in pairs(b) do
+        if not a[entry] then
+            return true
+        end
+    end
+    return false
+end
+
 function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, rollProperties)
     local requirement = self:try_get("rollRequirement", "none")
     if requirement == "none" then
@@ -248,6 +334,20 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
 
     local edges = rollInfo.boons or 0
     local banes = rollInfo.banes or 0
+
+    --While this modifier is on, its own edge/bane is already in rollInfo. Take it back out
+    --so the requirement sees the roll as it was without it; otherwise "nobane" would always
+    --fail on the bane this modifier just added, and the modifier would switch itself off.
+    local own = self:RollRequirementOwnContribution()
+    if own ~= nil then
+        for _,entry in ipairs(enabledModifiers or {}) do
+            if entry.modifier == self then
+                edges = math.max(0, edges - own.edges)
+                banes = math.max(0, banes - own.banes)
+                break
+            end
+        end
+    end
 
     if requirement == "bane" then
         return banes > edges and edges < 2
@@ -334,6 +434,50 @@ local function BeginRollTriggerAIReaction(token, modifier)
     return activityId, reactionId
 end
 
+--How far each creature would have been force moved before a modifier
+--negated it, by charid. Filled in during the cast and handed to the
+--modifier's custom trigger once the cast is done.
+local g_negatedForcedMovement = {}
+
+--- Called by the forced movement rule when it skips a negated push, pull or slide.
+--- @param targetCharid string The creature that was not moved.
+--- @param distance number How many squares it would have moved.
+--- @param movementType string push, pull, slide, vertical_push, ...
+function CharacterModifier.RecordNegatedForcedMovement(targetCharid, distance, movementType)
+    local entry = g_negatedForcedMovement[targetCharid]
+    if entry == nil then
+        g_negatedForcedMovement[targetCharid] = { distance = distance, type = movementType }
+    else
+        --a second negated push, pull or slide in the same roll adds on.
+        entry.distance = entry.distance + distance
+    end
+end
+
+--- Removes and returns what RecordNegatedForcedMovement stored for this creature.
+--- @param targetCharid nil|string
+--- @return nil|{distance: number, type: string}
+local function TakeNegatedForcedMovement(targetCharid)
+    if targetCharid == nil then
+        return nil
+    end
+    local entry = g_negatedForcedMovement[targetCharid]
+    g_negatedForcedMovement[targetCharid] = nil
+    return entry
+end
+
+--- The creature this roll modifier was applied to, or nil.
+--- @param modifier CharacterModifier
+--- @return nil|creature
+local function AbilityTarget(modifier)
+    local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+    --The roll dialog stores symbol lookup functions; calling one with "self"
+    --gives back the creature.
+    if type(abilityTarget) == "function" then
+        abilityTarget = abilityTarget("self")
+    end
+    return abilityTarget
+end
+
 CharacterModifier.TypeInfo.power = {
 
     init = function(modifier)
@@ -348,6 +492,22 @@ CharacterModifier.TypeInfo.power = {
             print("TRIGGER:: BASE GOES FIRST")
             CharacterModifier.TypeInfo.power.triggerOnUse(modifier.baseModifier, creature, modContext)
         end
+
+        --Read the target now: the roll dialog installs it just before this runs.
+        local negatedTargetCharid = nil
+        if modifier:try_get("negateForcedMovement", false) then
+            local abilityTarget = AbilityTarget(modifier)
+            local targetToken = nil
+            if abilityTarget ~= nil then
+                targetToken = dmhub.LookupToken(abilityTarget)
+            end
+            if targetToken ~= nil then
+                negatedTargetCharid = targetToken.charid
+            end
+            --forget anything left from an earlier roll before this push resolves.
+            TakeNegatedForcedMovement(negatedTargetCharid)
+        end
+
 		if modifier:try_get("hasCustomTrigger", false) and modifier:has_key("customTrigger") then
             local token = dmhub.LookupToken(creature)
 
@@ -366,6 +526,7 @@ CharacterModifier.TypeInfo.power = {
             --block this runs inside (see ConsumeResource in DSRollDialog).
             local aiActivityId, aiReactionId = BeginRollTriggerAIReaction(token, modifier)
             ActivatedAbility.RunWhenCastsComplete(function()
+                local negated = TakeNegatedForcedMovement(negatedTargetCharid)
                 if token == nil or not token.valid then
                     return
                 end
@@ -373,6 +534,11 @@ CharacterModifier.TypeInfo.power = {
                 --triggerer) resolve inside Trigger's targeting from the
                 --symbols appended here; no subject resolution is needed.
                 local symbols = modifier:AppendSymbols{}
+                if negatedTargetCharid ~= nil then
+                    --read by the new cast; see Cast.Negated Forced Movement.
+                    symbols.negatedforcedmovement = negated ~= nil and negated.distance or 0
+                    symbols.negatedforcedmovementtype = negated ~= nil and negated.type or ""
+                end
                 local argOptions = {}
                 if aiActivityId ~= nil then
                     --The trigger's cast completes the marker when it finishes, and
@@ -391,6 +557,11 @@ CharacterModifier.TypeInfo.power = {
                         or not argOptions.aiReactionHandedOff) then
                     token.properties:CompletePendingAIActivityReaction(aiActivityId, aiReactionId)
                 end
+            end)
+		elseif negatedTargetCharid ~= nil then
+            --no custom trigger to pass it to; just clear it.
+            ActivatedAbility.RunWhenCastsComplete(function()
+                TakeNegatedForcedMovement(negatedTargetCharid)
             end)
 		end
 
@@ -413,15 +584,7 @@ CharacterModifier.TypeInfo.power = {
 		if armEffect ~= nil then
 			local armSubject = creature
 			if modifier:try_get("armEffectApplyTo", "self") == "target" then
-				--symbol contexts are installed as GenerateSymbols lookup
-				--functions (see CharacterModifier:InstallSymbolsFromContext);
-				--calling with "self" unwraps back to the creature. Same idiom
-				--as the "subject" applyto in ActivatedAbility:GetTargets.
-				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
-				if type(abilityTarget) == "function" then
-					abilityTarget = abilityTarget("self")
-				end
-
+				local abilityTarget = AbilityTarget(modifier)
 				if abilityTarget ~= nil then
 					armSubject = abilityTarget
 				end
@@ -500,16 +663,21 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        --No activation formula: never ticked for the roller. If it is a paid spend that would
-        --otherwise apply to this roll (keywords, skills, affordable), flag it optIn so the roll
-        --dialog still lets the roller choose it under Strictly Enforce Rolls.
+        --No activation formula: never ticked for the roller. If it is a paid spend, a
+        --limited-use option (Barbed Tail's once per round) or an option of the ability being
+        --rolled (Blood for Blood!'s 1d6 for 1d6), and it would otherwise apply to this roll
+        --(keywords, skills, affordable, uses left), flag it optIn so the roll dialog still
+        --lets the roller choose it under Strictly Enforce Rolls. Other never-ticked modifiers
+        --(a feature's "edge on tests to notice threats") stay hidden there: the rules cannot
+        --tell whether they apply.
         if activationCondition == false or activationCondition == "" then
+            local rollerChoice = self:IsPaidSpend(creature) or self:IsUsageLimited() or IsOptionOfRolledAbility(self, options.ability)
             local probeOptions = shallow_copy_table(options)
             probeOptions.assumeActivated = true
             return {
                 result = false,
                 justification = {},
-                optIn = self:IsPaidSpend(creature) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
+                optIn = rollerChoice and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
             }
         end
 
@@ -737,7 +905,7 @@ CharacterModifier.TypeInfo.power = {
 
         local modtype = self:try_get("modtype", "none")
 
-        if modtype == "none" or modtype == "suppresseffects" then
+        if modtype == "none" or modtype == "suppresseffects" or modtype == "rolltwice" then
             return roll
         end
 
@@ -1163,6 +1331,24 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        --Mark each push, pull and slide "(negated)": the forced movement rule then
+        --records how far the target would have moved instead of moving it. The
+        --lookahead skips moves already marked and keeps a number like 12 whole.
+        if self:try_get("negateForcedMovement", false) then
+            local pattern = "^(?<prefix>.*?)(?<move>(vertical\\s+)?(push|pull|slide)\\s+(straight up\\s+)?\\d+)(?![0-9]| \\(negated\\))(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. match.move .. " (negated)"
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
         --Upgrade every end-of-turn condition clause in the power table to save ends,
         --e.g. "M<2 slowed (eot)" becomes "M<2 slowed (save ends)". Shadow Elf's
         --Manifold Piercer. Like replaceForcedMovement above, this rewrites the tier
@@ -1266,7 +1452,7 @@ CharacterModifier.TypeInfo.power = {
                 tieredText[choiceTier] = StringInterpolateGoblinScript(addTextValue, lookupFunction)
             end
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[i])
+                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[math.min(i, #tieredText)])
             end
         end
 
@@ -1274,7 +1460,7 @@ CharacterModifier.TypeInfo.power = {
            self:has_key("replaceText") and trim(self.replaceText) ~= "" then
             local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(self.replaceText, lookupFunction))
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[i])
+                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[math.min(i, #tieredText)])
             end
         end
     end,
@@ -2288,6 +2474,12 @@ CharacterModifier.TypeInfo.power = {
                                     id = "none",
                                     text = "No Effects",
                                 },
+                                --the original target keeps the strike and half its
+                                --damage; the new one takes the rest of the damage.
+                                {
+                                    id = "split",
+                                    text = "Split Damage",
+                                },
                             },
                             valign = "center",
                             idChosen = modifier:try_get("changeTargetEffect", "all"),
@@ -2837,6 +3029,24 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            children[#children+1] = gui.Check{
+                styles = ThemeEngine.GetStyles(),
+                classes = {cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                style = {
+                    height = 30,
+                    width = 260,
+                    fontSize = 18,
+                    halign = "left",
+                },
+                text = "Negate Forced Movement",
+                hover = gui.Tooltip("The target is not pushed, pulled or slid. The custom trigger gets the distance it would have moved as Cast.Negated Forced Movement."),
+                value = modifier:try_get("negateForcedMovement", false),
+                change = function(element)
+                    modifier.negateForcedMovement = element.value
+                    Refresh()
+                end,
+            }
+
             local hasVerticalAdjustment = false
             for _,adj in ipairs(modifier:try_get("adjustments", {})) do
                 if adj.type == "push" or adj.type == "pull" or adj.type == "slide" then
@@ -3140,6 +3350,10 @@ function CharacterModifier:ShouldShowInPowerRollDialog(modContext, creature, rol
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     local shouldShow = typeInfo.shouldShowInPowerRollDialog
     if shouldShow ~= nil then
+        --An imbued weapon marked only Melee gives none of its bonuses to ranged abilities, and vice versa.
+        if DSImbuement.IsWeaponRangeMismatch(modContext, options) then
+            return false
+        end
         self:InstallSymbolsFromContext(modContext)
         self:InstallSymbolsFromContext(options)
         local result = shouldShow(self, creature, rollType, nil, options)

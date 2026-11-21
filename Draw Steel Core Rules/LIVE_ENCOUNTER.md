@@ -350,8 +350,10 @@ display info (`memberinfo`: minion flag, portrait, monster type/role) so
 `GetMonsterGroups` still counts and draws members whose tokens were despawned or
 deleted -- dead monsters leave the map but read back as dead members instead of
 vanishing from the victory screen. Read back with
-`GetMonsterGroups()` / `GetStatsForMonsterGroup(statKey)` /
-`GetStatsForMonsterGroupByRound(statKey)`; consumed by the victory screen's
+`GetMonsterGroups()` / `GetStatsForMonsterGroup(group.statKeys)` /
+`GetStatsForMonsterGroupByRound(group.statKeys)` -- groups follow their
+members, so monsters regrouped mid-fight show on their new group's card with
+the stats from before and after the regroup; consumed by the victory screen's
 Monsters tab (`DSVictoryScreen.ComputeMonsterRoles`, debug via `/monsterroles`).
 Full contract in `STATS_TRACKING.md` ("Monster-side tracking").
 
@@ -567,6 +569,14 @@ individually-owned tokens or a player-side emit.
     the edit-time cache. That is how "Survive 1/3 Rounds"-style objective text
     ticks up on every client (a text function can branch on
     `ctx.queue == nil` to show a goal at edit time and progress in combat).
+  - "Which ones still count": an optional `victory.remaining(ctx)` returns the
+    creature tokens (and/or strings) still counting toward a count-style
+    objective. The host turns them into player-safe names each heartbeat
+    (`Encounter.DescribeVictoryUnits`: defeated tokens dropped, one line per
+    minion squad, stand-ins for hidden or private-named creatures) and stores
+    them as `victoryRemaining` in `scriptStates`; the objective tooltip lists
+    them under "Still to defeat:". Built-in count conditions list their
+    standing units the same way (`LiveEncounter:GetStandingVictoryUnitNames`).
   - Authoring: attach/detach behind the encounter editor's Rule Sets cog;
     parameters surface as an extra row on the party bar; library scripts are
     edited in the Compendium under Rules → Encounter Scripts; custom Lua gets

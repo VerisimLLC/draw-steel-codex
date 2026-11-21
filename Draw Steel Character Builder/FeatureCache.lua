@@ -2429,6 +2429,12 @@ function FeatureCategoriser.OpenSheetAtFeaturesTab(tokenid, filterText)
         return
     end
 
+    --Heroes open the Hero sheet window, which takes the tab and filter directly.
+    local heroSheet = rawget(_G, "HeroSheet")
+    if heroSheet ~= nil and heroSheet.Open(tok, "Features", { filter = filterText }) then
+        return
+    end
+
     tok:ShowSheet()
 
     local attempts = 0

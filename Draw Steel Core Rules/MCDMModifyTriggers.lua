@@ -28,6 +28,10 @@ local g_triggerLookupSymbols = {
         return trigger._free and 1 or 0
     end,
 
+    triggeredaction = function(trigger)
+        return trigger._triggeredAction and 1 or 0
+    end,
+
     hostile = function(trigger)
         return trigger._hostile and 1 or 0
     end,
@@ -61,6 +65,11 @@ local g_triggerHelpSymbols = {
         name = "Free",
         type = "boolean",
         desc = "Whether the trigger is a free triggered action.",
+    },
+    {
+        name = "Triggered Action",
+        type = "boolean",
+        desc = "Whether the trigger is something the creature chooses to do as a triggered action or free triggered action. False for automatic rules such as Collision or Monster Death.",
     },
     {
         name = "Hostile",
@@ -214,8 +223,9 @@ local function AbilityStrikeGrant(ability, creature, depth)
             local inner = nil
             if abilityType == "standard" then
                 inner = MCDMUtils.GetStandardAbility(behavior:try_get("standardAbility", ""))
-            elseif abilityType == "custom" then
-                inner = behavior:try_get("customAbility")
+            elseif behavior:CastsAsCustom() then
+                --A custom ability, or what a module's registered invoke type previews.
+                inner = behavior:HeldAbility(creature)
             elseif abilityType == "named" then
                 inner = FindNamedAbility(creature, behavior:try_get("namedAbility", ""))
             end
@@ -337,6 +347,8 @@ local function MakeTriggerSymbolObject(triggerInfo, creature)
         _text = triggerInfo.text or "",
         _rules = triggerInfo:GetRulesText(),
         _free = triggerInfo:IsFreeTriggeredAbility(),
+        --Prompts are treated as triggered actions; only the TriggeredAbility path below can tell rules triggers apart.
+        _triggeredAction = true,
         _hostile = triggerInfo.hostile,
         _grantsFreeStrike = freestrike,
         _grantsSignature = signature,
@@ -1258,7 +1270,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                             _name = self.name or "",
                             _text = self.name or "",
                             _rules = self:try_get("description", ""),
-                            _free = self:ActionResource() ~= CharacterResource.triggerResourceId,
+                            --rules triggers like Collision cost no action, so they are neither free nor a triggered action.
+                            _free = self:ActionResource() == CharacterResource.freeTriggeredActionResourceId,
+                            _triggeredAction = self:IsTriggeredAction(),
                             _grantsFreeStrike = grantsFreeStrike,
                             _grantsSignature = grantsSignature,
                         }

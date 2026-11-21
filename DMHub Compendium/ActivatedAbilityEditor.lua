@@ -657,7 +657,22 @@ function ActivatedAbility:TargetTypeEditor()
 							height = "auto",
 							text = "This ability has multiple modes. Enter text describing the different ways in which it can be cast. GoblinScripts can use <b>mode</b> to see what mode is being used when casting it and change its behavior.",
 						}
-					}
+					},
+
+					--Target first, then mode (Heal): turning this on adds a Target
+					--Filter and Unavailable Text to every mode below. Not offered for
+					--Ability Variations, which swap in a whole other ability per mode.
+					gui.Check{
+						classes = {cond(self.multipleModes == true, nil, "collapsed")},
+						text = "Choose Mode After Targeting",
+						value = self.chooseModeAfterTargeting == true,
+						hover = gui.Tooltip("Mode buttons appear after the caster chooses their target. When a mode's Target Filter fails for a target, the Unavailable Text is shown instead of its button, explaining why."),
+						change = function(element)
+							self.chooseModeAfterTargeting = element.value
+							resultPanel:FireEventTree("refreshAbility")
+							modesPanel:FireEventTree("refreshModes")
+						end,
+					},
 				}
 				for i,modeEntry in ipairs(self.modeList) do
 					children[#children+1] = gui.Panel{
@@ -751,6 +766,48 @@ function ActivatedAbility:TargetTypeEditor()
 								},
 							},
 
+						},
+
+						--Stored as targetCondition. Checked against the chosen target (Mode
+						--Condition only sees the caster).
+						gui.Panel{
+							classes = {"formPanel", cond(self.multipleModes == true and self.chooseModeAfterTargeting, nil, "collapsed")},
+							gui.Label{
+								classes = "formLabel",
+								text = "Target Filter:",
+							},
+
+							gui.GoblinScriptInput{
+								classes = "formInput",
+								halign = "right",
+								width = 240,
+								value = modeEntry.targetCondition or "",
+								change = function(element)
+									modeEntry.targetCondition = element.value
+									resultPanel:FireEventTree("refreshAbility")
+								end,
+
+								documentation = ActivatedAbility.ModeTargetFilterDocs(self.domains),
+							},
+						},
+
+						gui.Panel{
+							classes = {"formPanel", cond(self.multipleModes == true and self.chooseModeAfterTargeting, nil, "collapsed")},
+							gui.Label{
+								classes = "formLabel",
+								text = "Unavailable Text:",
+							},
+
+							gui.Input{
+								classes = "formInput",
+								text = modeEntry.targetUnavailableText or "",
+								characterLimit = 200,
+								placeholderText = "Shown when the target fails the filter",
+								change = function(element)
+									modeEntry.targetUnavailableText = element.text
+									resultPanel:FireEventTree("refreshAbility")
+								end,
+							},
 						},
 
                         gui.Panel{
@@ -3941,6 +3998,11 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	end
 	options.hide = nil
 
+	--options.deleteConfirm = {title, message}: Delete asks first; without it Delete
+	--acts at once. Removed from options because leftover options become panel fields.
+	local deleteConfirm = options.deleteConfirm
+	options.deleteConfirm = nil
+
 	local mainFormPanel = gui.Panel{
 		styles = styles,
 		vscroll = true,
@@ -3963,8 +4025,44 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			halign = "right",
 			valign = "center",
 			click = function(element)
-				resultPanel:FireEvent("delete")
-				resultPanel.data.close()
+				local confirm = deleteConfirm
+				if confirm == nil then
+					resultPanel:FireEvent("delete")
+					resultPanel.data.close()
+					return
+				end
+				gamehud:ModalDialog{
+					title = confirm.title,
+					width = 560,
+					height = 240,
+					flow = "vertical",
+					buttonsHalign = "center",
+					buttons = {
+						{
+							text = "Delete",
+							click = function()
+								resultPanel:FireEvent("delete")
+								resultPanel.data.close()
+							end,
+						},
+						{
+							text = "Cancel",
+							escapeActivates = true,
+						},
+					},
+					children = {
+						gui.Label{
+							--fixed width: the dialog body sizes to its content, so a %
+							--width has nothing to fill.
+							width = 500,
+							height = "auto",
+							halign = "center",
+							valign = "center",
+							textAlignment = "center",
+							text = confirm.message,
+						},
+					},
+				}
 			end,
 		}
 	end

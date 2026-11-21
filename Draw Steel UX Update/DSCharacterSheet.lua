@@ -1530,7 +1530,7 @@ function CharSheet.AttrPanel(attrid)
 					ChangeLabelValue(info, element, ModifierStr(info.token.properties:GetAttribute(attrid):Modifier()))
 				end,
 				press = function(element)
-					CharacterSheet.instance.data.info.token.properties:RollAttributeCheck(attrid)
+					CharacterSheet.instance.data.info.token.properties:ShowCharacteristicRollDialog(attrid, { autoroll = true })
 				end,
                 rightClick = function(element)
                     if CharacterSheet.instance.data.info.token.properties.typeName == "monster" then
@@ -2036,7 +2036,7 @@ function CharSheet.CharacterHitpointsPanel()
 						events = {
 							change = function(element)
 								local creature = CharacterSheet.instance.data.info.token.properties
-								creature:SetCurrentHitpoints(element.text)
+								creature:SetStaminaDirect(element.text)
 								element.data.previous_value = nil --don't flash green/red on an edit.
 								CharacterSheet.instance:FireEvent('refreshAll')
 							end,

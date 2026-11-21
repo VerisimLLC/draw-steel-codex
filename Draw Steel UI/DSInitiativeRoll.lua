@@ -1208,7 +1208,7 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         local portrait = tok.offTokenPortrait
         local imageRect = nil
         if portrait == tok.portrait or tok.popoutPortrait then
-            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+            imageRect = CardPortraitRect(tok, portraitAspect, portrait)
         end
 
         local quantityLabel = nil
@@ -2818,6 +2818,12 @@ Commands.RegisterMacro{
     local playerPartyId = GetDefaultPartyID()
     local playerParty = GetParty(GetDefaultPartyID())
     local heroVictories = {}
+
+    --Decide each initiative entry's side before writing it. Tokens grouped on one
+    --entry (a hero and their summon) share a turn, so the entry is player-side if
+    --ANY of its tokens is. Writing it per token let the last one win, so a hero's
+    --monster-party summon could flip the hero's turn over to the Monster AI.
+    local entryPlayerSide = {}
     for _,tok in ipairs(tokens) do
         if tok ~= nil and tok.valid then
             local partyid = tok.partyId
@@ -2832,11 +2838,22 @@ Commands.RegisterMacro{
                 playerSide = false
             end
 
+            local initiativeId = InitiativeQueue.GetInitiativeId(tok)
+            if initiativeId ~= nil then
+                entryPlayerSide[initiativeId] = entryPlayerSide[initiativeId] or playerSide
+            end
+        end
+    end
+
+    for _,tok in ipairs(tokens) do
+        if tok ~= nil and tok.valid then
+            local initiativeId = InitiativeQueue.GetInitiativeId(tok)
+            local playerSide = entryPlayerSide[initiativeId] == true
+
             if playerSide and tok.properties:IsHero() then
                 heroVictories[#heroVictories+1] = tok.properties:GetVictories()
             end
 
-            local initiativeId = InitiativeQueue.GetInitiativeId(tok)
             local entry = info.initiativeQueue:SetInitiative(initiativeId, 0, 0)
             entry.player = playerSide
 

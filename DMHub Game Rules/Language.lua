@@ -15,11 +15,13 @@ local mod = dmhub.GetModLoading()
 --- @field group string UI group label (e.g. "Custom", "Standard").
 --- @field commonality number Commonality rating (higher = more common).
 --- @field dead boolean If true, this is a dead language not spoken by living creatures.
+--- @field plainName string Name by its best-known speakers (e.g. "Goblin" for Szetch), shown when the user turns on plain language names. Empty means use `name`.
 --- @field tableName "languages" Data table name ("languages").
 Language = RegisterGameType("Language")
 
 --standard language fields.
 Language.name = "New Language"
+Language.plainName = ""
 Language.type = "Standard"
 Language.speakers = ""
 Language.description = ""
@@ -43,6 +45,161 @@ Language.scripts = {
     { id = "Goblin", text = "Goblin fingernail script", font = "GoblinScratch" },
     { id = "Infernal", text = "Infernal contract hand", font = "InfernalScript" },
 }
+
+--Per-user choice to show languages by who speaks them ("Goblin", "Common",
+--"Ancient Dwarvish") instead of their in-world names ("Szetch", "Caelian",
+--"Rallarian"). Display only: rules, GoblinScript, importers and authored
+--scripts keep matching on the in-world `name`.
+local g_displayVersion = 0
+local g_plainNamesSetting = setting{
+    id = "plainlanguagenames",
+    description = "Plain Language Names",
+    help = "Show languages by their best-known speakers (Goblin, Common, Ancient Dwarvish) instead of their in-world names (Szetch, Caelian, Rallarian). Hover a language to see its in-world name.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+    onchange = function()
+        g_displayVersion = g_displayVersion + 1
+    end,
+}
+
+--- Changes whenever the Plain Language Names setting does. Code that caches
+--- display names (e.g. builder option lists) compares it to know when to rebuild.
+--- @return number
+function Language.DisplayVersion()
+    return g_displayVersion
+end
+
+--- True when the local user wants plain language names.
+--- @return boolean
+function Language.UsePlainNames()
+    return g_plainNamesSetting:Get() == true
+end
+
+--- The plain name, or nil when this language has none (homebrew, or already plain).
+--- @return string|nil
+function Language:PlainName()
+    local plain = self.plainName
+    if plain == nil or plain == "" or plain == self.name then
+        return nil
+    end
+    return plain
+end
+
+--- The name to show the local user. Use this for every on-screen language name;
+--- use `name` only for matching and saved data.
+--- @return string
+function Language:DisplayName()
+    if Language.UsePlainNames() then
+        return self:PlainName() or self.name
+    end
+    return self.name
+end
+
+--- Name plus a bracketed hint, for dropdown options and lists where no tooltip
+--- can show: "Goblin (Szetch)" with plain names on, "Szetch (Goblins, Radenwights)" off.
+--- @return string
+function Language:DisplayNameWithDetail()
+    if Language.UsePlainNames() and self:PlainName() ~= nil then
+        return string.format("%s (%s)", self:PlainName(), self.name)
+    end
+    if self.speakers ~= nil and self.speakers ~= "" then
+        return string.format("%s (%s)", self.name, self.speakers)
+    end
+    return self.name
+end
+
+--- Hover text naming the language in-world when plain names are on: "In-world
+--- name: Szetch" plus who speaks it. nil when there is nothing to add.
+--- @return string|nil
+function Language:DisplayTooltip()
+    if not Language.UsePlainNames() or self:PlainName() == nil then
+        return nil
+    end
+    local text = string.format("In-world name: <b>%s</b>", self.name)
+    if self.speakers ~= nil and self.speakers ~= "" then
+        text = string.format("%s\nSpoken by: %s", text, self.speakers)
+    end
+    return text
+end
+
+--- A hover handler showing DisplayTooltip, or nil when there is none, so
+--- callers can write `hover = Language.TooltipHover(lang)`.
+--- @param language Language|nil
+--- @return nil|fun(element: Panel)
+function Language.TooltipHover(language)
+    local tooltip = language ~= nil and language:DisplayTooltip() or nil
+    if tooltip == nil then
+        return nil
+    end
+    return gui.Tooltip(tooltip)
+end
+
+--- Hover handler for a label listing several languages in one string: one
+--- "Goblin: Szetch" line per language that has a plain name. nil when plain
+--- names are off or none of them differ.
+--- @param languages Language[]
+--- @return nil|fun(element: Panel)
+function Language.ListTooltipHover(languages)
+    if not Language.UsePlainNames() then
+        return nil
+    end
+    local lines = {}
+    for _, language in ipairs(languages) do
+        if language:PlainName() ~= nil then
+            lines[#lines+1] = string.format("%s: <b>%s</b>", language:PlainName(), language.name)
+        end
+    end
+    if #lines == 0 then
+        return nil
+    end
+    return gui.Tooltip("In-world names:\n" .. table.concat(lines, "\n"))
+end
+
+--- The language with this in-world or plain name (case-insensitive), or nil.
+--- @param name string|nil
+--- @return Language|nil
+function Language.FindByName(name)
+    local key = string.lower(name or "")
+    if key == "" then
+        return nil
+    end
+    local plainMatch = nil
+    for _, language in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
+        --- @cast language Language
+        if string.lower(language.name or "") == key then
+            return language
+        end
+        if plainMatch == nil and string.lower(language.plainName or "") == key then
+            plainMatch = language
+        end
+    end
+    return plainMatch
+end
+
+--- Display name for a language id; nil when the id is unknown.
+--- @param langid string|nil
+--- @return string|nil
+function Language.DisplayNameForId(langid)
+    local language = langid ~= nil and (dmhub.GetTable(Language.tableName) or {})[langid] or nil
+    if language == nil then
+        return nil
+    end
+    return language:DisplayName()
+end
+
+--- Display name for a language named in authored text (an EotW script's
+--- "Yllyric"); text that names no known language comes back unchanged.
+--- @param name string
+--- @return string
+function Language.DisplayNameForName(name)
+    local language = Language.FindByName(name)
+    if language == nil then
+        return name
+    end
+    return language:DisplayName()
+end
 
 --- The font that shows this language's writing to a reader who can't read it.
 --- @return string
@@ -73,12 +230,9 @@ end
 --- @param name string|nil
 --- @return string
 function Language.UnreadableFontForName(name)
-    local key = string.lower(name or "")
-    for _, language in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
-        --- @cast language Language
-        if string.lower(language.name or "") == key then
-            return language:UnreadableFont()
-        end
+    local language = Language.FindByName(name)
+    if language ~= nil then
+        return language:UnreadableFont()
     end
     return Language.scripts[1].font
 end
@@ -94,7 +248,7 @@ function Language.GetDropdownList()
 	local result = {}
 	local languagesTable = dmhub.GetTable('languages')
 	for k,v in unhidden_pairs(languagesTable) do
-		result[#result+1] = { id = k, text = v.name }
+		result[#result+1] = { id = k, text = v:DisplayName() }
 	end
 	table.sort(result, function(a,b)
 		return a.text < b.text
@@ -139,6 +293,24 @@ local SetLanguage = function(tableName, languagePanel, langid)
 			text = language.name,
 			change = function(element)
 				language.name = element.text
+				UploadLanguage()
+			end,
+		},
+	}
+
+	--the plain name, shown instead of the name when a user turns on Plain Language Names.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Plain Name:",
+		},
+		gui.Input{
+			classes = {"formStacked"},
+			text = language.plainName,
+			placeholderText = "e.g. Goblin, Ancient Dwarvish",
+			change = function(element)
+				language.plainName = element.text
 				UploadLanguage()
 			end,
 		},

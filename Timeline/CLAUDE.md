@@ -64,6 +64,7 @@ The `options` table passed to `ShowDialog` includes:
 | `PopulateTable` | Function to populate a table panel |
 | `autoroll` | If true or a setting key, automatically roll without user input |
 | `forcedDice` | Optional `{ {numFaces, result}, ... }`: the dice tumble but land on these faces (passed to `dmhub.Roll`). Used to reuse an earlier roll's dice, e.g. Double Strike's second target. A re-roll rolls fresh. |
+| `interruptAfter` / `interrupted` | Optional. The dice fade `interruptAfter` seconds into the throw and the roll never lands (passed to `dmhub.Roll`); the dialog hides itself and calls `interrupted(rollInfo)` instead of `completeRoll`. Used by Encounter of the Week's interrupted ("fake") tests. |
 | `skipDeterministic` | If true, skip the dialog entirely for deterministic rolls (no dice) |
 
 #### Roll Flow

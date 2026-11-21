@@ -106,8 +106,9 @@ end
 --- and table rolls carry no castOptions) stays cancellable, as does every roll
 --- for a Director.
 --- A roll shown with `noCancelOnceThrown` (Encounter of the Week's montage
---- tests) also withdraws it, for everyone, once its dice are thrown: the
---- dialog sets data.cancelWithdrawn on submit. A roll shown with `noCancel`
+--- tests), and every roll the Monster AI drives, also withdraws it, for
+--- everyone, once its dice are thrown: the dialog sets data.cancelWithdrawn
+--- on submit. A roll shown with `noCancel`
 --- (a monster's roll request to a player under "Strictly Enforce Rolls")
 --- has it set from the start.
 --- Deliberately NOT applied to dialog.data.Cancel() itself: system teardown
@@ -153,6 +154,66 @@ function TokenControlledByUser(tok)
     end
 
     return tok.canControl
+end
+
+--- The rect to cut a token's card art with, at a panel's aspect (width /
+--- height). Use it wherever card art shows: a look with its own card framing
+--- (the Hero sheet's Appearance tab) is cut by that; any other look gets the
+--- crop cut from its token framing. Engine builds without card framing read
+--- token.cardZoom as nil and get the token-framing crop.
+--- @param tok CharacterToken
+--- @param aspect number width / height
+--- @param portrait? string the picture to cut; defaults to the token's portrait
+--- @return Vector4
+function CardPortraitRect(tok, aspect, portrait)
+    if tok.cardZoom ~= nil then
+        return tok:GetCardRectForAspect(aspect, portrait)
+    end
+    return tok:GetPortraitRectForAspect(aspect, portrait)
+end
+
+--- A string that changes when a token's card art would cut differently: for
+--- redraw checks that skip work while nothing changed.
+--- @param tok CharacterToken
+--- @return string
+function CardPortraitSignature(tok)
+    local offset = tok.portraitOffset
+    local result = string.format("%s|%s|%s|%s,%s", tostring(tok.offTokenPortrait), tostring(tok.portrait),
+        tostring(tok.portraitZoom), tostring(offset and offset.x), tostring(offset and offset.y))
+    if tok.cardZoom ~= nil then
+        local card = tok.cardOffset
+        result = string.format("%s|%s|%s,%s", result, tostring(tok.cardZoom), tostring(card and card.x), tostring(card and card.y))
+    end
+    return result
+end
+
+-- The userid that should answer this token's prompts, or nil if this client should.
+-- Use this instead of tok.activeControllerId when routing prompts. They differ only for
+-- a party-owned follower (a retainer or mount): the engine leaves its prompts with
+-- whichever client raised them, often the Director's. Here they go to the player who
+-- owns its mentor hero, while that player is online.
+--- @param tok CharacterToken
+--- @return string|nil
+function TokenPromptControllerId(tok)
+    local props = tok.properties
+    if tok.ownerId == "PARTY" and props ~= nil then
+        local mentor = props:GetMentor()
+        local mentorToken = mentor ~= nil and dmhub.LookupToken(mentor) or nil
+        local ownerId = mentorToken ~= nil and mentorToken.ownerId or nil
+        if ownerId ~= nil and ownerId ~= "" and ownerId ~= "PARTY" then
+            --We are the mentor's player, so we answer.
+            if ownerId == dmhub.userid then
+                return nil
+            end
+            --The mentor's controller is its owner only while that player is online (or the
+            --Director is playing them in a second window). Otherwise use the usual routing.
+            ---@cast mentorToken -nil
+            if mentorToken.activeControllerId == ownerId then
+                return ownerId
+            end
+        end
+    end
+    return tok.activeControllerId
 end
 
 -- Macro registration infrastructure. Defined here in Utils so it is available
@@ -1589,10 +1650,15 @@ local function DeepCopyInternal(t, visited)
     local copy = {}
     visited[t] = copy
     for k, v in next, t do
-	    if type(k) ~= "string" or string.sub(k,1,5) ~= "_tmp_" then
-            copy[k] = DeepCopyInternal(v, visited)
-        else
+        local vtype = type(v)
+        --Most fields are plain values, which copy as they are; only tables and userdata
+        --need the _tmp_ test (byte 95 is "_", checked first because string.sub is slow).
+        if vtype ~= "table" and vtype ~= "userdata" then
             copy[k] = v
+        elseif type(k) == "string" and string.byte(k, 1) == 95 and string.sub(k,1,5) == "_tmp_" then
+            copy[k] = v
+        else
+            copy[k] = DeepCopyInternal(v, visited)
         end
     end
 

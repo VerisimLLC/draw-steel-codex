@@ -17,11 +17,12 @@ end
 
 function InCharacterChatMessage.Render(self, message)
     local language = "Unknown"
+    local langInfo = nil
     local langid = self.langid
     if langid then
-        local langInfo = dmhub.GetTable(Language.tableName)[langid]
+        langInfo = dmhub.GetTable(Language.tableName)[langid]
         if langInfo then
-            language = langInfo.name
+            language = langInfo:DisplayName()
         end
     end
 
@@ -47,6 +48,7 @@ function InCharacterChatMessage.Render(self, message)
             halign = "left",
             text = string.format("<b>%s</b> (%s, in %s)", self.charname, message.nick, language),
             color = color.tostring,
+            hover = Language.TooltipHover(langInfo),
         },
         gui.Label{
             refreshLanguages = function(element)

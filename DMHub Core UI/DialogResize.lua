@@ -47,6 +47,8 @@ end
 --      resize-event contract hold regardless.
 --  minWidth/maxWidth/minHeight/maxHeight: window-size clamps applied
 --      while dragging (nil = unbounded above a small hard floor).
+--  onResizeBegin(dialog): called when a resize drag starts (any edge), for
+--      callers that swap in something cheaper to lay out while it runs.
 --  onResized(dialog, moved): called when a resize drag completes.
 --      moved is true when the drag changed the window's x/y (left/top
 --      handles), for callers that track window position (icon rail pins).
@@ -177,6 +179,9 @@ function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
                     grabOffsetX = w - element.data.homeX,
                     grabOffsetY = h - element.data.homeY,
                 }
+                if options.onResizeBegin ~= nil then
+                    options.onResizeBegin(dialog)
+                end
             end,
 
             dragging = function(element)
@@ -290,11 +295,41 @@ function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
         }
     end
 
+    --the window size the handles are currently seated for. Every "resize"
+    --event (ours or a caller's) reaches this panel too and keeps it current.
+    local seatedWidth = dialogWidth
+    local seatedHeight = dialogHeight
+
     parentPanel = gui.Panel{
         floating = true,
         width = "100%",
         height = "100%",
         children = handles,
+
+        resize = function(element, callingElement, delta)
+            if delta == nil then
+                return
+            end
+            if type(seatedWidth) == "number" then
+                seatedWidth = seatedWidth + (delta.deltax or 0)
+            end
+            if type(seatedHeight) == "number" then
+                seatedHeight = seatedHeight + (delta.deltay or 0)
+            end
+        end,
+
+        --FireEvent("fitSize", width, height) after setting the window's size
+        --by any means other than these handles (layout restore, reshape):
+        --re-seats the right/bottom handles on the new edges.
+        fitSize = function(element, width, height)
+            if type(width) ~= "number" or type(height) ~= "number"
+                or type(seatedWidth) ~= "number" or type(seatedHeight) ~= "number" then
+                return
+            end
+            if width ~= seatedWidth or height ~= seatedHeight then
+                element:FireEventTree("resize", element, {deltax = width - seatedWidth, deltay = height - seatedHeight})
+            end
+        end,
     }
 
     return parentPanel

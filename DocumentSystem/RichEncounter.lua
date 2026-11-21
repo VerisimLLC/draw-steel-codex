@@ -797,9 +797,7 @@ function RichEncounter.CreateDisplay(self)
                     local monster = assets.monsters[monsterid]
                     if monster ~= nil and monster.properties:IsMonster() and monster.properties.minion then
                         minionName = monster.properties.monster_type
-                        if quantity >= 8 then
-                            nsquads = math.ceil(quantity / (group.squadSize or 4))
-                        end
+                        nsquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                         break
                     end
                 end
@@ -830,6 +828,8 @@ function RichEncounter.CreateDisplay(self)
                         index = index+1
 
                         if loc ~= nil then
+                            --back onto the floor it was saved on, if the map's floors changed.
+                            loc = Encounter.LocOnSavedFloor(loc, (group.spawnfloors or {})[slot])
                             print("SPAWN:: ", loc.floor, loc.isValidFloor)
                             if not loc.isValidFloor then
                                 loc = loc.withCurrentFloor
@@ -942,6 +942,9 @@ function RichEncounter.CreateDisplay(self)
                             if token ~= nil then
                                 group.spawnlocs = group.spawnlocs or {}
                                 group.spawnlocs[spawnIndex] = token.loc
+                                --the floor's id too: the floor number alone goes stale when floors change.
+                                group.spawnfloors = group.spawnfloors or {}
+                                group.spawnfloors[spawnIndex] = Encounter.StampSavedFloor(token.loc)
                                 group.invisibleToPlayers[spawnIndex] = token.invisibleToPlayers or false
                                 print("SPAWN:: INVISIBLE", spawnIndex, " =", group.invisibleToPlayers[spawnIndex])
                                 if self.encounter.saveAppearances and token.appearanceChangedFromBestiary then
@@ -992,10 +995,12 @@ function RichEncounter.CreateDisplay(self)
                         if not groupsReset[gidx] then
                             groupsReset[gidx] = true
                             group.spawnlocs = {}
+                            group.spawnfloors = {}
                             group.appearances = {}
                             group.invisibleToPlayers = {}
                         end
                         group.spawnlocs[slot] = token.loc
+                        group.spawnfloors[slot] = Encounter.StampSavedFloor(token.loc)
                         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
                         if self.encounter.saveAppearances and token.appearanceChangedFromBestiary then
                             group.appearances[slot] = token:SerializeAppearanceToString()

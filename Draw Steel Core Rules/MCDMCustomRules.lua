@@ -30,6 +30,14 @@ local function CombinedKit(self, kit, kit2)
 		return memo.kit
 	end
 	local result = Kit.CombineKits(self, kit, kit2)
+	--CombineKits marks its signature abilities as temporary clones, so MakeTemporaryClone hands
+	--them back as they are. GetActivatedAbilities edits what it gets back (reach, modifyability
+	--modifiers appending behaviors), which was fine while each call built new ones but stacks
+	--onto these kept ones on every call. Unmarked, each call deep-copies them like a single kit's
+	--abilities; the copies' melee/ranged variations keep their mark, which the variations need.
+	for _,ability in ipairs(result:SignatureAbilities()) do
+		ability._tmp_temporaryClone = false
+	end
 	rawset(self, "_tmp_combinedKit", { a = kit, b = kit2, key = key, kit = result })
 	return result
 end
@@ -188,11 +196,10 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 
 	local classFeatures = {}
 
+	--Class content ticked for the companion is left out: the hero does not have it.
 	for i,entry in ipairs(self:GetClassesAndSubClasses()) do
-		entry.class:FillFeatureDetailsForLevel(self:GetLevelChoices(), entry.level, self:ExtraLevelInfo(), i ~= 1, classFeatures)
+		entry.class:FillHeroFeatureDetailsForLevel(self:GetLevelChoices(), entry.level, self:ExtraLevelInfo(), i ~= 1, classFeatures)
 	end
-
-
 
 	for _,f in ipairs(classFeatures) do
 		result[#result+1] = f

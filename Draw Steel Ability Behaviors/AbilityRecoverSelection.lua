@@ -6,6 +6,10 @@ ActivatedAbilityRecoverySelectionBehavior = RegisterGameType("ActivatedAbilityRe
 
 ActivatedAbilityRecoverySelectionBehavior.summary = "Recovery Selection"
 
+--How many of the enhancements picked cost nothing, as if that much of the heroic resource had
+--already been spent. Godsworn's Healing Gift uses Healing Grace "as if you had spent 1 piety": 1.
+ActivatedAbilityRecoverySelectionBehavior.freeEnhancements = 0
+
 ActivatedAbility.RegisterType
 {
 	id = 'recoverySelection',
@@ -20,6 +24,18 @@ function ActivatedAbilityRecoverySelectionBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)
 	self:FilterEditor(parentPanel, result)
+	result[#result+1] = gui.Panel{
+		classes = { "formPanel" },
+		gui.Label{ classes = { "formLabel" }, text = "Free Enhancements:" },
+		gui.Input{
+			classes = { "formInput" },
+			text = tostring(self.freeEnhancements),
+			change = function(element)
+				self.freeEnhancements = math.max(0, math.tointeger(tonumber(element.text) or 0) or 0)
+				element.text = tostring(self.freeEnhancements)
+			end,
+		},
+	}
 	return result
 end
 
@@ -59,7 +75,8 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             end
         end
 
-        return max(0, numTargets - 1) + max(0, numRecovery - numTargets) + numEffects
+        local enhancements = max(0, numTargets - 1) + max(0, numRecovery - numTargets) + numEffects
+        return max(0, enhancements - self.freeEnhancements)
     end
 
     local recoveryid = nil
@@ -79,16 +96,34 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
     local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
 
-    -- Reference to the cost label element for refreshing.
+    -- References to the cost label and Submit button for refreshing.
     local costLabelElement = nil
+    local submitElement = nil
+
+    local function cannotAfford()
+        return calcCost() > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
+    end
+
+    --Under "Strictly Enforce Action Economy and Resource Costs" a player cannot
+    --submit choices costing more than they can spend (the spend would clamp at 0,
+    --making the extras free). Otherwise the red cost label is only a warning.
+    local function submitBlocked()
+        return StrictActionEconomyEnforced() and cannotAfford()
+    end
 
     local function refreshCostLabel()
+        if submitElement ~= nil then
+            submitElement:SetClass("recovery-submit-disabled", submitBlocked())
+        end
         if costLabelElement == nil then
             return
         end
         local cost = calcCost()
         costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost)
-        costLabelElement:SetClass("recovery-cannot-afford", cost > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
+        if self.freeEnhancements > 0 then
+            costLabelElement.text = string.format("%s (%d free)", costLabelElement.text, self.freeEnhancements)
+        end
+        costLabelElement:SetClass("recovery-cannot-afford", cannotAfford())
     end
 
     --- @param token CharacterToken
@@ -307,7 +342,19 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         classes = {"recovery-button-row"},
         gui.Panel{
             classes = {"recovery-submit"},
+            create = function(element)
+                submitElement = element
+                refreshCostLabel()
+            end,
+            hover = function(element)
+                if submitBlocked() then
+                    gui.Tooltip(string.format("Not enough %s", casterToken.properties:GetHeroicResourceName()))(element)
+                end
+            end,
             press = function(element)
+                if submitBlocked() then
+                    return
+                end
                 finished = true
                 gui.CloseModal()
             end,
@@ -549,9 +596,17 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                 cornerRadius = 4,
             },
             {
-                selectors = {"panel", "recovery-submit", "hover"},
+                selectors = {"panel", "recovery-submit", "~recovery-submit-disabled", "hover"},
                 brightness = 1.25,
                 transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "recovery-submit", "recovery-submit-disabled"},
+                opacity = 0.4,
+            },
+            {
+                selectors = {"label", "recovery-button-label", "parent:recovery-submit-disabled"},
+                opacity = 0.4,
             },
             {
                 selectors = {"panel", "recovery-cancel"},

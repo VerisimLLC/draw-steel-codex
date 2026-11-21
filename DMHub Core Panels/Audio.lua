@@ -7880,12 +7880,17 @@ end
 --- @type SoundEventInstanceLua?
 local g_studioCueInstance = nil
 local g_studioCueAssetId = nil
+--a Michael Ghelfi Studios preview still downloading ("mgs:<track id>"): its row shows
+--as cueing, and stopping the cue cancels it.
+--- @type nil|string
+local g_studioCuePendingId = nil
 local function StopStudioCue()
 	if g_studioCueInstance ~= nil then
 		pcall(function() g_studioCueInstance:Stop() end)
 	end
 	g_studioCueInstance = nil
 	g_studioCueAssetId = nil
+	g_studioCuePendingId = nil
 end
 local function StudioCueActive(assetid)
 	return g_studioCueAssetId == assetid and g_studioCueInstance ~= nil and g_studioCueInstance.playing
@@ -7950,6 +7955,17 @@ local function CategorySubmenuEntries(applyFn)
 		{ text = "Effects", click = function() applyFn("effects") end },
 		{ text = "Clear category", click = function() applyFn(nil) end },
 	}
+end
+
+--- "From Michael Ghelfi Studios \xC2\xB7 <composer>": MGS asks for the composer to be
+--- shown with their tracks. "\xC2\xB7" is a middle dot (Lua source stays ASCII).
+--- @param composer nil|string
+--- @return string
+local function MGSCreditText(composer)
+	if type(composer) == "string" and composer ~= "" then
+		return "From Michael Ghelfi Studios \xC2\xB7 " .. composer
+	end
+	return "From Michael Ghelfi Studios"
 end
 
 local CreateAudioStudioRow = function(audioAsset, opts)
@@ -8171,7 +8187,12 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end,
 		linger = function(element)
-			gui.Tooltip(DisplayNameForAsset(audioAsset))(element)
+			local tip = DisplayNameForAsset(audioAsset)
+			if audioAsset.source == "mgs" then
+				--MGS asks for the composer to be shown with their tracks.
+				tip = tip .. "\n" .. MGSCreditText(audioAsset.sourceCredit)
+			end
+			gui.Tooltip(tip)(element)
 		end,
 	}
 
@@ -8790,6 +8811,442 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		refreshSelection = function(element, selectedSet)
 			element:SetClass("selected", selectedSet ~= nil and selectedSet[audioAsset.id] == true)
 		end,
+		children = children,
+	}
+end
+
+--=== Michael Ghelfi Studios tracks in the library ===============================
+--MGS's whole library shows in the Studio library, inside the Music / Ambience /
+--Effects folders, one folder per MGS genre. A track this game already has is an
+--ordinary clip row there; any other is an MGS row: preview it (only you hear it),
+--and play it to the table once your MGS account includes it -- the first play adds
+--it to the game (MGSAudio.AddToGame), after which it is an ordinary clip.
+
+--MGS rows a genre folder builds at a time; a "Show more" row adds the next batch,
+--so opening a 700-track genre stays quick.
+local MGS_LIBRARY_PAGE = 100
+
+--- Connect this install to an MGS account: shows the code, opens their website,
+--- and closes itself once the user approves the connection there.
+local function MGSConnectDialog()
+	local handle = nil
+	local url = nil
+	local closed = false
+	local codeLabel = gui.Label{
+		classes = {"sizeXxl", "bold"},
+		text = "",
+		width = "100%",
+		height = 40,
+		halign = "center",
+		textAlignment = "center",
+	}
+	local status = gui.Label{
+		classes = {"sizeS", "fgMuted"},
+		text = "Getting a code from Michael Ghelfi Studios...",
+		width = "94%",
+		height = "auto",
+		halign = "center",
+		textAlignment = "center",
+		textWrap = true,
+	}
+	local dlg
+	dlg = DialogShell.CreateNew{
+		title = "Michael Ghelfi Studios",
+		width = 520,
+		height = 300,
+		footerCells = {50, 50},
+		escape = true,
+		floating = true,
+		onClose = function()
+			closed = true
+			if handle ~= nil then
+				handle.cancel()
+				handle = nil
+			end
+		end,
+	}
+	dlg:SetWorkingContent{
+		gui.Panel{
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
+			valign = "center",
+			gui.Label{
+				classes = {"sizeS"},
+				text = "Your Michael Ghelfi Studios account decides which of their tracks you can play here. You approve the connection on their website; no password is entered in the Codex.",
+				width = "94%",
+				height = "auto",
+				halign = "center",
+				textWrap = true,
+				bmargin = 12,
+			},
+			codeLabel,
+			status,
+		},
+	}
+	dlg:AddFooterButton{
+		slot = "left",
+		text = "Cancel",
+		click = function(shell)
+			shell:Close()
+		end,
+	}
+	dlg:AddFooterButton{
+		slot = "right",
+		text = "Open the website",
+		enabled = function()
+			return url ~= nil
+		end,
+		click = function()
+			if url ~= nil then
+				dmhub.OpenURL(url)
+			end
+		end,
+	}
+	--DialogShell.CreateNew always builds root.
+	gui.ShowModal(dlg:Root() --[[@as Panel]])
+	handle = MGSAudio.StartConnect{
+		code = function(userCode, link)
+			if closed then
+				return
+			end
+			url = link
+			if codeLabel.valid then
+				codeLabel.text = userCode
+				status.text = "Sign in on their website and choose Connect. This window closes once you have."
+			end
+			dlg:RefreshFooter()
+			dmhub.OpenURL(link)
+		end,
+		done = function()
+			handle = nil
+			if not closed then
+				dlg:Close()
+			end
+		end,
+		fail = function(message)
+			handle = nil
+			if not closed and status.valid then
+				status.text = message
+			end
+		end,
+	}
+end
+
+--- How to get an MGS track you can only preview: what includes it (a Patreon tier or
+--- an album) with a button to their page, and Connect for someone who has it already
+--- but has not connected their account here.
+--- @param track MGSTrack
+local function MGSAccessDialog(track)
+	local need
+	local go = nil
+	if track.tier ~= nil then
+		need = string.format("It comes with the %s tier or above on Michael Ghelfi Studios' Patreon.", track.tier)
+		go = "Subscribe"
+	elseif track.album ~= nil then
+		need = string.format("It comes with the album %s from Michael Ghelfi Studios.", track.album)
+		go = "Buy the album"
+	elseif track.free then
+		need = "Any free Michael Ghelfi Studios account includes it."
+	else
+		need = "Your Michael Ghelfi Studios account does not include it yet."
+	end
+	local connected = MGSAudio.IsConnected()
+	local after = cond(connected,
+		"Once your account includes it, it is ready to play here.",
+		"Already have it? Connect your account to play it here.")
+	local url = track.accessUrl
+
+	local dlg = DialogShell.CreateNew{
+		title = "Michael Ghelfi Studios",
+		width = 520,
+		height = 280,
+		footerCells = {33, 34, 33},
+		escape = true,
+		floating = true,
+	}
+	dlg:SetWorkingContent{
+		gui.Panel{
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
+			valign = "center",
+			gui.Label{
+				classes = {"sizeL", "bold"},
+				text = track.title,
+				width = "94%",
+				height = "auto",
+				halign = "center",
+				textWrap = false,
+				textOverflow = "ellipsis",
+				bmargin = 8,
+			},
+			gui.Label{
+				classes = {"sizeS"},
+				text = "You can preview this track. To play it to the table, your account needs it. " .. need,
+				width = "94%",
+				height = "auto",
+				halign = "center",
+				textWrap = true,
+				bmargin = 8,
+			},
+			gui.Label{
+				classes = {"sizeS", "fgMuted"},
+				text = after,
+				width = "94%",
+				height = "auto",
+				halign = "center",
+				textWrap = true,
+			},
+		},
+	}
+	dlg:AddFooterButton{
+		slot = 1,
+		text = "Close",
+		click = function(shell)
+			shell:Close()
+		end,
+	}
+	if not connected then
+		dlg:AddFooterButton{
+			slot = 2,
+			text = "Connect account",
+			click = function(shell)
+				shell:Close()
+				MGSConnectDialog()
+			end,
+		}
+	end
+	if url ~= nil and go ~= nil then
+		dlg:AddFooterButton{
+			slot = 3,
+			text = go,
+			click = function()
+				dmhub.OpenURL(url)
+			end,
+		}
+	end
+	--DialogShell.CreateNew always builds root.
+	gui.ShowModal(dlg:Root() --[[@as Panel]])
+end
+
+--- Run fn with the game's audio asset once it reaches assets.audioTable: an add
+--- reports its new id when the server acks it, which can be before the asset echo
+--- lands (about 10s at most here).
+--- @param guid string
+--- @param fn fun(asset: AudioAssetLua)
+--- @param attemptsLeft nil|integer
+local function WhenAudioAssetArrives(guid, fn, attemptsLeft)
+	local asset = assets.audioTable[guid]
+	if asset ~= nil then
+		fn(asset)
+		return
+	end
+	attemptsLeft = attemptsLeft or 40
+	if attemptsLeft <= 0 then
+		return
+	end
+	dmhub.Schedule(0.25, function()
+		if not mod.unloaded then
+			WhenAudioAssetArrives(guid, fn, attemptsLeft - 1)
+		end
+	end)
+end
+
+--- Add an MGS track the user's account includes to this game, then play it to the
+--- table. Errors show in a message box.
+--- @param track MGSTrack
+local function AddMGSTrackAndPlay(track)
+	if MGSAudio.IsAdding(track.id) then
+		return
+	end
+	local operation = dmhub.CreateNetworkOperation()
+	operation.description = "Adding from Michael Ghelfi Studios..."
+	operation.status = "Downloading..."
+	operation.progress = 0
+	operation:Update()
+	MGSAudio.AddToGame(track.id, {
+		progress = function(fraction)
+			operation.progress = fraction
+			operation:Update()
+		end,
+		done = function(guid)
+			operation.progress = 1
+			operation:Update()
+			if mod.unloaded then
+				return
+			end
+			WhenAudioAssetArrives(guid, function(asset)
+				PlayBroadcastClip(asset, { volume = asset.volume })
+			end)
+		end,
+		fail = function(message)
+			operation.progress = 1
+			operation:Update()
+			gui.ModalMessage{
+				title = "Could not add the track",
+				message = message,
+			}
+		end,
+	})
+end
+
+--- A library row for an MGS track this game does not have yet: name and credit,
+--- length, Play to table (adds it first; locked without access), preview, and Get
+--- access when the user's account does not include it.
+--- @param track MGSTrack
+--- @return Panel
+local function CreateMGSLibraryRow(track)
+	local rowId = "mgs:" .. track.id
+	local locked = not track.entitled
+
+	local playButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
+		classes = {"audioBroadcastButton", cond(locked, "mgsLocked", nil)},
+		bgimage = "ui-icons/ph-play-fill.png",
+		width = 18,
+		height = 18,
+		valign = "center",
+		hmargin = 3,
+		create = function(element)
+			--an add already under way (a rebuild mid-add) shows as live.
+			element:SetClass("playing", MGSAudio.IsAdding(track.id))
+		end,
+		press = function(element)
+			if locked then
+				MGSAccessDialog(track)
+				return
+			end
+			element:SetClass("playing", true)
+			AddMGSTrackAndPlay(track)
+		end,
+		linger = function(element)
+			local tip
+			if locked then
+				tip = "Your Michael Ghelfi Studios account does not include this track"
+			elseif MGSAudio.IsAdding(track.id) then
+				tip = "Adding to the game..."
+			else
+				tip = "Play to table (adds it to this game)"
+			end
+			gui.Tooltip(tip)(element)
+		end,
+	}
+
+	--Preview through the Studio's one cue slot, so it stops (and is stopped by) any
+	--clip cue. The first preview of a track downloads it, so it shows as cueing
+	--while it arrives.
+	local cueButton
+	cueButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
+		classes = {"audioCueButton"},
+		bgimage = "ui-icons/ph-headphones-fill.png",
+		width = 18,
+		height = 18,
+		valign = "center",
+		hmargin = 3,
+		press = function(element)
+			if g_studioCuePendingId == rowId or StudioCueActive(rowId) then
+				StopStudioCue()
+				element:FireEvent("refreshCue")
+				return
+			end
+			StopStudioCue()
+			g_studioCuePendingId = rowId
+			element:FireEvent("refreshCue")
+			MGSAudio.PlayPreview(track.id, function(instance)
+				if g_studioCuePendingId ~= rowId then
+					--stopped, or another cue started, while this one downloaded.
+					pcall(function() instance:Stop() end)
+					return
+				end
+				g_studioCuePendingId = nil
+				g_studioCueInstance = instance
+				g_studioCueAssetId = rowId
+				instance.volume = audio.masterVolume
+			end, function(message)
+				if g_studioCuePendingId == rowId then
+					g_studioCuePendingId = nil
+				end
+				gui.ModalMessage{
+					title = "Could not preview the track",
+					message = message,
+				}
+			end)
+		end,
+		refreshCue = function(element)
+			local active = g_studioCuePendingId == rowId or StudioCueActive(rowId)
+			element:SetClass("active", active)
+			element.thinkTime = active and 0.3 or nil
+		end,
+		think = function(element)
+			if g_studioCuePendingId == rowId then
+				return
+			end
+			if not StudioCueActive(rowId) then
+				element:SetClass("active", false)
+				element.thinkTime = nil
+			else
+				g_studioCueInstance.volume = audio.masterVolume
+			end
+		end,
+		linger = function(element)
+			gui.Tooltip("Preview (only you)")(element)
+		end,
+	}
+
+	--Title, then the credit in a quieter tone; the tooltip carries both in full.
+	local nameLabel = gui.Label{
+		text = string.format("%s  <alpha=#80><size=85%%>%s</size>", track.title, MGSCreditText(track.composer)),
+		width = cond(locked, "100%-208", "100%-122"),
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		textWrap = false,
+		textOverflow = "ellipsis",
+		linger = function(element)
+			gui.Tooltip(string.format("%s\n%s", track.title, MGSCreditText(track.composer)))(element)
+		end,
+	}
+
+	local durationLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		text = FormatTime(track.duration, track.duration),
+		width = 40,
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		hmargin = 3,
+		fontSize = 11,
+		textAlignment = "right",
+	}
+
+	local children = { nameLabel, durationLabel, playButton, cueButton }
+	if locked then
+		children[#children+1] = gui.Button{
+			classes = {"sizeXs"},
+			text = "Get access",
+			width = 80,
+			height = 22,
+			valign = "center",
+			hmargin = 3,
+			borderBox = true,
+			press = function()
+				MGSAccessDialog(track)
+			end,
+		}
+	end
+	--Reserved gutter under the library's scrollbar, as on clip rows.
+	children[#children+1] = gui.Panel{ width = 12, height = 1 }
+
+	return gui.Panel{
+		classes = {"bordered", "hoverable", "audioClipRow", "mgsLibraryRow"},
+		flow = "horizontal",
+		width = "100%",
+		height = 30,
+		valign = "center",
+		vmargin = 1,
 		children = children,
 	}
 end
@@ -9736,6 +10193,101 @@ local CreateAudioLibraryTree = function()
 		doc:CompleteChange("Reorder audio clips")
 	end
 
+	--MGS tracks to list in each folder, by folderid: {track, asset} entries, where
+	--asset is the game's clip of that track when it has one. Rebuilt with the maps.
+	--- @type table<string, {track: MGSTrack, asset: nil|AudioAssetLua}[]>
+	local m_mgsByFolder = {}
+	--this tree's key for MGSAudio.Watch.
+	local m_mgsWatchKey = {}
+
+	--Add the MGS library to the folder maps: a folder per genre inside the Music /
+	--Ambience / Effects folders (a virtual top-level one when the game has no such
+	--folder yet; the user's own subfolder of the same name when it has one). MGS clips
+	--the game already has move out of the default "Sounds" folder into their genre;
+	--one the user filed in a folder of their own stays there and is not repeated. In
+	--a build mode (adding to a playlist or pool) only clips the game has are listed.
+	--Returns the {track, asset} lists by folderid. Virtual folders have ids starting
+	--"mgs|" and folder.virtual = true: they are not stored anywhere.
+	local function AddMGSFolders(foldersByParent, clipsByFolder, poolBuild)
+		local result = {}
+		local tracks = MGSAudio.Tracks()
+		if #tracks == 0 then
+			return result
+		end
+		local buildMode = m_studioBuildMode ~= nil
+
+		local inGame = {}
+		local defaultList = clipsByFolder[defaultFolder]
+		if defaultList ~= nil then
+			local keep = {}
+			for _,asset in ipairs(defaultList) do
+				if asset.source == "mgs" and MGSAudio.Track(asset.sourceId) ~= nil then
+					inGame[asset.sourceId] = asset
+				else
+					keep[#keep+1] = asset
+				end
+			end
+			clipsByFolder[defaultFolder] = keep
+		end
+		local filedElsewhere = {}
+		for _,asset in pairs(assets.audioTable) do
+			if not asset.hidden and asset.source == "mgs" and inGame[asset.sourceId] == nil then
+				filedElsewhere[asset.sourceId] = true
+			end
+		end
+
+		local function ChildNamed(parentKey, name)
+			local lower = string.lower(name)
+			for _,entry in ipairs(foldersByParent[parentKey] or {}) do
+				if string.lower(entry.folder.description or "") == lower then
+					return entry.id
+				end
+			end
+			return nil
+		end
+		local function AddFolder(parentKey, id, name)
+			local t = foldersByParent[parentKey]
+			if t == nil then t = {} foldersByParent[parentKey] = t end
+			--a large ord sorts these after the user's own folders.
+			t[#t+1] = { id = id, folder = { description = name, ord = 1000000, virtual = true } }
+			return id
+		end
+
+		for _,track in ipairs(tracks) do
+			local asset = inGame[track.id]
+			local listed = not filedElsewhere[track.id]
+			if buildMode and asset == nil then
+				listed = false
+			end
+			if poolBuild and track.kind ~= "effects" and track.kind ~= "ambience" then
+				listed = false
+			end
+			if listed then
+				local categoryName = g_categoryFolderNames[track.kind]
+				local topId = ChildNamed("__root__", categoryName) or AddFolder("__root__", "mgs|" .. track.kind, categoryName)
+				local genreId = ChildNamed(topId, track.genre) or AddFolder(topId, "mgs|" .. track.kind .. "|" .. track.genre, track.genre)
+				local list = result[genreId]
+				if list == nil then list = {} result[genreId] = list end
+				list[#list+1] = { track = track, asset = asset }
+			end
+		end
+
+		--Clips the game has first, then tracks the account includes, then the rest.
+		local function rank(entry)
+			if entry.asset ~= nil then return 0 end
+			if entry.track.entitled then return 1 end
+			return 2
+		end
+		for _,list in pairs(result) do
+			table.sort(list, function(a, b)
+				local ra, rb = rank(a), rank(b)
+				if ra ~= rb then return ra < rb end
+				return a.track.title < b.track.title
+			end)
+		end
+		return result
+	end
+
 	--Group folders by parentFolder ("__root__" for top level) and clips by their
 	--owning folder. Each folder entry carries its id (the table key) since the folder
 	--object itself is not guaranteed to expose one. Folders sort by their own ord then
@@ -9800,6 +10352,7 @@ local CreateAudioLibraryTree = function()
 			end
 			foldersByParent = pruned
 		end
+		local mgsByFolder = AddMGSFolders(foldersByParent, clipsByFolder, poolBuild)
 		local function cmpFolder(a,b)
 			local ao,bo = a.folder.ord or 0, b.folder.ord or 0
 			if ao ~= bo then return ao < bo end
@@ -9818,7 +10371,7 @@ local CreateAudioLibraryTree = function()
 				return (a.description or "") < (b.description or "")
 			end)
 		end
-		return foldersByParent, clipsByFolder
+		return foldersByParent, clipsByFolder, mgsByFolder
 	end
 
 	--C6: restrict the maps BuildMaps produced to what an active search should show.
@@ -9827,10 +10380,34 @@ local CreateAudioLibraryTree = function()
 	--its whole ancestor chain into view. Clips are filtered to matches only, within
 	--whichever folders survive. Matched folders are recorded into matchedFolderSet so
 	--CreateFolderNode can force them open + built regardless of remembered expansion.
-	local function FilterMaps(foldersByParent, clipsByFolder, searchText, matchedFolderSet)
+	--The search-only folder, always last, holding the MGS tracks that match but that
+	--neither the game has nor the account includes.
+	local MGS_LOCKED_FOLDER = "mgs|locked"
+
+	local function FilterMaps(foldersByParent, clipsByFolder, mgsByFolder, searchText, matchedFolderSet)
 		if searchText == "" then
-			return foldersByParent, clipsByFolder
+			return foldersByParent, clipsByFolder, mgsByFolder
 		end
+		--MGS tracks match on their title, genre, composer and keywords. Tracks the
+		--game lacks and the account does not include are left out of the folders:
+		--they are listed after everything else, under their own heading.
+		local function MGSMatches(entry)
+			return string.find(entry.track.search, searchText, 1, true) ~= nil
+		end
+		local function MGSUsable(entry)
+			return entry.asset ~= nil or entry.track.entitled
+		end
+		local locked = {}
+		for _,list in pairs(mgsByFolder) do
+			for _,entry in ipairs(list) do
+				if not MGSUsable(entry) and MGSMatches(entry) then
+					locked[#locked+1] = entry
+				end
+			end
+		end
+		table.sort(locked, function(a, b)
+			return string.lower(a.track.title) < string.lower(b.track.title)
+		end)
 
 		--Recursively decide (and memoise) whether folderid should survive the filter:
 		--its own name matches, one of its direct clips matches, or a child folder does.
@@ -9855,6 +10432,14 @@ local CreateAudioLibraryTree = function()
 				end
 			end
 			if not survives then
+				for _,entry in ipairs(mgsByFolder[folderid] or {}) do
+					if MGSUsable(entry) and MGSMatches(entry) then
+						survives = true
+						break
+					end
+				end
+			end
+			if not survives then
 				for _,sub in ipairs(foldersByParent[folderid] or {}) do
 					if FolderSurvives(sub.id, sub.folder) then
 						survives = true
@@ -9872,6 +10457,7 @@ local CreateAudioLibraryTree = function()
 
 		local outFoldersByParent = {}
 		local outClipsByFolder = {}
+		local outMGSByFolder = {}
 		local function FilterLevel(parentKey)
 			for _,entry in ipairs(foldersByParent[parentKey] or {}) do
 				if FolderSurvives(entry.id, entry.folder) then
@@ -9887,13 +10473,29 @@ local CreateAudioLibraryTree = function()
 					end
 					outClipsByFolder[entry.id] = clips
 
+					local mgs = {}
+					for _,mgsEntry in ipairs(mgsByFolder[entry.id] or {}) do
+						if MGSUsable(mgsEntry) and MGSMatches(mgsEntry) then
+							mgs[#mgs+1] = mgsEntry
+						end
+					end
+					outMGSByFolder[entry.id] = mgs
+
 					FilterLevel(entry.id)
 				end
 			end
 		end
 		FilterLevel("__root__")
 
-		return outFoldersByParent, outClipsByFolder
+		if #locked > 0 then
+			local t = outFoldersByParent["__root__"]
+			if t == nil then t = {} outFoldersByParent["__root__"] = t end
+			t[#t+1] = { id = MGS_LOCKED_FOLDER, folder = { description = "Needs Michael Ghelfi Studios access", virtual = true } }
+			outMGSByFolder[MGS_LOCKED_FOLDER] = locked
+			matchedFolderSet[MGS_LOCKED_FOLDER] = true
+		end
+
+		return outFoldersByParent, outClipsByFolder, outMGSByFolder
 	end
 
 	--Remembered expansion per folderid, so a tree rebuild (any asset/folder change,
@@ -9987,7 +10589,11 @@ local CreateAudioLibraryTree = function()
 		if target == nil then return nil end
 		if target:HasClass("audioRootDropZone") or target:FindParentWithClass("audioRootDropZone") ~= nil then return "__root__" end
 		local node = target:FindParentWithClass("audioFolderNode")
-		if node ~= nil then return node.data.folderid end
+		if node ~= nil then
+			--an MGS genre folder is not stored anywhere, so nothing can be filed in it.
+			if node.data.virtual then return nil end
+			return node.data.folderid
+		end
 		if target:HasClass("audioLibraryRoot") or target:FindParentWithClass("audioLibraryRoot") ~= nil then return "__root__" end
 		return nil
 	end
@@ -10080,7 +10686,9 @@ local CreateAudioLibraryTree = function()
 	--any other drop that resolves to a folder moves the clip into that folder.
 	local clipCanDragOnto = function(element, target)
 		if target ~= nil and target:HasClass("audioClipSpacer") then
-			return true
+			--reordering inside an MGS genre folder would file the clip in it.
+			local folderNode = target:FindParentWithClass("audioFolderNode")
+			return folderNode == nil or not folderNode.data.virtual
 		end
 		return ResolveDrop(target) ~= nil
 	end
@@ -10122,9 +10730,63 @@ local CreateAudioLibraryTree = function()
 	--header, so a deep/large library no longer spawns every row up front. Returns the
 	--container panel, whether it is empty (computed from the maps, not from built
 	--children), and a builder the node calls when it should be open.
+	local function ClipRow(asset)
+		return CreateAudioStudioRow(asset, {
+			draggable = true,
+			canDragOnto = clipCanDragOnto,
+			drag = clipDrag,
+			dragging = clipDragging,
+			onSelect = ClipSelectClick,
+			--Threaded (not a global read) so the row's C2 context menu can tell
+			--whether it is right-clicked as part of a live multi-selection.
+			getSelection = function() return m_selected end,
+		})
+	end
+
 	CreateFolderContents = function(folderid, foldersByParent, clipsByFolder)
 		local built = false
 		local panel
+		local mgsList = m_mgsByFolder[folderid] or {}
+		--how many of mgsList have rows so far (they are built a page at a time).
+		local mgsShown = 0
+		local AddMGSPage
+		--The "Show more" row at the end of a part-built MGS list: replaces itself
+		--with the next page.
+		local function MoreRow()
+			local left = #mgsList - mgsShown
+			return gui.Label{
+				classes = {"sizeXs", "fgMuted", "hoverable"},
+				text = string.format("Show %d more (%d not shown)", math.min(left, MGS_LIBRARY_PAGE), left),
+				width = "100%",
+				height = 26,
+				hmargin = 8,
+				valign = "center",
+				textAlignment = "left",
+				press = function(element)
+					local children = panel.children
+					table.remove(children)
+					AddMGSPage(children)
+					panel.children = children
+					panel:FireEventTree("refreshPlayingAudio")
+					panel:FireEventTree("refreshSelection", m_selected)
+				end,
+			}
+		end
+		AddMGSPage = function(children)
+			local last = math.min(#mgsList, mgsShown + MGS_LIBRARY_PAGE)
+			for i = mgsShown + 1, last do
+				local entry = mgsList[i]
+				if entry.asset ~= nil then
+					children[#children+1] = ClipRow(entry.asset)
+				else
+					children[#children+1] = CreateMGSLibraryRow(entry.track)
+				end
+			end
+			mgsShown = last
+			if mgsShown < #mgsList then
+				children[#children+1] = MoreRow()
+			end
+		end
 		local function BuildChildren()
 			if built then return end
 			built = true
@@ -10133,17 +10795,9 @@ local CreateAudioLibraryTree = function()
 				children[#children+1] = CreateFolderNode(sub, foldersByParent, clipsByFolder)
 			end
 			for _,asset in ipairs(clipsByFolder[folderid] or {}) do
-				children[#children+1] = CreateAudioStudioRow(asset, {
-					draggable = true,
-					canDragOnto = clipCanDragOnto,
-					drag = clipDrag,
-					dragging = clipDragging,
-					onSelect = ClipSelectClick,
-					--Threaded (not a global read) so the row's C2 context menu can tell
-					--whether it is right-clicked as part of a live multi-selection.
-					getSelection = function() return m_selected end,
-				})
+				children[#children+1] = ClipRow(asset)
 			end
+			AddMGSPage(children)
 			panel.children = children
 			--Newly built rows missed the root's post-rebuild refresh, so sync them now.
 			panel:FireEventTree("refreshPlayingAudio")
@@ -10161,19 +10815,55 @@ local CreateAudioLibraryTree = function()
 				BuildChildren()
 			end,
 		}
-		local empty = (#(foldersByParent[folderid] or {}) == 0) and (#(clipsByFolder[folderid] or {}) == 0)
-		return panel, empty, BuildChildren
+		--holdsOwn: the user's own folders or clips are inside (MGS genres and tracks
+		--are not stored in it, so they do not stop a delete).
+		local holdsOwn = false
+		for _,sub in ipairs(foldersByParent[folderid] or {}) do
+			if not sub.folder.virtual then
+				holdsOwn = true
+				break
+			end
+		end
+		holdsOwn = holdsOwn or #(clipsByFolder[folderid] or {}) > 0
+		local empty = (#(foldersByParent[folderid] or {}) == 0) and (#(clipsByFolder[folderid] or {}) == 0) and #mgsList == 0
+		return panel, empty, BuildChildren, holdsOwn
 	end
 
 	CreateFolderNode = function(entry, foldersByParent, clipsByFolder)
 		local folderid = entry.id
 		local folder = entry.folder
-		local contents, empty, buildContents = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
+		local contents, empty, buildContents, holdsOwn = CreateFolderContents(folderid, foldersByParent, clipsByFolder)
 		local isDefault = folderid == defaultFolder
 		--An active search force-opens every folder it matched (C6 "auto-expand every
 		--folder shown"), regardless of the user's remembered expansion.
 		local forceOpen = m_searchMatched[folderid] == true
 		local startOpen = forceOpen or m_expanded[folderid] == true
+
+		--An MGS genre folder (or stand-in Music / Ambience / Effects folder) is not
+		--stored, so it cannot be renamed, deleted or dropped into. It stays draggable
+		--(dropping nowhere) so a drag on its header cannot move the whole window.
+		if folder.virtual then
+			local virtualNode = gui.TreeNode{
+				classes = {"audioFolderNode"},
+				text = folder.description,
+				width = "100%",
+				editable = false,
+				expanded = startOpen,
+				draggable = true,
+				data = { folderid = folderid, virtual = true },
+				contentPanel = contents,
+				canDragOnto = function(element, target)
+					return false
+				end,
+				create = function(element)
+					element:FireEvent("setempty", empty)
+				end,
+			}
+			if startOpen then
+				buildContents()
+			end
+			return virtualNode
+		end
 
 		local node
 		node = gui.TreeNode{
@@ -10259,7 +10949,7 @@ local CreateAudioLibraryTree = function()
 						text = "Delete Folder",
 						click = function()
 							element.popup = nil
-							if not empty then
+							if holdsOwn then
 								gui.ModalMessage{
 									owner = element,
 									title = "Folder Not Empty",
@@ -10314,7 +11004,8 @@ local CreateAudioLibraryTree = function()
 				return false
 			end
 		end
-		return true
+		--the MGS library fills the Music / Ambience / Effects folders even here.
+		return #MGSAudio.Tracks() == 0
 	end
 
 	local function DoRebuild(element)
@@ -10354,9 +11045,10 @@ local CreateAudioLibraryTree = function()
 			return
 		end
 
-		local rawFoldersByParent, rawClipsByFolder = BuildMaps()
+		local rawFoldersByParent, rawClipsByFolder, rawMGSByFolder = BuildMaps()
 		m_searchMatched = {}
-		local foldersByParent, clipsByFolder = FilterMaps(rawFoldersByParent, rawClipsByFolder, m_searchText, m_searchMatched)
+		local foldersByParent, clipsByFolder, mgsByFolder = FilterMaps(rawFoldersByParent, rawClipsByFolder, rawMGSByFolder, m_searchText, m_searchMatched)
+		m_mgsByFolder = mgsByFolder
 
 		--Capture each folder's clips in visible (sorted) order for shift-range, and
 		--drop any selected ids that no longer exist.
@@ -10375,6 +11067,18 @@ local CreateAudioLibraryTree = function()
 		end
 		local children = {}
 		for _,entry in ipairs(foldersByParent["__root__"] or {}) do
+			if entry.id == MGS_LOCKED_FOLDER then
+				--a gap and a rule set the tracks you cannot use apart from your own.
+				children[#children+1] = gui.Panel{
+					bgimage = "panels/square.png",
+					bgcolor = "@border",
+					opacity = 0.35,
+					width = "100%",
+					height = 1,
+					tmargin = 14,
+					bmargin = 4,
+				}
+			end
 			children[#children+1] = CreateFolderNode(entry, foldersByParent, clipsByFolder)
 		end
 		element.children = children
@@ -10447,6 +11151,17 @@ local CreateAudioLibraryTree = function()
 		monitorGame = mod:GetDocumentSnapshot(audioClipOrderDocId).path,
 		create = function(element)
 			DoRebuild(element)
+			--MGS's library arrives (and changes on connect, or while a track is
+			--added) after the tree is built; Refresh loads it if it is not here yet.
+			MGSAudio.Watch(m_mgsWatchKey, function()
+				if element.valid then
+					ScheduleRebuild(element)
+				end
+			end)
+			MGSAudio.Refresh()
+		end,
+		destroy = function(element)
+			MGSAudio.Watch(m_mgsWatchKey, nil)
 		end,
 		refreshAssets = function(element)
 			ScheduleRebuild(element)
@@ -13097,6 +13812,8 @@ CreateAudioStudio = function()
 		{ selectors = {"audioBroadcastButton"}, bgcolor = "white" },
 		{ selectors = {"audioBroadcastButton", "hover"}, brightness = 1.4 },
 		{ selectors = {"audioBroadcastButton", "playing"}, bgcolor = "@warning" },
+		--An MGS track the user's account does not include: Play opens how to get it.
+		{ selectors = {"audioBroadcastButton", "mgsLocked"}, opacity = 0.35 },
 		--DM cue (headphones): dim until hovered; green while this row is auditioning locally.
 		{ selectors = {"audioCueButton"}, bgcolor = "white", opacity = 0.55 },
 		{ selectors = {"audioCueButton", "hover"}, opacity = 1 },

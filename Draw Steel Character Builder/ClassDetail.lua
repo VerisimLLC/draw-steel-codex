@@ -371,6 +371,9 @@ function CBClassDetail._overviewPanel()
                 local classId = state:Get(SELECTOR .. ".selectedId")
                 if classId then
                     local textItems = {}
+                    --A feature list can hold a single feature with the same name and text as the list
+                    --(Conduit's Burgeoning Saint); show that text once, under the list.
+                    local repeatsParentList = {}
 
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local filterLevel = _parseOverviewLevel(state:Get(SELECTOR .. ".category.selectedId"))
@@ -390,9 +393,17 @@ function CBClassDetail._overviewPanel()
                             end
                         end
                         if include then
-                            local s = item.feature:GetDetailedSummaryText()
-                            if s ~= nil and #s > 0 then
+                            local feature = item.feature
+                            local s = feature:GetDetailedSummaryText()
+                            if s ~= nil and #s > 0 and not repeatsParentList[feature.guid] then
                                 textItems[#textItems+1] = s
+                                if feature.typeName == "CharacterFeatureList" then
+                                    for _,child in ipairs(feature.features) do
+                                        if child:GetDetailedSummaryText() == s then
+                                            repeatsParentList[child.guid] = true
+                                        end
+                                    end
+                                end
                             end
                         end
                     end

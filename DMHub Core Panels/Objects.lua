@@ -1,5 +1,62 @@
 local mod = dmhub.GetModLoading()
 
+--Files node into the folder targetNode (id targetId) at targetOrd, shifting
+--later siblings down. targetOrd nil = append after the folder's last child.
+--Shared with CharacterPanel.lua (the bestiary); defined here so the Objects
+--panel works in a mod set whose CharacterPanel lives in another mod.
+mod.shared.MoveNodeInto = function(node, targetId, targetNode, targetOrd, refreshType)
+    if targetOrd == nil then
+        local maxOrd = 0
+        for i, v in ipairs(targetNode.children) do
+            if v ~= node and v.ord > maxOrd then
+                maxOrd = v.ord
+            end
+        end
+
+        targetOrd = maxOrd + 1
+    end
+
+    for i, v in ipairs(targetNode.children) do
+        local newOrd = v.ord
+        if newOrd >= targetOrd then
+            newOrd = newOrd + 1
+        end
+
+        if v ~= node and v.ord ~= newOrd then
+            v.ord = newOrd
+            v:Upload()
+        end
+    end
+
+    node.parentNode = targetId
+    node.ord = targetOrd
+    node:Upload()
+    assets:RefreshAssets(refreshType)
+end
+
+--function which is used when we drag monsters around the bestiary, and
+--objects around the Objects panel.
+mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshType)
+    return function(element, target)
+        if target ~= nil then
+            if target:HasClass("ignoreDrag") then
+                return
+            end
+            target:FireEvent('monsterDraggedOnto', node)
+        end
+        if target == nil or target.data.nodeid == nil then
+            return
+        end
+
+        local targetNode = getNodeFunction(target.data.nodeid)
+        if targetNode == nil then
+            return
+        end
+
+        mod.shared.MoveNodeInto(node, target.data.nodeid, targetNode, target.data.ord, refreshType)
+    end
+end
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -179,6 +236,223 @@ local function PropsPackBundlesLoading()
 	return false
 end
 
+--propspacks hands out plain image URLs, which bgimage does not load; "md5:"
+--in front of one makes the image manager download it (as chat images do).
+local function PropsPackImageId(url)
+	if url == nil or url == "" then
+		return nil
+	end
+	return "md5:" .. url
+end
+
+--A props pack object's small preview, used as its icon so a folder or a
+--search full of props downloads previews rather than full images (the full
+--image comes with the tooltip, or when the prop is placed). nil for any
+--other object; the pack check skips the lookup in games with no packs.
+local function PropsPackPreview(nodeid)
+	--GetPreview is missing on engine builds older than the previews.
+	if #propspacks.packs == 0 or propspacks.GetPreview == nil then
+		return nil
+	end
+	return PropsPackImageId(propspacks.GetPreview(nodeid))
+end
+
+--The number shown after a folder's name: objects in it and every folder
+--below it. Props pack and bundle folders take it from the pack index, since a
+--bundle's objects only load when it is opened (and a locked one's never do).
+local function ObjectFolderCount(folderNode)
+	if folderNode.fromMapPack then
+		local info = PropsPackFolderInfo(folderNode.id)
+		if info ~= nil then
+			if info.bundle ~= nil then
+				return info.bundle.count
+			end
+			return info.pack.count
+		end
+	end
+
+	local total = 0
+	for _,child in ipairs(folderNode.children) do
+		if child.isfolder then
+			total = total + ObjectFolderCount(child)
+		else
+			total = total + 1
+		end
+	end
+	return total
+end
+
+--"Requires the X tier of the Y Patreon" for the bundle a search hit is in.
+local function PropsPackHitRequirement(hit, creatorName)
+	local pack = propspacks.GetPack(hit.pack)
+	if pack == nil then
+		return nil
+	end
+	local tier = pack.tier
+	local tierName = pack.tierName
+	for _,bundle in ipairs(pack.bundles) do
+		if bundle.key == hit.bundle and bundle.tier > 0 then
+			tier = bundle.tier
+			tierName = bundle.tierName
+		end
+	end
+	return mod.shared.MapPackPatreonText({tier = tier, tierName = tierName, owned = false}, creatorName)
+end
+
+--Sizes an image panel to its picture's aspect ratio inside its square parent.
+local function FitImageToAspect(element)
+	local maxDim = max(element.bgsprite.dimensions.x, element.bgsprite.dimensions.y)
+	if maxDim > 0 then
+		element.selfStyle.width = tostring(element.bgsprite.dimensions.x/maxDim*100) .. '%'
+		element.selfStyle.height = tostring(element.bgsprite.dimensions.y/maxDim*100) .. '%'
+	end
+end
+
+--Shown when someone without the pledge tries to place a prop from a props
+--pack: invites them to support the creator. hit is a propspacks.Search row.
+local function ShowSupportCreatorDialog(hit)
+	mod.shared.GetMapPackCreator({pack = hit.pack}, function(creator)
+		local creatorName = creator.displayName
+		local who = cond(creatorName ~= nil and creatorName ~= "", creatorName, "this creator")
+		local pack = propspacks.GetPack(hit.pack)
+		local count = pack ~= nil and pack.count or 0
+		local access = mappacks.GetPackAccess(hit.pack)
+
+		local text = string.format("<b>%s</b> is one of %d props %s makes for their supporters on Patreon.", hit.name, count, who)
+		local requirement = PropsPackHitRequirement(hit, creatorName)
+		if requirement ~= nil then
+			text = text .. " " .. requirement .. "."
+		end
+		text = text .. " Patrons get the whole library in the Objects panel of every game they run."
+		if not access.linked then
+			text = text .. "\n\nAlready a patron? Link your Patreon account and it unlocks straight away."
+		end
+
+		--The org's linked Patreon campaign page, else its website. An org whose
+		--creator has not attached a campaign may have neither; then the
+		--Visit Patreon button is left out rather than doing nothing.
+		local patreonUrl = creator.campaignUrl
+		if patreonUrl == nil or patreonUrl == "" then
+			patreonUrl = creator.url
+		end
+
+		local options = {}
+		if not access.linked then
+			options[#options+1] = {
+				text = "Link Patreon",
+				execute = function()
+					dmhub.ShowPlayerSettings{tab = "Account"}
+				end,
+			}
+		end
+		if patreonUrl ~= nil and patreonUrl ~= "" then
+			options[#options+1] = {
+				text = "Visit Patreon",
+				execute = function()
+					dmhub.OpenURL(patreonUrl)
+				end,
+			}
+		end
+		options[#options+1] = {text = "Not Now"}
+
+		gui.ModalMessage{
+			title = string.format("Support %s", who),
+			panel = gui.Panel{
+				width = 460,
+				height = "auto",
+				flow = "vertical",
+				children = {
+					gui.Panel{
+						width = 160,
+						height = 160,
+						halign = "center",
+						flow = "none",
+						gui.Panel{
+							bgimageStreamed = PropsPackImageId(hit.preview),
+							bgcolor = "white",
+							halign = "center",
+							valign = "center",
+							width = "100%",
+							height = "100%",
+							imageLoaded = FitImageToAspect,
+						},
+					},
+					gui.Label{
+						text = text,
+						width = 460,
+						height = "auto",
+						textWrap = true,
+						fontSize = 16,
+						tmargin = 12,
+					},
+				},
+			},
+			options = options,
+		}
+	end)
+end
+
+--Hover card for a locked prop: its preview, size and who it is from.
+local function ShowLockedPropTooltip(element, hit, creatorName)
+	local dock = element:FindParentWithClass("dock")
+	if dock == nil then
+		return
+	end
+	element.tooltipParent = dock
+	local who = cond(creatorName ~= nil and creatorName ~= "", creatorName, "the creator")
+	element.tooltip = gui.TooltipFrame(
+		gui.Panel{
+			interactable = false,
+			width = 300,
+			height = "auto",
+			flow = "vertical",
+			children = {
+				gui.Label{
+					text = hit.name,
+					fontSize = 18,
+					color = "white",
+					width = "auto",
+					maxWidth = 280,
+					height = "auto",
+					halign = "left",
+				},
+				gui.Panel{
+					width = 240,
+					height = 240,
+					halign = "center",
+					vmargin = 8,
+					flow = "none",
+					gui.Panel{
+						bgimageStreamed = PropsPackImageId(hit.preview),
+						bgcolor = "white",
+						halign = "center",
+						valign = "center",
+						width = "100%",
+						height = "100%",
+						imageLoaded = FitImageToAspect,
+					},
+				},
+				gui.Label{
+					text = string.format("%g x %g squares. For supporters of %s on Patreon: click to find out more.", hit.width, hit.height, who),
+					fontSize = 13,
+					color = "#bbbbbb",
+					width = "90%",
+					height = "auto",
+					textWrap = true,
+				},
+			},
+		},
+		{
+			valign = "center",
+			halign = dock.data.TooltipAlignment(),
+		}
+	)
+end
+
+--how many locked props one search lists at most (the search reads the
+--index, so this caps what the grid builds, not what is downloaded).
+local MAX_PATREON_SEARCH_PROPS = 120
+
 mod.shared.selectedObjectEntries = {}
 
 local ObjectPanelHeight = 30
@@ -304,7 +578,8 @@ local ShowObjectTooltip = function(element)
 					children = {
 						gridPanel,
 						gui.Panel{
-							bgimageStreamed = node.thumbnailId,
+							--the 512 px preview; the grid's thumbnail shows until it is made.
+							bgimageStreamed = node.previewId,
 							selfStyle = {
 								width = imageDim,
 								height = imageDim,
@@ -318,9 +593,6 @@ local ShowObjectTooltip = function(element)
 								imageDimensions = function(element, info)
 									--node.components above already errors on a nil node.
 									---@cast node -nil
-									if element.bgsprite == nil then
-										dmhub.Debug('NO BG SPRITE')
-									end
 									local maxDim = max(info.width, info.height)*node.scale
 									local xratio = (info.width*node.scale)/maxDim
 									local yratio = (info.height*node.scale)/maxDim
@@ -415,7 +687,8 @@ local ShowObjectTooltip = function(element)
 		}
 	)
 
-    gui.GetImageDimensionsCallback(node.image, function(info)
+    --the size alone: GetImageDimensionsCallback would load the full image to measure it.
+    gui.GetImageSizeCallback(node.image, function(info)
         tooltip:FireEventTree("imageDimensions", info)
     end)
 
@@ -544,50 +817,162 @@ Commands.RegisterMacro{
     command = RandomizeObjectSelection,
 }
 
-local g_objectEntryStyles = {
-	gui.Style{
+--Object tiles: a fixed-size cell with a faint surface, packed left in each
+--folder's wrapping grid. The picture is inset by g_objectTileInset per side.
+local g_objectTileSize = 50
+local g_objectTileInset = 5
+--room left at the right of every object grid for the window's scrollbar,
+--which is drawn over the right edge of the panel's content.
+local g_objectGridGutter = 10
+
+--Plain rule tables, not gui.Style: their @tokens only resolve through
+--ThemeEngine.MergeTokens (see ObjectEntryStyles below). They also style the
+--look-count chip inside each tile.
+local g_objectEntryStylesRaw = {
+	{
+		--scoped to the tile itself: an unscoped rule would also frame and
+		--size the picture holder and the look-count chip inside it.
+		selectors = {'objectTile'},
 		color = '#ccccccff',
+		--halign left is load-bearing: in a wrapping row the engine shares any
+		--leftover width between children that are not left-aligned, which spread
+		--a short last row across the whole width.
+		halign = 'left',
 		valign = 'top',
-		bgcolor = '#ffffff00',
-		width = 40,
-		height = 40,
-		borderWidth = 0,
-		borderColor = 'black',
+		--solid tokens only: the rounded shader ignores alpha.
+		bgcolor = '@bgAlt',
+		width = g_objectTileSize,
+		height = g_objectTileSize,
+		rmargin = 4,
+		bmargin = 4,
+		cornerRadius = 6,
+		borderWidth = 1,
+		--rounded frames ignore alpha, so the resting frame uses the solid token.
+		borderColor = '@borderSolid',
 		flow = 'none',
 	},
 
-	gui.Style{
-		selectors = {'selected'},
+	{
+		selectors = {'objectTile', 'hover'},
+		bgcolor = '@bgRaised',
+		borderWidth = 1.5,
+		borderColor = '@accent',
+	},
+
+	{
+		selectors = {'objectTile', 'selected'},
+		bgcolor = '@bgRaised',
 		borderWidth = 2,
-		borderColor = '#ffffff99',
+		borderColor = '@info',
 	},
 
-	gui.Style{
-		selectors = {'focus'},
-		bgcolor = '#ffffff66',
-		color = '#ffffffff',
+	{
+		selectors = {'objectTile', 'focus'},
+		bgcolor = '@bgRaised',
 		borderWidth = 2,
-		borderColor = 'white',
+		borderColor = '@info',
 	},
 
-	gui.Style{
-		selectors = {'hover'},
-		bgcolor = Styles.textColor,
-	},
-
-	gui.Style{
-		selectors = {'drag-target'},
+	{
+		selectors = {'objectTile', 'drag-target'},
 		borderWidth = 2,
 		borderColor = '#0000ff44',
 	},
 
-	gui.Style{
-		selectors = {'drag-target-hover'},
+	{
+		selectors = {'objectTile', 'drag-target-hover'},
 		borderWidth = 2,
 		borderColor = '#0000ffff',
 	},
 
+	--the look-count chip (CreateLookCountBadge).
+	{
+		selectors = {'objectLookBadge'},
+		bgcolor = '@bgRaised',
+	},
+	{
+		selectors = {'objectLookBadgeIcon'},
+		bgcolor = '@fg',
+	},
+	{
+		selectors = {'label', 'objectLookBadgeText'},
+		color = '@fg',
+	},
 }
+
+--g_objectEntryStylesRaw resolved against the active colour scheme, built on
+--first use and again after the theme or scheme changes. Tiles built before a
+--change keep the colours they were built with until their folder rebuilds them.
+local g_objectEntryStyles = nil
+local function ObjectEntryStyles()
+	if g_objectEntryStyles == nil then
+		g_objectEntryStyles = ThemeEngine.MergeTokens(g_objectEntryStylesRaw)
+	end
+	return g_objectEntryStyles
+end
+ThemeEngine.OnThemeChanged(mod, function()
+	g_objectEntryStyles = nil
+end)
+
+--How many looks an object offers: its base picture plus each Appearance swap
+--(the same count props packs report as "looks"). 1 when it has no Appearance.
+local function ObjectLookCount(node)
+	for key,component in pairs(node.components) do
+		if component.name == "Appearance" then
+			local doc = node:ComponentToJson(key)
+			local swaps = doc ~= nil and doc.imageSwaps or nil
+			if swaps ~= nil and #swaps > 0 then
+				return 1 + #swaps
+			end
+		end
+	end
+	return 1
+end
+
+--The small "cards + number" chip in a tile's corner for an object with
+--several looks. Hidden while the object has only one.
+local function CreateLookCountBadge()
+	local countLabel = gui.Label{
+		classes = {"objectLookBadgeText"},
+		text = "",
+		fontSize = 10,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+	}
+	--colours come from the tile's styles (objectLookBadge*).
+	return gui.Panel{
+		classes = {"objectLookBadge", "collapsed"},
+		interactable = false,
+		floating = true,
+		halign = "right",
+		valign = "bottom",
+		width = "auto",
+		height = 14,
+		hmargin = 2,
+		vmargin = 2,
+		hpad = 3,
+		borderBox = true,
+		flow = "horizontal",
+		bgimage = "panels/square.png",
+		cornerRadius = 4,
+		data = {
+			setCount = function(element, count)
+				element:SetClass("collapsed", count <= 1)
+				countLabel.text = tostring(count)
+			end,
+		},
+		gui.Panel{
+			classes = {"objectLookBadgeIcon"},
+			bgimage = "phosphor/cards-three.png",
+			width = 10,
+			height = 10,
+			valign = "center",
+			rmargin = 2,
+		},
+		countLabel,
+	}
+end
 
 local function CreateObjectEntry(nodeid, parentElement, options)
 	local node = assets:GetObjectNode(nodeid)
@@ -601,9 +986,11 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 	---@type Panel
 	local resultPanel = nil
 
+	local lookBadge = CreateLookCountBadge()
+	lookBadge.data.setCount(lookBadge, ObjectLookCount(node))
 
 	local objImagePanel = gui.Panel{
-		bgimageStreamed = node.thumbnailId,
+		bgimageStreamed = PropsPackPreview(nodeid) or node.thumbnailId,
 
 		bgcolor = 'white',
 		halign = 'center',
@@ -627,10 +1014,20 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 		},
 	}
 
+	--insets the picture inside the tile; objImagePanel fits its aspect within it.
+	local imageHolder = gui.Panel{
+		width = g_objectTileSize - 2*g_objectTileInset,
+		height = g_objectTileSize - 2*g_objectTileInset,
+		halign = 'center',
+		valign = 'center',
+		flow = 'none',
+		interactable = false,
+		objImagePanel,
+	}
 
 	resultPanel = gui.Panel({
 		bgimage = 'panels/square.png',
-		classes = {'object-entry'},
+		classes = {'object-entry', 'objectTile'},
 		--dragTarget = true,
 		draggable = true,
 		canDragOnto = function(element, target)
@@ -642,7 +1039,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 			end
 			return (target:HasClass('object-drag-target') or (target:HasClass('object-entry') and element.parent == target.parent)) and not IsObjectNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
 		end,
-		styles = g_objectEntryStyles,
+		styles = ObjectEntryStyles(),
 
 		events = {
 			dragging = function(element, target)
@@ -768,13 +1165,12 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 					return
 				end
 				node = refreshed
-				objImagePanel.bgimageStreamed = node.thumbnailId
+				objImagePanel.bgimageStreamed = PropsPackPreview(nodeid) or node.thumbnailId
+				lookBadge.data.setCount(lookBadge, ObjectLookCount(node))
 
 				if element:HasClass('focus') then
 					element:FireEvent('focus')
 				end
-
-				element.x = Indent(element.data.depth)
 			end,
 
 			beginDrag = function(element)
@@ -972,9 +1368,8 @@ local function CreateObjectEntry(nodeid, parentElement, options)
                 element.data.nhighlights = nhighlights
 			end,
 
-			--Defer the tooltip preview until the user dwells on the entry, since each tooltip
-			--can load a multi-megapixel thumbnail texture and a fast scan of the palette would
-			--otherwise exhaust GPU memory.
+			--Defer the tooltip until the user dwells on the entry: each one builds a 512 px
+			--preview, decoding (or downloading) the full image the first time.
 			linger = function(element)
 				ShowObjectTooltip(element)
 			end,
@@ -1033,7 +1428,8 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 		},
 
 		children = {
-			objImagePanel,
+			imageHolder,
+			lookBadge,
 			gui.NewContentAlertConditional("object", nodeid, {x = -4}),
 		}
 	})
@@ -1055,6 +1451,263 @@ local DragHandleStyles = {
 		brightness = 1.5,
 	},
 }
+
+--One prop the account cannot use, in the "From Patreon Creators..." grid.
+--It is not an object in the library, so it cannot be dragged or placed:
+--clicking it explains how to get it instead.
+local function CreateLockedPropEntry(hit, creatorName)
+	return gui.Panel{
+		classes = {'objectTile'},
+		bgimage = 'panels/square.png',
+		styles = ObjectEntryStyles(),
+		press = function(element)
+			ShowSupportCreatorDialog(hit)
+		end,
+		linger = function(element)
+			ShowLockedPropTooltip(element, hit, creatorName)
+		end,
+		children = {
+			gui.Panel{
+				width = g_objectTileSize - 2*g_objectTileInset,
+				height = g_objectTileSize - 2*g_objectTileInset,
+				halign = 'center',
+				valign = 'center',
+				flow = 'none',
+				interactable = false,
+				gui.Panel{
+					bgimageStreamed = PropsPackImageId(hit.preview),
+					bgcolor = 'white',
+					halign = 'center',
+					valign = 'center',
+					width = '100%',
+					height = '100%',
+					interactable = false,
+					imageLoaded = FitImageToAspect,
+				},
+			},
+			gui.Panel{
+				bgimage = "phosphor/patreon-logo-fill.png",
+				bgcolor = "white",
+				width = 10,
+				height = 10,
+				halign = "right",
+				valign = "bottom",
+				interactable = false,
+			},
+		},
+	}
+end
+
+--Root only: search matches from props packs this account cannot use, in a
+--folder below everything else. It starts open on every new search, so the
+--matches are seen; closing it holds until the search is cleared.
+--data.search(text) is called by the root's search box.
+local function CreatePatreonSearchPanel()
+	local m_hits = {}
+	local m_total = 0
+	local m_expanded = true
+	local m_builtFor = nil
+	local m_text = ""
+
+	local body = gui.Panel{
+		classes = {"collapsed"},
+		x = Indent(1),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+	}
+
+	local headerLabel = gui.Label{
+		text = "",
+		fontSize = "70%",
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		interactable = false,
+	}
+
+	local triangle = gui.Panel{
+		bgimage = 'panels/triangle.png',
+		classes = {"triangle"},
+		interactable = false,
+		styles = {
+			{rotate = 90},
+			{selectors = {'expanded'}, transitionTime = 0.2, rotate = 0},
+		},
+	}
+
+	--one group per pack: who it is from, then the grid of its props.
+	local function BuildBody()
+		local groups = {}
+		local order = {}
+		for _,hit in ipairs(m_hits) do
+			if groups[hit.pack] == nil then
+				groups[hit.pack] = {}
+				order[#order+1] = hit.pack
+			end
+			table.insert(groups[hit.pack], hit)
+		end
+
+		local children = {}
+		for _,packid in ipairs(order) do
+			local logo = gui.Panel{
+				classes = {"collapsed"},
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 4,
+				bgcolor = "white",
+			}
+			local creditLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				maxWidth = 260,
+				valign = "center",
+				fontSize = 12,
+				italics = true,
+				color = "#bbbbbb",
+				text = "",
+			}
+			local grid = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "horizontal",
+				wrap = true,
+				halign = "left",
+			}
+			children[#children+1] = gui.Panel{
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				flow = "horizontal",
+				vmargin = 2,
+				children = {logo, creditLabel},
+			}
+			children[#children+1] = grid
+
+			local hits = groups[packid]
+			mod.shared.GetMapPackCreator({pack = packid}, function(creator)
+				if not grid.valid then
+					return
+				end
+				local name = creator.displayName or ""
+				creditLabel.text = string.format("%d from %s", #hits, cond(name ~= "", name, packid))
+				if (creator.logo or "") ~= "" then
+					logo.bgimage = creator.logo
+					logo:SetClass("collapsed", false)
+				end
+				local entries = {}
+				for _,hit in ipairs(hits) do
+					entries[#entries+1] = CreateLockedPropEntry(hit, name)
+				end
+				grid.children = entries
+			end)
+		end
+		body.children = children
+		m_builtFor = m_text
+	end
+
+	local resultPanel
+	local function Refresh()
+		resultPanel:SetClass("collapsed", #m_hits == 0)
+		if #m_hits == 0 then
+			return
+		end
+		local more = cond(m_total > #m_hits, string.format(" (first %d of %d)", #m_hits, m_total), string.format(" (%d)", #m_hits))
+		headerLabel.text = "From Patreon Creators..." .. more
+		triangle:SetClass("expanded", m_expanded)
+		body:SetClass("collapsed", not m_expanded)
+		if m_expanded and m_builtFor ~= m_text then
+			BuildBody()
+		end
+	end
+
+	resultPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+		tmargin = 6,
+		data = {
+			search = function(text)
+				m_text = text
+				m_hits = {}
+				m_total = 0
+				if text == "" then
+					m_expanded = true
+					m_builtFor = nil
+					body.children = {}
+					Refresh()
+					return
+				end
+				local access = {}
+				for _,pack in ipairs(propspacks.packs) do
+					for _,bundle in ipairs(pack.bundles) do
+						access[pack.id .. "/" .. bundle.key] = bundle.access
+					end
+				end
+				for _,hit in ipairs(propspacks.Search{text = text, maxResults = 2000}) do
+					if access[hit.pack .. "/" .. hit.bundle] == false then
+						m_total = m_total + 1
+						if #m_hits < MAX_PATREON_SEARCH_PROPS then
+							m_hits[#m_hits+1] = hit
+						end
+					end
+				end
+				Refresh()
+			end,
+		},
+		children = {
+			gui.Panel{
+				bgimage = 'panels/square.png',
+				classes = {'folderHeader'},
+				press = function(element)
+					m_expanded = not m_expanded
+					Refresh()
+				end,
+				children = {triangle, headerLabel},
+			},
+			body,
+		},
+	}
+	return resultPanel
+end
+
+--A faint line down the left of an open folder, under its triangle, so its
+--contents read as belonging to it at every depth. Floating: it takes no room
+--in the flow. Its folder is auto-height, which a percentage height does not
+--resolve against (every line came out the same 453 px), so the line copies
+--its folder's laid-out height instead, checked a few times a second while
+--the line is shown.
+local function CreateFolderGuideLine()
+	return gui.Panel{
+		classes = {"collapsed"},
+		floating = true,
+		interactable = false,
+		bgimage = 'panels/square.png',
+		bgcolor = '#ffffff14',
+		width = 1,
+		height = 0,
+		halign = 'left',
+		valign = 'top',
+		x = 8,
+		tmargin = ObjectPanelHeight,
+		data = {
+			height = 0,
+		},
+		thinkTime = 0.2,
+		think = function(element)
+			local height = math.max(0, element.parent.renderedHeight - ObjectPanelHeight)
+			if height ~= element.data.height then
+				element.data.height = height
+				element.selfStyle.height = height
+			end
+		end,
+	}
+end
 
 local function CreateObjectFolder(nodeid, parentElement, options)
 	local matchesSearch = true
@@ -1087,9 +1740,15 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 	--block clears the search through it. The clear x itself is built into
 	--gui.SearchInput now, so there is no separate clear button any more.
 	local searchInput = nil
+	--root only: props this account cannot use that match the search.
+	local patreonPanel = nil
 	if nodeid == '' then
 
 		isCollapsed = false
+
+		if not options.hideobjects and not options.selectfolders then
+			patreonPanel = CreatePatreonSearchPanel()
+		end
 
 		local updateSearch
 		updateSearch = function(element)
@@ -1140,6 +1799,9 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				})
 			end
 			folderPane.data.search(text)
+			if patreonPanel ~= nil then
+				patreonPanel.data.search(text)
+			end
 		end
 
 		--the canonical search field; look comes from DefaultStyles'
@@ -1322,6 +1984,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					refreshCollapse = function(element)
 						element:SetClass('expanded', not isCollapsed)
 					end,
+					--handled here so the click does not reach the header row, whose
+					--click would toggle the folder a second time.
+					click = function(element)
+					end,
 					press = function(element)
 						if element:HasClass("collapsed") then
 							--this is on the root where we don't want to show a triangle at all.
@@ -1366,12 +2032,18 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				},
 			})
 
+	--the grid of this folder's own objects. SetDepth indents it under the
+	--header and narrows it by the same amount, so it never runs past the dock.
+	--It also stops short of the right edge by g_objectGridGutter, where the
+	--window's scrollbar sits over the content.
 	local palettePanel = gui.Panel{
 		selfStyle = {
-			width = 300,
+			width = string.format("100%%-%d", g_objectGridGutter),
 			height = 'auto',
 			flow = 'horizontal',
 			wrap = true,
+			halign = 'left',
+			tmargin = 2,
 		},
 
 		--a map-pack folder is not a drop target: anything filed into it
@@ -1385,6 +2057,32 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			nodeid = nodeid, --store the node id here so it can be conveniently accessed when dragging.
 		},
 	}
+
+	--A locked props bundle's objects never load, so its folder shows them
+	--from the pack index as Patreon tiles (CreateLockedPropEntry) instead.
+	--Built the first time the folder is opened. They are not object entries,
+	--so this folder shows and hides them itself (see refreshCollapsed).
+	local lockedEntries = nil
+	local function LockedBundleEntries(build)
+		if lockedEntries ~= nil or not build or propsFolder == nil or propsFolder.bundle == nil then
+			return lockedEntries or {}
+		end
+		local info = PropsPackFolderInfo(nodeid)
+		if info == nil or info.bundle == nil or info.bundle.access then
+			return {}
+		end
+		--fires at once when the creator is cached, which it is by now: the
+		--status line under the pack folder looked it up.
+		local creatorName = nil
+		mod.shared.GetMapPackCreator({pack = propsFolder.pack}, function(creator)
+			creatorName = creator.displayName
+		end)
+		lockedEntries = {}
+		for _,hit in ipairs(propspacks.Search{pack = propsFolder.pack, bundle = propsFolder.bundle, maxResults = 100000}) do
+			lockedEntries[#lockedEntries+1] = CreateLockedPropEntry(hit, creatorName)
+		end
+		return lockedEntries
+	end
 
 	local newContentAlert = gui.NewContentAlertConditional("object", nodeid)
 
@@ -1433,6 +2131,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 						parentFolder:FireEventTree("clearselection")
 					end
 					element:SetClass("selected", true)
+				else
+					--the whole row opens and closes the folder, not just the
+					--small triangle (the name already did).
+					triangle:FireEvent('press')
 				end
 			end,
 		},
@@ -1485,6 +2187,29 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				newContentAlert,
 			}),
 
+			--how many objects the folder holds, muted after its name.
+			gui.Label{
+				text = "",
+				fontSize = 11,
+				classes = {"fgMuted"},
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				lmargin = 8,
+				interactable = false,
+				create = function(element)
+					element:FireEvent("refreshAssets")
+				end,
+				refreshAssets = function(element)
+					local count = nil
+					if nodeid ~= '' then
+						count = ObjectFolderCount(node)
+					end
+					element:SetClass("collapsed", count == nil or count == 0)
+					element.text = tostring(count or "")
+				end,
+			},
 		},
 	})
 
@@ -1629,6 +2354,149 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 	local elements = {}
 
+	local guideLine = CreateFolderGuideLine()
+
+	--when a folder has sub-folders as well as objects of its own, its own
+	--objects go after the sub-folders in an "Other" folder, so they are not
+	--mistaken for part of the last sub-folder. "Other" is not a real node:
+	--its header and the grid it opens are this folder's own looseHeader and
+	--palettePanel, with the grid indented a level further.
+	local looseCount = 0
+	local hasSubfolders = false
+	local looseVisible = true
+	--the depth SetDepth last gave this folder.
+	local folderDepth = 0
+	--"Other" starts closed like any folder. otherOpen is its state outside a
+	--search; during a search it is open unless closed in that search.
+	local otherOpen = false
+	local otherSearchClosed = false
+
+	local function UsingOther()
+		return hasSubfolders and looseCount > 0
+	end
+
+	local function OtherShown()
+		if searchActive then
+			return not otherSearchClosed
+		end
+		return otherOpen
+	end
+
+	---@type fun()
+	local RefreshFolderChrome
+
+	local otherTriangle = gui.Panel{
+		bgimage = 'panels/triangle.png',
+		classes = {"triangle"},
+		interactable = false,
+		styles = {
+			{
+				rotate = 90,
+			},
+			{
+				selectors = {'expanded'},
+				transitionTime = 0.2,
+				rotate = 0,
+			},
+		},
+	}
+
+	local looseCountLabel = gui.Label{
+		text = "",
+		fontSize = 11,
+		classes = {"fgMuted"},
+		width = 'auto',
+		height = 'auto',
+		halign = 'left',
+		valign = 'center',
+		lmargin = 8,
+		interactable = false,
+	}
+
+	local looseHeader = gui.Panel{
+		bgimage = 'panels/square.png',
+		classes = {'folderHeader', 'collapsed'},
+		press = function(element)
+			if searchActive then
+				otherSearchClosed = OtherShown()
+			else
+				otherOpen = not otherOpen
+			end
+			RefreshFolderChrome()
+		end,
+		otherTriangle,
+		gui.Label{
+			text = "Other",
+			fontSize = "70%",
+			width = 'auto',
+			height = 'auto',
+			halign = 'left',
+			valign = 'center',
+			interactable = false,
+		},
+		looseCountLabel,
+	}
+
+	local otherGuideLine = CreateFolderGuideLine()
+
+	--"Other" laid out exactly like a sub-folder's pane (header, grid, guide
+	--line), so it lines up with the real sub-folders above it. Without
+	--"Other" it is just a full-width holder for the grid.
+	local otherPane = gui.Panel{
+		selfStyle = {
+			pad = 0,
+			margin = 0,
+			width = "100%",
+			height = 'auto',
+			valign = 'top',
+			flow = 'vertical',
+		},
+		children = {looseHeader, palettePanel, otherGuideLine},
+	}
+
+	--indents the object grid under this folder's header, or under "Other"
+	--with "Other" indented like a sub-folder. Every indent narrows its panel
+	--by the same amount, so the grid's right edge stays put, short of the
+	--scrollbar by g_objectGridGutter.
+	local function PlaceObjectGrid()
+		local gridIndent = Indent(folderDepth+1)
+		if UsingOther() then
+			otherPane.x = gridIndent
+			otherPane.selfStyle.width = string.format("100%%-%d", gridIndent)
+			gridIndent = Indent(folderDepth+2)
+		else
+			otherPane.x = 0
+			otherPane.selfStyle.width = "100%"
+		end
+		palettePanel.x = gridIndent
+		palettePanel.selfStyle.width = string.format("100%%-%d", gridIndent + g_objectGridGutter)
+	end
+
+	--shows the guide lines and the "Other" folder only while the folder's
+	--contents are on screen (open, or showing search matches).
+	RefreshFolderChrome = function()
+		local contentsShown = (not isCollapsed) or searchActive
+		local usingOther = UsingOther()
+		local otherHeaderShown = contentsShown and usingOther and looseVisible
+		local otherShown = otherHeaderShown and OtherShown()
+		guideLine:SetClass("collapsed", nodeid == '' or not contentsShown or next(elements) == nil)
+		looseHeader:SetClass("collapsed", not otherHeaderShown)
+		otherTriangle:SetClass("expanded", otherShown)
+		palettePanel:SetClass("collapsed", usingOther and not otherShown)
+		--past the deepest indent "Other" has no room for a line of its own.
+		otherGuideLine:SetClass("collapsed", not otherShown or Indent(folderDepth+2) == 0)
+		looseCountLabel.text = tostring(looseCount)
+		PlaceObjectGrid()
+	end
+
+	--built without nil holes: rootPanel, creditPanel and patreonPanel are often nil.
+	local initialChildren = {headerPanel}
+	for _,child in ipairs({rootPanel or creditPanel or false, otherPane, patreonPanel or false, guideLine}) do
+		if child then
+			initialChildren[#initialChildren+1] = child
+		end
+	end
+
 	folderPane = gui.Panel({
 		selfStyle = {
 			pivot = { x = 0, y = 1 },
@@ -1657,9 +2525,14 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			search = function(text, matchedParent)
 				local selfMatches = matchedParent or node:MatchesSearch(text)
 				matchesSearch = selfMatches or (nodeid == '') --root node always matches searches.
+				looseVisible = false
+				otherSearchClosed = false
 				for k,el in pairs(elements) do
 					if el.data.search(text, selfMatches) then
 						matchesSearch = true
+						if el.data.objectid ~= nil then
+							looseVisible = true
+						end
 					end
 				end
 
@@ -1668,6 +2541,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				folderPane:SetClass('collapsed', (parentCollapsed and not searchActive) or (not matchesSearch))
 
 				triangle:SetClass('search', searchActive)
+				RefreshFolderChrome()
 
 				return matchesSearch
 			end,
@@ -1681,6 +2555,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			--the search but makes us stop respecting it on this node.
 			setSearchInactive = function(element)
 				searchActive = false
+				looseVisible = true
 				for k,v in pairs(elements) do
 					v.data.setSearchInactive(v)
 				end
@@ -1696,15 +2571,25 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					creditPanel:SetClass('collapsed', isCollapsed)
 				end
 
+				for _,entry in ipairs(LockedBundleEntries(false)) do
+					entry:SetClass('collapsed', isCollapsed)
+				end
+
 				for k,v in pairs(elements) do
 					v.data.setParentCollapsed(v, isCollapsed)
 				end
+
+				RefreshFolderChrome()
 			end,
 
 			SetDepth = function(element, depth)
 				element.data.depth = depth
 				element.x = Indent(element.data.depth)
-				palettePanel.selfStyle.width = 280
+				--shifted right by its indent, so narrow it by the same amount to
+				--keep its right edge on its parent's.
+				element.selfStyle.width = string.format("100%%-%d", Indent(element.data.depth))
+				folderDepth = depth
+				PlaceObjectGrid()
 			end,
 
 			depth = 0,
@@ -1891,8 +2776,31 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 					table.sort(newPalette, function(a,b) return a.data.node().description < b.data.node().description end)
 
-					newChildren[#newChildren+1] = palettePanel
+					for _,entry in ipairs(LockedBundleEntries(not isCollapsed)) do
+						newPalette[#newPalette+1] = entry
+					end
+
+					--counted from the node, not from folderChildren: a search builds
+					--only the sub-folders that match, and "Other" must not come and go
+					--with the search. The filter is the one the element loop uses.
+					hasSubfolders = false
+					looseCount = 0
+					for _,v in ipairs(node.children) do
+						if v.isfolder then
+							if not (options.selectfolders and v.fromMapPack) then
+								hasSubfolders = true
+							end
+						elseif not options.hideobjects then
+							looseCount = looseCount + 1
+						end
+					end
+
+					newChildren[#newChildren+1] = otherPane
 					palettePanel.children = newPalette
+					if patreonPanel ~= nil then
+						newChildren[#newChildren+1] = patreonPanel
+					end
+					newChildren[#newChildren+1] = guideLine
 
 					elements = newElements
 
@@ -1905,11 +2813,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			end,
 		},
 
-		children = {
-			headerPanel,
-			rootPanel or creditPanel,
-			palettePanel,
-		}
+		children = initialChildren,
 	})
 
 	return folderPane
@@ -2413,10 +3317,11 @@ local function CreateObjectInstanceHierarchy()
 				bgcolor = "white",
 				brightness = 1.5,
 			},
+			--dark like the hovered row's label: yellow vanished on the cream highlight.
 			{
 				selectors = {"triangle", "hover"},
 				transitionTime = 0.1,
-				bgcolor = 'yellow',
+				bgcolor = 'black',
 			},
 			{
 				selectors = {"objectPanel"},
@@ -2564,10 +3469,11 @@ mod.shared.CreateObjectEditor = function(options)
 				selectors = {"triangle", "parent:drag-target"},
 				bgcolor = "black",
 			},
+			--dark like the hovered row's label: yellow vanished on the cream highlight.
 			{
 				selectors = {"triangle",'hover'},
 				transitionTime = 0.1,
-				bgcolor = 'yellow',
+				bgcolor = 'black',
 			},
 			{
 				selectors = {"dragBelowPanel"},

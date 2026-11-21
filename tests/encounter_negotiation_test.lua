@@ -1,5 +1,6 @@
 --Run from the codex root with ../dependencies/lua/bin/lua.exe tests/encounter_negotiation_test.lua
---Drives the negotiation host (EncounterNegotiation.lua) through its requests
+--Drives the negotiation host (EncounterNegotiation.lua, on the shared
+--Draw Steel V/NegotiationScene.lua session) through its requests
 --with stand-ins for the engine, against the real book rules: the pure part of
 --NegotiationRules.lua is lifted out of the file, which cannot load here whole.
 --State always exists where these checks read it, and a nil is a failed test.
@@ -103,6 +104,8 @@ EncounterNarrative = {
     VoterKeyForUser = function(userid) return userid end,
 }
 
+dofile("Draw Steel V/NegotiationSceneText.lua")
+dofile("Draw Steel V/NegotiationScene.lua")
 dofile("EncounterOfTheWeek/EncounterNegotiation.lua")
 local N = EncounterNegotiation
 

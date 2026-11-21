@@ -320,15 +320,34 @@ function InitiativeQueue:BothSidesHaveUnmovedEntries()
     return hasPlayers and hasMonsters
 end
 
+--True when the entry has at least one token that is not dead: the same test
+--AdvanceRoundIfComplete uses. Dead tokens stay on the map, so EntriesUnmoved
+--still lists a wiped group even though it can never take its turn.
+local function EntryHasLiveToken(initiativeid, allTokens)
+	for _,tok in ipairs(InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)) do
+		if tok.properties ~= nil and not tok.properties:IsDead() then
+			return true
+		end
+	end
+	return false
+end
+
 function InitiativeQueue:IsPlayersTurn()
 	local hasPlayers = false
 	local hasMonsters = false
+	local allTokens = dmhub.allTokens
 	local entriesUnmoved = self:EntriesUnmoved()
 	for k,entry in pairs(entriesUnmoved) do
-		if self:IsEntryPlayer(k) then
-			hasPlayers = true
-		else
-			hasMonsters = true
+		--A wiped group must not hold its side open. With heroes still to act
+		--the side would pass to it and nobody would take the turn: EotW has
+		--no Director, and the Monster AI only plays groups with someone alive
+		--(BYG3QSCH).
+		if EntryHasLiveToken(k, allTokens) then
+			if self:IsEntryPlayer(k) then
+				hasPlayers = true
+			else
+				hasMonsters = true
+			end
 		end
 	end
 

@@ -84,6 +84,53 @@ for _,choice in ipairs(g_triggerChoices) do
     g_idToTriggerChoice[choice.id] = choice
 end
 
+--True when the trigger's owner can't take it as an action right now. "Can't use
+--triggered actions" is the "Cannot Use Triggered Abilities" custom attribute, which
+--both Surprised and Dazed grant. A trigger marked Usable While Surprised (Shoot First,
+--Ask Questions Later) ignores only Surprised's share of it, so Dazed still blocks it.
+--- @param modifier CharacterModifier the powertabletrigger modifier
+--- @param creature Creature the creature that owns the trigger
+--- @return boolean
+local function TriggeredActionBlocked(modifier, creature)
+    if modifier.type == "passive" or creature:CanUseTriggeredAbilities() then
+        return false
+    end
+    if creature:IsDead() or not modifier:try_get("usableWhileSurprised", false) then
+        return true
+    end
+
+    local surprised = CharacterCondition.conditionsByName["surprised"]
+    local attr = CustomAttribute.attributeInfoByLookupSymbol["cannotusetriggeredabilities"]
+    if surprised == nil or attr == nil or creature:HasCondition(surprised.id) == false then
+        return true
+    end
+
+    local forbidden = creature:CalculateNamedCustomAttribute("Cannot Use Triggered Abilities")
+    for _, conditionMod in ipairs(surprised:try_get("modifiers") or {}) do
+        if conditionMod.behavior == "attribute" and conditionMod:try_get("attribute") == attr.id then
+            forbidden = forbidden - (tonumber(conditionMod:try_get("value")) or 0)
+        end
+    end
+    return forbidden > 0
+end
+
+--Triggered actions the owner has left this round. Surprised also takes the
+--Triggered Action resource to 0 (the "Actions" global rule), so a trigger marked
+--Usable While Surprised counts the creature's usual one triggered action instead.
+--- @param modifier CharacterModifier the powertabletrigger modifier
+--- @param creature Creature the creature that owns the trigger
+--- @return number
+local function TriggeredActionsLeft(modifier, creature)
+    local total = creature:GetResources()[g_triggerResourceId] or 0
+    if total < 1 and modifier:try_get("usableWhileSurprised", false) then
+        local surprised = CharacterCondition.conditionsByName["surprised"]
+        if surprised ~= nil and creature:HasCondition(surprised.id) ~= false then
+            total = 1
+        end
+    end
+    return total - creature:GetResourceUsage(g_triggerResourceId, "round")
+end
+
 --Apply the controlling creature's Modify Abilities modifiers to the trigger's
 --effective range. Only the "range" attribute flows through (other Modify
 --Abilities aspects don't apply to triggers, by design).
@@ -178,19 +225,15 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         local triggerInfo = g_idToTriggerChoice[self.trigger]
         local triggerTarget = casterToken
 
-        --Triggered and free triggered actions are both forbidden by effects
-        --like "Can't use triggered actions"; passive entries are not actions.
-        if self.type ~= "passive" and (not token.properties:CanUseTriggeredAbilities()) then
+        --Triggered and free triggered actions are both forbidden by effects like "Can't use
+        --triggered actions" (a trigger marked Usable While Surprised ignores Surprised);
+        --passive entries are not actions.
+        if TriggeredActionBlocked(self, token.properties) then
             return false
         end
 
-        if self.type == "trigger" then
-            local resources = token.properties:GetResources()
-            local usage = token.properties:GetResourceUsage(g_triggerResourceId, "round")
-            local available = (resources[g_triggerResourceId] or 0) - usage
-            if available <= 0 then
-                return false
-            end
+        if self.type == "trigger" and TriggeredActionsLeft(self, token.properties) <= 0 then
+            return false
         end
 
         if not self.powerRollModifier:HasResourcesAvailable(token.properties) then
@@ -303,19 +346,15 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             return false
         end
 
-        --Triggered and free triggered actions are both forbidden by effects
-        --like "Can't use triggered actions"; passive entries are not actions.
-        if self.type ~= "passive" and (not token.properties:CanUseTriggeredAbilities()) then
+        --Triggered and free triggered actions are both forbidden by effects like "Can't use
+        --triggered actions" (a trigger marked Usable While Surprised ignores Surprised);
+        --passive entries are not actions.
+        if TriggeredActionBlocked(self, token.properties) then
             return false
         end
 
-        if self.type == "trigger" then
-            local resources = token.properties:GetResources()
-            local usage = token.properties:GetResourceUsage(g_triggerResourceId, "round")
-            local available = (resources[g_triggerResourceId] or 0) - usage
-            if available <= 0 then
-                return false
-            end
+        if self.type == "trigger" and TriggeredActionsLeft(self, token.properties) <= 0 then
+            return false
         end
 
         if not self.powerRollModifier:HasResourcesAvailable(token.properties) then
@@ -513,6 +552,19 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     end,
                 },
             }
+
+            if modifier.type ~= "passive" then
+                children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    text = "Usable While Surprised",
+                    hover = gui.Tooltip("The trigger is still offered while its owner is Surprised. Other effects that stop triggered actions, such as Dazed, still stop it."),
+                    value = modifier:try_get("usableWhileSurprised", false),
+                    change = function(element)
+                        modifier.usableWhileSurprised = element.value
+                        Refresh()
+                    end,
+                }
+            end
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
@@ -1283,6 +1335,35 @@ function ActiveTrigger.ClearOtherSharedPowerRollRows(multitargets, row)
                 other.triggered = false
                 other.augmentations = {}
             end
+        end
+    end
+end
+
+--- Lets a triggered modifier take other modifiers off a power roll. A trigger's
+--- powerRollModifier lists their guids in `removeModifiers` (set in YAML), e.g.
+--- Shoot First, Ask Questions Later removes the edge for being hidden from the roll
+--- it interrupts. The roll dialogs call this on each row once its triggered modifiers
+--- are added; a removed edge comes off the total even after the dice have landed.
+--- @param modifiers table[] the row's modifier entries ({modifier, hint, context}); changed in place
+function ActiveTrigger.RemoveModifiersForTriggers(modifiers)
+    local removed = nil
+    for _, entry in ipairs(modifiers or {}) do
+        local modifier = entry.modifier
+        if modifier ~= nil and modifier:try_get("_tmp_trigger") then
+            for _, guid in ipairs(modifier:try_get("removeModifiers") or {}) do
+                removed = removed or {}
+                removed[guid] = true
+            end
+        end
+    end
+    if removed == nil then
+        return
+    end
+
+    for i = #modifiers, 1, -1 do
+        local modifier = modifiers[i].modifier
+        if modifier ~= nil and removed[modifier:try_get("guid")] then
+            table.remove(modifiers, i)
         end
     end
 end

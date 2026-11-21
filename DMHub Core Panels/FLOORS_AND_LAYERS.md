@@ -19,7 +19,7 @@ DMHub maps use a **flat list with parent references** to model a floor/layer hie
 - `tokens`: `Dictionary<string, TokenInfo>` -- tokens on this floor
 - `map`: `GameMap` -- map geometry/terrain data
 - `vision`: `VisionSettings`
-- `roof`, `roofShowWhenInside`, `visionMultiplier`, etc.
+- `roof`, `roofShowWhenInside`, `visionMultiplier`, etc. A Roof floor (`roof`, not `canopy`) is walkable and covers only the squares under its art; a Canopy is neither ground nor a ceiling. See `WALKABLE_ROOFS_PLAN.md` in the DMHub repo root ("As built").
 
 ### Primary Floor vs Layer
 

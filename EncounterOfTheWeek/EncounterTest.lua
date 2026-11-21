@@ -155,7 +155,7 @@ function EncounterTest.ShowDialog(modeid)
 
     --A series' Story so far (Part 2 and later): what the earlier parts left,
     --as a real party would carry it from the City. Kept across part changes:
-    --earlier[k] = { outcome = "none"|"total"|"partial"|"failure", score, rounds },
+    --earlier[k] = { outcome = "none"|"total"|"partial"|"failure", score, rounds, retreats },
     --trackValues[track key] = value.
     local earlier = {}
     local trackValues = {}
@@ -174,7 +174,7 @@ function EncounterTest.ShowDialog(modeid)
         for k = 1, chosenPart - 1 do
             local e = earlier[k] or {}
             if e.outcome ~= nil and e.outcome ~= "none" then
-                story.parts[k] = { outcome = e.outcome, score = tonumber(e.score) or 0, rounds = tonumber(e.rounds) }
+                story.parts[k] = { outcome = e.outcome, score = tonumber(e.score) or 0, rounds = tonumber(e.rounds), retreats = tonumber(e.retreats) or 0 }
             else
                 story.parts[k] = "not recorded"
             end
@@ -255,6 +255,15 @@ function EncounterTest.ShowDialog(modeid)
                     SmallInput(e.score ~= nil and tostring(e.score) or "", "0", function(text) e.score = tonumber(text) end),
                     SmallLabel("won in round"),
                     SmallInput(e.rounds ~= nil and tostring(e.rounds) or "", "-", function(text) e.rounds = tonumber(text) end),
+                }
+                --its own line: the row above already fills the dialog's width.
+                children[#children + 1] = gui.Panel{
+                    width = "100%",
+                    height = 30,
+                    flow = "horizontal",
+                    SmallLabel("", 60),
+                    SmallLabel("monsters that retreated"),
+                    SmallInput(e.retreats ~= nil and tostring(e.retreats) or "", "0", function(text) e.retreats = tonumber(text) end),
                 }
             end
             for _, decl in ipairs(PartTracks(chosenPart)) do

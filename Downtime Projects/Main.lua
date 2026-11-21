@@ -44,6 +44,109 @@ local function _clearAllData()
     DTSettings.CreateNew():InitializeDocument()
 end
 
+--- The /grantdtrolls targets that are not names, and how the chat line names them
+local GRANT_TARGETS = {
+    all = { heroes = true, followers = true, text = "everyone" },
+    heroes = { heroes = true, followers = false, text = "heroes" },
+    hero = { heroes = true, followers = false, text = "heroes" },
+    followers = { heroes = false, followers = true, text = "followers" },
+    fol = { heroes = false, followers = true, text = "followers" },
+}
+
+local GRANT_USAGE = "Usage: /grantdtrolls [amount] [all|heroes|followers|name1, name2...]"
+
+--- Grants downtime rolls to heroes and to the followers that roll on projects,
+--- then says so in chat. A follower's rolls are held on its hero.
+--- @param args string|nil "[amount] [target]": amount defaults to 1, target to all
+local function _grantRolls(args)
+    if not dmhub.isDM then return end
+
+    local text = trim(args or "")
+    local amount = 1
+    local first, rest = text:match("^(%S+)%s*(.*)$")
+    local number = first and tonumber(first)
+    if number ~= nil then
+        if number == 0 or number ~= math.floor(number) then
+            SendTitledChatMessage(GRANT_USAGE, "usage", "#e09c9c", dmhub.userid)
+            return
+        end
+        amount = math.floor(number)
+        text = trim(rest)
+    end
+
+    local target = GRANT_TARGETS[string.lower(text)]
+    if text == "" then
+        target = GRANT_TARGETS.all
+    end
+    local queries = target == nil and WhisperMatch.SplitNames(text) or {}
+
+    local function matchesName(name)
+        for _, query in ipairs(queries) do
+            if WhisperMatch.Matches(query, name) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local grantedNames = {}
+    for _, hero in ipairs(DTBusinessRules.GetAllHeroTokens()) do
+        local payHero
+        if target ~= nil then
+            payHero = target.heroes
+        else
+            payHero = matchesName(hero.name)
+        end
+        if payHero then
+            grantedNames[#grantedNames + 1] = hero.name
+        end
+
+        local followerIds = {}
+        local followers = hero.properties:try_get(DTConstants.FOLLOWERS_STORAGE_KEY)
+        if followers and type(followers) == "table" then
+            for followerId, _ in pairs(followers) do
+                local follower = dmhub.GetCharacterById(followerId)
+                if follower ~= nil and DTFollowers.RollsOnProjects(follower) then
+                    local payFollower
+                    if target ~= nil then
+                        payFollower = target.followers
+                    else
+                        payFollower = matchesName(follower.name)
+                    end
+                    if payFollower then
+                        followerIds[#followerIds + 1] = followerId
+                        grantedNames[#grantedNames + 1] = follower.name
+                    end
+                end
+            end
+        end
+
+        if payHero or #followerIds > 0 then
+            hero:ModifyProperties{
+                description = "Grant downtime rolls",
+                execute = function()
+                    local info = hero.properties:GetDowntimeInfo()
+                    if info == nil then return end
+                    if payHero then
+                        info:GrantRolls(amount)
+                    end
+                    for _, followerId in ipairs(followerIds) do
+                        info:GrantFollowerRolls(followerId, amount)
+                    end
+                end,
+            }
+        end
+    end
+
+    if #grantedNames == 0 then
+        SendTitledChatMessage(string.format("No heroes or followers match \"%s\".", text ~= "" and text or "all"), "grantdtrolls", "#e09c9c", dmhub.userid)
+        return
+    end
+
+    local list = target ~= nil and target.text or table.concat(grantedNames, ", ")
+    chat.Send(string.format("Granted %d downtime %s to %s.", amount, amount == 1 and "roll" or "rolls", list))
+end
+
 if dmhub.isDM then
     -- Register the downtime panel
     local downtimeSettings = DTSettings.CreateNew()
@@ -69,6 +172,14 @@ if dmhub.isDM then
             for _, t in ipairs(dmhub.selectedTokens) do
                 _clearTokenData(t)
             end
+        end,
+    }
+    Commands.RegisterMacro{
+        name = "grantdtrolls",
+        summary = "grant downtime rolls",
+        doc = GRANT_USAGE .. "\nGrants downtime rolls (1 by default, negative to take away) to every hero and project follower, only heroes, only followers, or the heroes and followers named, matched as /w matches names. DM only.",
+        command = function(args)
+            _grantRolls(args)
         end,
     }
 

@@ -16,7 +16,7 @@ end
 local CreateThemeSettingsDialog
 
 LaunchablePanel.Register{
-    name = "Theme & Color Scheme...",
+    name = "Color Scheme...",
     icon = "panels/hud/paint-brush.png",
     halign = "center",
     valign = "center",
@@ -695,7 +695,7 @@ CreateThemeSettingsDialog = function()
             valign = "top",
             width = "auto",
             height = "auto",
-            text = "Theme & Color Scheme",
+            text = "Color Scheme",
         },
         gui.MCDMDivider{ bmargin = 12 },
 

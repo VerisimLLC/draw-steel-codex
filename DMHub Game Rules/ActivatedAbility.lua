@@ -24,6 +24,8 @@ end
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
 --- @field range number|string|table Targeting range in world units.
 --- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
+--- @field actingFromTokenId nil|string Charid of a creature whose space the caster uses this ability from, as if standing there. While it resolves, flanking, a burst's line of effect and triggers that measure to the ability's user all count from that creature (see ActivatedAbility.ActingFromToken).
+--- @field actingFromInherited nil|boolean Set on a part that an actingFromTokenId ability has the same creature cast. The part acts from the same space, and while it resolves ActivatedAbility.ActingFromToken keeps answering with the invoking cast's space instead of starting a new one.
 --- @field operatedByAdjacentCreature boolean An object's ability that an adjacent creature uses while the object stays the caster (Field Ballista's Release Bolt).
 --- @field grantedToAdjacentCreatures boolean An object's ability that adjacent creatures get as their own, usable only on the object (Field Ballista's Deactivate).
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
@@ -48,6 +50,7 @@ end
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
 --- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
+--- @field chooseModeAfterTargeting boolean Target first, then mode. Only used when multipleModes is true (not "variations") and the ability has exactly one creature target for this cast (see UsesTargetFirstModes). The mode buttons appear once a target is chosen, and pressing one casts. A modeList entry's targetCondition (the editor's "Target Filter", GoblinScript with Target = the chosen creature) hides that mode for targets it fails, showing its targetUnavailableText instead; a creature no mode can be used on is an invalid target.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -274,6 +277,7 @@ ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
+ActivatedAbility.chooseModeAfterTargeting = false
 
 ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
@@ -1484,13 +1488,21 @@ end
 --- The calculators above return ABSOLUTE altitudes, but the engine reads a straight-line
 --- move's loc altitude as height above the ground at the destination. Handing it the
 --- absolute value counted raised ground twice: a pull of 4 from ground 3 went to 10 and
---- fell 7 (TYXFY9RY). A pick below the ground clamps to it (0 = no vertical part).
---- Convert only at that hand-off; the picked loc itself stays absolute.
+--- fell 7 (TYXFY9RY). Convert only at that hand-off; the picked loc itself stays absolute.
+---
+--- A pick below the destination ground is kept (a negative height) only when it is also
+--- below the mover's own altitude: the player dialed it down, so the engine slams the
+--- creature into the ground. Otherwise it clamps to 0 (no vertical part), so a pull left
+--- level still rides up a gentle slope instead of colliding with it.
 --- @param loc Loc
+--- @param moverAltitude integer absolute altitude of the creature being moved
 --- @return Loc
-function ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
-    local ground = loc.withGroundAltitude.altitude
-    return loc:WithAltitude(math.max(0, loc.altitude - ground))
+function ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverAltitude)
+    local height = loc.altitude - loc.withGroundAltitude.altitude
+    if height < 0 and loc.altitude >= moverAltitude then
+        height = 0
+    end
+    return loc:WithAltitude(height)
 end
 
 --returns a predicate function saying if a target loc passes the filter.
@@ -1545,9 +1557,11 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 			print("MARKER:: COMPEL...")
 			local tok = dmhub.LookupToken(symbols.compeltoward)
 			if tok ~= nil then
-				return function(loc) 
-					local distanceNow = tok:Distance(casterToken.loc)
-					local distanceThen = tok:Distance(loc)
+				--Measure between the creatures' whole bodies, so a mover bigger than one square isn't judged from just one corner square.
+				local distanceFromTarget = ForcedMovementOriginDistanceFunction(tok, tok.loc, casterToken)
+				local distanceNow = distanceFromTarget(casterToken.loc)
+				return function(loc)
+					local distanceThen = distanceFromTarget(loc)
 					local distanceMoved = loc:DistanceInTiles(casterToken.loc)
 					local movedCloser = distanceNow - distanceThen
 					return movedCloser >= distanceMoved
@@ -1723,7 +1737,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
+    --A burst sees its targets from the caster, or from the creature whose space it is used from.
+    local sightToken = casterToken
+    if self.targetType == "all" then
+        local actingFromId = self:try_get("actingFromTokenId")
+        local actingFrom = actingFromId ~= nil and dmhub.GetTokenById(actingFromId) or nil
+        if actingFrom ~= nil then
+            sightToken = actingFrom
+        end
+    end
+
+    if self.targetType == "all" and sightToken.floorIndex == targetToken.floorIndex and sightToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         --A sight-blocking object (a boulder, a solid block) hides its own square, so the engine reports no
         --sight to it. It still counts as reached if the line to one of its squares is stopped only at that
         --square's own edge (within 1 tile of its centre), not by something further out such as a wall.
@@ -1731,15 +1755,16 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         local seen = false
         if targetToken.isObject then
             local pierce = casterToken.properties:GetPierceWalls()
-            local casterRadius = casterToken.tileSize * 0.5
+            local viewerRadius = sightToken.tileSize * 0.5
             for _,loc in ipairs(targetToken.locsOccupying) do
-                local info = casterToken:GetLineOfSightToSpaceInfo(loc, pierce)
-                --obstructionDist is a fraction of the sightline from the caster's EDGE to the square's centre,
-                --so scale it by that length. A square's own edge is at most ~0.71 tiles from its centre; a
-                --grid wall that does not touch the square is at least 1.5 away, so 1 tile splits the two.
-                local dx = loc.x - casterToken.loc.x
-                local dy = loc.y - casterToken.loc.y
-                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - casterRadius)
+                local info = sightToken:GetLineOfSightToSpaceInfo(loc, pierce)
+                --obstructionDist is a fraction of the sightline from the viewer's EDGE (the caster,
+                --or the creature it acts from) to the square's centre, so scale it by that length.
+                --A square's own edge is at most ~0.71 tiles from its centre; a grid wall that does
+                --not touch the square is at least 1.5 away, so 1 tile splits the two.
+                local dx = loc.x - sightToken.loc.x
+                local dy = loc.y - sightToken.loc.y
+                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - viewerRadius)
                 if info.cover > 0 or sightline * (1 - info.obstructionDist) <= 1 then
                     seen = true
                     break
@@ -2095,7 +2120,8 @@ function ActivatedAbility:SwitchModes(i)
     end
     result.skippable = self:try_get("skippable")
     result.countsAsCast = self:try_get("countsAsCast")
-    result.promptOverride = self:try_get("promptOverride")
+    --A mode variation can carry its own prompt (e.g. a shift hint); otherwise keep the parent's.
+    result.promptOverride = result:try_get("promptOverride") or self:try_get("promptOverride")
     -- Keep the opt-out across the mode switch, or a minion gets asked for one target
     -- per squad member.
     result.disableSquadCoordination = self:try_get("disableSquadCoordination")
@@ -2117,6 +2143,133 @@ function ActivatedAbility:SwitchModes(i)
 
     result.modeList = modeList
     return result
+end
+
+--- Whether mode modeIndex can be used. Checks the mode's condition (about the
+--- caster) and, when targetToken is given, its targetCondition (the editor's
+--- "Target Filter", about the target). The action bar and the Monster AI both
+--- check this before offering or casting a mode.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken nil|CharacterToken nil skips the target check
+--- @param modeIndex integer
+--- @return boolean available
+--- @return nil|"caster"|"target" failedOn which check failed, when not available
+function ActivatedAbility:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or casterToken == nil then
+        return mode ~= nil, nil
+    end
+    if (mode.condition or "") ~= "" then
+        local result = ExecuteGoblinScript(mode.condition, casterToken.properties:LookupSymbol(), 1, "Mode condition")
+        if not (type(result) == "number" and result > 0) then
+            return false, "caster"
+        end
+    end
+    if not self:ModeTargetFilterPasses(casterToken, targetToken, modeIndex) then
+        return false, "target"
+    end
+    return true, nil
+end
+
+--- Only the target half of ModeAvailableForTarget: whether targetToken passes
+--- mode modeIndex's targetCondition (true when the mode has none). Use it when
+--- the caster half was already checked, e.g. once per target in a list.
+--- @param casterToken CharacterToken
+--- @param targetToken nil|CharacterToken nil passes
+--- @param modeIndex integer
+--- @return boolean
+function ActivatedAbility:ModeTargetFilterPasses(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or (mode.targetCondition or "") == "" or targetToken == nil or targetToken.properties == nil then
+        return true
+    end
+    local symbols = { target = GenerateSymbols(targetToken.properties) }
+    return GoblinScriptTrue(ExecuteGoblinScript(mode.targetCondition,
+        casterToken.properties:LookupSymbol(symbols), 0, "Mode target filter"))
+end
+
+--- Whether this cast picks its target first and its mode second. Needs the
+--- setting, plain Multiple Modes (a variation swaps in another ability), and
+--- exactly one creature target. numTargets can be a formula, so the count is
+--- worked out for this caster each time; with more targets the ability
+--- behaves like any other multi-mode ability.
+--- @param casterToken nil|CharacterToken
+--- @param symbols nil|table
+--- @return boolean
+function ActivatedAbility:UsesTargetFirstModes(casterToken, symbols)
+    if self.multipleModes ~= true or not self:try_get("chooseModeAfterTargeting", false)
+        or self.targetType ~= "target" then
+        return false
+    end
+    return self:GetNumTargets(casterToken, symbols) == 1
+end
+
+--Shown when no mode of a target-first ability can be used on a creature and
+--none of the failing modes has its own Unavailable Text.
+local g_noModeAvailableText = "No option can be used on this creature."
+
+--Shown instead when every mode failed its caster condition: the problem is the
+--caster, so a reason about the creature would be misleading.
+local g_noModeForCasterText = "You can't use any option of this ability right now."
+
+--- Why no mode of a target-first ability can be used on targetToken, or nil if
+--- at least one can. Joins the Unavailable Text of every mode whose Target
+--- Filter failed; modes the caster can't use add nothing. If every mode failed
+--- on the caster, says so instead of blaming the creature.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken CharacterToken
+--- @return nil|string
+function ActivatedAbility:TargetFirstUnavailableReason(casterToken, targetToken)
+    local reasons = {}
+    local anyFailedOnTarget = false
+    for modeIndex, mode in ipairs(self:try_get("modeList", {})) do
+        local available, failedOn = self:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+        if available then
+            return nil
+        end
+        if failedOn == "target" then
+            anyFailedOnTarget = true
+            if (mode.targetUnavailableText or "") ~= "" then
+                reasons[#reasons + 1] = mode.targetUnavailableText
+            end
+        end
+    end
+    if #reasons == 0 then
+        return cond(anyFailedOnTarget, g_noModeAvailableText, g_noModeForCasterText)
+    end
+    return table.concat(reasons, " ")
+end
+
+--- GoblinScript help for a mode's Target Filter field. Both ability editors
+--- use it so their help text stays the same.
+--- @param domains nil|table
+--- @return table
+function ActivatedAbility.ModeTargetFilterDocs(domains)
+    return {
+        domains = domains,
+        help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
+        output = "boolean",
+        examples = {
+            {
+                script = "Target.Recoveries Available to Spend > 0",
+                text = "Offered only if the target has a Recovery to spend.",
+            },
+        },
+        subject = creature.helpSymbols,
+        subjectDescription = "The creature using the ability.",
+        symbols = {
+            subject = {
+                name = "Subject",
+                type = "creature",
+                desc = "The creature using the ability.",
+            },
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature chosen as the target.",
+            },
+        },
+    }
 end
 
 
@@ -2298,6 +2451,103 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
             end
         end
 	end
+end
+
+--- One open cast in a caster's stack of "acting from" casts (see Cast).
+--- @class ActingFromEntry
+--- @field tokenid string|nil the creature whose space the caster acts from; nil for a cast that acts from its own square
+--- @field previous ActingFromEntry|nil the cast that was open underneath this one
+--- @field finished boolean set by the cast's finish handler
+--- @field options table the cast's options
+
+--Creatures using an ability "as if in another creature's space" right now: caster charid ->
+--the newest open cast. A cast that opens while another is still open (a trigger mid-roll)
+--goes on top; when it ends, the one underneath applies again.
+--- @type table<string, ActingFromEntry>
+local g_actingFrom = {}
+
+--- True once the cast that made this entry is over, even if its finish handlers never
+--- ran (one before them threw, or the cast was abandoned while stuck on a prompt).
+--- @param entry ActingFromEntry
+--- @return boolean
+local function ActingFromOver(entry)
+	local options = entry.options
+	return entry.finished or options.executedFinish == true or (options.abort == true and options.stopProcessing == true)
+end
+
+--- A creature's newest acting-from cast that is still open, or nil. Casts that
+--- are over but whose finish handler never removed them are dropped on the way.
+--- @param charid string
+--- @return ActingFromEntry|nil
+local function LiveActingFrom(charid)
+	local entry = g_actingFrom[charid]
+	while entry ~= nil and ActingFromOver(entry) do
+		entry = entry.previous
+	end
+	g_actingFrom[charid] = entry
+	return entry
+end
+
+--- The token whose space a creature acts from while one of its abilities
+--- stamped with actingFromTokenId resolves (content that lets a hero use an
+--- ability as if in its companion's space). Flanking reads it; triggers that
+--- measure to the ability's user read the stamp on the event's ability instead.
+--- While a newer cast of the creature's own is open on top (a trigger mid-roll),
+--- it is nil: that cast acts from the creature's own square.
+--- Only the client running the cast knows it: flanking worked out on another
+--- client (a Director's reaction, say) uses the hero's own square.
+--- @param charid string
+--- @return nil|CharacterToken
+function ActivatedAbility.ActingFromToken(charid)
+	local entry = LiveActingFrom(charid)
+	if entry == nil or entry.tokenid == nil then
+		return nil
+	end
+	return dmhub.GetTokenById(entry.tokenid)
+end
+
+--- Every creature acting from another's space right now, as one string
+--- ("caster>standin" pairs, sorted; "" when none). It changes exactly when
+--- ActingFromToken's answer changes for some creature, so the creature cache
+--- uses it as part of every key (registered in MCDMCreature.lua).
+--- @return string
+function ActivatedAbility.ActingFromSignature()
+	if next(g_actingFrom) == nil then
+		return ""
+	end
+	local parts = {}
+	--LiveActingFrom may replace or clear the entry being visited; pairs allows that (only adding keys is not).
+	for charid,_ in pairs(g_actingFrom) do
+		local entry = LiveActingFrom(charid)
+		if entry ~= nil and entry.tokenid ~= nil then
+			parts[#parts+1] = charid .. ">" .. entry.tokenid
+		end
+	end
+	table.sort(parts)
+	return table.concat(parts, ",")
+end
+
+--- @type table<string, CharacterToken>
+local g_noActingFrom = {}
+
+--- Every creature acting from another's space right now: caster charid -> the token
+--- whose space it acts from. Empty when none, which is almost always.
+--- @return table<string, CharacterToken>
+function ActivatedAbility.ActingFromAll()
+	--Read on every flanking check; nobody is acting from elsewhere almost always.
+	--The shared empty table is read-only: callers only iterate or index it.
+	if next(g_actingFrom) == nil then
+		return g_noActingFrom
+	end
+	local result = {}
+	--ActingFromToken drops casts that are over, which removes keys during the loop; Lua allows removing (not adding) keys inside pairs.
+	for charid,_ in pairs(g_actingFrom) do
+		local standIn = ActivatedAbility.ActingFromToken(charid)
+		if standIn ~= nil then
+			result[charid] = standIn
+		end
+	end
+	return result
 end
 
 --- The creature operating an object for this cast, when this ability is an
@@ -2882,6 +3132,12 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         params.mapName = game.currentMap.description
     end
 
+    --Extra fields a game system's behaviors put on the cast, e.g. the power
+    --roll's edges and banes (Draw Steel's MCDMAbilityRollBehavior).
+    for k,v in pairs(options.usageAnalytics or {}) do
+        params[k] = v
+    end
+
     if dmhub.GetSettingValue("telemetry_enabled") ~= false then
         analytics.Event(params)
     end
@@ -3301,6 +3557,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
             --serialized form and let WithinArea silently return false on the
             --receiving side.
             _tmp_targetArea = options.targetArea,
+            --How far a negated push, pull or slide would have moved its target.
+            --Only set for the follow-up of a trigger that negates forced movement.
+            negatedForcedMovement = options.symbols.negatedforcedmovement,
+            negatedForcedMovementType = options.symbols.negatedforcedmovementtype,
 		}
 	end
 
@@ -3313,6 +3573,31 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	if self:has_key("castingLevel") and type(self.castingLevel) == "number" and self.castingLevel >= self:try_get("level", 1) then
 		options.symbols.upcast = self.castingLevel - self:try_get("level", 1)
 	end
+
+    --Used as if in another creature's space: flanking counts that space until the cast finishes.
+    --Parts it invokes (actingFromInherited) share that space; any other cast by this caster while
+    --it is open (a trigger mid-roll) acts from the caster's own square.
+    local clearActingFrom = nil
+    local casterId = casterToken.charid
+    local actingFromId = self:try_get("actingFromTokenId")
+    local inherited = self:try_get("actingFromInherited", false)
+    local stamped = actingFromId ~= nil and actingFromId ~= casterId and not inherited
+    if stamped or (g_actingFrom[casterId] ~= nil and not inherited) then
+        --tokenid nil: this cast acts from the caster's own square while an older one stays open.
+        ---@type ActingFromEntry
+        local entry = {tokenid = stamped and actingFromId or nil, previous = g_actingFrom[casterId], finished = false, options = options}
+        clearActingFrom = function()
+            entry.finished = true
+            if g_actingFrom[casterId] == entry then
+                g_actingFrom[casterId] = entry.previous
+            end
+        end
+        g_actingFrom[casterId] = entry
+    end
+    if clearActingFrom ~= nil then
+        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = clearActingFrom
+    end
 
 	local continueCasting = nil
 	casterToken:ModifyProperties{
@@ -3364,6 +3649,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 
 	if continueCasting ~= nil then
 		continueCasting()
+	elseif clearActingFrom ~= nil then
+		--The instant part errored (ModifyProperties logs it and returns), so
+		--FinishCast will not run to clear it.
+		clearActingFrom()
 	end
 end
 
@@ -3609,17 +3898,35 @@ end
 local AWAITING_TRIGGERS_ACTIVITY = "awaitingtriggers"
 ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY = AWAITING_TRIGGERS_ACTIVITY
 
+--True if this cast is by the token or targets it.
+local function CastInvolvesToken(info, token)
+    if info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == token.charid then
+        return true
+    end
+    for _,target in ipairs(info.targets or {}) do
+        if target.token ~= nil and target.token.valid and target.token.charid == token.charid then
+            return true
+        end
+    end
+    return false
+end
+
 --Runs fn once every ability cast that was active when this was called has
 --finished, including the calling cast if invoked from inside one. Runs fn
 --immediately when no casts are active.
 --opts.casterid names the creature fn will cast for, so HasDeferredCastFor can
 --report that the creature still has work queued.
+--opts.involving waits only for the calling cast and casts by or targeting
+--that creature, not for unrelated ones.
 --- @param fn function
---- @param opts nil|{casterid: string|nil}
+--- @param opts nil|{casterid: string|nil, involving: CharacterToken|nil}
 function ActivatedAbility.RunWhenCastsComplete(fn, opts)
+    local involving = opts ~= nil and opts.involving or nil
+    local running = involving ~= nil and coroutine.running() or nil
     local casts = {}
     for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY then
+        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY
+            and (involving == nil or co == running or CastInvolvesToken(info, involving)) then
             casts[co] = true
         end
     end
@@ -3799,10 +4106,15 @@ end
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
+    --No mode chosen yet means mode 1, the same as when the ability is cast.
+    local mode = (symbols ~= nil and symbols.mode) or 1
     for _,behavior in ipairs(self.behaviors) do
-        local movementType = behavior:BehaviorMovementType(symbols)
-        if movementType ~= nil then
-            return movementType
+        --Skip behaviors for another mode, e.g. the shift of a "move, or pay to shift instead" choice.
+        if not behavior:SkippedInMode(self, mode) then
+            local movementType = behavior:BehaviorMovementType(symbols)
+            if movementType ~= nil then
+                return movementType
+            end
         end
     end
 
@@ -4127,13 +4439,28 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
         return false
     end
 
+    --Each cast runs on its own coroutine, so an outer ability by this same creature
+    --that is still resolving shows up here as another live cast.
+    local hasOuterCastBySameCreature = function()
+        for co,info in pairs(ActivatedAbility.coroutineStorage) do
+            if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
+                and not rawequal(info.ability, self)
+                and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
+                return true
+            end
+        end
+        return false
+    end
+
     --Invoked straight from an invoke behavior: the clone names who invoked it.
+    --The Monster AI casts every ability with the monster named as its own invoker,
+    --so that alone does not make this a nested cast: an outer cast must still be running.
     local invoker = self:try_get("invoker")
     if type(invoker) == "function" then
         invoker = invoker("self")
     end
     if invoker ~= nil and dmhub.LookupTokenId(invoker) == casterToken.charid then
-        return true
+        return hasOuterCastBySameCreature()
     end
 
     --A prompt (Charge's "Choose Charging Attack", Riposte's free strike) casts a
@@ -4144,14 +4471,7 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
     if cast == nil or cast:try_get("ability") == nil or rawequal(cast.ability, self) then
         return false
     end
-    for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
-            and not rawequal(info.ability, self)
-            and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
-            return true
-        end
-    end
-    return false
+    return hasOuterCastBySameCreature()
 end
 
 --- @return boolean
@@ -4411,6 +4731,20 @@ function ActivatedAbilityBehavior:RecordHitTarget(token, options, args)
 	options.hit_targets[#options.hit_targets+1] = { token = token, failedSave = args.failedSave }
 end
 
+--- True when the player picked `mode` and this behavior should not run, because in the
+--- ability editor it is ticked only for other modes. A behavior with no modes ticked,
+--- or on an ability without modes, is never skipped.
+--- @param ability ActivatedAbility
+--- @param mode any the chosen mode number (symbols.mode)
+--- @return boolean
+function ActivatedAbilityBehavior:SkippedInMode(ability, mode)
+    local modesSelected = self:try_get("modesSelected")
+    if (not ability.multipleModes) or modesSelected == nil or #modesSelected == 0 then
+        return false
+    end
+    return not table.contains(modesSelected, mode)
+end
+
 --- @param ability ActivatedAbility
 --- @param casterToken nil|CharacterToken
 --- @param options nil|table
@@ -4441,10 +4775,8 @@ function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
         end
     end
 
-    if options ~= nil and ability.multipleModes and self:has_key("modesSelected") and #self.modesSelected > 0 then
-        if not table.contains(self.modesSelected, options.symbols.mode) then
-            return true
-        end
+    if options ~= nil and self:SkippedInMode(ability, options.symbols.mode) then
+        return true
     end
 
 	if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then
@@ -4671,12 +5003,14 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
             },
         }
 
-        if casterToken.properties.minion then
+        --A token can be listed while it has no properties (being created or
+        --deleted, e.g. a minion dying mid-cast); skip it rather than abort the cast.
+        if casterToken.properties ~= nil and casterToken.properties.minion then
             local squad = casterToken.properties:MinionSquad()
             if squad ~= nil then
 
                 for _,tok in ipairs(dmhub.allTokens) do
-                    if tok.charid ~= casterToken.charid and tok.properties.minion and tok.properties:MinionSquad() == squad then
+                    if tok.charid ~= casterToken.charid and tok.properties ~= nil and tok.properties.minion and tok.properties:MinionSquad() == squad then
                         result[#result+1] = { token = tok }
                     end
                 end
@@ -4685,11 +5019,11 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
     elseif self.applyto == 'caster_minions' then
         result = {}
 
-        local squad = casterToken.properties:MinionSquad()
+        local squad = casterToken.properties ~= nil and casterToken.properties:MinionSquad() or nil
         if squad ~= nil then
 
             for _,tok in ipairs(dmhub.allTokens) do
-                if tok.charid ~= casterToken.charid and tok.properties.minion and tok.properties:MinionSquad() == squad then
+                if tok.charid ~= casterToken.charid and tok.properties ~= nil and tok.properties.minion and tok.properties:MinionSquad() == squad then
                     result[#result+1] = { token = tok }
                 end
             end
@@ -6232,7 +6566,8 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 	local targetsSorted = {}
 	for i,target in ipairs(targets) do
-		if target.token ~= nil and target.token.properties ~= nil then
+		--targets that can't be force moved are left where they are.
+		if target.token ~= nil and target.token.properties ~= nil and not target.token.properties:CannotBeForceMoved() then
 			targetsSorted[#targetsSorted+1] = target.token
 		end
 	end

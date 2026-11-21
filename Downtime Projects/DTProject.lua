@@ -22,6 +22,8 @@
 --- @field progressAdjustments table Array of DTAdjustment objects - History of all adjustments made to project progress
 --- @field createdBy string GUID identifier of the user who created this project
 --- @field itemsGiven table<string, boolean>|nil Item ids this project has given; each is given once, even if picked again
+--- @field reviewed boolean|nil True once the Director has dealt with the project (approved it, set a status); nil on projects from before the flag
+--- @field projectEvents table|nil Array of DTProjectEvent objects - event rolls and items given, which move no progress
 DTProject = RegisterGameType("DTProject")
 DTProject.sortOrder = 1
 
@@ -239,6 +241,11 @@ end
 function DTProject:SetStatus(status)
     if self:_isValidStatus(status) then
         self.status = status
+        --any status but Paused means the Director has dealt with the project
+        --(or it was rolled on); a hand-picked Paused marks it in the caller.
+        if status ~= DTConstants.STATUS.PAUSED.key then
+            self.reviewed = true
+        end
     end
     return self
 end
@@ -421,6 +428,117 @@ function DTProject:WaitsOnDirector()
     return status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key
 end
 
+--The reason every new project is stored with (the type's default above).
+local NEW_PROJECT_REASON = DTProject.statusReason
+
+--Reasons the code writes itself, plus the paused line, so none of them shows
+--as a Director's own reason. Old projects then read the status lines below.
+local DEFAULT_REASONS = {
+    [NEW_PROJECT_REASON] = true,
+    ["Milestone achieved! Consult with your Director."] = true,
+    ["Project complete."] = true,
+    ["Paused by the Director."] = true,
+}
+
+--What a player reads on a project that is stopped, in place of the roll box.
+DTProject.WAITING_LINE = "Waiting for the Director to approve this project."
+DTProject.PAUSED_LINE = "Paused by the Director."
+DTProject.MILESTONE_LINE = "Milestone reached. The Director rolls a project event before anyone rolls again."
+
+--- Is this project new, still waiting for the Director's first look? A
+--- project the Director has dealt with carries `reviewed`; one from before
+--- the flag counts as waiting while it is Paused with the new-project reason
+--- still untouched.
+--- @return boolean
+function DTProject:IsWaitingForReview()
+    if self:GetStatus() ~= DTConstants.STATUS.PAUSED.key then
+        return false
+    end
+    local reviewed = self:try_get("reviewed")
+    if reviewed ~= nil then
+        return reviewed ~= true
+    end
+    return self:GetStatusReason() == NEW_PROJECT_REASON
+end
+
+--- The reason someone wrote, or "" when the stored one is a default.
+--- @return string
+function DTProject:GetOwnReason()
+    local reason = trim(self:GetStatusReason())
+    if DEFAULT_REASONS[reason] then
+        return ""
+    end
+    return reason
+end
+
+--- What a stopped project waits for, in the player's words, or nil while it
+--- is Active or Complete. Also says why it cannot be rolled.
+--- @return nil|string line
+--- @return nil|string reason the Director's own reason under a milestone's line
+function DTProject:GetStatusLine()
+    local status = self:GetStatus()
+    if status == DTConstants.STATUS.PAUSED.key then
+        if self:IsWaitingForReview() then
+            return DTProject.WAITING_LINE, nil
+        end
+        local own = self:GetOwnReason()
+        return cond(own ~= "", own, DTProject.PAUSED_LINE), nil
+    elseif status == DTConstants.STATUS.MILESTONE.key then
+        local own = self:GetOwnReason()
+        return DTProject.MILESTONE_LINE, cond(own ~= "", own, nil)
+    end
+    return nil, nil
+end
+
+--- Why an Active project cannot be rolled yet, or nil.
+--- A project that is not Active says so with GetStatusLine instead.
+--- @return nil|string
+function DTProject:GetSetupLine()
+    if #(self:GetTestCharacteristics() or {}) == 0 then
+        return "Choose a characteristic under Details to roll."
+    end
+    if (self:GetProjectGoal() or 0) <= 0 then
+        return "Set a goal under Details to roll."
+    end
+    return nil
+end
+
+--- Approve a project waiting for the Director: Active, reviewed, and the
+--- book's next milestone when it has none ahead of its progress.
+--- Must be called within token:ModifyProperties on the project's owner.
+--- @return DTProject self For chaining
+function DTProject:Approve()
+    self:SetStatus(DTConstants.STATUS.ACTIVE.key):SetStatusReason("")
+    if (self:GetMilestoneThreshold() or 0) <= self:GetProgress() then
+        local milestone = DTBusinessRules.CalcNextMilestone(self)
+        if milestone ~= nil then
+            self:SetMilestoneThreshold(milestone)
+        end
+    end
+    return self
+end
+
+--- Add a dated event roll or item given to the history (DTProjectEvent).
+--- A new list each time, so the write never lands on a shared table.
+--- @param event DTProjectEvent
+--- @return DTProject self For chaining
+function DTProject:AddProjectEvent(event)
+    event:SetCommitInfo()
+    local events = {}
+    for _, existing in ipairs(self:GetProjectEvents()) do
+        events[#events + 1] = existing
+    end
+    events[#events + 1] = event
+    self.projectEvents = events
+    return self
+end
+
+--- The event rolls and items given, oldest first as stored.
+--- @return DTProjectEvent[]
+function DTProject:GetProjectEvents()
+    return _rehydrateItems(self:try_get("projectEvents") or {}, DTProjectEvent) --[[@as DTProjectEvent[] ]]
+end
+
 --- Has this project already given the item it is crafting now?
 --- @return boolean
 function DTProject:HasGivenItem()
@@ -467,6 +585,11 @@ function DTProject:_markComplete(currentStatus)
     if not self:HasGivenItem() then
         if DTBusinessRules.GiveItemToCharacter(self) then
             self:_recordItemGiven()
+            --a dated "Gave you" line in the history.
+            self:AddProjectEvent(DTProjectEvent.CreateNew{
+                kind = DTProjectEvent.KIND_GAVE,
+                itemId = self:GetItemID(),
+            })
         end
     end
     self:SetStatusReason("Project complete.")

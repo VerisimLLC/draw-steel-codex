@@ -19,6 +19,8 @@ ActivatedAbility = {}
 --and the crit-widened action replenish is exercised through afterCast below.
 ActivatedAbility.SquadMemberParticipates = function() return true end
 ActivatedAbilityReplenishBehavior = {Cast = function() end}
+--The off-turn immediate action grant (same file) is not under test here.
+ActivatedAbility.GrantImmediateActionForCriticalHit = function() end
 CharacterResource = {actionResourceId = "action"}
 --Simulate the base payment for participating attackers, then exercise the real
 --Draw Steel wrapper that also spends nonparticipants' shared action.
@@ -308,7 +310,12 @@ run()
 check(#ai.casts == 1, "stop request prevents the extra action")
 
 ai, tokens, run = fixture(1)
-ai.afterCast = function() tokens["1"].actions = 1; dmhub.initiativeQueue.current = "hero" end
+ai.afterCast = function()
+    tokens["1"].actions = 1
+    --The fixture's fake queue tracks the active turn in `current`, a field the real InitiativeQueue lacks.
+    local fakeQueue = dmhub.initiativeQueue --[[@as {current: string}]]
+    fakeQueue.current = "hero"
+end
 run()
 check(#ai.casts == 1 and ai._tmp_abortTurn ~= nil, "a turn taken by another entry stops the extra action")
 

@@ -583,6 +583,10 @@ local function CreateAbilityPanel()
                         delete = function(element)
                             CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
                         end,
+                        deleteConfirm = {
+                            title = "Delete Ability",
+                            message = string.format("Delete %s? This can't be undone.", ability.name),
+                        },
                     })
                 end,
             },
@@ -715,10 +719,11 @@ local function CreateTriggeredAbilityPanel()
     return resultPanel
 end
 
--- Called after an ability is added to a hero from the sheet. A Companion-keyword
--- ability is used by the companion, not the hero, so say so and point to where it is listed.
+-- Called after an ability is added to a hero from the sheet. An ability with a
+-- companion keyword ("Companion", or one a module's companion reserves) is used by
+-- the companion, not the hero, so say so and point to where it is listed.
 local function WarnIfCompanionAbility(creature, ability)
-    if not ability:has_key("keywords") or not ability:HasKeyword("Companion") then
+    if not ability:HasCompanionKeyword() then
         return
     end
 
@@ -732,7 +737,7 @@ local function WarnIfCompanionAbility(creature, ability)
 
     gui.ModalMessage {
         title = "Companion Ability",
-        message = string.format("%s has the Companion keyword. It does not appear with your own abilities - you can find it, edit it or delete it under Companion Abilities.", ability.name),
+        message = string.format("%s has a companion keyword. It does not appear with your own abilities - you can find it, edit it or delete it under Companion Abilities.", ability.name),
     }
 end
 
@@ -1037,7 +1042,7 @@ local function CreateAbilityListPanel()
                 showAbilities[g_villainActionId] = true
             end
 
-            -- Companion abilities: the Companion-keyword ones the default
+            -- Companion abilities: the companion-keyword ones the default
             -- query dropped. Some characters already list them normally (the
             -- usecompanionabilities attribute), so skip any already shown.
             local shownGuids = {}
@@ -1046,8 +1051,7 @@ local function CreateAbilityListPanel()
             end
             local companionAbilities = {}
             for _, ability in ipairs(c:GetActivatedAbilities { excludeKeywords = {} }) do
-                if ability:has_key("keywords") and ability:HasKeyword("Companion")
-                    and not shownGuids[ability:try_get("guid", "")] then
+                if ability:HasCompanionKeyword() and not shownGuids[ability:try_get("guid", "")] then
                     companionAbilities[#companionAbilities + 1] = ability
                 end
             end
@@ -6603,7 +6607,7 @@ local function DSCharSheet()
 
                                     change = function(element)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        creature:SetCurrentHitpoints(element.text)
+                                        creature:SetStaminaDirect(element.text)
                                         element.data.previous_value = nil --don't flash green/red on an edit.
                                         CharacterSheet.instance:FireEvent('refreshAll')
                                     end,
@@ -7336,7 +7340,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                         width = "80%",
                         height = 20,
                         flow = "horizontal",
-                        text = lang.name,
+                        text = lang:DisplayName(),
+                        hover = Language.TooltipHover(lang),
                         textAlignment = "left",
                         halign = "center",
 
@@ -7378,7 +7383,7 @@ local function CharacterSheetEditLanguagesPopup(element)
                 if innateLanguages[k] == nil then
                     options[#options + 1] = {
                         id = k,
-                        text = string.format("%s (%s)", v.name, v.speakers),
+                        text = v:DisplayNameWithDetail(),
                     }
                 end
             end
@@ -7389,13 +7394,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                 text = "Add Language...",
             })
 
-            if creature:try_get("customInnateLanguage") == nil then
-                options[#options + 1] = {
-                    id = "custom",
-                    text = "Custom Language...",
-                }
-            end
-
+            --No "Custom Language..." entry: nothing in Draw Steel names or reads
+            --customInnateLanguage (only the 5e sheet does), so it saved nothing.
             element.options = options
 
             element.idChosen = "none"
@@ -7404,11 +7404,7 @@ local function CharacterSheetEditLanguagesPopup(element)
         change = function(element)
             ---@cast element Dropdown
             if element.idChosen ~= "none" then
-                if element.idChosen == "custom" then
-                    creature.customInnateLanguage = ""
-                else
-                    creature:get_or_add("innateLanguages", {})[element.idChosen] = true
-                end
+                creature:get_or_add("innateLanguages", {})[element.idChosen] = true
                 resultPanel:FireEventTree("refreshPanel")
                 CharacterSheet.instance:FireEvent('refreshAll')
             end
@@ -7504,12 +7500,7 @@ function CharSheet.LanguagesPanel()
                     for langid, _ in pairs(creature:LanguagesKnown()) do
                         local lang = languagesTable[langid]
                         if lang ~= nil then
-                            local text = lang.name
-                            if trim(lang.speakers) ~= "" then
-                                text = text .. " (" .. lang.speakers .. ")"
-                            end
-
-                            languages[#languages + 1] = text
+                            languages[#languages + 1] = lang:DisplayNameWithDetail()
                         end
                     end
 
@@ -8995,7 +8986,23 @@ local function FeaturesIndexPanel()
                 c.characterFeatures = items
                 element.popup = nil
                 CharacterSheet.instance:FireEvent("refreshAll")
-                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
+                local editor = feature:PopupEditor{
+                    commit = CommitCustomFeature,
+                    --The row was added so the editor had something to edit;
+                    --cancelling the new feature takes it back out.
+                    cancel = function(cancelled)
+                        local creature = CharacterSheet.instance.data.info.token.properties
+                        local list = creature:try_get("characterFeatures", {})
+                        local guid = cancelled:try_get("guid")
+                        for i = #list, 1, -1 do
+                            if list[i] == cancelled or (guid ~= nil and list[i]:try_get("guid") == guid) then
+                                table.remove(list, i)
+                            end
+                        end
+                        creature.characterFeatures = list
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                }
                 editor.data.notifyElement = resultPanel
                 CharacterSheet.instance:AddChild(editor)
             end,

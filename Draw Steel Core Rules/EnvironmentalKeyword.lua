@@ -105,6 +105,12 @@ EnvironmentalKeyword.aiDirectiveTypes = {
 		tooltip = "Creatures the Monster AI controls treat a zone of this type as their post: when they can reach it they always end their movement inside it, and one that is driven out heads back before doing anything else.",
 		filterHelp = "Which creatures hold zones of this type. Leave it empty for every creature the Monster AI controls.",
 	},
+	{
+		id = "retreat",
+		text = "Retreat",
+		tooltip = "Where creatures the Monster AI controls run to once they want to retreat (an Encounter Script decides when). A retreating creature flees here, avoiding opportunity attacks where it can, and leaves the map once it reaches the zone. Monsters never retreat unless a script says so.",
+		filterHelp = "Which creatures may escape through zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
 }
 
 --- This keyword's Monster AI directives. A keyword saved before the list
@@ -3744,22 +3750,16 @@ creature.RegisterSymbol {
 	},
 }
 
---True if the floor the token stands on is capped by a ceiling (layers report
---their parent floor's). A token whose floor cannot be found counts as covered.
+--True if something is overhead: a roof's art or an upper storey over any square
+--the token occupies, or its floor's ceiling setting. Decided per square by the
+--engine, so a token in a courtyard beside a roofed building is under open sky.
 --- @param token CharacterToken
 --- @return boolean
 local function TokenFloorHasCeiling(token)
-	local map = game.currentMap
-	local loc = token.loc
-	if map == nil or loc == nil then
+	if game.currentMap == nil or token.loc == nil then
 		return true
 	end
-	for _,floor in ipairs(map.floors) do
-		if floor.floorIndex == loc.floor then
-			return floor.hasCeiling == true
-		end
-	end
-	return true
+	return token.coveredOverhead == true
 end
 
 --True if a zone over the squares the token occupies shelters it from the sky:
@@ -3821,7 +3821,7 @@ creature.RegisterSymbol {
 	help = {
 		name = "Exposed To Sky",
 		type = "boolean",
-		desc = "True if nothing is between the creature and the sky: its floor has no ceiling (see the floor's Ceiling setting) and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
+		desc = "True if nothing is between the creature and the sky: no roof or upper floor is over the squares it occupies, its floor's Ceiling setting doesn't cover it, and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
 		seealso = {"Environment"},
 		examples = {"Exposed To Sky"},
 	},
@@ -4023,5 +4023,56 @@ GameSystem.RegisterGoblinScriptField{
 		end
 
 		return LocTouchesWater(token.loc, token.charid)
+	end,
+}
+
+--------------------------------------------------------------------------------
+-- OnWaterSpace: "starts their turn in a space containing water" (e.g. the
+-- Essence of Tides' Water Glide). Unlike AdjacentToWater it looks only at the
+-- squares the creature itself occupies -- never neighbours, never other
+-- creatures -- and any one square of a large creature's footprint is enough.
+--
+-- Water is whatever the tile rules call water: water tile art, the map's deep
+-- water level, and apply-to-all auras flagged water (markup water zones and
+-- ability or creature auras carrying the Water environmental keyword). The
+-- Lua tile-rules bridge passes no altitude and no creature, so a creature
+-- flying over water still counts, and an aura with its own creature filter
+-- does not.
+--------------------------------------------------------------------------------
+GameSystem.RegisterGoblinScriptField{
+	name = "OnWaterSpace",
+	type = "boolean",
+	desc = "True if any square this creature occupies contains water (water terrain, deep map water, a water markup zone, or an aura with the Water keyword). Adjacent squares and nearby water elementals do not count; see AdjacentToWater for that.",
+	seealso = {"AdjacentToWater", "InWater"},
+	examples = {"self.OnWaterSpace"},
+	calculate = function(c)
+		local token = dmhub.LookupToken(c)
+		if token == nil or not token.valid or token.loc == nil then
+			return false
+		end
+
+		local locs = token.locsOccupying
+		if locs == nil or #locs == 0 then
+			locs = { token.loc }
+		end
+
+		for _,loc in ipairs(locs) do
+			--GetTileRulesAtLoc returns nil off-map / where there is no terrain.
+			local rules = dmhub.GetTileRulesAtLoc(loc)
+			if rules ~= nil and rules.water then
+				return true
+			end
+
+			--Image maps have no terrain tiles, so the tile rules above are nil
+			--everywhere and never merge in water auras. Ask the auras directly.
+			for _,instance in ipairs(AuraInstancesCoveringSquare(loc)) do
+				local ok, water = pcall(function() return instance:GetWater() end)
+				if ok and water then
+					return true
+				end
+			end
+		end
+
+		return false
 	end,
 }

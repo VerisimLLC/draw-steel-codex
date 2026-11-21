@@ -363,6 +363,8 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <button aria-pressed="false" type="button" title="The existing full editor (not part of this prototype)">Full editor</button>
     </div>
     <span class="spacer"></span>
+    <label for="ownerSel" class="note" title="In the app this comes from where the ability lives">Belongs to</label>
+    <select id="ownerSel" class="btn"><option value="">no class</option></select>
     <button type="button" class="btn" id="pasteBtn" title="Build an ability from its text">Paste text</button>
     <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
     <label class="toggle"><input type="checkbox" id="showGs"> Show GoblinScript</label>
@@ -506,6 +508,12 @@ const FORCED = ["push","pull","slide","vertical push","vertical slide"];
 // Heroes use the caster's relative potency (weak/average/strong); monster content writes the number.
 const POT = [["weak","weak"],["average","average"],["strong","strong"],...["0","1","2","3","4","5","6"].map(n => [n, n])];
 const RESOURCES = [["no cost", "nothing"], ["Heroic Resource", "Heroic Resource"], ["Malice", "Malice"]];
+// Each class's name for its Heroic Resource. In the app the editor knows which class the ability
+// belongs to; the save still points at the Heroic Resource, only the words change.
+const CLASS_RESOURCES = { Beastheart: "Ferocity", Censor: "Wrath", Conduit: "Piety", Elementalist: "Essence", Fury: "Ferocity",
+  Null: "Discipline", Shadow: "Insight", Summoner: "Essence", Tactician: "Focus", Talent: "Clarity", Troubadour: "Drama" };
+function resName(r) { return r === "Heroic Resource" && ab.owner && CLASS_RESOURCES[ab.owner] ? CLASS_RESOURCES[ab.owner] : r; }
+function resourceOptions() { return RESOURCES.map(([v, l]) => [v, resName(l)]); }
 /* Ability keywords: the registered list (GameSystem.RegisterAbilityKeyword in MCDMRules.lua; see
    KEYWORDS.md). Keywords are picked or dragged in, never typed, so they always match the engine. */
 const ABILITY_KEYWORDS = ["Melee", "Ranged", "Strike", "Weapon", "Area", "Magic", "Psionic", "Charge", "Animal", "Focus", "Kit",
@@ -1644,7 +1652,7 @@ document.addEventListener("keydown", ev => {
 /* The same three sentences for abilities and triggered abilities:
    "[Name] is a [Main action]" / "which costs [nothing | 3 Heroic Resource]" / "and has the keywords [..]". */
 function whatRows(nameInput, actionSelect) {
-  const cost = ab.resource !== "no cost" ? [lbl("which costs"), renderHolder(ab.cost), sel(ab, "resource", RESOURCES, null, "resource")] : [lbl("which costs"), sel(ab, "resource", RESOURCES, null, "resource")];
+  const cost = ab.resource !== "no cost" ? [lbl("which costs"), renderHolder(ab.cost), sel(ab, "resource", resourceOptions(), null, "resource")] : [lbl("which costs"), sel(ab, "resource", resourceOptions(), null, "resource")];
   return [[nameInput, lbl("is a"), actionSelect], cost, [lbl("and has the keywords"), keywordRow()]];
 }
 function kindBar() {
@@ -1799,7 +1807,9 @@ function importAbilityText(raw) {
   let i = 0;
   // Header: "Raise Hell 5 Insight" (name, cost, resource) or just a name.
   const hm = lines[0] && lines[0].match(/^(.+?)\s+(\d+)\s+([A-Za-z][A-Za-z ]*)$/);
-  if (hm) { a.name = hm[1]; a.cost = H("number", "cost", hm[2]); a.resource = /malice/i.test(hm[3]) ? "Malice" : "Heroic Resource"; ctx.report.push("Name and cost: " + hm[1] + ", " + hm[2] + " " + hm[3]); }
+  if (hm) { a.name = hm[1]; a.cost = H("number", "cost", hm[2]); a.resource = /malice/i.test(hm[3]) ? "Malice" : "Heroic Resource";
+    if (!ab.owner || CLASS_RESOURCES[ab.owner] !== cap(hm[3].toLowerCase())) { const cls = Object.keys(CLASS_RESOURCES).find(c => CLASS_RESOURCES[c].toLowerCase() === hm[3].toLowerCase()); if (cls) a.owner = cls; }
+    if (!a.owner && ab.owner) a.owner = ab.owner; ctx.report.push("Name and cost: " + hm[1] + ", " + hm[2] + " " + hm[3]); }
   else if (lines[0]) { a.name = lines[0]; ctx.report.push("Name: " + lines[0]); }
   i = 1;
   const actRe = /(main action|maneuver|free triggered action|triggered action|free maneuver|no action)$/i;
@@ -1949,7 +1959,7 @@ function renderSide(c) {
      remembers the generated text it replaced, so a later rules change flags it instead of drifting. */
   const top = E("div", "top"); top.appendChild(E("h2", null, ab.name || "Unnamed"));
   const actText = c.triggered ? (TRIG_ACTIONS.find(a => a[0] === ab.trig.action) || ["", ""])[1] : ab.action;
-  const act = E("span", "act"); act.innerHTML = esc(actText) + (ab.resource !== "no cost" ? " &middot; " + esc(cHolder(ab.cost).s) + " " + esc(ab.resource) : ""); top.appendChild(act);
+  const act = E("span", "act"); act.innerHTML = esc(actText) + (ab.resource !== "no cost" ? " &middot; " + esc(cHolder(ab.cost).s) + " " + esc(resName(ab.resource)) : ""); top.appendChild(act);
   card.appendChild(top);
   card.appendChild(E("div", "kw", keywordsOf(ab).join(", ")));
   cardLine(card, "flavor", null, "", "flavor");
@@ -2005,6 +2015,7 @@ function renderSide(c) {
 function countOpaque(list) { let n = 0; for (const st of list) { if (st.type === "opaque") n++; for (const k in st.branches || {}) n += countOpaque(st.branches[k]); } return n; }
 let compiledCache = null;
 function refresh() {
+  { const os = document.getElementById("ownerSel"); if (os) os.value = ab.owner || ""; }
   closePopups(); holderCache = null;
   const before = compiledCache;
   // Re-rendering replaces the shelf; keep the cursor in its search box if it was there.
@@ -2038,6 +2049,9 @@ function toast(msg, withUndo, kind) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 6000);
 }
 document.getElementById("undoBtn").addEventListener("click", undo);
+{ const os = document.getElementById("ownerSel");
+  for (const c of Object.keys(CLASS_RESOURCES)) { const o = document.createElement("option"); o.value = c; o.textContent = c; os.appendChild(o); }
+  os.addEventListener("change", () => { snapshot(); ab.owner = os.value; refresh(); }); }
 document.getElementById("pasteBtn").addEventListener("click", ev => { ev.stopPropagation(); pasteDialog(); });
 // While typing, only the card updates; the stack re-renders when the field loses focus.
 function refreshSide() { compiledCache = compileAbility(); renderSide(compiledCache); saveDraft(); }
@@ -2758,7 +2772,7 @@ const EXAMPLES = {
   },
   raisehell: () => {
     const a = newAbility();
-    Object.assign(a, { name: "Raise Hell", keywords: ["Magic", "Melee", "Weapon"], resource: "Heroic Resource", distance: "Self", targetCount: "self" });
+    Object.assign(a, { name: "Raise Hell", owner: "Shadow", keywords: ["Magic", "Melee", "Weapon"], resource: "Heroic Resource", distance: "Self", targetCount: "self" });
     a.cost = H("number", "cost", "5");
     const mv = STEPS.move.make(); Object.assign(mv.f, { who: "caster", how: "shift", dist: "speed", line: "straight", through: "yes", catch: "through", catchWho: "enemy", trail: "yes" });
     const pr = powerRollWith(["3", "5", "8"], "Agility");

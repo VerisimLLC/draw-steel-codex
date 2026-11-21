@@ -691,13 +691,15 @@ local function RewindAddEntry(label, checkpoint, t)
 	if cur ~= nil and cur.seq == seq then
 		return
 	end
-	TurnRewind.entries[#TurnRewind.entries+1] = {
+	local point = {
 		label = label,
 		checkpoint = checkpoint or backup.CreateCombatCheckpoint(),
 		seq = seq,
 		t = (checkpoint ~= nil and t) or dmhub.serverTimeMilliseconds,
 		actions = TurnRewind.pendingActions,
 	}
+	TurnRewind.entries[#TurnRewind.entries+1] = point
+	GameSystem.NotifyPlayObservers("rewindpoint", point)
 	TurnRewind.pendingActions = {}
 	TurnRewind.position = #TurnRewind.entries
 end
@@ -880,7 +882,7 @@ function TurnRewind.Poll()
 						print("TurnRewind:: cancel pass restore failed:", err)
 					else
 						--the cancelled casts' own lines came after the first report: mark them too.
-						GameSystem.NotifyPlayObservers("turnreverted", {since = entry.t, turnkey = TurnRewind.turnKey})
+						GameSystem.NotifyPlayObservers("turnreverted", {since = entry.t, turnkey = TurnRewind.turnKey, point = entry})
 					end
 				end
 				--Rolls and actions noted while the casts unwound were cancelled with them.
@@ -1056,7 +1058,7 @@ function TurnRewind.GoTo(index)
 	audio.DispatchSoundEvent("Notify.Director_Undo")
 	--a record of play (History) marks what came after this point Reverted, and clears the
 	--mark from what rolling forward brings back. One line for the whole turn's rewinds.
-	GameSystem.NotifyPlayObservers("turnreverted", {since = entry.t, turnkey = TurnRewind.turnKey})
+	GameSystem.NotifyPlayObservers("turnreverted", {since = entry.t, turnkey = TurnRewind.turnKey, point = entry})
 	return nil
 end
 

@@ -43,7 +43,10 @@ local g_playObservers = {}
 ---   turnreverted(info): Revert Turn or Turn Rewind restored the board, on the client that
 ---     did it. info: since (server ms the checkpoint was taken), turnkey (Turn Rewind only:
 ---     the turn, so stepping back and forward within it is one record), turn (Revert Turn
----     only: {encounter, round, turn} of the turn undone).
+---     only: {encounter, round, turn} of the turn undone), point (Turn Rewind only: the
+---     rewindpoint table it went back to).
+---   rewindpoint(point): Turn Rewind recorded a point it can go back to, on the client
+---     keeping the rewind. An observer may remember what it needs by the point table.
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.
@@ -57,6 +60,8 @@ local g_playObservers = {}
 ---     stopped (gated text another behavior applies, after a "#").
 ---   typedmessage(text): an ability step posted the note its author typed (its chatMessage),
 ---     inside the cast that ran it.
+---   note(creature, title, detail): a note card was posted for a creature (an Action Log
+---     Note step, a bonus a modifier added), inside a cast or not.
 ---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
 ---     atturnend, options (the options of the cast that rolled it).
 ---   persistenceended(creature, abilityname, reason): a persistent ability stopped. reason:

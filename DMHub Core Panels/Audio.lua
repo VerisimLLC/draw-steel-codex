@@ -1343,11 +1343,13 @@ local function ShowNewAudioCaptions()
     --a count below ours means another game's document: start again (old ones are not fresh).
     local seen = newest < m_audioCaptionSeen and 0 or m_audioCaptionSeen
     local rows = {}
+    local texts = {}
     for _, caption in ipairs(recent) do
         local n = caption.n or 0
         local fresh = dmhub.serverTimeMilliseconds - (caption.t or 0) < AUDIO_CAPTION_FRESH_MS
         local wanted = caption.kind ~= "effect" or audioEventLogSfx:Get()
         if n > seen and fresh and wanted and type(caption.text) == "string" then
+            texts[#texts + 1] = caption.text
             rows[#rows + 1] = {
                 contents = {gui.Label{classes = {"chatBubbleText"}, text = caption.text, interactable = false}},
                 --a caption has nothing to open: a press on it does nothing.
@@ -1357,7 +1359,12 @@ local function ShowNewAudioCaptions()
     end
     m_audioCaptionSeen = newest
     if #rows > 0 then
-        PanelDocument.ShowRailBubble{key = "chat", panelName = "Chat", rows = rows, evenInFront = true}
+        local shown = PanelDocument.ShowRailBubble{key = "chat", panelName = "Chat", rows = rows, evenInFront = true}
+        --no Chat button on the rail to hang them off (the dock UI, or Chat grouped away):
+        --the same words in the small toast the Views use, one toast for the batch.
+        if not shown and rawget(_G, "ViewsToast") ~= nil then
+            ViewsToast(table.concat(texts, " \194\183 "))
+        end
     end
 end
 dmhub.Schedule(AUDIO_CAPTION_TICK, ShowNewAudioCaptions)

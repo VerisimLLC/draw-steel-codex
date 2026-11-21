@@ -442,7 +442,8 @@ end
 
 local function WriteTrigger(state)
     local entry = state.entry
-    if not ChangedTheTable(entry) then
+    --a note is what a silent trigger has to say for itself, so it earns the row too.
+    if not ChangedTheTable(entry) and not state.noted then
         return
     end
     local actor = state.actorToken
@@ -1541,6 +1542,39 @@ local function OnTypedMessage(text)
     entry.messages[#entry.messages + 1] = text
 end
 
+--A note card (an Action Log Note step, a modifier's bonus note): inside a cast it joins the
+--row's Why as "{title}: {detail}" (just the detail when the title only repeats the ability's
+--name); outside one it is a line, "{Creature} {title}" over the detail.
+local function OnNote(creature, title, detail)
+    if not History.Enabled() then
+        return
+    end
+    title = trim(tostring(title or ""))
+    detail = trim(tostring(detail or ""))
+    if title == "" and detail == "" then
+        return
+    end
+    local state = OpenCast(nil)
+    if state ~= nil then
+        local abilityName = state.entry.ability ~= nil and state.entry.ability.name or ""
+        local text = detail
+        if title ~= "" and string.lower(title) ~= string.lower(abilityName) then
+            text = detail ~= "" and (title .. ": " .. detail) or title
+        end
+        state.noted = true
+        OnTypedMessage(text)
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    WriteLine(token, "note", {
+        name = title ~= "" and title or detail,
+        causetext = title ~= "" and detail ~= "" and detail or nil,
+    })
+end
+
 --- Puts a resource line, or a heal with its Recovery, back the way it was. Whoever controls
 --- the creature can do this.
 --- @param entry HistoryEntry
@@ -2373,11 +2407,26 @@ end
 --checkpoint, so nothing is erased: what came after it is marked Reverted, under one
 --"Turn reverted" line. info: {since, turnkey, turn}: turnkey for Turn Rewind, turn (the
 --encounter, round and turn undone) for Revert Turn.
+--What History held when each Turn Rewind point was recorded, by the point. Weak keys: the
+--points are Turn Rewind's own tables and go when it drops them.
+local g_heldAtPoint = setmetatable({}, {__mode = "k"})
+
+local function OnRewindPoint(point)
+    if not History.Enabled() or game.currentMapId == nil then
+        return
+    end
+    g_heldAtPoint[point] = {mapid = game.currentMapId, keys = History.HeldKeys(game.currentMapId)}
+end
+
 local function OnTurnReverted(info)
     if not History.Enabled() or info.since == nil then
         return
     end
     local mapid = game.currentMapId
+    --Turn Rewind: what came after the point is what History didn't hold yet (not the stamps,
+    --which a client whose clock runs behind writes early).
+    local heldAt = info.point ~= nil and g_heldAtPoint[info.point] or nil
+    local held = heldAt ~= nil and heldAt.mapid == mapid and heldAt.keys or nil
     local line = {
         kind = "line",
         family = "reverted",
@@ -2386,7 +2435,7 @@ local function OnTurnReverted(info)
         wholeturn = info.turn ~= nil or nil,
     }
     History.AddCombatFacts(line)
-    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line, info.turn)
+    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line, info.turn, held)
 end
 
 local PERSISTENCE_WORDS = {
@@ -2482,4 +2531,6 @@ GameSystem.RegisterPlayObserver("history", {
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,
+    note = OnNote,
+    rewindpoint = OnRewindPoint,
 })

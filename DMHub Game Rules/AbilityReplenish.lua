@@ -219,6 +219,7 @@ function ActionLogNoteChatMessage.Post(token, title, detail)
         title = title,
         detail = detail,
     })
+    GameSystem.NotifyPlayObservers("note", token.properties, title, detail)
 end
 
 function ActionLogNoteChatMessage.Render(selfInput, message)

@@ -44,7 +44,7 @@ local mod = dmhub.GetModLoading()
 --- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
 --- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
 --- "negotiation", "downtime", "table", "award", "staminaset", "reinforcements", "reveal", "reverted",
---- "strained" or "captain".
+--- "strained", "captain" or "note" (a note card posted outside any action: name is its title, causetext its detail).
 --- @field spoilerkey? string On a reveal line: the spoilered modifier's key (PowerRollSpoilers.Key); the Director's eye on it hides or shows the line (L94).
 --- @field arrivals? {who: HistoryCreature, name: string, count: integer}[] On a reinforcements line: who arrived, counted by stat block name (L89).
 --- @field byplayer? boolean On a line: a player made this change by hand (L87); it turns the Director's badge gold.
@@ -904,7 +904,10 @@ end
 --- @param key string the same key for every step of one Turn Rewind turn; a new one per Revert Turn
 --- @param line HistoryEntry the Turn reverted line, without id or t
 --- @param turn? {encounter: string, round: integer, turn: integer} Revert Turn: the turn undone
-function History.SetReverted(mapid, since, key, line, turn)
+--- @param held? table<string, boolean> Turn Rewind: the keys History held when the point gone
+--- back to was recorded (History.HeldKeys). What came after is what isn't in it, so a
+--- client's clock running behind can't hide an entry; without it, the stamps are used.
+function History.SetReverted(mapid, since, key, line, turn, held)
     local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
     local entries = doc.data.entries
     if type(entries) ~= "table" then
@@ -917,7 +920,7 @@ function History.SetReverted(mapid, since, key, line, turn)
         --keys start with the 13-digit stamp: an entry at or before since only matters if
         --this key marked it, and then its text holds the key.
         local stamp = tonumber(string.sub(k, 1, 13)) or 0
-        if turn ~= nil or stamp > since or string.find(raw, key, 1, true) ~= nil then
+        if turn ~= nil or held ~= nil or stamp > since or string.find(raw, key, 1, true) ~= nil then
             local ok, decoded = pcall(dmhub.FromJson, raw)
             if ok and decoded.success then
                 local e = decoded.result
@@ -931,17 +934,27 @@ function History.SetReverted(mapid, since, key, line, turn)
                         changed[k] = e
                         anyReverted = true
                     end
-                elseif e.reverted == key then
-                    if e.t <= since then
-                        e.reverted = nil
-                        changed[k] = e
+                else
+                    --came before the point: in what History held then, or (without that) stamped
+                    --no later than it.
+                    local before
+                    if held ~= nil then
+                        before = held[k] == true
                     else
+                        before = e.t <= since
+                    end
+                    if e.reverted == key then
+                        if before then
+                            e.reverted = nil
+                            changed[k] = e
+                        else
+                            anyReverted = true
+                        end
+                    elseif e.reverted == nil and not before then
+                        e.reverted = key
+                        changed[k] = e
                         anyReverted = true
                     end
-                elseif e.reverted == nil and e.t > since then
-                    e.reverted = key
-                    changed[k] = e
-                    anyReverted = true
                 end
             end
         end
@@ -961,6 +974,23 @@ function History.SetReverted(mapid, since, key, line, turn)
         line.revertkey = key
         History.Write(line)
     end
+end
+
+--- The keys of every entry this client knows of on a map, written or still waiting to be:
+--- what was already there at a moment, for Turn Rewind to tell what came after it.
+--- @param mapid string
+--- @return table<string, boolean>
+function History.HeldKeys(mapid)
+    local held = {}
+    for _, key in ipairs(History.Keys(mapid)) do
+        held[key] = true
+    end
+    for _, entry in ipairs(g_waiting) do
+        if entry.map == mapid then
+            held[EntryKey(entry)] = true
+        end
+    end
+    return held
 end
 
 --- Empties a map's History, for everyone.

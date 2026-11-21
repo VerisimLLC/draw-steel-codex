@@ -2170,6 +2170,9 @@ local function LineWords(entry)
     elseif family == "strained" then
         --L110: a Talent's heroic resource went below 0, or back.
         return string.format(entry.strained and "%s is strained" or "%s is no longer strained", name)
+    elseif family == "note" then
+        --a note card posted outside any action: "{Creature} {title}", the detail under it.
+        return string.format("%s %s", name, entry.name or "")
     elseif family == "captain" then
         --L111: the Director gave a squad its captain.
         return string.format("%s is now %s's captain", name, entry.squad or "the squad")

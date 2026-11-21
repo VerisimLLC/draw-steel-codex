@@ -193,6 +193,8 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .catrow .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catrow .ccount { color: var(--dim); font-variant-numeric: tabular-nums; }
 .catopen { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding: 4px 0 6px; }
+/* A brief glow when a "+" moves the marker, to show that the shelf now lists what fits there. */
+@media (prefers-reduced-motion: no-preference) { .palette.pulse .common { animation: shelfpulse .6s ease-out; } @keyframes shelfpulse { from { box-shadow: 0 0 0 2px var(--gold); border-radius: 6px; } to { box-shadow: 0 0 0 2px transparent; } } }
 .pal-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; font-size: 12px; }
 .pal-more { background: none; border: none; color: var(--gold); font-size: 11.5px; text-align: left; padding: 2px 4px; cursor: pointer; }
 .pal-step .uses { margin-left: auto; font-size: 10.5px; opacity: .7; font-variant-numeric: tabular-nums; }
@@ -1405,7 +1407,13 @@ function inserter(list, ctx, scope, idx, end) {
   const b = E("button", "ins" + (end ? " end add-btn" : "") + (here ? " here" : "")); b.type = "button"; b.dataset.ins = id + ":" + idx;
   if (end) { b.textContent = word; if (here) b.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
   else { b.appendChild(E("span", "ins-plus", "+")); if (here) b.appendChild(E("span", null, "next block goes here")); b.setAttribute("aria-label", "Insert a step here"); }
-  b.addEventListener("click", ev => { ev.stopPropagation(); insertAt = { id, idx }; markInsertion(); openInserter(b, list, ctx, scope, idx); });
+  // A "+" only moves the gold marker; the shelf then shows what fits there. The cursor goes to the
+  // shelf search, so typing a few letters and Enter still adds a block without the mouse.
+  b.addEventListener("click", ev => {
+    ev.stopPropagation(); insertAt = { id, idx }; shelfQuery = ""; markInsertion();
+    const pal = document.getElementById("palette"); pal.classList.remove("pulse"); void pal.offsetWidth; pal.classList.add("pulse");
+    const sb = document.querySelector(".pal-search"); if (sb) sb.focus({ preventScroll: true });
+  });
   return b;
 }
 function markInsertion() {
@@ -1414,36 +1422,6 @@ function markInsertion() {
   const el = main.querySelector('[data-ins="' + cur.id + ":" + cur.idx + '"]');
   if (el) { el.classList.add("here"); if (el.classList.contains("end")) el.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
   renderPalette();
-}
-/* Type-ahead list of the steps allowed at this point: type a few letters, Enter adds the first match. */
-function openInserter(anchor, list, ctx, scope, idx) {
-  closePopups();
-  const m = E("div", "menu typeahead"); m.addEventListener("click", ev => ev.stopPropagation());
-  const q = E("input"); q.placeholder = "Add a step: type to search"; q.setAttribute("aria-label", "Search steps"); m.appendChild(q);
-  const box = E("div"); m.appendChild(box);
-  let hl = 0, shown = [];
-  const draw = () => {
-    box.innerHTML = "";
-    shown = searchSteps(q.value, ctx, scope).map(r => [r.k, r.cat, r.title]);
-    if (!q.value.trim()) { const c = commonKeys(); shown.sort((a, b) => (c.includes(b[0]) - c.includes(a[0])) || useOf(b[0]) - useOf(a[0])); }
-    shown = shown.slice(0, 40);
-    if (!shown.length) box.appendChild(E("div", "md", "No step matches. Steps that cannot go here are left out."));
-    hl = Math.min(hl, Math.max(0, shown.length - 1));
-    shown.forEach(([k, cat, title], i) => {
-      const b = E("button", "opt" + (i === hl ? " hl" : "")); b.type = "button";
-      const sw = E("span", "sw"); sw.style.background = "var(--c-" + cat + ")"; b.appendChild(sw);
-      const tx = E("span"); tx.appendChild(E("div", null, STEPS[k].label)); tx.appendChild(E("div", "md", title + ": " + STEPS[k].desc)); b.appendChild(tx);
-      b.addEventListener("click", () => addStepTo(k, { list, ctx, scope }, idx));
-      box.appendChild(b);
-    });
-  };
-  q.addEventListener("input", () => { hl = 0; draw(); });
-  q.addEventListener("keydown", ev => {
-    if (ev.key === "ArrowDown") { hl = Math.min(hl + 1, shown.length - 1); draw(); ev.preventDefault(); }
-    else if (ev.key === "ArrowUp") { hl = Math.max(hl - 1, 0); draw(); ev.preventDefault(); }
-    else if (ev.key === "Enter" && shown[hl]) { ev.preventDefault(); addStepTo(shown[hl][0], { list, ctx, scope }, idx); }
-  });
-  draw(); place(m, anchor); q.focus();
 }
 const listIds = new WeakMap(); let listSeq = 1; const listsById = {};
 function listId(list) { if (!listIds.has(list)) { const id = "L" + listSeq++; listIds.set(list, id); } const id = listIds.get(list); listsById[id] = list; return id; }
@@ -1794,7 +1772,10 @@ let compiledCache = null;
 function refresh() {
   closePopups(); holderCache = null;
   const before = compiledCache;
+  // Re-rendering replaces the shelf; keep the cursor in its search box if it was there.
+  const keepSearch = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("pal-search");
   compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); renderPalette(); saveDraft();
+  if (keepSearch && !focusReq) { const sb = document.querySelector(".pal-search"); if (sb) { sb.focus({ preventScroll: true }); sb.setSelectionRange(sb.value.length, sb.value.length); } }
   applyFocus();
   // Timing is a rules change, so say so when it flips (with Undo).
   if (before && compiledCache.triggered && before.triggered && before.storage !== compiledCache.storage && !restoring)
@@ -1969,6 +1950,7 @@ function openPicker(h, anchor) {
   tb.appendChild(ta); tb.appendChild(res); tb.appendChild(ins); p.appendChild(tb);
   place(p, anchor);
   search.focus();
+  setTimeout(() => { if (p.isConnected) search.focus(); }, 0);   // also after a re-render in the same keypress
 }
 function flash(hid) { const e = main.querySelector('[data-holder="' + hid + '"]'); if (e) { e.classList.add("flash"); setTimeout(() => e.classList.remove("flash"), 400); } }
 

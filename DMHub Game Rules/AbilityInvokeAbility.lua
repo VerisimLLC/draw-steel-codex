@@ -1308,6 +1308,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --whatever card it shows, under the invoker's name.
                         if self.abilityType == "custom" then
                             abilityClone._tmp_partOfAbility = ability.name
+                        elseif self.abilityType == "named" or self.abilityType == "chooseClassAbility" then
+                            --one of the creature's own abilities, used as part of the invoker.
+                            abilityClone._tmp_usedAsAbility = true
                         end
 
                         --The invoked ability is cast through the normal path, which pays
@@ -1995,6 +1998,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         if abilityOverride ~= nil then
             options.abilityOverride = nil
             abilityClone = abilityOverride
+            --an ability chosen from a list (Prism's heroic abilities): one of the creature's own.
+            abilityClone._tmp_usedAsAbility = true
             abilityClone.invoker = invokerToken.properties
             installCastCallbacks(abilityClone)
         end
@@ -2093,6 +2098,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                     --if exactly one synthesized ability then just auto-cast it?
                     local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
                     abilityClone = synth[1]
+                    abilityClone._tmp_usedAsAbility = true
                     --Synthesizing builds a fresh ability, so copy the opt-out across.
                     --Without it a minion gets asked for one target per squad member.
                     if preSynthDisableSquad ~= nil then

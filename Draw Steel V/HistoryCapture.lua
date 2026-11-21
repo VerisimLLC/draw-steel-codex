@@ -328,6 +328,8 @@ local function CastBegan(ability, casterToken, targets, options)
     local partOf = ability:try_get("_tmp_partOfAbility")
     local outer = symbols ~= nil and symbols.cast ~= nil and g_byCast[symbols.cast] or nil
     if partOf ~= nil and outer ~= nil and not outer.finished then
+        --a step that rolls makes the roll the outer row's own (Natural Weapon's strike).
+        outer.stepRolls = outer.stepRolls or RollsPower(ability)
         JoinParentRow(options, ability)
         return
     end
@@ -336,7 +338,10 @@ local function CastBegan(ability, casterToken, targets, options)
     local card = options.chatMessage
     local sharesCard = card ~= nil and (symbols == nil or card.castid ~= symbols.castid)
     local automatic = ability.typeName == "TriggeredAbility" and not ability:ShowChatMessageOnCast()
-    if sharesCard or (not automatic and not ability:ShowChatMessageOnCast()) then
+    --one of the creature's own abilities used as part of an action keeps a row of its own,
+    --nested under that action, even when it shows no card (the Monster AI's choices).
+    local usedAs = ability:try_get("_tmp_usedAsAbility") == true and outer ~= nil and not outer.finished
+    if sharesCard or (not automatic and not usedAs and not ability:ShowChatMessageOnCast()) then
         JoinParentRow(options, ability)
         return
     end
@@ -850,6 +855,11 @@ local function CastFinished(ability, casterToken, options)
     end
 
     local cast = options.symbols ~= nil and options.symbols.cast or nil
+    --an action whose only rolls were made by abilities nested under it (Prism) shares their
+    --cast but has no roll of its own: each nested row keeps its roll.
+    if cast ~= nil and state.hasNested and not state.rolls and not state.stepRolls then
+        cast = nil
+    end
     --the roll's details are extras: if working them out fails, the row is still written.
     local ok, err = true, nil
     if cast ~= nil then ok, err = pcall(function()

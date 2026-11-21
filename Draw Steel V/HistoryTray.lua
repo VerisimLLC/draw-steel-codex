@@ -1639,7 +1639,8 @@ local function OpposedRow(who, showTotals, named)
     }
 end
 
-local function TriggerRow(index, entry)
+--- @param rowActor HistoryCreature|nil Who took the action the line sits under.
+local function TriggerRow(index, entry, rowActor)
     --T15: free first, then where it fell against the action's roll. An ability used as part
     --of the action says what kind of action it is, if it is one.
     local tagText = "Triggered"
@@ -1769,7 +1770,9 @@ local function TriggerRow(index, entry)
         end
     end
 
-    local name = (entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or "") .. entry.ability.name
+    --an ability the action's own user used as part of it needs no name before it.
+    local sameUser = entry.kind == "action" and entry.actor ~= nil and rowActor ~= nil and entry.actor.id == rowActor.id
+    local name = ((entry.actor ~= nil and not sameUser) and (ShownName(entry.actor) .. DOT) or "") .. entry.ability.name
     children[#children + 1] = gui.Label{
         classes = {"historyTriggerText"},
         text = name,
@@ -2033,7 +2036,7 @@ local function BuildAction(item)
     end
     local triggerRows = {}
     for i, kid in ipairs(ordered) do
-        triggerRows[i] = TriggerRow(i, kid)
+        triggerRows[i] = TriggerRow(i, kid, entry.actor)
     end
     --an opposed power roll reads as its outcome; the card has each side's dice. A row from
     --before the outcome was recorded keeps its two rolls.

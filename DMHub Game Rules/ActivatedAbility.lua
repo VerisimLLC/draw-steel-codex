@@ -38,6 +38,7 @@ end
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
 --- @field _tmp_partOfAbility nil|string On a clone a Custom Ability invoke cast: the name of the ability that invoked it, whose step it is.
+--- @field _tmp_usedAsAbility nil|boolean On a clone an invoke cast that is one of the creature's own abilities (named, chosen from a list), used as part of the invoker.
 --- @field _tmp_forcedMoveStability nil|{requested: number, stability: number, ignored: boolean} On a forced-movement clone: the push before stability and what stability took off, for play observers (see ActivatedAbilityInvokeAbilityBehavior.NoteStability).
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
 --- @field stolenStamp nil|string Fresh guid on each ability copied by Steal Ability, so the action bar flags every steal as new.

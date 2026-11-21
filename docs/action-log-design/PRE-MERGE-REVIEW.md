@@ -59,7 +59,13 @@ as a standard ability or chosen (Hide, Agonizing Harmony, Throw, Prism's picks) 
 row, nested under the action like a triggered action, tagged with its action kind. An
 untouched user listed as the outer's only target is dropped once steps or nested abilities
 show. Checked live: Get In Get Out (one row, kit part), a test action invoking Catch Breath
-(nested). Not run: a remote invoke on another client (it keeps its own row there).
+(nested), Natural Weapon (one row, one roll, both targets), Prism with two heroic abilities
+(Prism row with no roll of its own, each ability nested with its own roll). Prism exposed a
+gap, fixed: an ability chosen from a list or invoked by name nests even when it opens no card
+(the Monster AI's path), and an outer row keeps a roll only if it or a written-in step rolls.
+Nested lines drop the caster's name when it is the action's own user. Not run: a remote
+invoke on another client (it keeps its own row there). Test note: prompts were answered with
+a test prompt handler (creature.BeginAIControl), since bridge clicks cannot pick map targets.
 
 ## 1. Fix before merge
 

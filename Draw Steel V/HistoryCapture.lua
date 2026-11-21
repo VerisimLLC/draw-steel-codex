@@ -912,11 +912,14 @@ local function CastFinished(ability, casterToken, options)
     end
     --an ability aimed at its user only to run its steps (Get In Get Out) lists that user as a
     --target; once the steps' targets, or the abilities it used, are on the row, an untouched
-    --user is just noise.
+    --user is just noise. A user the card has something to say about stays, even when nothing
+    --changed: an immunity, a resisted effect, a potency test, an opposed roll, a landing.
     if (#entry.targets > 1 or state.hasNested) and entry.actor ~= nil then
         local kept = {}
         for _, who in ipairs(entry.targets) do
-            if who.id ~= entry.actor.id or WhoChanged(who) then
+            if who.id ~= entry.actor.id or WhoChanged(who) or who.immune ~= nil or who.resisted
+                or who.resistedeffect ~= nil or who.potency ~= nil or who.opposed ~= nil or who.landedon
+                or who.recovered ~= nil then
                 kept[#kept + 1] = who
             end
         end

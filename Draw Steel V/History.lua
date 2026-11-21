@@ -542,6 +542,25 @@ function History.PlayersSeeMalice()
     return ok and result == true
 end
 
+--Makes every creature players could not see nameless and faceless wherever else an entry
+--names it: who it collided with, who provoked, whose modifier it was.
+--- @param node table
+--- @param depth integer
+local function MaskUnseen(node, depth)
+    if depth > 8 then
+        return
+    end
+    for _, value in pairs(node) do
+        if type(value) == "table" then
+            if value.unseen ~= nil and value.name ~= nil then
+                value.secret = true
+                value.img = ""
+            end
+            MaskUnseen(value, depth + 1)
+        end
+    end
+end
+
 --Cuts an entry down to what players may see (2.4, REVIEW.md B5: players see what they
 --saw live). Done once as it is parsed, so no view can show more by mistake. Nil when
 --nothing of it is left to show.
@@ -598,6 +617,10 @@ local function ForPlayers(entry)
         end
         entry.ended = kept
     end
+    --the actor keeps its name unless its token was hidden (above): it was revealed as it acted.
+    entry.actor = nil
+    MaskUnseen(entry, 1)
+    entry.actor = actor
     --a monster's Stamina numbers, only once players know its Stamina (Monster Info).
     if (entry.family == "staminaset" or entry.family == "temporarystamina") and entry.mk ~= nil
         and not StaminaKnown(entry.mk) then

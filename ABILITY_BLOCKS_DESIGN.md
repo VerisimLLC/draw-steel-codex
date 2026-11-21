@@ -604,6 +604,45 @@ became "To build". The common ones are good candidates for the importer's patter
 Recovery", "You gain an edge on this ability", "Until the end of the encounter, ...", and "Spend N+ Resource:"
 paragraphs (which are modes).
 
+## 4n. Modes, tier grammar additions and two new sentence blocks (2026-11-21)
+
+Built from the poll's findings (4m), items 1, 3 and 4.
+
+**Choose one when used (modes).** A Logic block: "When you use it, choose one [before picking targets /
+after picking the target]", then one section per option with its name and an extra cost ("no extra cost /
+costs 1-3 more"). Steps inside an option only happen with that option; steps outside the block happen in
+every mode. Saved the way content does it: `multipleModes: true`, `modeList: [{text, condition, rules}]`
+and `modesSelected: [n]` on each behaviour inside option n. An option with an extra cost gets
+`condition: "Heroic Resources Available to Spend >= N"` and a spend-Heroic-Resource step, as Banshee Howl
+does. The option's card line is labelled with its name ("Spend 1 Ferocity: ...") and its text is also saved
+as the mode's `rules`. One per ability, at the top level; not yet on triggered abilities. 288 compendium
+abilities use modes. Pasted "Spend N Resource:" paragraphs become options.
+
+**Tier grammar additions** (each saves as tier text the engine's existing patterns already read):
+- conditions can carry a **rider**: "prone and cannot stand (EoT)" (the rider list comes from the
+  conditionriders table, filtered to the chosen condition);
+- conditions can have **no duration** ("prone", "grabbed");
+- **vertical push straight up N**;
+- **the target gains N surges** (a new "Gain surges" tier block);
+- **Card text only**: words with no automation, saved in a tier as "#text" (the engine's do-not-parse marker)
+  and in the main list as card text. A "To build" sentence has **Keep as card text** for this;
+- multi-word compendium effects in pasted tiers ("jaws of death (save ends)") and potency written
+  without a comma ("M < Strong prone ...").
+- **N aura** as a distance form. There is no aura target type for an ability, so it saves as a burst of the
+  same size, as the importer does, with `rangeTextOverride: "N aura"` so the card keeps the wording.
+
+In the poll, abilities with tier text the reader can't build went from 11 to 3: two narrative tiers (now
+"Keep as card text") and "bleeding (EoT), or if M < Strong, bleeding (save ends)", which needs an
+"otherwise" form of potency.
+
+**New sentence blocks** (replacing two Advanced/generic entries):
+- **While this ability resolves** (Ability Duration Effect): "[You have / Each target has] [name] while this
+  ability resolves: [card text]", with Settings for its modifiers (the existing effect editor). Pasted "You
+  gain an edge on this ability" and "This ability ignores cover and concealment" build it.
+- **Add to a condition** (Condition Riders): "While [Prone] this way, the target is also [cannot stand]".
+
+Also: an unbuilt "To build" sentence now still shows on the card, so its wording isn't lost.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -680,6 +719,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Pasting tolerates lost icons and marks guesses.** Bare tier lines are read in order; a potency lost with its icon is guessed (roll characteristic, weak/average/strong by tier) and marked "check"; unknown resource words (third-party) stay on the card. | Real copies from PDFs and third-party books drop the icons that carry meaning; a marked guess is fewer clicks than a blank. |
 | 2026-11-21 | **"Who it targets" uses the card's own wording, as two lines: "Distance: [4] cube within [10]" and "Target: each enemy in the area".** Each form puts its numbers where the card does: Melee N, Ranged N, Melee N or ranged M, N burst, N cube within M, L x W line within D, Self. Area forms only offer "each ... in the area" (and Special) as targets. A plain-words line underneath explains it ("A cube 4 squares on each side, placed anywhere within 10 squares of you."). Saved the way the statblock importer saves them: burst = targetType all with range = size; cube = radius size, range within; line = range length, radius width, lineDistance; melee or ranged = meleeRange. The card shows "One creature", not "1 creature". | The old row ("1 each enemy in the area within Cube 4") didn't match how the book says it and lost the cube's "within" distance. |
 | 2026-11-21 | **Class ability poll (55 random abilities, all classes, levels 1-10).** 15 map to blocks fully. The gaps, by count: nested abilities 14, modes 12 (not modelled), advanced behaviours 12, distance as text 11, unreadable tier text 11, unknown symbols 9. Book PDF paste: 3 of 33 clean, because of icon letters (a/e/i, o/x, m<w), split action lines and broken word wraps. | Evidence for what to build next: modes, the aura distance form, tier grammar additions, and copy-format rules. |
+| 2026-11-21 | **Modes are a block: "When you use it, choose one".** Options have a name and an optional extra cost; steps inside an option save with modesSelected; extra cost adds the condition and the spend step. Tier grammar gains riders, no-duration conditions, vertical push straight up, surges, card-text-only results, and the N aura distance. Ability Duration Effect and Condition Riders get sentence blocks. | Poll items 1, 3 and 4: modes were the largest gap, and tier text was the most common reason a pasted ability failed. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

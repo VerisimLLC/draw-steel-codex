@@ -1,0 +1,1920 @@
+[
+ {
+  "klass": "Beastheart",
+  "from": "Guardian",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Feral Strike",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 1 burst"
+   ],
+   [
+    "formula-raw",
+    "main PowerRoll.filterTarget: 0 {Display only - real roll runs inside the burst sub-ability.}  [raw: 0 {Display only - real roll runs inside the burst sub-ability.}]"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ],
+   [
+    "nested",
+    "main -> Feral Strike Approach"
+   ],
+   [
+    "nested",
+    "main -> Feral Strike Burst"
+   ],
+   [
+    "formula-raw",
+    "main>Feral Strike Burst roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ],
+   [
+    "formula-raw",
+    "main>Feral Strike Burst DrawSteelCommand.filterTarget: not Friends(Caster, Target)  [raw: Friends(Caster, Target)]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 5,
+   "guesses": 0,
+   "header": 3,
+   "name": "**Feral Strike** *(Area, Companion, Melee, Strike, Weapon -- Main Action)*",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "each creature in the area",
+   "steps": "todo,todo,todo,todo,todo",
+   "todos": [
+    "- **Guardian:** Each enemy target is taunted by your companion until the start of your next turn.",
+    "- **Prowler:** Each enemy target is weakened until the start of your next turn.",
+    "- **Punisher:** Your companion slides each target up to a number of squares equal to their Might score.",
+    "- **Spark:** This strike deals cold, fire, lightning, or sonic damage.",
+    "You gain 1 surge."
+   ]
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "from": "Beastheart",
+  "level": 3,
+  "cat": "Heroic Ability",
+  "name": "Jaws of Death",
+  "info": {
+   "dist": "target range 5 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: Melee 1 or ranged 5"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: 7 + I damage; P < Weak, jaws of death (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 2: 10 + I damage; P < Average, jaws of death (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 14 + I damage; P < Strong, jaws of death (save ends)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 0,
+   "guesses": 0,
+   "header": 3,
+   "name": "**Jaws of Death (7 Ferocity)** *(Beastheart, Magic, Melee, Ranged -- Main Action)*",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "",
+   "todos": [],
+   "wantCost": "7"
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "from": "Guardian",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Sic 'Em!",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 21 + M damage; taunted (save ends); M < Strong prone and can't stand (EoT)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 0,
+   "guesses": 0,
+   "header": 3,
+   "name": "**Sic 'Em! (9 Ferocity)** *(Charge, Companion, Melee, Strike, Weapon -- Main Action)*",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "",
+   "todos": [],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "from": "Guardian",
+  "level": 9,
+  "cat": "Heroic Ability",
+  "name": "Banshee Howl",
+  "info": {
+   "dist": "all range 3 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 3 burst"
+   ],
+   [
+    "modes",
+    "main: 2 modes (Standard / Spend 1 Ferocity)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: 5 sonic damage; I < weak, banshee howl (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 2: 10 sonic damage; I < average, banshee howl (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 15 sonic damage; I < strong, banshee howl (save ends)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 0,
+   "guesses": 0,
+   "header": 3,
+   "name": "**Banshee Howl (11 Ferocity)** *(Area, Companion, Magic -- Main Action)*",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "each enemy in the area",
+   "steps": "",
+   "todos": [],
+   "wantCost": "11"
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "from": "Beastheart",
+  "level": 1,
+  "cat": "Triggered",
+  "name": "Rampaging - End of Turn Feral Strike",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "endturn",
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "trigger condition: Resources.Rampage >= 8  [raw: Resources.Rampage]"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ApplyAbilityDurationEffect"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Censor",
+  "from": "Censor",
+  "level": 1,
+  "cat": "Ability",
+  "name": "Sanctified Weapon",
+  "info": {
+   "dist": "target range 25 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 3 modes (Melee Weapon / Ranged Weapon / Both)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Censor",
+  "from": "Censor",
+  "level": 3,
+  "cat": "Heroic Ability",
+  "name": "Edict of Purifying Pacifism",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 2 aura"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 2,
+   "guesses": 0,
+   "header": 2,
+   "name": "Edict of Purifying Pacifism",
+   "cost": "7",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo",
+   "todos": [
+    "Until the end of the encounter or until you are dying, when ever a target makes a strike, they take holy damage equal to twice your Presence score.",
+    "A target judged by you takes an extra 2d6 holy damage."
+   ],
+   "wantCost": 7
+  }
+ },
+ {
+  "klass": "Censor",
+  "from": "Censor",
+  "level": 4,
+  "cat": "Ability",
+  "name": "Oracular Warning",
+  "info": {
+   "dist": "all range 20 n1"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Censor",
+  "from": "Censor",
+  "level": 7,
+  "cat": "Ability",
+  "name": "Trinity of Trickery",
+  "info": {
+   "dist": "target range 10 n1"
+  },
+  "issues": [
+   [
+    "nested",
+    "main -> Trinity of Trickery"
+   ],
+   [
+    "behaviour-advanced",
+    "main>Trinity of Trickery: Summon"
+   ],
+   [
+    "nested",
+    "main -> Trinity of Trickery"
+   ],
+   [
+    "behaviour-advanced",
+    "main>Trinity of Trickery: Summon"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 15,
+   "guesses": 0,
+   "header": 2,
+   "name": "Trinity of Trickery",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo",
+   "todos": [
+    "You create two illusory duplicates of the target, which appear anywhere within distance.",
+    "These duplicates last until the end of the encounter.",
+    "On each of their turns, the target can move each dupli cate up to their speed.",
+    "If the target is targeted by an ability, they can use a free triggered action to switch places with a duplicate within their line of effect, making the duplicate the target of the ability instead.",
+    "When either duplicate takes damage, it is destroyed.",
+    "Word of Death Deferred You can stop death from taking your allies.",
+    "When an ally within distance of your My Life for Yours ability dies and you are not dying, you can use a free triggered action to instead have that ally fall unconscious until they regain Stamina.",
+    "Additionally, your abilities deal an extra 5 damage to winded creatures.",
+    "Word of Fate Denied When an ally within 10 squares takes damage that would leave them dying, you can use a free triggered action to make yourself or another willing creature within 10 squares of you the target of the triggering damage instead.",
+    "The creature you choose takes the damage and suffers any effects associated with it, and that damage can't be reduced in any way.",
+    "Your Triumphs Are Remembered The gods allow you and your companions to bask in the glory of past successes.",
+    "Whenever you finish a respite, you and any other heroes who rested with you regain 1 Victory after your Victories are converted to XP.",
+    "This Victory isn't converted into XP at the end of a subsequent respite.",
+    "Focused Wrath When you gain wrath at the start of each of your turns during combat, you gain 3 wrath instead of 2.",
+    "Skill You gain one skill of your choice.An armored blue dragon knight shoots golden lightning from their mace as they fly between bolts of white lightning."
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Censor",
+  "from": "Censor",
+  "level": 7,
+  "cat": "Triggered",
+  "name": "Blessing of Life",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "beginturn",
+   "dist": "subject range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-form",
+    "targetType subject"
+   ],
+   [
+    "formula-raw",
+    "trigger condition: Resources.Recovery > 0 and (Subject.stamina < Subject.Maximum Stamina) and (not Subject.Minion)  [raw: Resources.Recovery | Subject.stamina | Subject.MaximumStamina | Subject.Minion]"
+   ],
+   [
+    "modes",
+    "main: 2 modes (Activate / 1 Wrath)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ApplyAbilityDurationEffect"
+   ],
+   [
+    "formula-raw",
+    "main heal: Caster.Recovery Value  [raw: Caster.RecoveryValue]"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Conduit",
+  "from": "Conduit",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Drain",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 3,
+   "name": "Drain",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 2 + I corruption damage",
+    "e 5 + I corruption damage",
+    "i 7 + I corruption damage",
+    "You or one ally within distance can spend a Recovery."
+   ]
+  }
+ },
+ {
+  "klass": "Conduit",
+  "from": "Conduit",
+  "level": 2,
+  "cat": "Heroic Ability",
+  "name": "Sacred Bond",
+  "info": {
+   "dist": "target range 10 n1"
+  },
+  "issues": [],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 2,
+   "name": "Sacred Bond",
+   "cost": "5",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo",
+   "todos": [
+    "Until the end of the encounter, whenever one target takes damage, the other target can use a free triggered action to take the damage instead.",
+    "The original target suffers any effects associated with the damage.",
+    "Additionally, whenever one target spends a Recovery, the other target can use a free triggered action to spend a Recovery.",
+    "Saint's Tempest (5 Piety)."
+   ],
+   "wantCost": 5
+  }
+ },
+ {
+  "klass": "Conduit",
+  "from": "Conduit",
+  "level": 4,
+  "cat": "Ability",
+  "name": "Sanctified Weapon",
+  "info": {
+   "dist": "target range 25 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 3 modes (Melee Weapon / Ranged Weapon / Both)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Conduit",
+  "from": "Conduit",
+  "level": 8,
+  "cat": "Heroic Ability",
+  "name": "Blessing of the Blade",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 5 aura"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 1,
+   "guesses": 0,
+   "header": 2,
+   "name": "Blessing of the Blade",
+   "cost": "11",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo",
+   "todos": [
+    "At the end of each of your turns until the end of the encoun ter or until you are dying, each target gains 3 surges."
+   ],
+   "wantCost": 11
+  }
+ },
+ {
+  "klass": "Conduit",
+  "from": "Death Domain",
+  "level": 2,
+  "cat": "Trigger",
+  "name": "Death Domain Effect",
+  "info": {
+   "dist": "target range 10 n2"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Elementalist",
+  "from": "Elementalist",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Meteoric Introduction",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 3,
+   "guesses": 0,
+   "header": 3,
+   "name": "Meteoric Introduction",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll",
+   "todos": [
+    "a 3 + R damage",
+    "e 5 + R damage",
+    "i 8 + R damage"
+   ]
+  }
+ },
+ {
+  "klass": "Elementalist",
+  "from": "Elementalist",
+  "level": 3,
+  "cat": "Heroic Ability",
+  "name": "Conflagration",
+  "info": {
+   "dist": "cube r3 range 10 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 3,
+   "name": "Conflagration",
+   "cost": "5",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 4 fire damage",
+    "e 6 fire damage",
+    "i 10 fire damage",
+    "At the start of your turn, you can use a maneuver to use this ability again without spending essence."
+   ],
+   "wantCost": 5
+  }
+ },
+ {
+  "klass": "Elementalist",
+  "from": "Elementalist",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Magma Titan",
+  "info": {
+   "dist": "target range 10 n1"
+  },
+  "issues": [],
+  "paste": {
+   "matched": 0,
+   "todo": 10,
+   "guesses": 0,
+   "header": 2,
+   "name": "Magma Titan",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo,todo,todo,todo,todo,todo,todo",
+   "todos": [
+    "Until the start of your next turn, the target has the following benefits: Y Their size and stability increase by 2, with any size 1 target be coming size 3.",
+    "Each creature who is within the target's new space slides to the nearest unoccupied space, ignoring stability.",
+    "If the target doesn't have space to grow, they grow as much as they can and become restrained until the effect ends.",
+    "Y They have fire immunity 10.",
+    "Y Their strikes deal extra fire damage equal to twice your Reason score.",
+    "Y When the target force moves a creature or object, the forced movement distance gains a +2 bonus.",
+    "Y They can use their highest characteristic instead of Might for Might power rolls.",
+    "The effect lasts until the start of your next turn.",
+    "Addi tionally, at the start of your turn, the target can spend 2 Recoveries.",
+    "Meteor (9 Essence)."
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Elementalist",
+  "from": "Elementalist",
+  "level": 9,
+  "cat": "Ability",
+  "name": "Grand Wyrding",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 7 modes (Acid / Cold / Corruption / Fire / Lightning / Poison / Sonic)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Elementalist",
+  "from": "Void",
+  "level": 5,
+  "cat": "Triggered",
+  "name": "Pierce the Veil of Substance",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "useability",
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "trigger condition: Used Ability.keywords has \"Void\"  [raw: UsedAbility.keywords has \"Void\"]"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ],
+   [
+    "nested",
+    "main>Invoked Ability -> Invoked Ability"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Fury",
+  "from": "Fury",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Brutal Slam",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 3,
+   "guesses": 0,
+   "header": 3,
+   "name": "Brutal Slam",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll",
+   "todos": [
+    "a 3 + M damage",
+    "e 6 + M damage",
+    "i 9 + M damage"
+   ]
+  }
+ },
+ {
+  "klass": "Fury",
+  "from": "Fury",
+  "level": 2,
+  "cat": "Heroic Ability",
+  "name": "Your Entrails Are Your Extrails!",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ApplyRiders"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 7,
+   "guesses": 0,
+   "header": 3,
+   "name": "Your Entrails Are Your Extrails!",
+   "cost": "3",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 3 + M damage",
+    "m<w , bleeding (save ends)",
+    "e 5 + M damage",
+    "m<v , bleeding (save ends)",
+    "i 8 + M damage",
+    "m<s , bleeding (save ends)",
+    "While bleeding this way, the target takes damage equal to your Might score at the end of each of your turns."
+   ],
+   "wantCost": 3
+  }
+ },
+ {
+  "klass": "Fury",
+  "from": "Stormwight",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Pounce",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Might  [raw: 2d10 + Might]"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ApplyRiders"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 8,
+   "guesses": 0,
+   "header": 3,
+   "name": "Pounce",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo",
+   "todos": [
+    "a 8 damage",
+    "m<w , grabbed",
+    "e 13 damage",
+    "m<v , grabbed",
+    "i 17 damage",
+    "m<s , grabbed",
+    "You can shift up to 4 squares, bringing the target with you.",
+    "While grabbed this way, the target takes damage equal to twice your Might score at the start of each of your turns."
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Fury",
+  "from": "Fury",
+  "level": 8,
+  "cat": "Heroic Ability",
+  "name": "Elemental Fury",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 7 modes (Acid / Cold / Corruption / Fire / Lightning / Poison / Sonic)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Fury",
+  "from": "Reaver",
+  "level": 6,
+  "cat": "Triggered",
+  "name": "Death Strike",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "dealdamage",
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "behaviour-advanced",
+    "main: Recast"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Null",
+  "from": "Null",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Faster than the Eye",
+  "info": {
+   "dist": "target range 1 n2"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Agility  [raw: 2d10 + Agility]"
+   ],
+   [
+    "nested",
+    "main -> Faster than the Eye Effect"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 3,
+   "name": "Faster Than the Eye",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 4 damage",
+    "e 5 damage",
+    "i 7 damage",
+    "You can deal damage equal to your Agility score to one crea ture or object adjacent to you."
+   ]
+  }
+ },
+ {
+  "klass": "Null",
+  "from": "Null",
+  "level": 3,
+  "cat": "Heroic Ability",
+  "name": "Impart Force",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 6,
+   "guesses": 0,
+   "header": 3,
+   "name": "Impart Force",
+   "cost": "5",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo,todo",
+   "todos": [
+    "a Push 3",
+    "e Push 5",
+    "i Push 7",
+    "An object you target must be your size or smaller.",
+    "You gain an edge on this ability.",
+    "Additionally, for each square you push the target, they take 1 psychic damage."
+   ],
+   "wantCost": 5
+  }
+ },
+ {
+  "klass": "Null",
+  "from": "Null",
+  "level": 5,
+  "cat": "Heroic Ability",
+  "name": "Synaptic Reset",
+  "info": {
+   "dist": "all range 3 n1"
+  },
+  "issues": [
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 6,
+   "guesses": 0,
+   "header": 2,
+   "name": "Synaptic Reset",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo,todo,todo",
+   "todos": [
+    "Each target can end any conditions or effects on themself, and gains 5 temporary Stamina for each condition or effect removed.Battling in a castle courtyard, a hakaan null creates a curved, spinning shield of iridescent en 6th-Level Features As a 6th-level null, you gain the following features.",
+    "Elemental Absorption Whenever you use your Inertial Shield triggered action, you gain immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Intuition score against the triggering damage.",
+    "Elemental Buffer Whenever you reduce acid, cold, corruption, fire, lightning, poison, or sonic damage with damage immunity, you gain 2 surges that can be used only to increase the damage of your next strike.",
+    "Perk You gain one exploration, interpersonal, or intrigue perk of your choice.",
+    "6th-Level Tradition Ability Your null tradition grants your choice of one of two heroic abilities.",
+    "6th-Level Chronokinetic Abilities Choose one of the following abilities."
+   ],
+   "wantCost": 9
+  }
+ },
+ {
+  "klass": "Null",
+  "from": "Null",
+  "level": 8,
+  "cat": "Heroic Ability",
+  "name": "Arcane Purge",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Agility  [raw: 2d10 + Agility]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: 13 + A damage; M < Weak, #the target is suppressed (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 2: 19 + A damage; M < Average, #the target is suppressed (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 24 + A damage; M < Strong, #the target is suppressed (save ends)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 7,
+   "guesses": 0,
+   "header": 3,
+   "name": "Arcane Purge",
+   "cost": "11",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo",
+   "todos": [
+    "a 13 + A damage",
+    "m<w , the target is suppressed",
+    "(save ends)",
+    "e 19 + A damage",
+    "m<v , the target is suppressed",
+    "While suppressed, a target takes psychic damage equal to twice your Intuition score at the start of their turns, whenever they use a supernatural ability, or whenever they use an ability that costs Malice.",
+    "Phase Hurl (11 Discipline)."
+   ],
+   "wantCost": 11
+  }
+ },
+ {
+  "klass": "Null",
+  "from": "Null",
+  "level": 8,
+  "cat": "Triggered",
+  "name": "Synaptic Anchor",
+  "info": {
+   "modifier": "powertabletrigger",
+   "prt": "activationCondition,behavior,customTrigger,damageMultiplier,hasCustomTrigger,keywords,modtype,rollType",
+   "trigger": "takedamage",
+   "dist": "undefined range undefined nundefined"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Shadow",
+  "from": "College of Caustic Alchemy",
+  "level": 1,
+  "cat": "Ability",
+  "name": "Coat the Blade",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 2 modes (Extra Damage / Weakens)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 5,
+   "guesses": 0,
+   "header": 2,
+   "name": "Coat the Blade",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo,todo",
+   "todos": [
+    "You gain 2 surges.",
+    "Additionally, whenever you use a surge before the end of the encounter, you can choose to have it deal poison damage.",
+    "Spend 1+ Insight: For each insight you spend, you gain 1 additional surge.",
+    "I'm No Threat You have the following ability.",
+    "I'm No Threat."
+   ],
+   "wantCost": ""
+  }
+ },
+ {
+  "klass": "Shadow",
+  "from": "Shadow",
+  "level": 2,
+  "cat": "Heroic Ability",
+  "name": "Get In Get Out",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: Melee 1"
+   ],
+   [
+    "formula-raw",
+    "main PowerRoll.filterTarget: 0 {This is just to display in the ability description.}  [raw: 0 {This is just to display in the ability description.}]"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Agility  [raw: 2d10 + Agility]"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ],
+   [
+    "nested",
+    "main -> Get In Get Out"
+   ],
+   [
+    "formula-raw",
+    "main>Get In Get Out roll: 2d10 + Agility  [raw: 2d10 + Agility]"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 3,
+   "name": "Get In Get Out",
+   "cost": "3",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 5 + A damage",
+    "e 8 + A damage",
+    "i 11 + A damage",
+    "You can shift up to your speed, dividing that movement before or after your strike as desired."
+   ],
+   "wantCost": 3
+  }
+ },
+ {
+  "klass": "Shadow",
+  "from": "College of Black Ash",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Black Ash Eruption",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: Melee 1"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 +Agility  [raw: 2d10 +Agility]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: 3 + A damage; vertical push straight up 5"
+   ],
+   [
+    "tier-text",
+    "main tier 2: 6 + A damage; vertical push straight up 10"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 9 + A damage; vertical push straight up 15"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 3,
+   "name": "Black Ash Eruption",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo",
+   "todos": [
+    "a 3 + A damage",
+    "e 6 + A damage",
+    "i 9 + A damage",
+    "A creature force moved by this ability must be moved straight upward."
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Shadow",
+  "from": "Shadow",
+  "level": 10,
+  "cat": "Ability",
+  "name": "Subterfuge",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Shadow",
+  "from": "College of Caustic Alchemy",
+  "level": 5,
+  "cat": "Triggered",
+  "name": "Volatile Reagents",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "losehitpoints",
+   "dist": "all range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 3 modes (Fire / Acid / Poison)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Summoner",
+  "from": "Summoner",
+  "level": 1,
+  "cat": "Ability",
+  "name": "Minion Bridge",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: Melee 1"
+   ],
+   [
+    "modes",
+    "main: 2 modes (Normal / 1 Essence)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Summoner",
+  "from": "Circle of Graves",
+  "level": 3,
+  "cat": "Ability",
+  "name": "Dead Men Tell All Tales",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 2 modes (First Question / Additional Question)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: Your connection with the corpse permanently is broken"
+   ],
+   [
+    "tier-text",
+    "main tier 2: Your connection with the corpse permanently is broken"
+   ],
+   [
+    "tier-text",
+    "main tier 3: The corpse can choose to answer your question"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Summoner",
+  "from": "Summoner",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "A Champion's Cry",
+  "info": {
+   "dist": "cube r3 range SummonerRange n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 3 burst"
+   ],
+   [
+    "formula-raw",
+    "range: SummonerRange  [raw: SummonerRange]"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ModifyPowerRoll"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Summoner",
+  "from": "Summoner",
+  "level": 9,
+  "cat": "Ability",
+  "name": "Summoner Strike",
+  "info": {
+   "dist": "target range SummonerRange n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "range: SummonerRange  [raw: SummonerRange]"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Summoner",
+  "from": "Summoner",
+  "level": 6,
+  "cat": "Triggered",
+  "name": "Snare Ward",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "losehitpoints",
+   "dist": "attacker range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-form",
+    "targetType attacker"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ForcedMovementLoc"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Tactician",
+  "from": "Tactician",
+  "level": 1,
+  "cat": "Heroic Ability",
+  "name": "Mark",
+  "info": {
+   "dist": "target range 10 n1"
+  },
+  "issues": [],
+  "paste": {
+   "matched": 0,
+   "todo": 12,
+   "guesses": 0,
+   "header": 2,
+   "name": "Mark",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo,todo",
+   "todos": [
+    "The target is marked by you until the end of the encounter, until you are dying, or until you use this ability again.",
+    "You can willingly end your mark on a creature (no action required), and if another tactician marks a creature, your mark on that creature ends.",
+    "When a creature marked by you is reduced to 0 Stamina, you can use a free triggered action to mark a new target within distance.",
+    "You can initially mark only one creature using this ability, though other tactician abilities allow you to mark additional creatures at the same time.",
+    "The mastermind tactical doctrine's Anticipation feature allows you to target additional creatures with this ability starting at 5th level.",
+    "While a creature marked by you is within your line of effect, you and allies within your line of effect gain an edge on power rolls made against that creature.",
+    "Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 focus to gain one of the following benefits as a free triggered action: Y The ability deals extra damage equal to twice your Reason score.",
+    "Y The creature dealing the damage can spend a Recovery.",
+    "Y The creature dealing the damage can shift up to a number of squares equal to your Reason score.",
+    "Y If you damage a creature marked by you with a melee ability, the creature is taunted by you until the end of their next turn.",
+    "You can't gain more than one benefit from the same trigger.",
+    "Strike Now You have the following ability."
+   ]
+  }
+ },
+ {
+  "klass": "Tactician",
+  "from": "Tactician",
+  "level": 2,
+  "cat": "Heroic Ability",
+  "name": "Battle Cry",
+  "info": {
+   "dist": "target range 10 n3"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: the target gains one surge"
+   ],
+   [
+    "tier-text",
+    "main tier 2: the target gains two surges"
+   ],
+   [
+    "tier-text",
+    "main tier 3: the target gains three surges"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 3,
+   "guesses": 0,
+   "header": 3,
+   "name": "Battle Cry",
+   "cost": "3",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll",
+   "todos": [
+    "a Each target gains 1 surge",
+    "e Each target gains 2 surges",
+    "i Each target gains 3 surges"
+   ],
+   "wantCost": 3
+  }
+ },
+ {
+  "klass": "Tactician",
+  "from": "Tactician",
+  "level": 4,
+  "cat": "Ability",
+  "name": "Strike Now!",
+  "info": {
+   "dist": "target range 10 n1 + (1 when Charges >= 1)"
+  },
+  "issues": [
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": null
+ },
+ {
+  "klass": "Tactician",
+  "from": "Mastermind",
+  "level": 9,
+  "cat": "Heroic Ability",
+  "name": "Blot Out the Sun!",
+  "info": {
+   "dist": "all range 3 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: 3 burst"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ApplyAbilityDurationEffect"
+   ],
+   [
+    "nested",
+    "main -> Ranged Free Strike"
+   ],
+   [
+    "nested",
+    "main>Ranged Free Strike -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 2,
+   "guesses": 0,
+   "header": 2,
+   "name": "Blot Out the Sun!",
+   "cost": "11",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo",
+   "todos": [
+    "Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.",
+    "A target ignores banes and double banes when making this strike."
+   ],
+   "wantCost": "11"
+  }
+ },
+ {
+  "klass": "Tactician",
+  "from": "Insurgent",
+  "level": 2,
+  "cat": "Triggered",
+  "name": "Advanced Tactics",
+  "info": {
+   "modifier": "powertabletrigger",
+   "prt": "behavior,keywords,modtype,rollType,surges",
+   "trigger": "dealdamage",
+   "dist": "undefined range undefined nundefined"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Talent",
+  "from": "Talent",
+  "level": 1,
+  "cat": "Signature Ability",
+  "name": "Optic Blast",
+  "info": {
+   "dist": "target range 10 nMode"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "numTargets: Mode  [raw: Mode]"
+   ],
+   [
+    "modes",
+    "main: 2 modes (Normal / Reflective Surface)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "behaviour-advanced",
+    "main: ModifyPowerRoll"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 8,
+   "guesses": 0,
+   "header": 3,
+   "name": "Optic Blast",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo",
+   "todos": [
+    "a 2 + R damage",
+    "m<w , prone",
+    "e 4 + R damage",
+    "m<v , prone",
+    "i 6 + R damage",
+    "m<s , prone",
+    "When targeting an object with a solid reflective surface or a creature carrying or wearing such an object (such as a mirror, an unpainted metal shield, or shiny metal plate armor), you can target one additional creature or object within 3 squares of the first target.",
+    "You gain 1 surge that you can use immediately, and you take damage equal to your Reason score that can't be reduced in any way."
+   ]
+  }
+ },
+ {
+  "klass": "Talent",
+  "from": "Chronopathy",
+  "level": 2,
+  "cat": "Heroic Ability",
+  "name": "Applied Chronometrics",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "distance-text",
+    "rangeTextOverride: Ranged 10"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Presence  [raw: 2d10 + Presence]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: You target two creatures, one of which can be you."
+   ],
+   [
+    "tier-text",
+    "main tier 2: You target three creatures, one of which can be you."
+   ],
+   [
+    "tier-text",
+    "main tier 3: You target four creatures, one of which can be you."
+   ],
+   [
+    "nested",
+    "main -> Invoked Ability"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 6,
+   "guesses": 0,
+   "header": 3,
+   "name": "Applied Chronometrics",
+   "cost": "5",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo,todo",
+   "todos": [
+    "a You target two creatures, one of which can be you",
+    "e You target three creatures, one of which can be you",
+    "i You target four creatures, one of which can be you",
+    "Until the start of your next turn, each target gains a +5 bonus to speed, they can't be made dazed, and they can use an additional maneuver on their turn.",
+    "If a target is already dazed, that condition ends for them.",
+    "Your speed is halved until the end of the encounter."
+   ],
+   "wantCost": "5"
+  }
+ },
+ {
+  "klass": "Talent",
+  "from": "Telepathy",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Synaptic Conditioning",
+  "info": {
+   "dist": "target range 2 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: 10 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 2: 14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 7,
+   "guesses": 0,
+   "header": 3,
+   "name": "Synaptic Conditioning",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo",
+   "todos": [
+    "a 10 psychic damage",
+    "the target takes a bane on ability rolls",
+    "made to harm you or your allies (save ends)",
+    "e 14 psychic damage",
+    "the target has a double bane on ability",
+    "While the target is under this effect, you no longer consid er your enemies to be your enemies when using your abilities and features.",
+    "Synaptic Dissipation (9 Clarity)."
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Talent",
+  "from": "Telepathy",
+  "level": 9,
+  "cat": "Heroic Ability",
+  "name": "Resonant Mind Spike",
+  "info": {
+   "dist": "target range 10 n1"
+  },
+  "issues": [
+   [
+    "behaviour-advanced",
+    "main: ApplyAbilityDurationEffect"
+   ],
+   [
+    "formula-raw",
+    "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
+   ],
+   [
+    "formula-raw",
+    "main damage: Cast.Damage Dealt * 0.5  [raw: Cast.DamageDealt]"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 7,
+   "guesses": 0,
+   "header": 3,
+   "name": "Resonant Mind Spike",
+   "cost": "11",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll,todo,todo,todo,todo",
+   "todos": [
+    "a 15 + R psychic damage",
+    "e 24 + R psychic damage",
+    "i 28 + R psychic damage",
+    "This ability ignores cover and concealment.",
+    "The ability roll scores a critical hit on a natural 17 or high er.",
+    "You take half the damage the target takes, and you can't reduce this damage in any way.",
+    "Synaptic Terror (11 Clarity)."
+   ],
+   "wantCost": "11"
+  }
+ },
+ {
+  "klass": "Talent",
+  "from": "Chronopathy",
+  "level": 8,
+  "cat": "Triggered",
+  "name": "Stasis Shield",
+  "info": {
+   "modifier": "powertabletrigger",
+   "prt": "behavior,changeTarget,changeTargetEffect,changeTargetFilter,changeTargetRange,damageMultiplier,keywords,modtype,rollType,triggerBefore",
+   "trigger": "takedamage",
+   "dist": "undefined range undefined nundefined"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Troubadour",
+  "from": "Duelist",
+  "level": 1,
+  "cat": "Heroic Ability",
+  "name": "Star Power",
+  "info": {
+   "dist": "self range 1 n1"
+  },
+  "issues": [
+   [
+    "modes",
+    "main: 2 modes (Normal / Spend 1 Drama)"
+   ],
+   [
+    "modes",
+    "main: mode flags"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 2,
+   "name": "Star Power",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo",
+   "todos": [
+    "You gain a +2 bonus to speed until the end of your turn.",
+    "Additionally, the next power roll you make this turn can't have an outcome lower than tier 2.",
+    "You gain a +4 bonus to speed instead.",
+    "Virtuoso Performances You have the following performance abilities, which are usable with your Routines feature."
+   ]
+  }
+ },
+ {
+  "klass": "Troubadour",
+  "from": "Troubadour",
+  "level": 3,
+  "cat": "Heroic Ability",
+  "name": "Dramatic Reversal",
+  "info": {
+   "dist": "all range 3 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Presence  [raw: 2d10 + Presence]"
+   ],
+   [
+    "tier-text",
+    "main tier 1: #The target can shift 1 square and make a free strike."
+   ],
+   [
+    "tier-text",
+    "main tier 2: #The target can shift up to 2 squares and make a free strike with an edge."
+   ],
+   [
+    "tier-text",
+    "main tier 3: #The target can shift up to 3 squares and make a free strike with an edge, then can spend a Recovery."
+   ],
+   [
+    "behaviour-advanced",
+    "main: Script"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 3,
+   "guesses": 0,
+   "header": 3,
+   "name": "Dramatic Reversal",
+   "cost": "5",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll",
+   "todos": [
+    "a The target can shift 1 square and make a free strike",
+    "e The target can shift up to 2 squares and make a free strike",
+    "that gains an edge"
+   ],
+   "wantCost": 5
+  }
+ },
+ {
+  "klass": "Troubadour",
+  "from": "Duelist",
+  "level": 6,
+  "cat": "Heroic Ability",
+  "name": "Blood on the Stage",
+  "info": {
+   "dist": "target range 1 n1"
+  },
+  "issues": [
+   [
+    "formula-raw",
+    "main roll: 2d10 + Agility  [raw: 2d10 + Agility]"
+   ],
+   [
+    "tier-text",
+    "main tier 3: 24 + A damage; bleeding (eot), or if M < Strong, bleeding (save ends)"
+   ]
+  ],
+  "paste": {
+   "matched": 0,
+   "todo": 6,
+   "guesses": 0,
+   "header": 3,
+   "name": "Blood on the Stage",
+   "cost": "9",
+   "resource": "Heroic Resource",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "powerRoll",
+   "todos": [
+    "a 12 + A damage",
+    "m<w , bleeding (save ends)",
+    "e 18 + A damage",
+    "m<v , bleeding (save ends)",
+    "i 24 + A damage",
+    "bleeding (EoT), or if m<s , bleeding"
+   ],
+   "wantCost": "9"
+  }
+ },
+ {
+  "klass": "Troubadour",
+  "from": "Troubadour",
+  "level": 7,
+  "cat": "Ability",
+  "name": "Equal Billing ",
+  "info": {
+   "dist": "target range 100 n1"
+  },
+  "issues": [],
+  "paste": null
+ },
+ {
+  "klass": "Troubadour",
+  "from": "Troubadour",
+  "level": 6,
+  "cat": "Triggered",
+  "name": "Spotlight",
+  "info": {
+   "modifier": "trigger",
+   "trigger": "beginturn",
+   "dist": "self range 1 n1"
+  },
+  "issues": [],
+  "paste": {
+   "matched": 0,
+   "todo": 4,
+   "guesses": 0,
+   "header": 2,
+   "name": "Spotlight",
+   "cost": "1",
+   "resource": "no cost",
+   "word": null,
+   "dist": "Melee",
+   "target": "creature",
+   "steps": "todo,todo,todo,todo",
+   "todos": [
+    "While this performance is active, each target who starts their turn in the area gains 1 of their Heroic Resource.",
+    "This Heroic Resource disappears at the end of the target's turn if they don't spend it.",
+    "6th-Level Class Act Ability Your troubadour class act grants your choice of one of two heroic abilities.",
+    "6th-Level Auteur Abilities Choose one of the following abilities."
+   ]
+  }
+ }
+]

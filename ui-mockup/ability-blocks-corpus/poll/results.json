@@ -39,8 +39,8 @@
    ]
   ],
   "paste": {
-   "matched": 0,
-   "todo": 5,
+   "matched": 1,
+   "todo": 4,
    "guesses": 0,
    "header": 3,
    "name": "**Feral Strike** *(Area, Companion, Melee, Strike, Weapon -- Main Action)*",
@@ -49,13 +49,12 @@
    "word": null,
    "dist": "Melee",
    "target": "each creature in the area",
-   "steps": "todo,todo,todo,todo,todo",
+   "steps": "todo,todo,todo,todo,resource",
    "todos": [
     "- **Guardian:** Each enemy target is taunted by your companion until the start of your next turn.",
     "- **Prowler:** Each enemy target is weakened until the start of your next turn.",
     "- **Punisher:** Your companion slides each target up to a number of squares equal to their Might score.",
-    "- **Spark:** This strike deals cold, fire, lightning, or sonic damage.",
-    "You gain 1 surge."
+    "- **Spark:** This strike deals cold, fire, lightning, or sonic damage."
    ]
   }
  },
@@ -76,18 +75,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: 7 + I damage; P < Weak, jaws of death (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 2: 10 + I damage; P < Average, jaws of death (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 14 + I damage; P < Strong, jaws of death (save ends)"
    ]
   ],
   "paste": {
@@ -119,10 +106,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Might  [raw: 2d10 + Might]"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 21 + M damage; taunted (save ends); M < Strong prone and can't stand (EoT)"
    ]
   ],
   "paste": {
@@ -166,18 +149,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Intuition  [raw: 2d10 + Intuition]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: 5 sonic damage; I < weak, banshee howl (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 2: 10 sonic damage; I < average, banshee howl (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 15 sonic damage; I < strong, banshee howl (save ends)"
    ]
   ],
   "paste": {
@@ -213,7 +184,7 @@
     "trigger condition: Resources.Rampage >= 8  [raw: Resources.Rampage]"
    ],
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyAbilityDurationEffect"
    ],
    [
@@ -378,7 +349,7 @@
     "main: mode flags"
    ],
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyAbilityDurationEffect"
    ],
    [
@@ -732,7 +703,7 @@
     "main roll: 2d10 + Might  [raw: 2d10 + Might]"
    ],
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyRiders"
    ]
   ],
@@ -775,7 +746,7 @@
     "main roll: 2d10 + Might  [raw: 2d10 + Might]"
    ],
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyRiders"
    ],
    [
@@ -903,8 +874,8 @@
    ]
   ],
   "paste": {
-   "matched": 0,
-   "todo": 6,
+   "matched": 1,
+   "todo": 5,
    "guesses": 0,
    "header": 3,
    "name": "Impart Force",
@@ -913,13 +884,12 @@
    "word": null,
    "dist": "Melee",
    "target": "creature",
-   "steps": "powerRoll,todo,todo,todo",
+   "steps": "powerRoll,todo,durEffect,todo",
    "todos": [
     "a Push 3",
     "e Push 5",
     "i Push 7",
     "An object you target must be your size or smaller.",
-    "You gain an edge on this ability.",
     "Additionally, for each square you push the target, they take 1 psychic damage."
    ],
    "wantCost": 5
@@ -976,18 +946,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Agility  [raw: 2d10 + Agility]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: 13 + A damage; M < Weak, #the target is suppressed (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 2: 19 + A damage; M < Average, #the target is suppressed (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 24 + A damage; M < Strong, #the target is suppressed (save ends)"
    ]
   ],
   "paste": {
@@ -1045,8 +1003,8 @@
    ]
   ],
   "paste": {
-   "matched": 0,
-   "todo": 5,
+   "matched": 1,
+   "todo": 4,
    "guesses": 0,
    "header": 2,
    "name": "Coat the Blade",
@@ -1055,9 +1013,8 @@
    "word": null,
    "dist": "Melee",
    "target": "creature",
-   "steps": "todo,todo,todo,todo,todo",
+   "steps": "resource,todo,todo,todo,todo",
    "todos": [
-    "You gain 2 surges.",
     "Additionally, whenever you use a surge before the end of the encounter, you can choose to have it deal poison damage.",
     "Spend 1+ Insight: For each insight you spend, you gain 1 additional surge.",
     "I'm No Threat You have the following ability.",
@@ -1143,18 +1100,6 @@
    [
     "formula-raw",
     "main roll: 2d10 +Agility  [raw: 2d10 +Agility]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: 3 + A damage; vertical push straight up 5"
-   ],
-   [
-    "tier-text",
-    "main tier 2: 6 + A damage; vertical push straight up 10"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 9 + A damage; vertical push straight up 15"
    ]
   ],
   "paste": {
@@ -1403,18 +1348,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: the target gains one surge"
-   ],
-   [
-    "tier-text",
-    "main tier 2: the target gains two surges"
-   ],
-   [
-    "tier-text",
-    "main tier 3: the target gains three surges"
    ]
   ],
   "paste": {
@@ -1469,7 +1402,7 @@
     "rangeTextOverride: 3 burst"
    ],
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyAbilityDurationEffect"
    ],
    [
@@ -1641,18 +1574,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Reason  [raw: 2d10 + Reason]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: 10 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 2: 14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)"
-   ],
-   [
-    "tier-text",
-    "main tier 3: 20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)"
    ]
   ],
   "paste": {
@@ -1690,7 +1611,7 @@
   },
   "issues": [
    [
-    "behaviour-advanced",
+    "behaviour-unknown",
     "main: ApplyAbilityDurationEffect"
    ],
    [
@@ -1703,8 +1624,8 @@
    ]
   ],
   "paste": {
-   "matched": 0,
-   "todo": 7,
+   "matched": 1,
+   "todo": 6,
    "guesses": 0,
    "header": 3,
    "name": "Resonant Mind Spike",
@@ -1713,12 +1634,11 @@
    "word": null,
    "dist": "Melee",
    "target": "creature",
-   "steps": "powerRoll,todo,todo,todo,todo",
+   "steps": "powerRoll,durEffect,todo,todo,todo",
    "todos": [
     "a 15 + R psychic damage",
     "e 24 + R psychic damage",
     "i 28 + R psychic damage",
-    "This ability ignores cover and concealment.",
     "The ability roll scores a critical hit on a natural 17 or high er.",
     "You take half the damage the target takes, and you can't reduce this damage in any way.",
     "Synaptic Terror (11 Clarity)."
@@ -1764,14 +1684,14 @@
    "matched": 0,
    "todo": 4,
    "guesses": 0,
-   "header": 2,
+   "header": 3,
    "name": "Star Power",
    "cost": "1",
    "resource": "no cost",
    "word": null,
    "dist": "Melee",
    "target": "creature",
-   "steps": "todo,todo,todo,todo",
+   "steps": "todo,todo,modes",
    "todos": [
     "You gain a +2 bonus to speed until the end of your turn.",
     "Additionally, the next power roll you make this turn can't have an outcome lower than tier 2.",
@@ -1793,18 +1713,6 @@
    [
     "formula-raw",
     "main roll: 2d10 + Presence  [raw: 2d10 + Presence]"
-   ],
-   [
-    "tier-text",
-    "main tier 1: #The target can shift 1 square and make a free strike."
-   ],
-   [
-    "tier-text",
-    "main tier 2: #The target can shift up to 2 squares and make a free strike with an edge."
-   ],
-   [
-    "tier-text",
-    "main tier 3: #The target can shift up to 3 squares and make a free strike with an edge, then can spend a Recovery."
    ],
    [
     "behaviour-advanced",

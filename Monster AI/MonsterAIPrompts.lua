@@ -1148,25 +1148,9 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
---Hurl Grabbed Creature (Ogre Goon "People Bowling", AbilityRelocateAura.lua):
---two picks. The creature pick carries its candidates in _tmp_hurlCandidates;
---throw the first (the goon normally grabs only one creature anyway). The
---landing pick carries the equally-near free squares in _tmp_restrictLocs;
---any of them satisfies the rule, so take the first.
-MonsterAI:RegisterPrompt{
-    prompts = {"Hurl Grabbed Creature"},
-
-    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
-        local candidates = abilityClone:try_get("_tmp_hurlCandidates")
-        if candidates == nil or #candidates == 0 then
-            return nil
-        end
-        return {
-            targets = { {token = candidates[1]} }
-        }
-    end,
-}
-
+--Where a hurled creature lands (Ogre Goon's People Bowling). When several free
+--squares tie for nearest to the line's end they arrive in _tmp_restrictLocs,
+--and any of them follows the rule, so take the first.
 MonsterAI:RegisterPrompt{
     prompts = {"Hurl Landing Square"},
 

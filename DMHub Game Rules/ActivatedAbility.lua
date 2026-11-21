@@ -102,7 +102,6 @@ end
 --- @field _tmp_isNewAbility? boolean Transient: set on abilities freshly created in the editor.
 --- @field _tmp_payInvokedCost? boolean Transient: an invoked clone pays its own cost.
 --- @field _tmp_restrictLocs? Loc[] Transient: explicit whitelist of target squares for a pick prompt.
---- @field _tmp_hurlCandidates? table Transient: the grabbed-creature candidates of a hurl's creature pick.
 --- @field _tmp_fromKit? boolean Transient: set by Kit:SignatureAbilities on a kit's signature ability.
 --- @field keywords table<string, boolean> Keyword set (e.g. Strike=true). The class default is one shared empty table, so copy it before writing (AddKeyword does).
 --- @field targetAllegiance? false|string Restricts targets: "ally", "enemy", "none" (objects only) or "dead"; false/nil means any creature.

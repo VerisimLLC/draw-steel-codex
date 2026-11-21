@@ -532,13 +532,31 @@ local function AddDamageParts(entry, cast, ability, caster)
                     parts[#parts + 1] = {kind = "kit", name = kit.name, amount = kit.bonuses[tier], damagetype = kit.damagetypes[tier]}
                 end
             end
+            --a modifier that only changes the damage's type ("deals psychic damage") adds as much
+            --of one type as it takes off untyped. That is no change in amount, so it is no part:
+            --the other untyped parts take its type instead (A Champion's Cry, James 2026-11-21).
+            local convertTo = nil
             for _, source in ipairs(targetDamage[who.id] or {}) do
                 local byType = source.tiers[tier] or {}
+                local sum, typed = 0, nil
+                for typeName, amount in pairs(byType) do
+                    sum = sum + amount
+                    if amount > 0 and typeName ~= "untyped" then
+                        typed = typeName
+                    end
+                end
+                local converts = sum == 0 and typed ~= nil and (byType.untyped or 0) < 0
+                if converts then
+                    convertTo = typed
+                end
                 local typeNames = {}
                 for typeName in pairs(byType) do
                     typeNames[#typeNames + 1] = typeName
                 end
                 table.sort(typeNames)
+                if converts then
+                    typeNames = {}
+                end
                 local owner = source.charid ~= nil and dmhub.GetCharacterById(source.charid) or nil
                 for _, typeName in ipairs(typeNames) do
                     parts[#parts + 1] = {
@@ -568,6 +586,13 @@ local function AddDamageParts(entry, cast, ability, caster)
                     gained = gained ~= nil and math.min(gained.count, surges.count) or nil,
                     gainedfrom = gained ~= nil and #gained.sources > 0 and gained.sources or nil,
                 }
+            end
+            if convertTo ~= nil then
+                for _, part in ipairs(parts) do
+                    if part.damagetype == nil then
+                        part.damagetype = convertTo
+                    end
+                end
             end
             if #parts > 0 then
                 who.parts = parts

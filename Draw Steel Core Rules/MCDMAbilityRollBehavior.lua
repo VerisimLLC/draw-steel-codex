@@ -3284,6 +3284,9 @@ end
 
 function RollPropertiesPowerTable:ResetMods()
     self.surges = nil
+    --the surges among them that can be kept (surgesCanBeKept); without this reset every
+    --recalculation added a kept-surge modifier's surges again (7 from one I Work Better Alone).
+    self.nonwastedSurges = nil
     self.shields = nil
     self.tierSuppressed = nil
     if self:has_key("baseTiers") == false then

@@ -413,6 +413,8 @@ local function CastBegan(ability, casterToken, targets, options)
         if provoking ~= nil and not provoking.finished then
             g_provoking[actor.charid] = nil
             provoking.noRow = true
+            --the Opportunity Attack writes no row, so the strike takes its place, not a seat under it.
+            state.entry.cause = provoking.entry.cause
             state.entry.provoker = provoking.entry.provoker
             --what the triggered action cost travels with it.
             state.entry.costs = provoking.entry.costs

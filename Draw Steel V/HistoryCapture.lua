@@ -331,6 +331,10 @@ local function CastBegan(ability, casterToken, targets, options)
     if partOf ~= nil and outer ~= nil and not outer.finished then
         --a step that rolls makes the roll the outer row's own (Natural Weapon's strike).
         outer.stepRolls = outer.stepRolls or RollsPower(ability)
+        --everyone the step hits is on the row, as for any ability, even if nothing happened to them.
+        for _, target in ipairs(targets or {}) do
+            AddTarget(outer.entry, outer.seen, target.token)
+        end
         JoinParentRow(options, ability)
         return
     end

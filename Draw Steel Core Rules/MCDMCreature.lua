@@ -202,6 +202,25 @@ function creature:Potency()
     return self:HighestCharacteristic()
 end
 
+--- Returns the creature's summoner token, or nil if it has none.
+--- Also finds a summoner who is off the map: a summon that replaces its caster (such as
+--- Loverboy, from the Demon Lover complication) takes the caster off the map until it
+--- goes away, and the summon still belongs to them meanwhile.
+--- @param selfToken CharacterToken
+--- @return CharacterToken|nil
+local function FindSummonerToken(selfToken)
+    if not selfToken.summonerid then
+        return nil
+    end
+
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid) or dmhub.GetCharacterById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+
+    return nil
+end
+
 --- If this creature is a minion flagged to use its summoner's potency, returns the summoner token.
 --- Otherwise returns nil (the creature uses its own potency).
 --- @return CharacterToken|nil
@@ -211,12 +230,8 @@ function creature:GetPotencySummonerToken()
         return nil
     end
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then return nil end
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-    return nil
+    if selfToken == nil then return nil end
+    return FindSummonerToken(selfToken)
 end
 
 function creature:BaseNamedCustomAttribute(id)
@@ -386,16 +401,11 @@ function creature:GetSurgeSharingSummonerToken()
     end
 
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return nil
     end
 
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
+    return FindSummonerToken(selfToken)
 end
 
 --- @return creature|nil mentor whose surge pool this retainer shares, else nil.
@@ -507,25 +517,6 @@ function creature:GetMaxSurgeCount()
     end
 
     return self._tmp_maxSurgeCount
-end
-
---- Returns the creature's summoner token, or nil if it has none.
---- Also finds a summoner who is off the map: a summon that replaces its caster (such as
---- Loverboy, from the Demon Lover complication) takes the caster off the map until it
---- goes away, and the summon still belongs to them meanwhile.
---- @param selfToken CharacterToken
---- @return CharacterToken|nil
-local function FindSummonerToken(selfToken)
-    if not selfToken.summonerid then
-        return nil
-    end
-
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid) or dmhub.GetCharacterById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
 end
 
 --- @return CharacterToken|nil summoner token if this creature shares its heroic resource with its summoner, else nil.

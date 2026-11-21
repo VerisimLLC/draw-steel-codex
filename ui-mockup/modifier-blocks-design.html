@@ -1,0 +1,267 @@
+<title>Modifier Blocks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono&display=swap">
+<style>
+/* Layout: a design board of stacked panels; each panel shows one idea with real class features,
+   in the ability-blocks prototype's look (dark editor, intent-coloured sentence blocks, book card). */
+:root {
+  --bg: #15120e; --panel: #1f1b16; --panel2: #27221b; --line: #3a3228; --fg: #ece5d8; --dim: #a89c88; --gold: #d8a84a;
+  --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #c2742c; --c-area: #8b5434; --c-res: #9a6d1c;
+  --c-cond: #8e3f86; --c-rem: #6b6258; --c-adv: #5b564e; --c-logic: #b36125; --c-warn: #c9862a;
+  --card-bg: #fdfcf8; --card-fg: #141414;
+  --font-ui: "Inter", system-ui, sans-serif; --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-card: "Bitter", Georgia, serif; --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-ui); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+header h1 { font: 600 30px/1.15 var(--font-head); margin: 0 0 6px; letter-spacing: .01em; text-wrap: balance; }
+header p { margin: 0; color: var(--dim); max-width: 70ch; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: grid; gap: 16px; }
+.panel > h2 { font: 600 18px/1.2 var(--font-head); margin: 0; text-wrap: balance; }
+.panel > .lede { margin: -8px 0 0; color: var(--dim); max-width: 78ch; }
+.eyebrow { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .12em; color: var(--gold); }
+.cols { display: grid; gap: 16px; align-items: start; }
+.cols.three { grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 220px); }
+.cols.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cols.twoA { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
+@media (max-width: 980px) { .cols.three, .cols.two, .cols.twoA { grid-template-columns: minmax(0, 1fr); } }
+.colhead { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 6px; }
+
+/* Book-style feature card */
+.card { background: var(--card-bg); color: var(--card-fg); border-radius: 4px; padding: 14px 16px; font: 14px/1.5 var(--font-card); }
+.card h3 { font: 700 17px/1.25 var(--font-card); margin: 0 0 2px; }
+.card .sub { font-style: italic; font-size: 12.5px; margin-bottom: 8px; color: #4a4338; }
+.card p { margin: 0 0 6px; }
+.card mark { background: #f3dc9b; color: inherit; padding: 0 2px; border-radius: 2px; }
+
+/* Sentence blocks */
+.stack { display: grid; gap: 6px; }
+.blk { --c: var(--c-adv); background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 5px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.blk .grip { opacity: .55; font-size: 12px; letter-spacing: -2px; margin-right: 2px; }
+.blk u { text-decoration: underline dotted rgba(255,255,255,.75); text-underline-offset: 3px; font-weight: 600; }
+.blk .tag { font: 600 10px var(--font-head); text-transform: uppercase; letter-spacing: .08em; background: rgba(0,0,0,.25); border-radius: 3px; padding: 1px 5px; }
+.blk .more { margin-left: auto; opacity: .7; font-size: 12px; }
+.blk.stats { --c: var(--c-stats); } .blk.rolls { --c: var(--c-rolls); } .blk.def { --c: var(--c-def); } .blk.abil { --c: var(--c-abil); }
+.blk.area { --c: var(--c-area); } .blk.res { --c: var(--c-res); } .blk.cond { --c: var(--c-cond); } .blk.rem { --c: var(--c-rem); } .blk.adv { --c: var(--c-adv); }
+.blk.logic { --c: var(--c-logic); display: block; padding: 0; overflow: hidden; }
+.blk.logic > .top { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.blk.logic > .inner { margin: 0 0 8px 14px; padding: 6px 8px 6px 10px; background: rgba(0,0,0,.22); border-radius: 4px 0 0 4px; display: grid; gap: 6px; }
+.seg { display: inline-flex; border: 1px solid rgba(255,255,255,.45); border-radius: 4px; overflow: hidden; font-size: 12px; }
+.seg span { padding: 2px 7px; opacity: .75; }
+.seg span.on { background: rgba(255,255,255,.92); color: #2a1f3a; opacity: 1; font-weight: 600; }
+.saves { font: 11.5px/1.45 var(--font-mono); color: var(--dim); padding: 2px 2px 0 12px; }
+.saves b { color: var(--fg); font-weight: 500; }
+
+/* Hints */
+.hint { border: 1px dashed var(--c-warn); border-radius: 6px; padding: 10px 12px; color: var(--fg); background: rgba(201,134,42,.08); display: grid; gap: 8px; }
+.hint .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { font: 500 12.5px var(--font-ui); color: var(--fg); background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; }
+.btn.primary { border-color: var(--gold); color: var(--gold); }
+.note { color: var(--dim); font-size: 12.5px; margin: 0; }
+
+/* Shelf */
+.shelf { display: grid; gap: 10px; }
+.search { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; color: var(--dim); font-size: 12.5px; background: var(--bg); }
+.grp { display: grid; gap: 4px; }
+.grp h4 { margin: 0; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); display: flex; justify-content: space-between; }
+.chip { --c: var(--c-adv); background: var(--c); color: #fff; border-radius: 4px; padding: 4px 8px; font-size: 12.5px; display: flex; justify-content: space-between; gap: 8px; }
+.chip i { font-style: normal; opacity: .7; font-variant-numeric: tabular-nums; }
+.chip.stats { --c: var(--c-stats); } .chip.rolls { --c: var(--c-rolls); } .chip.def { --c: var(--c-def); } .chip.abil { --c: var(--c-abil); }
+.chip.area { --c: var(--c-area); } .chip.res { --c: var(--c-res); } .chip.cond { --c: var(--c-cond); } .chip.rem { --c: var(--c-rem); } .chip.adv { --c: var(--c-adv); } .chip.logic { --c: var(--c-logic); }
+
+/* Today's form (for comparison) */
+.form { background: #e9e6df; color: #222; border-radius: 4px; padding: 10px; display: grid; gap: 8px; font: 12.5px/1.35 var(--font-ui); }
+.frow { background: #fff; border: 1px solid #c9c4b8; border-radius: 3px; padding: 6px 8px; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 2px 8px; }
+.frow .t { grid-column: 1 / -1; font-weight: 600; color: #444; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+.frow .k { color: #666; } .frow .v { font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+
+/* Roll dialog preview */
+.dialog { background: #23201c; border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: grid; gap: 8px; }
+.dialog .title { font: 600 13px var(--font-head); }
+.opt { display: flex; gap: 8px; align-items: flex-start; background: var(--panel2); border-radius: 4px; padding: 8px; }
+.box { width: 16px; height: 16px; border: 1.5px solid var(--dim); border-radius: 3px; flex: none; margin-top: 2px; display: grid; place-items: center; font-size: 11px; }
+.box.on { background: var(--gold); border-color: var(--gold); color: #1b1712; }
+.opt .n { font-weight: 600; } .opt .d { color: var(--dim); font-size: 12.5px; }
+
+/* Tables */
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+td code { font: 12px var(--font-mono); color: var(--dim); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.route { display: flex; flex-wrap: wrap; gap: 8px; }
+.route .r { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--panel2); display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.route .r b { font-weight: 600; } .route .r span { color: var(--dim); font-size: 12.5px; }
+.arrow { color: var(--gold); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Design visuals</div>
+    <h1>Modifier Blocks</h1>
+    <p>How class features, kits, ancestries, titles and effects would be edited with the same sentence blocks as the simple ability editor. Every example below is a real feature from the compendium.</p>
+  </header>
+
+  <!-- 1. A feature opened -->
+  <section class="panel">
+    <div class="eyebrow">1 &middot; Opening a feature</div>
+    <h2>The feature's text on the left, what it does as sentences in the middle</h2>
+    <p class="lede">Elementalist, <i>Enchantment of Battle</i>. Its two modifiers open as two sentences. The editor compares them with the feature's own text and points out what the text says but the sentences don't.</p>
+    <div class="cols three">
+      <div>
+        <div class="colhead">The feature (book text, saved wording)</div>
+        <div class="card">
+          <h3>Enchantment of Battle</h3>
+          <div class="sub">Elementalist &middot; Enchantment</div>
+          <p>You can wear light armor and wield light weapons effectively, even though you don't have a kit. <mark>While you wear light armor</mark>, you gain a +3 bonus to Stamina, and that bonus increases by 3 at 4th, 7th, and 10th levels. <mark>While you wield a light weapon</mark>, you gain a +1 damage bonus with weapon abilities, including free strikes.</p>
+          <p>If you have a kit, you can't take this enchantment.</p>
+        </div>
+      </div>
+      <div>
+        <div class="colhead">What it does</div>
+        <div class="stack">
+          <div class="blk stats"><span class="grip">&#8942;&#8942;</span>Your <u>Stamina</u> <u>increases by</u> <u>3</u>, <u>+3 at 4th, 7th and 10th level</u><span class="more">&#8943;</span></div>
+          <div class="saves">saves as <b>attribute</b>: hitpoints, add, a level table (3 / 6 / 9 / 12)</div>
+          <div class="blk rolls"><span class="grip">&#8942;&#8942;</span>Your <u>Weapon</u> abilities deal <u>+1</u> extra damage, including free strikes <span class="seg"><span class="on">always applies</span><span>you choose</span><span>applies when&hellip;</span></span><span class="more">&#8943;</span></div>
+          <div class="saves">saves as <b>power</b>: damageModifier 1, keywords Weapon, activationCondition true</div>
+          <div class="hint">
+            <div><b>The text says &ldquo;while you wear light armor&rdquo; and &ldquo;while you wield a light weapon&rdquo;</b>, but neither sentence has that condition, so both always apply.</div>
+            <div class="row"><button class="btn primary" type="button">Add &ldquo;Only if you wear light armor&rdquo;</button><button class="btn" type="button">Add &ldquo;Only if you wield a light weapon&rdquo;</button><button class="btn" type="button">That's intended</button></div>
+          </div>
+          <p class="note">Underlined words open one control each. The &ldquo;+3 at 4th, 7th and 10th level&rdquo; phrase is the level table today's form edits as a grid.</p>
+        </div>
+      </div>
+      <div class="shelf" aria-label="Shelf">
+        <div class="colhead">Shelf</div>
+        <div class="search">Search sentences ( / )</div>
+        <div class="grp"><h4>Common</h4>
+          <div class="chip stats">Change a stat <i>510</i></div>
+          <div class="chip rolls">Edge or bane on rolls <i>620</i></div>
+          <div class="chip abil">Gain an ability <i>1,052</i></div>
+          <div class="chip abil">When&hellip; (trigger) <i>1,727</i></div>
+          <div class="chip def">Immunity or weakness <i>383</i></div>
+          <div class="chip abil">Change an ability <i>309</i></div>
+          <div class="chip rolls">Extra damage <i>208</i></div>
+          <div class="chip stats">You ignore / can't&hellip; <i>667</i></div>
+          <div class="chip logic">Only if&hellip;</div>
+        </div>
+        <div class="grp"><h4>All by intent <span>9</span></h4>
+          <div class="chip stats">Stats</div><div class="chip rolls">Rolls</div><div class="chip def">Defences</div><div class="chip abil">Abilities</div>
+          <div class="chip area">Areas</div><div class="chip res">Resources</div><div class="chip cond">Conditions</div><div class="chip rem">Reminders</div><div class="chip adv">Advanced <i>29 types</i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Storage chosen invisibly -->
+  <section class="panel">
+    <div class="eyebrow">2 &middot; One sentence, the right records</div>
+    <h2>Six form entries become three sentences</h2>
+    <p class="lede">Null, <i>I Am the Weapon</i>. Today it is six modifiers, four of them the same idea written once per characteristic. In the simple editor the author writes the idea once; the editor writes the records.</p>
+    <div class="cols two">
+      <div>
+        <div class="colhead">Today: six modifier forms</div>
+        <div class="form">
+          <div class="frow"><div class="t">Modify Attribute</div><div class="k">Attribute</div><div class="v">hitpoints</div><div class="k">Value</div><div class="v">21</div></div>
+          <div class="frow"><div class="t">Condition Immunity</div><div class="k">Conditions</div><div class="v">18ff50ab-&hellip; (Bleeding)</div><div class="k">Message</div><div class="v">I am the Weapon. I do not bleed.</div></div>
+          <div class="frow"><div class="t">Modify Attribute</div><div class="k">Attribute</div><div class="v">f09c8c3c-&hellip;</div><div class="k">Operation</div><div class="v">Increase to</div><div class="k">Value</div><div class="v">Intuition Potency Resistance</div></div>
+          <div class="frow"><div class="t">Modify Attribute</div><div class="k">Attribute</div><div class="v">39e08262-&hellip;</div><div class="k">Operation</div><div class="v">Increase to</div><div class="k">Value</div><div class="v">Intuition Potency Resistance</div></div>
+          <div class="frow"><div class="t">Modify Attribute &times; 2 more</div><div class="k">Attribute</div><div class="v">e4c0b067-&hellip;, 23e48f75-&hellip;</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="colhead">Simple editor: three sentences</div>
+        <div class="stack">
+          <div class="blk stats"><span class="grip">&#8942;&#8942;</span>Your <u>Stamina</u> <u>increases by</u> <u>21</u><span class="more">&#8943;</span></div>
+          <div class="blk def"><span class="grip">&#8942;&#8942;</span>You can't be made <u>bleeding</u><span class="more">&#8943;</span></div>
+          <div class="saves">message to players: <b>&ldquo;I am the Weapon. I do not bleed.&rdquo;</b> (kept, shown under the sentence)</div>
+          <div class="blk stats"><span class="grip">&#8942;&#8942;</span>You can use <u>Intuition</u> instead of another characteristic when resisting potencies<span class="more">&#8943;</span></div>
+          <div class="saves">saves as <b>4 &times; attribute</b>: Might, Agility, Reason, Presence potency resistance, operation max, value Intuition</div>
+          <p class="note">&ldquo;Increase to&rdquo; is the form's label for <code>max</code>: &ldquo;at least this much&rdquo;. Authors read it as &ldquo;add&rdquo;. The sentence never shows the operation name.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Rolls -->
+  <section class="panel">
+    <div class="eyebrow">3 &middot; Power roll modifiers</div>
+    <h2>One &ldquo;applies&rdquo; phrase instead of three conditions</h2>
+    <p class="lede">A power roll modifier today has a condition for whether it exists, one for whether it is offered on a roll, and an &ldquo;Activation&rdquo; dropdown that really means &ldquo;ticked by default&rdquo;. The sentence asks one question, in words, and previews what the player sees in the roll dialog.</p>
+    <div class="cols twoA">
+      <div class="stack">
+        <div class="blk rolls"><span class="grip">&#8942;&#8942;</span>Your allies have <u>an edge</u> on <u>tests made to aid another creature's test</u><span class="more">&#8943;</span></div>
+        <div class="saves">Paragon, <i>Lead by Example</i>: <b>power</b>, modtype edge, rollType test_power_roll</div>
+        <div class="blk rolls" style="display:grid;gap:8px">
+          <div><span class="grip">&#8942;&#8942;</span> This roll change <span class="seg"><span>always applies</span><span class="on">you choose when you roll</span><span>applies when&hellip;</span><span>you choose after the roll</span></span></div>
+          <div>offered <u>only on Weapon abilities</u>; ticked <u>when the target is adjacent to an ally</u></div>
+        </div>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Author picks</th><th>Saved as</th><th class="num">In content</th></tr></thead>
+            <tbody>
+              <tr><td>always applies</td><td><code>activationCondition: true</code></td><td class="num">528</td></tr>
+              <tr><td>you choose when you roll</td><td><code>activationCondition: false</code></td><td class="num">317</td></tr>
+              <tr><td>applies when &hellip; (or ticked when &hellip;)</td><td><code>activationCondition: formula</code></td><td class="num">~350</td></tr>
+              <tr><td>you choose after the roll</td><td><code>activationAfterRoll</code></td><td class="num"></td></tr>
+              <tr><td>offered only on &hellip;</td><td><code>displayCondition</code></td><td class="num">361</td></tr>
+              <tr><td>an outer &ldquo;Only if&rdquo;</td><td><code>filterCondition</code></td><td class="num">123</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="colhead">Preview: the roll dialog</div>
+        <div class="dialog">
+          <div class="title">Power Roll + Might &middot; Melee Free Strike</div>
+          <div class="opt"><div class="box on">&#10003;</div><div><div class="n">Enchantment of Battle</div><div class="d">+1 damage with weapon abilities, including free strikes.</div></div></div>
+          <div class="opt"><div class="box"></div><div><div class="n">Pain for Pain</div><div class="d">Mountain kit: extra damage equal to your Might or Agility.</div></div></div>
+          <p class="note">The option's text is the sentence, unless the author wrote one. Today it is the modifier's description, which most class modifiers fill with the whole feature text.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Stats in the book's words -->
+  <section class="panel">
+    <div class="eyebrow">4 &middot; Stats, in the book's words</div>
+    <h2>Modify Attribute is five ideas; each gets its own sentence</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Sentence</th><th>Saved as</th><th class="num">Uses</th></tr></thead>
+        <tbody>
+          <tr><td>Your <b>speed</b> increases by <b>2</b></td><td><code>attribute speed, add 2</code></td><td class="num">276 movement</td></tr>
+          <tr><td>Your <b>Agility</b> score increases to <b>3</b></td><td><code>attribute agl, max 3</code> (one storage instead of five)</td><td class="num">222</td></tr>
+          <tr><td>Your <b>stability</b> is <b>2</b> / can't exceed <b>2</b></td><td><code>set</code> / <code>min</code></td><td class="num">104</td></tr>
+          <tr><td>You <b>ignore difficult terrain</b></td><td><code>custom attribute flag = 1</code></td><td class="num">667 of 1,060</td></tr>
+          <tr><td>You can <b>fly</b> at your speed</td><td><code>attribute movement</code></td><td class="num">(movement)</td></tr>
+          <tr><td>Your <b>size</b> is <b>2</b></td><td><code>attribute size, set</code></td><td class="num">63</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">A new Modify Attribute today starts on <code>armorClass</code>, a stat from the old 5e rules; the sentence starts empty and asks what changes.</p>
+  </section>
+
+  <!-- 5. Routing and safety -->
+  <section class="panel">
+    <div class="eyebrow">5 &middot; One feature, every kind of modifier</div>
+    <h2>Abilities and triggers open the editors you already have</h2>
+    <p class="lede">A feature's list mixes everything. Four modifier types, 39% of all modifiers, are really abilities or triggers; they open in the simple ability or trigger editor. Types with no sentence yet stay as Advanced blocks and save untouched.</p>
+    <div class="route">
+      <div class="r"><b>You have the following ability</b><span><span class="arrow">&rarr;</span> opens the ability editor &middot; 1,052</span></div>
+      <div class="r"><b>When &hellip; (trigger or power roll trigger)</b><span><span class="arrow">&rarr;</span> opens the trigger editor &middot; 1,727</span></div>
+      <div class="r"><b>Triggered ability card</b><span><span class="arrow">&rarr;</span> becomes the trigger's own card &middot; 354</span></div>
+      <div class="r"><b>Advanced</b><span>29 types, 241 uses: name, a summary, and the existing form behind &ldquo;Settings&rdquo;</span></div>
+    </div>
+    <div class="stack" style="max-width:720px">
+      <div class="blk abil"><span class="grip">&#8942;&#8942;</span>You have the following ability: <u>Hesitation Is Weakness</u> <span class="tag">opens the ability editor</span></div>
+      <div class="blk logic"><div class="top"><span class="grip">&#8942;&#8942;</span>Only if <u>you are level 4 or higher</u></div>
+        <div class="inner"><div class="blk def">You have <u>fire</u> immunity <u>5</u></div></div></div>
+      <div class="blk adv"><span class="tag">Advanced</span> Modify Summoner: Summoner, 4th-Level Minion Improvement <span class="more">Settings</span></div>
+      <p class="note">Opening is safe: anything the author doesn't change saves back exactly as it was, as with abilities (tested on 1,253 abilities and triggers so far). Settings no sentence shows are listed under it as &ldquo;kept as saved&rdquo;.</p>
+    </div>
+  </section>
+</div>

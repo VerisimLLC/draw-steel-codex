@@ -25,7 +25,8 @@
   --c-effect: #2b6f86;
   --c-move: #3c5fa8;
   --c-res: #9a6d1c;
-  --c-rollchg: #b0457a;
+  --c-rollchg: #d0679e;
+  --c-pot: #2c7391;
   --c-num: #3c8656;
   --c-test: #2c7391;
   --c-raw: #5b564e;
@@ -78,8 +79,48 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .pal-step .handle { width: 14px; }
 /* Dimmed: clicking cannot add it to the selected list, but it can still be dragged to a list that allows it. */
 .pal-step[aria-disabled="true"] { opacity: .45; filter: grayscale(.6); }
-.stack.active-list { outline: 1px dashed color-mix(in srgb, var(--gold) 70%, transparent); outline-offset: 3px; border-radius: 4px; }
-.stack.active-list > .addrow .add-btn { border-color: var(--gold); color: var(--gold); }
+/* Insertion points: a thin "+" between steps (shown on hover or focus) and a visible one at each
+   list end. The gold one ("here") is where the next block goes, by click or by palette. */
+.ins { display: block; width: 100%; background: none; border: none; padding: 0; cursor: pointer; color: var(--dim); position: relative; }
+.ins:not(.end) { height: 7px; margin: -2px 0; z-index: 2; }
+.ins:not(.end)::before { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: transparent; }
+.ins:not(.end):hover::before, .ins:not(.end):focus-visible::before { background: var(--gold); height: 2px; }
+.ins .ins-plus { position: absolute; left: -9px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); color: #1b1712; font: 700 13px/18px var(--font-ui); text-align: center; opacity: 0; }
+.ins:not(.end):hover .ins-plus, .ins:not(.end):focus-visible .ins-plus { opacity: 1; }
+.ins.end { text-align: left; border: 1px dashed var(--line); border-radius: 4px; padding: 5px 10px; margin-top: 3px; font-size: 12px; width: auto; }
+.inner .ins.end { border-color: rgba(255,255,255,.25); }
+.ins.end:hover { border-color: var(--gold); color: var(--gold); }
+.ins.here.end { border-style: solid; border-color: var(--gold); color: var(--gold); }
+.ins.here:not(.end) { height: auto; margin: 3px 0; text-align: left; font-size: 11px; color: var(--gold); padding-left: 12px; }
+.ins.here:not(.end)::before { background: var(--gold); height: 2px; top: -2px; }
+.ins .here-tag { font-size: 11px; margin-left: 8px; opacity: .9; }
+/* Read mode: finished steps read as sentences; underlined words open that step for editing. */
+.tok { border-bottom: 1px dotted rgba(255,255,255,.75); padding: 0 1px; cursor: pointer; font-weight: 600; }
+.tok:hover, .tok:focus-visible { background: rgba(255,255,255,.16); border-bottom-style: solid; outline: none; }
+.tok.bad { border-bottom: 2px solid var(--err); }
+.tok.quiet { font-weight: 400; opacity: .55; }
+.reading { gap: 4px !important; }
+.step.editing > .bar, .step.editing.cat-head > .bar { box-shadow: 0 0 0 2px var(--gold); position: relative; z-index: 1; }
+.edit-done { margin-left: 6px; background: rgba(255,255,255,.92); color: #1b1712; border: none; border-radius: 4px; height: 22px; padding: 0 8px; cursor: pointer; font-size: 12px; }
+/* Power roll as a tier table, the same three rows as the card. */
+.tiers { margin-left: 16px; border-left: 1px solid rgba(0,0,0,.35); }
+.tierrow { display: grid; grid-template-columns: 58px minmax(0, 1fr); background: color-mix(in srgb, var(--c) 12%, var(--bg)); border-bottom: 1px solid rgba(255,255,255,.06); }
+.tlabel { background: color-mix(in srgb, var(--c) 70%, #000); color: #fff; font-weight: 700; font-size: 12px; padding: 9px 6px; font-variant-numeric: tabular-nums; }
+.tcell { padding: 4px 6px; min-width: 0; }
+.starters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.starters .q { color: var(--dim); font-size: 12px; }
+.starter { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
+.starter:hover { border-color: var(--gold); color: var(--gold); }
+.typeahead { min-width: 280px; }
+.typeahead input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; }
+.typeahead .opt.hl { background: var(--panel); outline: 1px solid var(--gold); }
+.toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--gold); color: var(--fg); padding: 8px 12px; border-radius: 6px; display: flex; gap: 12px; align-items: center; z-index: 90; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: calc(100vw - 32px); font-size: 12.5px; }
+.toast button { background: none; border: 1px solid var(--gold); color: var(--gold); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.shelf-toggle { display: none; }
+@media (max-width: 860px) {
+  .shelf-toggle { display: inline-block; }
+  .palette.collapsed .pgroup { display: none; }
+}
 .main { padding: 16px; min-width: 0; overflow-x: auto; }
 .side { border-left: 1px solid var(--line); padding: 16px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 
@@ -108,6 +149,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-move { --c: var(--c-move); }
 .cat-res { --c: var(--c-res); }
 .cat-rollchg { --c: var(--c-rollchg); }
+.cat-pot { --c: var(--c-pot); }
 .timing { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.35); }
 .timing::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c-rollchg); }
 .timing.after::before { background: #fff; }
@@ -250,6 +292,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
       <button aria-pressed="false" type="button" title="The existing full editor (not part of this prototype)">Full editor</button>
     </div>
     <span class="spacer"></span>
+    <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
     <label class="toggle"><input type="checkbox" id="showGs"> Show GoblinScript</label>
     <label for="exSel" class="note">Open</label>
     <select id="exSel" class="btn">
@@ -267,8 +310,8 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
     </select>
   </div>
   <div class="dlg-body">
-    <div class="palette" id="palette" aria-label="Steps"></div>
     <div class="main" id="main"></div>
+    <div class="palette collapsed" id="palette" aria-label="Block shelf"></div>
     <div class="side" id="side"></div>
   </div>
 </div>
@@ -286,13 +329,14 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
    _numTargetsDocs, _targetFilterDocs, _abilityFilterDocs...). The picker is
    generated from them, so each slot only offers what is valid there.
    ===================================================================== */
-const NUM_FIELDS = ["Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Stamina","Maximum Stamina","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
+const NUM_FIELDS = ["Level","Might","Agility","Reason","Intuition","Presence","Highest Characteristic","Stamina","Maximum Stamina","Recovery Value","Recoveries Available to Spend","Heroic Resources Available to Spend","Walking Speed","Size","Reach","Moved This Turn","Combat Round"];
 // Friendlier wording for stats on the card; the dropdowns keep the real GoblinScript names.
 const FIELD_PROSE = { "Heroic Resources Available to Spend": "Heroic Resource", "Recoveries Available to Spend": "Recoveries", "Combat Round": "round number", "Maximum Stamina": "maximum Stamina" };
 const BOOL_FIELDS = { "Minion": "a minion", "Hero": "a hero", "Flanked": "flanked", "Dying": "dying", "Concealed": "concealed", "Your Turn": "taking their turn" };
 const TABLES = (() => { try { return JSON.parse(document.getElementById("compendiumTables").textContent); } catch (e) { return { conditions: [], effects: [], resources: [] }; } })();
 // The nine core Draw Steel conditions first, then the rest of the compendium's conditions.
-const CORE_CONDITIONS = ["Bleeding","Dazed","Frightened","Grabbed","Prone","Restrained","Slowed","Taunted","Weakened"];
+// Most-used first, so the common ones are visible without "Show more".
+const CORE_CONDITIONS = ["Prone","Slowed","Dazed","Restrained","Weakened","Frightened","Grabbed","Bleeding","Taunted"];
 const CONDITIONS = CORE_CONDITIONS.concat(TABLES.conditions.map(r => r[1]).filter(n => !CORE_CONDITIONS.includes(n)));
 const EFFECTS = TABLES.effects;            // [id, name], 1,000+ entries: searched, never a plain dropdown
 const RESOURCE_TABLE = TABLES.resources;   // [id, name]
@@ -379,6 +423,8 @@ function rescope(o, scope, top) {
 const ACTIONS = ["Main action","Maneuver","Triggered action","Free triggered action","Free maneuver","No action"];
 const TARGET_COUNTS = ["creature","creatures","ally","allies","enemy","enemies","self","each enemy in the area","each creature in the area"];
 const DISTANCES = ["Melee","Ranged","Melee or ranged","Burst","Cube","Line","Self"];
+// Characteristics by their card letters, used wherever potency is shown (M < average).
+const POT_CHARS = [["Might", "M"], ["Agility", "A"], ["Reason", "R"], ["Intuition", "I"], ["Presence", "P"]];
 const CHARS = ["Might","Agility","Reason","Intuition","Presence"];
 const DMG_TYPES = ["untyped","fire","cold","acid","poison","holy","corruption","psychic","lightning","sonic"];
 const DURATIONS = ["save ends","EoT"];
@@ -407,7 +453,7 @@ const STEPS = {
     make: () => S("condition", { cond: "Slowed", dur: "save ends" }) },
   forced: { label: "Forced movement", cat: "hinder", ctx: ["main", "tier"], desc: "Push, pull or slide the target.",
     make: () => S("forced", { kind: "push", n: "2" }) },
-  potency: { label: "If potency fails", cat: "ctrl", ctx: ["tier"], desc: "Steps inside only apply if the target's characteristic is below a potency.",
+  potency: { label: "Potency (M < average)", cat: "pot", ctx: ["tier"], desc: "Results inside only apply if the target's characteristic is below the potency, as in M < AVERAGE on a card.",
     make: () => S("potency", { ch: "Might", tier: "average" }, {}, { then: [] }) },
   heal: { label: "Heal", cat: "help", ctx: ["main"], desc: "The target regains Stamina.",
     make: () => S("heal", {}, { amount: H("roll", "heal", "5") }) },
@@ -772,9 +818,12 @@ function cX(x, h) {
         : (r.prefix || (r.label === "Target" ? "Target." : "")) + 'PassesPotency("' + L + '", ' + arg + ")";
       const whose = r.label === "You" ? "your " : r.poss + " ";
       const tag = f.pv === "tier" || f.pv === "formula" ? "" : " (" + L + "<" + gate + ")";
+      // Short form for read mode: the card's own shorthand.
+      const gateShort = f.pv === "tier" ? "tier potency" : f.pv === "formula" ? gateProse : f.pv === "number" ? arg : f.pv;
+      const short = (r.label === "Target" ? "" : (r.label === "You" ? "you: " : r.prose + ": ")) + L + (f.mode === "affected" ? " < " : " \u2265 ") + gateShort + (f.roll === "no" ? " (excl. roll modifiers)" : "");
       return f.mode === "affected"
-        ? { s: "not " + call, p: 7, prose: whose + f.ch + " is below " + gateProse + tag }
-        : { s: call, p: 10, prose: whose + f.ch + " is at least " + gateProse };
+        ? { s: "not " + call, p: 7, prose: whose + f.ch + " is below " + gateProse + tag, short }
+        : { s: call, p: 10, prose: whose + f.ch + " is at least " + gateProse, short };
     }
     case "winded": { const r = role(); return { s: r.prefix + "Stamina <= " + r.prefix + "MaximumStamina / 2", p: 5, prose: r.prose + (r.prose === "you" ? " are" : " is") + " winded" }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
@@ -1025,13 +1074,12 @@ function renderX(x, h) {
     case "not": add(lbl("not")); add(renderHolder(x.kids.a)); break;
     case "potencyTest": {
       add(sel(f, "role", roles, null, "creature"));
-      add(sel(f, "mode", [["affected", f.role === "You" ? "are affected:" : "is affected:"], ["resists", f.role === "You" ? "resist:" : "resists:"]], null, "affected or resists"));
-      add(sel(f, "ch", CHARS, null, "characteristic"));
-      add(lbl(f.mode === "affected" ? "below" : "at least"));
+      add(sel(f, "ch", POT_CHARS, null, "characteristic"));
+      add(sel(f, "mode", [["affected", "<"], ["resists", "\u2265"]], null, "below (effect lands) or at least (resists)"));
       add(sel(f, "pv", [["weak", "your weak potency"], ["average", "your average potency"], ["strong", "your strong potency"], ["tier", "potency for the tier rolled"], ["number", "a number"], ["formula", "a formula"]], () => { if (f.pv === "formula" && !x.kids.v) x.kids.v = H("number", h.docs, "2"); refresh(); }, "potency"));
       if (f.pv === "number") add(inp(f, "n", "num", "potency number"));
       if (f.pv === "formula" && x.kids.v) add(renderHolder(x.kids.v));
-      add(sel(f, "roll", [["yes", "including power roll modifiers"], ["no", "excluding power roll modifiers"]], null, "power roll modifiers"));
+      add(sel(f, "roll", [["yes", "incl. power roll modifiers"], ["no", "excl. power roll modifiers"]], null, "power roll modifiers"));
       break;
     }
     case "winded": add(sel(f, "role", roles, null, "creature")); add(lbl(verb() + " winded")); break;
@@ -1116,13 +1164,13 @@ function renderStep(st, list, ctx, scope) {
   switch (st.type) {
     case "powerRoll": add(lbl("Power roll 2d10 +")); add(sel(f, "char", CHARS, null, "characteristic")); break;
     case "damage": add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage")); gsHolder = st.slots.amount; break;
-    case "condition": add(lbl("Target is")); add(sel(f, "cond", CONDITIONS, null, "condition")); add(sel(f, "dur", DURATIONS, null, "duration")); break;
+    case "condition": add(lbl("Make the target")); add(sel(f, "cond", CONDITIONS, null, "condition")); add(sel(f, "dur", DURATIONS, null, "duration")); break;
     case "forced": add(sel(f, "kind", FORCED, null, "movement")); add(lbl("the target")); add(inp(f, "n", "num", "squares")); break;
-    case "potency": add(lbl("If the target's")); add(sel(f, "ch", CHARS, null, "characteristic")); add(lbl("is below")); add(sel(f, "tier", POT, null, "potency")); break;
+    case "potency": add(lbl("If")); add(sel(f, "ch", POT_CHARS, null, "characteristic")); add(lbl("<")); add(sel(f, "tier", POT, null, "potency")); add(lbl("potency:")); break;
     case "heal": add(lbl("Target regains")); add(renderHolder(st.slots.amount)); add(lbl("Stamina")); gsHolder = st.slots.amount; break;
     case "applyEffect": {
       if (ctx !== "tier") add(sel(f, "who", WHO_OPTS, null, "who"));
-      add(lbl(ctx === "tier" ? "Target gets" : f.who === "caster" ? "get" : "gets"));
+      add(lbl(ctx === "tier" ? "Give the target" : f.who === "caster" ? "get" : "gets"));
       add(effectInput(f));
       add(sel(f, "dur", ctx === "tier" ? [["save_ends", "save ends"], ["eot", "EoT"]] : EFFECT_DURATIONS, null, "duration"));
       break;
@@ -1150,14 +1198,20 @@ function renderStep(st, list, ctx, scope) {
   mb.addEventListener("click", ev => { ev.stopPropagation(); stepMenu(st, list, ctx, mb, scope); });
   add(mb);
   if (problems.some(p => p.id === st.id)) { bar.style.boxShadow = "inset 0 0 0 2px var(--err)"; bar.title = problems.filter(p => p.id === st.id).map(p => p.msg).join("\n"); }
+  // Word numbering continues into the follow-up's rows, so a click focuses the right control.
+  let wordBase = 0;
+  if (editingId === st.id) { e.classList.add("editing"); bar.insertBefore(doneBtn(), mb); } else wordBase = readify(bar, st.id);
   e.appendChild(bar);
   if (gsHolder) { const g = gsLine(gsHolder); g.style.paddingLeft = "26px"; e.appendChild(g); }
   if (st.type === "powerRoll") {
-    [["t1", "11 or lower"], ["t2", "12 - 16"], ["t3", "17 +"]].forEach(([k, t], i) => {
-      const mid = E("div", "mid"); mid.appendChild(E("span", null, ["Tier 1", "Tier 2", "Tier 3"][i])); mid.appendChild(E("span", "range", t)); e.appendChild(mid);
-      e.appendChild(mouth(st.branches[k], "tier", scope));
+    const tbl = E("div", "tiers");
+    [["t1", "\u226411"], ["t2", "12\u201316"], ["t3", "17+"]].forEach(([k, t], i) => {
+      listLabels[listId(st.branches[k])] = "tier " + (i + 1) + " (" + t + ")";
+      const row = E("div", "tierrow"); row.appendChild(E("div", "tlabel", t));
+      const cell = E("div", "tcell"); cell.appendChild(renderList(st.branches[k], "tier", scope)); row.appendChild(cell);
+      tbl.appendChild(row);
     });
-    e.appendChild(E("div", "foot"));
+    e.appendChild(tbl);
   } else if (st.type === "useNew") {
     e.appendChild(plumbingLine(st));
     const m = E("div", "mouth"); m.appendChild(E("div", "spine"));
@@ -1167,11 +1221,14 @@ function renderStep(st, list, ctx, scope) {
     tg.appendChild(sel(st.f, "targeting", [["inherit", "the same targets"], ["self", "you"], ["prompt", "new targets:"]], null, "follow-up targets"));
     if (st.f.targeting === "prompt") { tg.appendChild(renderHolder(st.slots.num)); tg.appendChild(sel(st.f, "count", TARGET_COUNTS, null, "target type")); tg.appendChild(lbl("within")); tg.appendChild(renderHolder(st.slots.range)); }
     inner.appendChild(tg);
-    if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures where")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ add a test (optional)" })); inner.appendChild(tf); }
+    if (editingId !== st.id) wordBase = readify(tg, st.id, wordBase);
+    if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures where")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ add a test (optional)" })); inner.appendChild(tf); if (editingId !== st.id) readify(tf, st.id, wordBase); }
+    listLabels[listId(st.branches.steps)] = "inside \u201c" + st.f.name + "\u201d";
     inner.appendChild(renderList(st.branches.steps, "main", st));
     m.appendChild(inner); e.appendChild(m);
     e.appendChild(E("div", "foot"));
   } else if (st.type === "potency" || st.type === "ifStep") {
+    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : "inside \u201cOnly if\u201d";
     e.appendChild(mouth(st.branches.then, ctx, scope));
     e.appendChild(E("div", "foot"));
   }
@@ -1187,24 +1244,160 @@ function mouth(list, ctx, scope) {
 const listScopes = {};
 function renderList(list, ctx, scope) {
   const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx; listScopes[s.dataset.list] = scope || null; listCtx[s.dataset.list] = ctx;
-  if (s.dataset.list === (activeListId && listsById[activeListId] ? activeListId : listId(ab.steps))) s.classList.add("active-list");
-  list.forEach(st => s.appendChild(renderStep(st, list, ctx, scope)));
-  const row = E("div", "addrow");
-  const b = E("button", "add-btn", ctx === "tier" ? "+ add result" : "+ add step"); b.type = "button";
-  b.addEventListener("click", ev => { ev.stopPropagation(); addMenu(list, ctx, b, scope); });
-  row.appendChild(b); s.appendChild(row);
+  list.forEach((st, i) => { s.appendChild(inserter(list, ctx, scope, i, false)); s.appendChild(renderStep(st, list, ctx, scope)); });
+  s.appendChild(inserter(list, ctx, scope, list.length, true));
   return s;
+}
+/* Where the next block goes: the last "+" used, or the inside of the wrapper just added, or the end
+   of What happens. Shown in gold, and named in the block shelf. */
+let insertAt = null;
+const listLabels = {};
+function currentInsert() {
+  if (insertAt && listsById[insertAt.id]) return { id: insertAt.id, idx: Math.min(insertAt.idx, listsById[insertAt.id].length) };
+  return { id: listId(ab.steps), idx: ab.steps.length };
+}
+function inserter(list, ctx, scope, idx, end) {
+  const id = listId(list), cur = currentInsert(), here = cur.id === id && cur.idx === idx;
+  const word = ctx === "tier" ? "+ add result" : "+ add step";
+  const b = E("button", "ins" + (end ? " end add-btn" : "") + (here ? " here" : "")); b.type = "button"; b.dataset.ins = id + ":" + idx;
+  if (end) { b.textContent = word; if (here) b.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
+  else { b.appendChild(E("span", "ins-plus", "+")); if (here) b.appendChild(E("span", null, "next block goes here")); b.setAttribute("aria-label", "Insert a step here"); }
+  b.addEventListener("click", ev => { ev.stopPropagation(); insertAt = { id, idx }; markInsertion(); openInserter(b, list, ctx, scope, idx); });
+  return b;
+}
+function markInsertion() {
+  const cur = currentInsert();
+  main.querySelectorAll(".ins.here").forEach(x => { x.classList.remove("here"); x.querySelectorAll(".here-tag").forEach(t => t.remove()); });
+  const el = main.querySelector('[data-ins="' + cur.id + ":" + cur.idx + '"]');
+  if (el) { el.classList.add("here"); if (el.classList.contains("end")) el.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
+  renderPalette();
+}
+/* Type-ahead list of the steps allowed at this point: type a few letters, Enter adds the first match. */
+function openInserter(anchor, list, ctx, scope, idx) {
+  closePopups();
+  const m = E("div", "menu typeahead"); m.addEventListener("click", ev => ev.stopPropagation());
+  const q = E("input"); q.placeholder = "Add a step: type to search"; q.setAttribute("aria-label", "Search steps"); m.appendChild(q);
+  const box = E("div"); m.appendChild(box);
+  let hl = 0, shown = [];
+  const draw = () => {
+    box.innerHTML = ""; const t = norm(q.value);
+    shown = [];
+    for (const [cat, title, types] of PALETTE) for (const k of types) {
+      if (!allowed(k, ctx, scope) || STEPS[k].hidden) continue;
+      if (t && !norm(STEPS[k].label + " " + STEPS[k].desc + " " + title).includes(t)) continue;
+      shown.push([k, cat, title]);
+    }
+    if (!shown.length) box.appendChild(E("div", "md", "No step matches. Steps that cannot go here are left out."));
+    hl = Math.min(hl, Math.max(0, shown.length - 1));
+    shown.forEach(([k, cat, title], i) => {
+      const b = E("button", "opt" + (i === hl ? " hl" : "")); b.type = "button";
+      const sw = E("span", "sw"); sw.style.background = "var(--c-" + cat + ")"; b.appendChild(sw);
+      const tx = E("span"); tx.appendChild(E("div", null, STEPS[k].label)); tx.appendChild(E("div", "md", title + ": " + STEPS[k].desc)); b.appendChild(tx);
+      b.addEventListener("click", () => addStepTo(k, { list, ctx, scope }, idx));
+      box.appendChild(b);
+    });
+  };
+  q.addEventListener("input", () => { hl = 0; draw(); });
+  q.addEventListener("keydown", ev => {
+    if (ev.key === "ArrowDown") { hl = Math.min(hl + 1, shown.length - 1); draw(); ev.preventDefault(); }
+    else if (ev.key === "ArrowUp") { hl = Math.max(hl - 1, 0); draw(); ev.preventDefault(); }
+    else if (ev.key === "Enter" && shown[hl]) { ev.preventDefault(); addStepTo(shown[hl][0], { list, ctx, scope }, idx); }
+  });
+  draw(); place(m, anchor); q.focus();
 }
 const listIds = new WeakMap(); let listSeq = 1; const listsById = {};
 function listId(list) { if (!listIds.has(list)) { const id = "L" + listSeq++; listIds.set(list, id); } const id = listIds.get(list); listsById[id] = list; return id; }
 
 function section(title, hint) { const t = E("div", "section-title", title); if (hint) t.appendChild(E("span", "hint", hint)); return t; }
-function headBlock(rows) {
+// key: a read-mode id for this header block (null = always editable).
+function headBlock(rows, key) {
   const e = E("div", "step cat-head");
+  if (key) e.dataset.editKey = key;
   rows.forEach((r, i) => { const bar = E("div", "bar"); bar.style.paddingLeft = "10px"; if (i) { bar.style.borderTop = "none"; bar.style.borderRadius = i === rows.length - 1 ? "0 0 4px 4px" : "0"; } else if (rows.length > 1) bar.style.borderRadius = "4px 4px 0 0";
     r.forEach(n => bar.appendChild(n)); e.appendChild(bar); });
+  if (key) {
+    if (editingId === key) { e.classList.add("editing"); e.querySelector(".bar").appendChild(doneBtn()); }
+    else { let base = 0; e.querySelectorAll(":scope > .bar").forEach(b => { base = readify(b, key, base); }); }
+  }
   return e;
 }
+/* Read mode. Every control that is a direct child of a row becomes an underlined word showing its
+   current value. Clicking a word opens that step or block for editing with the same control focused.
+   Empty tests stay as buttons, because clicking them should open the picker straight away. */
+let editingId = null, focusReq = null, holderCache = null;
+const CTRL = "select.f, input.f, .holder";
+function tokenText(ch) {
+  if (ch.matches("select")) return ch.options[ch.selectedIndex] ? ch.options[ch.selectedIndex].text : "";
+  if (ch.matches("input")) return ch.value || ch.placeholder || "\u2026";
+  const h = (holderCache || (holderCache = allHolders()))[ch.dataset.holder];
+  if (!h) return "\u2026";
+  const r = cHolder(h);
+  if (r.empty) return "choose";
+  const m = (r.s || "").match(/^(\d+) \+ (Might|Agility|Reason|Intuition|Presence)$/);
+  return m ? m[1] + " + " + m[2][0] : (r.short || r.prose || r.s);   // "3 + M", as on the card
+}
+// Values that mean "nothing special" read faintly so the sentence stays about what matters.
+const QUIET_VALUES = new Set(["untyped", "no cost"]);
+function readify(container, key, base) {
+  let n = base || 0;
+  [...container.children].forEach(ch => {
+    if (!ch.matches(CTRL)) return;
+    const i = n++;
+    if (ch.classList.contains("holder") && ch.querySelector(":scope > .empty-test")) return;
+    const tok = E("span", "tok", tokenText(ch)); tok.tabIndex = 0; tok.setAttribute("role", "button");
+    if (ch.matches("select") && QUIET_VALUES.has(ch.value)) tok.classList.add("quiet");
+    tok.setAttribute("aria-label", "Edit " + (ch.getAttribute("aria-label") || "value") + ": " + tok.textContent);
+    if (ch.classList.contains("holder")) { const hid = ch.dataset.holder; if (problems.some(p => p.id === hid) || ch.querySelector(".flag")) tok.classList.add("bad"); }
+    const go = ev => { ev.stopPropagation(); editingId = key; focusReq = { key, index: i }; refresh(); };
+    tok.addEventListener("click", go);
+    tok.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(ev); } });
+    ch.replaceWith(tok);
+  });
+  container.classList.add("reading");
+  return n;
+}
+function doneBtn() {
+  const b = E("button", "edit-done", "Done"); b.type = "button"; b.title = "Back to reading view (Enter or Esc)";
+  b.addEventListener("click", ev => { ev.stopPropagation(); editingId = null; refresh(); });
+  return b;
+}
+function applyFocus() {
+  const req = focusReq; focusReq = null;
+  if (!req) return;
+  const root = main.querySelector('[data-step="' + req.key + '"]') || main.querySelector('[data-edit-key="' + req.key + '"]');
+  if (!root) return;
+  const ctrls = [];
+  root.querySelectorAll(":scope > .bar, :scope > .mouth > .inner > .nest-row").forEach(b => [...b.children].forEach(c => { if (c.matches(CTRL)) ctrls.push(c); }));
+  let c = req.first ? ctrls.find(x => !(req.skipTests && x.querySelector(".empty-test"))) : ctrls[req.index];
+  if (!c) return;
+  if (c.classList.contains("holder")) {
+    const et = c.querySelector(":scope > .empty-test"); if (et) { et.click(); return; }
+    c = c.querySelector("input, select") || c;
+  }
+  c.focus();
+  if (c.matches("input")) c.select();
+  if (c.matches("select") && !req.first) { try { c.showPicker(); } catch (e) {} }
+}
+// Leaving edit mode: click outside the open step, press Esc, or press Enter in a text box.
+let exitFrom = null;
+document.addEventListener("pointerdown", ev => {
+  if (!editingId) return;
+  const open = main.querySelector('[data-step="' + editingId + '"]') || main.querySelector('[data-edit-key="' + editingId + '"]');
+  if ((open && open.contains(ev.target)) || ev.target.closest(".picker, .menu, .toast, #dragGhost")) return;
+  exitFrom = editingId;
+}, true);
+document.addEventListener("pointerup", () => {
+  if (exitFrom === null) return;
+  const from = exitFrom; exitFrom = null;
+  setTimeout(() => { if (editingId === from && !popup) { editingId = null; refresh(); } }, 0);
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && !popup && editingId) { editingId = null; refresh(); }
+  if (ev.key === "Enter" && editingId && ev.target.matches("input.f") && !ev.target.closest(".picker, .menu")) {
+    ev.preventDefault(); ev.target.blur(); editingId = null; refresh();
+  }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z" && !ev.target.matches("input, textarea")) { ev.preventDefault(); undo(); }
+});
 
 function kindBar() {
   const bar = E("div", "kindbar");
@@ -1212,7 +1405,7 @@ function kindBar() {
   const seg = E("div", "seg"); seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Kind of ability");
   [["ability", "an ability"], ["triggered", "a triggered ability"]].forEach(([k, t]) => {
     const b = E("button", null, t); b.type = "button"; b.setAttribute("aria-pressed", String(ab.kind === k));
-    b.addEventListener("click", () => { if (ab.kind !== k) { ab.kind = k; activeListId = null; refresh(); } });
+    b.addEventListener("click", () => { if (ab.kind !== k) { ab.kind = k; insertAt = null; editingId = null; compiledCache = null; refresh(); } });
     seg.appendChild(b);
   });
   bar.appendChild(seg);
@@ -1223,7 +1416,7 @@ function renderTriggeredHeader() {
   main.appendChild(section("What is it"));
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
   main.appendChild(headBlock([[nm, lbl("is a"), sel(t, "action", TRIG_ACTIONS, null, "action")],
-    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()]]));
+    [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()]], "hdr-what"));
   main.appendChild(section("What sets it off"));
   const during = compiledCache && compiledCache.storage === "prt";
   const chip = E("span", "timing" + (during ? "" : " after"), during ? "Happens during the roll" : "Happens after the event");
@@ -1231,15 +1424,15 @@ function renderTriggeredHeader() {
   const row = [lbl("When"), sel(t, "who", Object.entries(TRIG_WHO).map(([k, v]) => [k, v.label]), null, "who")];
   if (t.who !== "self") { row.push(lbl("within")); row.push(renderHolder(t.range)); row.push(lbl("squares")); }
   row.push(sel(t, "event", EVENT_OPTS, null, "event"));
-  const b = headBlock([row, [chip]]);
+  const b = headBlock([row, [chip]], "hdr-trig");
   main.appendChild(b);
-  const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ add a test (optional)" })]]);
+  const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ add a test (optional)" })]], "hdr-cond");
   c.style.marginTop = "3px"; c.appendChild(gsLine(ab.trigCond)); main.appendChild(c);
   main.appendChild(section("Who its steps affect"));
   // "The attacker" only exists for events with one (TriggeredAbility targetType "attacker").
   const hasAttacker = ["damaged", "struck", "forcemoved"].includes(t.event);
   if (!hasAttacker && t.affects === "attacker") t.affects = "subject";
-  main.appendChild(headBlock([[sel(t, "affects", [["subject", t.who === "self" ? "you (the triggering creature)" : "the triggering creature"], ["self", "you"]].concat(hasAttacker ? [["attacker", "the attacker"]] : []), null, "who its steps affect")]]));
+  main.appendChild(headBlock([[sel(t, "affects", [["subject", t.who === "self" ? "you (the triggering creature)" : "the triggering creature"], ["self", "you"]].concat(hasAttacker ? [["attacker", "the attacker"]] : []), null, "who its steps affect")]], "hdr-aff"));
   if (document.getElementById("showGs").checked && compiledCache) {
     main.appendChild(E("span", "gs-line", "Saved as: " + (compiledCache.storage === "prt" ? "Power Roll Trigger (CharacterModifier \"powertabletrigger\")" : "Triggered Ability (CharacterModifier \"trigger\")")));
   }
@@ -1255,22 +1448,22 @@ function renderMain() {
   const nm = inp(ab, "name", "name", "ability name"); nm.addEventListener("change", refresh);
   main.appendChild(headBlock([[lbl("When"), nm, lbl("is used as a"), sel(ab, "action", ACTIONS, null, "action")],
     [lbl("Keywords"), (() => { const k = inp(ab, "keywords", "name", "keywords"); k.style.minWidth = "200px"; return k; })()],
-    [lbl("Costs"), (() => { const w = E("span"); if (ab.resource !== "no cost") w.appendChild(renderHolder(ab.cost)); return w; })(), sel(ab, "resource", RESOURCES, null, "resource")]]));
+    ab.resource !== "no cost" ? [lbl("Costs"), renderHolder(ab.cost), sel(ab, "resource", RESOURCES, null, "resource")] : [lbl("Costs"), sel(ab, "resource", RESOURCES, null, "resource")]], "hdr-what"));
 
   main.appendChild(section("Who it targets"));
   const t = headBlock([
     [renderHolder(ab.numTargets), sel(ab, "targetCount", TARGET_COUNTS, null, "target type"), lbl("within"), sel(ab, "distance", DISTANCES, null, "distance"), renderHolder(ab.range)],
-  ]);
+  ], "hdr-who");
   t.querySelector(".bar").appendChild(gsWrap([ab.numTargets, ab.range]));
   main.appendChild(t);
-  const tf = headBlock([[lbl("Only affects creatures where"), renderHolder(ab.targetFilter, { placeholder: "+ add a test (optional)" })]]);
+  const tf = headBlock([[lbl("Only affects creatures where"), renderHolder(ab.targetFilter, { placeholder: "+ add a test (optional)" })]], "hdr-tf");
   tf.style.marginTop = "3px"; tf.appendChild(gsLine(ab.targetFilter)); main.appendChild(tf);
 
   main.appendChild(section("Can be used when", ab.requirements.length ? "" : "optional"));
   ab.requirements.forEach((r, i) => {
     const reason = inp(r, "reason", "name", "reason shown to the player"); reason.placeholder = "reason shown to the player";
     const del = E("button", "menu-btn", "×"); del.type = "button"; del.title = "Remove requirement"; del.addEventListener("click", () => { ab.requirements.splice(i, 1); refresh(); });
-    const b = headBlock([[lbl("Only if"), renderHolder(r.h, { required: true, placeholder: "+ choose a test" }), del], [lbl("otherwise say"), reason]]);
+    const b = headBlock([[lbl("Only if"), renderHolder(r.h, { required: true, placeholder: "+ choose a test" }), del], [lbl("otherwise say"), reason]], "hdr-req-" + i);
     b.style.marginTop = i ? "3px" : "0"; b.appendChild(gsLine(r.h)); main.appendChild(b);
   });
   const addReq = E("button", "add-btn", "+ add a requirement"); addReq.type = "button"; addReq.style.marginTop = ab.requirements.length ? "4px" : "0";
@@ -1278,7 +1471,36 @@ function renderMain() {
   main.appendChild(addReq);
 
   main.appendChild(section("What happens"));
+  if (!ab.steps.length) main.appendChild(starters());
   main.appendChild(renderList(ab.steps, "main"));
+}
+/* Starters: one click to the most common shapes, then adjust the numbers. */
+const STARTERS = {
+  ability: [
+    ["Strike", a => { Object.assign(a, { keywords: "Melee, Strike, Weapon", distance: "Melee", targetCount: "creature" }); a.range = H("number", "range", "1"); a.steps.push(powerRollWith(["2 + Might", "5 + Might", "7 + Might"])); }],
+    ["Ranged strike", a => { Object.assign(a, { keywords: "Ranged, Strike, Weapon", distance: "Ranged", targetCount: "creature" }); a.range = H("number", "range", "10"); a.steps.push(powerRollWith(["2 + Agility", "5 + Agility", "7 + Agility"], "Agility")); }],
+    ["Area attack", a => { Object.assign(a, { keywords: "Area, Magic", distance: "Burst", targetCount: "each enemy in the area" }); a.range = H("number", "range", "2"); a.steps.push(powerRollWith(["2", "4", "6"], "Reason")); }],
+    ["Heal an ally", a => { Object.assign(a, { keywords: "Magic", distance: "Ranged", targetCount: "ally", action: "Maneuver" }); a.range = H("number", "range", "5"); const h = STEPS.heal.make(); h.slots.amount = holderFromText("roll", "heal", "Target.Recovery Value"); a.steps.push(h); }],
+  ],
+  triggered: [
+    ["Reduce damage", a => { a.trig = { event: "struck", who: "selfally", range: H("number", "range", "1"), action: "trigger", affects: "self" }; a.steps.push(STEPS.halveDamage.make()); }],
+    ["Strike back", a => { a.trig = { event: "damaged", who: "self", range: H("number", "range", "10"), action: "free", affects: "attacker" }; const d = STEPS.damage.make("main"); d.slots.amount = holderFromText("roll", "damage", "Might"); a.steps.push(d); }],
+    ["Start of turn", a => { a.trig = { event: "startturn", who: "self", range: H("number", "range", "10"), action: "passive", affects: "self" }; a.steps.push(STEPS.endEffects.make()); }],
+  ],
+};
+function powerRollWith(dmg, ch) {
+  const pr = STEPS.powerRoll.make(); if (ch) pr.f.char = ch;
+  dmg.forEach((t, i) => { const d = STEPS.damage.make("tier"); d.slots.amount = holderFromText("roll", "tierDamage", t); pr.branches["t" + (i + 1)].push(d); });
+  return pr;
+}
+function starters() {
+  const w = E("div", "starters"); w.appendChild(E("span", "q", "Start from:"));
+  for (const [name, fill] of STARTERS[ab.kind]) {
+    const b = E("button", "starter", name); b.type = "button";
+    b.addEventListener("click", () => { fill(ab); insertAt = null; editingId = null; refresh(); toast("Started from \u201c" + name + "\u201d. Click any underlined word to change it.", true); });
+    w.appendChild(b);
+  }
+  return w;
 }
 function gsWrap(hs) { const w = E("span", "gs-line"); w.style.flexBasis = "100%"; w.style.padding = "0 0 0 2px"; w.textContent = hs.map(h => docOf(h.docs).title + ": " + cHolder(h).s).join("   "); return w; }
 
@@ -1290,7 +1512,7 @@ function renderSide(c) {
   const seen = new Set(); const pr = problems.filter(q => { const k = q.id + q.msg; if (seen.has(k)) return false; seen.add(k); return true; });
   const st = E("div", "status " + (pr.length ? "bad" : "ok"));
   st.appendChild(E("span", "dot"));
-  st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. Saves as an ordinary ability: the full editor can open it too."));
+  st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. The full editor can open it too."));
   side.appendChild(st);
   const adv = countOpaque(ab.steps);
   notes.forEach(n => { const q = E("p", "note", n); q.style.borderLeft = "3px solid var(--warn)"; q.style.paddingLeft = "8px"; side.appendChild(q); });
@@ -1345,7 +1567,37 @@ function renderSide(c) {
 
 function countOpaque(list) { let n = 0; for (const st of list) { if (st.type === "opaque") n++; for (const k in st.branches || {}) n += countOpaque(st.branches[k]); } return n; }
 let compiledCache = null;
-function refresh() { closePopups(); compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); renderPalette(); saveDraft(); }
+function refresh() {
+  closePopups(); holderCache = null;
+  const before = compiledCache;
+  compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); renderPalette(); saveDraft();
+  applyFocus();
+  // Timing is a rules change, so say so when it flips (with Undo).
+  if (before && compiledCache.triggered && before.triggered && before.storage !== compiledCache.storage && !restoring)
+    toast(compiledCache.storage === "prt" ? "Now happens during the roll: a step changes the roll." : "Now happens after the event: no step changes the roll any more.", true, "timing");
+  snapshot();
+}
+/* Undo: a snapshot of the whole ability after every change. Ctrl+Z or the Undo button. */
+let undoStack = [], lastSnap = null, restoring = false;
+function snapshot() {
+  const j = JSON.stringify(ab);
+  if (lastSnap !== null && j !== lastSnap && !restoring) { undoStack.push(lastSnap); if (undoStack.length > 100) undoStack.shift(); }
+  lastSnap = j;
+}
+function undo() {
+  const j = undoStack.pop(); if (!j) { toast("Nothing to undo."); return; }
+  restoring = true; ab = JSON.parse(j); registerScopes(ab); lastSnap = j; editingId = null; refresh(); restoring = false;
+  toast("Undone.");
+}
+let toastTimer = null;
+function toast(msg, withUndo, kind) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = E("div", "toast"); t.setAttribute("role", "status"); if (kind) t.dataset.kind = kind; t.appendChild(E("span", null, msg));
+  if (withUndo) { const b = E("button", null, "Undo"); b.type = "button"; b.addEventListener("click", () => { t.remove(); undo(); }); t.appendChild(b); }
+  document.body.appendChild(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 6000);
+}
+document.getElementById("undoBtn").addEventListener("click", undo);
 // While typing, only the card updates; the stack re-renders when the field loses focus.
 function refreshSide() { compiledCache = compileAbility(); renderSide(compiledCache); saveDraft(); }
 document.getElementById("showGs").addEventListener("change", refresh);
@@ -1363,6 +1615,8 @@ function place(el, anchor) {
   const w = el.offsetWidth, vw = document.documentElement.clientWidth;
   el.style.left = Math.max(8, Math.min(r.left + window.scrollX, vw - w - 8 + window.scrollX)) + "px";
   el.style.top = (r.bottom + window.scrollY + 6) + "px";
+  const h = el.offsetHeight;
+  if (r.bottom + h + 12 > window.innerHeight && r.top - h - 6 > 0) el.style.top = (r.top + window.scrollY - h - 6) + "px";
   popup = el;
 }
 
@@ -1384,11 +1638,11 @@ function pickerOptions(h) {
     groups.push(["Check a condition", "Prone, slowed, grabbed, and so on.",
       CONDITIONS.map(c => item(Who + " " + is + " " + c.toLowerCase(), "", () => X("hasCond", { role: who, cond: c }), "condition", true))]);
     const pt = (mode, pv, roll) => () => X("potencyTest", { role: who, mode, ch: "Might", pv, n: "2", roll });
-    groups.push(["Check potency", "Like M<STRONG on an ability card: the effect lands if the characteristic is below the potency.", [
-      item(Who + " " + is + " affected: Might below your strong potency", "The effect lands (M<STRONG). Includes power roll modifiers.", pt("affected", "strong", "yes"), "potency m< fails passes", true),
-      item(Who + " " + is + " affected: below the potency for the tier rolled", "Weak on tier 1, average on tier 2, strong on tier 3.", pt("affected", "tier", "yes"), "potency tier", true),
-      item(Who + " " + (is === "are" ? "resist" : "resists") + ": Might at least your strong potency", "The opposite: the target shrugs it off.", pt("resists", "strong", "yes"), "potency passes resist", true),
-      item(Who + " " + is + " affected, excluding power roll modifiers", "Ignores potency changes from the power roll. Use outside power rolls, e.g. in auras.", pt("affected", "average", "no"), "potency aura base", true),
+    groups.push(["Check potency", "As on a card: M < STRONG means the effect lands if the target's Might is below the potency. Change M after.", [
+      item("M < strong", "The effect lands if the target's Might is below your strong potency. Includes power roll modifiers.", pt("affected", "strong", "yes"), "potency might fails passes affected", true),
+      item("M < tier potency", "Weak on tier 1, average on tier 2, strong on tier 3.", pt("affected", "tier", "yes"), "potency tier", true),
+      item("M \u2265 strong", "The opposite: the target resists.", pt("resists", "strong", "yes"), "potency passes resist", true),
+      item("M < average, excl. power roll modifiers", "Ignores potency changes from the power roll. Use outside power rolls, e.g. in auras.", pt("affected", "average", "no"), "potency aura base", true),
     ]]);
     groups.push(["Check health", "Winded, or how much Stamina is left.", [
       item(Who + " " + is + " winded", "Stamina is at half or less.", () => X("winded", { role: who }), "bloodied half hurt stamina", true),
@@ -1568,7 +1822,8 @@ const PALETTE = [
   ["help", "Help", ["heal", "tempStamina", "endEffects"]],
   ["move", "Move", ["move"]],
   ["res", "Resources", ["resource"]],
-  ["roll", "Rolls", ["powerRoll", "potency"]],
+  ["roll", "Rolls", ["powerRoll"]],
+  ["pot", "Potency", ["potency"]],
   ["ctrl", "Logic", ["ifStep", "invoke", "useNew"]],
   ["rollchg", "Change the roll", ["halveDamage", "changeDamage", "rollEdge", "potencyShift", "changeTarget"], "triggered"],
 ];
@@ -1583,13 +1838,17 @@ function allowed(type, ctx, scope) {
 let activeListId = null;
 const listCtx = {};
 function activeList() {
-  const id = activeListId && listsById[activeListId] ? activeListId : listId(ab.steps);
-  return { id, list: listsById[id], ctx: listCtx[id] || "main", scope: listScopes[id] || null };
+  const cur = currentInsert();
+  return { id: cur.id, idx: cur.idx, list: listsById[cur.id], ctx: listCtx[cur.id] || "main", scope: listScopes[cur.id] || null };
 }
 function renderPalette() {
   const pal = document.getElementById("palette"); pal.innerHTML = "";
   const act = activeList();
-  pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it to <b>" + (act.ctx === "tier" ? "the selected tier" : act.scope ? "\u201c" + esc(act.scope.f.name) + "\u201d" : "What happens") + "</b>." }));
+  const where = listLabels[act.id] || "What happens";
+  const tg = E("button", "btn shelf-toggle", pal.classList.contains("collapsed") ? "Show block shelf" : "Hide block shelf"); tg.type = "button";
+  tg.addEventListener("click", () => { pal.classList.toggle("collapsed"); renderPalette(); });
+  pal.appendChild(tg);
+  pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it at the gold marker: <b>" + esc(where) + "</b>." }));
   for (const [cat, title, types, only] of PALETTE) {
     if (only === "triggered" && ab.kind !== "triggered") continue;
     const g = E("div", "pgroup cat-" + cat);
@@ -1601,7 +1860,7 @@ function renderPalette() {
       const ok = allowed(t, act.ctx, act.scope);
       b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, such as taking damage or being targeted by a strike, and only in the main list.)" : " (Can't go in a power roll tier: drag it to another list instead.)");
       if (!ok) b.setAttribute("aria-disabled", "true");
-      b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) addStepTo(t, act); });
+      b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) addStepTo(t, act, act.idx); });
       g.appendChild(b);
     }
     pal.appendChild(g);
@@ -1610,17 +1869,19 @@ function renderPalette() {
 function addStepTo(type, act, idx) {
   const st = STEPS[type].make(act.ctx);
   if (act.scope) rescope(st, act.scope, false);
-  if (idx == null) act.list.push(st); else act.list.splice(idx, 0, st);
+  if (idx == null || idx > act.list.length) idx = act.list.length;
+  act.list.splice(idx, 0, st);
+  // Fewer clicks: the next block goes inside a wrapper just added (else right after the new step),
+  // and the new step opens for editing with its first value ready to type.
+  const inner = st.branches && (st.branches.then || st.branches.steps || st.branches.t1);
+  insertAt = inner ? { id: listId(inner), idx: 0 } : { id: listId(act.list), idx: idx + 1 };
+  editingId = st.id; focusReq = { key: st.id, first: true, skipTests: true };
   refresh();
   const el = main.querySelector('[data-step="' + st.id + '"]');
   if (el) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 400); }
   const h = st.slots && st.slots.cond; if (h) { const b = main.querySelector('[data-holder="' + h.id + '"] button'); if (b) openPicker(h, b); }
 }
-// Clicking anywhere in a list (or its "+ add" button) makes it the list palette clicks add to.
-document.addEventListener("pointerdown", ev => {
-  const st = ev.target.closest && ev.target.closest("#main .stack[data-list]");
-  if (st && st.dataset.list !== activeListId) { activeListId = st.dataset.list; main.querySelectorAll(".stack.active-list").forEach(x => x.classList.remove("active-list")); st.classList.add("active-list"); renderPalette(); }
-}, true);
+
 
 /* Prototype stand-in for handing one step to the existing full editor. */
 function fullEditorNote(anchor, f) {
@@ -1657,7 +1918,7 @@ function stepMenu(st, list, ctx, anchor, scope) {
   if (ctx === "tier" && st.type !== "potency") item("Wrap in potency check", () => { const w = STEPS.potency.make(); w.branches.then.push(st); list.splice(i, 1, w); });
   if (st.branches && st.branches.then && st.branches.then.length) item("Unwrap (keep the steps inside)", () => { list.splice(i, 1, ...st.branches.then); });
   item("Duplicate", () => { const c = reid(JSON.parse(JSON.stringify(st))); registerScopes(c); rescope(c, scope, false); list.splice(i + 1, 0, c); });
-  item("Delete", () => { list.splice(i, 1); });
+  item("Delete", () => { list.splice(i, 1); setTimeout(() => { if (!document.querySelector('.toast[data-kind="timing"]')) toast("Deleted \u201c" + STEPS[st.type].label + "\u201d.", true); }, 0); });
   place(m, anchor);
   m.querySelector("button:not([disabled])").focus();
 }
@@ -1687,7 +1948,7 @@ function allHolders() {
   const out = {};
   const visitH = h => { if (!h) return; out[h.id] = h; if (h.expr) visitX(h.expr); };
   const visitX = x => { for (const k in x.kids) visitH(x.kids[k]); (x.f.items || []).forEach(visitH); };
-  [ab.range, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h)].forEach(visitH);
+  [ab.range, ab.numTargets, ab.cost, ab.targetFilter, ...ab.requirements.map(r => r.h), ab.trigCond, ab.trig && ab.trig.range].forEach(visitH);
   const visitS = l => l.forEach(st => { for (const k in st.slots) visitH(st.slots[k]); for (const k in st.branches || {}) visitS(st.branches[k]); });
   visitS(ab.steps);
   return out;
@@ -1740,7 +2001,7 @@ document.addEventListener("pointermove", ev => {
       const kids = [...best.s.children].filter(k => k.classList.contains("step"));
       let idx = kids.length;
       for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (ev.clientY < r.top + Math.min(r.height / 2, 20)) { idx = i; break; } }
-      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(":scope > .addrow"));
+      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(":scope > .ins.end"));
       drag.target = { list: listsById[best.s.dataset.list], idx };
     }
   } else {
@@ -1919,7 +2180,7 @@ function loadDraft() {
   } catch (e) { return null; }
 }
 const exSel = document.getElementById("exSel");
-exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); activeListId = null; refresh(); });
+exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); insertAt = null; editingId = null; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
 const draft = loadDraft();
 if (draft) {
   const o = document.createElement("option"); o.value = "draft"; o.textContent = "Your draft (kept in this browser)";

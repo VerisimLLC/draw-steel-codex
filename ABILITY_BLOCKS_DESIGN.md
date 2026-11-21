@@ -507,8 +507,9 @@ Findings:
 - "Who it targets" reads "1 self within Self" when targets come from a step. It should say "set by
   Move a creature" (proposal).
 - Heroic Resource should show the class's name (Insight) on the card (proposal).
-- Open: what "burning with hellfire" does (damage, duration) belongs in the aura's settings; the rules
-  text needs to be found.
+- "Burning with hellfire" is an aura effect: it is authored inside the Create Aura block ("When a
+  creature enters it: ..."). Hellfire is not defined in the compendium, so the example leaves its
+  section empty and flags it for the author.
 - To verify in the app: `straightpathignorecreatures` is supported in code (`IsStraightLineMove`) but no
   content uses it yet.
 
@@ -581,6 +582,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **The marker advances through the power roll:** after a result is added to a tier, the next empty tier becomes the place for the next block. The shelf stays beside the stack (sticky) at narrower widths, with the card below the stack only. | Two clicks fewer per strike; no scrolling away from the stack. |
 | 2026-11-21 | **A "+" only moves the gold marker; the shelf is the one place to choose.** The separate type-ahead popup is gone. Clicking a "+" moves the marker, the shelf briefly glows and re-fits itself to that spot, and the cursor goes to the shelf search, so typing and Enter still add a block without the mouse. | Two places that change at once was redundant; one source of choices is simpler. |
 | 2026-11-21 | **"Move a creature" exposes Relocate Creature's targeting options as words:** how far (a square you pick / up to your speed), path (any / straight line), through enemies' spaces, "-> targets each enemy whose space it moves through / it moves next to" (Target Creatures in Move Vicinity: vicinity 0 or 1 plus filter), and "marks the squares it passes" (Target Passed Squares). **Create Aura** is a sentence block: "Leave [name] on the squares the move passed / on the target area / around you". | A real author request (Raise Hell) needed exactly these two checkboxes, which were hard to find. |
+| 2026-11-21 | **Create Aura holds its own effect.** A container block: "Leave [Hellfire] on [the squares the move passed] - affects [enemies] [normal / difficult terrain]", then "When a creature enters it:", "When a creature starts its turn in it:" (and the other aura trigger conditions via "+ when...") sections of ordinary steps. Saves as `aura.applyto`, `difficult_terrain` and `aura.triggers = [{trigger, ability: TriggeredAbility{behaviors}}]`, the shape content uses (e.g. Radiant Field). An aura that does nothing is flagged. | "Burning with hellfire" is an aura effect; the aura's behaviour belongs inside the aura, authored with the same blocks. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

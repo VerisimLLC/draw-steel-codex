@@ -599,8 +599,10 @@ const STEPS = {
   // "Target Passed Squares": the squares it moved through become the area for the steps after it.
   move: { label: "Move a creature", cat: "move", ctx: ["main"], desc: "Shift, move, jump or teleport; can target the creatures it moves through and leave a trail.",
     make: () => S("move", { who: "caster", how: "shift", line: "free", dist: "pick", through: "no", catch: "none", catchWho: "enemy", trail: "no" }) },
+  // Create Aura holds its own effect, as content does: who it affects, terrain, and "when..." sections
+  // whose steps become the aura's triggers ({trigger, ability: TriggeredAbility{behaviors}}).
   aura: { label: "Create Aura", cat: "create", ctx: ["main"], desc: "Place an aura: on an area, around you, or on the squares a move passed through.",
-    make: () => S("aura", { name: "New Aura", where: "area" }) },
+    make: () => S("aura", { name: "New Aura", where: "area", applyto: "enemies", difficult: "no", trigs: ["onenter"] }, {}, { onenter: [] }) },
   halveDamage: { label: "Halve the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "The damage from the roll is halved.",
     make: () => S("halveDamage", {}) },
   changeDamage: { label: "Change the damage", cat: "rollchg", ctx: ["main"], rollChange: true, desc: "Add to or subtract from the roll's damage.",
@@ -1034,8 +1036,19 @@ function compileSteps(list, filters, out, prose) {
       }
       case "aura": {
         if (f.where === "trail" && !moveTrail) bad(st.id, "There is no trail yet: set an earlier \u201cMove a creature\u201d step to mark the squares it passes.");
-        out.push(Object.assign({ __typeName: "ActivatedAbilityAuraBehavior", aura: { __typeName: "Aura", name: f.name } }, base));
-        prose.push({ kind: "text", text: f.where === "trail" ? "Each space you move through is " + f.name.toLowerCase() : f.where === "self" ? cap(f.name) + " surrounds you" : cap(f.name) + " fills the area" }); break;
+        const aura = { __typeName: "Aura", name: f.name, applyto: f.applyto };
+        if (f.difficult === "yes") aura.difficult_terrain = true;
+        const parts = [];
+        aura.triggers = (f.trigs || []).map(id => {
+          const b2 = [], p2 = [];
+          compileSteps(st.branches[id] || [], [], b2, p2);
+          if (p2.length) parts.push(AURA_WHEN[id].toLowerCase().replace("a creature", AURA_WHO[f.applyto]) + ", " + p2.map(q => q.kind === "roll" ? "make a power roll" : q.text.charAt(0).toLowerCase() + q.text.slice(1)).join(", then "));
+          return { trigger: id, ability: { __typeName: "TriggeredAbility", name: f.name, trigger: id, targetType: "self", silent: true, behaviors: b2 } };
+        });
+        if (!parts.length && f.difficult !== "yes") bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add steps under \u201cWhen a creature enters it\u201d (or another \u201cwhen\u201d).");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityAuraBehavior", aura }, base));
+        const placeText = f.where === "trail" ? "Each space you move through holds " + f.name : f.where === "self" ? cap(f.name) + " surrounds you" : cap(f.name) + " fills the area";
+        prose.push({ kind: "text", text: placeText + (f.difficult === "yes" ? " (difficult terrain)" : "") + (parts.length ? ": " + parts.join("; ") : "") }); break;
       }
       case "useNew": {
         const cb = [], cp = [];
@@ -1361,8 +1374,10 @@ function renderStep(st, list, ctx, scope) {
       add(sel(f, "trail", [["no", "no trail"], ["yes", "and marks the squares it passes"]], null, "trail"));
       break;
     }
-    case "aura": add(lbl("Leave")); add(inp(f, "name", "name", "aura name")); add(sel(f, "where", [["trail", "on the squares the move passed"], ["area", "on the target area"], ["self", "around you"]], null, "where"));
-      { const cog = E("button", "gen-cog", "Settings"); cog.type = "button"; cog.addEventListener("click", ev => { ev.stopPropagation(); genericNote(cog, { label: "Create Aura: what the aura does, how long it lasts", typeName: "ActivatedAbilityAuraBehavior" }); }); add(cog); }
+    case "aura":
+      add(lbl("Leave")); add(inp(f, "name", "name", "aura name")); add(sel(f, "where", [["trail", "on the squares the move passed"], ["area", "on the target area"], ["self", "around you"]], null, "where"));
+      add(lbl("\u2014 affects")); add(sel(f, "applyto", AURA_APPLY, null, "who it affects"));
+      add(sel(f, "difficult", [["no", "normal terrain"], ["yes", "difficult terrain"]], null, "terrain"));
       break;
     case "halveDamage": add(lbl("Halve the damage")); break;
     case "changeDamage": add(lbl("Change the damage by")); add(renderHolder(st.slots.amount)); gsHolder = st.slots.amount; break;
@@ -1417,6 +1432,25 @@ function renderStep(st, list, ctx, scope) {
     listLabels[listId(st.branches.steps)] = "inside \u201c" + st.f.name + "\u201d";
     inner.appendChild(renderList(st.branches.steps, "main", st));
     m.appendChild(inner); e.appendChild(m);
+    e.appendChild(E("div", "foot"));
+  } else if (st.type === "aura") {
+    // One "when..." section per aura trigger, each an ordinary list of steps.
+    (st.f.trigs || []).forEach(id => {
+      const mid = E("div", "mid"); mid.appendChild(E("span", null, AURA_WHEN[id] + ":"));
+      const x = E("button", "clear", "\u00d7"); x.type = "button"; x.style.marginLeft = "auto"; x.title = "Remove this section"; x.setAttribute("aria-label", "Remove " + AURA_WHEN[id]);
+      x.addEventListener("click", ev => { ev.stopPropagation(); st.f.trigs = st.f.trigs.filter(t => t !== id); delete st.branches[id]; refresh(); }); mid.appendChild(x);
+      e.appendChild(mid);
+      listLabels[listId(st.branches[id])] = "inside " + st.f.name + " (" + AURA_WHEN[id].toLowerCase() + ")";
+      e.appendChild(mouth(st.branches[id], ctx, scope));
+    });
+    const left = Object.keys(AURA_WHEN).filter(id => !(st.f.trigs || []).includes(id));
+    if (left.length) {
+      const row = E("div", "mid"); const addw = E("button", "add-btn", "+ when\u2026"); addw.type = "button"; addw.style.padding = "2px 8px";
+      addw.addEventListener("click", ev => { ev.stopPropagation(); closePopups(); const m = E("div", "menu"); m.addEventListener("click", e2 => e2.stopPropagation());
+        left.forEach(id => { const b = E("button", null, AURA_WHEN[id]); b.type = "button"; b.addEventListener("click", () => { st.f.trigs.push(id); st.branches[id] = []; insertAt = { id: listId(st.branches[id]), idx: 0 }; refresh(); }); m.appendChild(b); });
+        place(m, addw); });
+      row.appendChild(addw); e.appendChild(row);
+    }
     e.appendChild(E("div", "foot"));
   } else if (st.type === "potency" || st.type === "ifStep") {
     listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : "inside \u201cOnly if\u201d";
@@ -2067,6 +2101,11 @@ GENERIC_BEHAVIORS.forEach(([id, name, typeName, uses, group]) => {
 STEPS.generic = { label: "Behaviour", cat: "ctrl", ctx: ["main"], hidden: true, desc: "", make: () => S("generic", { typeName: "", label: "Behaviour" }) };
 const stepDef = st => (st.type === "generic" && st.f && STEPS[st.f.key]) || STEPS[st.type];
 
+// Aura options, from Aura.ApplyOptions and Aura.TriggerConditions in Aura.lua.
+const AURA_APPLY = [["enemies", "enemies"], ["all", "all creatures"], ["allother", "all other creatures"], ["selfandfriends", "you and allies"], ["friends", "allies"]];
+const AURA_WHO = { enemies: "an enemy", all: "a creature", allother: "another creature", selfandfriends: "you or an ally", friends: "an ally" };
+const AURA_WHEN = { onenter: "When a creature enters it", onfirstenterround: "The first time each round a creature enters it", targetstartturnaura: "When a creature starts its turn in it", casterstartturnaura: "At the start of your turn", casterendturnaura: "At the end of your turn" };
+
 // "Who" on the new steps. Saved as the behaviour's applyto.
 const WHO_OPTS = [["targets", "The target"], ["caster", "You"]];
 const WHO_OPTS_OBJ = [["targets", "the target"], ["caster", "you"]];
@@ -2557,7 +2596,8 @@ const EXAMPLES = {
     const mv = STEPS.move.make(); Object.assign(mv.f, { who: "caster", how: "shift", dist: "speed", line: "straight", through: "yes", catch: "through", catchWho: "enemy", trail: "yes" });
     const pr = powerRollWith(["3", "5", "8"], "Agility");
     ["t1", "t2", "t3"].forEach(t => pr.branches[t][0].f.dtype = "fire");
-    const au = STEPS.aura.make(); Object.assign(au.f, { name: "Hellfire", where: "trail" });
+    const au = STEPS.aura.make(); Object.assign(au.f, { name: "Hellfire", where: "trail", applyto: "enemies" });
+    // What hellfire does is not in the compendium: the "enters it" section is left for the author.
     a.steps.push(mv, pr, au);
     // The book's wording, kept as card overrides (basis null: written with the ability, not reworded later).
     a.overrides = {

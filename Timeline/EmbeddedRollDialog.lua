@@ -2014,7 +2014,9 @@ function GameHud.CreateEmbeddedRollDialog()
         if string.find(description, "%S") == nil and (inflicted == nil or inflicted == "") and not justified then
             return nil
         end
-        return ModifierHoverText(mod, true)
+        --History's record only: a modifier whose text fails to format must not break the roll.
+        local ok, text = pcall(ModifierHoverText, mod, true)
+        return ok and text or nil
     end
 
     --What each modifier adds to or takes from the edges and banes, measured as it is applied,
@@ -2197,7 +2199,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 --call this generic function which might be modified by mods.
                 roll = mod.modifier:ApplyToRoll(mod.context, creature, targetCreature, rollType, roll)
                 if edgesBefore ~= nil then
-                    edgesBefore = RecordEdgeSource(mod, edgesBefore, roll)
+                    --History's record only: on a failure it stops recording, and the roll goes on.
+                    local ok, after = pcall(RecordEdgeSource, mod, edgesBefore, roll)
+                    edgesBefore = ok and after or nil
                 end
 
                 if rollType == 'damage' then
@@ -2284,7 +2288,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 local before = measure and TierDamage(rollProperties) or nil
                 mod.modifier:ModifyRollProperties(mod.context, creature, rollProperties, targetCreature)
                 if before ~= nil then
-                    RecordDamageSource(mod, before, TierDamage(rollProperties))
+                    --History's record only: a failure here must not break the roll.
+                    pcall(function()
+                        RecordDamageSource(mod, before, TierDamage(rollProperties))
+                    end)
                 end
             end
         end

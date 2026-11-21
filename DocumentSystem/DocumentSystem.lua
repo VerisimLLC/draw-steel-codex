@@ -7139,6 +7139,9 @@ function CustomDocument.CreateTabbedViewer(placement)
         halign = "left",
         valign = "top",
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (a long document dragged at 83 ms a frame, 19 in place).
+        dragInPlace = true,
         drag = function(element)
             --while popped out the OS window is what moves; a release of a
             --(suppressed) drag must not teleport the panel inside it.
@@ -8159,6 +8162,9 @@ function CustomDocument:PresentDocument(args)
         --unaffected -- swallowPress only stops PARENT propagation.
         swallowPress = true,
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (the Bestiary dragged at 160 ms a frame, 24 in place).
+        dragInPlace = true,
         drag = function(element)
             --pinned windows still receive drag events (they only clear
             --dragMove -- see refreshPanelPinned); dropping the event here

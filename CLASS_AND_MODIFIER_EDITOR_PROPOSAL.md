@@ -1,0 +1,472 @@
+# Class and Modifier Editors: applying the Ability Blocks approach
+
+**Status:** PROPOSAL, 2026-11-21. Nothing here is decided. No Lua or engine code was changed.
+Builds on [`ABILITY_BLOCKS_DESIGN.md`](ABILITY_BLOCKS_DESIGN.md) (the brief) and its prototype
+[`ui-mockup/ability-blocks-stack.html`](ui-mockup/ability-blocks-stack.html).
+
+**Evidence base.** Counts come from `draw-steel-data` (`objectTables/` and `monsters/`, 4,260 files
+parsed; 2 rival monster files fail to parse because of a tab). Code references are to this repo.
+The book text is `ClaudeBridge/ClaudeRefHeroes.lua` (Shadow chapter, pages 175-190).
+
+---
+
+## 0. Recommendations in one screen
+
+1. **Build the modifier sentences first, then the class page.** A class feature is a list of
+   modifiers, so the modifier sentences are the vocabulary both editors share (and the ability
+   editor already needs them for "While this ability resolves" and ongoing effects).
+2. **Route four modifier types to the editor that already exists.** `activated`, `trigger`,
+   `powertabletrigger` and `triggerdisplay` (3,133 of 8,023 modifiers, 39%) open the simplified
+   ability/trigger editor. The modifier editor only has to own the other 61%.
+3. **Eleven more sentences cover 97% of all modifiers.** Modify Attribute and Modify Power Rolls
+   alone are 41%; everything else is an Advanced block that saves untouched.
+4. **One "applies when" sentence replaces three conditions.** Power roll modifiers have
+   `filterCondition`, `displayCondition` and `activationCondition` (plus `activationAfterRoll`);
+   authors describe "Always / You choose when you roll / Only if ...", the editor picks fields.
+5. **The class editor shows a class the way the book prints it:** Basics, heroic resource,
+   then "Nth-Level Features" with each feature as name + text + ("You have the following ability"
+   + card). The preview generates the book's Advancement table from the data.
+6. **Authors say "at 1st level"; the editor decides the storage** (`tutoriallevel-1..4` vs
+   `level-1`), as it decides Multiple Modes vs Ability Variations today.
+7. **Heroic resource gain is one sentence that writes two linked records** (the class checklist
+   entry and the trigger whose Replenish step points to it by `checklistid`; 69 such links exist).
+8. **Opening is safe by the same rule:** unchanged saves byte-identical; changed blocks write over
+   their original record; hidden fields (`domains`, `guid`, `sourceReference`, `imported`,
+   `importOverride`, `implementation`, `tags`) ride along. Gate: 70/70 classes and 8,023/8,023
+   modifiers round-trip before any editing ships.
+9. **Paste reuses existing importers:** `DrawSteelRulesImporter.lua` (plain-text classes and
+   kits) for class pages; the ability paste reader for granted abilities.
+10. **Content findings come out of the same scripts** (Section 5): five different implementations
+   of "Characteristic Increase", modifiers that copy the feature text (1,040 of 1,765), abilities
+   matched by name, and three records still pointing at 5e `armorClass`.
+
+---
+
+## 1. What carries over from the ability editor
+
+| Ability editor rule (brief, Section 7) | Class editor | Modifier editor |
+|---|---|---|
+| Read mode: sentences with underlined words; click one word to edit it | Feature and Basics lines | Every modifier is one sentence |
+| Shelf right of the stack, organised by intent, ordered by usage, "Common" band + compact categories + one search | Feature shelf (Section 3.2) | Modifier shelf (Section 4.2) |
+| "+" moves the gold marker; the shelf is the one place to choose | Between features and inside a level | Inside a feature, effect, kit... |
+| Author describes; editor chooses storage | Level 1 placement, feature shapes, resource gains | Attribute operations, power roll conditions, trigger types |
+| Book first: saved wording wins; generated text uses book phrasing | Feature description and the class page | Owner's text wins; modifier sentence is the automation summary |
+| Unchanged saves identical; Advanced blocks carry what blocks don't model | Same | Same |
+| GoblinScript hidden behind test/value blocks; "Show GoblinScript" | 735 real formulas in class records | 720 non-empty `filterCondition`s |
+| Paste text + teach loop | Rules importer | Feature/trait text to modifier sentences |
+| Simpler editor beside the old one, never replacing it | `DSClassEditor.lua` stays | `CharacterModifier` forms stay as Settings |
+
+---
+
+## 2. Evidence at a glance
+
+**Where modifiers live** (8,023 `CharacterModifier` records): monsters 2,743, classes and subclasses
+2,068, ongoing effects 1,504, gear 362, creature templates 277, complications 208, titles 168,
+ancestries 138, condition riders 118, kits 73, others under 75.
+
+**Behaviour usage** (45 of 62 registered types appear; 11 are deregistered for Draw Steel in
+`MCDMRules.lua:1729-1739`):
+
+| # | Behaviour (editor name) | Uses | Cum. | Classes | Monsters | Route |
+|---|---|---|---|---|---|---|
+| 1 | `attribute` (Modify Attribute) | 1,854 | 23% | 401 | 736 | Sentence |
+| 2 | `trigger` (Triggered Ability) | 1,573 | 43% | 291 | 698 | Trigger editor |
+| 3 | `power` (Modify Power Rolls) | 1,392 | 60% | 235 | 396 | Sentence |
+| 4 | `activated` (Activated Ability) | 1,052 | 73% | 643 | 101 | Ability editor |
+| 5 | `resistance` (Damage Immunity) | 383 | 78% | 44 | 144 | Sentence |
+| 6 | `triggerdisplay` | 354 | 82% | 124 | 183 | Retired into trigger card (brief 4j) |
+| 7 | `modifyability` (Modify Abilities) | 309 | 86% | 77 | 103 | Sentence |
+| 8 | `aura` | 202 | 89% | 30 | 91 | Sentence (reuses Create Aura block) |
+| 9 | `powertabletrigger` | 154 | 91% | 54 | 66 | Trigger editor |
+| 10 | `movementtext` (Reminder Text) | 89 | 92% | 3 | 36 | Sentence |
+| 11 | `modsummoner` | 71 | 93% | 7 | 63 | Advanced |
+| 12 | `resource` (Grant Resource) | 65 | 94% | 34 | 3 | Sentence |
+| 13 | `conditionimmunity` | 65 | 94% | 6 | 28 | Sentence |
+| 14 | `proficiency` (Skill or Language) | 64 | 95% | 34 | 0 | Sentence |
+| 15 | `bestowcondition` | 63 | 96% | 1 | 16 | Sentence |
+| 16 | `suppressabilities` | 57 | 97% | 3 | 7 | Sentence |
+| | 29 others (loyaltycollar 41, modcompanion 33, transform 23, modifytrigger 19, ... 1 each) | 241 | 100% | | | Advanced |
+
+**Class structure** (70 Class records: 8 classes, 3 classes with `isSubclass` unset (Censor, Null,
+Troubadour), 59 subclasses of which 14 are hidden duplicate domain records in `classes/`):
+
+| Node | Count | Notes |
+|---|---|---|
+| `CharacterFeature` | 1,337 | 601 hold only ability grants (596 exactly one); 159 one attribute change; 139 have no modifiers (text only) |
+| `CharacterFeatureChoice` | 210 | 168 are "pick 1 of 2" or "1 of 4"; 130 offer only abilities |
+| `CharacterFeatureList` | 163 | Mostly Characteristic Increase (fixed raise + choice) |
+| `CharacterSkillChoice` | 88 | |
+| `CharacterFeatChoice` | 54 | Editor calls it "Choice of a Feat"; all 54 are named **Perk** |
+| `CharacterSubclassChoice` | 12 | |
+| Deity / Companion choices | 2 / 1 | |
+| Nesting depth | 870 at 1, 765 at 2, 232 at 3 | Choice > list > feature is common |
+
+---
+
+## 3. The Class editor
+
+### 3.1 What authors struggle with today
+
+Today's editor (`Draw Steel UI/DSClassEditor.lua`, `Draw Steel Core Rules/MCDMClass.lua`) is a
+form: class fields, then a "Tutorial" section with Encounter 1-4 cards, then Level 1-10 cards. Each
+card is an "Add Features..." dropdown (Single Feature, Multiple Features, Choice, Choice of a Feat,
+Specific Feat, Subclass, registered choices, prefabs, Paste) and nested feature forms, each with
+an "Add Modifier" picker and one form per modifier.
+
+1. **Level 1 is not where the book puts it.** Level-1 features live under *Tutorial > Encounter
+   1-4* (`tutoriallevel-1..4`, the slow-start progression in `Class:FillLevelsUpTo`). 46 records put
+   features there, but 8 put them in `level-1` (Censor and Conduit "1st-Level Domain Feature",
+   Troubadour "Scene Partner", Caustic Alchemy "Smoke Bomb", the three psionic disciples' skills).
+   Every record also carries empty 5e keys (`primary`, `multiclass`) and 6 carry empty
+   `level-11..20`.
+2. **Most features are wrappers.** 601 features (45%) exist only to hold an ability; 296 of them
+   have no description, so the sheet falls back to the ability's flavor (`CharacterFeature:GetDescription`).
+   The book says "You have the following ability." and prints the card.
+3. **The same book sentence is implemented many ways.** "Characteristic Increase" (22+ copies):
+   Fury uses `max 3` for "increases to 3" and `set 5` at 10th; Tactician uses `add 1` for "increases
+   to 3" (correct only because the base is 2); "each increases by 1, to a maximum of 4" is `add 1`
+   with no `cap`; Elementalist uses `add 1, cap 5` plus a `min 5` (a no-op below 5; worth checking).
+4. **Rules live away from the text that states them.** Shadow's 4th-level *Surge of Insight* ("you
+   gain 2 insight instead of 1") is a feature with no modifiers; the rule is a Level-keyed table
+   (1/2/3) on the class's resource checklist. The *Insight* feature is five modifiers (three
+   triggers, a resource, an attribute) and each repeats the full feature text: across classes,
+   **1,040 of 1,765 modifiers copy their feature's description**.
+5. **The heroic resource is stored twice.** The class's `heroicResourceChecklist` (33 records; 149
+   formula quantities, e.g. `GoblinScriptTable` by Level) is the player's checklist; triggers with a
+   Replenish step automate the same gains and link back by `checklistid` (69 links). Authors must
+   create both and wire the guid by hand.
+6. **GoblinScript where a number would do.** 735 real formulas in class records:
+   `conditionFormula` 184, `value` 158, checklist `quantity` 149, `filterCondition` 99,
+   `displayCondition` 52, `activationCondition` 38, subclass `prerequisite` 22 (all
+   `Deity.Domains has "X"`), `hitpointsCalculation` 11 (all `A + (Level - 1)*B`, the book's two
+   numbers). Choice size `numChoices` is a GoblinScript box whose help example is 5e
+   (`Max(1, Intelligence Modifier)`); content only uses 1 or 2.
+7. **Levelled improvements have three storages.** Later-level upgrades are written as a separate
+   feature with `abilityimprovement` (10) or `modifyability` (40 in classes), as `Level >= N` in a
+   formula (23), or as a Level-keyed `GoblinScriptTable` (22). The book always prints them as a
+   feature at the new level ("Careful Observation Improvement", 7th).
+8. **Book words versus editor words.** Perk vs "Choice of a Feat"; Heroic Ability choice vs
+   "Choice"; "Multiple Features" for what the book shows as one feature with two effects.
+
+### 3.2 The blocks
+
+The page is one stack in the book's order, beside a live **class page preview**:
+
+```
+Shadow                                             [Paste class text]
+  Basics
+    You start with an [Agility] of [2]; choose an array from [2,2,-1,-1] [2,1,1,-1] ...
+    Starting Stamina at 1st level [18]; gained at 2nd and higher levels [6]
+    Recoveries [8]
+    You have the [Hide] and [Sneak] skills; choose [five] from [Criminal Underworld, exploration...]
+    Kit: you can use and gain the benefits of [a martial kit]
+  Insight (heroic resource)                          icon [..]  epic resource [Subterfuge]
+    At the start of combat, you gain insight equal to [your Victories]
+    At the start of each of your turns, you gain [1d3] insight
+    The first time each round you [deal damage with a surge], you gain [1] insight
+    ...
+  1st-Level Features
+    Shadow College: choose your [subclass]
+    Signature Ability: choose [one] of  [Gasping in Pain] [I Work Better Alone] [...]   (+)
+  4th-Level Features
+    Characteristic Increase: your [Agility] increases to [3]; increase one other by 1, to a maximum of [3]
+    Keep It Down                                    narrative
+    Night Watch: While you are hidden, enemies take a bane on ... (aura)
+                 You have the following ability: [Night Watch card]  -> trigger editor
+    Perk   Skill   Surge of Insight: you gain [2] insight instead of [1]  (improves Insight)
+```
+
+**Feature shelf**, organised by intent, ordered by usage in class records:
+
+| Group | Block (sentence) | Uses | Saves as | First-class? |
+|---|---|---|---|---|
+| Abilities | You have the following ability: [card] | 601 features | Feature + `activated` | Common |
+| | Choose [one] [signature / N-resource heroic] ability from: | 130 choices | Choice of single-ability features | Common |
+| | You have the following triggered ability | ~220 features with a trigger or power roll trigger | Feature + trigger types | Common |
+| Choices | Choose [one] of: (options are any blocks) | 80 other choices | `CharacterFeatureChoice` | Common |
+| | Perk / Skill / Language | 54 / 88 / prefab | registered choices | Common |
+| | Your [subclass] / deity / domain / companion | 12 / 2 / 1 | registered choices | Common |
+| Characteristics | Characteristic Increase (fixed raise + choice) | 22+ lists | List of attribute features + choice | Common |
+| Rules | Any modifier sentence (Section 4) | 159 attribute-only, 42 power, 31 proficiency, 23 modify ability, 15 resistance, 12 aura ... | Modifiers on this feature | Common for the top 6 |
+| Text | Narrative feature (no automation) | 139 | Feature with description only, `implementation: 0` | Common |
+| Improvements | Improves [earlier feature]: [what changes] | 10 + 40 + 45 | See 3.4 | First-class |
+| Kits | Kit access [martial / caster], two kits | 9 + 3 | `kitaccess`, `numKits` | Basics line |
+| Advanced | Prefabs, specific feat, former-life choice, points-cost choices | 22, rare | as stored | Advanced |
+
+Feature metadata that authors rarely touch (implementation status: 628 fully, 531 mostly, 89
+partly, 25 narrative, 9 not automated, 55 unset; tags such as Ability 496, Combat 339, Hidden 220)
+goes under each feature's Settings, with the status also shown as a quiet badge.
+
+### 3.3 Book first
+
+The book's class chapter has a fixed shape (Shadow, pp. 175-190): intro and quote; **Basics**
+(starting characteristics and arrays, weak/average/strong potency, starting Stamina and Stamina per
+level, Recoveries, skills with a Quick Build); **1st-Level Features** with the subclass choice and
+its options; the **Advancement table** (Level | Features | Abilities | Subclass Abilities, e.g.
+"4th | Characteristic Increase, Keep It Down, Night Watch, Perk, Skill, Surge of Insight | Signature,
+3, 5, 7 | 5"); the **resource** section ("Insight in Combat", "Insight Outside of Combat"); then
+"Nth-Level Features", each a heading, paragraphs and "You have the following ability." with a card.
+Subclass features are shown as tables ("1st-Level College Features: Black Ash | Black Ash Teleport").
+
+The preview is that page, generated from the data:
+- Feature text is the saved `description` (book wording wins). A feature with none shows the book
+  phrase "You have the following ability." plus the ability card (the same card renderer as the
+  ability editor), or "Add feature text" rather than invented wording.
+- The **Advancement table is generated** from the levels (feature names per level, ability cost
+  columns from the choices' categories), so authors check structure at a glance, and the poll
+  script can compare it with the book's table.
+- Resource names follow the class (Insight, Wrath, Piety): already decided for ability costs.
+- Each line links to its `sourceReference` page (1,197 features carry one).
+- Modifier sentences show under the feature text, faint, as "What the rules engine does", never as
+  card text. A mismatch check compares them with the text where it can ("increases to 3" vs `add 1`).
+
+### 3.4 Storage chosen invisibly
+
+| Author says | Editor writes | Why |
+|---|---|---|
+| A 1st-level feature | `tutoriallevel-N` (N from a small "arrives in encounter [1]" token, default 1); an opened `level-1` feature stays in `level-1` and shows "arrives after the slow start" | Book has one "1st-Level Features"; slow start is a DMHub detail. **Needs a decision** (Q1) |
+| "You have the following ability" | One `CharacterFeature` + one `activated` modifier, feature name = ability name, description left empty | 601 records already look like this |
+| "Choose one of" abilities | `CharacterFeatureChoice` with one single-ability feature per option | Same as 130 existing choices |
+| Characteristic Increase | `CharacterFeatureList`: attribute feature(s) + choice of the others. "Increases to N" saves `max N`; "increases by 1, to a maximum of N" saves `add 1` + `cap N`; "is N" saves `set` | One sentence, one storage; opened variants keep theirs |
+| Improves an earlier feature at level L | A feature at level L with `abilityimprovement` / `modifyability` (abilities) or a Level-keyed table on the original value (numbers). Opened `Level >= N` formulas show as "From level N" lines and are kept | Book shows the improvement at the new level |
+| A heroic resource gain | One checklist entry (`name`, `details`, `mode`, `quantity`) + one trigger with a Replenish step whose `checklistid` is that entry's guid | Two records, one idea; linking by hand is error-prone |
+| Starting Stamina A, +B per level | `hitpointsCalculation: "A + (Level - 1)*B"` (all 11 classes use this shape) | Book prints two numbers |
+| Feature with rules and a triggered ability (Night Watch) | One feature, modifiers in order, trigger via the trigger editor (no `triggerdisplay`, brief 4j) | Book shows one feature |
+
+### 3.5 Opening existing content safely
+
+Same rule as abilities: anything the author did not change saves back as it was.
+- Each block remembers the records it opened from and a fingerprint; unchanged blocks write their
+  originals. A changed feature writes over its record, so `guid`, `domains`, `sourceReference`,
+  `imported`, `importOverride`, `implementation`, `tags`, `canHavePrerequisites` survive.
+- Empty level keys (`primary`, `multiclass`, `level-11..20`) are kept, never created or removed.
+- **Risk to verify first:** today's editor calls `class:ForceDomains()` on every change. The test must
+  show that domain recomputation is a no-op on unchanged content, or the simplified editor must only
+  run it on features it changed.
+- Modifiers inside a feature follow Section 4.5; abilities follow the ability editor's rules.
+
+**Round-trip test** (a `poll/`-style script over `objectTables/classes` and `subclasses`):
+
+| Check | Target |
+|---|---|
+| Opens without error | 70 / 70 |
+| Untouched save identical | 70 / 70 |
+| Rename one feature changes only its name | every feature (1,337) |
+| Add a feature at level L touches only that level's `features` list | every level |
+| Change one characteristic value touches only that modifier's `value` | 22+ increases |
+| Opens entirely as blocks (no Advanced) | report |
+| Book check: generated Advancement table vs book table; feature text vs book paragraph by `sourceReference` page | report per class |
+
+### 3.6 Connection to the ability and trigger editors
+
+- An ability feature shows its card collapsed in place; clicking opens the simplified ability editor
+  for that `activatedAbility`, with the class passed in (resource word, keyword list, category names
+  such as "Heroic Deceit" from `abilityCategoryNames`). Back returns to the class page at the same feature.
+- Triggered features open the trigger editor; its generated card replaces `triggerdisplay` (124 in classes).
+- Rule modifiers are the modifier editor's sentences, inline in the feature.
+- **Paste:** a pasted class page goes through `DrawSteelRulesImporter.lua` (already parses "Classes"
+  and "Kits" sections and stamps `imported`); a pasted feature with "You have the following ability."
+  hands the card text to the ability paste reader. Unread sentences become "To build" blocks with
+  "Save as pattern" (into `importerstandardfeatures`, which the rules importer already reads).
+
+---
+
+## 4. The Modifier editor
+
+### 4.1 What authors struggle with today
+
+Each modifier is a form built by its `TypeInfo.createEditor` (`DMHub Game Rules/CharacterModifier.lua`,
+4,589 lines; power rolls in `MCDModifyPowerRolls.lua`, 4,400 lines). A newer search-first picker
+exists (`Draw Steel Ability Editor/AbilityEditorModifierPicker.lua`) but only for choosing the type.
+
+1. **Modify Attribute is five different ideas behind one dropdown** (1,854 uses): movement 276
+   (speed, fly, climb, swim, burrow, disengage), characteristics 222, stability 104, Stamina 64, size
+   63, and 189 custom attributes (963 uses; 667 of 1,060 custom uses are a flag set to 1, e.g.
+   *Ignore Difficult Terrain* 65, *Immunity from Opportunity Attack* 46, *Freely Move Through Enemies*
+   40, *Cannot Be Force Moved* 33). Operation is add / set / max / min with labels "Increase to" and
+   "Decrease to" that read backwards to most people. **A new modifier defaults to `armorClass`**
+   (`TypeInfo.attribute.init`), a 5e stat; three records still point at it (*Solo Turns*, *Hand of
+   the Gods - Count as Ally*, *Shield? Shield!*).
+2. **Modify Power Rolls is the largest modifier form** (about 30 labelled fields: Apply To,
+   Characteristic, Resource Cost, Roll Requirement, Activation, Roll Mod, Modify Potency, Modify
+   Resistance, Retarget Range/Distance/Filter/Effect, Damage, Damage Type, Damage Multiplier, Surges,
+   Adjustments, Replace Movement, Add to Table, Replace in Table...). It has 27 `modtype`s (none 607,
+   edge 292, bane 182, double edge 115, ...) and 8 roll types (ability 843, enemy ability rolls vs
+   us 252, tests 200, ...).
+3. **Three overlapping conditions on power modifiers:** `filterCondition` (does the modifier exist
+   at all, 123), `displayCondition` (is it offered on this roll, 361) and `activationCondition` (is
+   its box ticked by default: `True` 528, `False` 317, `1` 124, formulas ~350), plus
+   `activationAfterRoll`. The "Activation" dropdown (Never / Always / Condition / Conditional After
+   Power Roll) means "ticked by default", not "applies"; the label does not say so.
+4. **Abilities are matched by name.** 114 `modifyability.filterAbility` formulas test a name or name-like field: `Ability.Free Strike` 62,
+   `Ability.name is Judgment` 11, `Ability.name = "Melee Free Strike"` 6... A rename breaks these
+   silently, like the `triggerdisplay` name match (brief 4j).
+5. **GoblinScript everywhere.** 720 non-empty `filterCondition`s. The common shapes are intent
+   blocks waiting to happen: `Level >= N` (102), `Self.Rampaging and Summoner.Level >= 10` (53),
+   `AdjacentAlliesWithFeature("Shield? Shield!")` (45), `Monster Mode = 1` (22),
+   `Heroic Resources This Turn >= N` (Growing Ferocity, 62), `Victories >= 5`, `Winded`.
+6. **No readable summary.** Only 7 types have `autoDescribe`, and the attribute one reads "1 is
+   added to your Speed" rather than the book's "Your speed increases by 1".
+7. **The description field is player-facing in places authors don't expect.** For power modifiers
+   `name` + `description` is the roll dialog's option tooltip (`MCDModifyPowerRolls.lua:1038`), yet
+   most class modifiers just copy the whole feature text there (Section 3.1).
+8. **The picker's "Common" band is not common:** it lists `proficiency`, `bestowcondition` and
+   `abilityimprovement` (12 uses) but not `resistance` (383) or `modifyability` (309).
+
+### 4.2 The blocks
+
+Each modifier reads as one book-style sentence with underlined values. "Only if" wraps any of them
+and compiles to the record's condition field, using the ability editor's test picker.
+
+| Group (shelf order) | Sentence | Behaviour, fields | Uses |
+|---|---|---|---|
+| **Abilities** | You have the following ability [card] | `activated` -> ability editor | 1,052 |
+| | When [event], [steps] | `trigger` / `powertabletrigger` -> trigger editor | 1,727 |
+| | Your [ability or "free strikes"] gain(s) [+2 distance / extra target / fire damage / keyword] | `modifyability` (`range` 38, `damagetype` 28, `numtargets` 13, `cost` 6, `modkeywords` 6) | 309 |
+| | You can't use [abilities matching ...] | `suppressabilities` | 57 |
+| **Stats** | Your [speed / stability / size / Stamina] [increases by / is / increases to / can't exceed] [N] | `attribute` (add / set / max / min) | ~510 |
+| | Your [Agility] score increases to [3] (... to a maximum of [N]) | `attribute` + `cap` | 222 |
+| | You [ignore difficult terrain / can't be force moved / ...] | `attribute` flag = 1 | 667 |
+| | You can [fly / climb / swim] [at your speed] | `attribute` movement | (in stats) |
+| **Rolls** | You have [an edge / a double edge / a bane] on [tests using Hide, Sneak / ability rolls / Might tests] | `power`: `modtype`, `rollType`, `skills`, `keywords` | ~620 |
+| | Abilities used against you have [a bane] | `power`, `rollType: enemy_ability_power_roll` | 252 |
+| | Your [weapon] abilities deal [+2] extra damage | `power`: `damageModifier` (+ type, multiplier) | 208 |
+| | [Increase / reduce] the potency by [1]; [tier 3 / not tier 1] outcome; costs [1 fewer] insight | `power`: `potencymod`, tier modtypes, cost | ~250 |
+| **Defences** | You have [fire] immunity [5] / weakness [5] | `resistance` entries | 383 |
+| | You can't be [frightened] | `conditionimmunity` | 65 |
+| **Areas** | Creatures within [N] [have ...] | `aura` (reuses Create Aura block, brief) | 202 |
+| **Resources** | You gain [N] [Recoveries / resource] | `resource` | 65 |
+| | You have the [Hide] skill / speak [Caelian] | `proficiency` | 64 |
+| **Conditions** | You are [slowed] | `bestowcondition` | 63 |
+| **Reminders** | Reminder: [text] | `movementtext` | 89 |
+| **Advanced** | Name + record summary + Settings (existing form) | 29 other types | 241 |
+
+**Intent tests** for "Only if" (from the 720 formulas): *from level N*, *you have N+ [Ferocity]
+this turn* (also the `growingresources` table, 11), *while winded*, *while an adjacent ally has
+[feature]*, *in monster mode [2]*, *you have N+ Victories*, *you have your companion*, *the
+summoner is level N+ and rampaging*. Everything else stays a raw formula block.
+
+**Rolls get one "applies" sentence** instead of three conditions:
+
+> [Always applies] / [You choose when you roll] / [Applies when ...] / [Choose after the roll],
+> [offered only when ...]
+
+Storage: Always -> `activationCondition: true`; You choose -> `false`; Applies when -> formula;
+after the roll -> `activationAfterRoll`; "offered only when" -> `displayCondition`; an outer Only if
+-> `filterCondition`. Opened records with several set show each as its own phrase.
+
+### 4.3 Book first
+
+The book never prints a modifier on its own; it prints the **owner's** text (a feature, kit bonus,
+ancestry trait, condition, title, item). So:
+- The card is the owner's saved text. The modifier sentence is the automation summary underneath,
+  in book phrasing ("Your speed increases by 1", "You have a double edge on tests made to search
+  for hidden creatures"), and is the generated text only when the owner has none.
+- Where text is player-facing, the editor shows it as such: a power modifier's sentence previews
+  the **roll dialog option** (name + description). New modifiers leave `description` empty instead
+  of copying the feature text; the roll dialog falls back to the generated sentence (needs a small
+  renderer change, Section 6).
+- `autoDescribe` for the top behaviours is rewritten to the sentence table above, so the sheet,
+  builder and `GetDescription` fallback all speak the same words.
+
+### 4.4 Storage chosen invisibly
+
+| Author says | Editor writes |
+|---|---|
+| "increases by N" / "is N" / "increases to N" / "can't exceed N" | `operation` add / set / max / min |
+| "increases by 1, to a maximum of N" | add + `cap` |
+| a flag ("you ignore difficult terrain") | custom attribute, `value: 1` |
+| "When ..." with only ordinary steps | `trigger` |
+| "When ..." with a Change-the-roll step | `powertabletrigger` (brief 4h) |
+| A roll change with no triggering event | `power` |
+| "Your Judgment gains ..." | `modifyability` with an ability picker; writes today's name formula until abilities can be matched by id (Section 6), and flags the dependency |
+| Applies-when phrases | the four condition fields as in 4.2 |
+
+### 4.5 Opening existing content safely
+
+Every modifier keeps its record and fingerprint; unchanged sentences write the original. A changed
+sentence writes over the original record, so the ~40 fields of a power modifier that no sentence
+shows (`customTrigger`, `adjustments`, `damageTypeMappings`, `addText`, `ticksWith`...) survive.
+Fields the sentence does not model are listed under it ("kept as they are"), as the ability editor does.
+
+**Round-trip test:** all 8,023 modifiers in `objectTables` and `monsters`, by behaviour.
+
+| Check | Target |
+|---|---|
+| Opens without error / untouched save identical | 8,023 / 8,023 |
+| Edit one value (attribute value, edge to bane, immunity 5 to 10) changes only that field | per behaviour, 50 samples each |
+| Opens as a sentence (not Advanced) | report; projected 96% by count |
+| Conditions open as intent tests (not raw) | report against the 720 `filterCondition`s |
+| Sentence agrees with owner text (mismatch list) | report, for content review |
+
+### 4.6 Connection to the ability editor
+
+- The ability editor's "While this ability resolves" block and "Apply an effect" settings currently
+  fall back to the old modifier form; they use these sentences instead.
+- A modifier list inside an ongoing effect, kit, ancestry or title uses the same sentences, so one
+  vocabulary serves 1,504 ongoing-effect modifiers as well as classes.
+- `activated` and the trigger types open the existing simplified editors; the trigger's card
+  replaces `triggerdisplay` (354), per brief 4j.
+
+---
+
+## 5. Content findings to review (from this research)
+
+| Finding | Where | Count |
+|---|---|---|
+| Characteristic Increase implemented five ways (add, add+cap, max, set, min) | Elementalist, Fury, Tactician... | 22+ |
+| Elementalist characteristic `min 5` next to `add 1, cap 5` (min is a no-op below 5) | `classes/elementalist.yaml` | 4 |
+| Modifiers copying their feature's full text into `description` | class records | 1,040 of 1,765 |
+| Rule stated in a text-only feature but implemented elsewhere (Surge of Insight) | Shadow | 1 known; script can list more |
+| Abilities matched by name in `modifyability` filters | all content | 114 |
+| 5e `armorClass` attribute target | 3 modifiers | 3 |
+| Level-1 features split between `tutoriallevel-1` and `level-1` | 8 records | 8 |
+| Hidden duplicate domain records in `classes/` beside the live ones in `subclasses/` | domains | 14 |
+
+---
+
+## 6. Phased plan
+
+| Phase | What | Gate |
+|---|---|---|
+| **1. Corpus scripts** (no UI) | Extend `ui-mockup/ability-blocks-corpus/` with `modifiers.js` and `classes.js`: open every record as blocks, save, diff; produce the counts and mismatch lists above | 8,023/8,023 and 70/70 untouched-identical; report sentence coverage |
+| **2. Modifier sentences in the prototype** | The 12 sentences of 4.2 plus "applies" and intent tests, as a modifier list mode of the existing HTML page; Advanced blocks for the rest | Build the modifiers of 20 random features from their text; output equals content |
+| **3. Class page in the prototype** | Shadow end to end: Basics, Insight, levels 1-10, College of Black Ash, generated Advancement table, links into the ability/trigger editor | Generated table matches the book's for all 11 classes; untouched save identical |
+| **4. Poll** | 40 random features (all classes, all levels) and 40 random modifiers (monsters, effects, kits): open, save, edit, book-check, as polls 4m/4p | Untouched 100%; list of gaps ranked by count |
+| **5. Lua** | `ModifierModel` and `ClassModel` beside the planned `TriggerModel`; sentence descriptors registered next to each `TypeInfo` (optional field, opaque fallback) | Same corpus scripts pass in Lua |
+| **6. Engine and content (optional, each its own decision)** | Match abilities by guid in `modifyability`; roll-dialog fallback to the generated sentence; `triggerdisplay` migration (brief 4j); `ForceDomains` no-op check; content pass for Section 5 | Per item |
+
+---
+
+## 7. Risks
+
+- **`ForceDomains` and `domains` churn.** If recomputation rewrites `domains` on every save, the
+  identical-save rule fails for all 1,337 features. Must be measured in phase 1.
+- **Two-record writes** (resource checklist + trigger; Characteristic Increase list + choice) can
+  leave half a pair if a save fails. Write them in one `SetAndUploadTableItem` of the class.
+- **Rules importer overwrite.** `imported` features are replaced on re-import unless
+  `importOverride` is set. Editing an imported feature in the simple editor should set it (as
+  "Override Import" does today) and say so.
+- **Text-first editing can hide wrong automation.** Book wording wins on the card, so a mismatch
+  between text and modifiers is invisible to players; the mismatch list must be prominent.
+- **Scope creep into kits, ancestries and titles.** The modifier sentences make them cheap later,
+  but this proposal only covers classes and the shared modifier list.
+
+## 8. Open questions for the designer
+
+1. **Level 1 placement:** should authors see the slow start at all? Options: (a) one "1st-Level
+   Features" section with an "arrives in encounter N" token (recommended); (b) four Encounter
+   sections as today; (c) always save to `tutoriallevel-1`.
+2. **Improvements:** always a new feature at the later level (book first, recommended), or allow the
+   "From level N" line inside the original feature as an authoring shortcut?
+3. **Modifier descriptions:** stop copying feature text into new modifiers (recommended), and offer a
+   one-click cleanup for the 1,040 copies, or leave content alone?
+4. **Heroic resource:** is the checklist meant to be the source of truth (then triggers are
+   generated from it), or are the triggers (then the checklist is generated)? The editor can write
+   both either way, but one should win when they disagree.
+5. **Hidden 5e fields** (`primary`, `multiclass`, Hit Die, spellcasting): hide entirely in the simple
+   editor (recommended), or list them under Advanced?
+6. **Subclass editing:** a subclass as its own page (as stored), or shown inside its class page in
+   the book's table form with a link to edit it?
+7. **Name matching:** accept an engine change so `modifyability` and similar filters match abilities
+   by guid, or keep name formulas and warn on rename?

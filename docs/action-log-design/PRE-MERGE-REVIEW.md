@@ -38,6 +38,15 @@ Forced Movement (needs wording), `NoteStability` before the immunity check, nest
 kit bonus. Not done (unmeasured perf): History.Keys caching, searchResults walk,
 MergeStyles per linger, GetConditionImmunities; g_links growth (small).
 
+Later the same day (all signed by James): 7 and Malice (players see Malice lines only in
+Encounter of the Week; monster Stamina numbers follow the Stamina bar's rule) in 297c59da;
+5 (unseen creatures) and the no-map Table record in 4404c634; 4 (notes), 14 (caption toast)
+and 25 (Turn Rewind by rewind point) in c6c68704; origin/main merged in b37e87e8; the
+post-merge items (immunity line and order, Iron Grip, nested kit bonus) in 85dcc34b.
+Still to try live: a real cast with per-target edges and surges, a brand-new game's first
+entry, dock mode, a Get In Get Out cast (kit part on the Tier line), an Iron Grip escape,
+an enemy monster's Stamina line. Whole-codex type check on the merged branch not run.
+
 ## 1. Fix before merge
 
 1. **New users never get their built-in View.** Checked. `HistoryTray.lua:6333` runs

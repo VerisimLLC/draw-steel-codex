@@ -5588,9 +5588,12 @@ end
 --- on screen, with Reduce Motion on, or for a row on a map History isn't showing.
 --- @param entry HistoryEntry
 function History.FoldIn(entry)
-    if entry.kind ~= "action" or entry.actor == nil or ThemeEngine.GetAccessibility().reduceMotion then
+    --a player's copy is cut the way their row will be.
+    local shown = History.ForViewer(entry)
+    if shown == nil or shown.kind ~= "action" or shown.actor == nil or ThemeEngine.GetAccessibility().reduceMotion then
         return
     end
+    entry = shown
     local hud = GameHud.instance
     local card = hud ~= nil and rawget(hud, "abilityDisplayPanel") or nil
     local layer = Tabletop.ButtonLayer()

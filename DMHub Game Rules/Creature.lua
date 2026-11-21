@@ -11949,7 +11949,7 @@ end
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
     StampEventCause(info)
     --every other creature hears this event too, with subject set. Only this one landed.
-    if eventName == "fall" and info.subject == nil then
+    if eventName == "fall" and info ~= nil and info.subject == nil then
         GameSystem.NotifyPlayObservers("fell", self, {distance = info.speed})
     end
 

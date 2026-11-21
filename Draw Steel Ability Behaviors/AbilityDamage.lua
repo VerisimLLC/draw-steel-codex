@@ -412,6 +412,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
     if logMessage ~= nil and logMessage.amount > 0 then
         --send the chat message to the chat.
         chat.SendCustom(logMessage)
+        GameSystem.NotifyPlayObservers("typedmessage", self.chatMessage)
     end
 
     self:PostBonusNote(casterToken, options)

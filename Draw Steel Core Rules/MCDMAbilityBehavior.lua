@@ -2058,6 +2058,10 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
     end
 
     --print("Rule:: Before normalize:  " .. rule)
+    --the text after a "#" stop marker is applied by another behavior (an ongoing
+    --effect), so it is cut from what runs here. Kept for the "resisted" observers, so
+    --a resisted potency can still say what the target escaped ("M<2 #weakened").
+    local stoppedText = string.match(rule, "<alpha=#00><alpha=#ff>([^;]*)")
     rule = rule:gsub("<alpha=#00><alpha=#ff>.*", "")
     rule = regex.ReplaceAll(rule, "<[^<>]*?>", "")
     --Mirror the name normalization done by GetTableNameRegex, which strips
@@ -2146,6 +2150,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
 
             if options.powerRollPass == "target" then
                 ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
+                GameSystem.NotifyPlayObservers("resisted", targetToken.properties, gateMatch.tail, stoppedText)
             end
 
             --resisted don't do the gated part, but keep anything after the semicolon.

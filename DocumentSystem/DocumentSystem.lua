@@ -7139,6 +7139,9 @@ function CustomDocument.CreateTabbedViewer(placement)
         halign = "left",
         valign = "top",
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (a long document dragged at 83 ms a frame, 19 in place).
+        dragInPlace = true,
         drag = function(element)
             --while popped out the OS window is what moves; a release of a
             --(suppressed) drag must not teleport the panel inside it.
@@ -8080,8 +8083,9 @@ function CustomDocument:PresentDocument(args)
     if self:has_key("_tmp_location") and self._tmp_location.screenx == dmhub.screenDimensionsBelowTitlebar.x and self._tmp_location.screeny == dmhub.screenDimensionsBelowTitlebar.y then
         loc.x = self._tmp_location.x or loc.x
         loc.y = self._tmp_location.y or loc.y
-        loc.width = self._tmp_location.width or loc.width
-        loc.height = self._tmp_location.height or loc.height
+        --stored from selfStyle, which this function only sets to pixel numbers.
+        loc.width = (self._tmp_location.width or loc.width) --[[@as number]]
+        loc.height = (self._tmp_location.height or loc.height) --[[@as number]]
         userPlaced = self._tmp_location.moved == true and self._tmp_location.x ~= nil and self._tmp_location.y ~= nil
     end
 
@@ -8159,6 +8163,9 @@ function CustomDocument:PresentDocument(args)
         --unaffected -- swallowPress only stops PARENT propagation.
         swallowPress = true,
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (the Bestiary dragged at 160 ms a frame, 24 in place).
+        dragInPlace = true,
         drag = function(element)
             --pinned windows still receive drag events (they only clear
             --dragMove -- see refreshPanelPinned); dropping the event here
@@ -9011,7 +9018,13 @@ function PanelDocument:PresentPanel(args)
         return existing
     end
 
-    args.width = args.width or PanelDocument.DefaultWidth
+    --a panel laid out for one width (History) registers defaultWidth for its first window.
+    local reg = DockablePanel.GetRegistration(self:try_get("panelName") or "")
+    local defaultWidth = nil
+    pcall(function()
+        defaultWidth = reg ~= nil and reg.defaultWidth or nil
+    end)
+    args.width = args.width or defaultWidth or PanelDocument.DefaultWidth
     args.height = PanelDocument.ClampHeight(
         self:try_get("panelName"),
         args.height or PanelDocument.DefaultHeight)
@@ -16700,6 +16713,27 @@ end
 --Journal / Chat / Action Log in the bottom-left corner while it takes
 --the hud over) the button is a provider widget nested inside the rail
 --wrapper with no slot, so that case searches the wrapper's tree.
+--- Gives a panel a rail button directly below another panel's, moving the buttons
+--- under it down a slot. Does nothing if the panel already has a place on the rails,
+--- or the other panel has no button. Keys are lowercase.
+--- @param key string
+--- @param belowKey string
+function PanelDocument.RailPlaceBelow(key, belowKey)
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    local side, slot = RailFindButton(belowKey)
+    if layout[key] ~= nil or side == nil then
+        return
+    end
+    for _, entry in pairs(layout) do
+        if type(entry) == "table" and (entry.side or "left") == side and entry.slot ~= nil and entry.slot > slot then
+            entry.slot = entry.slot + 1
+        end
+    end
+    layout[key] = { side = side, slot = slot + 1 }
+    dmhub.SetSettingValue("iconraillayout", layout)
+    RebuildIconRails()
+end
+
 function PanelDocument.FindChatRailButton()
     local function railSideOf(key)
         return cond(string.sub(key, 1, 4) == "left", "left", "right")

@@ -10688,7 +10688,7 @@ function TacPanel.PersistentAbilities()
                             classes = {"panel", "cond-remove", "editOnly"},
                             press = function(el)
                                 if TacPanel.IsReadOnly(el) then return end
-                                token.properties:EndPersistentAbilityById(guid)
+                                token.properties:EndPersistentAbilityById(guid, "chose")
                             end,
                             linger = function(el)
                                 gui.Tooltip("Stop")(el)

@@ -228,7 +228,7 @@ audio.SoundEvent{
     name = "Notify.Diceroll",
     mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.25,
+    volume = 0.20,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 
@@ -361,7 +361,7 @@ audio.SoundEvent{
     name = "Notify.Status_Dying_Hero",
     mixgroup = "ui",
     sounds = {"status/Notify_Status_Start_Dying_Hero_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     ignoreDuplicates = 0.2,
 }
 
@@ -435,7 +435,7 @@ audio.SoundEvent{
     name = "Condition.Winded",
     mixgroup = "ui",
     sounds = {"status/Notify_Status_Start_Winded_v1_01.wav"},
-    volume = 0.2,
+    volume = 0.1,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -445,7 +445,7 @@ audio.SoundEvent{
     name = "Condition.Dazed",
     mixgroup = "ui",
     sounds = {"status/Notify_Cond_Start_Dazed_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -455,7 +455,7 @@ audio.SoundEvent{
     name = "Condition.Taunted",
     mixgroup = "ui",
     sounds = {"status/Notify_Cond_Start_Taunted_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -1205,6 +1205,7 @@ DiceImpactFamilies.families = {
     { id = "GlassGas",   text = "Glass Gas",        suffix = "GlassGas" },
     { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
     { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
+    { id = "Squishy",      text = "Squishy",            suffix = "Squishy" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1276,7 +1277,7 @@ for _,family in ipairs(DiceImpactFamilies.families) do
 end
 
 audio.SoundEvent{
-    name = "DiceImp.Hard",
+    name = "DiceImp.Hards",
     mixgroup = "dice",
     sounds = {"dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_01.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_02.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_03.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_04.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_05.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_06.wav"},
     volume = 1.0,
@@ -1523,6 +1524,43 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+
+
+--Squishy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Hard_01.wav","dice/Squishy/DiceImp_Squishy_Hard_02.wav","dice/Squishy/DiceImp_Squishy_Hard_03.wav","dice/Squishy/DiceImp_Squishy_Hard_04.wav","dice/Squishy/DiceImp_Squishy_Hard_05.wav","dice/Squishy/DiceImp_Squishy_Hard_06.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Squishy",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Mild_01.wav","dice/Squishy/DiceImp_Squishy_Mild_02.wav","dice/Squishy/DiceImp_Squishy_Mild_03.wav","dice/Squishy/DiceImp_Squishy_Mild_04.wav","dice/Squishy/DiceImp_Squishy_Mild_05.wav","dice/Squishy/DiceImp_Squishy_Mild_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Squishy",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Soft_01.wav","dice/Squishy/DiceImp_Squishy_Soft_02.wav","dice/Squishy/DiceImp_Squishy_Soft_03.wav","dice/Squishy/DiceImp_Squishy_Soft_04.wav","dice/Squishy/DiceImp_Squishy_Soft_05.wav","dice/Squishy/DiceImp_Squishy_Soft_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.01,
+}
+
+
+
+
+
+
+
+
+
 
 --MetalTiny Dice Impacts
 

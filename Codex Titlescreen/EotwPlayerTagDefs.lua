@@ -14,6 +14,9 @@ local mod = dmhub.GetModLoading()
 --  name         the words on the badge
 --  description  how it is earned, shown in the Guild and on the earn banner
 --  style        a badge style: bronze, silver, gold, ember, slate, teal, violet, copper
+--  hidden       true: left out of everyone's tag list until they earn it (a
+--               surprise, or one that can no longer be earned). Leave it off to
+--               show the tag, locked, as a goal in the Guild's list.
 --  rule         one of:
 --    { counter = "wins", atLeast = 10 }
 --        counters: wins, defeats, encountersPlayed (each counts games, not heroes),
@@ -22,6 +25,9 @@ local mod = dmhub.GetModLoading()
 --        Return helped that raised another player's hero)
 --    { counter = "projectPoints", atLeast = 100, project = "restore-temple" }
 --        projectPoints in one project only
+--    { counter = "encountersPlayed", atLeast = 1, before = "2026-12-31" }
+--        wins, defeats and encountersPlayed may take `before`: only games
+--        played before that day (UTC, written YYYY-MM-DD) count
 --    { event = "projectTopBuilder", project = "build-great-forge" }
 --        the top contributor(s) when that project is finished
 --    { manual = true }
@@ -35,15 +41,17 @@ EotwPlayerTagDefs = {
         { id = "bricklayer", name = "Bricklayer", description = "Put 100 points into town projects.", style = "copper", rule = { counter = "projectPoints", atLeast = 100 } },
         { id = "seasoned", name = "Seasoned", description = "Won 10 encounters.", style = "silver", rule = { counter = "wins", atLeast = 10 } },
         { id = "regular", name = "Regular", description = "Played 25 encounters.", style = "teal", rule = { counter = "encountersPlayed", atLeast = 25 } },
-        { id = "builder", name = "Builder", description = "Put 1,000 points into town projects.", style = "copper", rule = { counter = "projectPoints", atLeast = 1000 } },
-        { id = "legend", name = "Legend", description = "Won 50 encounters.", style = "gold", rule = { counter = "wins", atLeast = 50 } },
-        { id = "undaunted", name = "Undaunted", description = "Fell in 5 encounters and kept coming back.", style = "slate", rule = { counter = "defeats", atLeast = 5 } },
-        { id = "forgewright", name = "Forgewright", description = "Contributed the most to building the Great Forge.", style = "ember", rule = { event = "projectTopBuilder", project = "build-great-forge" } },
-        { id = "pilgrim", name = "Pilgrim", description = "Put 100 points into restoring the Temple of Saint Llewellyn.", style = "silver", rule = { counter = "projectPoints", atLeast = 100, project = "restore-temple" } },
-        { id = "hand-of-saint-llewellyn", name = "Hand of Saint Llewellyn", description = "Contributed the most to restoring the Temple of Saint Llewellyn.", style = "gold", rule = { event = "projectTopBuilder", project = "restore-temple" } },
-        { id = "keeper-of-the-rite", name = "Keeper of the Rite", description = "Helped raise 5 fallen heroes.", style = "gold", rule = { counter = "ritesAided", atLeast = 5 } },
-        { id = "challenger", name = "Challenger", description = "Won an encounter in Challenge Mode.", style = "ember", rule = { counter = "challengeWins", atLeast = 1 } },
-        { id = "glutton-for-punishment", name = "Glutton for Punishment", description = "Won 10 different encounters in Challenge Mode.", style = "ember", rule = { counter = "challengeWins", atLeast = 10 } },
-        { id = "deathdefier", name = "Deathdefier", description = "Won an encounter in Deadly Mode.", style = "slate", rule = { counter = "deadlyWins", atLeast = 1 } },
+        { id = "builder", name = "Builder", description = "Put 1,000 points into town projects.", style = "copper", hidden = true, rule = { counter = "projectPoints", atLeast = 1000 } },
+        { id = "legend", name = "Legend", description = "Won 50 encounters.", style = "gold", hidden = true, rule = { counter = "wins", atLeast = 50 } },
+        { id = "undaunted", name = "Undaunted", description = "Fell in 5 encounters and kept coming back.", style = "slate", hidden = true, rule = { counter = "defeats", atLeast = 5 } },
+        { id = "forgewright", name = "Forgewright", description = "Contributed the most to building the Great Forge.", style = "ember", hidden = true, rule = { event = "projectTopBuilder", project = "build-great-forge" } },
+        { id = "pilgrim", name = "Pilgrim", description = "Put 100 points into restoring the Temple of Saint Llewellyn.", style = "silver", hidden = true, rule = { counter = "projectPoints", atLeast = 100, project = "restore-temple" } },
+        { id = "hand-of-saint-llewellyn", name = "Hand of Saint Llewellyn", description = "Contributed the most to restoring the Temple of Saint Llewellyn.", style = "gold", hidden = true, rule = { event = "projectTopBuilder", project = "restore-temple" } },
+        { id = "keeper-of-the-rite", name = "Keeper of the Rite", description = "Helped raise 5 fallen heroes.", style = "gold", hidden = true, rule = { counter = "ritesAided", atLeast = 5 } },
+        { id = "challenger", name = "Challenger", description = "Won an encounter in Challenge Mode.", style = "ember", hidden = true, rule = { counter = "challengeWins", atLeast = 1 } },
+        { id = "glutton-for-punishment", name = "Glutton for Punishment", description = "Won 10 different encounters in Challenge Mode.", style = "ember", hidden = true, rule = { counter = "challengeWins", atLeast = 10 } },
+        --PLACEHOLDER DATE: set `before` to the day after the playtest ends before deploying.
+        { id = "founding-hero", name = "Founding Hero", description = "Played Encounter of the Week during the playtest.", style = "violet", hidden = true, rule = { counter = "encountersPlayed", atLeast = 1, before = "2026-12-31" } },
+        { id = "deathdefier", name = "Deathdefier", description = "Won an encounter in Deadly Mode.", style = "slate", hidden = true, rule = { counter = "deadlyWins", atLeast = 1 } },
     },
 }

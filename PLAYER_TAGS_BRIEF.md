@@ -218,6 +218,18 @@ proposals until the user rules on them.
 deployed, list-heroes has no `tags`: the Guild picker lists every tag as locked and selecting
 fails with "Couldn't change your tag. Try again."
 
+## 10. Public goals and the playtest tag (2026-11-21, user direction)
+
+- Only **Hero of Blackbottom, Wayfarer, Bricklayer, Seasoned and Regular** appear, locked,
+  in everyone's tag list as goals. Every other tag has `hidden = true` in the tag file: it
+  stays out of the list until the player earns it. (Supersedes "unearned tags dimmed in your
+  own picker" for those tags.)
+- **Founding Hero** (`founding-hero`, violet, hidden): finished any encounter (win or defeat)
+  before the playtest ends. Counter rules for wins/defeats/encountersPlayed can now take
+  `before = "YYYY-MM-DD"` (UTC). Existing players get it from their recorded games.
+- **Open:** the playtest end date. The tag file holds a PLACEHOLDER (`2026-12-31`); set it
+  before deploying.
+
 ## 5. Evidence appendix (current state, 2026-11-18)
 
 **Per-account state and trust**

@@ -86,7 +86,7 @@ end
 --- data -------------------------------------------------------------------
 
 --Every tag, as the server describes it (or the codex copy before it has).
----@return table[] defs each {id, name, description, style}
+---@return table[] defs each {id, name, description, style, hidden}
 function EotwPlayerTags.Defs()
     if m_defs ~= nil then
         return m_defs
@@ -452,7 +452,8 @@ function EotwPlayerTags.ShowPicker(host)
         for pass = 1, 2 do
             for _, def in ipairs(EotwPlayerTags.Defs()) do
                 local earned = EotwPlayerTags.HasEarned(def.id)
-                if (pass == 1) == earned then
+                --a hidden tag stays out of the list until you have earned it.
+                if (pass == 1) == earned and (earned or def.hidden ~= true) then
                     anyEarned = anyEarned or earned
                     rows[#rows+1] = Row{
                         tagid = def.id,

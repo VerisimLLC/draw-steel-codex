@@ -647,6 +647,7 @@ local g_rulePatterns = {
             if targetToken.properties:CannotBeForceMoved() then
                 print("Target is immune to forced movement, not executing")
                 ShowFailMessage("Immune to Forced Movement")
+                ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, match.movement)
                 return
             end
 

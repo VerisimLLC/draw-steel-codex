@@ -2249,6 +2249,9 @@ local function LineWords(entry)
         return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
     elseif family == "moved" then
         local moved = entry.moved
+        if moved.immune then
+            return string.format("%s is immune to forced movement", name)
+        end
         if moved.stopped then
             return string.format("%s held its ground: stability %d stopped the %s", name, moved.stability,
                 (string.gsub(moved.kind, "vertical_", "")))

@@ -1499,13 +1499,14 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             if stability > 0 then
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
                             end
-                            abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
-                                baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
-
                             --Nothing else matters once the target can't be moved, so this replaces the other notes.
                             if target.token.properties:CannotBeForceMoved() then
                                 adjustedRange = 0
                                 adjustments = {"Immune to Forced Movement"}
+                                ActivatedAbilityInvokeAbilityBehavior.NoteImmune(target.token, forcedMovementType)
+                            else
+                                abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
+                                    baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
                             end
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
@@ -1698,6 +1699,21 @@ function ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, kind, 
         })
     end
     return facts
+end
+
+--- Tells play observers that a forced move never happened because its target is immune to
+--- forced movement (the move is set to 0 squares, so no move event follows).
+--- @param targetToken CharacterToken The creature that was to be moved.
+--- @param kind string "push", "vertical_pull" and so on.
+function ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, kind)
+    GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+        kind = kind,
+        distance = 0,
+        stopped = true,
+        immune = true,
+        collision = 0,
+        walls = 0,
+    })
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
@@ -3059,13 +3075,14 @@ function AbilityInvocation:Invoke()
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
 		end
-		abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
-			baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
-
 		--Nothing else matters once the target can't be moved, so this replaces the other notes.
 		if targetToken.properties:CannotBeForceMoved() then
 			adjustedRange = 0
 			adjustments = {"Immune to Forced Movement"}
+			ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, forcedMovementType)
+		else
+			abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
+				baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare

@@ -120,6 +120,9 @@ end
 --Stability (L99, L100) and walls broken (L104) go with the push they changed.
 local function MovedWords(moved, afterDamage)
     local kind = string.gsub(moved.kind, "vertical_", "")
+    if moved.immune then
+        return "is immune to forced movement"
+    end
     if moved.stopped then
         return string.format("held its ground: stability %d stopped the %s", moved.stability, kind)
     end

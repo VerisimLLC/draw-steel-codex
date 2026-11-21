@@ -44,7 +44,7 @@ local mod = dmhub.GetModLoading()
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move.
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
 --- @field landedon? boolean On a target: a creature fell on it.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
@@ -209,7 +209,9 @@ local g_rowOfCast = setmetatable({}, {__mode = "k"})
 
 --A cast with no row of its own that runs inside one with a row. Anything it sets off
 --names this cast, so the row answers to its id too.
-local function JoinParentRow(options)
+--It also keeps the ability on the row: a strike nested in a custom invoke takes the kit's
+--bonus on its own copy as it is cast, so the row's Tier line reads the kit from there.
+local function JoinParentRow(options, ability)
     local symbols = options.symbols
     if symbols == nil or symbols.cast == nil or symbols.castid == nil then
         return
@@ -218,6 +220,8 @@ local function JoinParentRow(options)
     if parent ~= nil then
         parent.entry.aliases = parent.entry.aliases or {}
         table.insert(parent.entry.aliases, symbols.castid)
+        parent.invoked = parent.invoked or {}
+        table.insert(parent.invoked, ability)
     end
 end
 
@@ -324,7 +328,7 @@ local function CastBegan(ability, casterToken, targets, options)
     local sharesCard = card ~= nil and (symbols == nil or card.castid ~= symbols.castid)
     local automatic = ability.typeName == "TriggeredAbility" and not ability:ShowChatMessageOnCast()
     if sharesCard or (not automatic and not ability:ShowChatMessageOnCast()) then
-        JoinParentRow(options)
+        JoinParentRow(options, ability)
         return
     end
 
@@ -552,8 +556,22 @@ end
 --damage modifiers, then surges, each with the type it added to. The card takes them off
 --the Tier line. A target whose immunity stopped it all still gets them, so its line can say
 --what made the damage that immunity took off.
-local function AddDamageParts(entry, cast, ability, caster)
+--- invoked: abilities cast inside this one that shared its row (JoinParentRow); a kit
+--- bonus one of them took at cast, and the row's own ability did not, counts as the row's.
+local function AddDamageParts(entry, cast, ability, caster, invoked)
     local kits = KitBonuses(ability)
+    local haveKit = {}
+    for _, kit in ipairs(kits) do
+        haveKit[kit.name] = true
+    end
+    for _, sub in ipairs(invoked or {}) do
+        for _, kit in ipairs(KitBonuses(sub)) do
+            if not haveKit[kit.name] then
+                haveKit[kit.name] = true
+                kits[#kits + 1] = kit
+            end
+        end
+    end
     local targetDamage = cast:try_get("targetDamageSources", {})
     local targetSurges = cast:try_get("targetSurges", {})
     local freeSurges = cast:try_get("targetFreeSurges", {})
@@ -850,7 +868,7 @@ local function CastFinished(ability, casterToken, options)
                 end
             end
         end
-        AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
+        AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil, state.invoked)
         AddRollTriggers(entry, cast)
     end) end
     if not ok then
@@ -1103,6 +1121,18 @@ local function OnThreshold(creature, thresholdState, info)
     end
 end
 
+--A step names another creature as the one acting (Iron Grip: the grabber deals the damage
+--a grabbed creature takes for escaping), as the old Action Log's card did.
+local function OnActorCredited(creature, info)
+    local token = dmhub.LookupToken(creature)
+    local state = OpenCast(info.cast)
+    if not History.Enabled() or token == nil or state == nil then
+        return
+    end
+    state.actorToken = token
+    state.entry.actor = History.Creature(token)
+end
+
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
     --a push that went nowhere is still worth a line when stability stopped it (L98), it was
@@ -1129,8 +1159,12 @@ local function OnForcedMove(creature, info)
         end
     end
     --what stability did (6.5): stopped comes straight from the setup, the rest with the move.
+    --An immune target was never moved at all: that is all its line says.
     local stability = info.stopped and info or info.stability
-    if stability ~= nil then
+    if info.immune then
+        moved.stopped = true
+        moved.immune = true
+    elseif stability ~= nil then
         moved.requested = stability.requested
         moved.stability = stability.stability
         moved.ignored = stability.ignored or nil
@@ -2532,5 +2566,6 @@ GameSystem.RegisterPlayObserver("history", {
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,
     note = OnNote,
+    actorcredited = OnActorCredited,
     rewindpoint = OnRewindPoint,
 })

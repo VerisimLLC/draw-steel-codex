@@ -62,6 +62,8 @@ local g_playObservers = {}
 ---     inside the cast that ran it.
 ---   note(creature, title, detail): a note card was posted for a creature (an Action Log
 ---     Note step, a bonus a modifier added), inside a cast or not.
+---   actorcredited(creature, info): a step names another creature as the one acting in this
+---     cast (Iron Grip's escape damage is the grabber's). info: cast.
 ---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
 ---     atturnend, options (the options of the cast that rolled it).
 ---   persistenceended(creature, abilityname, reason): a persistent ability stopped. reason:

@@ -63,6 +63,11 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
         local entry = casterToken.properties:try_get("inflictedConditions", {})[self.logActorCondition]
         if entry ~= nil and entry.casterInfo ~= nil and entry.casterInfo.tokenid ~= nil then
             logActorId = entry.casterInfo.tokenid
+            local actorToken = dmhub.GetCharacterById(logActorId)
+            if actorToken ~= nil and actorToken.properties ~= nil then
+                GameSystem.NotifyPlayObservers("actorcredited", actorToken.properties,
+                    {cast = options.symbols ~= nil and options.symbols.cast or nil})
+            end
         end
     end
 

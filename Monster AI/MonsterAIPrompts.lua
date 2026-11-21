@@ -411,6 +411,9 @@ local pullCollideAllyPenalty = 4
 --Collision damage a creature takes when force moved into something with
 --`speed` squares left, per the Collision global rule (speed, less Forced
 --Movement Damage Reduction; none with No Damage From Forced Movement).
+--- @param token CharacterToken the creature taking the hit
+--- @param speed number squares of forced movement left at the collision
+--- @return number
 local function ExpectedCollisionDamage(token, speed)
     local props = token.properties
     if props:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
@@ -424,6 +427,11 @@ end
 --can kill members) or when the puller would drop. Yes when the puller takes
 --nothing or the hit drops the target; otherwise only while the puller stays
 --above half its Stamina. Returns the decision and the target's damage.
+--- @param pullerToken CharacterToken
+--- @param movedToken CharacterToken the enemy being pulled
+--- @param speed number squares of pull left at the collision
+--- @return boolean worthIt
+--- @return number dealt damage the target would take
 local function SelfCollisionWorthIt(pullerToken, movedToken, speed)
     if pullerToken.isObject or movedToken.isObject then
         return false, 0
@@ -456,13 +464,19 @@ end
 --Value of a pull that leaves the target where it is (it is next to the puller,
 --or blocked at once): only the collision counts. nil when it is not worth
 --doing; the second result is true when a pull into the puller was turned down.
+--- @param invokerToken CharacterToken the puller
+--- @param casterToken CharacterToken the enemy being pulled
+--- @param movementInfo table the result of MarkMovementArrow for this pull
+--- @param range number squares the pull moves at most
+--- @return number|nil value
+--- @return boolean declinedSelfCollision
 local function StandingPullCollisionValue(invokerToken, casterToken, movementInfo, range)
     local path = movementInfo.path
     local value = 0
     for _,collideToken in ipairs(movementInfo.collideWith or {}) do
         if collideToken.charid == invokerToken.charid then
-            --Force left when the target hits the puller. Missing or -1 with a
-            --blocked path: the cast counts the full pull, so do the same.
+            --Squares of pull left when the target hits the puller. When the engine
+            --does not report it, the real pull counts every square, so do the same.
             local speed = path.collisionForce
             if speed == nil or speed < 0 then
                 speed = cond(path.hasCollision, range, 0)

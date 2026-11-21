@@ -9252,6 +9252,16 @@ end
 --button runs launch() instead of opening a window -- e.g. Monster
 --Builder, which launches the companion app. Returns the launch function
 --for a layout key, or nil for ordinary panels and non-panel keys.
+--A panel the rail's Add lists may offer this user: one they can open that is available to
+--them now (History is not while they use the old Action Log, nor in Crows).
+function PanelDocument.OfferedOnRail(name)
+    if PanelDocument.Get(name) == nil then
+        return false
+    end
+    local reg = DockablePanel.GetRegistration(string.lower(name))
+    return reg == nil or DockablePanel.PanelPermittedForUser(reg)
+end
+
 local function RailLaunchAction(key)
     if key == nil then
         return nil
@@ -18504,7 +18514,7 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         local entries = {}
         for _, name in ipairs(g_iconRailPanels) do
             local k = string.lower(name)
-            if not have[k] and PanelDocument.Get(name) ~= nil then
+            if not have[k] and PanelDocument.OfferedOnRail(name) then
                 entries[#entries + 1] = {
                     text = "Add: " .. name,
                     click = function()
@@ -21772,7 +21782,7 @@ RailShowAddPicker = function(element, side)
     local recommended, all = {}, {}
     for _, name in ipairs(g_iconRailPanels) do
         local key = string.lower(name)
-        if not onRail[key] and PanelDocument.Get(name) ~= nil then
+        if not onRail[key] and PanelDocument.OfferedOnRail(name) then
             recommended[#recommended + 1] = name
         end
     end
@@ -21782,7 +21792,7 @@ RailShowAddPicker = function(element, side)
         local name = item.text
         if name ~= nil then
             local key = string.lower(name)
-            if not onRail[key] and PanelDocument.Get(name) ~= nil then
+            if not onRail[key] and PanelDocument.OfferedOnRail(name) then
                 all[#all + 1] = name
             end
         end

@@ -709,6 +709,23 @@ original, field by field. Triggers (10 CharacterModifiers) were not part of this
 - A saved formula with a `{comment}` (the display-only power roll trick) and a duration effect with no card
   text blocked saving; neither should.
 
+**Follow-up from reviewing Optic Blast (2026-11-21)**
+- The card used generated effect text instead of the ability's saved `description`, which holds the book
+  wording ("**Strained:** ..." included). An opened ability now shows its description, paragraph by
+  paragraph with labels, as its effect text, and edits save back to `description`. Saved wording (flavor,
+  distance, target, description) is no longer tagged "custom wording" until the author changes it.
+- **If you are Strained** is a Logic container: "If you are [Strained / not Strained]:". Each step inside
+  saves `strainSelection` (the engine checks the caster when the ability runs), and the card line is
+  labelled "Strained:". Opening groups neighbouring Strained steps into one container (64 compendium
+  behaviours use strained, 13 unstrained).
+- Damage outside a tier says who takes it and whether it can be reduced: "Deal [Reason] damage [to you]
+  [that can't be reduced]" (saved as `applyto: caster`, `cannotBeReduced`).
+- Advanced steps read as their full-editor name plus what the record says ("Modify Power Roll: You gain a
+  surge, which you can use immediately...").
+- Optic Blast's Modify Power Roll is tagged Strained in the saved data (`strainSelection: strained`,
+  `displayCondition: Caster.Strained`), not tied to the Reflective Surface mode; the Reflective Surface mode
+  works through `numTargets: Mode` and proximity targeting. It now shows inside "If you are Strained".
+
 **Still open**
 - Advanced steps (16): invoking a standard ability 8, Summon 2, Modify Power Roll 2, and one each of
   Relocate Creature, a power roll with a non-2d10 roll, a rule the tier grammar can't read, and a Script.
@@ -801,6 +818,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Modes vs Ability Variations is decided by the editor.** Each option is "same targets" or "targets differently"; any option that targets differently makes the block save as Ability Variations, with that option as a swapped-in ability (its own targeting, the full step list with only its steps from the block, cost kept from the base). Otherwise it saves as Multiple Modes. | Same principle as triggers: authors describe what happens, the editor picks the storage type. |
 | 2026-11-21 | **The card preview (tooltip) is styled after the printed card.** Name with cost in brackets ("It Is Justice You Fear (5 Wrath)"); a ruled left edge with diamond marks; italic flavor over a rule; keywords left and action right in bold ("Triggered" for triggers); distance and target with the book's icons; tier badges; characteristics and potencies as black boxes ("8 + [M]", "[P<WEAK], frightened"). Triggers show a distance and target line too ("Ranged 10 / Self or one ally"). Saved potency tier text now has the comma content uses ("P<weak, frightened"). | Asked for: the tooltip should look like the book. |
 | 2026-11-21 | **Opening existing content: anything unchanged saves back exactly as it was.** Steps, tiers, formulas and fields that compile to what they compiled to at open keep their saved form; changed steps write over the original record so hidden fields survive; unread words are kept, never dropped. On 45 real class abilities: untouched saves identical 45/45, single-tier edits touch only that tier 18/18. | Ship-safety: the simple editor will mostly be used on existing content, and must never damage what it doesn't understand. |
+| 2026-11-21 | **Opened abilities show their saved description as the effect text; Strained is a visible container; damage says who takes it.** Description edits save to `description`; "If you are Strained" saves `strainSelection`; damage gets "to you" and "that can't be reduced". | Review of Optic Blast: the card rewrote existing wording, and Strained and self-damage were invisible. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

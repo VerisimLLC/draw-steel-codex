@@ -221,7 +221,8 @@
     "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
     "keywords: undefined => {}",
     "targetFilter: \"not enemy\" => \"not Enemy\"",
-    "modeList: [{\"rules\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Sanctified Weapon - Melee until you finish a respite.\",\"text\":\""
+    "modeList: [{\"rules\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Sanctified Weapon - Melee until you finish a respite.\",\"text\":\"",
+    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -303,8 +304,8 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "Summon",
-    "Summon"
+    "Summon Creatures",
+    "Summon Creatures"
    ]
   },
   "hidden": [
@@ -348,7 +349,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)"
+    "InvokeAbility: a standard ability(standard)"
    ]
   },
   "hidden": [],
@@ -438,7 +439,8 @@
    "fieldDiffs": [
     "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
     "keywords: undefined => {}",
-    "modeList: [{\"rules\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Improved Sanctified Weapon - Melee until you finish a respite.\""
+    "modeList: [{\"rules\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Improved Sanctified Weapon - Melee until you finish a respite.\"",
+    "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -780,7 +782,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)"
+    "InvokeAbility: a standard ability(standard)"
    ]
   },
   "hidden": [],
@@ -965,7 +967,8 @@
    "fieldDiffs": [
     "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
-    "resourceNumber: 9 => \"9\""
+    "resourceNumber: 9 => \"9\"",
+    "description: \"Each target can end any conditions or effects on themself, and gains 5 temporary Stamina  => \"Each target can end any conditions or effects on themself, and gains 5 temporary Stamina "
    ],
    "behDiffs": [
     "#0 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPurgeEffects => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPurgeEffectsBehavior\",\"applyto\":\" | promptText \"End any condition or effect\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
@@ -1051,7 +1054,8 @@
    "fieldDiffs": [
     "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
     "keywords: undefined => {}",
-    "range: 1 => \"1\""
+    "range: 1 => \"1\"",
+    "description: \"You gain two surges. Whenever you use a surge before the end of the encounter, you can ch => \"You gain two surges. Whenever you use a surge before the end of the encounter, you can ch"
    ],
    "behDiffs": [
     "#0 Replenish: applyto undefined => \"targets\" | mode undefined => \"replenish\"",
@@ -1073,8 +1077,8 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)",
-    "InvokeAbility(standard)"
+    "InvokeAbility: a standard ability(standard)",
+    "InvokeAbility: a standard ability(standard)"
    ]
   },
   "hidden": [],
@@ -1193,8 +1197,8 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)",
-    "InvokeAbility(standard)"
+    "InvokeAbility: a standard ability(standard)",
+    "InvokeAbility: a standard ability(standard)"
    ]
   },
   "hidden": [],
@@ -1204,7 +1208,7 @@
    "fieldDiffs": [
     "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
     "range: 1 => \"1\"",
-    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility. The target spends 1 Heroic Resource.\",\"text\":\""
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility: a standard ability. The target spends 1 Heroic"
    ],
    "behDiffs": [
     "#2 Replenish: applyto undefined => \"targets\" | quantity undefined => \"1\""
@@ -1258,7 +1262,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "ModifyPowerRoll"
+    "Modify Power Roll: A Champion's Cry"
    ]
   },
   "hidden": [],
@@ -1306,7 +1310,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "DrawSteelCommand"
+    "DrawSteelCommand: {Reason*2} damage; R< Strong, slowed (save ends)"
    ]
   },
   "hidden": [
@@ -1350,7 +1354,8 @@
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
-    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\""
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "description: \"The target is marked by you until the end of the encounter, you are dying, you use this a => \"The target is marked by you until the end of the encounter, you are dying, you use this a"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: durationUntilEndOfTurn false => undefined | ongoingEffectCustom false => \"319e19ac-4f15-4c16-be71-96d448241c10\" | applyto undefined => \"targets\" | duration undefined => \"save_ends\" | stacks undefined => \"1\""
@@ -1399,7 +1404,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)"
+    "InvokeAbility: a standard ability(standard)"
    ]
   },
   "hidden": [
@@ -1410,7 +1415,8 @@
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
-    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\""
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "description: \"The target can make a signature attack as a free triggered action.\\n\\nSpend 5 Focus: You  => \"The target can make a signature attack as a free triggered action.\\n\\nSpend 5 Focus: You "
    ],
    "behDiffs": []
   },
@@ -1429,7 +1435,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "InvokeAbility(standard)"
+    "InvokeAbility: Ranged Free Strike(standard)"
    ]
   },
   "hidden": [
@@ -1468,20 +1474,17 @@
   "name": "Optic Blast",
   "kind": "ability",
   "steps": {
-   "block": 12,
+   "block": 13,
    "advanced": 1,
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "ModifyPowerRoll"
+    "Modify Power Roll: You gain a surge, which you can use immediately, and take damage equal to your Reason scor"
    ]
   },
   "hidden": [
    "objectTarget = true",
-   "proximityTargeting = true",
-   "Damage is dealt to caster",
-   "Damage: can't be reduced",
-   "Damage: only when Strained"
+   "proximityTargeting = true"
   ],
   "problems": [],
   "untouchedSame": true,
@@ -1489,11 +1492,12 @@
    "fieldDiffs": [
     "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
     "range: 10 => \"10\"",
-    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"When targeting an object with a solid reflective surface or a => [{\"text\":\"Normal\"},{\"text\":\"Reflective Surface\"}]"
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"When targeting an object with a solid reflective surface or a => [{\"text\":\"Normal\"},{\"text\":\"Reflective Surface\"}]",
+    "description: \"When targeting an object with a solid reflective surface or a creature carrying or wearin => \"When targeting an object with a solid reflective surface or a creature carrying or wearin"
    ],
    "behDiffs": [
     "#0 PowerRoll: tiers [\"2 + R damage; M < weak, prone\",\"4 + R damage; M < average, prone\",\"6 + R damage; M < strong, prone\"] => [\"2 + R damage; M<weak, prone\",\"4 + R damage; M<average, prone\",\"6 + R damage; M<strong, prone\"]",
-    "#1 Damage: applyto \"caster\" => undefined | cannotBeReduced true => undefined | strainSelection \"strained\" => undefined | damageType undefined => \"untyped\""
+    "#1 Damage: damageType undefined => \"untyped\""
    ]
   },
   "renameDiff": [
@@ -1524,7 +1528,7 @@
   "name": "Applied Chronometrics",
   "kind": "ability",
   "steps": {
-   "block": 5,
+   "block": 6,
    "advanced": 0,
    "todo": 3,
    "todos": [
@@ -1534,8 +1538,7 @@
    ]
   },
   "hidden": [
-   "effect duration “1”",
-   "ApplyOngoingEffect: only when Strained"
+   "effect duration “1”"
   ],
   "problems": [],
   "untouchedSame": true,
@@ -1548,7 +1551,7 @@
    "behDiffs": [
     "#0 PowerRoll: tiers [\"You target two creatures, one of which can be you.\",\"You target three creatures, one of which can be you.\",\" => [\"You target two creatures, one of which can be you\",\"You target three creatures, one of which can be you\",\"Yo",
     "#1 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityApplyOngoing => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityApplyOngoingEffectBehavior\",\"appl | promptText \"Select Targets for Applied Chronometric \" => undefined | standardAbilityParams {\"targetcount\":\"<<cast.tier>> +1\"} => {} | abilityType undefined => \"custom\" | targeting undefined => \"inherit\"",
-    "#2 ApplyOngoingEffect: strainSelection \"strained\" => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\""
+    "#2 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
    ]
   },
   "renameDiff": [
@@ -1561,15 +1564,14 @@
   "name": "Synaptic Conditioning",
   "kind": "ability",
   "steps": {
-   "block": 11,
+   "block": 12,
    "advanced": 0,
    "todo": 0,
    "todos": []
   },
   "hidden": [
    "ApplyOngoingEffect: only on some tiers",
-   "ApplyOngoingEffect: only on some tiers",
-   "ApplyOngoingEffect: only when Strained"
+   "ApplyOngoingEffect: only on some tiers"
   ],
   "problems": [],
   "untouchedSame": true,
@@ -1582,7 +1584,7 @@
     "#1 ApplyOngoingEffect: tiersSelected [1] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
     "#2 ApplyOngoingEffect: tiersSelected [2] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
     "#3 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
-    "#4 ApplyOngoingEffect: strainSelection \"strained\" => undefined | duration undefined => \"save_ends\" | stacks undefined => \"1\""
+    "#4 ApplyOngoingEffect: duration undefined => \"save_ends\" | stacks undefined => \"1\""
    ]
   },
   "renameDiff": [
@@ -1613,16 +1615,13 @@
   "name": "Resonant Mind Spike",
   "kind": "ability",
   "steps": {
-   "block": 6,
+   "block": 7,
    "advanced": 0,
    "todo": 0,
    "todos": []
   },
   "hidden": [
-   "duration effect lingers 10",
-   "Damage is dealt to caster",
-   "Damage: can't be reduced",
-   "Damage: only when Strained"
+   "duration effect lingers 10"
   ],
   "problems": [],
   "untouchedSame": true,
@@ -1633,7 +1632,7 @@
    ],
    "behDiffs": [
     "#0 ApplyAbilityDurationEffect: lingerTime 10 => undefined | momentaryEffect {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"\",\"display\":{\"bgcolor\":\"#ffffffff\",\"brightness\":1,\"huesh => {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"\",\"modifiers\":[{\"__typeName\":\"CharacterModifier\",\"attrib | instant undefined => true",
-    "#2 Damage: applyto \"caster\" => undefined | cannotBeReduced true => undefined | roll \"Cast.Damage Dealt * 0.5\" => \"Cast.DamageDealt * 0.5\" | strainSelection \"strained\" => undefined | damageType undefined => \"untyped\""
+    "#2 Damage: roll \"Cast.Damage Dealt * 0.5\" => \"Cast.DamageDealt * 0.5\" | damageType undefined => \"untyped\""
    ]
   },
   "renameDiff": [
@@ -1688,7 +1687,8 @@
     "range: 1 => \"1\"",
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
     "resourceNumber: undefined => \"1\"",
-    "modeList: [{\"text\":\"Normal\"},{\"condition\":\"Resources.Heroic Resource >= 2\",\"rules\":\"You gain 4 speed => [{\"rules\":\"The target gets Star Power (save ends).\",\"text\":\"Normal\"},{\"rules\":\"The target "
+    "modeList: [{\"text\":\"Normal\"},{\"condition\":\"Resources.Heroic Resource >= 2\",\"rules\":\"You gain 4 speed => [{\"rules\":\"The target gets Star Power (save ends).\",\"text\":\"Normal\"},{\"rules\":\"The target ",
+    "description: \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol => \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"4c781df8-6975-4cdb-839c-7f6547b94264\" | stacks undefined => \"1\"",
@@ -1712,7 +1712,7 @@
    "todo": 0,
    "todos": [],
    "advTypes": [
-    "Script"
+    "Lua Script"
    ]
   },
   "hidden": [

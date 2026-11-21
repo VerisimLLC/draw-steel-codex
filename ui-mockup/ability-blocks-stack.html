@@ -679,6 +679,10 @@ const STEPS = {
   // Condition Riders: an extra that rides on a condition already on the target ("and cannot stand").
   riders: { label: "Add to a condition", cat: "hinder", ctx: ["main"], desc: "Add a rider to a condition, such as prone \u201cand cannot stand\u201d.",
     make: () => S("riders", { cond: "Prone", rider: "" }) },
+  // "If you are Strained:" (Talent). Each step inside saves strainSelection, which the engine checks
+  // against the caster when the ability runs.
+  strain: { label: "If you are Strained", cat: "ctrl", ctx: ["main"], desc: "Steps that only happen if you are (or are not) Strained, as in a Talent's Strained: paragraph.",
+    make: () => S("strain", { when: "strained" }, {}, { then: [] }) },
   // Tier text "the target gains N surges".
   surges: { label: "Gain surges", cat: "help", ctx: ["tier"], desc: "The target gains surges.",
     make: () => S("surges", { n: "1" }) },
@@ -1068,8 +1072,12 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         break;
       }
       case "damage": { const a = cHolder(st.slots.amount);
-        out.push(Object.assign({ __typeName: "ActivatedAbilityDamageBehavior", roll: a.s, damageType: f.dtype }, base));
-        prose.push({ kind: "text", text: cap("deal " + a.prose + " " + dt(f.dtype) + "damage" + fp) }); break; }
+        const dmg = { __typeName: "ActivatedAbilityDamageBehavior", roll: a.s, damageType: f.dtype };
+        if (f.who === "caster") dmg.applyto = "caster";
+        if (f.unreducible === "yes") dmg.cannotBeReduced = true;
+        out.push(Object.assign(dmg, base));
+        const tail = f.unreducible === "yes" ? " that can't be reduced in any way" : "";
+        prose.push({ kind: "text", text: f.who === "caster" ? cap("you take " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) : cap("deal " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) }); break; }
       case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: conditionText(f) }, base));
         prose.push({ kind: "text", text: cap("the target is " + conditionText(f) + fp) }); break;
       case "note": if (!f.text) bad(st.id, "Write the card text."); prose.push({ kind: "text", text: f.text.replace(/\.$/, "") }); break;
@@ -1085,6 +1093,15 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         if (!f.text) notes.push("\u201c" + f.name + "\u201d has no card text yet; the card says it by name.");
         notes.push("\u201c" + f.name + "\u201d: its modifiers are edited with the existing effect editor (the Settings button).");
         prose.push({ kind: "text", text: cap(f.text ? f.text.replace(/\.$/, "") : (f.who === "caster" ? "you have " : "each target has ") + f.name + " while this ability resolves") + fp }); break;
+      }
+      case "strain": {
+        const b2 = [], p2 = [];
+        compileSteps(st.branches.then, filters, b2, p2);
+        b2.forEach(b => { b.strainSelection = f.when; out.push(b); });
+        if (!st.branches.then.length) bad(st.id, "Nothing happens inside \u201cIf you are Strained\u201d.");
+        const text = p2.map(q => q.kind === "roll" ? "make a power roll" : q.text).join(", and ");
+        if (text) prose.push({ kind: "mode", key: "strain." + st.id, label: f.when === "strained" ? "Strained" : "Not strained", text: text + "." });
+        break;
       }
       case "modes": {
         if (variationOf) { const o = f.opts.find(x => x.id === variationOf); if (o) compileSteps(st.branches["o" + o.id] || [], filters, out, prose); break; }
@@ -1340,11 +1357,17 @@ const hasRollChange = list => list.some(st => STEPS[st.type] && STEPS[st.type].r
 // Flavor, distance and target wording already have engine fields (flavor, rangeTextOverride,
 // targetTextOverride); only the rest needs the proposed displayOverrides.
 const ENGINE_TEXT_FIELDS = { flavor: "flavor", distance: "rangeTextOverride", target: "targetTextOverride" };
-function engineTextFields(rec) { const o = ab.overrides || {}; for (const k in ENGINE_TEXT_FIELDS) if (o[k]) rec[ENGINE_TEXT_FIELDS[k]] = o[k].text; }
+function engineTextFields(rec) {
+  const o = ab.overrides || {}; for (const k in ENGINE_TEXT_FIELDS) if (o[k]) rec[ENGINE_TEXT_FIELDS[k]] = o[k].text;
+  // Effect paragraphs opened from description save back to it, labels as "**Strained:**".
+  if (ab.descParas) rec.description = ab.descParas.map((d, i) => {
+    const t = (o["desc" + i] || { text: "" }).text, l = (ab.labels || {})["desc" + i] || "Effect";
+    return l === "Effect" ? t : "**" + l + ":** " + t; }).filter(x => x.trim()).join("\n\n");
+}
 function displayOverrides() {
   const o = ab.overrides || {}, l = ab.labels || {}; const r = {};
-  Object.keys(o).filter(k => !ENGINE_TEXT_FIELDS[k]).forEach(k => r[k] = o[k].text);
-  Object.keys(l).forEach(k => r[k + ".label"] = l[k]);
+  Object.keys(o).filter(k => !ENGINE_TEXT_FIELDS[k] && !(ab.descParas && /^desc\d+$/.test(k))).forEach(k => r[k] = o[k].text);
+  Object.keys(l).filter(k => !(ab.descParas && /^desc\d+$/.test(k))).forEach(k => r[k + ".label"] = l[k]);
   return Object.keys(r).length ? r : null;
 }
 function compileTriggered() {
@@ -1559,7 +1582,11 @@ function renderStep(st, list, ctx, scope) {
   let gsHolder = null;
   switch (st.type) {
     case "powerRoll": add(lbl("Power roll 2d10 +")); add(sel(f, "char", CHARS, null, "characteristic")); break;
-    case "damage": add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage")); gsHolder = st.slots.amount; break;
+    case "damage":
+      add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage"));
+      // Only outside a tier: tier damage always hits the target.
+      if (ctx !== "tier") { add(sel(f, "who", [["targets", "to the target"], ["caster", "to you"]], null, "who takes it")); add(sel(f, "unreducible", [["no", "\u2014"], ["yes", "that can't be reduced"]], null, "can it be reduced")); }
+      gsHolder = st.slots.amount; break;
     case "condition": {
       add(lbl("Make the target")); add(sel(f, "cond", CONDITIONS, () => { f.rider = ""; refresh(); }, "condition"));
       const rs = ridersFor(f.cond);
@@ -1579,6 +1606,7 @@ function renderStep(st, list, ctx, scope) {
     }
     case "surges": add(lbl("The target gains")); add(inp(f, "n", "num", "surges")); add(lbl(f.n === "1" ? "surge" : "surges")); break;
     case "note": { add(lbl("Card text:")); const ti = inp(f, "text", "name", "card text"); ti.placeholder = "words shown on the card"; ti.style.minWidth = "280px"; add(ti); break; }
+    case "strain": add(lbl("If you are")); add(sel(f, "when", [["strained", "Strained"], ["unstrained", "not Strained"]], null, "strained")); add(lbl(":")); break;
     case "modes":
       add(lbl("When you use it, choose one"));
       // Picking the target first can't work when an option changes what can be targeted.
@@ -1729,8 +1757,8 @@ function renderStep(st, list, ctx, scope) {
     addo.addEventListener("click", ev => { ev.stopPropagation(); snapshot(); const o = { id: "m" + uid++, name: "Option " + (st.f.opts.length + 1), extra: "0" }; st.f.opts.push(o); st.branches["o" + o.id] = []; insertAt = { id: listId(st.branches["o" + o.id]), idx: 0 }; refresh(); });
     row.appendChild(addo); e.appendChild(row);
     e.appendChild(E("div", "foot"));
-  } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo") {
-    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : "inside \u201cOnly if\u201d";
+  } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo" || st.type === "strain") {
+    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : st.type === "strain" ? "inside \u201cIf you are Strained\u201d" : "inside \u201cOnly if\u201d";
     e.appendChild(mouth(st.branches.then, ctx, scope));
     e.appendChild(E("div", "foot"));
   }
@@ -2328,7 +2356,7 @@ function cardLine(parent, key, label, genHtml, kind) {
   const edit = ev => { ev.stopPropagation(); cardEditing = key; refresh(); };
   txt.addEventListener("click", edit); txt.addEventListener("keydown", ev => { if (ev.key === "Enter") edit(ev); });
   line.appendChild(txt);
-  if (ov) {
+  if (ov && !ov.saved) {
     const stale = ov.basis && ov.basis !== gen;
     line.classList.add("edited"); if (stale) line.classList.add("stale");
     const tag = E("span", "ctag", stale ? "rules changed" : "custom wording");
@@ -2404,10 +2432,12 @@ function renderSide(c) {
         flush("effectBefore"); seenRoll = true;
         card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
         ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? tierHtml(p.tiers[i]) : "<i>no effect</i>", "tier"));
-      } else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); cardLine(card, p.key, p.label, esc(p.text), "effect"); }
+      } else if (ab.descParas) continue;   // the saved description is the effect text (below)
+      else if (p.kind === "mode") { flush(seenRoll ? "effect" : "effectBefore"); cardLine(card, p.key, p.label, esc(p.text), "effect"); }
       else effects.push(p.text + ".");
     }
     flush(seenRoll ? "effect" : "effect");
+    if (ab.descParas) ab.descParas.forEach((d, i) => cardLine(card, "desc" + i, "Effect", "", "effect"));
     if (!c.tf.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Only affects creatures where " + c.tf.prose + "." }));
     c.reqs.forEach(r => { if (!r.c.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Can only be used if " + r.c.prose + (r.reason ? " (“" + r.reason + "”)" : "") + "." })); });
   }
@@ -2726,7 +2756,7 @@ const PALETTE_BASE = [
   ["hinder", "Hinder", ["condition", "forced", "riders"]],
   ["ctrl2", "Abilities", ["useNew", "invoke"]],
   ["effect", "Effects", ["applyEffect", "durEffect"]],
-  ["ctrl", "Logic", ["ifStep", "modes"]],
+  ["ctrl", "Logic", ["ifStep", "modes", "strain"]],
   ["help", "Help", ["endEffects", "heal", "tempStamina", "surges"]],
   ["res", "Resources", ["resource"]],
   ["create", "Create", ["aura"]],
@@ -3252,7 +3282,7 @@ const EXAMPLES = {
 /* Open a saved ActivatedAbility record as blocks. Behaviours the blocks understand become blocks;
    anything else becomes an Advanced step carrying its record. "hidden" collects saved settings that
    change what happens but that no block shows, so the editor can say so (or refuse to open). */
-const MEANINGFUL_BEHAVIOUR_KEYS = { strainSelection: "only when Strained", tiersSelected: "only on some tiers", cannotBeReduced: "can't be reduced",
+const MEANINGFUL_BEHAVIOUR_KEYS = { strainSelection: null, tiersSelected: "only on some tiers", cannotBeReduced: null,
   durationUntilEndOfTurn: "lasts until end of turn", modifiers: "has its own roll modifiers (e.g. an edge)", chatMessage: null, guid: null, name: null, __typeName: null, filterTarget: null, modesSelected: null };
 function resourceNameById(id) { return (RESOURCE_TABLE.find(r => r[0] === id) || [null, null])[1]; }
 function openAbility(rec) {
@@ -3286,9 +3316,9 @@ function openAbility(rec) {
   } else { hidden.push("targets \u201c" + tt + "\u201d (no distance form for it)"); a.distance = "Ranged"; }
   ensureDistance(a);
   if (!["self"].includes(a.targetCount)) a.targetCount = AREA_FORMS.includes(a.distance) ? "each enemy in the area" : "creature";
-  if (rto) a.overrides.distance = { text: rto, basis: null };
-  if (rec.targetTextOverride) a.overrides.target = { text: rec.targetTextOverride, basis: null };
-  if (rec.flavor) a.overrides.flavor = { text: rec.flavor, basis: null };
+  if (rto) a.overrides.distance = { text: rto, basis: null, saved: true };
+  if (rec.targetTextOverride) a.overrides.target = { text: rec.targetTextOverride, basis: null, saved: true };
+  if (rec.flavor) a.overrides.flavor = { text: rec.flavor, basis: null, saved: true };
   if (rec.targetFilter) a.targetFilter = holderFromText("boolean", "targetFilter", rec.targetFilter);
   a.requirements = (rec.reasonedFilters || []).map(r => ({ h: holderFromText("boolean", "requirement", r.formula || ""), reason: r.reason || "" }));
   ["abilityFilters", "selfTarget", "objectTarget", "targetAllegiance", "repeatTargets", "proximityTargeting", "channeledResource", "usageLimitOptions", "persistence", "mandatory"].forEach(k => {
@@ -3296,6 +3326,15 @@ function openAbility(rec) {
   });
   a.steps = openBehaviours(rec.behaviors || [], hidden, rec);
   a.openHidden = hidden;
+  // The saved description is the card's effect wording, paragraph by paragraph ("**Strained:** ..." keeps
+  // its label). It replaces the generated effect lines; edits save back to description.
+  if (rec.description && String(rec.description).trim()) {
+    a.descParas = String(rec.description).split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map((x, i) => {
+      const m = x.match(/^\*\*([^*]+?):\*\*\s*([\s\S]*)$/);
+      return m ? { label: m[1], text: m[2] } : { label: "Effect", text: x };
+    });
+    a.descParas.forEach((d, i) => { a.overrides["desc" + i] = { text: d.text, basis: null, saved: true }; if (d.label !== "Effect") a.labels["desc" + i] = d.label; });
+  }
   return a;
 }
 function openBehaviours(list, hidden, rec) {
@@ -3313,7 +3352,7 @@ function openBehaviours(list, hidden, rec) {
     });
   }
   const top = [];
-  let lastIf = null;
+  let lastIf = null, lastStrain = null;
   list.forEach(b => {
     if (!b || typeof b !== "object") return;
     const st = openBehaviour(b, hidden);
@@ -3333,6 +3372,11 @@ function openBehaviours(list, hidden, rec) {
         target = mb.branches["o" + o.id];
       }
     }
+    // Strained-only steps go inside "If you are Strained"; neighbours with the same setting share it.
+    if (b.strainSelection) {
+      if (lastStrain && lastStrain.list === target && lastStrain.when === b.strainSelection) target = lastStrain.st.branches.then;
+      else { const w = STEPS.strain.make(); w.f.when = b.strainSelection; target.push(w); lastStrain = { st: w, when: b.strainSelection, list: target }; target = w.branches.then; lastIf = null; }
+    } else lastStrain = null;
     if (b.filterTarget && st.type !== "opaque") {
       if (lastIf && lastIf.list === target && lastIf.ft === b.filterTarget) { lastIf.st.branches.then.push(st); return; }
       const w = STEPS.ifStep.make(); w.slots.cond = holderFromText("boolean", "stepIf", b.filterTarget); w.branches.then.push(st);
@@ -3346,7 +3390,10 @@ function openBehaviours(list, hidden, rec) {
 const shortType = b => String(b.__typeName || "?").replace(/^ActivatedAbility|Behavior$/g, "");
 function openBehaviour(b, hidden) {
   const t = b.__typeName; let st = null, m;
-  const opaque = () => { const o = STEPS.opaque.make(Object.assign({}, b, { summary: shortType(b) })); o.f.record = JSON.parse(JSON.stringify(b)); o.srcList = null; return o; };
+  // Advanced steps read as their full-editor name plus what the record says it does.
+  const friendly = () => { const g = GENERIC_BEHAVIORS.find(x => x[2] === t); const what = (b.modifier && (b.modifier.description || b.modifier.name)) || b.namedAbility || b.standardAbility && "a standard ability" || b.rule || "";
+    return (g ? g[1] : shortType(b)) + (what ? ": " + String(what).slice(0, 90) : ""); };
+  const opaque = () => { const o = STEPS.opaque.make(Object.assign({}, b, { summary: friendly() })); o.f.record = JSON.parse(JSON.stringify(b)); o.srcList = null; return o; };
   try {
     if (t === "ActivatedAbilityPowerRollBehavior" && (m = String(b.roll || "").match(/^2d10 \+ (Might|Agility|Reason|Intuition|Presence)$/))) {
       st = STEPS.powerRoll.make(); st.f.char = m[1];
@@ -3357,7 +3404,8 @@ function openBehaviour(b, hidden) {
       ["t1", "t2", "t3"].forEach(k => markSaved(st.branches[k]));
     } else if (t === "ActivatedAbilityDamageBehavior") {
       st = STEPS.damage.make(); st.f.dtype = DMG_TYPES.includes(b.damageType) ? b.damageType : "untyped"; st.slots.amount = holderFromText("roll", "damage", String(b.roll || ""));
-      if (b.applyto && b.applyto !== "targets") hidden.push("Damage is dealt to " + b.applyto);
+      st.f.who = b.applyto === "caster" ? "caster" : "targets"; st.f.unreducible = b.cannotBeReduced ? "yes" : "no";
+      if (b.applyto && !["targets", "caster"].includes(b.applyto)) hidden.push("Damage is dealt to " + b.applyto);
     } else if (t === "ActivatedAbilityHealBehavior") { st = STEPS.heal.make(); st.slots.amount = holderFromText("roll", "heal", String(b.roll || "")); }
     else if (t === "ActivatedAbilityDrawSteelCommandBehavior") {
       const steps = parseTierText(String(b.rule || ""), { todo: 0, matched: 0, tier: null, rollChar: "Might", guesses: 0 });

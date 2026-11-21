@@ -43,9 +43,16 @@ Encounter of the Week; monster Stamina numbers follow the Stamina bar's rule) in
 5 (unseen creatures) and the no-map Table record in 4404c634; 4 (notes), 14 (caption toast)
 and 25 (Turn Rewind by rewind point) in c6c68704; origin/main merged in b37e87e8; the
 post-merge items (immunity line and order, Iron Grip, nested kit bonus) in 85dcc34b.
-Still to try live: a real cast with per-target edges and surges, a brand-new game's first
-entry, dock mode, a Get In Get Out cast (kit part on the Tier line), an Iron Grip escape,
-an enemy monster's Stamina line. Whole-codex type check on the merged branch not run.
+Live checks over the bridge, 2026-11-21 (merged branch): all passed. Enemy Stamina line
+(written with its key, hidden from players until Monster Info reveals it); Iron Grip escape
+(row credits the Null, 4 damage, rider note in the Why); Faster than the Eye on two targets,
+one Prone (Prone target's own roll 19 with one edge from Prone, the other 17); Get In Get
+Out's nested strike (Tier line "Cloak and Dagger +1"); audio caption bubble, still up with
+Chat in front; dock UI (caption toast; a docked Action Log restored as History); a new game's
+first entry (built-in Director View, History on the rail). Whole-codex type check: 0.
+Not covered: the promptWhenResolving target-order path itself; surges spent per target.
+Found: Get In Get Out writes two rows (the outer ability, aimed at the Shadow and changing
+nothing, and the strike), since the nested strike has its own card.
 
 ## 1. Fix before merge
 

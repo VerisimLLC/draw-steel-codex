@@ -279,6 +279,21 @@ input.f.name { min-width: 120px; font-weight: 600; }
 .card .eff { margin-top: 8px; }
 .card .req { margin-top: 8px; font-size: 13px; color: #5d5140; }
 .card .formula { border-bottom: 1px dotted #8a7650; }
+.card .cline { margin-top: 6px; }
+.card .cline.tier { display: grid; grid-template-columns: 52px 1fr; column-gap: 6px; margin-top: 2px; align-items: baseline; }
+.card .cmeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.card .cline.tier .cmeta { grid-column: 2; }
+.card .grid .cline { margin-top: 0; }
+.card .cline.flavor { font-style: italic; color: #5d5140; margin: 0 0 6px; }
+.card .ctext { cursor: text; border-radius: 3px; }
+.card .ctext:hover, .card .ctext:focus-visible { background: rgba(140,106,36,.15); outline: none; }
+.card .ctext.placeholder { opacity: .45; font-size: 12.5px; }
+.card .cline.edited .ctext { background: rgba(140,106,36,.12); box-shadow: inset 2px 0 0 #8c6a24; padding-left: 4px; }
+.card .cline.stale .ctext { box-shadow: inset 2px 0 0 #c0392b; }
+.card .ctag { font: 600 10px var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: #8c6a24; white-space: nowrap; }
+.card .cline.stale .ctag { color: #c0392b; }
+.card .creset { background: none; border: 1px solid #b9a27a; color: #2a2418; border-radius: 3px; font-size: 11px; padding: 0 5px; cursor: pointer; }
+.card .cedit { width: 100%; min-height: 44px; font: inherit; color: var(--card-fg); background: #fff; border: 1px solid #8c6a24; border-radius: 3px; padding: 4px 6px; }
 .status { display: flex; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; line-height: 1.4; }
 .status .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; }
 .status.ok .dot { background: var(--ok); } .status.bad .dot { background: var(--err); }
@@ -1011,6 +1026,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 
 // Does this list (top level only) contain a step that changes the roll?
 const hasRollChange = list => list.some(st => STEPS[st.type] && STEPS[st.type].rollChange);
+// Proposed new field: reworded card lines, saved with the ability itself (no separate display record).
+function displayOverrides() { const o = ab.overrides || {}; const keys = Object.keys(o); if (!keys.length) return null; const r = {}; keys.forEach(k => r[k] = o[k].text); return r; }
 function compileTriggered() {
   const ev = EVENTS[ab.trig.event], who = TRIG_WHO[ab.trig.who];
   const storage = hasRollChange(ab.steps) && ev.prt ? "prt" : "ta";
@@ -1042,6 +1059,7 @@ function compileTriggered() {
     rec = { __typeName: "CharacterModifier", behavior: "powertabletrigger", name: ab.name, type: ab.trig.action, targetType: who.prt, trigger: ev.prt, range: range.s,
       filterCondition: cond.empty ? undefined : cond.s, powerRollModifier: mod };
   }
+  const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs;
   return { rec, storage, cond, range, prose, triggered: true };
 }
 function compileAbility() {
@@ -1063,6 +1081,7 @@ function compileAbility() {
   if (ab.resource !== "no cost") { rec.resourceCost = "<" + ab.resource + ">"; rec.resourceNumber = cost.s; }
   if (reqs.length) rec.reasonedFilters = reqs.map(r => ({ formula: r.c.s, reason: r.reason }));
   rec.behaviors = behaviors;
+  const ovs = displayOverrides(); if (ovs) rec.displayOverrides = ovs;
   return { rec, range, num, cost, tf, reqs, prose };
 }
 
@@ -1575,6 +1594,41 @@ function gsWrap(hs) { const w = E("span", "gs-line"); w.style.flexBasis = "100%"
 /* =====================================================================
    Side: the Draw Steel ability card, problems, saved data
    ===================================================================== */
+// Plain text of generated card HTML: what an override is compared against.
+function plainText(html) { const d = document.createElement("div"); d.innerHTML = html; return d.textContent.replace(/\s+/g, " ").trim(); }
+let cardEditing = null;
+function cardLine(parent, key, label, genHtml, kind) {
+  const gen = plainText(genHtml), ov = (ab.overrides || {})[key];
+  const line = E("div", "cline" + (kind === "tier" ? " tier" : kind === "flavor" ? " flavor" : " eff")); line.dataset.key = key;
+  if (label) { const l = E(kind === "tier" ? "span" : "b", kind === "tier" ? "n" : null); l.innerHTML = label + (kind === "tier" ? "" : ":"); line.appendChild(l); if (kind !== "tier") line.appendChild(document.createTextNode(" ")); }
+  if (cardEditing === key) {
+    const ta = E("textarea", "cedit"); ta.value = ov ? ov.text : gen; ta.setAttribute("aria-label", "Wording for " + (label || key));
+    const done = save => { cardEditing = null; if (save) { const v = ta.value.trim(); ab.overrides = ab.overrides || {};
+        if (!v || v === gen) delete ab.overrides[key]; else ab.overrides[key] = { text: v, basis: gen }; } refresh(); };
+    ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); done(true); } if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); done(false); } });
+    ta.addEventListener("blur", () => { if (cardEditing === key) done(true); });
+    line.appendChild(ta); parent.appendChild(line);
+    setTimeout(() => { ta.focus(); ta.select(); }, 0);
+    return;
+  }
+  const txt = E("span", "ctext"); txt.tabIndex = 0; txt.setAttribute("role", "button");
+  if (ov) txt.textContent = ov.text; else if (gen) txt.innerHTML = genHtml; else { txt.textContent = kind === "flavor" ? "Add flavor text" : "\u2014"; txt.classList.add("placeholder"); }
+  txt.title = "Click to change the wording";
+  const edit = ev => { ev.stopPropagation(); cardEditing = key; refresh(); };
+  txt.addEventListener("click", edit); txt.addEventListener("keydown", ev => { if (ev.key === "Enter") edit(ev); });
+  line.appendChild(txt);
+  if (ov) {
+    const stale = ov.basis && ov.basis !== gen;
+    line.classList.add("edited"); if (stale) line.classList.add("stale");
+    const tag = E("span", "ctag", stale ? "rules changed" : "custom wording");
+    tag.title = stale ? "The rules changed after this wording was written.\nNow generated: " + gen : "Generated wording: " + (gen || "(none)");
+    const meta = E("span", "cmeta"); meta.appendChild(tag);
+    if (gen) { const r = E("button", "creset", stale ? "Use new wording" : "Reset"); r.type = "button"; r.title = "Go back to the generated wording";
+      r.addEventListener("click", ev => { ev.stopPropagation(); delete ab.overrides[key]; refresh(); }); meta.appendChild(r); }
+    line.appendChild(meta);
+  }
+  parent.appendChild(line);
+}
 function renderSide(c) {
   side.innerHTML = "";
   const seen = new Set(); const pr = problems.filter(q => { const k = q.id + q.msg; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -1588,40 +1642,49 @@ function renderSide(c) {
   if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
   const card = E("div", "card");
+  /* Card text is generated from the blocks. Any line can be reworded by clicking it; the override
+     remembers the generated text it replaced, so a later rules change flags it instead of drifting. */
+  const top = E("div", "top"); top.appendChild(E("h2", null, ab.name || "Unnamed"));
+  const actText = c.triggered ? (TRIG_ACTIONS.find(a => a[0] === ab.trig.action) || ["", ""])[1] : ab.action;
+  const act = E("span", "act"); act.innerHTML = esc(actText) + (ab.resource !== "no cost" ? " &middot; " + esc(cHolder(ab.cost).s) + " " + esc(ab.resource) : ""); top.appendChild(act);
+  card.appendChild(top);
+  card.appendChild(E("div", "kw", keywordsOf(ab).join(", ")));
+  cardLine(card, "flavor", null, "", "flavor");
   if (c.triggered) {
     const t = ab.trig, ev = EVENTS[t.event], who = TRIG_WHO[t.who];
     const sq = c.range.s === "1" ? " square " : " squares ";
-    const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + esc(c.range.s) + sq + ev.other;
-    let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc((TRIG_ACTIONS.find(a => a[0] === t.action) || ["", ""])[1]) + "</span></div>";
-    html += '<div class="kw">' + esc(keywordsOf(ab).join(", ")) + "</div>";
-    html += '<div class="eff"><b>Trigger:</b> ' + cap(esc(subj)) + (c.cond.empty ? "" : ", if " + esc(c.cond.prose)) + ".</div>";
+    const subj = t.who === "self" ? "you " + ev.you : cap(who.label) + " within " + c.range.s + sq + ev.other;
+    cardLine(card, "trigger", "Trigger", esc(cap(subj) + (c.cond.empty ? "" : ", if " + c.cond.prose) + "."));
     const during = c.prose.filter(p => p.during).map(p => p.text), after = c.prose.filter(p => !p.during).map(p => p.kind === "roll" ? "make a power roll" : p.text);
     // Roll changes first, then what happens afterwards: "Halve the damage, then you can shift."
     const parts = during.concat(after.map(x => x.charAt(0).toLowerCase() + x.slice(1)));
-    if (parts.length) html += '<div class="eff"><b>Effect:</b> ' + esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1])) + ".</div>";
-    card.innerHTML = html; side.appendChild(card);
+    if (parts.length) cardLine(card, "effect", "Effect", esc(cap(parts.length < 2 ? parts[0] : parts.slice(0, -1).join(", ") + ", then " + parts[parts.length - 1]) + "."));
+  } else {
+    const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
+    const dist = ab.distance === "Self" ? "Self" : ab.distance + " " + fm(c.range);
+    const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
+      : /^\d+$/.test(c.num.s) ? c.num.s + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
+    const grid = E("div", "grid"); card.appendChild(grid);
+    cardLine(grid, "distance", "Distance", dist); cardLine(grid, "target", "Target", tgt);
+    const effects = [];
+    for (const p of c.prose) {
+      if (p.kind === "roll") {
+        card.appendChild(Object.assign(E("div", "pr"), { innerHTML: "Power Roll + " + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":" }));
+        ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => cardLine(card, "t" + (i + 1), n, p.tiers[i] ? esc(p.tiers[i]).replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>").replace(/&amp;lt;/g, "&lt;") : "<i>no effect</i>", "tier"));
+      } else effects.push(p.text + ".");
+    }
+    if (effects.length) cardLine(card, "effect", "Effect", esc(effects.join(" ")));
+    if (!c.tf.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Only affects creatures where " + c.tf.prose + "." }));
+    c.reqs.forEach(r => { if (!r.c.empty) card.appendChild(Object.assign(E("div", "req"), { textContent: "Can only be used if " + r.c.prose + (r.reason ? " (“" + r.reason + "”)" : "") + "." })); });
+  }
+  side.appendChild(card);
+  side.appendChild(E("p", "note", "Click any line on the card to change its wording. Reworded lines are marked, and flagged if the rules change later."));
+  if (c.triggered) {
     const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
     det.appendChild(E("pre", null, JSON.stringify(c.rec, null, 2))); side.appendChild(det);
     return;
   }
-  const fm = r => /^\d+$/.test(r.s) ? esc(r.s) : '<span class="formula" title="' + esc(r.s) + '">' + esc(r.prose) + "</span>";
-  const dist = ab.distance === "Self" ? "Self" : ab.distance + " " + fm(c.range);
-  const tgt = ab.distance === "Self" || ab.targetCount === "self" ? "Self" : /^each/.test(ab.targetCount) ? cap(ab.targetCount)
-    : /^\d+$/.test(c.num.s) ? c.num.s + " " + ab.targetCount : cap(ab.targetCount) + " (" + fm(c.num) + ")";
-  let html = '<div class="top"><h2>' + esc(ab.name || "Unnamed") + '</h2><span class="act">' + esc(ab.action) + (ab.resource !== "no cost" ? " &middot; " + fm(c.cost) + " " + esc(ab.resource) : "") + "</span></div>";
-  html += '<div class="kw">' + esc(keywordsOf(ab).join(", ")) + "</div>";
-  html += '<div class="grid"><div><b>Distance:</b> ' + dist + "</div><div><b>Target:</b> " + tgt + "</div></div>";
-  for (const p of c.prose) {
-    if (p.kind === "roll") {
-      html += '<div class="pr">Power Roll + ' + esc(p.char) + (p.cond ? esc(p.cond) : "") + ":</div>";
-      ["&le;11", "12&ndash;16", "17+"].forEach((n, i) => html += '<div class="tier"><span class="n">' + n + "</span><span>" + (p.tiers[i] ? esc(p.tiers[i]).replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>").replace(/&amp;lt;/g, "&lt;") : "<i>no effect</i>") + "</span></div>");
-    } else html += '<div class="eff"><b>Effect:</b> ' + esc(p.text) + ".</div>";
-  }
-  if (!c.tf.empty) html += '<div class="req">Only affects creatures where ' + esc(c.tf.prose) + ".</div>";
-  c.reqs.forEach(r => { if (!r.c.empty) html += '<div class="req">Can only be used if ' + esc(r.c.prose) + (r.reason ? " (“" + esc(r.reason) + "”)" : "") + ".</div>"; });
-  card.innerHTML = html;
-  side.appendChild(card);
-  side.appendChild(E("p", "note", "Dotted text on the card comes from a formula. Hover it to see the GoblinScript."));
+  side.appendChild(E("p", "note", "Dotted text comes from a formula: hover it to see the GoblinScript."));
   const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
   const json = JSON.stringify(c.rec, null, 2);
   const copy = E("button", "btn", "Copy"); copy.type = "button"; copy.style.margin = "6px 0";
@@ -2137,7 +2200,7 @@ function newAbility() {
   return { name: "New Ability", action: "Main action", keywords: "Melee, Strike, Weapon", resource: "no cost",
     cost: H("number", "cost", "1"), numTargets: H("number", "numTargets", "1"), targetCount: "creature", distance: "Melee", range: H("number", "range", "1"),
     targetFilter: H("boolean", "targetFilter"), requirements: [], steps: [],
-    kind: "ability", trig: triggerDefaults(), trigCond: H("boolean", "trigCond") };
+    kind: "ability", trig: triggerDefaults(), trigCond: H("boolean", "trigCond"), overrides: {} };
 }
 function triggerDefaults() { return { event: "struck", who: "self", range: H("number", "range", "10"), action: "trigger", affects: "subject" }; }
 const EXAMPLES = {
@@ -2265,6 +2328,7 @@ function loadDraft() {
     if (!d.kind) d.kind = "ability";                 // drafts saved before triggered abilities existed
     if (!d.trig) d.trig = triggerDefaults();
     if (!d.trigCond) d.trigCond = H("boolean", "trigCond");
+    if (!d.overrides) d.overrides = {};
     return d;
   } catch (e) { return null; }
 }

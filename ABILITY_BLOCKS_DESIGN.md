@@ -447,6 +447,41 @@ More elegant alternatives considered:
 - **F. (Designer) Power roll as a tier table:** three columns or rows matching the card, each a
   drop zone, plus "starter" templates (Strike, Area, Reduce damage trigger). Fixes 10.
 
+## 4j. Generated card text with overrides (replacing the Triggered Ability Display)
+
+**Today:** a triggered ability's book-style card is a separate modifier, behaviour `triggerdisplay`
+(`Draw Steel Core Rules/DSModifyTriggerDisplay.lua`), holding hand-written text fields: name, cost,
+keywords, flavor, type, distance, target, trigger, effect. It finds the trigger it describes only by
+**matching names** (`TriggeredAbilityDisplay:FindLivePartner`, line 322), to show range changes.
+In content: 345 displays for 1,675 triggers (Triggered Abilities plus Power Roll Triggers); 271 have a
+trigger of the same name in the same file and **74 do not** (text-only displays for unimplemented
+triggers, missing names, or renamed triggers). The text can drift from what the trigger does, and a
+rename silently breaks the link. Abilities generate most of their card already, but their Effect
+prose (`description`) is typed by hand.
+
+**Design (prototype):**
+- The card is the ability's rendering in game (tooltip, sheet, action bar), generated from the
+  blocks: flavor, distance, target, each tier, trigger, effect.
+- Click any line to reword it; Enter saves, Esc cancels, saving the generated text unchanged removes
+  the override. Reworded lines are marked "custom wording" with Reset.
+- Each override stores the generated text it replaced (`basis`). When the rules change and the
+  generated text no longer matches, the line is flagged **"rules changed"** with "Use new wording".
+- Flavor has no generated text; it is always author-written.
+- Saved as a proposed field on the ability or trigger itself: `displayOverrides: {t3: "...", flavor: "..."}`.
+
+**Engine work this would need** (planning only; nothing changed):
+1. A `displayOverrides` field (plus the stored `basis` per line) on `ActivatedAbility` /
+   `TriggeredAbility` / power roll triggers, and the card renderer using an override when present.
+2. One renderer that generates book-style text from the data for both abilities and triggers, so
+   the sheet, tooltip and action bar no longer need a `triggerdisplay` record.
+3. Migration: for each display with a same-named trigger in the same owner, move its text into that
+   trigger's overrides (only where it differs from the generated text) and delete the display.
+   Displays with no partner (74) stay as they are until someone links them, and get listed for review.
+4. Update what currently reads displays: the character builder's filter on
+   `activated/triggerdisplay/routine` (`MCDMCharacterBuilder.lua:95`), the sheet and action bar
+   listings, and `FindLivePartner` range-modification lookups (no longer needed once the card is the
+   trigger's own).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -505,6 +540,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Clicking one word edits just that value:** choosing a value (dropdown, picker option or typed formula) returns the step to reading automatically. A brand-new step stays open so its values can be typed in a row. | One click fewer per edit (design value: minimise clicks). |
 | 2026-11-21 | **One sentence pattern for abilities and triggered abilities:** "[Name] is a [Main action / Triggered action ...]", "which costs [nothing / 3 Heroic Resource]", "and has the keywords [chips]". | Consistent language across both kinds. |
 | 2026-11-21 | **Keywords are never typed.** Chips from the registered ability keyword list (`GameSystem.RegisterAbilityKeyword`, see KEYWORDS.md); add by clicking or dragging a chip from the Keywords group at the bottom of the shelf, or "+ keyword" with type-ahead; remove with x. | Free text produced keywords the engine does not know. |
+| 2026-11-21 | **The card is generated, with per-line overrides (exploring).** The editor writes the rules text (flavor, distance, target, each tier, trigger, effect) from the blocks; clicking a line rewords it. An override stores the generated text it replaced; if the rules change later the line is flagged "rules changed" with "Use new wording". For triggered abilities this replaces the separate Triggered Ability Display. | The display is a second record kept in sync by hand and found by name; authors still need to adjust wording the way the book prints it. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

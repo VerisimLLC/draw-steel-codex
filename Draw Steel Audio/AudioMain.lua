@@ -1277,7 +1277,7 @@ for _,family in ipairs(DiceImpactFamilies.families) do
 end
 
 audio.SoundEvent{
-    name = "DiceImp.Hards",
+    name = "DiceImp.Hard",
     mixgroup = "dice",
     sounds = {"dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_01.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_02.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_03.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_04.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_05.wav","dice/copper/DiceImp_CopperD20_Cuttingboard_Hard_06.wav"},
     volume = 1.0,
@@ -1530,7 +1530,7 @@ audio.SoundEvent{
 --Squishy Dice Impacts
 
 audio.SoundEvent{
-    name = "DiceImp.Hard",
+    name = "DiceImp.Hard_Squishy",
     mixgroup = "dice",
     sounds = {"dice/Squishy/DiceImp_Squishy_Hard_01.wav","dice/Squishy/DiceImp_Squishy_Hard_02.wav","dice/Squishy/DiceImp_Squishy_Hard_03.wav","dice/Squishy/DiceImp_Squishy_Hard_04.wav","dice/Squishy/DiceImp_Squishy_Hard_05.wav","dice/Squishy/DiceImp_Squishy_Hard_06.wav"},
     volume = 0.2,

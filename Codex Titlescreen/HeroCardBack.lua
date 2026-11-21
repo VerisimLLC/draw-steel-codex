@@ -2484,6 +2484,39 @@ local FLIP_SECONDS = 0.42
 local TURNED_SCALE = 3
 local TURNED_RISE = 0.25
 
+--cards showing their back, oldest first. Only the last one opened draws on
+--top of everything, so a newer card is never hidden under an older one.
+--- @type Panel[]
+local g_turnedOrder = {}
+
+--- Lets only the newest card in the turned list draw above the screen's
+--- other panels, dropping any card that no longer exists.
+local function RaiseNewestTurned()
+    for i = #g_turnedOrder, 1, -1 do
+        if not g_turnedOrder[i].valid then
+            table.remove(g_turnedOrder, i)
+        end
+    end
+    local top = g_turnedOrder[#g_turnedOrder]
+    for _, other in ipairs(g_turnedOrder) do
+        other.renderOnTop = other == top
+    end
+end
+
+--- Records that a card was turned to its back (turned = true) or back to
+--- its face (false), then lets only the newest turned card draw on top.
+--- @param card Panel
+--- @param turned boolean
+local function SetTurnedOrder(card, turned)
+    table.remove_value(g_turnedOrder, card)
+    if turned then
+        g_turnedOrder[#g_turnedOrder+1] = card
+    else
+        card.renderOnTop = false
+    end
+    RaiseNewestTurned()
+end
+
 --Turns the card over: squeezes it edge-on, swaps the faces at the midpoint
 --and opens it out again, lifting slightly as it turns. Driven by hand rather
 --than by a style transition so it runs on the card itself, whose styles
@@ -2498,8 +2531,13 @@ local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onD
         card.data.heroCardBaseY = card.selfStyle.y or 0
     end
     local baseY = card.data.heroCardBaseY
+    --a card grows while it shows its back, so any scale but 1 means opening.
+    local opening = toScale ~= 1
     --the engine pulls an enlarged card back inside the screen.
     card.constrainToScreen = true
+    if opening then
+        SetTurnedOrder(card, true)
+    end
     local function Lift(size)
         local grown = (size - 1) / (TURNED_SCALE - 1)
         return baseY - (size - 1) * cardHeight / 2 - grown * TURNED_RISE * cardHeight
@@ -2519,7 +2557,12 @@ local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onD
             --never nil: clearing selfStyle.scale leaves the card at scale 0.
             card.selfStyle.scale = toScale
             card.selfStyle.y = Lift(toScale)
-            card.constrainToScreen = toScale ~= 1
+            card.constrainToScreen = opening
+            --stays on top while it shrinks, then hands the top to the card
+            --opened before it.
+            if not opening then
+                SetTurnedOrder(card, false)
+            end
             card.data.heroCardFlipping = false
             onDone()
             return
@@ -2834,6 +2877,16 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
         g_cards[element] = true
         if create ~= nil then
             create(element)
+        end
+    end
+    --a turned card can be destroyed (its row rebuilt, the card removed);
+    --the card turned before it then takes the top.
+    local destroy = cardArgs.destroy
+    cardArgs.destroy = function(element)
+        table.remove_value(g_turnedOrder, element)
+        RaiseNewestTurned()
+        if destroy ~= nil then
+            destroy(element)
         end
     end
     cardArgs[#cardArgs+1] = backFace

@@ -2285,6 +2285,21 @@ local PanelPermittedForUser = function(p)
 	return true
 end
 
+--The panel a dock shows for p: p itself, or, when p can't show for this user, the panel
+--registered to stand in for it (standsInFor). A dock saved with the Action Log shows History
+--instead, and the other way round. Nil when nothing can show.
+local function DockStandIn(p)
+	if p == nil or PanelPermittedForUser(p) then
+		return p
+	end
+	for _, q in pairs(dockablePanels) do
+		if q.standsInFor ~= nil and string.lower(q.standsInFor) == string.lower(p.name) and PanelPermittedForUser(q) then
+			return q
+		end
+	end
+	return nil
+end
+
 DockablePanel = {}
 
 DockablePanel = {
@@ -2332,6 +2347,8 @@ DockablePanel = {
 	--membership like any panel. First client: the Body Banks, which
 	--launches the companion app.
 	--available = function() hides the panel from every list while it returns false.
+	--standsInFor = "<panel name>": a dock that saved that panel shows this one while that
+	--one is not available (History and the old Action Log).
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -2479,9 +2496,12 @@ DockablePanel = {
 
 		dock:FireEvent("clearPanels")
 
+		local added = {}
 		for _,name in ipairs(names) do
-			for k,p in pairs(dockablePanels) do
-				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
+			for k,registered in pairs(dockablePanels) do
+				local p = string.lower(registered.name) == string.lower(name) and DockStandIn(registered) or nil
+				if p ~= nil and not added[p.identifier] then
+					added[p.identifier] = true
 					local instance = existing[p.identifier]
 					existing[p.identifier] = nil
 					if instance == nil or not instance.valid then
@@ -2811,12 +2831,15 @@ DockablePanel = {
 
 					--try to find the panel with this identifier and create it.
 					
-					for _,panelid in ipairs(panelInfo.tabs) do
+					for _,savedid in ipairs(panelInfo.tabs) do
 
 						--Skipping rather than dropping the entry: any live
 						--instance stays in existingInstances and is destroyed
-						--by the cleanup at the end of this function.
-						if PanelPermittedForUser(dockablePanels[panelid]) then
+						--by the cleanup at the end of this function. A panel
+						--that can't show may have one standing in for it.
+						local shown = DockStandIn(dockablePanels[savedid])
+						local panelid = shown ~= nil and shown.identifier or savedid
+						if dockablePanels[savedid] == nil or shown ~= nil then
 							if existingInstances[panelid] ~= nil then
 								panelInstances[#panelInstances+1] = existingInstances[panelid]
 								existingInstances[panelid] = nil

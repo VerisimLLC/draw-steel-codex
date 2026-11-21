@@ -91,7 +91,7 @@ local mod = dmhub.GetModLoading()
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field each? number On a minions line: one minion's Stamina (Y13).
 --- @field damage? number On a minions line: the damage behind the deaths (Y13).
---- @field mk? string On a minions line: the squad's Monster Knowledge key (L25).
+--- @field mk? string On a minions line: the squad's Monster Knowledge key (L25). On a non-Hero's staminaset or temporarystamina line (and a row target's pool): its key, "" when Monster Info can't learn it; players see the numbers only when its Stamina bar would show them the number.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title. On a reinforcements line: the wave. On a reveal line: the modifier.
 --- @field names? string[] On an ended line: what ended.
@@ -99,7 +99,7 @@ local mod = dmhub.GetModLoading()
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
 --- @field hidden? table<string, boolean> On an ended line: names players may not see.
 --- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
---- @field privacy? {hidden: boolean, tower: boolean|nil, userid: string|nil, cause: string|nil, revealed: boolean|nil} On a test or dice line: a roll not everyone saw (L79, L80). GM only reaches its roller and the Director; a Dice Tower roll's result only the Director. cause is the line under it without the result; the Director's eye sets revealed.
+--- @field privacy? {hidden: boolean, tower: boolean|nil, userid: string|nil, cause: string|nil, revealed: boolean|nil} On a test, dice, table or save line: a roll not everyone saw (L79, L80). GM only reaches its roller and the Director; a Dice Tower roll's result only the Director. cause is the line under it without the result; the Director's eye sets revealed.
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field ref? string On a condition line: the ongoing effect's instance id (see History.IsActive).
@@ -345,10 +345,27 @@ end
 --write, not eight. Nothing here touches the document from inside a hit.
 local g_waiting = {}
 
-local function Flush()
+--A client still syncing a game reads an existing document as new and empty, and a write to
+--it then replaces the whole document in the cloud. So a document that reads as new is only
+--written once the game has been entered (EnterGame, or a reload made while in a game).
+local g_gameEntered = dmhub.inGame == true
+dmhub.RegisterEventHandler("EnterGame", function()
+    g_gameEntered = true
+end)
+
+local Flush
+
+--Writes what is waiting, by map. A map whose document can't be trusted yet keeps its
+--entries for the next try.
+Flush = function()
     local waiting = g_waiting
     g_waiting = {}
     if mod.unloaded then
+        return
+    end
+    if not dmhub.inGame then
+        --out of a game there is nowhere to write; the next game must be entered afresh.
+        g_gameEntered = false
         return
     end
     local byMap = {}
@@ -357,10 +374,19 @@ local function Flush()
         table.insert(byMap[entry.map], entry)
     end
     for mapid, list in pairs(byMap) do
-        local ok, err = pcall(WriteEntries, mapid, list)
-        if not ok then
-            dmhub.Debug(string.format("History: failed to write entries: %s", tostring(err)))
+        if not g_gameEntered and mod:GetDocumentSnapshot(History.DocId(mapid)).isnew then
+            for _, entry in ipairs(list) do
+                g_waiting[#g_waiting + 1] = entry
+            end
+        else
+            local ok, err = pcall(WriteEntries, mapid, list)
+            if not ok then
+                dmhub.Debug(string.format("History: failed to write entries: %s", tostring(err)))
+            end
         end
+    end
+    if #g_waiting > 0 then
+        dmhub.Schedule(0.5, Flush)
     end
 end
 
@@ -378,6 +404,11 @@ function History.Write(entry)
         return false
     end
     entry.id = entry.id or dmhub.GenerateGuid()
+    --a token on no map (a Hero away from the table) files under the map being looked at.
+    entry.map = entry.map or game.currentMapId
+    if entry.map == nil then
+        return false
+    end
     --entries sort by their stamp, so two written in the same millisecond would fall in a
     --random order: each new stamp is at least one past the last this client gave out.
     if entry.t == nil then
@@ -415,7 +446,7 @@ end
 --under the same key must not show its old self. Kept per map so the rail badge, which
 --reads every map, does not throw away the open window's map. A few hundred small tables
 --a map at worst.
---- @type table<string, table<string, {raw: string, entry: HistoryEntry|nil}>>
+--- @type table<string, table<string, {raw: string, entry: HistoryEntry|nil, staminaKeys: string[]|nil, stamina: string|nil}>>
 local g_parsed = {}
 --Whether the entries in g_parsed were cut down for a player (History.Entry).
 local g_parsedForPlayers = nil
@@ -434,11 +465,73 @@ local function WithoutHidden(names, hidden)
     return #kept > 0 and kept or nil
 end
 
---Drops the hover text ids from roll sources or damage parts.
+--Drops the hover text ids from roll sources or damage parts, and from the modifiers a
+--surge part names as where its surges came from.
 local function WithoutHovers(list)
     for _, item in ipairs(list or {}) do
         item.hover = nil
+        for _, field in ipairs({"freefrom", "gainedfrom"}) do
+            for _, source in ipairs(item[field] or {}) do
+                if type(source) == "table" then
+                    source.hover = nil
+                end
+            end
+        end
     end
+end
+
+--True when players may read this creature's Stamina numbers, as its Stamina bar shows them:
+--the game shows enemy Stamina values, or Monster Info has revealed it exactly. mk is the key
+--the entry kept ("" for a creature Monster Info can't learn about).
+local function StaminaKnown(mk)
+    if dmhub.GetSettingValue("enemystambardisplay") == "val" then
+        return true
+    end
+    if mk == "" then
+        return false
+    end
+    local ok, known = pcall(function()
+        local knowledge = MonsterKnowledge.StaminaKnowledge(mk, nil)
+        return knowledge.visible and knowledge.tier >= 3
+    end)
+    return ok and known == true
+end
+
+--The Monster Knowledge keys of the monsters an entry has Stamina numbers for, or nil.
+local function StaminaKeys(entry)
+    local keys = nil
+    if (entry.family == "staminaset" or entry.family == "temporarystamina") and entry.mk ~= nil then
+        keys = {entry.mk}
+    end
+    for _, who in ipairs(entry.targets or {}) do
+        if who.pool ~= nil and who.mk ~= nil then
+            keys = keys or {}
+            keys[#keys + 1] = who.mk
+        end
+    end
+    return keys
+end
+
+--What players know of those monsters' Stamina, as a string: a player's parsed entry is cut
+--again when it changes.
+local function StaminaSignature(keys)
+    local parts = {}
+    for _, mk in ipairs(keys) do
+        parts[#parts + 1] = tostring(StaminaKnown(mk))
+    end
+    return table.concat(parts, ",")
+end
+
+--- True when players may see the Malice pool's changes: in an Encounter of the Week game,
+--- whose pool strip shows everyone the Malice total. Elsewhere players see only a Malice
+--- ability's banner (its name and cost), which the cost on its action's row matches (gap 4).
+--- @return boolean
+function History.PlayersSeeMalice()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    local ok, result = pcall(function()
+        return eotw ~= nil and eotw.IsEotwGame()
+    end)
+    return ok and result == true
 end
 
 --Cuts an entry down to what players may see (2.4, REVIEW.md B5: players see what they
@@ -449,6 +542,20 @@ end
 local function ForPlayers(entry)
     if entry.hiddenfromplayers then
         return nil
+    end
+    --Malice lines show players no more than the table does (History.PlayersSeeMalice).
+    if entry.family == "malice" and not History.PlayersSeeMalice() then
+        return nil
+    end
+    --a monster's Stamina numbers, only once players know its Stamina (Monster Info).
+    if (entry.family == "staminaset" or entry.family == "temporarystamina") and entry.mk ~= nil
+        and not StaminaKnown(entry.mk) then
+        return nil
+    end
+    for _, who in ipairs(entry.targets or {}) do
+        if who.pool ~= nil and who.mk ~= nil and not StaminaKnown(who.mk) then
+            who.pool = nil
+        end
     end
     --effects hidden from enemies, on a creature off the heroes' side.
     if entry.family == "condition" and entry.secret then
@@ -491,6 +598,8 @@ local function ForPlayers(entry)
             entry.dice = nil
             entry.total = nil
             entry.tier = nil
+            entry.result = nil
+            entry.overridden = nil
             entry.secretroll = true
             entry.causetext = privacy.cause
         end
@@ -560,16 +669,22 @@ function History.Entry(mapid, key)
         return nil
     end
     local parsed = parsedMap[key]
-    if parsed == nil or parsed.raw ~= raw then
+    --a player's cut depends on what Monster Info has revealed since: cut again if that changed.
+    local stale = parsed ~= nil and parsed.staminaKeys ~= nil and parsed.stamina ~= StaminaSignature(parsed.staminaKeys)
+    if parsed == nil or parsed.raw ~= raw or stale then
         local ok, decoded = pcall(dmhub.FromJson, raw)
         if not ok or not decoded.success then
             return nil
         end
         local entry = decoded.result
+        local staminaKeys, stamina = nil, nil
         if forPlayers then
+            --read before the cut, which takes the numbers out.
+            staminaKeys = StaminaKeys(entry)
+            stamina = staminaKeys ~= nil and StaminaSignature(staminaKeys) or nil
             entry = ForPlayers(entry)
         end
-        parsed = {raw = raw, entry = entry}
+        parsed = {raw = raw, entry = entry, staminaKeys = staminaKeys, stamina = stamina}
         parsedMap[key] = parsed
     end
     return parsed.entry

@@ -565,8 +565,15 @@ function History.Story(entry, kids)
         end
     end
 
-    --a trigger can finish off a squad this action never touched (L22).
-    for name, death in pairs(deaths) do
+    --a trigger can finish off a squad this action never touched (L22). By name, so the rows
+    --keep their order from one build of the card to the next.
+    local squadNames = {}
+    for name in pairs(deaths) do
+        squadNames[#squadNames + 1] = name
+    end
+    table.sort(squadNames)
+    for _, squadName in ipairs(squadNames) do
+        local name, death = squadName, deaths[squadName]
         --a squad whose name players may not see, as AddSquad shows it.
         if death.who ~= nil and death.who.secret and not dmhub.isDM then
             name = "Unknown creature"
@@ -735,6 +742,10 @@ local function AbilityCard(ownerid, name, side)
             end
         end
     end
+    --a monster's trigger cards are the Director's only (COPY Round 18), as in TriggerLink.
+    if not dmhub.isDM and not (token.playerControlled or token.properties:IsHero()) then
+        return nil
+    end
     return TriggerCard(ownerid, name, side)
 end
 
@@ -800,16 +811,19 @@ local function Linked(args)
     if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
         return args
     end
-    --the link waiting for its delay; nil once the pointer leaves it.
+    --the link waiting for its delay; nil once the pointer leaves it. Each hover counts, so
+    --only the newest hover's delay opens a card (two in 0.4 s would otherwise open one twice).
     local pending = nil
+    local hovers = 0
     args.links = true
     args.hoverLink = function(element, link)
         element.text = (string.gsub(text, "<link=" .. link .. ">(.-)</link>", "<link=" .. link .. "><u>%1</u></link>", 1))
         pending = link
-        element:ScheduleEvent("historyHoverDwell", HOVER_DELAY)
+        hovers = hovers + 1
+        element:ScheduleEvent("historyHoverDwell", HOVER_DELAY, hovers)
     end
-    args.historyHoverDwell = function(element)
-        if pending ~= nil and element.linkHovered == pending then
+    args.historyHoverDwell = function(element, count)
+        if count == hovers and pending ~= nil and element.linkHovered == pending then
             ShowLink(element, pending)
         end
     end
@@ -1037,7 +1051,8 @@ local function RowMovers(row, mapid)
     for _, who in ipairs(row.who or {}) do
         local steps = MovedSteps(who.moved)
         local token = steps ~= nil and dmhub.GetTokenById(who.id) or nil
-        if token ~= nil and token.valid then
+        --only a token this user can see now: the ghost and arrow would give a hidden one away.
+        if token ~= nil and token.valid and token.canSee then
             movers[#movers + 1] = {token = token, steps = steps, moved = who.moved}
         end
     end
@@ -1112,7 +1127,7 @@ local function SideViewButton(row, mapid)
             local live = {}
             if mapid == game.currentMapId then
                 for _, mover in ipairs(movers) do
-                    if mover.token.valid then
+                    if mover.token.valid and mover.token.canSee then
                         live[#live + 1] = mover
                     end
                 end
@@ -3283,7 +3298,7 @@ function History.Why(entry, kids)
                     else
                         text = string.format("%s became %s, so %s could not resist.", from, potency, names)
                     end
-                    return {lead = string.format("Potency raised with %d surges", test.surges), text = text}
+                    return {lead = string.format("Potency raised with %d %s", test.surges, cond(test.surges == 1, "surge", "surges")), text = text}
                 end
                 --Y9: the target's characteristic against the potency.
                 local text
@@ -3646,6 +3661,8 @@ function History.CreateCard(args)
         }
     end
 
+    local header = Header(entry, width, args.inTray, args.close)
+
     return gui.Panel{
         classes = {"historyCardFrame", cond(args.inTray, "historyCardSolid", nil)},
         bgimage = true,
@@ -3661,7 +3678,7 @@ function History.CreateCard(args)
         valign = "top",
         data = {tail = tail},
 
-        Header(entry, width, args.inTray, args.close),
+        header,
         gui.Panel{
             classes = {"historySeam"},
             bgimage = "panels/square.png",
@@ -3672,7 +3689,16 @@ function History.CreateCard(args)
             flow = "vertical",
             width = "100%",
             height = "auto",
+            --a one-line header's height to start; a title that wraps makes the header taller,
+            --so once it is laid out the body gets what is really left.
             maxHeight = args.maxHeight - 62,
+            create = function(element)
+                gui.AfterLayout(function()
+                    if element.valid and header.valid and (header.renderedHeight or 0) > 0 then
+                        element.selfStyle.maxHeight = args.maxHeight - header.renderedHeight - 1
+                    end
+                end)
+            end,
             vscroll = true,
             gui.Panel{
                 flow = "vertical",

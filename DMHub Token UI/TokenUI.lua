@@ -2813,9 +2813,9 @@ function CreateTokenHud(token)
                 end
 
                 --History (Draw Steel): opens History showing only this creature. Looked
-                --up with rawget like Monster Info, and only while the game has History on.
+                --up with rawget like Monster Info; not for someone on the old Action Log.
                 local history = rawget(_G, "History")
-                if history ~= nil and history.Enabled() and history.OpenFor ~= nil then
+                if history ~= nil and not history.UsingOldLog() and history.OpenFor ~= nil then
                     items[#items+1] = gui.Panel{
                         className = 'radial-menu-item',
                         translate = core.Vector2(0,70):Rotate(0),

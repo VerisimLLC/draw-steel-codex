@@ -1103,7 +1103,7 @@ function GameHud:RequireRollListenerPanel()
 										completeRoll = function(rollInfo, details)
 											if rollType == "table" and check:try_get("tableRef") ~= nil then
 												local castid = request.info.castid ~= "" and request.info.castid or nil
-												RollOnTableProperties.NotifyRolled(tok.properties, check.tableRef, rollInfo, {cause = castid})
+												RollOnTableProperties.NotifyRolled(tok.properties, check.tableRef, rollInfo, {cause = castid, details = details})
 											elseif rollType == "test_power_roll" and request.info.director then
 												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
 											elseif request.info.castid ~= "" then

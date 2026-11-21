@@ -883,7 +883,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 --clone, which InvokeAbility populates with the parent ability's keywords.
                 forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
                 forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
-                if path ~= nil then
+                --pcall: this is only news for play observers and must not stop the move.
+                if path ~= nil then pcall(function()
                     --plain numbers, so the route outlives this path object (the side view).
                     local savedPath = {}
                     local steps = path.steps or {}
@@ -909,7 +910,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         --what stability took off, from the ability that set this move up (NoteStability).
                         stability = ability:try_get("_tmp_forcedMoveStability"),
                     })
-                end
+                end) end
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 

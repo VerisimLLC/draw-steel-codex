@@ -640,7 +640,7 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
         cancelRoll = function()
             rollCanceled = true
         end,
-        completeRoll = function(rollInfo)
+        completeRoll = function(rollInfo, details)
             rollComplete = true
 
             local passed = saveState.forced or rollInfo.total >= saveEnds
@@ -651,6 +651,9 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
                 target = saveEnds,
                 atturnend = ability.name == self:try_get("promptAbility", "End Turn Saving Throw"),
                 options = options,
+                --who may see the roll (Visible to GM only, Dice Tower).
+                rollInfo = rollInfo,
+                details = details,
             })
             if passed then
                 self:PurgeSaveItem(targetToken, item, "saved")

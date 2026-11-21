@@ -633,13 +633,7 @@ function RollOnTableProperties:GetOutcome(rollInfo)
     }
 end
 
---- Tells a record of play (History) that a roll on a table finished. Call it once, on the
---- client that rolled, once the result stands: after an override it is the row picked.
---- @param roller nil|creature Who rolled; nil for a player or the Director with no character.
---- @param tableRef RollTableReference The table rolled on.
---- @param rollInfo table The finished roll. The roll dialog adds rolledTotal and overrideMessage when the result was overridden.
---- @param extra nil|{cause: nil|string, project: nil|string} cause: the cast id of the ability that asked for the roll. project: the downtime project whose event the Director rolled.
-function RollOnTableProperties.NotifyRolled(roller, tableRef, rollInfo, extra)
+local function NotifyRolledUnguarded(roller, tableRef, rollInfo, extra)
     --a choice table (the Conduit's Pray / Do Not Pray) hands the dice to the table chosen;
     --the roll's own properties name the table they landed on.
     pcall(function()
@@ -677,7 +671,24 @@ function RollOnTableProperties.NotifyRolled(roller, tableRef, rollInfo, extra)
         overridden = overridden,
         cause = extra ~= nil and extra.cause or nil,
         project = extra ~= nil and extra.project or nil,
+        --who may see the roll: an observer reads it from these (Visible to GM only, Dice Tower).
+        rollInfo = rollInfo,
+        details = extra ~= nil and extra.details or nil,
     })
+end
+
+--- Tells a record of play (History) that a roll on a table finished. Call it once, on the
+--- client that rolled, once the result stands: after an override it is the row picked.
+--- Called just ahead of the code that settles a roll, so a failure is logged, never raised.
+--- @param roller nil|creature Who rolled; nil for a player or the Director with no character.
+--- @param tableRef RollTableReference The table rolled on.
+--- @param rollInfo table The finished roll. The roll dialog adds rolledTotal and overrideMessage when the result was overridden.
+--- @param extra nil|{cause: nil|string, project: nil|string, details: nil|table} cause: the cast id of the ability that asked for the roll. project: the downtime project whose event the Director rolled. details: the roll dialog's completeRoll details (a Dice Tower roll says so there).
+function RollOnTableProperties.NotifyRolled(roller, tableRef, rollInfo, extra)
+    local ok, err = xpcall(NotifyRolledUnguarded, debug.traceback, roller, tableRef, rollInfo, extra)
+    if not ok then
+        print("NotifyRolled:: failed:", err)
+    end
 end
 
 

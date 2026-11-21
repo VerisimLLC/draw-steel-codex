@@ -335,9 +335,6 @@ function EncounterMontage.SeedStory(doc, part, carried)
     return true
 end
 
---One montage's totals, from its log: successes (tier 3, or the critical
---tier 4), failures (tier 1) and threats whose consequence landed. Delve
---turns carry no tier and count for nothing; a passed turn neither.
 --Host: tells play observers (History) what the montage's log gained since last time: a
 --line per test, per threat whose consequence landed, and one when the montage ends.
 --historyLogged counts the log entries already told, and lives on the montage so a new
@@ -384,6 +381,9 @@ function EncounterMontage.NoteHistory(m)
     end
 end
 
+--One montage's totals, from its log: successes (tier 3, or the critical
+--tier 4), failures (tier 1) and threats whose consequence landed. Delve
+--turns carry no tier and count for nothing; a passed turn neither.
 function EncounterMontage.TotalsFromLog(m)
     local totals = { successes = 0, failures = 0, unvanquished = 0 }
     for _, e in ipairs((type(m) == "table" and m.log) or {}) do

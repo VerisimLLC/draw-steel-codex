@@ -2485,8 +2485,9 @@ local function BuildLine(item)
         children[2] = number
     end
 
-    --a resource line can be put back by whoever controls the creature (L42).
-    local undoable = entry.resourceid ~= nil and not entry.undone and entry.who ~= nil
+    --a resource line can be put back by whoever controls the creature (L42); not once its turn
+    --was reverted, which already put it back.
+    local undoable = entry.resourceid ~= nil and not entry.undone and entry.reverted == nil and entry.who ~= nil
     if undoable then
         local token = dmhub.GetCharacterById(entry.who.id)
         undoable = token ~= nil and token.canControl
@@ -3434,7 +3435,8 @@ local function BuildSections(mapid)
         if root ~= nil then
             nested[root.id] = nested[root.id] or {}
             table.insert(nested[root.id], entry)
-        elseif entry ~= nil and (entry.family ~= "malice" or dmhub.isDM) then
+        --a Malice line a player may not see never reaches here: ForPlayers cut it.
+        elseif entry ~= nil then
             local outside = entry.encounter == nil
             local groupid = "out-" .. (entry.mode or "exploration")
             if not outside then
@@ -3673,10 +3675,26 @@ local function AddTurnRows(items, turn, isNewest, nested)
             for _, name in ipairs(entry.names) do
                 names[#names + 1] = name
             end
+            --the names players may not see, from both lines, so the Director's eye still shows.
+            local hidden = nil
+            for _, part in ipairs({last.entry, entry}) do
+                for name in pairs(part.hidden or {}) do
+                    hidden = hidden or {}
+                    hidden[name] = true
+                end
+            end
             last.entry = {family = "ended", kind = "line", who = entry.who, causetext = entry.causetext, names = names,
-                hiddenfromplayers = last.entry.hiddenfromplayers, reverted = entry.reverted}
-            last.sig = table.concat(names, ",") .. tostring(last.entry.hiddenfromplayers)
+                hiddenfromplayers = last.entry.hiddenfromplayers, reverted = entry.reverted, hidden = hidden}
+            --a copy: a lone trigger's lines share one sources list, and only this line grows.
+            last.sources = table.shallow_copy(last.sources)
             last.sources[#last.sources + 1] = entry
+            --each source is a new table whenever it is rewritten (a revert, a hide), so the
+            --merged line rebuilds when any of them changes.
+            local sig = {}
+            for _, source in ipairs(last.sources) do
+                sig[#sig + 1] = tostring(source)
+            end
+            last.sig = table.concat(sig, ",")
         elseif entry.kind == "line" then
             items[#items + 1] = {kind = "line", key = turn.keys[i], sig = entry, entry = entry, sources = {entry}}
         elseif entry.kind == "trigger" then
@@ -3685,9 +3703,11 @@ local function AddTurnRows(items, turn, isNewest, nested)
             local triggers = nested[entry.id]
             local sig = entry
             if triggers ~= nil then
+                --each nested entry by its table, which is new whenever it is rewritten (a hide,
+                --a reveal), so the row and its card rebuild then too.
                 local ids = {tostring(entry)}
                 for _, kid in ipairs(triggers) do
-                    ids[#ids + 1] = kid.id
+                    ids[#ids + 1] = tostring(kid)
                 end
                 sig = table.concat(ids, ",")
             end
@@ -4750,8 +4770,10 @@ local function CreateFace()
 
         --a trigger landing after the row closed changes what the open card says.
         if selected ~= nil then
+            local found = false
             for _, item in ipairs(items) do
                 if item.key == selected.key then
+                    found = true
                     Sign(item)
                     if item.sig ~= selected.sig then
                         selected.sig = item.sig
@@ -4762,6 +4784,10 @@ local function CreateFace()
                     end
                     break
                 end
+            end
+            --its entry was deleted, or the search no longer finds it: the card goes with the row.
+            if not found then
+                Select(nil)
             end
         end
         if quietSeen then
@@ -5666,6 +5692,9 @@ function History.FoldIn(entry)
         end,
     }
     layer:AddChild(ghost)
+    --interactable = false covers the frame only: the row inside would still take clicks
+    --meant for the map under its flight.
+    ghost:MakeNonInteractiveRecursive()
 end
 
 --The map switcher's width in the title row, when it shows.
@@ -5943,7 +5972,8 @@ local function Unseen()
             end
             for i = first, #keys do
                 local entry = History.Entry(mapid, keys[i])
-                if entry ~= nil then
+                --a quiet Malice line counts in its round heading only: there is no line to look at.
+                if entry ~= nil and not entry.quiet then
                     local turnKey, owner
                     if entry.round ~= nil and entry.turn ~= nil then
                         turnKey = string.format("%s|%s|%s|%s", mapid, tostring(entry.encounter), entry.round, entry.turn)
@@ -6184,8 +6214,8 @@ local function BubbleRows(mapid, keys)
         else
             owner = entry.actor or entry.who
         end
+        --(a Malice line a player may not see was cut by ForPlayers)
         local wanted = entry.cause == nil and not Mine(owner)
-            and (entry.family ~= "malice" or dmhub.isDM)
         local args = nil
         if wanted and entry.kind == "line" then
             local words = LineWords(entry)
@@ -6235,7 +6265,10 @@ local function BubbleTick()
         return
     end
     dmhub.Schedule(BUBBLE_TICK, BubbleTick)
-    if not History.Enabled() then
+    --no History button to hang a preview off for someone on the old Action Log.
+    if History.UsingOldLog() then
+        g_bubbleNewest = {}
+        g_bubblePending = {}
         return
     end
     local show = dmhub.GetSettingValue("history:sidebarpreview") and not PanelDocument.PanelInFront("history", "History")
@@ -6276,6 +6309,8 @@ DockablePanel.Register{
     available = function()
         return not History.UsingOldLog()
     end,
+    --a dock saved with the old Action Log shows History in its place.
+    standsInFor = "Action Log",
     vscroll = false,
     minHeight = 200,
     defaultWidth = TRAY_DEFAULT_WIDTH + EDGE_STRIP,
@@ -6330,7 +6365,9 @@ local function LogChoiceChanged()
 end
 
 History.OnEnabledChanged = LogChoiceChanged
-dmhub.RegisterEventHandler("EnterGame", function()
+--after a game's first-entry View and any View applied later, whose templates place History
+--but never the old Action Log.
+PanelDocument.OnRailLayoutApplied("history", function()
     if not mod.unloaded then
         PlaceRailButton()
     end

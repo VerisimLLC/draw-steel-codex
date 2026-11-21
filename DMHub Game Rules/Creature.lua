@@ -79,7 +79,8 @@ local g_handEditDepth = 0
 --- @param fn function
 function GameSystem.HandEdit(fn)
 	g_handEditDepth = g_handEditDepth + 1
-	local ok, err = pcall(fn)
+	--xpcall with a traceback, so an error from fn still reaches the log with its stack.
+	local ok, err = xpcall(fn, debug.traceback)
 	g_handEditDepth = g_handEditDepth - 1
 	if not ok then
 		error(err, 0)
@@ -103,7 +104,8 @@ local g_scopedCast = nil
 function GameSystem.ForCast(cast, fn)
 	local outer = g_scopedCast
 	g_scopedCast = cast or outer
-	local ok, err = pcall(fn)
+	--xpcall with a traceback, so an error from fn still reaches the log with its stack.
+	local ok, err = xpcall(fn, debug.traceback)
 	g_scopedCast = outer
 	if not ok then
 		error(err, 0)
@@ -9077,8 +9079,17 @@ local g_endingEffects = {}
 --What is on a creature that can end, by a key that is the same before and after.
 local function EffectsOn(self)
     local result = {}
+    --instances saved before they had ids all read "deprecated": those are told apart by
+    --effect and count, so removing one of two still reports one ended.
+    local legacy = {}
     for _,instance in ipairs(self:try_get("ongoingEffects", {})) do
-        result["effect:" .. tostring(instance.id)] = {ongoingeffectid = instance.ongoingEffectid}
+        local key = "effect:" .. tostring(instance.id)
+        if instance.id == "deprecated" then
+            local n = (legacy[instance.ongoingEffectid] or 0) + 1
+            legacy[instance.ongoingEffectid] = n
+            key = string.format("effect:deprecated:%s:%d", tostring(instance.ongoingEffectid), n)
+        end
+        result[key] = {ongoingeffectid = instance.ongoingEffectid}
     end
     for conditionid,_ in pairs(self:try_get("inflictedConditions", {})) do
         result["condition:" .. conditionid] = {conditionid = conditionid}
@@ -9098,15 +9109,22 @@ function creature:EndingEffects(cause, fn)
         return fn()
     end
 
-    local before = EffectsOn(self)
+    --what ended is only news for play observers: if it can't be read, the change still runs.
+    local okBefore, before = pcall(EffectsOn, self)
+    if not okBefore then
+        return fn()
+    end
     g_endingEffects[self] = true
-    local results = table.pack(pcall(fn))
+    local results = table.pack(xpcall(fn, debug.traceback))
     g_endingEffects[self] = nil
     if not results[1] then
         error(results[2], 0)
     end
 
-    local after = EffectsOn(self)
+    local okAfter, after = pcall(EffectsOn, self)
+    if not okAfter then
+        return table.unpack(results, 2, results.n)
+    end
     local ended = nil
     for key,item in pairs(before) do
         if after[key] == nil then

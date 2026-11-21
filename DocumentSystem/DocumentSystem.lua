@@ -16836,16 +16836,30 @@ function PanelDocument.PanelInFront(key, panelName)
     return false
 end
 
---The chat button the bubble hangs off: side ("left"/"right"), slot and
---the button panel itself, or nil when there is none to hang off.
---
---Two kinds of button exist. On a real rail it is a slotted top-level
---child, and that is the only one looked for there -- a grouped-away or
---overflow-parked chat button keeps its old "no bubble" answer. When a
---custom interface owns the rail surface (Encounter of the Week keeps
---Journal / Chat / Action Log in the bottom-left corner while it takes
---the hud over) the button is a provider widget nested inside the rail
---wrapper with no slot, so that case searches the wrapper's tree.
+--Functions run once a rail layout is in place: on entering a game (after any built-in
+--View has been applied) and after every View apply. A module whose panel's availability
+--follows a preference uses one to give that panel the slot a View's template left out.
+--(Fields of PanelDocument rather than locals: this file is at Lua's 200-local limit.)
+PanelDocument.railLayoutApplied = {}
+
+--- Registers a function to run whenever a rail layout has been put in place. Keyed, so a
+--- reloaded module replaces its own rather than adding a second.
+--- @param id string
+--- @param fn fun()
+function PanelDocument.OnRailLayoutApplied(id, fn)
+    PanelDocument.railLayoutApplied[id] = fn
+end
+
+--- Runs every function registered with PanelDocument.OnRailLayoutApplied.
+function PanelDocument.RunRailLayoutApplied()
+    for id, fn in pairs(PanelDocument.railLayoutApplied) do
+        local ok, err = pcall(fn)
+        if not ok then
+            dmhub.Debug(string.format("Rail layout applied (%s): %s", id, tostring(err)))
+        end
+    end
+end
+
 --- Gives a panel a rail button directly below another panel's, moving the buttons
 --- under it down a slot. Does nothing if the panel already has a place on the rails,
 --- or the other panel has no button. Keys are lowercase.
@@ -16898,7 +16912,15 @@ function PanelDocument.FindChatRailButton()
     return PanelDocument.FindRailButton("chat")
 end
 
---- The rail button a panel's bubble hangs off (FindChatRailButton, for any panel).
+--- The rail button a panel's bubble hangs off: side, slot and the button panel, or nil
+--- when there is none to hang off.
+---
+--- Two kinds of button exist. On a real rail it is a slotted top-level child, and that is
+--- the only one looked for there: a grouped-away or overflow-parked button has no bubble.
+--- When a custom interface owns the rail surface (Encounter of the Week keeps Journal /
+--- Chat / History in the bottom-left corner while it takes the hud over) the button is a
+--- provider widget nested inside the rail wrapper with no slot, so that case searches the
+--- wrapper's tree.
 --- @param key string The panel's rail key, lowercase.
 --- @return string|nil side, integer|nil slot, Panel|nil button
 function PanelDocument.FindRailButton(key)
@@ -17383,7 +17405,7 @@ function PanelDocument.CreateRailBubble(opts, side, slot, rect)
             --the panel brought in front by any path while the bubble is
             --up: the preview has done its job.
             local data = element.data
-            if PanelDocument.PanelInFront(data.key, data.panelName) then
+            if not data.evenInFront and PanelDocument.PanelInFront(data.key, data.panelName) then
                 element:FireEvent("bubbleFade")
             end
             --the pointer on the bubble holds it; leaving starts the linger again.
@@ -17505,6 +17527,10 @@ function PanelDocument.ShowRailBubble(args)
     end
     if bubble == nil then
         return false
+    end
+    --rows the panel itself doesn't hold keep the bubble up while the panel is in front.
+    if args.evenInFront then
+        bubble.data.evenInFront = true
     end
     for _, row in ipairs(args.rows) do
         bubble:FireEvent("addBubbleRow", row.contents, row.click)
@@ -27290,6 +27316,10 @@ dmhub.RegisterEventHandler("EnterGame", function()
         if RailModeActive() and rawget(_G, "ViewsCheckForBuiltinUpdateOnEntry") ~= nil then
             ViewsCheckForBuiltinUpdateOnEntry()
         end
+
+        --last, so a module's own placement never makes a new user's empty layout look like
+        --theirs to the first-entry check above.
+        PanelDocument.RunRailLayoutApplied()
     end)
 end)
 
@@ -28026,6 +28056,7 @@ function ViewsApplyLayout(layout)
     dmhub.SetSettingValue("iconrailhidden", railHidden)
 
     RebuildIconRails()
+    PanelDocument.RunRailLayoutApplied()
     return skipped
 end
 

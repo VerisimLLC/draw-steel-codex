@@ -31,6 +31,7 @@ local mod = dmhub.GetModLoading()
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
+--- @field mk? string On a target with a pool: its Monster Knowledge key for the Stamina cut (see HistoryEntry.mk).
 --- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil, ref: string|nil, cid: string|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players. ref is an ongoing effect's instance id and cid a condition's id, so History can tell whether it is still on (Active).
 --- @field ended? string[] On a target: names of what it ended.
 --- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
@@ -790,7 +791,9 @@ local function CastFinished(ability, casterToken, options)
     end
 
     local cast = options.symbols ~= nil and options.symbols.cast or nil
-    if cast ~= nil then
+    --the roll's details are extras: if working them out fails, the row is still written.
+    local ok, err = true, nil
+    if cast ~= nil then ok, err = pcall(function()
         AddRoll(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
         for tokenid, tier in pairs(cast:try_get("tokenToTier", {})) do
             if seen[tokenid] ~= nil then
@@ -829,6 +832,9 @@ local function CastFinished(ability, casterToken, options)
         end
         AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
         AddRollTriggers(entry, cast)
+    end) end
+    if not ok then
+        print("History:: roll details failed:", err)
     end
     History.Write(entry)
     --the user's own card folds into the row it became (S5, 6.5d).
@@ -1203,6 +1209,21 @@ local function OnMinionsDied(creature, info)
     })
 end
 
+--What a Stamina line keeps so players see its numbers only when the token's Stamina bar would
+--show them the number: the monster's Monster Knowledge key, "" for a creature Monster Info
+--can't learn about, nil for a Hero (always shown).
+local function StaminaGateKey(token)
+    local hero = token.playerControlled
+    if not hero then
+        local ok, result = pcall(function() return token.properties:IsHero() end)
+        hero = ok and result == true
+    end
+    if hero then
+        return nil
+    end
+    return MonsterKnowledge.KeyForToken(token) or ""
+end
+
 local function OnTemporaryStamina(creature, before, after, note)
     if not History.Enabled() then
         return
@@ -1213,12 +1234,14 @@ local function OnTemporaryStamina(creature, before, after, note)
     end
     local state = CastFor(nil)
     if state == nil then
-        WriteLine(token, "temporarystamina", NoteHand{before = before, after = after, causetext = Cause(note)})
+        WriteLine(token, "temporarystamina", NoteHand{before = before, after = after, causetext = Cause(note),
+            mk = StaminaGateKey(token)})
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.pool = {before = target.pool ~= nil and target.pool.before or before, after = after}
+        target.mk = StaminaGateKey(token)
     end
 end
 
@@ -1452,6 +1475,9 @@ local function OnResource(creature, key, before, after, refreshType, note)
                 return
             end
             g_upfront[pending] = nil
+            if not token.valid then
+                return
+            end
             WriteLine(token, "resource", {name = name, amount = change, resourceid = key,
                 refreshtype = refreshType, causetext = note})
         end)
@@ -1501,11 +1527,13 @@ end
 --- @param entry HistoryEntry
 function History.UndoResource(entry)
     local token = entry.who ~= nil and dmhub.GetCharacterById(entry.who.id) or nil
-    if token == nil or entry.resourceid == nil or entry.undone then
+    if token == nil or entry.resourceid == nil or entry.undone or entry.reverted ~= nil then
         return
     end
+    --not on the undo stack: Ctrl+Z would put the resource back while the line still read Undone.
     token:ModifyProperties{
         description = "Undo Resource",
+        undoable = false,
         execute = function()
             --a heal with its Recovery: the Stamina goes back too, set straight so no damage line follows.
             if entry.family == "heal" then
@@ -2032,9 +2060,15 @@ local function OnSaved(creature, info)
         state.noRow = true
     end
     local rolled = string.format("rolled %d (%d or more ends it)", info.total, info.target)
+    --a save rolled out of players' sight keeps its outcome, which they saw, but not its number.
+    local privacy = RollUtils.RollPrivacy(info.rollInfo, info.details)
+    if privacy ~= nil and info.atturnend then
+        privacy.cause = "End of turn"
+    end
     WriteLine(token, "save", {
         name = info.name,
         passed = info.passed,
+        privacy = privacy,
         causetext = info.atturnend and ("End of turn: " .. rolled) or string.upper_first(rolled),
     })
 end
@@ -2168,6 +2202,12 @@ local function OnTableRolled(roller, info)
         cause = info.cause,
         causetext = cause,
     }
+    --a roll out of players' sight: they may read which table it was, not what it gave (L79).
+    local privacy = RollUtils.RollPrivacy(info.rollInfo, info.details)
+    if privacy ~= nil then
+        privacy.cause = info.project ~= nil and (info.project .. " event") or info.table
+        entry.privacy = privacy
+    end
     --the Director rolls a project's event for the Hero, so the line is the Director's.
     if token ~= nil and info.project == nil then
         entry.who = History.Creature(token)
@@ -2205,7 +2245,8 @@ local function OnStaminaSet(creature, before, after, note)
     if token == nil then
         return
     end
-    WriteLine(token, "staminaset", NoteHand{before = before, after = after, causetext = Cause(note)})
+    WriteLine(token, "staminaset", NoteHand{before = before, after = after, causetext = Cause(note),
+        mk = StaminaGateKey(token)})
 end
 
 --A wave of reinforcements arrived (L89): one line naming the wave, with who came under it,

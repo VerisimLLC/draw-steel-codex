@@ -98,6 +98,8 @@ DockablePanel.Register{
 		local history = rawget(_G, "History")
 		return history == nil or history.UsingOldLog == nil or history.UsingOldLog()
 	end,
+	--a dock saved with History shows the Action Log in its place.
+	standsInFor = "History",
 	minHeight = 200,
 	vscroll = false,
 	content = function()

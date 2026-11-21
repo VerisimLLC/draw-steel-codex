@@ -1554,10 +1554,10 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
     cardArgs[#cardArgs+1] = backFace
     local flipButton = CreateFlipButton(charid)
     cardArgs[#cardArgs+1] = flipButton
-    --History sits just left of the centred flip button, when the game has History on. The
-    --top-left corner is the trigger and downtime badges', so it stays out of there.
+    --History sits just left of the centred flip button, unless this user is on the old Action
+    --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
     local history = rawget(_G, "History")
-    if history ~= nil and history.Enabled() then
+    if history ~= nil and not history.UsingOldLog() then
         cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
     end
     cardArgs.turnCard = function(element)

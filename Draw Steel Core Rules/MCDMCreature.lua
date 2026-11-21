@@ -6317,14 +6317,18 @@ end
 
 --What a creature has left of a resource a record of play follows, nil for any other.
 --Actions, maneuvers and triggers are not among them: every turn spends those.
+--It runs inside every spend and refresh, so a failure here reads as "not followed".
 local function RecordedAmount(self, key)
     if key ~= CharacterResource.heroicResourceId and key ~= CharacterResource.surgeResourceId
         and key ~= CharacterResource.recoveryResourceId then
         return nil
     end
-    local info = dmhub.GetTable(CharacterResource.tableName)[key]
-    local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
-    return (self:GetResources()[key] or 0) - (usage or 0)
+    local ok, amount = pcall(function()
+        local info = dmhub.GetTable(CharacterResource.tableName)[key]
+        local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
+        return (self:GetResources()[key] or 0) - (usage or 0)
+    end)
+    return ok and amount or nil
 end
 
 --Compares after the change: a spend can be routed to a mentor or a summoner, and a

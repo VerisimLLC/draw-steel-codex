@@ -380,8 +380,10 @@ local function CastBegan(ability, casterToken, targets, options)
         map = casterToken.mapid,
         actor = History.Creature(actor),
         --a real ability used as part of another action (Running Cacophony's Agonizing Harmony)
-        --sits under that action's row.
-        cause = outer ~= nil and not outer.finished and outer.entry.id or nil,
+        --sits under that action's row. A triggered action the action set off shares its cast
+        --too, but keeps a row of its own that says what triggered it.
+        cause = outer ~= nil and not outer.finished and (usedAs or ability.typeName ~= "TriggeredAbility")
+            and outer.entry.id or nil,
         ability = {
             --a written-in step with no outer row here reads as the ability it belongs to.
             name = partOf or ability.name,

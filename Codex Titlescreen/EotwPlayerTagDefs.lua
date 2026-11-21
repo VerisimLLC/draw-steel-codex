@@ -57,7 +57,7 @@ EotwPlayerTagDefs = {
         --the release day (usually the same day), before deploying to release.
         { id = "founding-hero", name = "Founding Hero", description = "Fought for Blackbottom during the playtest. Thank you.", style = "silver", hidden = true, opens = "2026-12-31", rule = { counter = "encountersPlayed", atLeast = 1, before = "2026-12-31" } },
         --Given by hand (admin-grant-tag), never by a rule: an in-joke about devils' hoofprints pointing the wrong way.
-        { id = "devil-podiatrists", name = "Devil Podiatrists", description = "Knows which way a devil's hoofprints should point.", style = "special", hidden = true, rule = { manual = true } },
+        { id = "devil-podiatrist", name = "Devil Podiatrist", description = "Knows which way a devil's hoofprints should point.", style = "special", hidden = true, rule = { manual = true } },
         { id = "deathdefier", name = "Deathdefier", description = "Won in Deadly Mode and lived to tell it.", style = "slate", hidden = true, rule = { counter = "deadlyWins", atLeast = 1 } },
     },
 }

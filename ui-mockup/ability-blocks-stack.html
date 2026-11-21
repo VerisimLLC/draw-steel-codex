@@ -19,6 +19,12 @@
   --c-roll: #7d4aa3;
   --c-act: #a33d4b;
   --c-ctrl: #b36125;
+  --c-harm: #a8343f;
+  --c-hinder: #8e3f86;
+  --c-help: #3d7a3a;
+  --c-effect: #2b6f86;
+  --c-move: #3c5fa8;
+  --c-res: #9a6d1c;
   --c-num: #3c8656;
   --c-test: #2c7391;
   --c-raw: #5b564e;
@@ -37,10 +43,11 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.35 var(-
 button, select, input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
-.dlg { max-width: 1120px; margin: 0 auto; background: var(--dlg); border: 1px solid var(--line); border-radius: 6px; }
+.dlg { max-width: 1320px; margin: 0 auto; background: var(--dlg); border: 1px solid var(--line); border-radius: 6px; }
 .dlg-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .dlg-head h1 { font: 600 15px var(--font-head); margin: 0; letter-spacing: .02em; }
 .dlg-head .spacer { flex: 1; }
+#exSel { max-width: min(360px, 100%); min-width: 0; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .seg button { background: none; border: none; padding: 5px 10px; cursor: pointer; color: var(--dim); }
 .seg button[aria-pressed="true"] { background: var(--panel); color: var(--gold); }
@@ -48,8 +55,27 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .btn:hover { border-color: var(--gold); }
 .btn.link { background: none; border: none; color: var(--dim); text-decoration: underline; padding: 4px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
-.dlg-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
+.dlg-body { display: grid; grid-template-columns: 210px minmax(0, 1fr) 340px; }
+@media (max-width: 1150px) {
+  .dlg-body { grid-template-columns: minmax(0, 1fr) 320px; }
+  .palette { grid-column: 1 / -1; border-right: none !important; border-bottom: 1px solid var(--line); flex-direction: row !important; flex-wrap: wrap; }
+  .palette .pgroup { min-width: 180px; }
+  .palette .phint { flex-basis: 100%; }
+}
 @media (max-width: 860px) { .dlg-body { grid-template-columns: 1fr; } .side { border-left: none !important; border-top: 1px solid var(--line); } }
+.palette { border-right: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 12px; align-self: start; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
+.palette .phint { color: var(--dim); font-size: 11.5px; line-height: 1.4; margin: 0; }
+.palette .phint b { color: var(--fg); font-weight: 600; }
+.pgroup { display: flex; flex-direction: column; gap: 4px; }
+.pgroup h3 { margin: 0 0 2px; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+.pgroup h3 .sw { width: 10px; height: 10px; border-radius: 2px; background: var(--c); }
+.pal-step { --c: var(--c-raw); display: flex; align-items: center; gap: 6px; background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 5px 8px 5px 4px; font-size: 12.5px; cursor: grab; touch-action: none; user-select: none; text-align: left; width: 100%; }
+.pal-step:hover { filter: brightness(1.15); }
+.pal-step .handle { width: 14px; }
+/* Dimmed: clicking cannot add it to the selected list, but it can still be dragged to a list that allows it. */
+.pal-step[aria-disabled="true"] { opacity: .45; filter: grayscale(.6); }
+.stack.active-list { outline: 1px dashed color-mix(in srgb, var(--gold) 70%, transparent); outline-offset: 3px; border-radius: 4px; }
+.stack.active-list > .addrow .add-btn { border-color: var(--gold); color: var(--gold); }
 .main { padding: 16px; min-width: 0; overflow-x: auto; }
 .side { border-left: 1px solid var(--line); padding: 16px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 
@@ -71,6 +97,12 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-act { --c: var(--c-act); }
 .cat-ctrl { --c: var(--c-ctrl); }
 .cat-raw { --c: var(--c-raw); }
+.cat-harm { --c: var(--c-harm); }
+.cat-hinder { --c: var(--c-hinder); }
+.cat-help { --c: var(--c-help); }
+.cat-effect { --c: var(--c-effect); }
+.cat-move { --c: var(--c-move); }
+.cat-res { --c: var(--c-res); }
 .inner.nested { background: color-mix(in srgb, var(--c-act) 14%, var(--bg)); padding: 8px 8px 8px 10px; border-left: 1px dashed rgba(255,255,255,.25); }
 .nest-title { font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 6px; }
 .nest-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #fff; background: var(--c-head); border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 6px 10px; margin-bottom: 3px; }
@@ -223,6 +255,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
     </select>
   </div>
   <div class="dlg-body">
+    <div class="palette" id="palette" aria-label="Steps"></div>
     <div class="main" id="main"></div>
     <div class="side" id="side"></div>
   </div>
@@ -348,35 +381,35 @@ const S = (type, f, slots, branches) => ({ id: "s" + uid++, type, f: f || {}, sl
 const STEPS = {
   powerRoll: { label: "Power roll", cat: "roll", ctx: ["main"], desc: "Roll 2d10 + a characteristic; three tiers of results.",
     make: () => S("powerRoll", { char: "Might" }, {}, { t1: [], t2: [], t3: [] }) },
-  damage: { label: "Deal damage", cat: "act", ctx: ["main", "tier"], desc: "Damage to each target.",
+  damage: { label: "Deal damage", cat: "harm", ctx: ["main", "tier"], desc: "Damage to each target.",
     make: c => S("damage", { dtype: "untyped" }, { amount: H("roll", c === "tier" ? "tierDamage" : "damage", c === "tier" ? "3" : "2d6") }) },
-  condition: { label: "Apply condition", cat: "act", ctx: ["main", "tier"], desc: "Slowed, prone, and so on.",
+  condition: { label: "Apply condition", cat: "hinder", ctx: ["main", "tier"], desc: "Slowed, prone, and so on.",
     make: () => S("condition", { cond: "Slowed", dur: "save ends" }) },
-  forced: { label: "Forced movement", cat: "act", ctx: ["main", "tier"], desc: "Push, pull or slide the target.",
+  forced: { label: "Forced movement", cat: "hinder", ctx: ["main", "tier"], desc: "Push, pull or slide the target.",
     make: () => S("forced", { kind: "push", n: "2" }) },
   potency: { label: "If potency fails", cat: "ctrl", ctx: ["tier"], desc: "Steps inside only apply if the target's characteristic is below a potency.",
     make: () => S("potency", { ch: "Might", tier: "average" }, {}, { then: [] }) },
-  heal: { label: "Heal", cat: "act", ctx: ["main"], desc: "The target regains Stamina.",
+  heal: { label: "Heal", cat: "help", ctx: ["main"], desc: "The target regains Stamina.",
     make: () => S("heal", {}, { amount: H("roll", "heal", "5") }) },
   ifStep: { label: "Only if...", cat: "ctrl", ctx: ["main"], desc: "Steps inside only happen to targets that pass a test.",
     make: () => S("ifStep", {}, { cond: H("boolean", "stepIf") }, { then: [] }) },
-  invoke: { label: "Use another ability", cat: "act", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
+  invoke: { label: "Use another ability", cat: "ctrl", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
     make: () => S("invoke", { ability: "Free Strike" }) },
-  useNew: { label: "Use a new ability", cat: "act", ctx: ["main"], desc: "Build a follow-up ability right here, and pass it information.",
+  useNew: { label: "Use a new ability", cat: "ctrl", ctx: ["main"], desc: "Build a follow-up ability right here, and pass it information.",
     make: () => {
       const st = S("useNew", { name: "Follow-up", targeting: "inherit", count: "creature", distance: "Ranged", loadedParams: {} },
         { num: H("number", "numTargets", "1"), range: H("number", "range", "5"), tf: H("boolean", "targetFilter") }, { steps: [] });
       SCOPES[st.id] = st; rescope(st, st, true); return st;
     } },
-  applyEffect: { label: "Apply an effect", cat: "act", ctx: ["main", "tier"], desc: "One of the compendium's ongoing effects: burning, hexed, a buff...",
+  applyEffect: { label: "Apply an effect", cat: "effect", ctx: ["main", "tier"], desc: "One of the compendium's ongoing effects: burning, hexed, a buff...",
     make: c => S("applyEffect", { who: "targets", effectName: "", effectId: "", dur: "save_ends", stacks: "1" }) },
-  tempStamina: { label: "Temporary Stamina", cat: "act", ctx: ["main"], desc: "Grant temporary Stamina.",
+  tempStamina: { label: "Temporary Stamina", cat: "help", ctx: ["main"], desc: "Grant temporary Stamina.",
     make: () => S("tempStamina", { who: "caster" }, { amount: H("number", "tempStamina", "10") }) },
-  resource: { label: "Gain or spend a resource", cat: "act", ctx: ["main"], desc: "Heroic Resource, Malice, Surges, Recoveries...",
+  resource: { label: "Gain or spend a resource", cat: "res", ctx: ["main"], desc: "Heroic Resource, Malice, Surges, Recoveries...",
     make: () => S("resource", { who: "caster", mode: "replenish", res: (RESOURCE_TABLE.find(r => r[1] === "Heroic Resource") || RESOURCE_TABLE[0] || ["", ""])[0] }, { qty: H("number", "quantity", "1") }) },
-  endEffects: { label: "End conditions or effects", cat: "act", ctx: ["main"], desc: "Remove conditions, effects, or both.",
+  endEffects: { label: "End conditions or effects", cat: "help", ctx: ["main"], desc: "Remove conditions, effects, or both.",
     make: () => S("endEffects", { who: "caster", what: "conditions_and_effects", how: "one" }) },
-  move: { label: "Move a creature", cat: "act", ctx: ["main"], desc: "Shift, move, jump or teleport (the player picks the square).",
+  move: { label: "Move a creature", cat: "move", ctx: ["main"], desc: "Shift, move, jump or teleport (the player picks the square).",
     make: () => S("move", { who: "caster", how: "shift" }) },
   // A behaviour the simple editor does not model (aura, summon, script...). Its record is kept as-is
   // and saved back untouched; only its position and any "Only if" around it are editable here.
@@ -1078,7 +1111,8 @@ function mouth(list, ctx, scope) {
    take that scope so their formula boxes see the right passed-in information. */
 const listScopes = {};
 function renderList(list, ctx, scope) {
-  const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx; listScopes[s.dataset.list] = scope || null;
+  const s = E("div", "stack"); s.dataset.list = listId(list); s.dataset.ctx = ctx; listScopes[s.dataset.list] = scope || null; listCtx[s.dataset.list] = ctx;
+  if (s.dataset.list === (activeListId && listsById[activeListId] ? activeListId : listId(ab.steps))) s.classList.add("active-list");
   list.forEach(st => s.appendChild(renderStep(st, list, ctx, scope)));
   const row = E("div", "addrow");
   const b = E("button", "add-btn", ctx === "tier" ? "+ add result" : "+ add step"); b.type = "button";
@@ -1178,7 +1212,7 @@ function renderSide(c) {
 
 function countOpaque(list) { let n = 0; for (const st of list) { if (st.type === "opaque") n++; for (const k in st.branches || {}) n += countOpaque(st.branches[k]); } return n; }
 let compiledCache = null;
-function refresh() { closePopups(); compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); saveDraft(); }
+function refresh() { closePopups(); compiledCache = compileAbility(); renderMain(); renderSide(compiledCache); renderPalette(); saveDraft(); }
 // While typing, only the card updates; the stack re-renders when the field loses focus.
 function refreshSide() { compiledCache = compileAbility(); renderSide(compiledCache); saveDraft(); }
 document.getElementById("showGs").addEventListener("change", refresh);
@@ -1353,6 +1387,59 @@ function effectInput(f) {
   return i;
 }
 
+/* Step palette: blocks grouped by what they do. Drag one into place, or click it to add it to the
+   list you are working in (outlined in gold; click inside any list or tier to choose it). */
+const PALETTE = [
+  ["harm", "Harm", ["damage"]],
+  ["hinder", "Hinder", ["condition", "forced"]],
+  ["effect", "Effects", ["applyEffect"]],
+  ["help", "Help", ["heal", "tempStamina", "endEffects"]],
+  ["move", "Move", ["move"]],
+  ["res", "Resources", ["resource"]],
+  ["roll", "Rolls", ["powerRoll", "potency"]],
+  ["ctrl", "Logic", ["ifStep", "invoke", "useNew"]],
+];
+let activeListId = null;
+const listCtx = {};
+function activeList() {
+  const id = activeListId && listsById[activeListId] ? activeListId : listId(ab.steps);
+  return { id, list: listsById[id], ctx: listCtx[id] || "main", scope: listScopes[id] || null };
+}
+function renderPalette() {
+  const pal = document.getElementById("palette"); pal.innerHTML = "";
+  const act = activeList();
+  pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it to <b>" + (act.ctx === "tier" ? "the selected tier" : act.scope ? "\u201c" + esc(act.scope.f.name) + "\u201d" : "What happens") + "</b>." }));
+  for (const [cat, title, types] of PALETTE) {
+    const g = E("div", "pgroup cat-" + cat);
+    const h = E("h3"); h.appendChild(E("span", "sw")); h.appendChild(E("span", null, title)); g.appendChild(h);
+    for (const t of types) {
+      const d = STEPS[t];
+      const b = E("button", "pal-step cat-" + cat); b.type = "button"; b.dataset.palette = t;
+      const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(E("span", null, d.label));
+      const ok = d.ctx.includes(act.ctx);
+      b.title = d.desc + (ok ? "" : " (Can't go in a power roll tier: drag it to another list instead.)");
+      if (!ok) b.setAttribute("aria-disabled", "true");
+      b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) addStepTo(t, act); });
+      g.appendChild(b);
+    }
+    pal.appendChild(g);
+  }
+}
+function addStepTo(type, act, idx) {
+  const st = STEPS[type].make(act.ctx);
+  if (act.scope) rescope(st, act.scope, false);
+  if (idx == null) act.list.push(st); else act.list.splice(idx, 0, st);
+  refresh();
+  const el = main.querySelector('[data-step="' + st.id + '"]');
+  if (el) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 400); }
+  const h = st.slots && st.slots.cond; if (h) { const b = main.querySelector('[data-holder="' + h.id + '"] button'); if (b) openPicker(h, b); }
+}
+// Clicking anywhere in a list (or its "+ add" button) makes it the list palette clicks add to.
+document.addEventListener("pointerdown", ev => {
+  const st = ev.target.closest && ev.target.closest("#main .stack[data-list]");
+  if (st && st.dataset.list !== activeListId) { activeListId = st.dataset.list; main.querySelectorAll(".stack.active-list").forEach(x => x.classList.remove("active-list")); st.classList.add("active-list"); renderPalette(); }
+}, true);
+
 /* Prototype stand-in for handing one step to the existing full editor. */
 function fullEditorNote(anchor, f) {
   closePopups();
@@ -1425,6 +1512,12 @@ function allHolders() {
 }
 document.addEventListener("pointerdown", ev => {
   if (ev.button !== 0) return;
+  const pb = ev.target.closest(".pal-step");
+  if (pb) {
+    drag = { kind: "new", st: { type: pb.dataset.palette }, el: pb, sx: ev.clientX, sy: ev.clientY, fromPalette: true };
+    const r = pb.getBoundingClientRect(); drag.ox = ev.clientX - r.left; drag.oy = ev.clientY - r.top;
+    return;  // no preventDefault: a plain click still reaches the button
+  }
   const hd = ev.target.closest(".handle");
   const xe = !hd && ev.target.closest(".x");
   if (xe && ev.target.closest("input, select, button")) return;
@@ -1445,13 +1538,14 @@ document.addEventListener("pointermove", ev => {
     if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 5) return;
     drag.on = true; closePopups();
     ghost.innerHTML = ""; const c = drag.el.cloneNode(true); c.style.width = drag.el.offsetWidth + "px"; ghost.appendChild(c);
-    drag.el.classList.add("ghost");
+    if (!drag.fromPalette) drag.el.classList.add("ghost");
+    else { drag.el.dataset.dragged = "1"; ghost.firstChild.style.width = "auto"; }
   }
   ghost.style.transform = "translate(" + (ev.clientX - drag.ox) + "px," + (ev.clientY - drag.oy) + "px)";
   main.querySelectorAll(".drop-line").forEach(l => l.remove());
   main.querySelectorAll(".holder.hot").forEach(l => l.classList.remove("hot"));
   drag.target = null;
-  if (drag.kind === "step") {
+  if (drag.kind === "step" || drag.kind === "new") {
     const ctxOk = c => STEPS[drag.st.type].ctx.includes(c);
     let best = null;
     main.querySelectorAll(".stack[data-list]").forEach(s => {
@@ -1464,7 +1558,7 @@ document.addEventListener("pointermove", ev => {
       const kids = [...best.s.children].filter(k => k.classList.contains("step"));
       let idx = kids.length;
       for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (ev.clientY < r.top + Math.min(r.height / 2, 20)) { idx = i; break; } }
-      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(".addrow"));
+      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(":scope > .addrow"));
       drag.target = { list: listsById[best.s.dataset.list], idx };
     }
   } else {
@@ -1483,6 +1577,11 @@ document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null; ghost.innerHTML = "";
   if (!d.on) return;
+  if (d.kind === "new") {
+    if (d.target) { const id = listId(d.target.list); addStepTo(d.st.type, { list: d.target.list, ctx: listCtx[id] || "main", scope: listScopes[id] || null }, d.target.idx); }
+    else refresh();
+    return;
+  }
   if (d.kind === "step" && d.target) {
     const fromIdx = d.from.indexOf(d.st);
     let idx = d.target.idx;
@@ -1617,7 +1716,7 @@ function loadDraft() {
   } catch (e) { return null; }
 }
 const exSel = document.getElementById("exSel");
-exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); refresh(); });
+exSel.addEventListener("change", e => { ab = EXAMPLES[e.target.value](); activeListId = null; refresh(); });
 const draft = loadDraft();
 if (draft) {
   const o = document.createElement("option"); o.value = "draft"; o.textContent = "Your draft (kept in this browser)";

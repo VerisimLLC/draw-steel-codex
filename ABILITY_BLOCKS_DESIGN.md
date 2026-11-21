@@ -663,6 +663,64 @@ In the poll, abilities with tier text the reader can't build went from 11 to 3: 
 
 Also: an unbuilt "To build" sentence now still shows on the card, so its wording isn't lost.
 
+## 4o. Open-and-save test on real class abilities (2026-11-21)
+
+The 45 ActivatedAbility records in the poll sample (4m) were opened as blocks, saved, and compared with the
+original, field by field. Triggers (10 CharacterModifiers) were not part of this run. Scripts and results:
+`ui-mockup/ability-blocks-corpus/poll/roundtrip.js`, `roundtrip.json`.
+
+**The save rule this needed: anything the author didn't change saves back exactly as it was.**
+- Each step opened from saved behaviours remembers them, plus a fingerprint of what it compiled to when
+  opened. On save, an unchanged step writes its original records; a changed one writes its new settings
+  over the original record, so fields no block shows (Strained, "dealt to you", "can't be reduced", chat
+  messages, ids) survive the edit.
+- Each power roll tier does the same, so editing tier 1 never rewrites tiers 2 and 3.
+- Each formula keeps its saved spelling while unchanged ("enemy" stays "enemy", not "Enemy").
+- Each ability-level field keeps its saved value while unchanged; fields the editor never writes ride along.
+- Words the blocks can't read (in tiers or formulas) were already working in the saved ability, so they are
+  kept as written ("Kept as saved") and don't block saving.
+
+**Results**
+| Check | Result |
+|---|---|
+| Opens without error | 45 of 45 |
+| Untouched save is identical to the original | 45 of 45 |
+| Rename only changes the name | 45 of 45 |
+| Raising one tier's damage changes only that tier | 18 of 18 power rolls |
+| Can be saved as opened (nothing the editor blocks) | 45 of 45 |
+| Opens entirely as blocks (no Advanced steps, nothing kept as unread words) | 29 of 45 |
+| Steps: blocks / Advanced / unread words | 246 / 16 / 7 |
+| Has saved settings no block shows (listed in "kept as they are") | 26 of 45 |
+
+**Bugs the test found and fixed** (before the fixes, editing would have damaged content):
+- Editing one tier regenerated all three, and **dropped tier text the blocks couldn't read** (Blood on the
+  Stage lost "bleeding (EoT), or if M < Strong, bleeding (save ends)"; Applied Chronometrics lost all three
+  tiers). Now tiers are kept per tier, and unread words are never dropped.
+- Tier damage was written "11 + Might damage"; content (and the card) uses "11 + M damage".
+- Apply an effect wrote `ongoingEffectCustom: false`; content stores the effect id there too.
+- Effect durations "until the end of the encounter or until you are dying" (`eoe_or_dying`, 12 uses) and
+  "until you finish a respite" (`until_rest`, 13) were missing.
+- Invoking a **standard** ability (free strikes etc., 8 in the sample) was opened as a "Use a new ability"
+  block and would have been resaved as a custom one. Now it opens as an Advanced step.
+- A follow-up ability lost the information it was passed (`standardAbilityParams`) when anything inside it
+  changed, and its own fields (targeting, keywords). Now kept.
+- Card wording overrides for flavor, distance and target now save to the engine's existing fields
+  (`flavor`, `rangeTextOverride`, `targetTextOverride`) instead of the proposed `displayOverrides`.
+- A saved formula with a `{comment}` (the display-only power roll trick) and a duration effect with no card
+  text blocked saving; neither should.
+
+**Still open**
+- Advanced steps (16): invoking a standard ability 8, Summon 2, Modify Power Roll 2, and one each of
+  Relocate Creature, a power roll with a non-2d10 roll, a rule the tier grammar can't read, and a Script.
+  "Invoke a standard ability" (free strikes) is the obvious next block.
+- Saved settings with no block (26 abilities): mostly effect and ability fields such as `targetAllegiance`
+  (11), `objectTarget` (8), `selfTarget` (7), follow-up `standardAbility` / `inheritRange` / `autoTarget`,
+  `channeledResource` (4), "Respite Activity" as the action (3), Strained-only and some-tiers-only steps, and
+  a power roll's own edge. They are kept and listed; showing the meaningful ones as words is next.
+- In an edited tier, potency is rewritten in one spelling ("M<weak, prone" for "M < Weak prone").
+- Triggers (CharacterModifier records) still need the same open-and-save test.
+- Content question: Dramatic Reversal's "Spend 1 Drama" option has the condition "Resources.Heroic Resource >= 2".
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -742,6 +800,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Modes are a block: "When you use it, choose one".** Options have a name and an optional extra cost; steps inside an option save with modesSelected; extra cost adds the condition and the spend step. Tier grammar gains riders, no-duration conditions, vertical push straight up, surges, card-text-only results, and the N aura distance. Ability Duration Effect and Condition Riders get sentence blocks. | Poll items 1, 3 and 4: modes were the largest gap, and tier text was the most common reason a pasted ability failed. |
 | 2026-11-21 | **Modes vs Ability Variations is decided by the editor.** Each option is "same targets" or "targets differently"; any option that targets differently makes the block save as Ability Variations, with that option as a swapped-in ability (its own targeting, the full step list with only its steps from the block, cost kept from the base). Otherwise it saves as Multiple Modes. | Same principle as triggers: authors describe what happens, the editor picks the storage type. |
 | 2026-11-21 | **The card preview (tooltip) is styled after the printed card.** Name with cost in brackets ("It Is Justice You Fear (5 Wrath)"); a ruled left edge with diamond marks; italic flavor over a rule; keywords left and action right in bold ("Triggered" for triggers); distance and target with the book's icons; tier badges; characteristics and potencies as black boxes ("8 + [M]", "[P<WEAK], frightened"). Triggers show a distance and target line too ("Ranged 10 / Self or one ally"). Saved potency tier text now has the comma content uses ("P<weak, frightened"). | Asked for: the tooltip should look like the book. |
+| 2026-11-21 | **Opening existing content: anything unchanged saves back exactly as it was.** Steps, tiers, formulas and fields that compile to what they compiled to at open keep their saved form; changed steps write over the original record so hidden fields survive; unread words are kept, never dropped. On 45 real class abilities: untouched saves identical 45/45, single-tier edits touch only that tier 18/18. | Ship-safety: the simple editor will mostly be used on existing content, and must never damage what it doesn't understand. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

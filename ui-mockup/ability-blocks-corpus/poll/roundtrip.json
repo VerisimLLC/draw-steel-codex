@@ -1,0 +1,1825 @@
+[
+ {
+  "klass": "Beastheart",
+  "level": 1,
+  "name": "Feral Strike",
+  "kind": "ability",
+  "steps": {
+   "block": 16,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "RelocateCreature"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: filterTarget \"0 {Display only - real roll runs inside the burst sub-ability.}\" => \"(0 {Display only - real roll runs inside the burst sub-ability.})\"",
+    "#1 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCrea => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCreatureBehavior\",\"moveme | promptText \"Move up to your Intuition in a straight line toward the closest enemy.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | inheritKeywords true => undefined | promptText \"Resolve the burst against each enemy in the area.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "1 + M damage; taunted (EoT)",
+     "2 + M damage; taunted (EoT)"
+    ],
+    [
+     "3 + M damage; taunted (EoT)",
+     "3 + M damage; taunted (EoT)"
+    ],
+    [
+     "4 + M damage; taunted (EoT)",
+     "4 + M damage; taunted (EoT)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "level": 3,
+  "name": "Jaws of Death",
+  "kind": "ability",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 5 => \"5\"",
+    "meleeRange: undefined => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"7 + I damage; P < Weak, jaws of death (save ends)\",\"10 + I damage; P < Average, jaws of death (save ends)\",\" => [\"7 + I damage; P<weak, jaws of death (save ends)\",\"10 + I damage; P<average, jaws of death (save ends)\",\"14 +"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "7 + I damage; P < Weak, jaws of death (save ends)",
+     "8 + I damage; P<weak, jaws of death (save ends)"
+    ],
+    [
+     "10 + I damage; P < Average, jaws of death (save ends)",
+     "10 + I damage; P < Average, jaws of death (save ends)"
+    ],
+    [
+     "14 + I damage; P < Strong, jaws of death (save ends)",
+     "14 + I damage; P < Strong, jaws of death (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "level": 6,
+  "name": "Sic 'Em!",
+  "kind": "ability",
+  "steps": {
+   "block": 13,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"11 + M damage; taunted (save ends); M < Weak prone\",\"16 + M damage; taunted (save ends); M < Average prone\", => [\"11 + M damage; taunted (save ends); M<weak, prone\",\"16 + M damage; taunted (save ends); M<average, prone\",\"2"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "11 + M damage; taunted (save ends); M < Weak prone",
+     "12 + M damage; taunted (save ends); M<weak, prone"
+    ],
+    [
+     "16 + M damage; taunted (save ends); M < Average prone",
+     "16 + M damage; taunted (save ends); M < Average prone"
+    ],
+    [
+     "21 + M damage; taunted (save ends); M < Strong prone and can't stand (EoT)",
+     "21 + M damage; taunted (save ends); M < Strong prone and can't stand (EoT)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "level": 9,
+  "name": "Banshee Howl",
+  "kind": "ability",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 3 => \"3\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "modeList: [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"rules\":\"Also => [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"text\":\"Spend"
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"5 sonic damage; I < weak, banshee howl (save ends)\",\"10 sonic damage; I < average, banshee howl (save ends)\" => [\"5 sonic damage; I<weak, banshee howl (save ends)\",\"10 sonic damage; I<average, banshee howl (save ends)\",\"15"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "5 sonic damage; I < weak, banshee howl (save ends)",
+     "6 sonic damage; I<weak, banshee howl (save ends)"
+    ],
+    [
+     "10 sonic damage; I < average, banshee howl (save ends)",
+     "10 sonic damage; I < average, banshee howl (save ends)"
+    ],
+    [
+     "15 sonic damage; I < strong, banshee howl (save ends)",
+     "15 sonic damage; I < strong, banshee howl (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Beastheart",
+  "level": 1,
+  "name": "Rampaging - End of Turn Feral Strike",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Censor",
+  "level": 1,
+  "name": "Sanctified Weapon",
+  "kind": "ability",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "uses “Respite Activity” as its action",
+   "selfTarget = true",
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"lo"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
+    "keywords: undefined => {}",
+    "targetFilter: \"not enemy\" => \"not Enemy\"",
+    "modeList: [{\"rules\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Sanctified Weapon - Melee until you finish a respite.\",\"text\":\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: ongoingEffectCustom false => \"88f52d3a-6278-447c-b2d9-ce250a8057d4\" | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: ongoingEffectCustom false => \"684c093d-dabf-4aae-abe0-11caf71945c4\" | applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Censor",
+  "level": 3,
+  "name": "Edict of Purifying Pacifism",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 7 => \"7\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Censor",
+  "level": 4,
+  "name": "Oracular Warning",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "uses “Respite Activity” as its action",
+   "targetAllegiance = \"ally\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
+    "keywords: undefined => {}"
+   ],
+   "behDiffs": [
+    "#0 GrantTemporaryStamina: applyto undefined => \"caster\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Censor",
+  "level": 7,
+  "name": "Trinity of Trickery",
+  "kind": "ability",
+  "steps": {
+   "block": 5,
+   "advanced": 2,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "Summon",
+    "Summon"
+   ]
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\"",
+   "follow-up inheritRange = true",
+   "follow-up inheritRange = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilitySummonBehavi => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilitySummonBehavior\",\"applyto\":\"caster | inheritRange true => undefined | promptText \"Place first Duplicate\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#1 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilitySummonBehavi => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilitySummonBehavior\",\"applyto\":\"caster | inheritRange true => undefined | promptText \"Place second Duplicate\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#2 ApplyOngoingEffect: stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Censor",
+  "level": 7,
+  "name": "Blessing of Life",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Conduit",
+  "level": 1,
+  "name": "Drain",
+  "kind": "ability",
+  "steps": {
+   "block": 5,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: filterTarget \"enemy\" => \"Enemy\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "2 + I corruption damage",
+     "3 + I corruption damage"
+    ],
+    [
+     "5 + I corruption damage",
+     "5 + I corruption damage"
+    ],
+    [
+     "7 + I corruption damage",
+     "7 + I corruption damage"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Conduit",
+  "level": 2,
+  "name": "Sacred Bond",
+  "kind": "ability",
+  "steps": {
+   "block": 2,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 5 => \"5\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: ongoingEffectCustom \"c4fb7393-5f6c-4308-bd12-827ecacbde3d\" => \"3f3709f5-00f2-405a-8130-5c387e8936ec\" | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Conduit",
+  "level": 4,
+  "name": "Sanctified Weapon",
+  "kind": "ability",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "uses “Respite Activity” as its action",
+   "selfTarget = true",
+   "targetAllegiance = \"ally\"",
+   "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"lo"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"5758da29-8660-47d3-805b-7c6038f476a1\" => \"<No action>\"",
+    "keywords: undefined => {}",
+    "modeList: [{\"rules\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Improved Sanctified Weapon - Melee until you finish a respite.\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Conduit",
+  "level": 8,
+  "name": "Blessing of the Blade",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 11 => \"11\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Conduit",
+  "level": 2,
+  "name": "Death Domain Effect",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: undefined => \"<No action>\"",
+    "targetFilter: \"enemy\" => \"Enemy\""
+   ],
+   "behDiffs": [
+    "#0 Damage: roll \"Intuition*2\" => \"Intuition * 2\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Elementalist",
+  "level": 1,
+  "name": "Meteoric Introduction",
+  "kind": "ability",
+  "steps": {
+   "block": 7,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "3 + R damage; push 2",
+     "4 + R damage; push 2"
+    ],
+    [
+     "5 + R damage; push 3",
+     "5 + R damage; push 3"
+    ],
+    [
+     "8 + R damage; push 4",
+     "8 + R damage; push 4"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Elementalist",
+  "level": 3,
+  "name": "Conflagration",
+  "kind": "ability",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\"",
+   "persistence = {\"cost\":2,\"enabled\":true,\"mode\":\"recast_maneuver\"}"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 10 => \"10\"",
+    "radius: 3 => \"3\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 5 => \"5\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "4 fire damage",
+     "5 fire damage"
+    ],
+    [
+     "6 fire damage",
+     "6 fire damage"
+    ],
+    [
+     "10 fire damage",
+     "10 fire damage"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Elementalist",
+  "level": 6,
+  "name": "Magma Titan",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\"",
+   "persistence = {\"cost\":2,\"enabled\":true,\"mode\":\"recast_new\"}"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: durationUntilEndOfTurn false => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Elementalist",
+  "level": 9,
+  "name": "Grand Wyrding",
+  "kind": "ability",
+  "steps": {
+   "block": 8,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "keywords: undefined => {}",
+    "range: 1 => \"1\"",
+    "modeList: [{\"text\":\"Acid\"},{\"text\":\"Cold\"},{\"text\":\"Corruption\"},{\"text\":\"Fire\"},{\"text\":\"Lightning\" => [{\"rules\":\"The target gets Acid Immunity until you finish a respite.\",\"text\":\"Acid\"},{\"rul"
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#3 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#4 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#5 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#6 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Elementalist",
+  "level": 5,
+  "name": "Pierce the Veil of Substance",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Fury",
+  "level": 1,
+  "name": "Brutal Slam",
+  "kind": "ability",
+  "steps": {
+   "block": 7,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "3 + M damage; push 1",
+     "4 + M damage; push 1"
+    ],
+    [
+     "6 + M damage; push 2",
+     "6 + M damage; push 2"
+    ],
+    [
+     "9 + M damage; push 4",
+     "9 + M damage; push 4"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Fury",
+  "level": 2,
+  "name": "Your Entrails Are Your Extrails!",
+  "kind": "ability",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 3 => \"3\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"3 + M damage; M < weak, bleeding (save ends)\",\"5 + M damage; M < average, bleeding (save ends)\",\"8 + M damag => [\"3 + M damage; M<weak, bleeding (save ends)\",\"5 + M damage; M<average, bleeding (save ends)\",\"8 + M damage; M"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "3 + M damage; M < weak, bleeding (save ends)",
+     "4 + M damage; M<weak, bleeding (save ends)"
+    ],
+    [
+     "5 + M damage; M < average, bleeding (save ends)",
+     "5 + M damage; M < average, bleeding (save ends)"
+    ],
+    [
+     "8 + M damage; M < strong, bleeding (save ends)",
+     "8 + M damage; M < strong, bleeding (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Fury",
+  "level": 6,
+  "name": "Pounce",
+  "kind": "ability",
+  "steps": {
+   "block": 11,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"8 damage; M < Weak, grabbed\",\"13 damage; M < Average, grabbed\",\"17 damage; M < Strong, grabbed\"] => [\"8 damage; M<weak, grabbed\",\"13 damage; M<average, grabbed\",\"17 damage; M<strong, grabbed\"]"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "8 damage; M < Weak, grabbed",
+     "9 damage; M<weak, grabbed"
+    ],
+    [
+     "13 damage; M < Average, grabbed",
+     "13 damage; M < Average, grabbed"
+    ],
+    [
+     "17 damage; M < Strong, grabbed",
+     "17 damage; M < Strong, grabbed"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Fury",
+  "level": 8,
+  "name": "Elemental Fury",
+  "kind": "ability",
+  "steps": {
+   "block": 9,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 11 => \"11\"",
+    "modeList: [{\"condition\":\"\",\"rules\":\"\",\"text\":\"Acid\"},{\"text\":\"Cold\"},{\"text\":\"Corruption\"},{\"text\":\" => [{\"rules\":\"The target gets Elemental Fury - Acid until the end of the encounter or until y"
+   ],
+   "behDiffs": [
+    "#0 GrantTemporaryStamina: applyto undefined => \"caster\"",
+    "#1 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#3 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#4 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#5 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#6 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#7 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Fury",
+  "level": 6,
+  "name": "Death Strike",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Null",
+  "level": 1,
+  "name": "Faster than the Eye",
+  "kind": "ability",
+  "steps": {
+   "block": 6,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 2 => \"2\""
+   ],
+   "behDiffs": [
+    "#1 InvokeAbility: applyto \"caster\" => undefined | autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavi => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavior\",\"damageType\":\"unt | promptText \"Deal {Agility} damage to an adjacent creature or object.\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "4 damage",
+     "5 damage"
+    ],
+    [
+     "5 damage",
+     "5 damage"
+    ],
+    [
+     "7 damage",
+     "7 damage"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Null",
+  "level": 3,
+  "name": "Impart Force",
+  "kind": "ability",
+  "steps": {
+   "block": 5,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "objectTarget = true",
+   "PowerRoll: has its own roll modifiers (e.g. an edge)"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 5 => \"5\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7\" | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 PowerRoll: modifiers [{\"condition\":\"1\",\"details\":\"You gain an edge on this ability.\",\"text\":\"Impart Force\",\"type\":\"edge\"}] => undefined | tiers [\"Push 3\",\"Push 5\",\"Push 7\"] => [\"push 3\",\"push 5\",\"push 7\"]"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Null",
+  "level": 5,
+  "name": "Synaptic Reset",
+  "kind": "ability",
+  "steps": {
+   "block": 3,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 9 => \"9\""
+   ],
+   "behDiffs": [
+    "#0 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPurgeEffects => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPurgeEffectsBehavior\",\"applyto\":\" | promptText \"End any condition or effect\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Null",
+  "level": 8,
+  "name": "Arcane Purge",
+  "kind": "ability",
+  "steps": {
+   "block": 12,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 11 => \"11\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"13 + A damage; M < Weak, #the target is suppressed (save ends)\",\"19 + A damage; M < Average, #the target is  => [\"13 + A damage; M<weak, #the target is suppressed (save ends)\",\"19 + A damage; M<average, #the target is supp",
+    "#1 ApplyOngoingEffect: filterTarget \"not Cast.PassesPotency(target, \\\"M\\\")\" => \"not Cast.PassesPotency(Target, \\\"M\\\")\" | applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "13 + A damage; M < Weak, #the target is suppressed (save ends)",
+     "14 + A damage; M<weak, #the target is suppressed (save ends)"
+    ],
+    [
+     "19 + A damage; M < Average, #the target is suppressed (save ends)",
+     "19 + A damage; M < Average, #the target is suppressed (save ends)"
+    ],
+    [
+     "24 + A damage; M < Strong, #the target is suppressed (save ends)",
+     "24 + A damage; M < Strong, #the target is suppressed (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Null",
+  "level": 8,
+  "name": "Synaptic Anchor",
+  "kind": "powertabletrigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Shadow",
+  "level": 1,
+  "name": "Coat the Blade",
+  "kind": "ability",
+  "steps": {
+   "block": 2,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "channeledResource = \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "keywords: undefined => {}",
+    "range: 1 => \"1\""
+   ],
+   "behDiffs": [
+    "#0 Replenish: applyto undefined => \"targets\" | mode undefined => \"replenish\"",
+    "#1 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Shadow",
+  "level": 2,
+  "name": "Get In Get Out",
+  "kind": "ability",
+  "steps": {
+   "block": 10,
+   "advanced": 2,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)",
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "numTargets: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 3 => \"3\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: filterTarget \"0 {This is just to display in the ability description.}\" => \"(0 {This is just to display in the ability description.})\"",
+    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | promptText \"Choose Target\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "5 + A damage",
+     "6 + A damage"
+    ],
+    [
+     "8 + A damage",
+     "8 + A damage"
+    ],
+    [
+     "11 + A damage",
+     "11 + A damage"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Shadow",
+  "level": 6,
+  "name": "Black Ash Eruption",
+  "kind": "ability",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "PowerRoll"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Shadow",
+  "level": 10,
+  "name": "Subterfuge",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "costs Epic Resource",
+   "channeledResource = \"none\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: undefined => \"<No action>\"",
+    "keywords: undefined => {}",
+    "range: 1 => \"1\""
+   ],
+   "behDiffs": [
+    "#0 Replenish: applyto undefined => \"targets\" | mode undefined => \"replenish\" | quantity undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Shadow",
+  "level": 5,
+  "name": "Volatile Reagents",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Summoner",
+  "level": 1,
+  "name": "Minion Bridge",
+  "kind": "ability",
+  "steps": {
+   "block": 2,
+   "advanced": 2,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)",
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility. The target spends 1 Heroic Resource.\",\"text\":\""
+   ],
+   "behDiffs": [
+    "#2 Replenish: applyto undefined => \"targets\" | quantity undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Summoner",
+  "level": 3,
+  "name": "Dead Men Tell All Tales",
+  "kind": "ability",
+  "steps": {
+   "block": 2,
+   "advanced": 0,
+   "todo": 3,
+   "todos": [
+    "Your connection with the corpse permanently is broken",
+    "Your connection with the corpse permanently is broken",
+    "The corpse can choose to answer your question"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: undefined => \"<No action>\"",
+    "keywords: undefined => {}",
+    "range: 1 => \"1\"",
+    "modeList: [{\"text\":\"First Question\"},{\"text\":\"Additional Question\"}] => [{\"text\":\"First Question\"},{\"rules\":\"make a power roll.\",\"text\":\"Additional Question\"}]"
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: attrid \"rea\" => undefined | isTest true => undefined | resistanceRoll false => undefined"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Summoner",
+  "level": 6,
+  "name": "A Champion's Cry",
+  "kind": "ability",
+  "steps": {
+   "block": 10,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "ModifyPowerRoll"
+   ]
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"2 damage; I < Weak, frightened (save ends)\",\"5 damage; I < Average, frightened (EoT)\",\"7 damage; I < Strong, => [\"2 damage; I<weak, frightened (save ends)\",\"5 damage; I<average, frightened (EoT)\",\"7 damage; I<strong, frigh"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "2 damage; I < Weak, frightened (save ends)",
+     "3 damage; I<weak, frightened (save ends)"
+    ],
+    [
+     "5 damage; I < Average, frightened (EoT)",
+     "5 damage; I < Average, frightened (EoT)"
+    ],
+    [
+     "7 damage; I < Strong, frightened (save ends)",
+     "7 damage; I < Strong, frightened (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Summoner",
+  "level": 9,
+  "name": "Summoner Strike",
+  "kind": "ability",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "DrawSteelCommand"
+   ]
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Summoner",
+  "level": 6,
+  "name": "Snare Ward",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Tactician",
+  "level": 1,
+  "name": "Mark",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "targetAllegiance = \"enemy\"",
+   "channeledResource = \"none\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\""
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: durationUntilEndOfTurn false => undefined | ongoingEffectCustom false => \"319e19ac-4f15-4c16-be71-96d448241c10\" | applyto undefined => \"targets\" | duration undefined => \"save_ends\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Tactician",
+  "level": 2,
+  "name": "Battle Cry",
+  "kind": "ability",
+  "steps": {
+   "block": 4,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 10 => \"10\"",
+    "numTargets: 3 => \"3\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 3 => \"3\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Tactician",
+  "level": 4,
+  "name": "Strike Now!",
+  "kind": "ability",
+  "steps": {
+   "block": 0,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [
+   "targetAllegiance = \"ally\"",
+   "channeledResource = \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\""
+   ],
+   "behDiffs": []
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Tactician",
+  "level": 9,
+  "name": "Blot Out the Sun!",
+  "kind": "ability",
+  "steps": {
+   "block": 2,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "InvokeAbility(standard)"
+   ]
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\"",
+   "follow-up standardAbility = \"0ca5fc04-6068-4f47-b5c6-936d3a595f24\"",
+   "follow-up autoTarget = true",
+   "follow-up runOnController = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 ApplyAbilityDurationEffect: momentaryEffect {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"Each target can make a ranged free strike that gains an  => {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"Each target can make a ranged free strike that gains an  | applyto undefined => \"caster\" | instant undefined => true",
+    "#1 InvokeAbility: applyto \"targets\" => undefined | autoTarget true => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityInvokeAbilit => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityInvokeAbilityBehavior\",\"abilityTy | namedAbility \"Ranged Free Strike\" => undefined | promptText \"Select Marked Target for Ranged Free Strike\" => undefined | runOnController true => undefined | standardAbility \"0ca5fc04-6068-4f47-b5c6-936d3a595f24\" => undefined | standardAbilityParams {\"casterid\":\"<<caster.id>>\"} => {} | targetingFormula \"Target.ConditionCaster(\\\"Mark\\\") = Caster\" => undefined"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Tactician",
+  "level": 2,
+  "name": "Advanced Tactics",
+  "kind": "powertabletrigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Talent",
+  "level": 1,
+  "name": "Optic Blast",
+  "kind": "ability",
+  "steps": {
+   "block": 12,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "ModifyPowerRoll"
+   ]
+  },
+  "hidden": [
+   "objectTarget = true",
+   "proximityTargeting = true",
+   "Damage is dealt to caster",
+   "Damage: can't be reduced",
+   "Damage: only when Strained"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 10 => \"10\"",
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"When targeting an object with a solid reflective surface or a => [{\"text\":\"Normal\"},{\"text\":\"Reflective Surface\"}]"
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"2 + R damage; M < weak, prone\",\"4 + R damage; M < average, prone\",\"6 + R damage; M < strong, prone\"] => [\"2 + R damage; M<weak, prone\",\"4 + R damage; M<average, prone\",\"6 + R damage; M<strong, prone\"]",
+    "#1 Damage: applyto \"caster\" => undefined | cannotBeReduced true => undefined | strainSelection \"strained\" => undefined | damageType undefined => \"untyped\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "2 + R damage; M < weak, prone",
+     "3 + R damage; M<weak, prone"
+    ],
+    [
+     "4 + R damage; M < average, prone",
+     "4 + R damage; M < average, prone"
+    ],
+    [
+     "6 + R damage; M < strong, prone",
+     "6 + R damage; M < strong, prone"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Talent",
+  "level": 2,
+  "name": "Applied Chronometrics",
+  "kind": "ability",
+  "steps": {
+   "block": 5,
+   "advanced": 0,
+   "todo": 3,
+   "todos": [
+    "You target two creatures, one of which can be you",
+    "You target three creatures, one of which can be you",
+    "You target four creatures, one of which can be you"
+   ]
+  },
+  "hidden": [
+   "effect duration “1”",
+   "ApplyOngoingEffect: only when Strained"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"You target two creatures, one of which can be you.\",\"You target three creatures, one of which can be you.\",\" => [\"You target two creatures, one of which can be you\",\"You target three creatures, one of which can be you\",\"Yo",
+    "#1 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityApplyOngoing => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityApplyOngoingEffectBehavior\",\"appl | promptText \"Select Targets for Applied Chronometric \" => undefined | standardAbilityParams {\"targetcount\":\"<<cast.tier>> +1\"} => {} | abilityType undefined => \"custom\" | targeting undefined => \"inherit\"",
+    "#2 ApplyOngoingEffect: strainSelection \"strained\" => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Talent",
+  "level": 6,
+  "name": "Synaptic Conditioning",
+  "kind": "ability",
+  "steps": {
+   "block": 11,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "ApplyOngoingEffect: only on some tiers",
+   "ApplyOngoingEffect: only on some tiers",
+   "ApplyOngoingEffect: only when Strained"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#1 ApplyOngoingEffect: tiersSelected [1] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: tiersSelected [2] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#3 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#4 ApplyOngoingEffect: strainSelection \"strained\" => undefined | duration undefined => \"save_ends\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "10 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)",
+     "11 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)"
+    ],
+    [
+     "14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)",
+     "14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)"
+    ],
+    [
+     "20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)",
+     "20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Talent",
+  "level": 9,
+  "name": "Resonant Mind Spike",
+  "kind": "ability",
+  "steps": {
+   "block": 6,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "duration effect lingers 10",
+   "Damage is dealt to caster",
+   "Damage: can't be reduced",
+   "Damage: only when Strained"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 ApplyAbilityDurationEffect: lingerTime 10 => undefined | momentaryEffect {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"\",\"display\":{\"bgcolor\":\"#ffffffff\",\"brightness\":1,\"huesh => {\"__typeName\":\"CharacterOngoingEffect\",\"description\":\"\",\"modifiers\":[{\"__typeName\":\"CharacterModifier\",\"attrib | instant undefined => true",
+    "#2 Damage: applyto \"caster\" => undefined | cannotBeReduced true => undefined | roll \"Cast.Damage Dealt * 0.5\" => \"Cast.DamageDealt * 0.5\" | strainSelection \"strained\" => undefined | damageType undefined => \"untyped\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "15 + R psychic damage",
+     "16 + R psychic damage"
+    ],
+    [
+     "24 + R psychic damage",
+     "24 + R psychic damage"
+    ],
+    [
+     "28 + R psychic damage",
+     "28 + R psychic damage"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Talent",
+  "level": 8,
+  "name": "Stasis Shield",
+  "kind": "powertabletrigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ },
+ {
+  "klass": "Troubadour",
+  "level": 1,
+  "name": "Star Power",
+  "kind": "ability",
+  "steps": {
+   "block": 5,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [
+   "option “Spend 1 Drama” has condition Resources.Heroic Resource >= 2"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
+    "keywords: undefined => {}",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: undefined => \"1\"",
+    "modeList: [{\"text\":\"Normal\"},{\"condition\":\"Resources.Heroic Resource >= 2\",\"rules\":\"You gain 4 speed => [{\"rules\":\"The target gets Star Power (save ends).\",\"text\":\"Normal\"},{\"rules\":\"The target "
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"4c781df8-6975-4cdb-839c-7f6547b94264\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"74e5faeb-661d-4138-8582-adef55c4f98b\" | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 Replenish: applyto undefined => \"targets\"",
+    "#3 ApplyOngoingEffect: duration 0 => \"save_ends\" | applyto undefined => \"targets\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Troubadour",
+  "level": 3,
+  "name": "Dramatic Reversal",
+  "kind": "ability",
+  "steps": {
+   "block": 4,
+   "advanced": 1,
+   "todo": 0,
+   "todos": [],
+   "advTypes": [
+    "Script"
+   ]
+  },
+  "hidden": [
+   "selfTarget = true",
+   "targetAllegiance = \"ally\""
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 3 => \"3\"",
+    "numTargets: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
+    "resourceNumber: 5 => \"5\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"#The target can shift 1 square and make a free strike.\",\"#The target can shift up to 2 squares and make a fr => [\"#The target can shift 1 square and make a free strike\",\"#The target can shift up to 2 squares and make a fre"
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Troubadour",
+  "level": 6,
+  "name": "Blood on the Stage",
+  "kind": "ability",
+  "steps": {
+   "block": 10,
+   "advanced": 0,
+   "todo": 1,
+   "todos": [
+    "bleeding (eot), or if M < Strong, bleeding (save ends)"
+   ]
+  },
+  "hidden": [
+   "objectTarget = true"
+  ],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
+    "range: 1 => \"1\"",
+    "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
+   ],
+   "behDiffs": [
+    "#0 PowerRoll: tiers [\"12 + A damage; M < Weak, bleeding (save ends)\",\"18 + A damage; M < Average, bleeding (save ends)\",\"24 + A da => [\"12 + A damage; M<weak, bleeding (save ends)\",\"18 + A damage; M<average, bleeding (save ends)\",\"24 + A damage",
+    "#1 DrawSteelCommand: filterTarget \"not Cast.PassesPotency(target, \\\"M\\\", \\\"Strong\\\")\" => \"not Cast.PassesPotency(Target, \\\"M\\\", \\\"Strong\\\")\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ],
+  "tierEdit": {
+   "changedTopFields": [],
+   "changedBehaviours": 1,
+   "tiers": [
+    [
+     "12 + A damage; M < Weak, bleeding (save ends)",
+     "13 + A damage; M<weak, bleeding (save ends)"
+    ],
+    [
+     "18 + A damage; M < Average, bleeding (save ends)",
+     "18 + A damage; M < Average, bleeding (save ends)"
+    ],
+    [
+     "24 + A damage; bleeding (eot), or if M < Strong, bleeding (save ends)",
+     "24 + A damage; bleeding (eot), or if M < Strong, bleeding (save ends)"
+    ]
+   ]
+  }
+ },
+ {
+  "klass": "Troubadour",
+  "level": 7,
+  "name": "Equal Billing ",
+  "kind": "ability",
+  "steps": {
+   "block": 1,
+   "advanced": 0,
+   "todo": 0,
+   "todos": []
+  },
+  "hidden": [],
+  "problems": [],
+  "untouchedSame": true,
+  "regen": {
+   "fieldDiffs": [
+    "actionResourceId: undefined => \"<No action>\"",
+    "keywords: undefined => {}"
+   ],
+   "behDiffs": [
+    "#0 ApplyOngoingEffect: applyto \"caster_and_targets\" => \"targets\" | duration undefined => \"save_ends\" | stacks undefined => \"1\""
+   ]
+  },
+  "renameDiff": [
+   "name"
+  ]
+ },
+ {
+  "klass": "Troubadour",
+  "level": 6,
+  "name": "Spotlight",
+  "kind": "trigger",
+  "skipped": "trigger (CharacterModifier): not opened in this test"
+ }
+]

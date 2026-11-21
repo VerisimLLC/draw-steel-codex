@@ -1663,6 +1663,12 @@ function History.UndoResource(entry)
     if token == nil or entry.resourceid == nil or entry.undone or entry.reverted ~= nil then
         return
     end
+    --the stored line, not this client's copy: another client may have undone it already, and a
+    --player's copy has parts cut out that must not be written back.
+    local stored = History.Stored(entry)
+    if stored == nil or stored.undone or stored.reverted ~= nil then
+        return
+    end
     --not on the undo stack: Ctrl+Z would put the resource back while the line still read Undone.
     token:ModifyProperties{
         description = "Undo Resource",
@@ -1681,12 +1687,8 @@ function History.UndoResource(entry)
         end,
     }
     entry.undone = true
-    --write the stored entry, not this one: a player's copy has parts cut out for them.
-    local stored = History.Stored(entry)
-    if stored ~= nil then
-        stored.undone = true
-        History.Rewrite(stored)
-    end
+    stored.undone = true
+    History.Rewrite(stored)
 end
 
 --Malice is shown to the Director only, except a spend, which is on its row for all.

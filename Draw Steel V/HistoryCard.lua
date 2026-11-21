@@ -2822,11 +2822,22 @@ end
 --- @field clause string Its words in the damage line: "[Empyrean Boon] added 10 holy".
 --- @field after? string A sentence of its own after the line (Y5b, free surges).
 
+--Surge source names joined, for a damage line's grouping key (plain names on older rows).
+--- @param sources (string|{name: string})[]|nil
+--- @return string
+local function SourceNames(sources)
+    local names = {}
+    for i, source in ipairs(sources or {}) do
+        names[i] = type(source) == "table" and source.name or tostring(source)
+    end
+    return table.concat(names, ",")
+end
+
 --- "One was gained from [Trained Assassin]..." (Y5b, Y5c): n of a target's count surges, and
 --- the modifiers they came from. Nil when n is 0.
 --- @param n integer
 --- @param count integer All the surges spent on the target.
---- @param names string[]|nil
+--- @param names (string|{name: string, hover: string|nil})[]|nil
 --- @param tail string Added before the full stop.
 --- @return string|nil
 local function SurgeOrigin(n, count, names, tail)
@@ -2834,8 +2845,15 @@ local function SurgeOrigin(n, count, names, tail)
         return nil
     end
     local from = {}
-    for _, name in ipairs(names or {}) do
-        from[#from + 1] = WhyName(name)
+    for _, source in ipairs(names or {}) do
+        --rows from before hovers kept plain names.
+        local name, hover
+        if type(source) == "table" then
+            name, hover = source.name, source.hover
+        else
+            name = source --[[@as string]]
+        end
+        from[#from + 1] = ModifierLink(WhyName(SpoilerName(name)), name, hover)
     end
     local source = #from > 0 and JoinClauses(from) or "a modifier"
     local subject
@@ -2885,7 +2903,7 @@ local function DamageBits(who, actor)
             end
             bits[#bits + 1] = {
                 key = string.format("surge|%d|%d|%s|%s|%d|%s|%d|%s", count, part.each or 0, part.damagetype or "", part.characteristic or "",
-                    free, table.concat(part.freefrom or {}, ","), part.gained or 0, table.concat(part.gainedfrom or {}, ",")),
+                    free, SourceNames(part.freefrom), part.gained or 0, SourceNames(part.gainedfrom)),
                 amount = amount,
                 order = 2,
                 clause = clause,

@@ -57,9 +57,9 @@ local mod = dmhub.GetModLoading()
 --- @field each? number On surges: the damage each dealt (the highest characteristic).
 --- @field characteristic? string On surges: that characteristic's name.
 --- @field free? integer On surges: how many a modifier granted for this strike only.
---- @field freefrom? string[] On surges: the modifiers that granted them.
+--- @field freefrom? {name: string, hover: string|nil}[] On surges: the modifiers that granted them (plain names on rows from before hovers).
 --- @field gained? integer On surges: how many a modifier gave to keep ("you gain 1 surge").
---- @field gainedfrom? string[] On surges: the modifiers that gave those.
+--- @field gainedfrom? {name: string, hover: string|nil}[] On surges: the modifiers that gave those.
 --- @field hovertext? string On a modifier, until History stores it: the roll dialog's hover text.
 --- @field hover? string On a modifier: id of that hover text in the map's History (History.HoverText).
 
@@ -512,6 +512,21 @@ local function CharacteristicNamed(caster, value)
     return nil
 end
 
+--The modifiers a roll's surges came from, each with the roll dialog's hover text (stored
+--and replaced by an id when the entry is written), or nil when none were named.
+--- @param record {sources: string[], hovers: table<integer, string>|nil}
+--- @return {name: string, hovertext: string|nil}[]|nil
+local function SurgeSources(record)
+    if #record.sources == 0 then
+        return nil
+    end
+    local list = {}
+    for i, name in ipairs(record.sources) do
+        list[i] = {name = name, hovertext = record.hovers ~= nil and record.hovers[i] or nil}
+    end
+    return list
+end
+
 --What made each damaged target's damage besides the tier (2.3b): the kit, the roll dialog's
 --damage modifiers, then surges, each with the type it added to. The card takes them off
 --the Tier line. A target whose immunity stopped it all still gets them, so its line can say
@@ -582,9 +597,9 @@ local function AddDamageParts(entry, cast, ability, caster)
                     amount = surges.count * surges.each,
                     damagetype = surges.damagetype,
                     free = free ~= nil and math.min(free.count, surges.count) or nil,
-                    freefrom = free ~= nil and #free.sources > 0 and free.sources or nil,
+                    freefrom = free ~= nil and SurgeSources(free) or nil,
                     gained = gained ~= nil and math.min(gained.count, surges.count) or nil,
-                    gainedfrom = gained ~= nil and #gained.sources > 0 and gained.sources or nil,
+                    gainedfrom = gained ~= nil and SurgeSources(gained) or nil,
                 }
             end
             if convertTo ~= nil then

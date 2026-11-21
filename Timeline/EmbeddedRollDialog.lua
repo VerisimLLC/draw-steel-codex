@@ -8130,9 +8130,12 @@ function GameHud.CreateEmbeddedRollDialog()
                                 end
                                 local freeUsed = math.min(math.max(effective, 0), freeGranted)
                                 local sourceNames = {}
+                                --each source's hover text, for History (nil where it says nothing past its name).
+                                local sourceHovers = {}
                                 for _, usedMod in ipairs(target.modifiersUsed or {}) do
                                     if usedMod:try_get("surges", "") ~= "" and not usedMod:try_get("surgesCanBeKept", false) then
                                         sourceNames[#sourceNames + 1] = trim(usedMod.name)
+                                        sourceHovers[#sourceNames] = RecordedHoverText({modifier = usedMod})
                                     end
                                 end
                                 --_G.creature is the creature type: the local `creature` here is the roller.
@@ -8144,18 +8147,20 @@ function GameHud.CreateEmbeddedRollDialog()
                                     cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
                                 --and on the cast, for a record of play (History's Y5b).
                                 if freeUsed > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
-                                    m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames}
+                                    m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames, hovers = sourceHovers}
                                 end
                             end
                             --surges a modifier gave to keep ("you gain 1 surge"), for the same record.
                             if thisTargetNonWastedSurgesGained > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
                                 local keptNames = {}
+                                local keptHovers = {}
                                 for _, usedMod in ipairs(target.modifiersUsed or {}) do
                                     if usedMod:try_get("surges", "") ~= "" and usedMod:try_get("surgesCanBeKept", false) then
                                         keptNames[#keptNames + 1] = trim(usedMod.name)
+                                        keptHovers[#keptNames] = RecordedHoverText({modifier = usedMod})
                                     end
                                 end
-                                m_symbols.cast:get_or_add("targetGainedSurges", {})[target.token.charid] = {count = thisTargetNonWastedSurgesGained, sources = keptNames}
+                                m_symbols.cast:get_or_add("targetGainedSurges", {})[target.token.charid] = {count = thisTargetNonWastedSurgesGained, sources = keptNames, hovers = keptHovers}
                             end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed

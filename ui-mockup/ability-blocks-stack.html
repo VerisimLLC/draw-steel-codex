@@ -63,16 +63,18 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .btn.link { background: none; border: none; color: var(--dim); text-decoration: underline; padding: 4px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
 /* Palette sits right next to the stack (stack | palette | card) to keep drags short. */
-.dlg-body { display: grid; grid-template-columns: minmax(0, 1fr) 210px 340px; }
+.dlg-body { display: grid; grid-template-columns: minmax(0, 1fr) 236px 340px; }
 .dlg-body > .main { order: 1; } .dlg-body > .palette { order: 2; } .dlg-body > .side { order: 3; }
 /* The block shelf always stays directly right of the stack. On narrower windows the card moves
    below the two instead. (Phone layouts are out of scope for this editor.) */
 @media (max-width: 1150px) {
-  .dlg-body { grid-template-columns: minmax(0, 1fr) 200px; }
-  .dlg-body > .side { grid-column: 1 / -1; border-left: none !important; border-top: 1px solid var(--line); }
-  .dlg-body > .palette { position: static; max-height: none; }   /* sticky would slide over the card below */
+  .dlg-body { grid-template-columns: minmax(0, 1fr) 236px; }
+  /* Card under the stack only, so the shelf keeps its own column (and stays sticky) beside both. */
+  .dlg-body > .main { grid-column: 1; grid-row: 1; }
+  .dlg-body > .side { grid-column: 1; grid-row: 2; border-left: none !important; border-top: 1px solid var(--line); }
+  .dlg-body > .palette { grid-column: 2; grid-row: 1 / span 2; }
 }
-.palette { border-left: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 12px; align-self: start; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
+.palette { border-left: 1px solid var(--line); padding: 10px 10px; display: flex; flex-direction: column; gap: 8px; align-self: start; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
 .palette .phint { color: var(--dim); font-size: 11.5px; line-height: 1.4; margin: 0; }
 .palette .phint b { color: var(--fg); font-weight: 600; }
 .pgroup { display: flex; flex-direction: column; gap: 4px; }
@@ -177,6 +179,20 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .cat-tests { --c: var(--c-tests); }
 .cat-show { --c: var(--c-show); }
 .cat-script { --c: var(--c-script); }
+.pgroup.common h3 { color: var(--fg); }
+.pal-step.hl { outline: 2px solid var(--gold); outline-offset: 1px; }
+.pal-step.faded { opacity: .55; }
+.more-main summary { cursor: pointer; color: var(--dim); font-size: 11.5px; padding: 2px 0; }
+.more-main[open] { display: flex; flex-direction: column; gap: 4px; }
+.cats-title { margin: 4px 0 0; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); }
+.catgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.catrow { display: flex; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font-size: 11.5px; cursor: pointer; text-align: left; min-width: 0; }
+.catrow:hover { border-color: var(--c); }
+.catrow.open { border-color: var(--c); background: color-mix(in srgb, var(--c) 25%, var(--panel)); }
+.catrow .sw { width: 9px; height: 9px; border-radius: 2px; background: var(--c); flex: none; }
+.catrow .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catrow .ccount { color: var(--dim); font-variant-numeric: tabular-nums; }
+.catopen { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding: 4px 0 6px; }
 .pal-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; font-size: 12px; }
 .pal-more { background: none; border: none; color: var(--gold); font-size: 11.5px; text-align: left; padding: 2px 4px; cursor: pointer; }
 .pal-step .uses { margin-left: auto; font-size: 10.5px; opacity: .7; font-variant-numeric: tabular-nums; }
@@ -1407,13 +1423,10 @@ function openInserter(anchor, list, ctx, scope, idx) {
   const box = E("div"); m.appendChild(box);
   let hl = 0, shown = [];
   const draw = () => {
-    box.innerHTML = ""; const t = norm(q.value);
-    shown = [];
-    for (const [cat, title, types] of PALETTE) for (const k of types) {
-      if (!allowed(k, ctx, scope) || STEPS[k].hidden) continue;
-      if (t && !norm(STEPS[k].label + " " + STEPS[k].desc + " " + title).includes(t)) continue;
-      shown.push([k, cat, title]);
-    }
+    box.innerHTML = "";
+    shown = searchSteps(q.value, ctx, scope).map(r => [r.k, r.cat, r.title]);
+    if (!q.value.trim()) { const c = commonKeys(); shown.sort((a, b) => (c.includes(b[0]) - c.includes(a[0])) || useOf(b[0]) - useOf(a[0])); }
+    shown = shown.slice(0, 40);
     if (!shown.length) box.appendChild(E("div", "md", "No step matches. Steps that cannot go here are left out."));
     hl = Math.min(hl, Math.max(0, shown.length - 1));
     shown.forEach(([k, cat, title], i) => {
@@ -1513,6 +1526,9 @@ function applyFocus() {
   if (c.matches("input")) c.select();
   if (c.matches("select") && !req.first) { try { c.showPicker(); } catch (e) {} }
 }
+document.addEventListener("keydown", ev => {
+  if (ev.key === "/" && !ev.target.matches("input, textarea, select")) { ev.preventDefault(); const sb = document.querySelector(".pal-search"); if (sb) sb.focus(); }
+});
 // Leaving "editing keywords": click outside the keywords line, the shelf's keyword chips and the keyword list.
 let kwExit = false;
 document.addEventListener("pointerdown", ev => {
@@ -2044,16 +2060,16 @@ const PALETTE_BASE = [
   ["roll", "Power roll", ["powerRoll", "potency"]],
   ["harm", "Harm", ["damage"]],
   ["hinder", "Hinder", ["condition", "forced"]],
-  ["ctrl2", "Other abilities", ["useNew", "invoke"]],
+  ["ctrl2", "Abilities", ["useNew", "invoke"]],
   ["effect", "Effects", ["applyEffect"]],
   ["ctrl", "Logic", ["ifStep"]],
   ["help", "Help", ["endEffects", "heal", "tempStamina"]],
   ["res", "Resources", ["resource"]],
-  ["create", "Summon and create", []],
+  ["create", "Create", []],
   ["move", "Move", ["move"]],
-  ["tests", "Other rolls and tests", []],
-  ["show", "Show and tell", []],
-  ["script", "Scripting", []],
+  ["tests", "Tests", []],
+  ["show", "Display", []],
+  ["script", "Scripts", []],
   ["rollchg", "Change the roll", ["halveDamage", "changeDamage", "rollEdge", "potencyShift", "changeTarget"], "triggered"],
 ];
 const useOf = k => STEPS[k].uses != null ? STEPS[k].uses : (STEP_USE[k] || 0);
@@ -2081,57 +2097,127 @@ function activeList() {
   const cur = currentInsert();
   return { id: cur.id, idx: cur.idx, list: listsById[cur.id], ctx: listCtx[cur.id] || "main", scope: listScopes[cur.id] || null };
 }
-let shelfQuery = "";
-const shelfOpen = new Set();
+/* One search for the shelf and the "+" list. Ranks: name starts with the query, a word in the name
+   starts with it, the name contains it, a synonym matches, the description matches. Ties by usage. */
+const SYNONYMS = {
+  forced: "push pull slide knockback", move: "teleport shift jump fly reposition", damage: "hit attack hurt",
+  condition: "slowed prone dazed restrained weakened frightened grabbed bleeding taunted", applyEffect: "buff debuff ongoing burning hexed",
+  endEffects: "remove cure purge cleanse end save", heal: "stamina recover recovery", tempStamina: "temporary shield temp",
+  resource: "malice heroic surge spend gain", useNew: "follow-up follow up invoke", invoke: "free strike invoke named",
+  ifStep: "if filter only condition", powerRoll: "roll tiers 2d10 test", potency: "potency resist characteristic",
+  "g_delay": "wait later", "g_aura": "zone field cloud", "g_summon": "minion call", "g_teleport_to_line_end": "teleport line",
+  "g_floattext": "text message", "g_lua": "code script", "g_remember": "memory store", "g_destroy": "break object",
+};
+function matchScore(k, q) {
+  if (!q) return 0;
+  const d = STEPS[k], name = d.label.toLowerCase(), qq = q.toLowerCase().trim();
+  if (name.startsWith(qq)) return 0;
+  if (name.split(/[^a-z0-9]+/).some(w => w.startsWith(qq))) return 1;
+  if (name.includes(qq)) return 2;
+  if ((SYNONYMS[k] || "").split(" ").some(w => w.startsWith(qq))) return 3;
+  if ((d.desc || "").toLowerCase().includes(qq)) return 4;
+  return null;
+}
+function searchSteps(q, ctx, scope) {
+  const out = [];
+  for (const [cat, title, types, only] of PALETTE) {
+    if (only === "triggered" && ab.kind !== "triggered") continue;
+    for (const k of types) { if (STEPS[k].hidden || !allowed(k, ctx, scope)) continue; const sc = matchScore(k, q); if (sc != null) out.push({ k, cat, title, sc }); }
+  }
+  out.sort((a, b) => a.sc - b.sc || useOf(b.k) - useOf(a.k));
+  return out;
+}
+let shelfQuery = "", shelfHl = 0;
+let shelfOpenCat = null;
+const COMMON_COUNT = 16;
+// The Common set: the most-used blocks (16 cover about 93% of all uses in content), shown in group order.
+function commonKeys() {
+  const ranked = PALETTE.filter(g => g[3] !== "triggered").flatMap(g => g[2]).sort((a, b) => useOf(b) - useOf(a)).slice(0, COMMON_COUNT);
+  const order = PALETTE.flatMap(g => g[2]);
+  return ranked.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
+const catOf = k => (PALETTE.find(g => g[2].includes(k)) || ["ctrl"])[0];
+function shelfBlock(t, act, faded) {
+  const d = STEPS[t], cat = catOf(t);
+  const b = E("button", "pal-step cat-" + cat + (faded ? " faded" : "")); b.type = "button"; b.dataset.palette = t;
+  const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(E("span", null, d.label));
+  const ok = allowed(t, act.ctx, act.scope);
+  b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, and only in the main list.)" : " (Can't go at the gold marker: drag it to another list instead.)");
+  if (!ok) b.setAttribute("aria-disabled", "true");
+  if (d.generic) { b.appendChild(E("span", "uses", d.uses.toLocaleString())); b.title += " Opens its own settings."; }
+  b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) { shelfQuery = ""; addStepTo(t, act, act.idx); } });
+  return b;
+}
 function renderPalette() {
   const pal = document.getElementById("palette"); pal.innerHTML = "";
   const act = activeList();
   const where = listLabels[act.id] || "What happens";
-  const tg = E("button", "btn shelf-toggle", pal.classList.contains("collapsed") ? "Show block shelf" : "Hide block shelf"); tg.type = "button";
-  tg.addEventListener("click", () => { pal.classList.toggle("collapsed"); renderPalette(); });
-  pal.appendChild(tg);
-  pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag a block into place, or click it to add it at the gold marker: <b>" + esc(where) + "</b>." }));
-  const search = E("input", "pal-search"); search.placeholder = "Search blocks"; search.value = shelfQuery; search.setAttribute("aria-label", "Search blocks");
-  search.addEventListener("input", () => { shelfQuery = search.value; renderPalette(); const n = document.querySelector(".pal-search"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } });
-  pal.appendChild(search);
-  const q = norm(shelfQuery);
-  // Keywords: click to add, or drag onto "and has the keywords".
-  const kg = E("div", "pgroup kwgroup"); const kh = E("h3"); kh.appendChild(E("span", "sw kwsw")); kh.appendChild(E("span", null, "Keywords")); kg.appendChild(kh);
-  kg.appendChild(E("p", "phint", "Click a keyword to add it, or drag it onto the ability."));
-  const kbox = E("div", "kwgrid"); const have = keywordsOf(ab);
-  ABILITY_KEYWORDS.forEach(k => {
-    const b = E("button", "kwchip pal-kw" + (have.includes(k) ? " used" : ""), k); b.type = "button"; b.dataset.kw = k;
-    b.title = have.includes(k) ? "Already on this ability" : "Click to add, or drag onto the keywords";
-    b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (!have.includes(k)) addKeyword(k); });
-    kbox.appendChild(b);
+  // Search, pinned at the top. Enter adds the first result at the gold marker; Esc clears; "/" jumps here.
+  const search = E("input", "pal-search"); search.placeholder = "Search blocks  ( / )"; search.value = shelfQuery; search.setAttribute("aria-label", "Search blocks");
+  search.addEventListener("input", () => { shelfQuery = search.value; shelfHl = 0; renderPalette(); const n = document.querySelector(".pal-search"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } });
+  search.addEventListener("keydown", ev => {
+    const res = searchSteps(shelfQuery, act.ctx, act.scope);
+    if (ev.key === "Escape") { ev.stopPropagation(); shelfQuery = ""; renderPalette(); }
+    else if (ev.key === "ArrowDown" && res.length) { ev.preventDefault(); shelfHl = Math.min(shelfHl + 1, res.length - 1); renderPalette(); document.querySelector(".pal-search").focus(); }
+    else if (ev.key === "ArrowUp" && res.length) { ev.preventDefault(); shelfHl = Math.max(shelfHl - 1, 0); renderPalette(); document.querySelector(".pal-search").focus(); }
+    else if (ev.key === "Enter" && res[shelfHl]) { ev.preventDefault(); const k = res[shelfHl].k; shelfQuery = ""; shelfHl = 0; addStepTo(k, act, act.idx); }
   });
-  kg.appendChild(kbox);
-  for (const [cat, title, allTypes, only] of PALETTE) {
-    if (only === "triggered" && ab.kind !== "triggered") continue;
-    // Each group shows its most-used blocks; "Show N more" reveals the rest. A search shows every match.
-    const match = allTypes.filter(t => !q || norm(STEPS[t].label + " " + title).includes(q));
-    if (!match.length) continue;
-    const limit = q || shelfOpen.has(cat) ? match.length : 4;
-    const types = match.slice(0, limit);
-    const g = E("div", "pgroup cat-" + cat);
-    const h = E("h3"); h.appendChild(E("span", "sw")); h.appendChild(E("span", null, title)); g.appendChild(h);
-    for (const t of types) {
-      const d = STEPS[t];
-      const b = E("button", "pal-step cat-" + cat); b.type = "button"; b.dataset.palette = t;
-      const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(E("span", null, d.label));
-      const ok = allowed(t, act.ctx, act.scope);
-      b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, such as taking damage or being targeted by a strike, and only in the main list.)" : " (Can't go in a power roll tier: drag it to another list instead.)");
-      if (!ok) b.setAttribute("aria-disabled", "true");
-      if (STEPS[t].generic) { b.appendChild(E("span", "uses", STEPS[t].uses.toLocaleString())); b.title += " Opens its own settings."; }
-      b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) addStepTo(t, act, act.idx); });
-      g.appendChild(b);
-    }
-    if (match.length > limit) { const more = E("button", "pal-more", "Show " + (match.length - limit) + " more"); more.type = "button"; more.addEventListener("click", () => { shelfOpen.add(cat); renderPalette(); }); g.appendChild(more); }
-    else if (shelfOpen.has(cat) && !q && match.length > 4) { const less = E("button", "pal-more", "Show fewer"); less.type = "button"; less.addEventListener("click", () => { shelfOpen.delete(cat); renderPalette(); }); g.appendChild(less); }
-    pal.appendChild(g);
-  }
+  pal.appendChild(search);
+  pal.appendChild(Object.assign(E("p", "phint"), { innerHTML: "Drag, or click to add at <b>" + esc(where) + "</b>." }));
+
   // Keywords only appear while they are being edited, at the top of the shelf.
-  if (kwEditing) pal.insertBefore(kg, pal.querySelector(".pgroup"));   // steps are used far more often, so keywords sit at the bottom
+  if (kwEditing) {
+    const kg = E("div", "pgroup kwgroup"); const kh = E("h3"); kh.appendChild(E("span", "sw kwsw")); kh.appendChild(E("span", null, "Keywords")); kg.appendChild(kh);
+    kg.appendChild(E("p", "phint", "Click a keyword to add it, or drag it onto the ability."));
+    const kbox = E("div", "kwgrid"); const have = keywordsOf(ab);
+    ABILITY_KEYWORDS.forEach(k => {
+      const b = E("button", "kwchip pal-kw" + (have.includes(k) ? " used" : ""), k); b.type = "button"; b.dataset.kw = k;
+      b.title = have.includes(k) ? "Already on this ability" : "Click to add, or drag onto the keywords";
+      b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (!have.includes(k)) addKeyword(k); });
+      kbox.appendChild(b);
+    });
+    kg.appendChild(kbox); pal.appendChild(kg);
+  }
+
+  // A search replaces the shelf with ranked results (only blocks that fit at the marker).
+  if (shelfQuery.trim()) {
+    const res = searchSteps(shelfQuery, act.ctx, act.scope);
+    const g = E("div", "pgroup");
+    g.appendChild(Object.assign(E("h3"), { textContent: res.length ? "Results (Enter adds the highlighted one)" : "No block matches" }));
+    res.slice(0, 14).forEach((r, i) => { const b = shelfBlock(r.k, act); if (i === shelfHl) b.classList.add("hl"); g.appendChild(b); });
+    pal.appendChild(g);
+    return;
+  }
+
+  // Common: the most-used blocks. Inside a power-roll tier it shows only what a tier accepts.
+  const common = commonKeys().concat(ab.kind === "triggered" ? PALETTE.find(g => g[3] === "triggered")[2] : []);
+  const fits = common.filter(t => allowed(t, act.ctx, act.scope)), rest = common.filter(t => !fits.includes(t));
+  const cg = E("div", "pgroup common");
+  cg.appendChild(Object.assign(E("h3"), { textContent: act.ctx === "tier" ? "Adding to " + where : "Common" }));
+  fits.forEach(t => cg.appendChild(shelfBlock(t, act)));
+  if (rest.length) {
+    const more = E("details", "more-main"); more.appendChild(E("summary", null, (act.ctx === "tier" ? "More for the main list (" : "Only inside a power roll tier (") + rest.length + ")"));
+    rest.forEach(t => more.appendChild(shelfBlock(t, act))); cg.appendChild(more);
+  }
+  pal.appendChild(cg);
+
+  // Every category as one compact row; one opens at a time, listing all its blocks by use.
+  pal.appendChild(Object.assign(E("h3", "cats-title"), { textContent: "All blocks by category" }));
+  const grid = E("div", "catgrid"); const commonSet = new Set(common);
+  for (const [cat, title, types, only] of PALETTE) {
+    if (only === "triggered") continue;
+    const row = E("button", "catrow cat-" + cat + (shelfOpenCat === cat ? " open" : "")); row.type = "button";
+    row.setAttribute("aria-expanded", String(shelfOpenCat === cat));
+    row.appendChild(E("span", "sw")); row.appendChild(E("span", "cname", title)); row.appendChild(E("span", "ccount", String(types.length)));
+    row.addEventListener("click", () => { shelfOpenCat = shelfOpenCat === cat ? null : cat; renderPalette(); });
+    grid.appendChild(row);
+    if (shelfOpenCat === cat) {
+      const box = E("div", "catopen");
+      types.forEach(t => box.appendChild(shelfBlock(t, act, commonSet.has(t))));
+      grid.appendChild(box);
+    }
+  }
+  pal.appendChild(grid);
 }
 function addStepTo(type, act, idx) {
   const st = STEPS[type].make(act.ctx);
@@ -2142,6 +2228,12 @@ function addStepTo(type, act, idx) {
   // and the new step opens for editing with its first value ready to type.
   const inner = st.branches && (st.branches.then || st.branches.steps || st.branches.t1);
   insertAt = inner ? { id: listId(inner), idx: 0 } : { id: listId(act.list), idx: idx + 1 };
+  // Filling a power roll: after a result lands in a tier, the next empty tier is where the next one goes.
+  if (!inner && act.ctx === "tier") {
+    const pr = (function find(list) { for (const x of list) { if (x.type === "powerRoll" && ["t1", "t2", "t3"].some(t => x.branches[t] === act.list)) return x; for (const k in x.branches || {}) { const r = find(x.branches[k]); if (r) return r; } } return null; })(ab.steps);
+    if (pr) { const order = ["t1", "t2", "t3"], at = order.findIndex(t => pr.branches[t] === act.list);
+      const next = order.slice(at + 1).find(t => !pr.branches[t].length); if (next) insertAt = { id: listId(pr.branches[next]), idx: 0 }; }
+  }
   editingId = st.id; editSingle = false; focusReq = { key: st.id, first: true, skipTests: true };
   refresh();
   const el = main.querySelector('[data-step="' + st.id + '"]');

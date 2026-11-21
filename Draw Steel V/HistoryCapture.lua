@@ -1168,18 +1168,6 @@ local function OnThreshold(creature, thresholdState, info)
     end
 end
 
---A step names another creature as the one acting (Iron Grip: the grabber deals the damage
---a grabbed creature takes for escaping), as the old Action Log's card did.
-local function OnActorCredited(creature, info)
-    local token = dmhub.LookupToken(creature)
-    local state = OpenCast(info.cast)
-    if not History.Enabled() or token == nil or state == nil then
-        return
-    end
-    state.actorToken = token
-    state.entry.actor = History.Creature(token)
-end
-
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
     --a push that went nowhere is still worth a line when stability stopped it (L98), it was
@@ -2619,6 +2607,5 @@ GameSystem.RegisterPlayObserver("history", {
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,
     note = OnNote,
-    actorcredited = OnActorCredited,
     rewindpoint = OnRewindPoint,
 })

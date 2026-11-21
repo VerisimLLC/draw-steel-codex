@@ -1914,34 +1914,35 @@ text("moderation.ban.come_back_note", [[You are welcome back in town once the ba
 text("moderation.ban.ok_button", [[OK]])
 
 ----------------------------------------------------------------------------
--- PLAYER TAGS: badges players earn and show beside their name
--- (EotwPlayerTags.lua; the tags themselves are in EotwPlayerTagDefs.lua)
+-- ACHIEVEMENTS: badges players earn and show beside their name. Players see
+-- them as "achievements"; the code calls them Player Tags (EotwPlayerTags.lua,
+-- the list itself in EotwPlayerTagDefs.lua).
 ----------------------------------------------------------------------------
 
---The Hero's Guild button that opens the tag picker. Short: a button.
-text("tags.guild_button", [[Tags]])
+--The Hero's Guild button that opens the achievements list. Short: a button.
+text("tags.guild_button", [[Achievements]])
 --Its tooltip.
-text("tags.guild_tooltip", [[Choose the tag shown beside your name.]])
---The picker's heading and the line under it.
-text("tags.picker.title", [[Your Tags]])
-text("tags.picker.subtitle", [[Choose the tag shown beside your name.]])
---The first row of the picker: show no tag at all.
-text("tags.picker.none", [[Show no tag]])
---Beside the tag being shown.
+text("tags.guild_tooltip", [[Pick the achievement that shows beside your name around town.]])
+--The list's heading and the line under it.
+text("tags.picker.title", [[Your Achievements]])
+text("tags.picker.subtitle", [[Pick one to show beside your name. Everyone in town will see it.]])
+--The first row of the list: show no achievement at all.
+text("tags.picker.none", [[Show nothing]])
+--Beside the achievement being shown.
 text("tags.picker.showing", [[Showing]])
---Beside a tag not yet earned (only you see these).
-text("tags.picker.locked", [[Locked]])
+--Beside an achievement not yet earned (only you see these).
+text("tags.picker.locked", [[Not yet]])
 --When nothing has been earned yet.
-text("tags.picker.empty", [[You have not earned any tags yet. Win encounters and help build the town to earn them.]])
---The button that closes the picker. Short: a button.
+text("tags.picker.empty", [[Nothing here yet. Win an encounter or lend a hand on a town project, and your first one will turn up.]])
+--The button that closes the list. Short: a button.
 text("tags.picker.close_button", [[Close]])
---When the town could not change the shown tag.
-text("tags.select_failed", [[Couldn't change your tag. Try again.]])
---The banner when one tag is earned: its heading (the tag's description is shown under it).
-text("tags.banner.title_one", [[Tag Earned]])
+--When the town could not change the shown achievement.
+text("tags.select_failed", [[That didn't take. Give it another try in a moment.]])
+--The banner when one achievement is earned: its heading (its description is shown under it).
+text("tags.banner.title_one", [[Achievement Earned!]])
 --The banner when several are earned at once.
-text("tags.banner.title_many", [[{count} Tags Earned]])
+text("tags.banner.title_many", [[{count} Achievements Earned!]])
 --The banner's buttons. Short: buttons.
-text("tags.banner.show_button", [[Show This Tag]])
-text("tags.banner.choose_button", [[Choose a Tag]])
-text("tags.banner.later_button", [[Later]])
+text("tags.banner.show_button", [[Show It Off]])
+text("tags.banner.choose_button", [[Take a Look]])
+text("tags.banner.later_button", [[Not Now]])

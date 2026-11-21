@@ -30,6 +30,8 @@ EotwPlayerTags.STYLES = {
     silver = { bright = "#c8d0da", dark = "#2a2e34", light = "#f2f5f8", ink = "#1a1d22", stripe = 4 },
     gold = { bright = "#e8c25a", dark = "#3a2c0c", light = "#fff3cc", ink = "#2a1e08", stripe = 6 },
     ember = { bright = "#e8743e", dark = "#3a160c", light = "#ffd9c4", ink = "#2a0c06", stripe = 6 },
+    --one-of-a-kind titles (the top builder of a town project): a deep royal purple.
+    special = { bright = "#b065ff", dark = "#2a1048", light = "#f1e2ff", ink = "#1e0a36", stripe = 6 },
 }
 
 --A locked tag in the picker: muted greys keep the name readable but quiet.
@@ -583,6 +585,7 @@ function EotwPlayerTags.GuildButton(host)
         hpad = 16,
         height = 42,
         hmargin = 4,
+        lmargin = 28,
         data = { seen = -1 },
         thinkTime = 0.5,
         think = function(element)
@@ -741,7 +744,7 @@ function EotwPlayerTags.AnnounceEarned(host)
                     Close()
                     EotwPlayerTags.ShowPicker(host)
                 end
-            end, 180),
+            end, 250),
             FrameButton(T("tags.banner.later_button"), Close, 120),
         },
     }

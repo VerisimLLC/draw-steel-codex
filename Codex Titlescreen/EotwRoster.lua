@@ -3174,7 +3174,6 @@ function EotwRoster.GuildPanel(host)
                     ShowRecruitPicker(host)
                 end,
             },
-            EotwPlayerTags.GuildButton(host),
             gui.Button{
                 classes = { "collapsed" },
                 text = T("guild.project_button"),
@@ -3211,6 +3210,8 @@ function EotwRoster.GuildPanel(host)
                     EotwModeration.ShowFindHeroesDialog()
                 end,
             },
+            --the player's achievements, after the hero buttons and set apart from them.
+            EotwPlayerTags.GuildButton(host),
         },
 
         --rebuild whenever the roster (or a working copy) changes.

@@ -17,18 +17,23 @@ local T = UIText.T
 
 EotwPlayerTags = {}
 
---Badge styles: fill, border and text colors, and border width. The wider
---border marks the rarest tags, so rank never rests on color alone.
+--Badge styles. The panel badge is a "plaque": a dark gradient (dark -> black)
+--with a 1px border and a stripe down its left edge in the bright color, and
+--light text. The rarest tags (gold, ember) get a wider stripe, so rank never
+--rests on color alone. The text form (Inline) is a bright highlight with ink text.
 EotwPlayerTags.STYLES = {
-    bronze = { fill = "#4a301a", border = "#c08a4e", text = "#f6e2c8", width = 1 },
-    copper = { fill = "#4a2818", border = "#d48a5c", text = "#ffe8d8", width = 1 },
-    teal = { fill = "#123634", border = "#4fb3a9", text = "#dcf7f3", width = 1 },
-    slate = { fill = "#262c34", border = "#8a96a6", text = "#e8edf2", width = 1 },
-    violet = { fill = "#2c1e44", border = "#a786e0", text = "#efe6ff", width = 1 },
-    silver = { fill = "#34383e", border = "#c8d0da", text = "#f2f5f8", width = 1 },
-    gold = { fill = "#463610", border = "#e8c25a", text = "#fff3cc", width = 2 },
-    ember = { fill = "#461a12", border = "#e8743e", text = "#ffe4d6", width = 2 },
+    bronze = { bright = "#c08a4e", dark = "#36230f", light = "#f6e2c8", ink = "#24160a", stripe = 4 },
+    copper = { bright = "#d48a5c", dark = "#3a1f10", light = "#ffe8d8", ink = "#2a1208", stripe = 4 },
+    teal = { bright = "#4fb3a9", dark = "#0e2e2b", light = "#d8f5f1", ink = "#08201e", stripe = 4 },
+    slate = { bright = "#8a96a6", dark = "#1f252d", light = "#e8edf2", ink = "#14181d", stripe = 4 },
+    violet = { bright = "#a786e0", dark = "#24173c", light = "#efe6ff", ink = "#1a1030", stripe = 4 },
+    silver = { bright = "#c8d0da", dark = "#2a2e34", light = "#f2f5f8", ink = "#1a1d22", stripe = 4 },
+    gold = { bright = "#e8c25a", dark = "#3a2c0c", light = "#fff3cc", ink = "#2a1e08", stripe = 6 },
+    ember = { bright = "#e8743e", dark = "#3a160c", light = "#ffd9c4", ink = "#2a0c06", stripe = 6 },
 }
+
+--A locked tag in the picker: muted greys keep the name readable but quiet.
+local LOCKED_STYLE = { bright = "#5e574b", dark = "#24211c", light = "#9a9284", ink = "#24211c", stripe = 4 }
 
 --Bumped whenever this account's tags change, so open panels can refresh.
 EotwPlayerTags.revision = 0
@@ -247,21 +252,24 @@ end
 
 --- looks --------------------------------------------------------------------
 
---The tag as rich text, for a name inside a line of text: " [Name]" in the
---tag's color at a smaller size, or "" for no (or an unknown) tag.
+--The tag as rich text, for a name inside a line of text: a highlighted badge
+--(<mark>) after a space, or "" for no (or an unknown) tag. The spaces inside
+--the highlight pad it; <nobr> keeps it from breaking across lines.
 ---@param tagid string|nil
----@param sizePercent nil|integer the text size relative to the line (default 80)
+---@param sizePercent nil|integer the text size relative to the line (default 75)
 ---@return string
 function EotwPlayerTags.Inline(tagid, sizePercent)
     local def = EotwPlayerTags.Def(tagid)
     if def == nil then
         return ""
     end
+    local style = StyleOf(def)
     local name = string.gsub(def.name, "[<>]", "")
-    return string.format(" <color=%s><size=%d%%>[%s]</size></color>", StyleOf(def).border, sizePercent or 80, name)
+    return string.format(" <nobr><mark=%sff><color=%s><b><size=%d%%>  %s  </size></b></color></mark></nobr>",
+        style.bright, style.ink, sizePercent or 75, name)
 end
 
---The tag as a bordered badge panel, or nil for no (or an unknown) tag. The
+--The tag as a plaque badge panel, or nil for no (or an unknown) tag. The
 --badge never grows past maxWidth: a long name ends in "...", with the full
 --name and how it was earned in its tooltip.
 ---@param tagid string|nil
@@ -273,36 +281,52 @@ function EotwPlayerTags.Badge(tagid, opts)
         return nil
     end
     opts = opts or {}
-    local style = StyleOf(def)
-    --a locked tag in the picker: muted greys keep the name readable but quiet.
-    if opts.dim then
-        style = { fill = "#1c1915", border = "#5e574b", text = "#9a9284", width = 1 }
-    end
+    local style = cond(opts.dim, LOCKED_STYLE, StyleOf(def))
     local fontSize = opts.fontSize or 12
+    local maxWidth = opts.maxWidth or 180
     return gui.Panel{
         width = "auto",
         height = "auto",
-        maxWidth = opts.maxWidth or 180,
+        maxWidth = maxWidth,
+        flow = "horizontal",
         valign = opts.valign or "center",
-        hpad = math.floor(fontSize * 0.5),
-        vpad = 1,
-        borderBox = true,
         bgimage = "panels/square.png",
-        bgcolor = style.fill,
-        borderWidth = style.width,
-        borderColor = style.border,
-        cornerRadius = 4,
+        --white so the gradient's colors show as they are.
+        bgcolor = "#ffffff",
+        gradient = gui.Gradient{
+            point_a = { x = 0.5, y = 1 },
+            point_b = { x = 0.5, y = 0 },
+            stops = {
+                { position = 0, color = core.Color(style.dark) },
+                { position = 1, color = core.Color("#0c0a08") },
+            },
+        },
+        borderWidth = 1,
+        borderColor = style.bright,
+        cornerRadius = 3,
         linger = function(element)
             gui.Tooltip(string.format("<b>%s</b>\n%s", def.name, def.description or ""))(element)
         end,
+        gui.Panel{
+            width = style.stripe,
+            height = fontSize + 8,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = style.bright,
+            interactable = false,
+        },
         gui.Label{
             text = def.name,
             fontSize = fontSize,
             bold = true,
-            color = style.text,
+            color = style.light,
             width = "auto",
             height = "auto",
-            maxWidth = (opts.maxWidth or 180) - fontSize,
+            maxWidth = maxWidth - style.stripe - 2,
+            hpad = math.floor(fontSize * 0.55),
+            vpad = 2,
+            borderBox = true,
+            valign = "center",
             textWrap = false,
             textOverflow = "ellipsis",
             interactable = false,

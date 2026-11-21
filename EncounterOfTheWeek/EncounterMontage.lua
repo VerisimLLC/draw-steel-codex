@@ -366,11 +366,20 @@ function EncounterMontage.NoteHistory(m)
     if m.phase == "done" and not m.historyEnded then
         m.historyEnded = true
         local totals = EncounterMontage.TotalsFromLog(m)
+        --how many tests the montage held, so a beat nobody rolled in (a "Proceed") can
+        --be told apart from one whose tests all came out Tier 2.
+        local tests = 0
+        for _, e in ipairs(log) do
+            if not e.consequence and not e.delve and type(e.tier) == "number" and e.tier > 0 then
+                tests = tests + 1
+            end
+        end
         GameSystem.NotifyPlayObservers("montage", {
             kind = "ended",
             successes = totals.successes,
             failures = totals.failures,
             unvanquished = totals.unvanquished,
+            tests = tests,
         })
     end
 end

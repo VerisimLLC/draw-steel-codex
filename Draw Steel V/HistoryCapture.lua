@@ -1743,6 +1743,9 @@ local function OnMontage(info)
             applied[#applied + 1] = tostring(text)
         end
         entry.causetext = #applied > 0 and table.concat(applied, History.DOT) or nil
+    elseif info.kind == "ended" and info.tests == 0 and (info.unvanquished or 0) == 0 then
+        --a beat nobody rolled in and no threat touched (a "Proceed"): nothing to sum up.
+        return
     elseif info.kind == "ended" then
         entry.family = "montageend"
         entry.causetext = table.concat({

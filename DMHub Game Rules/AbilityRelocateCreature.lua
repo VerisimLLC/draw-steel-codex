@@ -375,14 +375,14 @@ end
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 
+    casterToken.properties._tmp_freeMovement = true
+
     --Sent with every collide event below, so the Collision damage counts toward
     --this ability's Ability Damage even when another client resolves the collision.
     local forcedMovementCastId = nil
     if options.symbols ~= nil and options.symbols.cast ~= nil then
         forcedMovementCastId = options.symbols.cast:EnsureGuid()
     end
-
-    casterToken.properties._tmp_freeMovement = true
 
     if ability.targetType == 'line' and options.targetArea ~= nil then
 

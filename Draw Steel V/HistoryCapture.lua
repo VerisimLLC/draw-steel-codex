@@ -17,6 +17,7 @@ local mod = dmhub.GetModLoading()
 --- @field rect? number[] Part of the portrait to show: x1, y1, x2, y2.
 --- @field hero boolean True on the heroes' side.
 --- @field secret? boolean True when players may not see the name.
+--- @field unseen? "token"|"hidden" Players could not see it on the map: "token", a token the Director hid from players; "hidden", a Director's creature while Hidden with Hidden Creatures are Invisible on. ForPlayers cuts it from what they read.
 --- @field tier? integer On a target: the tier of the roll against it.
 --- @field roll? {edges: number, banes: number, total: number, sources: HistoryEdgeSource[]|nil} On a target: its own roll, when edges or banes against it alone changed the total.
 --- @field sources? HistoryEdgeSource[] On a target without a roll of its own: what applied to its roll, when that differs from the roll's sources (empty when nothing did). Absent means the same as the roll's.
@@ -83,6 +84,23 @@ local mod = dmhub.GetModLoading()
 --- @field hovertext? string Until History stores it: the roll dialog's hover text for the modifier.
 --- @field hover? string Id of that hover text in the map's History (History.HoverText).
 
+--Why players can't see a token on the map right now, or nil when they can. Heroes and
+--creatures players control are always seen; Hidden alone hides nothing (the rules let players
+--know a Hidden creature is there), only with the Hidden Creatures are Invisible setting.
+local function UnseenByPlayers(token)
+    if token.invisibleToPlayers then
+        return "token"
+    end
+    if token.playerControlled then
+        return nil
+    end
+    local ok, hidden = pcall(function()
+        local props = token.properties
+        return creature.HiddenCreaturesInvisible() and not props:IsHero() and props:IsHidden()
+    end)
+    return (ok and hidden == true) and "hidden" or nil
+end
+
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
 --- @return HistoryCreature
@@ -107,6 +125,7 @@ function History.Creature(token)
         rect = rect ~= nil and {rect.x1, rect.y1, rect.x2, rect.y2} or nil,
         hero = token.playerControlled or (props ~= nil and props:IsHero()),
         secret = token.namePrivate or nil,
+        unseen = UnseenByPlayers(token),
         squad = (props ~= nil and props.minion) and props:MinionSquad() or nil,
     }
 end
@@ -673,7 +692,7 @@ local function AddRollTriggers(entry, cast)
         local target = item.byid[who.id]
         if target == nil then
             --who it was, not what the action did to it: the action's own row says that.
-            target = {id = who.id, name = who.name, img = who.img, rect = who.rect, hero = who.hero, secret = who.secret}
+            target = {id = who.id, name = who.name, img = who.img, rect = who.rect, hero = who.hero, secret = who.secret, unseen = who.unseen}
             item.byid[who.id] = target
             item.targets[#item.targets + 1] = target
         end

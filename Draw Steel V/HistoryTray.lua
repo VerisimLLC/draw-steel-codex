@@ -4036,7 +4036,19 @@ local function VisibleMaps()
             ids[#ids + 1] = map.id
         end
     end
+    --what happened with no map at all, once there is any.
+    if #History.Keys(History.NO_MAP) > 0 then
+        ids[#ids + 1] = History.NO_MAP
+    end
     return ids
+end
+
+--A map's name in the switcher; the game-wide record is the Table.
+local function MapLabel(mapid)
+    if mapid == History.NO_MAP then
+        return "Table"
+    end
+    return Tabletop.MapName(mapid)
 end
 
 
@@ -4402,13 +4414,13 @@ local function CreateFace()
     end
     --The map History shows: the one last clicked (6.1), held while someone reads; the
     --switcher or a preview row from another map can show another until the next click.
-    local mapid = g_showMapOnOpen or game.currentMapId
+    local mapid = g_showMapOnOpen or History.CurrentMap()
     --the map last clicked, as last seen: a change to it is a new click to follow.
-    local followed = game.currentMapId
+    local followed = History.CurrentMap()
     g_showMapOnOpen = nil
     --what was seen before this opening: kept by the rail's mark if that came first. The
     --rail's mark is for the map you are on, so opening on another map shows no marker.
-    if mapid ~= game.currentMapId then
+    if mapid ~= History.CurrentMap() then
         g_since = nil
     elseif g_sinceAtOpen ~= nil then
         g_since = g_sinceAtOpen or nil
@@ -5428,8 +5440,8 @@ local function CreateFace()
         --once no one is reading; until then the click waits.
         thinkTime = 1,
         think = function(element)
-            if game.currentMapId ~= followed and not Reading() then
-                followed = game.currentMapId
+            if History.CurrentMap() ~= followed and not Reading() then
+                followed = History.CurrentMap()
                 ShowMap(followed)
             end
             heroRow:FireEvent("heroes")
@@ -5711,11 +5723,11 @@ function History.MapSwitcher()
     local function Maps()
         local ids = {}
         for _, id in ipairs(VisibleMaps()) do
-            if Tabletop.MapInCombat(id) then
+            if id == History.NO_MAP or Tabletop.MapInCombat(id) then
                 ids[#ids + 1] = id
             end
         end
-        local shown = game.currentMapId
+        local shown = History.CurrentMap()
         if g_tray ~= nil and g_tray.face.valid then
             shown = g_tray.MapId()
         end
@@ -5752,7 +5764,7 @@ function History.MapSwitcher()
             local entries = {}
             for _, id in ipairs(ids) do
                 entries[#entries + 1] = {
-                    text = Tabletop.MapName(id),
+                    text = MapLabel(id),
                     check = id == shown,
                     click = function()
                         element.popup = nil
@@ -5802,7 +5814,7 @@ function History.MapSwitcher()
             end
             sig = now
             local show = #ids >= 2
-            nameLabel.text = Tabletop.MapName(shown)
+            nameLabel.text = MapLabel(shown)
             if button:HasClass("collapsed") == show then
                 button:SetClass("collapsed", not show)
                 element.selfStyle.width = show and SWITCHER_WIDTH or 0

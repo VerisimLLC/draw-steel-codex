@@ -169,6 +169,16 @@ function History.UsingOldLog()
     return History.NotSupported() or g_oldLogSetting:Get() == true
 end
 
+--- The id History files an entry under when there is no map at all (nothing a token is on,
+--- no current map): one game-wide record, offered in the map switcher as "Table".
+History.NO_MAP = "game"
+
+--- The map History is following: the current map, or the game-wide record when there is none.
+--- @return string
+function History.CurrentMap()
+    return game.currentMapId or History.NO_MAP
+end
+
 --- The document id for a map's History.
 --- @param mapid string
 --- @return string
@@ -404,11 +414,9 @@ function History.Write(entry)
         return false
     end
     entry.id = entry.id or dmhub.GenerateGuid()
-    --a token on no map (a Hero away from the table) files under the map being looked at.
-    entry.map = entry.map or game.currentMapId
-    if entry.map == nil then
-        return false
-    end
+    --a token on no map (a Hero away from the table) files under the map being looked at, and
+    --with no map at all, under the game-wide record.
+    entry.map = entry.map or History.CurrentMap()
     --entries sort by their stamp, so two written in the same millisecond would fall in a
     --random order: each new stamp is at least one past the last this client gave out.
     if entry.t == nil then
@@ -546,6 +554,49 @@ local function ForPlayers(entry)
     --Malice lines show players no more than the table does (History.PlayersSeeMalice).
     if entry.family == "malice" and not History.PlayersSeeMalice() then
         return nil
+    end
+    --a creature players could not see on the map (HistoryCreature.unseen): no line about it,
+    --off the target lists, and nameless and faceless where it acted or owned the turn. A
+    --Hidden creature acting is revealed as its ability begins, so only a hidden token's
+    --actions lose the name.
+    if entry.kind == "line" and entry.who ~= nil and entry.who.unseen ~= nil then
+        return nil
+    end
+    local actor, owner = entry.actor, entry.owner
+    if actor ~= nil and actor.unseen == "token" then
+        actor.secret = true
+        actor.img = ""
+    end
+    if owner ~= nil and owner.unseen ~= nil then
+        owner.secret = true
+        owner.img = ""
+    end
+    if entry.targets ~= nil then
+        local kept = {}
+        for _, who in ipairs(entry.targets) do
+            if who.unseen == nil then
+                kept[#kept + 1] = who
+            end
+        end
+        entry.targets = kept
+    end
+    for _, item in ipairs(entry.rolltriggers or {}) do
+        local kept = {}
+        for _, who in ipairs(item.targets or {}) do
+            if who.unseen == nil then
+                kept[#kept + 1] = who
+            end
+        end
+        item.targets = kept
+    end
+    if entry.ended ~= nil then
+        local kept = {}
+        for _, item in ipairs(entry.ended) do
+            if item.who == nil or item.who.unseen == nil then
+                kept[#kept + 1] = item
+            end
+        end
+        entry.ended = kept
     end
     --a monster's Stamina numbers, only once players know its Stamina (Monster Info).
     if (entry.family == "staminaset" or entry.family == "temporarystamina") and entry.mk ~= nil

@@ -66,7 +66,15 @@ Updated 2026-11-20 (end of day, James off to a playtest on main).
      RailSwapPanel hands History's slot to the Action Log). Crowdex sets it: VerisimLLC/crowdex
      PR #3 (clone at D:\crowdex, branch history-not-supported). Checked live by setting the
      flag over the bridge in James's Crows game.
-  5. **Testing before PRs:** Crows (load a Crows game with the branch), a real Encounter of the
+  5. **Tests run 2026-11-21 over the bridge:** failed opposed roll with a double bane (real
+     Search for Hidden Creatures, card right: 9 vs 12, Double bane -4, Set by hand); tie
+     wording on a test entry; downtime completion (real AddRoll, "History Test Project
+     completed · project points 13 of 10", test line deleted); respite with XP (real Rest on
+     Larry: "Stamina 79 to 114 · XP 113 to 115"; his victories and XP put back). Flat bonus:
+     no ability power roll in the content has one (plus/minus modtypes only on project
+     rolls and tests), so nothing real to run. Still James's: OA one card, Encounter of the
+     Week run, negotiation.
+  5a. **Testing before PRs (original list):** Crows (load a Crows game with the branch), a real Encounter of the
      Week run, negotiation lines (Director side only: the player side of negotiations is
      unfinished, not History's), failed or tied opposed rolls and a double bane, a respite
      with XP, a downtime project completing, a real flat bonus on a power roll. James did

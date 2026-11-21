@@ -705,5 +705,5 @@ ongoing effect and already gets its own lines.
 | L109 | Why, collision with a creature | Hit {Other} / {Creature} had {n} squares of the {push} left, so it and {Other} each took {n} damage. | Hit Goblin 2 / Goblin 1 had 2 squares of the push left, so it and Goblin 2 each took 2 damage. |
 | L110 | Strained (F5) | {Creature} is strained / {Creature} is no longer strained; small text {Resource} {n} | Lyra is strained · Clarity -2 |
 | L111 | New squad captain (F5) | {Creature} is now {Squad}'s captain; small text who did it | Goblin 3 is now the Goblin Raiders' captain · Director |
-| Y5c | Surges a modifier gave to keep, after the damage line (proposed 2026-11-21, awaiting James) | {One was / They were} gained from [{Modifier}]. | 2 surges added 2 each (...). They were gained from [I Work Better Alone]. |
+| Y5c | Surges a modifier gave to keep, after the damage line (signed off 2026-11-21) | {One was / They were} gained from [{Modifier}]. | 2 surges added 2 each (...). They were gained from [I Work Better Alone]. |
 | L26 | (changed 2026-11-21, James: name the creature) | {Condition} / {Creature} did not resist. / {Creature} resisted. | Weakened / Devil High Judge did not resist. |

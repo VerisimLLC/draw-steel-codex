@@ -502,22 +502,31 @@ local function AddKid(rows, kid)
     end
 end
 
---- Whether this viewer may read the totals of an opposed power roll: the Director always,
---- a player only when both sides' rolls reached them unhidden (a GM-only roll's line never
---- arrives; a Dice Tower roll arrives without its result).
+--- Whether this viewer may read the totals of an opposed power roll against one target: the
+--- Director always, a player only when both the user's roll and that target's reached them
+--- unhidden (a GM-only roll's line never arrives; a Dice Tower roll arrives without its result).
 --- @param kids HistoryEntry[]|nil The entries nested under the action.
+--- @param actor HistoryCreature|nil The ability's user.
+--- @param target HistoryCreature The target the totals are for.
 --- @return boolean
-function History.OpposedTotalsShown(kids)
+function History.OpposedTotalsShown(kids, actor, target)
     if dmhub.isDM then
         return true
     end
-    local seen = 0
+    if actor == nil then
+        return false
+    end
+    local actorSeen, targetSeen = false, false
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll then
-            seen = seen + 1
+        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll and kid.who ~= nil then
+            if kid.who.id == actor.id then
+                actorSeen = true
+            elseif kid.who.id == target.id then
+                targetSeen = true
+            end
         end
     end
-    return seen >= 2
+    return actorSeen and targetSeen
 end
 
 --- What happened, one row per creature, the result first.
@@ -603,10 +612,10 @@ function History.Story(entry, kids)
     end
 
     --an opposed power roll: how the user's total compared with each target's.
-    local showTotals = History.OpposedTotalsShown(kids)
     for _, who in ipairs(entry.targets or {}) do
         local opposed = who.opposed
         if opposed ~= nil and entry.actor ~= nil then
+            local showTotals = History.OpposedTotalsShown(kids, entry.actor, who)
             local user, target = History.ShownName(entry.actor), History.ShownName(who)
             local text
             if opposed.attacker == opposed.defender then

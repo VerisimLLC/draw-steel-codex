@@ -2039,11 +2039,11 @@ local function BuildAction(item)
     end
     --an opposed power roll reads as its outcome; the card has each side's dice. A row from
     --before the outcome was recorded keeps its two rolls.
-    local showTotals = History.OpposedTotalsShown(item.triggers)
     local outcomes = 0
     for _, who in ipairs(targets) do
         if who.opposed ~= nil then
             outcomes = outcomes + 1
+            local showTotals = History.OpposedTotalsShown(item.triggers, entry.actor, who)
             triggerRows[#triggerRows + 1] = OpposedRow(who, showTotals, #targets > 1)
         end
     end

@@ -912,3 +912,21 @@ can make.
 
 Also fixed: wording from a block with its own sentence lost the "If ..." or "While within ..." lead-in
 of the Only if or aura around it.
+
+## 18. Shelf organised by what it does for the character (2026-11-22)
+
+Asked for: no "Choices" group, no single-block groups, growing tables under resources, and a Common list at
+the top. Groups now say what an entry gives the character; a choice sits with what it gives.
+
+| Group | Entries |
+|---|---|
+| Common | Gain an ability, Gain a triggered ability, Change a stat, Edge or bane on rolls, Have or choose skills, Choose a perk, Characteristic Increase, Heroic ability choice, Empty feature (hand-picked; each also stays in its group) |
+| Stats | You ignore / can't..., Change a stat, Raise a characteristic, Characteristic Increase (recipe), Movement type |
+| Rolls | Edge or bane, Rolls against you, Extra damage, Change potency, Change the outcome |
+| Defences | Immunity or weakness, Can't be (condition) |
+| Abilities | Gain a triggered ability, Gain an ability, Change an ability, Heroic ability choice (recipe), Signature ability (recipe) |
+| Skills, perks and languages | Have or choose skills, Choose a perk, You know a language |
+| Class, kit and resources | Recoveries or a resource, Choose your subclass, Growing table (recipe), Kit |
+| Only if, auras and reminders | Only if, Reminder, Aura |
+
+Your ready-made features stay at the very top.

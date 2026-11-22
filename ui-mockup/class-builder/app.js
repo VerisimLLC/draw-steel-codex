@@ -204,21 +204,23 @@ const lbl = t => document.createTextNode(" " + t + " ");
 // ---------------------------------------------------------------------------------------------
 // Sentence blocks: what a feature does. Each one: shelf label, group, a book-style sentence with
 // underlined values, and the CharacterModifier record it saves as.
-const GROUPS = [["choice", "Choices", "--c-choice"], ["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
-  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"], ["grow", "Growing table", "--c-grow"], ["area", "Auras", "--c-area"]];
+/* Shelf groups, by what an entry does for the character (a choice sits with what it gives: raising a
+   characteristic is a stat, choosing a perk is with skills). A "Common" list of the most used comes first. */
+const GROUPS = [["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
+  ["skill", "Skills, perks and languages", "--c-skill"], ["res", "Class, kit and resources", "--c-res"], ["if", "Only if, auras and reminders", "--c-if"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
    record type from its blocks (one choice alone -> that choice; a mix -> a feature list). */
 const SENT = {
-  perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
+  perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "skill", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
     // Perks are matched by exact tag text (Feat.lua HasTag, lowercased), so each group uses the tag its perks carry.
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => PERK_TAGS[g] || g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
   /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
      records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
-  skills: { featName: "Skills", desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "choice", uses: 118, choice: true,
+  skills: { featName: "Skills", desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "skill", uses: 118, choice: true,
     make: () => ({ granted: [], num: "1", groups: [], named: [] }),
     render: (f, add) => {
       // Empty parts read naturally: "You have no fixed skills and choose 5 skills from ... (+ named skills)".
@@ -242,7 +244,7 @@ const SENT = {
     // No groups and no named skills means any skill: every group is offered, as core classes store it.
     compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num,
       categories: Object.fromEntries((f.groups.length || f.named.length ? f.groups : SKILL_GROUPS).map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
-  charChoice: { featName: "Characteristic Increase", desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
+  charChoice: { featName: "Characteristic Increase", desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "stats", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
     // Options are the characteristics this feature doesn't already raise (its "score increases to" blocks).
@@ -253,7 +255,7 @@ const SENT = {
           // doesn't read the "cap" field some content uses (see BLOCK_EDITORS_LUA_STUDY.md, R2).
           modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1 },
             { __typeName: "CharacterModifier", behavior: "attribute", name: c[1] + " maximum", description: "", attribute: c[0], operation: "min", value: numOr(f.max) }] })) }); } },
-  abilityChoice: { shelf: false, desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
+  abilityChoice: { shelf: false, desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "abil", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
       if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
@@ -268,7 +270,7 @@ const SENT = {
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
       options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
-  subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
+  subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
     render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(name the feature College, Circle, Domain...; subclasses are made in the subclass editor)")); },
     prose: (f, feat) => "Choose your " + (feat && feat.name ? feat.name : "subclass") + ".",
@@ -356,7 +358,7 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "modifyability", ability: { __typeName: "ActivatedAbility", name: "New Ability", abilityModification: true, behaviors: [] },
       attributes: f.change === "keyword" ? [{ id: "modkeywords", keywords: { [f.keyword]: true }, operation: "Add", value: "" }] : [{ id: f.change, operation: "Add", value: f.value }],
       filterAbility: 'Ability.name = "' + String(f.name).replace(/"/g, "") + '"' }) },
-  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "rem", uses: 89, make: () => ({ text: "" }),
+  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "if", uses: 89, make: () => ({ text: "" }),
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
     prose: f => String(f.text || "").replace(/\.?$/, "."),
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
@@ -364,7 +366,7 @@ const SENT = {
      hero has had this turn ("Heroic Resources This Turn", the turn's high-water mark), each from a level.
      Each row holds ordinary blocks. It saves the display table (growingresources) plus every row's
      modifiers, with conditions written for you, including rows that replace an earlier one. */
-  growing: { shelf: false, desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "grow", uses: 11, container: true, featName: "",
+  growing: { shelf: false, desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "res", uses: 11, container: true, featName: "",
     make: () => ({ rows: [2, 4, 6].map(n => ({ id: newId("r"), at: String(n), level: "1", replaces: "", text: "", blocks: [] })) }),
     render: (f, add, s, feat) => {
       add(lbl("The most " + resWord() + " you've had this turn unlocks these rows (they stay unlocked until your next turn)"));
@@ -393,7 +395,7 @@ const SENT = {
       rows.appendChild(more);
       add(rows);
     } },
-  aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "area", uses: 28, wrapper: true, featName: "",
+  aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "if", uses: 28, wrapper: true, featName: "",
     make: () => ({ radius: "3", who: "selfandfriends" }),
     render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
   onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
@@ -473,12 +475,12 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
    presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
    blocks are added there. Authors' own ready-made features join the shelf the same way. */
 const RECIPES = [
-  { key: "growing", label: "Growing table", group: "grow", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
+  { key: "growing", label: "Growing table", group: "res", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
     blocks: () => [["growing", { rows: [["2", "1"], ["4", "1"], ["6", "1"], ["8", "4"], ["10", "7"], ["12", "10"]].map(([at, level]) => ({ id: newId("r"), at, level, replaces: "", text: "", blocks: [] })) }]] },
-  { key: "charinc", label: "Characteristic Increase", group: "choice", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
+  { key: "charinc", label: "Characteristic Increase", group: "stats", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
     blocks: () => primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]]) },
-  { key: "signature", label: "Signature ability", group: "choice", uses: 9, desc: "The player chooses one signature ability from a list you build.", name: "Signature Ability", blocks: () => [["abilityChoice", { cat: "signature" }]] },
-  { key: "heroic", label: "Heroic ability choice", group: "choice", uses: 45, desc: "The player chooses one heroic ability costing N of your resource, from a list you build.", name: "", blocks: () => [["abilityChoice", { cat: "heroic" }]] },
+  { key: "signature", label: "Signature ability", group: "abil", uses: 9, desc: "The player chooses one signature ability from a list you build.", name: "Signature Ability", blocks: () => [["abilityChoice", { cat: "signature" }]] },
+  { key: "heroic", label: "Heroic ability choice", group: "abil", uses: 45, desc: "The player chooses one heroic ability costing N of your resource, from a list you build.", name: "", blocks: () => [["abilityChoice", { cat: "heroic" }]] },
 ];
 /* An entry key is "s:<block type>", "r:<recipe>", "t:<your template id>" or "empty". */
 function entryOf(key) {
@@ -1237,16 +1239,20 @@ function shelfEntries() {
   const out = [];
   const mine = (store.templates || []).map(t => ({ key: "t:" + t.id, label: t.name, color: "--c-mine", desc: "Your ready-made feature: " + (sentenceProse(t.feature) || "(no blocks)"), tpl: t }));
   out.push(["Your ready-made features", mine]);
-  GROUPS.forEach(g => {
+  const groups = GROUPS.map(g => {
     const items = Object.keys(SENT).filter(t => SENT[t].group === g[0] && SENT[t].shelf !== false).map(t => ({ key: "s:" + t, label: SENT[t].label, color: g[2], uses: SENT[t].uses, desc: SENT[t].desc }))
       .concat(RECIPES.filter(r => r.group === g[0]).map(r => ({ key: "r:" + r.key, label: r.label, color: g[2], uses: r.uses, desc: r.desc + " A recipe: adds the blocks for you to edit.", recipe: true })));
-    // Recipes sit beside the blocks they're made of, ordered by use like the rest.
     items.sort((a, b) => (b.uses || 0) - (a.uses || 0));
-    out.push([g[1], items, g[2]]);
+    return [g[1], items, g[2]];
   });
-  out.push(["Start empty", [{ key: "empty", label: "Empty feature", color: "--c-adv", desc: "A feature with a name and text; add blocks to it." }]]);
-  return out;
+  // Common: what class authors reach for most (each also stays in its own group).
+  const all = groups.flatMap(g => g[1]);
+  const common = COMMON_KEYS.map(k => all.find(it => it.key === k)).filter(Boolean).map(it => Object.assign({}, it, { common: true }))
+    .concat([{ key: "empty", label: "Empty feature", color: "--c-adv", desc: "A feature with a name and text; add blocks to it." }]);
+  out.push(["Common", common]);
+  return out.concat(groups);
 }
+const COMMON_KEYS = ["s:ability", "s:trigger", "s:stat", "s:edge", "s:skills", "s:perkChoice", "r:charinc", "r:heroic"];
 function renderShelf() {
   const q = (shelf.querySelector("input.search") || {}).value || "";
   shelf.innerHTML = "";
@@ -1271,6 +1277,7 @@ function renderShelf() {
       const click = () => { if (at) { const top = at.feat.sentences; addEntryToList(it.key, at.feat, top, top.length, false); } else addEntryToLane(it.key, laneKeys()[0]); };
       const b = shelfBlock(it.label, it.color, it.uses, it.desc, "entry", it.key, click);
       if (it.recipe) b.querySelector(".pl").appendChild(E("span", "recipe", "recipe"));
+      if (it.common) { b.dataset.common = "1"; b.dataset.fk = "shelf:common:" + it.key; }
       if (it.tpl) { const row = E("div", "palrow"); row.appendChild(b); const mb = fk(E("button", "mb", "\u22ef"), "tplmb:" + it.tpl.id); mb.type = "button"; mb.setAttribute("aria-label", it.label + " options");
         mb.addEventListener("click", ev => { ev.stopPropagation(); templateMenu(mb, it.tpl); }); row.appendChild(mb); box.appendChild(row); }
       else box.appendChild(b);

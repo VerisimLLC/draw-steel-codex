@@ -6398,8 +6398,12 @@ DockablePanel.Register{
 }
 
 --Puts the log this user sees (History, or the old Action Log if they chose it) directly
---below Chat, once; a button already on their rail stays where they put it.
+--below Chat, once; a button already on their rail stays where they put it. Not while the
+--rail is off: any write to the layout would stop the first-entry View applying later.
 local function PlaceRailButton()
+    if not RailModeActive() then
+        return
+    end
     if History.UsingOldLog() then
         --the rail draws the old log in History's slot (its standsInFor), so a stored layout
         --keeps History's key and matches its View; only a layout with no History gets one.

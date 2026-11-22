@@ -8607,7 +8607,8 @@ local g_chipLabelWidthCache = {}
 
 --Get (or create) the session-cached PanelDocument for a registered
 --dockable panel name. Returns nil when no such panel is registered or
---it is not available to this user (dmonly/devonly).
+--it is not available to this user (dmonly/devonly, or its available() says no,
+--as History does while the old Action Log is in use).
 function PanelDocument.Get(panelName)
     local reg = DockablePanel.GetRegistration(panelName)
     if reg == nil then
@@ -8617,6 +8618,9 @@ function PanelDocument.Get(panelName)
         return nil
     end
     if reg.devonly and not devmode() then
+        return nil
+    end
+    if reg.available ~= nil and not reg.available() then
         return nil
     end
 
@@ -16923,10 +16927,21 @@ function PanelDocument.RailSwapPanel(fromKey, toKey)
 end
 
 --- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
---- changed (History's "Use Old Action Log" swaps History and the Action Log).
+--- changed (History's "Use Old Action Log" swaps History and the Action Log). A panel no
+--- longer available loses its open window (its record stays, for when it comes back), and
+--- the docks are rebuilt so the panel standing in for it takes its place.
 function PanelDocument.RebuildRails()
+    for _, doc in pairs(g_panelDocuments) do
+        local reg = DockablePanel.GetRegistration(doc:try_get("panelName") or "")
+        if reg ~= nil and reg.available ~= nil and not reg.available() then
+            doc:ClosePanel()
+        end
+    end
     if RebuildIconRails ~= nil then
         RebuildIconRails()
+    end
+    if not RailModeActive() and rawget(_G, "gamehud") ~= nil then
+        DockablePanel.Deserialize()
     end
 end
 
@@ -27340,8 +27355,11 @@ dmhub.RegisterEventHandler("EnterGame", function()
         end
 
         --last, so a module's own placement never makes a new user's empty layout look like
-        --theirs to the first-entry check above.
-        PanelDocument.RunRailLayoutApplied()
+        --theirs to the first-entry check above. Only with the rail on: a placement written
+        --while it is off would stop that check applying the built-in View once it is on.
+        if RailModeActive() then
+            PanelDocument.RunRailLayoutApplied()
+        end
     end)
 end)
 
@@ -27922,6 +27940,10 @@ function ViewsEntryUnavailable(key)
     if reg == nil then
         return { name = key, reason = "not in this game" }
     end
+    --one standing in for it shows in its place (the old Action Log in History's).
+    if DockablePanel.StandIn(reg) ~= nil then
+        return nil
+    end
     if reg.dmonly and not dmhub.isDM then
         return { name = reg.name, reason = UIText.Term("director") .. " only" }
     end
@@ -28058,7 +28080,10 @@ function ViewsApplyLayout(layout)
     for _, side in ipairs({"left", "right"}) do
         local names = {}
         for _, name in ipairs(docks[side] or {}) do
-            if PanelDocument.Get(name) ~= nil then
+            --a panel that can't show keeps its place when one stands in for it: the
+            --dock shows the stand-in (DockablePanel's DockStandIn).
+            local reg = DockablePanel.GetRegistration(name)
+            if PanelDocument.Get(name) ~= nil or (reg ~= nil and DockablePanel.StandIn(reg) ~= nil) then
                 names[#names + 1] = name
             end
         end

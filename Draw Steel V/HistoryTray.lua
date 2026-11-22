@@ -4151,7 +4151,7 @@ end
 --- @param mapid string
 --- @param typed string Lower case.
 --- @return {title: string, items: {chip: HistorySearchChip, count: integer}[]}[]
-local function Suggestions(mapid, typed)
+local function SuggestionsUncached(mapid, typed)
     if typed == "" then
         return {}
     end
@@ -4239,10 +4239,32 @@ local function Suggestions(mapid, typed)
     local groups = {}
     local order = {{"creature", "Creatures"}, {"ability", "Abilities"}, {"condition", "Conditions"}, {"other", "Other"}}
     for index, kind in ipairs(order) do
-        local items = {}
+        --ranked first, so rows are counted only for the best few: counting every candidate
+        --against every row on each keystroke was the cost.
+        local ranked = {}
         for _, chip in ipairs(candidates[kind[1]]) do
+            --All {type} rows lead, then names that fit, then creatures found by type.
+            local score = FitScore(chip.name, typed)
+            if chip.type ~= nil then
+                score = 3 + FitScore(chip.type, typed)
+            elseif chip.kind == "type" then
+                score = -1
+            end
+            ranked[#ranked + 1] = {chip = chip, score = score}
+        end
+        table.sort(ranked, function(first, second)
+            if first.score ~= second.score then
+                return first.score < second.score
+            end
+            return first.chip.name < second.chip.name
+        end)
+        local items = {}
+        for _, item in ipairs(ranked) do
+            if #items >= 4 then
+                break
+            end
             local chips = table.shallow_copy(g_search.chips)
-            chips[#chips + 1] = chip
+            chips[#chips + 1] = item.chip
             local count = 0
             for _, row in ipairs(rows) do
                 --the typed text becomes the chip, so it doesn't count against it.
@@ -4251,24 +4273,9 @@ local function Suggestions(mapid, typed)
                 end
             end
             if count > 0 then
-                --All {type} rows lead, then names that fit, then creatures found by type.
-                local score = FitScore(chip.name, typed)
-                if chip.type ~= nil then
-                    score = 3 + FitScore(chip.type, typed)
-                elseif chip.kind == "type" then
-                    score = -1
-                end
-                items[#items + 1] = {chip = chip, count = count, score = score}
+                item.count = count
+                items[#items + 1] = item
             end
-        end
-        table.sort(items, function(first, second)
-            if first.score ~= second.score then
-                return first.score < second.score
-            end
-            return first.chip.name < second.chip.name
-        end)
-        while #items > 4 do
-            table.remove(items)
         end
         if #items > 0 then
             groups[#groups + 1] = {title = kind[2], items = items, best = math.max(0, items[1].score) * 10 + index}
@@ -4277,6 +4284,27 @@ local function Suggestions(mapid, typed)
     table.sort(groups, function(first, second)
         return first.best < second.best
     end)
+    return groups
+end
+
+--The last suggestions worked out, kept for a moment: each edit builds the sections twice.
+local g_suggested = nil
+
+local function Suggestions(mapid, typed)
+    if typed == "" then
+        return {}
+    end
+    local chipKeys = {}
+    for _, chip in ipairs(g_search.chips) do
+        chipKeys[#chipKeys + 1] = chip.kind .. ":" .. chip.key
+    end
+    local _, turn = SearchWords()
+    local signature = string.format("%s|%s|%s|%s", mapid, typed, table.concat(chipKeys, ","), tostring(turn))
+    if g_suggested ~= nil and g_suggested.signature == signature and dmhub.Time() - g_suggested.at < 0.25 then
+        return g_suggested.groups
+    end
+    local groups = SuggestionsUncached(mapid, typed)
+    g_suggested = {signature = signature, at = dmhub.Time(), groups = groups}
     return groups
 end
 

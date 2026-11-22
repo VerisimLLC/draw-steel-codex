@@ -7844,7 +7844,7 @@ function creature:CaptureTeleportOpportunityAttackers(originLoc)
         if tok.valid and tok.charid ~= ourCharid then
             local p = tok.properties
             if p:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0
-               and (not tok:IsFriend(ourToken))
+               and IsEnemyOf(tok, ourToken)
                and p._tmp_grabbedby ~= ourCharid
                and p:CanUseTriggeredAbilities()
                and p:CanMakeOpportunityAttacks()
@@ -7875,7 +7875,7 @@ function creature:DispatchTeleportOpportunityAttacks(observers)
         if tok.valid
            and tok.loc ~= nil
            and ourToken.loc:DistanceInTiles(tok.loc) > 1
-           and (not tok:IsFriend(ourToken))
+           and IsEnemyOf(tok, ourToken)
            and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
            and tok.properties:CanMakeOpportunityAttacks()
            and tok.properties:CanOpportunityAttack(tok, ourToken) then
@@ -8206,7 +8206,8 @@ function creature:OnMove(path)
                     local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or anyMovementObserver
                     local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
 
-                    if withinVerticalReach and (not tok:IsFriend(ourToken)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:CanOpportunityAttack(tok, ourToken) then
+                    --A creature under Guise provokes no free strikes from anyone who isn't its ally.
+                    if withinVerticalReach and IsEnemyOf(tok, ourToken) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:CanOpportunityAttack(tok, ourToken) then
                         if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
                             tok.properties:DispatchEvent("leaveadjacent", MovementEventInfo{ movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
@@ -8229,7 +8230,7 @@ function creature:OnMove(path)
                     --Gated only on the mover: the observer-side OA filters above
                     --(banes, opportunityattack target filter, CanMakeOpportunityAttacks)
                     --describe the enemy's reaction, not the mover's own trait.
-                    if willingDeparture and withinVerticalReach and (not tok:IsFriend(ourToken)) and self:CanUseTriggeredAbilities() then
+                    if willingDeparture and withinVerticalReach and IsEnemyOf(ourToken, tok) and self:CanUseTriggeredAbilities() then
                         self:DispatchEvent("departadjacent", MovementEventInfo{ departedcreature = tok.properties })
                     end
                 end
@@ -9200,15 +9201,46 @@ function creature:GetCustomAttribute(attrInfo)
 	return result
 end
 
+--- True when viewerToken may not treat targetToken as an enemy: targetToken has a positive
+--- "Not Treated As Enemy" custom attribute (the Voiceless Talker Archivist's Guise) and
+--- viewerToken is not already its ally. To such a viewer it is neither friend nor enemy:
+--- enemy-only and ally-only abilities refuse it, and enemy-only triggers, free strikes,
+--- flanking and "Enemies" auras pass it by. Its own allies are unaffected.
+--- @param viewerToken CharacterToken|nil
+--- @param targetToken CharacterToken|nil
+--- @return boolean
+function IsShieldedFromEnmity(viewerToken, targetToken)
+    if viewerToken == nil or targetToken == nil or targetToken.properties == nil then
+        return false
+    end
+    if viewerToken.charid == targetToken.charid then
+        return false
+    end
+    if targetToken.properties:CalculateNamedCustomAttribute("Not Treated As Enemy") <= 0 then
+        return false
+    end
+    return not viewerToken:IsFriend(targetToken)
+end
+
+--- True when viewerToken treats otherToken as an enemy: not its friend, and not shielded
+--- from it by Guise (see IsShieldedFromEnmity).
+--- @param viewerToken CharacterToken
+--- @param otherToken CharacterToken
+--- @return boolean
+function IsEnemyOf(viewerToken, otherToken)
+    return (not viewerToken:IsFriend(otherToken)) and (not IsShieldedFromEnmity(viewerToken, otherToken))
+end
+
 -- TRI-STATE: how casterToken views targetToken for TARGETING purposes.
 --   true  = a friend (valid ally target)
 --   false = an enemy (valid enemy target)
 --   nil   = NEITHER -- not targetable as an ally, but not an enemy either
 -- Callers must treat "enemy" as a strict == false check and "friend" as a strict
 -- == true check; `not result` wrongly reads neutral (nil) as an enemy.
--- Mirrors casterToken:IsFriend, with three attribute-driven overrides: the target-side
--- "Count As Ally To Enemies" (Guise) forces friend and runs first since the target is
--- actively protecting itself; caster-side "Count Allies as Enemies" makes allies within
+-- Mirrors casterToken:IsFriend, with four attribute-driven overrides: the target-side
+-- "Count As Ally To Enemies" forces friend and runs first since the target is
+-- actively protecting itself; the target-side "Not Treated As Enemy" (Guise) makes it
+-- neither to anyone who isn't its ally; caster-side "Count Allies as Enemies" makes allies within
 -- N squares read as enemies; caster-side "Count Allies as Neutral" (Memory Thief tier 1)
 -- makes allies within N squares read as neither. Enemies wins over Neutral when a
 -- creature somehow carries both.
@@ -9222,6 +9254,11 @@ function IsFriendForTargeting(casterToken, targetToken)
         if forcedFriend ~= nil and forcedFriend > 0 then
             return true
         end
+    end
+
+    --Guise: only abilities that target any creature can reach it.
+    if IsShieldedFromEnmity(casterToken, targetToken) then
+        return nil
     end
 
     local isFriend = casterToken:IsFriend(targetToken)
@@ -11246,6 +11283,33 @@ end
 
 creature.AuraTokenOnlyAdjacent = AuraTokenOnlyAdjacent
 
+--Guise: an "Enemies" aura passes over a creature its caster can't treat as an enemy.
+--Returns the auras that still apply, or nil when none do.
+local function WithoutEnemyAurasShieldedByGuise(token, auras)
+    if token.properties == nil or token.properties:CalculateNamedCustomAttribute("Not Treated As Enemy") <= 0 then
+        return auras
+    end
+    local kept = {}
+    for _,aura in ipairs(auras) do
+        local instance = aura.auraInstance
+        local casterToken = nil
+        if instance ~= nil and instance:GetApplyTo() == "enemies" then
+            --A map zone has no caster; an aura can outlive a caster who has left the map.
+            local casterid = instance:try_get("casterid")
+            if casterid ~= nil and casterid ~= "" then
+                casterToken = dmhub.GetTokenById(casterid) or dmhub.GetCharacterById(casterid)
+            end
+        end
+        if casterToken == nil or not IsShieldedFromEnmity(casterToken, token) then
+            kept[#kept+1] = aura
+        end
+    end
+    if #kept == 0 then
+        return nil
+    end
+    return kept
+end
+
 function creature:GetAurasAffecting(token, options)
     token = token or dmhub.LookupToken(self)
     if token == nil then
@@ -11283,6 +11347,11 @@ function creature:GetAurasAffecting(token, options)
             end
             auras = kept
         end
+    end
+
+    auras = WithoutEnemyAurasShieldedByGuise(token, auras)
+    if auras == nil then
+        return nil
     end
 
     --Fast path: with no filters to run there is nothing to recurse through, so skip the

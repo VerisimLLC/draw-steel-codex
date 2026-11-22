@@ -1287,7 +1287,7 @@ TokenHud.RegisterPanel{
                 --DrawSteelActionBar's pathfind targeting (AbilityRelocate). teleport/shift/forced
                 --do not provoke OAs so they fall through to the clear branch.
                 local provokes = (movementType == "walk" or movementType == "move" or movementType == "jump")
-                if movingToken == nil or path == nil or not provokes or token:IsFriend(movingToken) or dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+                if movingToken == nil or path == nil or not provokes or (not IsEnemyOf(token, movingToken)) or dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
                     m_cache = nil
                     m_calculationCache = nil
                     element:FireEvent("clearOpportunityAttackLocal")

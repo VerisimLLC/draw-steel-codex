@@ -1027,6 +1027,33 @@ older check is *Mind Twist* (a potency check with an unquoted letter, a real con
 Also: the prototype's own saved data (with "<Main action>" style placeholders) reopens with its action and
 cost, and steps shown inside their tier no longer appear in "kept as they are".
 
+## 4u. Pasting Steel Compendium markdown (2026-11-22)
+
+Asked for: paste an ability's markdown page from the Steel Compendium (steelcompendium.io) and get blocks.
+The reader now turns markdown into the plain lines it already understands before reading:
+- links keep their words ("[frightened](https://...)" reads "frightened");
+- the keyword/action table and the distance/target table become plain header lines, separator rows dropped;
+- "- **12-16:** ..." becomes a tier line, "**Effect:** ..." an Effect paragraph, "## Name (5 Wrath)" the header;
+- an italic first line is the flavor. That page has no name above it, so the ability is called
+  "Pasted ability" and the toast says to rename it.
+
+**"If the target is already X, they instead Y."** The page's effect is the "#" pattern from 4t, so the
+reader now builds it: for each tier whose potency applies X, the tier keeps its words for the card
+("P < WEAK, frightened (save ends)"), and two tier-only "Only if" steps do the work: below potency and not
+already X: X; below potency and already X: Y. Y can be damage equal to (twice) a characteristic, a flat
+damage amount, or a condition with a duration. The pasted page saves with the same structure as the
+compendium's own *It Is Justice You Fear* (tier text after "#", three condition steps, three damage steps)
+and no agreement checks fire.
+
+**Pasted paragraphs are the saved description.** Each pasted Effect paragraph is now a card paragraph
+saved to `description` (book first), not proposed override text. That also fixed a card bug: a paragraph
+whose blocks all sit inside tiers (nothing generated at the top level) was missing from the card.
+
+The same sentence in *Instant Cement* ("If the enemy is already slowed, they are instead restrained") is
+left to build: it belongs to an area that reacts to a creature ending its turn there, which needs engine
+work first (4l). Paste tests, the agreement checks, and all three open-and-save polls are unchanged
+(45/45, 60/60, 1,148/1,148).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1116,6 +1143,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **Standard abilities, rule text and Float Text are blocks, not Advanced.** "Use another ability" picks standard abilities by name (saved by id); rule text opens like tier text (formula amounts, "(added)", several results); Float Text is a Display block. Triggers fully as blocks 605 to 823 of 1,132; banner cases 278 to 72. | Review of the Mark: Benefit example: these are everyday steps, not advanced ones. |
 | 2026-11-22 | **New damage saves as rule text unless it needs the Damage behaviour** (dice, to you, can't be reduced). **Tiers can hold steps** ("Only if the target is already slowed: restrained"): saved as tier-only steps (`tiersSelected`) with the tier's card words after "#"; opening content puts them back in their tier. | Asked for: default to command text; and the "#" pattern for effects the tier text can't express. |
 | 2026-11-22 | **Tier agreement checks:** a condition on the card that no step on the tier applies, or a potency letter that differs from the "Only if" check, shows as "worth checking" (never blocks saving). | A real rebuild slipped on both; no false alarms across the 62 "#" abilities in content. |
+| 2026-11-22 | **Steel Compendium markdown pastes; "already X, instead Y" builds tier-only steps; pasted paragraphs save to `description`.** An unnamed page is called "Pasted ability". | Asked for: make the compendium's markdown work for pasting; the pattern matches the user's rebuild of *It Is Justice You Fear*. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

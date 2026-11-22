@@ -15,6 +15,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -64,6 +65,7 @@
    "targetAllegiance = \"enemy\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -111,6 +113,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -157,6 +160,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -164,7 +168,7 @@
     "range: 3 => \"3\"",
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\"",
     "modeList: [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"rules\":\"Also => [{\"text\":\"Standard\"},{\"condition\":\"Heroic Resources Available to Spend >= 1\",\"text\":\"Spend",
-    "displayOverrides: undefined => {\"mode.m535\":\"Also affects a 3 burst originating from you; an enemy in both areas is only "
+    "displayOverrides: undefined => {\"mode.m532\":\"Also affects a 3 burst originating from you; an enemy in both areas is only "
    ],
    "behDiffs": [
     "#0 PowerRoll: tiers [\"5 sonic damage; I < weak, banshee howl (save ends)\",\"10 sonic damage; I < average, banshee howl (save ends)\" => [\"5 sonic damage; I<weak, banshee howl (save ends)\",\"10 sonic damage; I<average, banshee howl (save ends)\",\"15"
@@ -216,6 +220,7 @@
    "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"lo"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -224,7 +229,7 @@
     "targetFilter: \"not enemy\" => \"not Enemy\"",
     "modeList: [{\"rules\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Sanctified Weapon - Melee until you finish a respite.\",\"text\":\"",
     "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a",
-    "displayOverrides: undefined => {\"mode.m647\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\","
+    "displayOverrides: undefined => {\"mode.m644\":\"+1 rolled damage bonues with abilities that use your melee weapon attacks.\","
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -249,6 +254,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -281,6 +287,7 @@
    "targetAllegiance = \"ally\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -317,6 +324,7 @@
    "follow-up inheritRange = true"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -346,16 +354,14 @@
   "name": "Drain",
   "kind": "ability",
   "steps": {
-   "block": 5,
-   "advanced": 1,
+   "block": 6,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: a standard ability(standard)"
-   ]
+   "todos": []
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -364,7 +370,8 @@
     "numTargets: 1 => \"1\""
    ],
    "behDiffs": [
-    "#0 PowerRoll: filterTarget \"enemy\" => \"Enemy\""
+    "#0 PowerRoll: filterTarget \"enemy\" => \"Enemy\"",
+    "#1 InvokeAbility: applyto \"caster\" => undefined | autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | filterTarget \"\" => undefined | inheritRange true => undefined | invokeOnCaster true => undefined | promptText \"Select self or ally to spend recovery\" => undefined | runOnController false => undefined"
    ]
   },
   "renameDiff": [
@@ -402,6 +409,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -436,6 +444,7 @@
    "usageLimitOptions = {\"charges\":\"1\",\"multicharge\":false,\"resourceRefreshType\":\"lo"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -443,7 +452,7 @@
     "keywords: undefined => {}",
     "modeList: [{\"rules\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\",\"te => [{\"rules\":\"The target gets Improved Sanctified Weapon - Melee until you finish a respite.\"",
     "description: \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a => \"As a respite activity, you can bless a weapon. Any creature who wields the weapon gains a",
-    "displayOverrides: undefined => {\"mode.m1056\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\""
+    "displayOverrides: undefined => {\"mode.m1053\":\"+3 rolled damage bonues with abilities that use your melee weapon attacks.\""
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
@@ -468,6 +477,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -497,6 +507,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -524,6 +535,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -571,6 +583,7 @@
    "persistence = {\"cost\":2,\"enabled\":true,\"mode\":\"recast_maneuver\"}"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -621,6 +634,7 @@
    "persistence = {\"cost\":2,\"enabled\":true,\"mode\":\"recast_new\"}"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -649,6 +663,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -691,6 +706,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -735,6 +751,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -775,16 +792,14 @@
   "name": "Pounce",
   "kind": "ability",
   "steps": {
-   "block": 11,
-   "advanced": 1,
+   "block": 12,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: a standard ability(standard)"
-   ]
+   "todos": []
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -793,7 +808,8 @@
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
    ],
    "behDiffs": [
-    "#0 PowerRoll: tiers [\"8 damage; M < Weak, grabbed\",\"13 damage; M < Average, grabbed\",\"17 damage; M < Strong, grabbed\"] => [\"8 damage; M<weak, grabbed\",\"13 damage; M<average, grabbed\",\"17 damage; M<strong, grabbed\"]"
+    "#0 PowerRoll: tiers [\"8 damage; M < Weak, grabbed\",\"13 damage; M < Average, grabbed\",\"17 damage; M < Strong, grabbed\"] => [\"8 damage; M<weak, grabbed\",\"13 damage; M<average, grabbed\",\"17 damage; M<strong, grabbed\"]",
+    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"Shift up to 4 squares\" => undefined"
    ]
   },
   "renameDiff": [
@@ -831,6 +847,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -875,6 +892,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -923,6 +941,7 @@
    "PowerRoll: has its own roll modifiers (e.g. an edge)"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -957,6 +976,7 @@
    "targetAllegiance = \"ally\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -986,6 +1006,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1044,6 +1065,7 @@
    "channeledResource = \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1067,17 +1089,14 @@
   "name": "Get In Get Out",
   "kind": "ability",
   "steps": {
-   "block": 10,
-   "advanced": 2,
+   "block": 12,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: a standard ability(standard)",
-    "InvokeAbility: a standard ability(standard)"
-   ]
+   "todos": []
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1089,7 +1108,9 @@
    ],
    "behDiffs": [
     "#0 PowerRoll: filterTarget \"0 {This is just to display in the ability description.}\" => \"(0 {This is just to display in the ability description.})\"",
-    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | promptText \"Choose Target\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+    "#1 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"You can shift up to your speed, dividing that movement before or after your strike as desired.\" => undefined",
+    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | promptText \"Choose Target\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#3 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"You can shift up to your speed, dividing that movement before or after your strike as desired.\" => undefined"
    ]
   },
   "renameDiff": [
@@ -1127,6 +1148,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1176,6 +1198,7 @@
    "channeledResource = \"none\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1204,27 +1227,26 @@
   "name": "Minion Bridge",
   "kind": "ability",
   "steps": {
-   "block": 2,
-   "advanced": 2,
+   "block": 4,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: a standard ability(standard)",
-    "InvokeAbility: a standard ability(standard)"
-   ]
+   "todos": []
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
     "actionResourceId: \"a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b\" => \"<Maneuver>\"",
     "range: 1 => \"1\"",
-    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"InvokeAbility: a standard ability. The target spends 1 Heroic",
+    "modeList: [{\"text\":\"Normal\"},{\"rules\":\"An adjacent ally can shift alongside you\",\"text\":\"1 Essence\"} => [{\"text\":\"Normal\"},{\"rules\":\"You use Ally Shift. The target spends 1 Heroic Resource.\",\"te",
     "description: \"You shift into a square adjacent to the target, including vertically. You can shift into  => \"You shift into a square adjacent to the target, including vertically. You can shift into ",
-    "displayOverrides: undefined => {\"mode.m2755\":\"An adjacent ally can shift alongside you\"}"
+    "displayOverrides: undefined => {\"mode.m2752\":\"An adjacent ally can shift alongside you\"}"
    ],
    "behDiffs": [
+    "#0 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"Select the final square of your movement\" => undefined",
+    "#1 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"Select an adjacent ally to shift with you\" => undefined",
     "#2 Replenish: applyto undefined => \"targets\" | quantity undefined => \"1\""
    ]
   },
@@ -1249,6 +1271,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1280,6 +1303,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1318,22 +1342,22 @@
   "name": "Summoner Strike",
   "kind": "ability",
   "steps": {
-   "block": 0,
-   "advanced": 1,
+   "block": 4,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "DrawSteelCommand: {Reason*2} damage; R< Strong, slowed (save ends)"
-   ]
+   "todos": []
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
     "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\""
    ],
-   "behDiffs": []
+   "behDiffs": [
+    "#0 DrawSteelCommand: rule \"{Reason*2} damage; R< Strong, slowed (save ends)\" => \"{Reason * 2} damage; R<strong, slowed (save ends)\""
+   ]
   },
   "renameDiff": [
    "name"
@@ -1362,6 +1386,7 @@
    "channeledResource = \"none\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1389,6 +1414,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1410,26 +1436,26 @@
   "name": "Strike Now!",
   "kind": "ability",
   "steps": {
-   "block": 0,
-   "advanced": 1,
+   "block": 1,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: a standard ability(standard)"
-   ]
+   "todos": []
   },
   "hidden": [
    "targetAllegiance = \"ally\"",
    "channeledResource = \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
     "actionResourceId: \"d19658a2-4d7b-4504-af9e-1a5410fb17fd\" => \"<Main action>\"",
     "description: \"The target can make a signature attack as a free triggered action.\\n\\nSpend 5 Focus: You  => \"The target can make a signature attack as a free triggered action.\\n\\nSpend 5 Focus: You "
    ],
-   "behDiffs": []
+   "behDiffs": [
+    "#0 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"Strike Now!\" => undefined | runOnController true => undefined | standardAbilityParams undefined => {}"
+   ]
   },
   "renameDiff": [
    "name"
@@ -1441,13 +1467,10 @@
   "name": "Blot Out the Sun!",
   "kind": "ability",
   "steps": {
-   "block": 2,
-   "advanced": 1,
+   "block": 3,
+   "advanced": 0,
    "todo": 0,
-   "todos": [],
-   "advTypes": [
-    "InvokeAbility: Ranged Free Strike(standard)"
-   ]
+   "todos": []
   },
   "hidden": [
    "selfTarget = true",
@@ -1457,6 +1480,7 @@
    "follow-up runOnController = true"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1497,6 +1521,7 @@
    "proximityTargeting = true"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1504,7 +1529,7 @@
     "range: 10 => \"10\"",
     "modeList: [{\"text\":\"Normal\"},{\"rules\":\"When targeting an object with a solid reflective surface or a => [{\"text\":\"Normal\"},{\"text\":\"Reflective Surface\"}]",
     "description: \"When targeting an object with a solid reflective surface or a creature carrying or wearin => \"When targeting an object with a solid reflective surface or a creature carrying or wearin",
-    "displayOverrides: undefined => {\"mode.m3249\":\"When targeting an object with a solid reflective surface or a creature carr"
+    "displayOverrides: undefined => {\"mode.m3264\":\"When targeting an object with a solid reflective surface or a creature carr"
    ],
    "behDiffs": [
     "#0 PowerRoll: tiers [\"2 + R damage; M < weak, prone\",\"4 + R damage; M < average, prone\",\"6 + R damage; M < strong, prone\"] => [\"2 + R damage; M<weak, prone\",\"4 + R damage; M<average, prone\",\"6 + R damage; M<strong, prone\"]",
@@ -1552,6 +1577,7 @@
    "effect duration “1”"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1580,11 +1606,9 @@
    "todo": 0,
    "todos": []
   },
-  "hidden": [
-   "ApplyOngoingEffect: only on some tiers",
-   "ApplyOngoingEffect: only on some tiers"
-  ],
+  "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1592,8 +1616,8 @@
     "resourceCost: \"2d3d5511-4b80-46d1-a8c6-4705b9aa45ca\" => \"<Heroic Resource>\""
    ],
    "behDiffs": [
-    "#1 ApplyOngoingEffect: tiersSelected [1] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
-    "#2 ApplyOngoingEffect: tiersSelected [2] => undefined | applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#1 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
+    "#2 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
     "#3 ApplyOngoingEffect: applyto undefined => \"targets\" | stacks undefined => \"1\"",
     "#4 ApplyOngoingEffect: duration undefined => \"save_ends\" | stacks undefined => \"1\""
    ]
@@ -1635,6 +1659,7 @@
    "duration effect lingers 10"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1691,6 +1716,7 @@
    "option “Spend 1 Drama” has condition Resources.Heroic Resource >= 2"
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1701,7 +1727,7 @@
     "resourceNumber: undefined => \"1\"",
     "modeList: [{\"text\":\"Normal\"},{\"condition\":\"Resources.Heroic Resource >= 2\",\"rules\":\"You gain 4 speed => [{\"rules\":\"The target gets Star Power (save ends).\",\"text\":\"Normal\"},{\"rules\":\"The target ",
     "description: \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol => \"You gain a +2 bonus to speed until the end of your turn. Additionally, the next power rol",
-    "displayOverrides: undefined => {\"mode.m3745\":\"You gain 4 speed instead.\"}"
+    "displayOverrides: undefined => {\"mode.m3760\":\"You gain 4 speed instead.\"}"
    ],
    "behDiffs": [
     "#0 ApplyOngoingEffect: duration 0 => \"save_ends\" | ongoingEffectCustom false => \"4c781df8-6975-4cdb-839c-7f6547b94264\" | stacks undefined => \"1\"",
@@ -1733,6 +1759,7 @@
    "targetAllegiance = \"ally\""
   ],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1765,6 +1792,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [
@@ -1812,6 +1840,7 @@
   },
   "hidden": [],
   "problems": [],
+  "checks": [],
   "untouchedSame": true,
   "regen": {
    "fieldDiffs": [

@@ -2463,7 +2463,42 @@ function powerRollWith(dmg, ch) {
    and target, power roll tiers (tier grammar), and effect sentences matched against patterns (the
    importer's importerAbilityEffects table works the same way). Pasted wording becomes the card's text;
    sentences no pattern matches become "To build" blocks. */
+/* "If the target is already frightened ... they instead take psychic damage equal to twice your Presence
+   score." Rebuilds each tier that applies that condition behind a potency: the tier keeps the words for
+   the card, and two tier-only "Only if" steps do the work (not already X: X; already X: the other thing).
+   This is content's own "#" pattern, the one It Is Justice You Fear uses. */
+function insteadIfAlready(m, ctx) {
+  if (!ctx.pr) return null;
+  const cond = CONDITIONS.find(c => c.toLowerCase() === m[1].toLowerCase()); if (!cond) return null;
+  const inst = m[2].trim().replace(/\.$/, "");
+  const makeInstead = () => {
+    let k;
+    if ((k = inst.match(/^take (?:(\w+) )?damage equal to (twice |three times )?your (might|agility|reason|intuition|presence)(?: score)?$/i))) {
+      const d = STEPS.damage.make(); d.f.dtype = k[1] && DMG_TYPES.includes(k[1].toLowerCase()) ? k[1].toLowerCase() : "untyped";
+      d.slots.amount = holderFromText("roll", "damage", cap(k[3].toLowerCase()) + (k[2] ? (/twice/i.test(k[2]) ? " * 2" : " * 3") : "")); return d; }
+    if ((k = inst.match(/^take (\d+) (?:(\w+) )?damage$/i))) { const d = STEPS.damage.make(); d.f.dtype = k[2] && DMG_TYPES.includes(k[2].toLowerCase()) ? k[2].toLowerCase() : "untyped"; d.slots.amount = holderFromText("roll", "damage", k[1]); return d; }
+    if ((k = inst.match(/^(?:are|is|become|becomes) (\w+) \((save ends|eot)\)$/i))) { const c = CONDITIONS.find(x => x.toLowerCase() === k[1].toLowerCase()); if (!c) return null; const st = STEPS.condition.make(); st.f.cond = c; st.f.dur = /eot/i.test(k[2]) ? "EoT" : "save ends"; return st; }
+    return null;
+  };
+  if (!makeInstead()) return null;
+  let rebuilt = 0;
+  ["t1", "t2", "t3"].forEach(t => {
+    const list = ctx.pr.branches[t];
+    const i = list.findIndex(x => x.type === "potency" && x.branches.then.some(y => y.type === "condition" && y.f.cond === cond));
+    if (i < 0) return;
+    const pot = list[i], c0 = pot.branches.then.find(y => y.type === "condition" && y.f.cond === cond);
+    const words = STEPS.note.make(); words.f.text = pot.f.ch[0] + " < " + String(pot.f.tier).toUpperCase() + ", " + cond.toLowerCase() + (c0.f.dur === "none" ? "" : " (" + c0.f.dur + ")");
+    const test = 'not Cast.PassesPotency(Target, "' + pot.f.ch[0] + '", "' + cap(String(pot.f.tier)) + '")';
+    const a = STEPS.ifStep.make(); a.slots.cond = holderFromText("boolean", "stepIf", test + ' and not Target.Conditions has "' + cond + '"');
+    const keep = STEPS.condition.make(); keep.f.cond = cond; keep.f.dur = c0.f.dur; a.branches.then.push(keep);
+    const b = STEPS.ifStep.make(); b.slots.cond = holderFromText("boolean", "stepIf", test + ' and Target.Conditions has "' + cond + '"');
+    b.branches.then.push(makeInstead());
+    list.splice(i, 1, words, a, b); rebuilt++;
+  });
+  return rebuilt ? [] : null;
+}
 const SENTENCE_PATTERNS = [
+  { re: /^if the target is already (\w+)(?: of you or another creature)?(?: and this ability would \w+ them again)?,? (?:they|the target) (?:instead )?(.+?)(?: instead)?$/i, build: (m, ctx) => insteadIfAlready(m, ctx) },
   { re: /^you (shift|move|jump|teleport) up to your speed( in a straight line)?(, and enemy squares are not difficult terrain for this movement)?$/i,
     build: (m, ctx) => { const mv = STEPS.move.make(); Object.assign(mv.f, { who: "caster", how: m[1].toLowerCase(), dist: "speed", line: m[2] ? "straight" : "free", through: m[3] ? "yes" : "no" }); ctx.lastMove = mv; return [mv]; } },
   { re: /^you make one power roll that targets each (enemy|creature|ally) whose space you move through$/i,
@@ -2574,7 +2609,31 @@ function cleanPastedText(raw) {
     .replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
     .replace(/[^\x09\x0a\x0d\x20-\x7e\u2264\u2013\u2014]/g, " "); // icons (tier, distance, target) become spaces
 }
+/* Markdown from the Steel Compendium (steelcompendium.io) and similar sites: links keep their words, bold
+   and italic marks go, table rows become plain lines ("Magic, Ranged, Strike Main action", "Ranged 10
+   One creature"), "- **12-16:**" becomes a tier line, and "## Name (5 Wrath)" a header. An italic first
+   line is the flavor; with no name above it, the ability is named "Pasted ability" for the author to rename. */
+function markdownToPlain(raw) {
+  if (!/\]\(https?:|^\s*\||\*\*|^#{1,6}\s/m.test(raw)) return { text: raw, md: false };
+  let lines = raw.split(/\n/).map(l => l.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"));
+  let named = false;
+  const out = [];
+  lines.forEach(l => {
+    let t = l.trim();
+    if (!t) return;
+    if (/^\|?\s*:?-{3,}/.test(t)) return;                         // table separator row
+    if (/^#{1,6}\s/.test(t)) { out.push(t.replace(/^#{1,6}\s+/, "").replace(/\*\*/g, "")); named = true; return; }
+    if (/^\|/.test(t)) { t = t.replace(/^\||\|$/g, "").split("|").map(c => c.replace(/\*\*|__/g, "").trim()).filter(Boolean).join(" "); out.push(t); return; }
+    const italicOnly = /^\*[^*].*\*$/.test(t) || /^_[^_].*_$/.test(t);
+    t = t.replace(/^[-*+]\s+/, "").replace(/\*\*|__/g, "").replace(/(^|\s)\*([^*]+)\*(?=\s|$|[.,;:])/g, "$1$2").replace(/^\*|\*$/g, "");
+    t = t.replace(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s*:\s*/i, "$1 ");   // "12-16: 12 + M..." -> tier line
+    if (italicOnly && !out.length) { out.push("Pasted ability"); named = false; }
+    out.push(t);
+  });
+  return { text: out.join("\n"), md: true, unnamed: out[0] === "Pasted ability" };
+}
 function importAbilityText(raw) {
+  const mdr = markdownToPlain(raw); raw = mdr.text;
   raw = cleanPastedText(raw);
   const lines = raw.split(/\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
   const a = newAbility(); a.keywords = []; a.overrides = {}; a.resourceWord = null;
@@ -2623,7 +2682,7 @@ function importAbilityText(raw) {
     }
   }
   // Effect paragraphs and the power roll, in order.
-  let pr = null, para = null, paraKey = "effectBefore";
+  let pr = null, para = null;
   const flushPara = () => { if (!para) return;
     const sp = para.label.match(/^Spend (\d+)\+? ([A-Za-z ]+)$/);
     if (sp) {
@@ -2633,10 +2692,14 @@ function importAbilityText(raw) {
       mb.branches["o" + o.id] = parseEffectParagraph(para.text, ctx);
       a.overrides["mode." + o.id] = { text: para.text, basis: null };
       ctx.report.push("Option: " + para.label); para = null; return;
-    } a.overrides[paraKey] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})[paraKey] = para.label; a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
+    }
+    // Pasted paragraphs are the book's own wording, so they become the saved description (one entry each).
+    a.descParas = a.descParas || []; const di = a.descParas.length; a.descParas.push({ label: para.label, text: "" });
+    a.overrides["desc" + di] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})["desc" + di] = para.label;
+    a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
   for (; i < lines.length; i++) {
     const l = lines[i]; let m;
-    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; ctx.rollChar = pr.f.char; a.steps.push(pr); paraKey = "effect"; ctx.report.push("Power roll + " + pr.f.char); continue; }
+    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); ctx.pr = pr; pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; ctx.rollChar = pr.f.char; a.steps.push(pr); ctx.report.push("Power roll + " + pr.f.char); continue; }
     if (pr && (m = l.match(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s+(.+)$/i))) {
       const k = /^(\u2264|11)/.test(m[1]) ? "t1" : /^12/.test(m[1]) ? "t2" : "t3";
       ctx.tier = k; pr.branches[k] = parseTierText(m[2], ctx); ctx.tiersSeen++; continue;
@@ -2649,6 +2712,8 @@ function importAbilityText(raw) {
     if (para) para.text += " " + l;   // a wrapped line continues the paragraph
   }
   flushPara();
+  if (mdr.md) ctx.report.push("Markdown cleaned up");
+  if (mdr.unnamed) ctx.noName = true;
   return { ability: a, ctx };
 }
 function pasteDialog() {
@@ -2666,7 +2731,8 @@ function pasteDialog() {
   go.addEventListener("click", () => {
     const { ability, ctx } = importAbilityText(ta.value);
     ab = ability; registerScopes(ab); insertAt = null; editingId = null; compiledCache = null; closePopups(); refresh();
-    toast("Read: " + ctx.report.length + " lines of header and " + ctx.matched + " effect sentence" + (ctx.matched === 1 ? "" : "s") + " built. " + (ctx.todo ? ctx.todo + " to build by hand." : "Nothing left to build.") + (ctx.guesses ? " " + ctx.guesses + " guess" + (ctx.guesses === 1 ? "" : "es") + " marked \u201ccheck\u201d." : ""), true);
+    if (ctx.noName) toast("No name in the pasted text: it's called \u201cPasted ability\u201d until you rename it.", true);
+    else toast("Read: " + ctx.report.length + " lines of header and " + ctx.matched + " effect sentence" + (ctx.matched === 1 ? "" : "s") + " built. " + (ctx.todo ? ctx.todo + " to build by hand." : "Nothing left to build.") + (ctx.guesses ? " " + ctx.guesses + " guess" + (ctx.guesses === 1 ? "" : "es") + " marked \u201ccheck\u201d." : ""), true);
   });
   row.appendChild(go); row.appendChild(sample); m.appendChild(row);
   document.body.appendChild(m); m.style.left = Math.max(8, (window.innerWidth - m.offsetWidth) / 2) + "px"; m.style.top = (window.scrollY + 90) + "px"; popup = m;
@@ -2876,6 +2942,8 @@ function renderSide(c) {
       else effects.push(p.text + ".");
     }
     flush("effect");
+    // Wording with nothing generated under it (its blocks all sit inside tiers) still prints on the card.
+    ["effectBefore", "effect"].forEach(k => { if ((ab.overrides || {})[k] && !seq.some(x => x.key === k)) seq.push({ type: "para", key: k, label: "Effect", html: "" }); });
     // The book doesn't print filters or requirements on the card; they are listed under it instead.
     if (!c.tf.empty) cardNotes.push("Only affects creatures where " + c.tf.prose + ".");
     c.reqs.forEach(r => { if (!r.c.empty) cardNotes.push("Can only be used if " + r.c.prose + (r.reason ? " (\u201c" + r.reason + "\u201d)" : "") + "."); });

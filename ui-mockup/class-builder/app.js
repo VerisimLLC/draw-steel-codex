@@ -419,12 +419,12 @@ function testStats() {
     ["Heroic Resources This Turn", "the most " + r + " you've had this turn", q => "you have had " + q + " " + r + " this turn"],
     ["Combat Round", "the combat round", q => "the combat round is " + q]];
 }
-/* Yes/no facts about you: [type, block text, GoblinScript, book wording, negated book wording]. */
-const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strained", "you are not Strained"],
-  ["winded", "You are winded", "Stamina <= Maximum Stamina / 2", "you are winded", "you are not winded"],
-  ["dying", "You are dying", "Dying", "you are dying", "you are not dying"],
-  ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn"],
-  ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat"]];
+/* Yes/no facts about you: [type, block text, GoblinScript, book wording, negated book wording, negated block text]. */
+const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strained", "you are not Strained", "You are not Strained"],
+  ["winded", "You are winded", "Stamina <= Maximum Stamina / 2", "you are winded", "you are not winded", "You are not winded"],
+  ["dying", "You are dying", "Dying", "you are dying", "you are not dying", "You are not dying"],
+  ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn", "It is not your turn"],
+  ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat", "You are not in combat"]];
 const fact = t => TEST_FACTS.find(x => x[0] === t);
 const isNum = v => /^-?\d+(\.\d+)?$/.test(String(v).trim());
 /* The engine formula for a test (an empty test counts as true, but the status column flags it). */
@@ -471,7 +471,13 @@ function renderTest(parent, key, required) {
   switch (x.t) {
     case "cond": add(lbl("You are")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
     case "cmp": add(pickTok(x, "a", testStats().map(s => [s[0], s[1]]))); add(pickTok(x, "op", TEST_OPS)); add(textTok(x, "n", "0")); break;
-    case "not": add(lbl("Not")); add(renderTest(x, "a")); break;
+    case "not": {
+      // "Not [You are Strained]" reads as one test: "You are not Strained". Numbers and lists keep the "Not".
+      const y = x.a;
+      if (y && fact(y.t)) { add(lbl(fact(y.t)[5])); break; }
+      if (y && y.t === "cond") { add(lbl("You are not")); add(pickTok(y, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break; }
+      add(lbl("Not")); add(renderTest(x, "a")); break;
+    }
     case "raw": add(lbl("Formula")); add(textTok(x, "src", "GoblinScript test", 30)); break;
     case "all": case "any": {
       const head = E("div", "listhead", x.t === "all" ? "All of these are true" : "Any of these is true"); head.appendChild(clear()); add(head);
@@ -490,7 +496,8 @@ function openTestPicker(anchor, parent, key) {
   const cmp = (a, n) => () => ({ t: "cmp", a, op: ">=", n });
   const groups = [
     ["Strained (Talent)", "Whether you are, or are not, Strained.", [["You are Strained", () => ({ t: "strained" })], ["You are not Strained", () => ({ t: "not", a: { t: "strained" } })]]],
-    ["Check a condition", "Prone, slowed, grabbed, and so on.", T.conditions.map(c => ["You are " + c[1].toLowerCase(), () => ({ t: "cond", c: c[1] })])],
+    ["Check a condition", "Prone, slowed, grabbed, and so on.", T.conditions.map(c => ["You are " + c[1].toLowerCase(), () => ({ t: "cond", c: c[1] })])
+      .concat([["You are not [ ]", () => ({ t: "not", a: { t: "cond", c: "Slowed" } }), "Any condition: change it after."]])],
     ["Check health", "Winded, dying, or how much Stamina is left.", [["You are winded", () => ({ t: "winded" }), "Stamina is at half or less."],
       ["Your Stamina is at most [ ]", () => ({ t: "cmp", a: "Stamina", op: "<=", n: "10" })], ["You are dying", () => ({ t: "dying" })]]],
     ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],

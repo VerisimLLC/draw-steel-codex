@@ -261,8 +261,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             if selfIsTarget then
                 return
             end
-            local friends = token:IsFriend(triggerTarget)
-            if friends then
+            if not IsEnemyOf(token, triggerTarget) then
                 return
             end
         end
@@ -402,8 +401,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             if selfIsTarget then
                 return false
             end
-            local friends = token:IsFriend(triggerTarget)
-            if friends then
+            if not IsEnemyOf(token, triggerTarget) then
                 return false
             end
         end

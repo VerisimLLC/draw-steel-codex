@@ -1470,7 +1470,7 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
                 return
             end
         elseif subjectTarget == "enemy" then
-            if casterToken:IsFriend(subjectToken) then
+            if not IsEnemyOf(casterToken, subjectToken) then
                 if argOptions.debugLog then
                     argOptions.debugLog[#argOptions.debugLog+1] = {
                         name = self.name,

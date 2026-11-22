@@ -499,3 +499,15 @@ ability"). Engine work: `modifyability` and similar filters need to accept an id
 formula; until then the editor can write the name formula and warn on rename. Opening content: a name
 formula that matches exactly one ability by name opens as that ability (and can be converted to the id
 on save); anything more complex stays a formula.
+
+**4. Class editor layout: levels as lanes, ready-made features (2026-11-22).** Approved from the design
+visuals (`ui-mockup/modifier-blocks-design.html`, panel 6). Levels (and Encounters 1-4 when the slow start
+toggle is on) are lanes; a feature is a container holding its name, its book text and modifier sentences;
+features are dragged onto a level from a shelf. The shelf offers ready-made features for what core classes
+repeat (Skills 69, Perk 54, Choose a heroic ability ~45, Characteristic Increase 33, Subclass choice 12,
+Recoveries 11, Signature ability 9, Kit 7, Languages, Heroic resource gain) and an empty feature built from
+sentences. Ready-made features are saved templates that a table or organisation can extend; dragging one in
+copies it, so editing the copy never changes the template, and every sentence inside stays editable. The
+preview shows the level as the book prints it ("2nd-Level Features", each feature's name, text and ability
+cards). Next step: a working board in the prototype on real Shadow data, with the class open-and-save test.
+

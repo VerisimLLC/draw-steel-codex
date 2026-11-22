@@ -205,7 +205,7 @@ const lbl = t => document.createTextNode(" " + t + " ");
 // Sentence blocks: what a feature does. Each one: shelf label, group, a book-style sentence with
 // underlined values, and the CharacterModifier record it saves as.
 const GROUPS = [["choice", "Choices", "--c-choice"], ["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
-  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"], ["grow", "Growing table", "--c-grow"]];
+  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"], ["grow", "Growing table", "--c-grow"], ["area", "Auras", "--c-area"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
@@ -297,21 +297,34 @@ const SENT = {
     },
     prose: f => "You have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] + " on " +
       (f.on === "tests" ? "tests" + (f.skills.length ? " using " + listWords(f.skills.map(i => lookupName(T.skills, i))) : "") : (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls") +
-      (f.applies === "choose" ? " (you choose when to use this)" : "") + ".",
-    compile: (f, feat) => modBase(feat, { behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
+      appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
       keywords: f.on === "abilities" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [],
-      skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, activationCondition: f.applies === "always", displayCondition: "" }) },
+      skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, displayCondition: "" }, appliesFields(f))) },
   enemy: { desc: "Abilities used against you have a bane (or edge).", label: "Rolls against you", group: "rolls", uses: 252, make: () => ({ mod: "bane", keywords: [] }),
     render: (f, add) => { add(lbl("Abilities")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "of any kind", "and")); add(lbl("used against you have"));
       add(pickTok(f, "mod", [["bane", "a bane"], ["double_bane", "a double bane"], ["edge", "an edge"]])); },
+    prose: f => (f.keywords.length ? listWords(f.keywords, "and") + " abilities" : "Abilities") + " used against you have " + { bane: "a bane", double_bane: "a double bane", edge: "an edge" }[f.mod] + ".",
     compile: (f, feat) => modBase(feat, { behavior: "power", modtype: f.mod, rollType: "enemy_ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: true }) },
   damage: { desc: "Your abilities deal extra damage, optionally only with some keywords or a damage type.", label: "Extra damage", group: "rolls", uses: 208, make: () => ({ amount: "2", dtype: "", keywords: [], applies: "always" }),
     render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "damaging", "and")); add(lbl("abilities deal"));
       add(fxTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); appliesPhrase(f, add); },
-    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities deal " + f.amount + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" + (f.applies === "choose" ? " (you choose when to use this)" : "") + ".",
-    compile: (f, feat) => { const r = modBase(feat, { behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: fxFormula(f, "amount"),
-      keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: f.applies === "always" });
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities deal " + f.amount + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" + appliesProse(f) + ".",
+    compile: (f, feat) => { const r = modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: fxFormula(f, "amount"),
+      keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f)));
       if (f.dtype) r.damageModifierType = f.dtype; return r; } },
+  outcome: { desc: "Change a roll's outcome: always tier 3, never tier 1, one tier better or worse. Optionally for a cost.", label: "Change the outcome", group: "rolls", uses: 12,
+    make: () => ({ out: "tier3", keywords: [], applies: "cost", costN: "1", costRes: "cost" }),
+    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls"));
+      add(pickTok(f, "out", OUTCOMES)); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls " + (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.out, rollType: "ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
+  potency: { desc: "Raise or lower the potency of your abilities (or of ones used against you). Optionally for a cost.", label: "Change potency", group: "rolls", uses: 30,
+    make: () => ({ dir: "up", n: "1", keywords: [], applies: "always" }),
+    render: (f, add) => { add(lbl("The potency of your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("abilities"));
+      add(pickTok(f, "dir", [["up", "increases by"], ["down", "decreases by"]])); add(textTok(f, "n", "1")); appliesPhrase(f, add); },
+    prose: f => "The potency of your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities " + (f.dir === "up" ? "increases" : "decreases") + " by " + f.n + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1), keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
   immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(fxTok(f, "amount", "amount")); },
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
@@ -329,11 +342,11 @@ const SENT = {
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
   ability: { desc: "Grant an ability. Opens the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
-    render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec, problems: f.problems }], feat, (i, rec, d, problems) => { f.rec = rec; f.problems = problems; }, null, s)); },
-    compile: (f, feat) => f.rec ? modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }) : null },
+    render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec, problems: f.problems }], feat, (i, rec, d, problems) => { f.rec = rec; f.problems = problems; }, null, s)); usagePhrase(f, add); },
+    compile: (f, feat) => f.rec ? usageFields(modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }), f) : null },
   trigger: { desc: "Grant a triggered ability. Opens the ability editor in triggered mode.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
-    render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true, problems: f.problems }], feat, (i, rec, display, problems) => { f.rec = rec; f.display = display; f.problems = problems; }, null, s)); },
-    compile: (f) => f.rec ? Object.assign({}, f.rec) : null, extra: f => f.display ? [f.display] : [] },
+    render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true, problems: f.problems }], feat, (i, rec, display, problems) => { f.rec = rec; f.display = display; f.problems = problems; }, null, s)); usagePhrase(f, add); },
+    compile: (f) => f.rec ? usageFields(Object.assign({}, f.rec), f) : null, extra: f => f.display ? [f.display] : [] },
   modAbility: { desc: "Change an ability: more distance, more targets, or a keyword.", label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
     render: (f, add) => {
       add(lbl("Your")); add(abilityNameTok(f)); add(lbl("ability gains"));
@@ -380,6 +393,9 @@ const SENT = {
       rows.appendChild(more);
       add(rows);
     } },
+  aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "area", uses: 28, wrapper: true, featName: "",
+    make: () => ({ radius: "3", who: "selfandfriends" }),
+    render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
   onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
       const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
@@ -391,9 +407,34 @@ const ONLY_IF = [["victories", "you have at least", f => "Victories >= " + (f.n 
   ["hrturn", "you've had at least", f => "Heroic Resources This Turn >= " + (f.n || 0), f => "you have had " + (f.n || 0) + " or more " + resWord() + " this turn", "resource this turn"],
   ["winded", "you are winded", () => "Stamina <= Maximum Stamina / 2", () => "you are winded"], ["strained", "you are Strained", () => "Strained", () => "you are Strained"],
   ["formula", "a formula is true", f => f.formula || "1", () => "a condition is met"]];
+// Outcome changes (power modifier modtypes as content uses them).
+const OUTCOMES = [["tier3", "have a tier 3 outcome"], ["nottierone", "can't have a tier 1 outcome"], ["tierup", "are improved by one tier"], ["tierdown", "are worsened by one tier"], ["nottierthree", "can't have a tier 3 outcome"], ["tier1", "have a tier 1 outcome"]];
+/* Usage limits: "Usable [1] time [per round]" (the modifier's resourceRefreshType and numCharges).
+   "respite" is the engine's long rest; "victory" refreshes when you earn a Victory. */
+const LIMITS = [["none", "any number of times"], ["turn", "per turn"], ["round", "per round"], ["encounter", "per encounter"], ["long", "per respite"], ["victory", "until you earn a Victory"]];
+function usagePhrase(f, add) {
+  const row = E("div", "usage"); row.appendChild(lbl("Usable"));
+  if (f.limit && f.limit !== "none") { if (f.uses == null) f.uses = "1"; row.appendChild(textTok(f, "uses", "1")); row.appendChild(lbl(+f.uses === 1 ? "time" : "times")); }
+  row.appendChild(pickTok(f, "limit", LIMITS, "any number of times")); add(row);
+}
+function usageFields(r, f) {
+  if (f.limit && f.limit !== "none") { r.resourceRefreshType = f.limit; if (String(f.uses || "1") !== "1") r.numCharges = numOr(f.uses); }
+  return r;
+}
+const AURA_WHO = [["selfandfriends", "You and each ally"], ["friends", "Each ally"], ["enemies", "Each enemy"], ["all", "Each creature"], ["allother", "Each other creature"]];
 const numOr = v => /^-?\d+$/.test(String(v).trim()) ? +v : String(v).trim();
 /* "always applies / you choose when you roll": one phrase in place of the engine's activation fields. */
-function appliesPhrase(f, add) { add(lbl(",")); add(pickTok(f, "applies", [["always", "always applies"], ["choose", "you choose when you roll"]])); }
+/* "always applies / you choose when you roll / you can spend [1] [wrath]": one phrase for the power
+   modifier's activation and cost fields. A cost makes it optional: the player pays when they roll. */
+function appliesPhrase(f, add) {
+  add(lbl(",")); add(pickTok(f, "applies", [["always", "always applies"], ["choose", "you choose when you roll"], ["cost", "if you spend"]]));
+  if (f.applies === "cost") { if (f.costN == null) f.costN = "1"; add(textTok(f, "costN", "1")); add(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); add(lbl("when you roll")); }
+}
+function appliesFields(f) {
+  if (f.applies === "cost") return { activationCondition: true, resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") };
+  return { activationCondition: f.applies === "always" };
+}
+const appliesProse = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
 function abilityNameTok(f) {
   const names = allAbilityNames();
   return tok(f.name || "choose an ability", b => menuAt(b, m => {
@@ -418,7 +459,7 @@ function newOption(f, feat) {
 }
 const recName = rec => rec.__typeName === "CharacterModifier" ? ((rec.triggeredAbility || {}).name || rec.name) : rec.name;
 /* The block lists inside a block: an Only if's children, or each row of a growing table. */
-const childLists = s => s.type === "onlyIf" ? [s.children] : s.type === "growing" ? s.f.rows.map(r => r.blocks) : [];
+const childLists = s => s.children ? [s.children] : s.type === "growing" ? s.f.rows.map(r => r.blocks) : [];
 const resWord = () => (cls && cls.resourceName || "resource").toLowerCase();
 /* A row's text: its blocks in words. The sheet's short text is the first sentence, trimmed. */
 function growRowProse(r) { return sentenceProse({ sentences: r.blocks }); }
@@ -518,13 +559,15 @@ function sentenceProse(f) {
   const out = [];
   (function walk(list, prefix) { list.forEach(s => {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test) || ONLY_IF[0]; walk(s.children, "If " + t[3](s.f) + ", "); return; }
+    if (s.type === "aura") { const who = (AURA_WHO.find(x => x[0] === s.f.who) || ["", "Each creature"])[1].toLowerCase(); walk(s.children, "While within " + s.f.radius + " squares of you, " + who + ": "); return; }
     if (s.type === "growing") { s.f.rows.forEach(r => { const t = r.text || growRowProse(r); if (t) out.push("At " + r.at + " " + resWord() + (+r.level > 1 ? " (level " + r.level + "+)" : "") + ": " + t.replace(/\.?$/, ".")); }); return; }
     if (s.type === "ability" || s.type === "trigger") return;
     // An unfinished block stays out of the book text (the status column lists it instead).
     if ((REQUIRED[s.type] || []).some(k => { const v = s.f[k]; return v == null || v === "" || (Array.isArray(v) && !v.length); })) return;
-    if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f, f)); return; }
-    const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
-    let t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
+    let t;
+    if (SENT[s.type].prose) t = SENT[s.type].prose(s.f, f);
+    else { const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
+      t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim(); }
     if (prefix) t = prefix + t.charAt(0).toLowerCase() + t.slice(1);
     out.push(t.replace(/[.,]?$/, "."));
   }); })(f.sentences || [], "");
@@ -585,6 +628,11 @@ const ORD = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12
 function compileSentences(list, feat, filter) {
   const out = [];
   for (const s of list) {
+    if (s.type === "aura") {
+      const inner = compileSentences(s.children, feat);
+      const r = modBase(feat, { behavior: "aura", radius: String(s.f.radius || "1"), aura: { __typeName: "Aura", name: feat.name, description: feat.text || "", applyto: s.f.who, modifiers: inner } });
+      if (filter) r.filterCondition = filter; out.push(r); continue;
+    }
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + t[2](s.f) + ")")); continue; }
     if (s.type === "growing") {
       const rows = s.f.rows.filter(r => /^\d+$/.test(String(r.at).trim()));
@@ -1147,7 +1195,7 @@ function renderSentence(s, list, i, feat) {
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
     if (!d.wrapper && !d.choice && !d.container) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
-    if (d.wrapper) item("Remove the “Only if” (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
+    if (d.wrapper) item("Remove the \u201c" + d.label.replace(/\.\.\.$/, "") + "\u201d (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
     const delItem = E("button", null, "Delete"); delItem.type = "button";
     delItem.addEventListener("click", () => { closeMenu(); pendingFk = "addsent:" + feat.id; change(() => { list.splice(i, 1); }); toast("Deleted \u201c" + d.label + "\u201d.", { label: "Undo", run: undo }); }); m.appendChild(delItem);
   }); });
@@ -1276,6 +1324,7 @@ function featureIssues(f, lane) {
   (function walk(list) { list.forEach(s => {
     const d = SENT[s.type];
     if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " does nothing yet (only its sheet text shows).", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
+    if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
     if (s.type === "onlyIf" && !s.children.length) add("An \u201cOnly if\u201d in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
     if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,

@@ -879,3 +879,36 @@ can make.
 | Suppress abilities, forced movement swaps, bestow condition, alternate appearance, journal explanation, power-table additional | 1-3 each | - | Rare | Advanced block (saved untouched) |
 | Ability category names (`abilityCategoryNames`) | 4 classes | Conduit, Elementalist, Fury... | "Signature Prayer" / "Heroic Spells" | Basics row: "Your abilities are called [Prayers]" |
 | Subclasses (`subclasses` table: `primaryClassId`, own levels and checklist) | 33 subclasses | all | Subclass features at levels 1-10 | The same builder in "subclass" mode: lanes, no basics, linked to the class |
+
+## 17. Cross-class gaps 1-4 built (2026-11-22)
+
+1. **Effects inside abilities.**
+   - **Where they are:** the survey's 51 "effects defined in a feature" are actually the
+     `momentaryEffect` of "While this ability resolves" steps (`ActivatedAbilityApplyAbilityDurationEffect`)
+     inside abilities and triggers. That makes them an ability editor gap.
+   - **The fix:** the ability editor's block now lists the effect's rules as lines, in read mode like
+     every block: change a stat (43 of the 67 rules), edge or bane, and extra damage. Each has
+     "+ rule" and ✕. Other rules (triggers 11, resistance, modify ability) show as "kept as it is" and
+     save unchanged.
+   - **Safety:** edits change the modifier in place, on a copy taken when the ability opens. The three
+     save-back test samples are still identical (45/45, 60/60, 1,148/1,148), and an opened ability's
+     effect saves byte-identical when untouched.
+2. **Usage limits.**
+   - **The phrase:** ability and trigger blocks have "Usable [1] time [per turn | per round | per
+     encounter | per respite | until you earn a Victory]".
+   - **Saved as:** the modifier's `resourceRefreshType` and `numCharges`. Respite is the engine's
+     "long"; "victory" is Draw Steel's own refresh type (`Resource.lua` 475-545).
+3. **Power roll options with a cost.**
+   - **The cost choice:** the roll blocks' "applies" phrase has a third choice, "if you spend [1]
+     [wrath | surges | epic resource] when you roll". It saves `resourceCostType` cost/surges/epic,
+     `resourceCostAmount`, and `activationCondition` true, as content does
+     (`CharacterModifier.lua:3719`).
+   - **New Rolls blocks:** "Change the outcome" (tier 3, not tier 1, up or down a tier, not tier 3,
+     tier 1; content's modtypes) and "Change potency" (`potencymod`).
+4. **Auras.** An Aura block (its own group): "You have an aura of [3] squares. [You and each ally | Each
+   ally | Each enemy | Each creature | Each other creature] in it:" with blocks inside. It saves the
+   `aura` modifier with `radius` and an `Aura` holding the inner modifiers and `applyto`. Rebuilding
+   Censor's Blessing of Iron gives content's shape.
+
+Also fixed: wording from a block with its own sentence lost the "If ..." or "While within ..." lead-in
+of the Only if or aura around it.

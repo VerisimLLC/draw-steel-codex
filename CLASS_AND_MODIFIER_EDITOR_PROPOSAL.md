@@ -511,3 +511,40 @@ copies it, so editing the copy never changes the template, and every sentence in
 preview shows the level as the book prints it ("2nd-Level Features", each feature's name, text and ability
 cards). Next step: a working board in the prototype on real Shadow data, with the class open-and-save test.
 
+
+## 10. Working prototype: Class Builder (2026-11-22)
+
+Asked for: a shareable HTML prototype that is a class builder, to test making modifiers and abilities.
+At the designer's request it starts from a **blank class** (no core class data is loaded).
+Source: `ui-mockup/class-builder/` (`index.html`, `app.js`, `tables.js` built by
+`ui-mockup/class-builder-data/build_data.py` from the compendium's skills, languages, conditions,
+damage types, custom attributes and resources).
+
+- **Board:** Basics (characteristics and arrays, Stamina, what subclasses are called), the heroic resource
+  (name, epic resource, and "how you gain it" sentences), then level lanes. The slow start toggle adds
+  Encounters 1-4 and "1st level, after the slow start"; turning it on moves 1st-level features into
+  Encounter 1, and turning it off asks before moving encounter features into 1st level.
+- **Ready-made features** (drag onto a level or click): Perk, Skills, Characteristic Increase, Choose a
+  heroic ability (with its cost), Signature ability, Subclass choice, Kit, Recoveries, Languages, Feature
+  with an ability, Feature with a triggered ability, Empty feature. Each saves as the record shape core
+  classes use (`CharacterFeatChoice`, `CharacterSkillChoice`, `CharacterFeatureList` + choice, ...).
+- **Sentences** (Section 4.2): change a stat, movement type, "you have" a custom attribute, edge or bane on
+  tests/ability rolls (with the "always applies / you choose" phrase), rolls against you, extra damage,
+  immunity or weakness, can't be (condition), skill, language, Recoveries or a resource, kit, gain an
+  ability, gain a triggered ability, change an ability (by name), reminder, and "Only if" (Victories,
+  level, winded, Strained, or a formula) which writes `filterCondition` on what's inside. "Show saved
+  fields" puts each sentence's record under it.
+- **Abilities and triggers** open the simple ability editor in a pop-up (its new `?embed=1` mode: the
+  builder sends the record, Done sends the saved record back). A heroic choice's new ability starts with
+  the choice's cost and the class's resource name.
+- **Resource gains** write both the checklist line and the trigger that grants it, linked by
+  `checklistid` (decision 2: the trigger wins); the triggers sit in a hidden feature in the first level.
+- **Book page** tab: Basics, an Advancement table generated from the levels, the resource, and each
+  level's features with their text and ability cards. A feature without its own text reads as its
+  sentences. **Saved data** tab: the open feature's record and the whole class record, with Copy.
+- **Sharing:** Export gives the builder's own class as text to copy; Import opens it (pasted or a .json
+  file). Work in progress is kept in the viewer's browser.
+
+Checks to make before relying on these records: weakness is saved as negative damage reduction; perk
+group tags are written as "<group> perk"; movement attributes other than fly and climb (`swim`, `burrow`)
+are assumed ids.

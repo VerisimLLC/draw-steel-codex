@@ -150,7 +150,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .scope-banner ul { margin: 0; padding-left: 18px; color: var(--fg); }
 .scope-banner p { margin: 0; color: var(--dim); font-size: 12.5px; }
 .scope-banner .sb-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.scope-banner .btn.primary { border-color: var(--gold); color: var(--gold); }
+.scope-banner .btn.primary, .dlg-head .btn.primary { border-color: var(--gold); color: var(--gold); }
 .step.cat-raw > .bar { outline: 1px dashed rgba(216,168,74,.6); outline-offset: -3px; }
 .status.warn .dot { background: var(--gold); }
 ul.problems.checks li { border-left-color: var(--gold); }
@@ -4298,7 +4298,10 @@ function openForEditing(rec, display) {
 /* Your work in progress is kept in this browser only (localStorage), so a reload does not lose it.
    It never leaves the browser and other people do not see it. */
 const DRAFT_KEY = "abilityBlocksDraft";
-function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(ab)); } catch (e) {} }
+/* Embedded in the class builder (?embed=1): it sends a record to edit and gets the saved record back.
+   No draft is kept in this mode. */
+const EMBED = /[?&]embed=1/.test(location.search);
+function saveDraft() { if (EMBED) return; try { localStorage.setItem(DRAFT_KEY, JSON.stringify(ab)); } catch (e) {} }
 function loadDraft() {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
@@ -4319,11 +4322,37 @@ const SAVED_ABILITIES = (() => { try { return JSON.parse(document.getElementById
 const SAVED_OWNERS = { "It Is Justice You Fear": "Censor", "Mark: Benefit": "Tactician", "Optic Blast": "Talent", "Banshee Howl": "Beastheart", "Faster than the Eye": "Null", "Blood on the Stage": "Troubadour" };
 const openSaved = x => x && x.rec ? openForEditing(x.rec, x.display) : openForEditing(x);   // a trigger comes with its display
 exSel.addEventListener("change", e => { const v = e.target.value; ab = v.startsWith("open:") ? openSaved(SAVED_ABILITIES[v.slice(5)]) : EXAMPLES[v](); if (v.startsWith("open:")) ab.owner = SAVED_OWNERS[v.slice(5)] || ""; insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh(); });
-const draft = loadDraft();
+const draft = EMBED ? null : loadDraft();
 if (draft) {
   const o = document.createElement("option"); o.value = "draft"; o.textContent = "Your draft (kept in this browser)";
   exSel.insertBefore(o, exSel.firstChild); exSel.value = "draft"; ab = draft;
   EXAMPLES.draft = () => loadDraft() || EXAMPLES.blank();
 } else ab = EXAMPLES.blank();
 refresh();
+
+if (EMBED) {
+  // Hide the example picker and owner (the class builder decides them); add Cancel and Done.
+  ["exSel", "ownerSel"].forEach(id => { const el = document.getElementById(id); el.style.display = "none"; const lb = document.querySelector('label[for="' + id + '"]'); if (lb) lb.style.display = "none"; });
+  const head = document.querySelector(".dlg-head");
+  const cancel = E("button", "btn", "Cancel"); cancel.type = "button";
+  const done = E("button", "btn primary", "Done"); done.type = "button"; done.title = "Save this ability into the class";
+  cancel.addEventListener("click", () => parent.postMessage({ type: "cb-cancel" }, "*"));
+  done.addEventListener("click", () => {
+    const c = compileAbility();
+    parent.postMessage({ type: "cb-done", kind: ab.kind, rec: c.rec, display: c.display || null,
+      problems: problems.filter(q => !q.soft).map(q => q.msg) }, "*");
+  });
+  head.appendChild(cancel); head.appendChild(done);
+  window.addEventListener("message", ev => {
+    const m = ev.data || {};
+    if (m.type !== "cb-edit") return;
+    ab = m.rec ? openForEditing(m.rec, m.display || undefined) : EXAMPLES.blank();
+    if (!m.rec && m.kind === "triggered") ab.kind = "triggered";
+    // The class's own resource name (a new class isn't in the core list), so costs read "3 Resolve".
+    if (m.owner && m.resourceName) CLASS_RESOURCES[m.owner] = m.resourceName;
+    ab.owner = m.owner || ""; insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh();
+    window.scrollTo(0, 0);
+  });
+  parent.postMessage({ type: "cb-ready" }, "*");
+}
 </script>

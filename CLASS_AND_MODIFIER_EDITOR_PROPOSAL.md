@@ -562,3 +562,109 @@ damage types, custom attributes and resources).
 Checks to make before relying on these records: weakness is saved as negative damage reduction; perk
 group tags are written as "<group> perk"; movement attributes other than fly and climb (`swim`, `burrow`)
 are assumed ids.
+
+## 11. Critique round 1: Class Builder, Hodent lens (2026-11-22)
+
+An independent reviewer worked through five tasks in the prototype, at desktop and phone width and with
+the keyboard only. Its findings are merged here with the designer's own pass, which looked at
+consistency with the ability editor. **These are proposals, not decisions.**
+
+| Pillar | Rating |
+|---|---|
+| Signs and feedback | Mixed: blocks and saved data update live; moves, deletes, undo and the slow start move are silent |
+| Clarity | Mixed: blocks read like the book; "fx", `when Level >= 7 else`, "N ... 3", unexplained counts leak through |
+| Form follows function | Mixed: a level per lane fits; a permanent JSON column doesn't fit non-programmer authors |
+| Consistency | Mixed: blocks and colours match the editor; there are two shelves with a "Skills" in each, and the slow start toggle confirms only one way |
+| Minimum workload | Mixed: ready-made features are fast; defaults cost unticks; only one feature can be open at a time |
+| Error prevention and recovery | Weak: undo is in memory only, Import replaces your class, Delete is silent, Cancel leaves junk, typed text goes stale |
+| Flexibility and accessibility | Weak: every edit loses keyboard focus; hover text is a browser tooltip; the editor pop-up breaks at phone width |
+| Engage-ability | Mixed: watching cards appear in a choice is rewarding; the JSON wall and design-brief notes break the flow |
+
+Ranked problems:
+1. **There is no class-level status.** The ability editor's best feature, "Ready to save / N things to
+   finish" with one-click fixes, has no equivalent here (designer). Nothing flags:
+   - an ability choice with no abilities;
+   - an unfinished ability inside a feature;
+   - an empty "Only if";
+   - an unnamed feature;
+   - text that disagrees with its blocks.
+2. **Every edit loses keyboard focus.** The whole board re-renders and focus returns to the top of the
+   page. That costs about 22 Tabs to reach level 1 again, and arrow keys don't work in menus.
+3. **Book text goes stale silently.** Typed text wins, and then changing a block (immunity 5 to 10)
+   leaves "fire immunity 5" in the text with no flag. The ability editor flags reworded lines when the
+   rules change.
+4. **Recovery is fragile:**
+   - undo is lost on reload, and there's no redo;
+   - Import replaces the stored class;
+   - Delete has no notice.
+5. **Cancel leaves junk:**
+   - a "New ability" placeholder card in a choice;
+   - an empty Ability feature on the level;
+   - Escape doesn't close the editor pop-up.
+6. **Slow start on moves features silently**, and the encounter lanes aren't explained. Turning it off
+   asks first; turning it on doesn't.
+7. **The JSON column dominates the screen.** A quarter of the width is raw JSON for authors who aren't
+   programmers (designer). The ability editor shows the result (the card) and keeps JSON under a
+   disclosure. The feature footer's "Saved data" button is left over from the book page and does nothing
+   now.
+8. **There are two catalogues on the shelf:**
+   - ready-made "Skills 69" and block "Skills 118" share a name;
+   - the counts are unexplained;
+   - every block stays greyed until a feature is open;
+   - chips hide contents ("FEATURE Recoveries", not 10);
+   - chip labels ("FEATURE" for Kit) don't use the shelf's names.
+9. **Programmer details leak through:**
+   - "Only if you have N or more Victories 3";
+   - the fx menu's "Saves as (1d3 + 1) when Level >= 7 else (1d3)";
+   - the "design brief" note in the ability-name menu;
+   - arrays typed as `[2, -1, -1] [1, 1, -1]`;
+   - "Copy class JSON" and Export are two JSONs, and nothing says which one to share;
+   - JetBrains Mono ligatures turn `>=` into a glyph in the saved data.
+10. **Defaults and menus add work:**
+    - Skills starts with all five groups ticked;
+    - the picker covers its own sentence;
+    - Enter closes the fx menu;
+    - level steps default to level 4 with a copy of the value.
+11. **Phone width:**
+    - the editor pop-up keeps two columns (about 50px for "What is it");
+    - the shelf is about 750px below the board;
+    - Export's text box is cut off;
+    - Import wraps onto three lines.
+
+Keep:
+- blocks that read like the book, with text generated from them;
+- the editor's colours, drag ghost and lane highlight;
+- "Move to..." as the non-drag path;
+- ready-made features as editable pre-filled blocks;
+- the fx quick picks and level steps (with the wording fixed);
+- cards inside choices;
+- in-page confirmations;
+- linked checklist line and trigger for each way to gain the resource;
+- "Only if" (Iron Skin took about 8 clicks).
+
+More elegant alternatives considered:
+- **A. A status panel in place of the JSON column.**
+  - The column becomes the class's status: things to finish, each with a jump-to and a fix, and text
+    that disagrees with its blocks (number checks).
+  - The JSON goes under a disclosure.
+  - Fixes 1, 3 and 7.
+  - Failure: number matching flags prose like "3 or more".
+  - (The reviewer proposed a book page here; the designer removed the book page earlier, so this
+    keeps the column without it.)
+- **B. Keyed re-rendering and durable history.**
+  - Controls keep their focus across edits.
+  - Undo and redo are saved with the draft.
+  - Import opens as a new class beside the current one.
+  - Fixes 2 and 4.
+  - Failure: storage limits with large abilities; a class list adds housekeeping.
+- **C. One shelf.**
+  - Ready-made features are "recipes" in the same list as the blocks.
+  - A block dropped on a level makes a feature named after it.
+  - Fixes 8.
+  - Failure: many thin one-block features.
+- **D. A transactional editor and an explained slow start.**
+  - Ability options are created only on Done, and Escape counts as Cancel.
+  - The editor opens full-screen on phones.
+  - Turning on slow start shows "4 features moved to Encounter 1 · Undo", plus a one-time explanation.
+  - Fixes 5, 6 and 11.
+  - Failure: full-screen loses the class context.

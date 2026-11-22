@@ -963,6 +963,24 @@ Also from that example: saved wording can contain the engine's interpolation `{2
 score}` and inline " - " bullets. The card now shows the words half (as the engine does without a creature)
 and the bullets as a list, without changing what is saved.
 
+**Correction after review (2026-11-22).** Mark: Benefit was flagged for things that are ordinary blocks, and
+the fix moved the numbers a lot:
+- **Using a standard ability** ("Prompt Spend Recovery", "Shift", "Free Strike"...) is "Use another ability"
+  with the ability picked from the standard abilities list (saved by id, with its parameters). It had been
+  Advanced only to avoid resaving it as a custom ability.
+- **Rule text** (`DrawSteelCommand`) reads like tier text: a formula amount in braces (`{2*Reason} damage`),
+  damage "(added)" to the roll's own, and several results in one rule ("push 2; prone" shows as results
+  that happen together) open as blocks and save back as the same one rule.
+- **Float Text** is a Display block: "Show [TAUNTED!] over [the triggering creature]". It changes nothing on
+  the card.
+- A trigger's condition is now read against its own event when it opens (it was read against the previous
+  ability's), so Mark's reads "the damage came from an ability and the ability deals damage".
+
+Updated counts: abilities that open fully as blocks 56 to **69 of 88**, banner **1**; triggers 605 to **823 of
+1,132**, banner 278 to **72**. Everything still saves back identical (45/45, 60/60, 1,148/1,148). What still
+makes triggers Advanced: Remove Creature 90, Loyalty Collar Explosion 40, Summon 33, Augmented Ability 32,
+Aura 31 (the Aura block exists, but opening a saved aura into it isn't built yet), Destroy 14.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1049,6 +1067,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Triggers: display toggle, display wording as the card, "+ Add paragraph", and all 1,148 triggers open and save identically (trigger and display).** Toggle defaults by action and opens from whether a display exists; display text is the card and edits save to it; added paragraphs are card text that saves to description / the display. Variations corrected to hold only the option's steps. | Asked for (toggle, paragraphs, trigger poll). Next: trigger conditions read as blocks only 46 of 571 times. |
 | 2026-11-22 | **Trigger conditions use each event's own symbols** (from the engine's trigger definitions): event creatures become roles, yes/no values become tests, an "About this event" picker group, and readings for attacker, distance, allies, damage type lists, condition / trigger / effect names, keywords, effects, path and free strike. Conditions as blocks: 46 to 346 of 571; all triggers still save identically. | The hardest GoblinScript for trigger authors; follows "minimise clicks" and book-like wording. |
 | 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the full editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
+| 2026-11-22 | **Standard abilities, rule text and Float Text are blocks, not Advanced.** "Use another ability" picks standard abilities by name (saved by id); rule text opens like tier text (formula amounts, "(added)", several results); Float Text is a Display block. Triggers fully as blocks 605 to 823 of 1,132; banner cases 278 to 72. | Review of the Mark: Benefit example: these are everyday steps, not advanced ones. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

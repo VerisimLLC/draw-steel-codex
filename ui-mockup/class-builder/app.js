@@ -415,7 +415,7 @@ function compileClass() {
 
 // ---------------------------------------------------------------------------------------------
 // State, undo, and the draft kept in this browser.
-let cls = null, openId = null, showGs = false, sideTab = "book", undoStack = [];
+let cls = null, openId = null, showGs = false, undoStack = [];
 const DRAFT_KEY = "classBuilderDraft";
 function change(fn, keepMenu) {
   undoStack.push(JSON.stringify(cls)); if (undoStack.length > 80) undoStack.shift();
@@ -733,7 +733,7 @@ function renderFeature(f, laneKey) {
   del.addEventListener("click", () => change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); openId = null; }));
   foot.appendChild(del);
   foot.appendChild(E("span", "spacer"));
-  const fl = E("button", "btn small", "Saved data"); fl.type = "button"; fl.addEventListener("click", () => { sideTab = "saved"; renderSide(); side.scrollIntoView({ block: "start" }); });
+  const fl = E("button", "btn small", "Saved data"); fl.type = "button"; fl.addEventListener("click", () => { renderSide(); side.scrollIntoView({ block: "start" }); });
   foot.appendChild(fl);
   box.appendChild(foot);
   return box;
@@ -833,47 +833,11 @@ function renderShelf() {
   });
   shelf.appendChild(E("p", "hint", "Numbers are how often content uses each kind of record today."));
 }
+/* The right-hand column: what the engine would store, for the open feature and the whole class. */
 function renderSide() {
   side.innerHTML = "";
-  const tabs = E("div", "tabs"); tabs.setAttribute("role", "tablist");
-  [["book", "Book page"], ["saved", "Saved data"]].forEach(([k, t]) => { const b = E("button", null, t); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(sideTab === k));
-    b.addEventListener("click", () => { sideTab = k; renderSide(); }); tabs.appendChild(b); });
-  side.appendChild(tabs);
-  if (sideTab === "book") side.appendChild(bookPage()); else savedPanel();
-}
-function bookPage() {
-  const b = E("div", "book");
-  b.appendChild(E("h2", null, cls.name));
-  if (cls.details) b.appendChild(E("p", null, cls.details));
-  b.appendChild(E("h3", null, "Basics"));
-  const prim = Object.keys(cls.primary).map(charName);
-  b.appendChild(E("p", null, "Starting Characteristics: You start with " + (prim.length ? listWords(prim, "and") + " of 2" : "no fixed scores") + ", and you can choose one of the following arrays for your other characteristic scores: " + cls.arrays));
-  b.appendChild(E("p", null, "Starting Stamina at 1st Level: " + cls.stamStart + "\nStamina Gained at 2nd and Higher Levels: " + cls.stamPer));
-  // Advancement table, generated from the levels.
-  const tb = E("table"); const hr = E("tr"); ["Level", "Features"].forEach(t => hr.appendChild(E("th", null, t))); tb.appendChild(hr);
-  laneKeys().forEach(k => { const fs = cls.lanes[k] || []; if (!fs.length) return; const [a, n] = laneLabel(k); const tr = E("tr");
-    tr.appendChild(E("td", null, a === "Level" ? ORD(+n) : "Enc. " + n)); tr.appendChild(E("td", null, fs.map(featName).join(", "))); tb.appendChild(tr); });
-  b.appendChild(tb);
-  if (cls.resourceName) {
-    b.appendChild(E("h3", null, cls.resourceName));
-    b.appendChild(E("p", null, compileGains().checklist.map(c => c.details).join(" ")));
-  }
-  laneKeys().forEach(k => {
-    const fs = cls.lanes[k] || []; if (!fs.length) return;
-    const [a, n, sub] = laneLabel(k);
-    b.appendChild(E("h3", null, a === "Level" ? ORD(+n) + "-Level Features" + (sub ? " (" + sub + ")" : "") : "Encounter " + n));
-    fs.forEach(f => {
-      b.appendChild(E("h5", null, featName(f)));
-      if (featText(f)) b.appendChild(E("p", null, featText(f)));
-      const recs = [];
-      let granted = 0;
-      (function walk(l) { l.forEach(s => { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) { recs.push([s.f.rec, s.f.display, s.type === "trigger"]); granted++; }
-        if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && recs.push([o.rec, null, false])); if (s.children) walk(s.children); }); })(f.sentences);
-      if (granted) b.appendChild(E("p", null, "You have the following ability" + (recs.length > 1 ? "s" : "") + ":"));
-      recs.forEach(([r, d, t]) => b.appendChild(cardFor(r, d, t)));
-    });
-  });
-  return b;
+  side.appendChild(E("h3", "sec", "Saved data"));
+  savedPanel();
 }
 function savedPanel() {
   const at = openId && findFeature(openId);

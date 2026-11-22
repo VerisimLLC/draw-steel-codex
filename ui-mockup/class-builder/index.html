@@ -150,19 +150,7 @@ select.edit-in option { background: var(--dlg); color: var(--fg); }
 .sb[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .sb span { opacity: .75; font-size: 11.5px; }
 
-/* Side: tabs */
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 10px; flex-wrap: wrap; }
-.tabs button { background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 10px; cursor: pointer; color: var(--dim); }
-.tabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
-.book { background: var(--card-bg); color: var(--card-fg); border-radius: 4px; padding: 14px 16px; font: 13.5px/1.5 var(--font-card); }
-.book h2 { font: 700 22px var(--font-card); margin: 0 0 4px; }
-.book h3 { font: 700 16px var(--font-card); margin: 16px 0 4px; border-bottom: 1px solid var(--card-fg); }
-.book h5 { font: 700 13.5px var(--font-card); margin: 10px 0 2px; }
-.book p { margin: 4px 0; white-space: pre-wrap; }
-.book table { color: inherit; font: inherit; font-size: 12px; border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 6px; }
-.book th, .book td { border-bottom: 1px solid #ccc; padding: 3px 4px; text-align: left; vertical-align: top; }
-.book .card { border: 1px solid #222; margin: 6px 0; cursor: default; }
-.book .card:hover { box-shadow: none; }
+/* Side: saved data */
 pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-word; max-height: 70vh; overflow: auto; }
 .rt { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; }
 .rt.ok { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); }
@@ -217,7 +205,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
   <div class="body">
     <main class="board" id="board"><div class="loading">Loading…</div></main>
     <aside class="shelf" id="shelf" aria-label="Shelf"></aside>
-    <aside class="side" id="side" aria-label="Book page and saved data"></aside>
+    <aside class="side" id="side" aria-label="Saved data"></aside>
   </div>
 </div>
 <div class="modal" id="abModal" aria-hidden="true"><iframe id="abFrame" title="Ability editor" src="ability-editor.html?embed=1"></iframe></div>

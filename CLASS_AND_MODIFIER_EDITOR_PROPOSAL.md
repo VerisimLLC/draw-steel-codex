@@ -546,9 +546,9 @@ damage types, custom attributes and resources).
   the choice's cost and the class's resource name.
 - **Resource gains** write both the checklist line and the trigger that grants it, linked by
   `checklistid` (decision 2: the trigger wins); the triggers sit in a hidden feature in the first level.
-- **Book page** tab: Basics, an Advancement table generated from the levels, the resource, and each
-  level's features with their text and ability cards. A feature without its own text reads as its
-  sentences. **Saved data** tab: the open feature's record and the whole class record, with Copy.
+- **Saved data** column: the open feature's record and the whole class record, with Copy. (A book-page
+  preview was tried and removed at the designer's request: the class builder doesn't need one.) A feature
+  without its own text reads as its blocks.
 - **Sharing:** Export gives the builder's own class as text to copy; Import opens it (pasted or a .json
   file). Work in progress is kept in the viewer's browser.
 

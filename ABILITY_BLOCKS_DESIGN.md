@@ -930,6 +930,39 @@ within [N] squares of you".
 Also: a damage step's "that can't be reduced" phrase shows only when set or while editing, and older steps
 without a "who" default to "to the target".
 
+## 4s. The scope line: when to say "use the full editor" (proposed, 2026-11-22)
+
+The simple editor never refuses content: unmodelled parts open as Advanced steps or formula blocks, save
+back untouched, and have "Edit in full editor". The standard is about two other decisions.
+
+**When something gets a sentence block** (all three):
+1. It appears 20 or more times in content.
+2. It is one idea a non-programmer can read as one sentence.
+3. It round-trips: opening and saving untouched gives back the original.
+Under that rule the next blocks are Modify Power Roll (130), Summon (122), Remove Creature (120), Augmented
+Ability (116), Float Text (81), Custom Trigger (62), Destroy (47), Delay (43), Manipulate Targets (30),
+Terraform Elevation (25), Remember (24); in conditions, "your companion" / "your summoner" (~45). Lua Script
+(26) and Macro never get blocks: code belongs in the full editor. The other 67 step types (318 uses) stay
+Advanced.
+
+**When the editor suggests the full editor for the whole ability** (any one; it still opens):
+- more than half its steps are Advanced (or words the blocks can't read yet);
+- it runs a script or macro;
+- follow-up abilities nest more than two deep;
+- one condition has three or more parts written as formulas.
+Shown as a banner above the header: "Most of this trigger is easier to edit in the full editor", the
+reasons, "You can still edit it here: the marked parts are kept exactly as they are when you save", and
+"Open in full editor" / "Keep editing here". Advanced steps get a dashed outline.
+
+Today: 56 of 88 sampled abilities open fully as blocks and 5 would show the banner; 605 of 1,132 triggers
+open fully as blocks and 278 would show it (mostly monster triggers built from Remove Creature, Float Text
+and standard-ability calls, which the next blocks address). Example in the prototype: the Tactician's
+*Mark: Benefit* trigger (4 of 6 steps Advanced).
+
+Also from that example: saved wording can contain the engine's interpolation `{2*Reason|double your Reason
+score}` and inline " - " bullets. The card now shows the words half (as the engine does without a creature)
+and the bullets as a list, without changing what is saved.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1015,6 +1048,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Second poll (60: monsters, new class abilities, triggers) passes open-and-save 60/60.** Triggers now open (and the power roll trigger condition field is fixed to `targetFilter`); monster power rolls, villain actions, saved step order in modes, and text-only abilities are handled. The book check shows the remaining card differences come from data that doesn't store the printed wording, mainly monsters: the importer should store distance, target, trigger and effect text verbatim. | Evidence for shipping the editor on existing content, and a concrete content/import task for book-first monster cards. |
 | 2026-11-21 | **Triggers: display toggle, display wording as the card, "+ Add paragraph", and all 1,148 triggers open and save identically (trigger and display).** Toggle defaults by action and opens from whether a display exists; display text is the card and edits save to it; added paragraphs are card text that saves to description / the display. Variations corrected to hold only the option's steps. | Asked for (toggle, paragraphs, trigger poll). Next: trigger conditions read as blocks only 46 of 571 times. |
 | 2026-11-22 | **Trigger conditions use each event's own symbols** (from the engine's trigger definitions): event creatures become roles, yes/no values become tests, an "About this event" picker group, and readings for attacker, distance, allies, damage type lists, condition / trigger / effect names, keywords, effects, path and free strike. Conditions as blocks: 46 to 346 of 571; all triggers still save identically. | The hardest GoblinScript for trigger authors; follows "minimise clicks" and book-like wording. |
+| 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the full editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

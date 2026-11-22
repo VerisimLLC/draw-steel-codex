@@ -33,9 +33,22 @@ const E = (tag, cls, text) => { const e = document.createElement(tag); if (cls) 
 let uid = 1;
 const newId = p => (p || "x") + (uid++);
 const guid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
-function toast(msg) {
+/* A short notice at the bottom. action: { label, run } adds a button such as Undo. */
+function toast(msg, action) {
   document.querySelectorAll(".toast").forEach(t => t.remove());
-  const t = E("div", "toast", msg); document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+  const t = E("div", "toast"); t.setAttribute("role", "status"); t.appendChild(E("span", null, msg));
+  if (action) { const b = E("button", "btn small", action.label); b.type = "button"; b.addEventListener("click", () => { t.remove(); action.run(); }); t.appendChild(b); }
+  document.body.appendChild(t); setTimeout(() => t.remove(), action ? 8000 : 3500);
+}
+/* Keyboard focus survives re-rendering: focusable controls carry data-fk (a key that stays the same
+   from one render to the next), and after a change the control with the same key gets focus back. */
+const OBJ_KEYS = new WeakMap(); let objSeq = 0;
+const objKey = o => { if (!OBJ_KEYS.has(o)) OBJ_KEYS.set(o, "o" + (++objSeq)); return OBJ_KEYS.get(o); };
+const fk = (el, key) => { el.dataset.fk = key; return el; };
+let menuFk = null, pendingFk = null;
+function restoreFocus(key) {
+  if (!key) return; const el = document.querySelector('[data-fk="' + CSS.escape(key) + '"]');
+  if (el) el.focus({ preventScroll: true });
 }
 let openMenu = null;
 function closeMenu() { if (openMenu) { openMenu.remove(); openMenu = null; } }
@@ -44,8 +57,17 @@ document.addEventListener("click", ev => { if (openMenu && ev.target.isConnected
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeMenu(); });
 /* A popup menu under an element. build(menu) fills it; it closes on outside click or Escape. */
 function menuAt(el, build) {
-  closeMenu();
+  closeMenu(); menuFk = el.dataset.fk || null;
   const m = E("div", "menu"); build(m);
+  // Arrow keys move through the menu's buttons and fields; Escape returns to the word that opened it.
+  m.addEventListener("keydown", ev => {
+    if (ev.key === "Escape") { ev.stopPropagation(); closeMenu(); restoreFocus(menuFk); return; }
+    if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+    if (ev.target.tagName === "TEXTAREA") return;
+    const items = [...m.querySelectorAll("button, input, textarea")].filter(x => x.offsetParent !== null);
+    const i = items.indexOf(document.activeElement); if (!items.length) return;
+    ev.preventDefault(); items[(i + (ev.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+  });
   document.body.appendChild(m);
   const r = el.getBoundingClientRect();
   m.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - m.offsetWidth - 8)) + "px";
@@ -56,8 +78,8 @@ function menuAt(el, build) {
 
 // ---------------------------------------------------------------------------------------------
 // Underlined values. Each opens one control; changes go through change() so undo and redraw happen.
-function tok(text, onClick, empty) {
-  const b = E("button", "tok" + (empty ? " empty" : ""), text); b.type = "button";
+function tok(text, onClick, empty, key) {
+  const b = E("button", "tok" + (empty ? " empty" : ""), text); b.type = "button"; if (key) b.dataset.fk = key;
   b.addEventListener("click", ev => { ev.stopPropagation(); onClick(b); });
   return b;
 }
@@ -67,7 +89,7 @@ function pickTok(obj, key, opts, empty) {
   return tok(cur ? cur[1] : (obj[key] || empty || "choose"), b => menuAt(b, m => {
     if (opts.length > 10) addFilter(m);
     opts.forEach(o => { const x = E("button", null, o[1]); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => { obj[key] = o[0]; }); }); m.appendChild(x); });
-  }), !cur && !obj[key]);
+  }), !cur && !obj[key], objKey(obj) + ":" + key);
 }
 /* Pick several of [value, label] options (stored as an array of values). */
 function multiTok(obj, key, opts, emptyText, conj) {
@@ -82,7 +104,7 @@ function multiTok(obj, key, opts, emptyText, conj) {
       lb.appendChild(cb); lb.appendChild(document.createTextNode(o[1])); box.appendChild(lb);
     });
     m.appendChild(box);
-  }), !names.length);
+  }), !names.length, objKey(obj) + ":" + key);
 }
 function addFilter(m) {
   const f = E("input", "filter"); f.placeholder = "Filter…"; m.appendChild(f);
@@ -96,8 +118,9 @@ function textTok(obj, key, placeholder, width) {
     b.replaceWith(i); i.focus(); i.select();
     let done = false;
     const commit = () => { if (done) return; done = true; change(() => { obj[key] = i.value.trim(); }); };
-    i.addEventListener("blur", commit); i.addEventListener("keydown", e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { done = true; render(); } });
-  }, v === "" || v == null);
+    // Enter keeps focus on this word; Tab commits after focus has moved, so it lands on the next control.
+    i.addEventListener("blur", () => setTimeout(commit)); i.addEventListener("keydown", e => { if (e.key === "Enter") { pendingFk = objKey(obj) + ":" + key; commit(); } if (e.key === "Escape") { done = true; render(); restoreFocus(objKey(obj) + ":" + key); } });
+  }, v === "" || v == null, objKey(obj) + ":" + key);
 }
 /* Ask before something big, in the page (browser confirm dialogs don't show in the artifact viewer). */
 function askConfirm(el, question, yesText, onYes) {
@@ -132,17 +155,18 @@ function fxTable(obj, key) {
 }
 const FX_PICKS = [["1", "a number"], ["Victories", "your Victories"], ["1d3", "a die roll (1d3)"], ["Level", "your level"]].concat(CHARS.map(c => [c[1], "your " + c[1]]));
 function fxTok(obj, key, placeholder) {
-  const t = tok(fxText(obj, key) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null);
+  const t = tok(fxText(obj, key) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
   t.classList.add("fx"); t.title = "A number or a formula; click for options"; return t;
 }
 function fillFx(m, obj, key) {
   m.innerHTML = "";
-  const hint = E("div", "hint"); const upd = () => { hint.textContent = "Saves as " + fxFormula(obj, key); }; upd();
+  // Plain words; the engine formula only with "Show saved fields".
+  const hint = E("div", "hint"); const upd = () => { hint.textContent = (fxText(obj, key) ? "Reads: " + fxText(obj, key) : "") + (showGs ? "  \u00b7  saves as " + fxFormula(obj, key) : ""); }; upd();
   const edit = fn => { change(fn, true); upd(); };
   m.appendChild(E("h5", null, "Amount (a number or a formula)"));
   const i = E("input", "filter"); i.value = obj[key] == null ? "" : obj[key]; i.placeholder = "e.g. 2, Victories, 1d3, Presence"; i.id = "fxInput";
   i.addEventListener("change", () => edit(() => { obj[key] = i.value.trim(); }));
-  i.addEventListener("keydown", e => { if (e.key === "Enter") { change(() => { obj[key] = i.value.trim(); }); } });
+  i.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); edit(() => { obj[key] = i.value.trim(); }); } });
   m.appendChild(i);
   const quick = E("div", "fxquick");
   FX_PICKS.forEach(([v, l]) => { const b = E("button", "btn small", l); b.type = "button"; b.addEventListener("click", () => { i.value = v; edit(() => { obj[key] = v; }); }); quick.appendChild(b); });
@@ -160,7 +184,7 @@ function fillFx(m, obj, key) {
     row.appendChild(lv); row.appendChild(document.createTextNode(":")); row.appendChild(va); row.appendChild(rm); m.appendChild(row);
   });
   const add = E("button", "btn small", "+ a different amount from a level"); add.type = "button";
-  add.addEventListener("click", () => { change(() => { steps.push({ from: String(steps.length ? +steps[steps.length - 1].from + 3 : 4), value: String(obj[key] || "") }); }, true); fillFx(m, obj, key); });
+  add.addEventListener("click", () => { change(() => { steps.push({ from: "", value: "" }); }, true); fillFx(m, obj, key); const l = m.querySelectorAll(".fxlv"); if (l.length) l[l.length - 1].focus(); });
   m.appendChild(add);
   m.appendChild(hint);
 }
@@ -182,26 +206,30 @@ const SENT = {
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
   /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
      records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
-  skills: { desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Skills", group: "choice", uses: 118, choice: true,
-    make: () => ({ granted: [], num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
+  skills: { desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "choice", uses: 118, choice: true,
+    make: () => ({ granted: [], num: "1", groups: [], named: [] }),
     render: (f, add) => {
       // Empty parts read naturally: "You have no fixed skills and choose 5 skills from ... (+ named skills)".
       const g = f.granted.length;
       add(lbl(g ? "You have the" : "You have")); add(multiTok(f, "granted", T.skills.map(x => [x[0], x[1]]), "no fixed skills", "and")); if (g) add(lbl(g === 1 ? "skill" : "skills"));
-      add(lbl("and choose")); add(textTok(f, "num", "0")); add(lbl(+f.num === 1 ? "skill from the" : "skills from the"));
-      add(multiTok(f, "groups", SKILL_GROUPS.map(g2 => [g2, g2]), "no", "or")); add(lbl(f.groups.length === 1 ? "skill group" : "skill groups"));
+      add(lbl("and choose")); add(textTok(f, "num", "0")); add(lbl((+f.num === 1 ? "skill" : "skills") + " from" + (f.groups.length ? " the" : "")));
+      add(multiTok(f, "groups", SKILL_GROUPS.map(g2 => [g2, g2]), "any skill group", "or")); if (f.groups.length) add(lbl(f.groups.length === 1 ? "skill group" : "skill groups"));
       if (f.named.length) add(lbl("or"));
       add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "+ named skills", "or"));
     },
     prose: f => {
       const have = f.granted.map(i => lookupName(T.skills, i)), n = +f.num || 0;
-      const pick = n ? "choose " + word(n) + " skill" + (n === 1 ? "" : "s") + " from the " + listWords(f.groups) + (f.groups.length === 1 ? " skill group" : " skill groups") + (f.named.length ? " or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "") : "";
+      const from = f.groups.length ? " from the " + listWords(f.groups) + (f.groups.length === 1 ? " skill group" : " skill groups") + (f.named.length ? " or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "")
+        : f.named.length ? " from " + listWords(f.named.map(i => lookupName(T.skills, i))) : " of your choice";
+      const pick = n ? "choose " + word(n) + " skill" + (n === 1 ? "" : "s") + from : "";
       if (have.length && pick) return "You have the " + listWords(have, "and") + " skill" + (have.length === 1 ? "" : "s") + ". In addition, " + pick + ".";
       if (have.length) return "You have the " + listWords(have, "and") + " skill" + (have.length === 1 ? "" : "s") + ".";
       return pick ? pick.charAt(0).toUpperCase() + pick.slice(1) + "." : "";
     },
     compile: (f, feat) => f.granted.length ? modBase(feat, { behavior: "proficiency", subtype: "skill", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.granted.map(i => [i, true])) }) : null,
-    compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
+    // No groups and no named skills means any skill: every group is offered, as core classes store it.
+    compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num,
+      categories: Object.fromEntries((f.groups.length || f.named.length ? f.groups : SKILL_GROUPS).map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
   charChoice: { desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
@@ -214,10 +242,10 @@ const SENT = {
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
       if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
-      add(abilityCards(f.options.map(o => ({ rec: o.rec })), feat, (i, rec) => { f.options[i].rec = rec; }, i => f.options.splice(i, 1), s, () => abilitySeed(f.cat, f.cost)));
-      const b = E("button", "addsent inblock", "+ new ability to choose from"); b.type = "button";
-      b.addEventListener("click", ev => { ev.stopPropagation(); const o = { id: newId("o"), rec: null }; change(() => f.options.push(o));
-        openEditor({ rec: abilitySeed(f.cat, f.cost), kind: "ability" }, rec => { o.rec = rec; }); });
+      add(abilityCards(f.options.map(o => ({ rec: o.rec, problems: o.problems })), feat, (i, rec, d, problems) => { f.options[i].rec = rec; f.options[i].problems = problems; }, i => f.options.splice(i, 1), s, () => abilitySeed(f.cat, f.cost)));
+      const b = E("button", "addsent inblock", "+ new ability to choose from"); b.type = "button"; fk(b, "newopt:" + s.id);
+      // The option is only added when the editor's Done is pressed; Cancel leaves nothing behind.
+      b.addEventListener("click", ev => { ev.stopPropagation(); newOption(f, feat); });
       add(b);
     },
     prose: f => f.cat === "signature" ? "Choose " + word(f.num) + " signature ability from the following options. Signature abilities can be used at will."
@@ -286,10 +314,10 @@ const SENT = {
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
   ability: { desc: "Grant an ability. Opens the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
-    render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec }], feat, (i, rec) => { f.rec = rec; }, null, s)); },
+    render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec, problems: f.problems }], feat, (i, rec, d, problems) => { f.rec = rec; f.problems = problems; }, null, s)); },
     compile: (f, feat) => f.rec ? modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }) : null },
   trigger: { desc: "Grant a triggered ability. Opens the ability editor in triggered mode.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
-    render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true }], feat, (i, rec, display) => { f.rec = rec; f.display = display; }, null, s)); },
+    render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true, problems: f.problems }], feat, (i, rec, display, problems) => { f.rec = rec; f.display = display; f.problems = problems; }, null, s)); },
     compile: (f) => f.rec ? Object.assign({}, f.rec) : null, extra: f => f.display ? [f.display] : [] },
   modAbility: { desc: "Change an ability: more distance, more targets, or a keyword.", label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
     render: (f, add) => {
@@ -305,10 +333,14 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
   onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
-      if (f.test === "victories" || f.test === "level") add(textTok(f, "n", "N")); if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
+      const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
+      if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
 };
-const ONLY_IF = [["victories", "you have N or more Victories", f => "Victories >= " + (f.n || 0)], ["level", "you are level N or higher", f => "Level >= " + (f.n || 1)],
-  ["winded", "you are winded", () => "Stamina <= Maximum Stamina / 2"], ["strained", "you are Strained", () => "Strained"], ["formula", "(a GoblinScript test)", f => f.formula || "1"]];
+/* [id, picker label, engine formula, book wording, word after the number (absent: no number)] */
+const ONLY_IF = [["victories", "you have at least", f => "Victories >= " + (f.n || 0), f => "you have " + (f.n || 0) + " or more Victories", "Victories"],
+  ["level", "you are at least level", f => "Level >= " + (f.n || 1), f => "you are level " + (f.n || 1) + " or higher", ""],
+  ["winded", "you are winded", () => "Stamina <= Maximum Stamina / 2", () => "you are winded"], ["strained", "you are Strained", () => "Strained", () => "you are Strained"],
+  ["formula", "a formula is true", f => f.formula || "1", () => "a condition is met"]];
 const numOr = v => /^-?\d+$/.test(String(v).trim()) ? +v : String(v).trim();
 /* "always applies / you choose when you roll": one phrase in place of the engine's activation fields. */
 function appliesPhrase(f, add) { add(lbl(",")); add(pickTok(f, "applies", [["always", "always applies"], ["choose", "you choose when you roll"]])); }
@@ -320,7 +352,7 @@ function abilityNameTok(f) {
     names.forEach(n => { const x = E("button", null, n); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => { f.name = n; }); }); m.appendChild(x); });
     const i = E("input", "filter"); i.placeholder = "or type a name (e.g. Free Strike)"; i.value = f.name || "";
     i.addEventListener("keydown", e => { if (e.key === "Enter") { closeMenu(); change(() => { f.name = i.value.trim(); }); } }); m.appendChild(i);
-    m.appendChild(E("div", "hint", "Saved by name for now; the engine change to save the ability's id is in the design brief."));
+    m.appendChild(E("div", "hint", "Pick one of this class's abilities, or type the name of any ability."));
   }), !f.name);
 }
 function allAbilityNames() {
@@ -330,6 +362,9 @@ function allAbilityNames() {
       if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && out.add(recName(o.rec))); (s.children || []).forEach(walk); });
   });
   return [...out];
+}
+function newOption(f, feat) {
+  openEditor({ rec: abilitySeed(f.cat, f.cost), kind: "ability" }, (rec, d, problems) => { f.options.push({ id: newId("o"), rec, problems }); });
 }
 const recName = rec => rec.__typeName === "CharacterModifier" ? ((rec.triggeredAbility || {}).name || rec.name) : rec.name;
 function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), type, f: d.make(), children: d.wrapper ? [] : undefined }; }
@@ -368,13 +403,15 @@ function migrateSentence(x) {
   else if (x.type === "skillChoice") { x.type = "skills"; x.f = { granted: [], num: x.f.num, groups: x.f.groups || [], named: x.f.named || [] }; }
   (x.children || []).forEach(migrateSentence); return x;
 }
-function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return c; }
+function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
 /* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
 function kindLabel(f) {
   const top = f.sentences || [], ch = top.filter(x => SENT[x.type].choice);
   if (ch.length === 1 && top.length === 1) return { perkChoice: "Perk", skills: "Skills", charChoice: "Choice", abilityChoice: "Ability choice", subclassChoice: "Subclass" }[ch[0].type];
   if (ch.length) return "Choice";
-  if (top.some(x => x.type === "ability" || x.type === "trigger")) return "Ability";
+  if (top.some(x => x.type === "trigger")) return "Triggered ability";
+  if (top.some(x => x.type === "ability")) return "Ability";
+  if (top.length === 1) return { kit: "Kit", resource: "Resource", language: "Languages" }[top[0].type] || "Feature";
   return "Feature";
 }
 const primaryChars = () => Object.keys(cls.primary || {}).length ? Object.keys(cls.primary) : ["mgt"];
@@ -388,7 +425,7 @@ const autoText = f => sentenceProse(f);
 function sentenceProse(f) {
   const out = [];
   (function walk(list, prefix) { list.forEach(s => {
-    if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); walk(s.children, "If " + t[1].replace(/\bN\b/, s.f.n || "N").replace(/^you are/, "you're").replace(/\(a GoblinScript test\)/, "a condition is met") + ", "); return; }
+    if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test) || ONLY_IF[0]; walk(s.children, "If " + t[3](s.f) + ", "); return; }
     if (s.type === "ability" || s.type === "trigger") return;
     if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f, f)); return; }
     const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
@@ -414,9 +451,27 @@ const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"], ["be
   ["forcemove", "The first time each round you force move a creature", "round"], ["useability", "Whenever you use an ability", "recurring"]];
 function blankClass() {
   return { id: guid(), name: "New Class", details: "", resourceName: "Resolve", epicName: "", slowStart: false,
-    primary: { mgt: 2 }, arrays: "[2, -1, -1] [1, 1, -1] [1, 0, 0]", stamStart: "18", stamPer: "6", showLevels: 5,
+    primary: { mgt: 2 }, arrays: "auto", arraysCustom: [], stamStart: "18", stamPer: "6", showLevels: 5,
     gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }, { id: newId("g"), event: "beginturn", qty: "2", guid: guid() }],
     lanes: {} };
+}
+/* Characteristic arrays: core classes with one starting characteristic use four-number arrays, those with
+   two use three-number arrays, so "standard" follows the class's starting characteristics. */
+const STD_ARRAYS = { 1: [[2, 2, -1, -1], [2, 1, 1, -1], [2, 1, 0, 0], [1, 1, 1, 0]], 2: [[2, -1, -1], [1, 1, -1], [1, 0, 0]] };
+const arraysValue = () => cls.arrays === "custom" ? cls.arraysCustom : (STD_ARRAYS[Object.keys(cls.primary).length] || STD_ARRAYS[1]);
+const arrayWords = a => a.map(x => x.map(n => n < 0 ? "\u2212" + (-n) : String(n)).join(", ")).join("  \u00b7  ");
+function arraysTok() {
+  return tok(arrayWords(arraysValue()) + (cls.arrays === "custom" ? "" : " (standard)"), b => menuAt(b, m => {
+    m.classList.add("wide");
+    const st = E("button", null, "Standard arrays for " + word(Object.keys(cls.primary).length || 1) + " starting characteristic" + (Object.keys(cls.primary).length === 2 ? "s" : "")); st.type = "button";
+    st.addEventListener("click", () => { closeMenu(); change(() => { cls.arrays = "auto"; }); }); m.appendChild(st);
+    m.appendChild(E("h5", null, "Or your own: one array per line"));
+    const ta = E("textarea", "io"); ta.style.height = "90px"; ta.value = arraysValue().map(a => a.join(", ")).join("\n"); m.appendChild(ta);
+    const yn = E("div", "yn"); const ok = E("button", "btn primary", "Use these"); ok.type = "button";
+    ok.addEventListener("click", () => { const rows = ta.value.split(/\n+/).map(l => l.split(/[,\s]+/).filter(Boolean).map(Number)).filter(r => r.length && r.every(n => Number.isFinite(n)));
+      if (!rows.length) return toast("Write each array as numbers separated by commas, one per line (e.g. 2, -1, -1)."); closeMenu(); change(() => { cls.arrays = "custom"; cls.arraysCustom = rows; }); });
+    yn.appendChild(ok); m.appendChild(yn);
+  }), false, "cls:arrays");
 }
 const LEVELS = Array.from({ length: 10 }, (_, i) => "level-" + (i + 1));
 const ENCOUNTERS = ["tutoriallevel-1", "tutoriallevel-2", "tutoriallevel-3", "tutoriallevel-4"];
@@ -472,7 +527,7 @@ function compileGains() {
 }
 function compileClass() {
   const primary = Object.fromEntries(Object.keys(cls.primary).map(k => [k, numOr(cls.primary[k])]));
-  let arrays = []; try { arrays = JSON.parse("[" + cls.arrays.replace(/\]\s*\[/g, "],[") + "]"); } catch (e) { arrays = cls.arrays; }
+  const arrays = arraysValue();
   const g = compileGains();
   const rec = { __typeName: "Class", id: cls.id, name: cls.name, details: cls.details, isSubclass: false,
     heroicResourceName: cls.resourceName, epicResourceName: cls.epicName || undefined,
@@ -490,33 +545,77 @@ function compileClass() {
 
 // ---------------------------------------------------------------------------------------------
 // State, undo, and the draft kept in this browser.
-let cls = null, openId = null, showGs = false, undoStack = [];
-const DRAFT_KEY = "classBuilderDraft";
+let cls = null, openId = null, showGs = false, undoStack = [], redoStack = [];
+/* Classes are kept in this browser: several of them, each with its own undo and redo history, so a
+   reload or an Import never loses work. (Older single drafts are moved into the list.) */
+const STORE_KEY = "classBuilderStore", OLD_DRAFT_KEY = "classBuilderDraft";
+let store = { current: null, order: [], classes: {} };
+/* Every change goes through here: one undo step, redraw, keep focus on the same control, save. */
 function change(fn, keepMenu) {
-  undoStack.push(JSON.stringify(cls)); if (undoStack.length > 80) undoStack.shift();
-  fn(); if (!keepMenu) closeMenu(); render(); saveDraft();
+  undoStack.push(JSON.stringify(cls)); if (undoStack.length > 60) undoStack.shift(); redoStack = [];
+  const key = pendingFk || (document.activeElement && document.activeElement.dataset && document.activeElement.dataset.fk) || menuFk;
+  fn(); if (!keepMenu) closeMenu(); render(); saveStore();
+  const target = pendingFk || key; pendingFk = null;
+  if (!(keepMenu && openMenu && openMenu.contains(document.activeElement))) restoreFocus(target);
 }
-function undo() { if (!undoStack.length) return toast("Nothing to undo."); cls = JSON.parse(undoStack.pop()); render(); saveDraft(); }
-function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ cls, uid })); } catch (e) {} }
-function loadDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); if (d && d.cls && d.cls.lanes) { uid = Math.max(uid, d.uid || 1); return migrateClass(d.cls); } } catch (e) {} return null; }
+function undo() { if (!undoStack.length) return toast("Nothing to undo."); redoStack.push(JSON.stringify(cls)); cls = JSON.parse(undoStack.pop()); render(); saveStore(); toast("Undone.", { label: "Redo", run: redo }); }
+function redo() { if (!redoStack.length) return toast("Nothing to redo."); undoStack.push(JSON.stringify(cls)); cls = JSON.parse(redoStack.pop()); render(); saveStore(); toast("Redone."); }
+function saveStore() {
+  store.classes[cls.id] = { cls, undo: undoStack.slice(-30), redo: redoStack.slice(-30) };
+  if (!store.order.includes(cls.id)) store.order.push(cls.id); store.current = cls.id; store.uid = uid;
+  // Browser storage is limited: if it's full, keep the classes and drop old history first.
+  for (const keep of [30, 5, 0]) {
+    try { Object.values(store.classes).forEach(c => { c.undo = (c.undo || []).slice(-keep); c.redo = (c.redo || []).slice(-keep); }); localStorage.setItem(STORE_KEY, JSON.stringify(store)); return; } catch (e) {}
+  }
+}
+function loadStore() {
+  try { const d = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (d && d.classes && d.order) store = d; } catch (e) {}
+  try { const old = JSON.parse(localStorage.getItem(OLD_DRAFT_KEY) || "null");
+    if (old && old.cls && old.cls.lanes && !store.classes[old.cls.id]) { store.classes[old.cls.id] = { cls: old.cls, undo: [], redo: [] }; store.order.push(old.cls.id); store.current = store.current || old.cls.id; uid = Math.max(uid, old.uid || 1); }
+    localStorage.removeItem(OLD_DRAFT_KEY); } catch (e) {}
+  uid = Math.max(uid, store.uid || 1);
+}
+function openClass(id) {
+  const e = store.classes[id]; if (!e) return;
+  if (cls) saveStore();
+  cls = migrateClass(e.cls); undoStack = e.undo || []; redoStack = e.redo || []; openId = null; saveStore(); render();
+}
+function newClass(c) { if (cls) saveStore(); cls = c || blankClass(); undoStack = []; redoStack = []; openId = null; saveStore(); render(); }
+function deleteClass() {
+  const name = cls.name; delete store.classes[cls.id]; store.order = store.order.filter(x => x !== cls.id); cls = null;
+  if (store.order.length) openClass(store.order[store.order.length - 1]); else newClass();
+  toast("Deleted \u201c" + name + "\u201d from this browser.");
+}
+function migrateText(c) {
+  // Typed feature text remembers the blocks' wording it was written against, so a later change can be flagged.
+  Object.values(c.lanes || {}).forEach(l => l.forEach(f => { if (f.text && f.textBasis == null) f.textBasis = sentenceProse(f); }));
+  if (typeof c.arrays === "string" && c.arrays !== "auto" && c.arrays !== "custom") {
+    let a = null; try { a = JSON.parse("[" + c.arrays.replace(/\]\s*\[/g, "],[") + "]"); } catch (e) {}
+    const std = STD_ARRAYS[Object.keys(c.primary || {}).length] || STD_ARRAYS[1];
+    if (a && JSON.stringify(a) !== JSON.stringify(std)) { c.arrays = "custom"; c.arraysCustom = a; } else { c.arrays = "auto"; c.arraysCustom = []; }
+  }
+  return c;
+}
 
 // ---------------------------------------------------------------------------------------------
 // The ability editor (simple ability editor in embedded mode). One iframe, reused.
 const abModal = document.getElementById("abModal"), abFrame = document.getElementById("abFrame");
-let abReady = false, abPending = null, abDone = null;
+let abReady = false, abPending = null, abDone = null, abReturnFk = null;
 function openEditor(msg, done) {
-  abDone = done; abModal.classList.add("open"); abModal.setAttribute("aria-hidden", "false");
+  abDone = done; abReturnFk = (document.activeElement && document.activeElement.dataset.fk) || menuFk;
+  abModal.classList.add("open"); abModal.setAttribute("aria-hidden", "false"); setTimeout(() => abFrame.focus());
   const m = Object.assign({ type: "cb-edit", owner: cls.name, resourceName: cls.resourceName }, msg);
   if (abReady) abFrame.contentWindow.postMessage(m, "*"); else abPending = m;
 }
-function closeEditor() { abModal.classList.remove("open"); abModal.setAttribute("aria-hidden", "true"); abDone = null; }
+function closeEditor() { abModal.classList.remove("open"); abModal.setAttribute("aria-hidden", "true"); abDone = null; restoreFocus(abReturnFk); }
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && abModal.classList.contains("open")) closeEditor(); });
 window.addEventListener("message", ev => {
   const m = ev.data || {};
   if (m.type === "cb-ready") { abReady = true; if (abPending) { abFrame.contentWindow.postMessage(abPending, "*"); abPending = null; } }
   else if (m.type === "cb-cancel") closeEditor();
   else if (m.type === "cb-done") {
     const done = abDone; closeEditor();
-    if (done) change(() => done(m.rec, m.display));
+    if (done) change(() => done(m.rec, m.display, m.problems && m.problems.length ? m.problems : undefined));
     toast(m.problems && m.problems.length ? "Saved into the class. Still to finish: " + m.problems[0] : "Saved into the class.");
   }
 });
@@ -579,18 +678,21 @@ function abilityCards(items, feat, setRec, onRemove, sent, seedFn) {
   const wrap = E("div", "cards");
   items.forEach((it, i) => {
     const cw = E("div", "cardwrap"); const card = cardFor(it.rec, it.display, it.trig);
-    const edit = () => openEditor({ rec: it.rec || (seedFn ? seedFn() : null), display: it.display || null, kind: it.trig ? "triggered" : "ability" }, (rec, display) => setRec(i, rec, display));
+    const edit = () => openEditor({ rec: it.rec || (seedFn ? seedFn() : null), display: it.display || null, kind: it.trig ? "triggered" : "ability" }, (rec, display, problems) => setRec(i, rec, display, problems));
     card.tabIndex = 0; card.title = "Edit in the ability editor"; card.addEventListener("click", edit); card.addEventListener("keydown", e => { if (e.key === "Enter") edit(); });
     cw.appendChild(card);
     const btns = E("div", "cbtns");
     const eb = E("button", "btn small", it.rec ? "Edit" : "Build it"); eb.type = "button"; eb.addEventListener("click", edit); btns.appendChild(eb);
-    if (onRemove) { const rb = E("button", "btn small", "Remove"); rb.type = "button"; rb.addEventListener("click", () => change(() => onRemove(i))); btns.appendChild(rb); }
+    if (it.problems) btns.appendChild(E("span", "warn", it.problems.length + " thing" + (it.problems.length === 1 ? "" : "s") + " to finish"));
+    if (onRemove) { const rb = E("button", "btn small", "Remove"); rb.type = "button"; rb.addEventListener("click", () => { change(() => onRemove(i)); toast("Removed \u201c" + (it.rec ? recName(it.rec) : "ability") + "\u201d.", { label: "Undo", run: undo }); }); btns.appendChild(rb); }
     cw.appendChild(btns); wrap.appendChild(cw);
   });
   wrap.style.flexBasis = "100%";
   return wrap;
 }
 
+// The starting characteristics as a pickable list (one stable object, so its focus key stays the same).
+const PRIMARY = { get list() { return Object.keys(cls.primary); }, set list(v) { cls.primary = Object.fromEntries(v.map(k => [k, cls.primary[k] || 2])); } };
 // ---------------------------------------------------------------------------------------------
 // Rendering: board, shelf, side.
 const board = document.getElementById("board"), shelf = document.getElementById("shelf"), side = document.getElementById("side");
@@ -600,28 +702,27 @@ function render() {
   compiled = compileClass();
   renderBoard(); renderShelf(); renderSide();
   document.getElementById("showGs").checked = showGs;
+  if (store.order) updateOpenSel();
 }
 function renderBoard() {
   const y = window.scrollY; board.innerHTML = "";
   const nm = E("div", "clsname");
-  const ni = E("input"); ni.value = cls.name; ni.setAttribute("aria-label", "Class name");
-  ni.addEventListener("change", () => change(() => { cls.name = ni.value.trim() || "New Class"; }));
-  nm.appendChild(ni);
-  const nb = E("button", "btn small", "New blank class"); nb.type = "button";
-  nb.addEventListener("click", ev => { ev.stopPropagation(); askConfirm(nb, "Start a new blank class? Undo brings this one back.", "Start blank", () => change(() => { cls = blankClass(); openId = null; })); });
-  nm.appendChild(nb); board.appendChild(nm);
-  const det = E("textarea", "details"); det.placeholder = "The class's introduction, as the book prints it (optional)"; det.value = cls.details;
-  det.addEventListener("change", () => change(() => { cls.details = det.value; })); board.appendChild(det);
+  // Text fields commit after focus has moved on (setTimeout), so Tab lands on the next control.
+  const ni = fk(E("input"), "cls:name"); ni.value = cls.name; ni.setAttribute("aria-label", "Class name");
+  ni.addEventListener("change", () => setTimeout(() => change(() => { cls.name = ni.value.trim() || "New Class"; })));
+  nm.appendChild(ni); board.appendChild(nm);
+  const det = fk(E("textarea", "details"), "cls:details"); det.placeholder = "The class's introduction, as the book prints it (optional)"; det.value = cls.details;
+  det.addEventListener("change", () => setTimeout(() => change(() => { cls.details = det.value; }))); board.appendChild(det);
 
   // Basics
   board.appendChild(E("h3", "sec", "Basics"));
   const b = E("div", "fixed");
   const row = (label, ...nodes) => { const r = E("div", "row"); r.appendChild(E("span", "lbl", label)); nodes.forEach(n => r.appendChild(n)); b.appendChild(r); };
-  row("Characteristics", lbl("You start with"), multiTok({ get list() { return Object.keys(cls.primary); }, set list(v) { cls.primary = Object.fromEntries(v.map(k => [k, cls.primary[k] || 2])); } }, "list", CHARS, "choose", "and"),
-    lbl("of 2; the other scores use one of these arrays:"), textTok(cls, "arrays", "[2, -1, -1] [1, 1, -1]", 30));
+  row("Characteristics", lbl("You start with"), multiTok(PRIMARY, "list", CHARS, "choose", "and"),
+    lbl("of 2; the other scores use one of these arrays:"), arraysTok());
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   board.appendChild(b);
-  board.appendChild(E("p", "hint", "Recoveries, skills and kits are features: drag them in from the shelf (Recoveries, Skills, Kit)."));
+  board.appendChild(E("p", "hint", "Recoveries, skills and kits are features: add them to a level (Recoveries, Skills, Kit)."));
 
   // Heroic resource
   board.appendChild(E("h3", "sec", "Heroic resource"));
@@ -636,13 +737,13 @@ function renderBoard() {
     el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(fxTok(g, "qty", "1"));
     el.appendChild(lbl((cls.resourceName || "resource").toLowerCase()));
     el.appendChild(E("span", "grow"));
-    const mb = E("button", "mb", "\u22ef"); mb.type = "button"; mb.setAttribute("aria-label", "Options");
-    mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => cls.gains.splice(i, 1)); }); m.appendChild(x); }); });
+    const mb = fk(E("button", "mb", "\u22ef"), "gainmb:" + g.id); mb.type = "button"; mb.setAttribute("aria-label", "Options");
+    mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => cls.gains.splice(i, 1)); toast("Deleted that way to gain " + (cls.resourceName || "it").toLowerCase() + ".", { label: "Undo", run: undo }); }); m.appendChild(x); }); });
     el.appendChild(mb);
     if (showGs) { const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0]; el.appendChild(E("div", "saves", "saves as checklist line (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + ") + trigger " + ev[0] + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked")); }
     gs.appendChild(el);
   });
-  const ag = E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()); ag.type = "button";
+  const ag = fk(E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()), "addgain"); ag.type = "button";
   ag.addEventListener("click", () => change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })));
   gs.appendChild(ag); board.appendChild(gs);
   board.appendChild(E("p", "hint", "Each way writes the sheet's checklist line and the trigger that grants it, linked so they can't disagree."));
@@ -650,12 +751,14 @@ function renderBoard() {
   // Levels
   const lh = E("div", "lanes-head");
   lh.appendChild(E("h3", "sec", "Levels"));
-  const st = E("label", "toggle"); const cb = E("input"); cb.type = "checkbox"; cb.checked = cls.slowStart;
+  const st = E("label", "toggle"); const cb = fk(E("input"), "slowstart"); cb.type = "checkbox"; cb.checked = cls.slowStart;
   const setSlow = () => {
     // Turning it on moves 1st-level features into Encounter 1 (where core classes keep them); the
     // "1st level, after the slow start" lane is for what a hero gets once the slow start is over.
+    const moving = cb.checked ? (cls.lanes["level-1"] || []).length : ENCOUNTERS.reduce((n, k) => n + (cls.lanes[k] || []).length, 0);
     change(() => { cls.slowStart = cb.checked; if (cls.slowStart) { cls.lanes["tutoriallevel-1"] = (cls.lanes["tutoriallevel-1"] || []).concat(cls.lanes["level-1"] || []); cls.lanes["level-1"] = []; }
       if (!cls.slowStart) { const moved = ENCOUNTERS.flatMap(k => cls.lanes[k] || []); ENCOUNTERS.forEach(k => delete cls.lanes[k]); cls.lanes["level-1"] = moved.concat(cls.lanes["level-1"] || []); } });
+    if (moving) toast(moving + " feature" + (moving === 1 ? "" : "s") + " moved to " + (cls.slowStart ? "Encounter 1." : "1st level."), { label: "Undo", run: undo });
   };
   cb.addEventListener("change", () => {
     if (!cb.checked && ENCOUNTERS.some(k => (cls.lanes[k] || []).length)) { cb.checked = true;
@@ -665,6 +768,7 @@ function renderBoard() {
   });
   st.appendChild(cb); st.appendChild(document.createTextNode("Uses the slow start rules (Encounters 1–4)")); lh.appendChild(st);
   board.appendChild(lh);
+  if (cls.slowStart) board.appendChild(E("p", "hint", "Slow start: a new hero has Encounter 1's features in their first encounter, adds Encounter 2's in their second, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once it's over."));
   const keys = laneKeys(); let shown = 0;
   keys.forEach(k => {
     const isLevel = k.startsWith("level-"); const n = isLevel ? +k.slice(6) : 0;
@@ -672,8 +776,8 @@ function renderBoard() {
     shown++; board.appendChild(renderLane(k));
   });
   if (cls.showLevels < 10) {
-    const more = E("button", "collapsed-note", "Levels " + (cls.showLevels + 1) + "–10 collapsed · click to show the next level"); more.type = "button";
-    more.addEventListener("click", () => change(() => { cls.showLevels = Math.min(10, cls.showLevels + 1); })); board.appendChild(more);
+    const more = fk(E("button", "collapsed-note", "Show levels " + (cls.showLevels + 1) + "\u201310"), "morelevels"); more.type = "button";
+    more.addEventListener("click", () => change(() => { cls.showLevels = 10; })); board.appendChild(more);
   }
   window.scrollTo(0, y);
 }
@@ -683,24 +787,27 @@ function renderLane(k) {
   const ln = E("div", "ln", a); ln.appendChild(E("b", null, n)); if (sub) ln.appendChild(E("small", null, sub)); lane.appendChild(ln);
   const items = E("div", "items");
   (cls.lanes[k] || []).forEach(f => items.appendChild(f.id === openId ? renderFeature(f, k) : chip(f, k)));
-  const add = E("button", "addf", "+ add a feature"); add.type = "button";
+  const add = fk(E("button", "addf", "+ add a feature"), "addf:" + k); add.type = "button";
   add.addEventListener("click", ev => { ev.stopPropagation(); menuAt(add, m => READY.forEach(t => { const x = E("button", null, t.title); x.type = "button"; x.addEventListener("click", () => { closeMenu(); addFeature(t, k); }); m.appendChild(x); })); });
   items.appendChild(add); lane.appendChild(items);
   return lane;
 }
 function chip(f, k) {
-  const c = E("button", "chip"); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
+  const bad = featureIssues(f, k).some(x => !x.soft);
+  const c = fk(E("button", "chip" + (bad ? " bad" : "")), "chip:" + f.id); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
   c.appendChild(E("span", "kind", kindLabel(f))); c.appendChild(E("span", "nm", featName(f)));
-  c.title = featText(f) || "Click to open";
-  c.addEventListener("click", () => { if (c.dataset.dragged) return; openId = f.id; render(); });
+  c.title = (bad ? "Something to finish. " : "") + (featText(f) || "Click to open");
+  c.addEventListener("click", () => { if (c.dataset.dragged) return; openFeature(f.id); });
   return c;
 }
+function openFeature(id) { openId = id; render(); restoreFocus("fname:" + id); const el = document.querySelector('[data-fk="fname:' + id + '"]'); if (el) el.scrollIntoView({ block: "nearest" }); }
 function addFeature(tpl, laneKey) {
   const f = newFeature(tpl);
-  change(() => { (cls.lanes[laneKey] = cls.lanes[laneKey] || []).push(f); openId = f.id;
-    if (laneKey.startsWith("level-") && +laneKey.slice(6) > cls.showLevels) cls.showLevels = +laneKey.slice(6); });
-  // Features made around an ability go straight to the ability editor.
-  if (tpl.opens) { const s = f.sentences[0]; openEditor({ rec: null, kind: tpl.opens === "trigger" ? "triggered" : "ability" }, (rec, display) => { s.f.rec = rec; if (display !== undefined) s.f.display = display; if (!f.name && rec) f.name = recName(rec); }); }
+  const place = () => { (cls.lanes[laneKey] = cls.lanes[laneKey] || []).push(f); openId = f.id; pendingFk = "fname:" + f.id;
+    if (laneKey.startsWith("level-") && +laneKey.slice(6) > cls.showLevels) cls.showLevels = +laneKey.slice(6); };
+  // A feature made around an ability goes straight to the ability editor, and is only placed on Done.
+  if (tpl.opens) { const s = f.sentences[0]; openEditor({ rec: null, kind: tpl.opens === "trigger" ? "triggered" : "ability" }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; if (!f.name && rec) f.name = recName(rec); place(); }); return; }
+  change(place);
 }
 /* Pointer dragging, as in the ability editor (works with touch too): a ghost follows the pointer and a
    gold line shows where it lands. Drag a shelf block onto a level or into the open feature, drag a block
@@ -776,48 +883,50 @@ function renderFeature(f, laneKey) {
   const box = E("div", "feat");
   const head = E("div", "feat-head");
   head.appendChild(E("span", "kind", kindLabel(f)));
-  const nin = E("input", "fname"); nin.value = f.name; nin.placeholder = featName(f) === "Unnamed feature" ? "Feature name" : featName(f); nin.setAttribute("aria-label", "Feature name");
-  nin.addEventListener("change", () => change(() => { f.name = nin.value.trim(); })); head.appendChild(nin);
-  const close = E("button", "btn small", "Close"); close.type = "button"; close.addEventListener("click", () => { openId = null; render(); }); head.appendChild(close);
+  const nin = fk(E("input", "fname"), "fname:" + f.id); nin.value = f.name; nin.placeholder = featName(f) === "Unnamed feature" ? "Feature name" : featName(f); nin.setAttribute("aria-label", "Feature name");
+  nin.addEventListener("change", () => setTimeout(() => change(() => { f.name = nin.value.trim(); }))); head.appendChild(nin);
+  const close = fk(E("button", "btn small", "Close"), "close:" + f.id); close.type = "button"; close.addEventListener("click", () => { openId = null; render(); restoreFocus("chip:" + f.id); }); head.appendChild(close);
   box.appendChild(head);
-  const ta = E("textarea", "ftext"); ta.value = f.text; ta.placeholder = autoText(f) || "The feature's text, as the book prints it";
-  ta.addEventListener("change", () => change(() => { f.text = ta.value; })); box.appendChild(ta);
+  const ta = fk(E("textarea", "ftext"), "ftext:" + f.id); ta.value = f.text; ta.placeholder = autoText(f) || "The feature's text, as the book prints it";
+  // Typed text remembers the blocks' wording at that moment, so a later change to the blocks is flagged.
+  ta.addEventListener("change", () => setTimeout(() => change(() => { f.text = ta.value; f.textBasis = ta.value ? autoText(f) : null; }))); box.appendChild(ta);
   if (!f.text && autoText(f)) box.appendChild(E("div", "hint", "The book text above is written from the blocks below until you type your own."));
+  if (textStale(f)) box.appendChild(staleNote(f));
   const lb = E("div", "lbl2", "What it does");
   if (showGs) lb.appendChild(E("span", "mono saves-type", " \u00b7 saves as " + compileFeature(f).__typeName));
   box.appendChild(lb);
   const sents = E("div", "sents"); regList(sents, f.sentences, f, false);
   {
     renderSentenceList(f.sentences, f, sents);
-    const add = E("button", "addsent", "+ add what it does"); add.type = "button";
+    const add = fk(E("button", "addsent", "+ add what it does"), "addsent:" + f.id); add.type = "button";
     add.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add, type => addSentence(f, f.sentences, type)); });
     sents.appendChild(add);
   }
   box.appendChild(sents);
   const foot = E("div", "feat-foot");
   const lanes = laneKeys();
-  const mv = E("button", "btn small", "Move to…"); mv.type = "button";
+  const mv = fk(E("button", "btn small", "Move to…"), "move:" + f.id); mv.type = "button";
   mv.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mv, m => lanes.forEach(k => { const [a, n, sub] = laneLabel(k); const x = E("button", null, a + " " + n + (sub ? " (" + sub + ")" : "")); x.type = "button";
     x.addEventListener("click", () => change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); (cls.lanes[k] = cls.lanes[k] || []).push(f); if (k.startsWith("level-") && +k.slice(6) > cls.showLevels) cls.showLevels = +k.slice(6); })); m.appendChild(x); })); });
   foot.appendChild(mv);
-  const dup = E("button", "btn small", "Duplicate"); dup.type = "button";
+  const dup = fk(E("button", "btn small", "Duplicate"), "dup:" + f.id); dup.type = "button";
   dup.addEventListener("click", () => change(() => { const c = JSON.parse(JSON.stringify(f)); c.id = newId("f"); JSON.stringify(c, (k, v) => { if (v && typeof v === "object" && typeof v.id === "string" && /^s\d+$/.test(v.id)) v.id = newId("s"); return v; }); cls.lanes[laneKey].push(c); openId = c.id; }));
   foot.appendChild(dup);
-  const del = E("button", "btn small", "Delete"); del.type = "button";
-  del.addEventListener("click", () => change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); openId = null; }));
+  const del = fk(E("button", "btn small", "Delete"), "del:" + f.id); del.type = "button";
+  del.addEventListener("click", () => { pendingFk = "addf:" + laneKey; change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); openId = null; });
+    toast("Deleted \u201c" + featName(f) + "\u201d.", { label: "Undo", run: undo }); });
   foot.appendChild(del);
-  foot.appendChild(E("span", "spacer"));
-  const fl = E("button", "btn small", "Saved data"); fl.type = "button"; fl.addEventListener("click", () => { renderSide(); side.scrollIntoView({ block: "start" }); });
-  foot.appendChild(fl);
   box.appendChild(foot);
   return box;
 }
 function regList(el, list, feat, inIf) { const id = "l:" + (feat.id || "") + ":" + Object.keys(LISTS).length; LISTS[id] = { list, feat, inIf }; el.dataset.list = id; }
 function addSentence(feat, list, type, idx) {
   const s = makeSentence(type);
-  change(() => { if (idx == null || idx > list.length) list.push(s); else list.splice(idx, 0, s); });
+  const place = () => { if (idx == null || idx > list.length) list.push(s); else list.splice(idx, 0, s); pendingFk = "mb:" + s.id; };
   const d = SENT[type];
-  if (d.opensEditor) openEditor({ rec: null, kind: d.opensEditor }, (rec, display) => { s.f.rec = rec; if (display !== undefined) s.f.display = display; if (!feat.name && rec) feat.name = recName(rec); });
+  // Ability blocks are only placed when the editor's Done is pressed.
+  if (d.opensEditor) return openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; if (!feat.name && rec) feat.name = recName(rec); place(); });
+  change(place);
 }
 function sentenceMenu(el, pick, noWrapper) {
   menuAt(el, m => GROUPS.forEach(g => {
@@ -839,20 +948,21 @@ function renderSentence(s, list, i, feat) {
   const add = n => line.appendChild(n);
   d.render(s.f, add, s, feat);
   const grow = E("span", "grow"); line.appendChild(grow);
-  const mb = E("button", "mb", "⋯"); mb.type = "button"; mb.setAttribute("aria-label", d.label + " options");
+  const mb = fk(E("button", "mb", "⋯"), "mb:" + s.id); mb.type = "button"; mb.setAttribute("aria-label", d.label + " options");
   mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => {
     const item = (t, fn) => { const x = E("button", null, t); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(fn); }); m.appendChild(x); };
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
     if (!d.wrapper && !d.choice) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
     if (d.wrapper) item("Remove the “Only if” (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
-    item("Delete", () => { list.splice(i, 1); });
+    const delItem = E("button", null, "Delete"); delItem.type = "button";
+    delItem.addEventListener("click", () => { closeMenu(); pendingFk = "addsent:" + feat.id; change(() => { list.splice(i, 1); }); toast("Deleted \u201c" + d.label + "\u201d.", { label: "Undo", run: undo }); }); m.appendChild(delItem);
   }); });
   line.appendChild(mb);
   if (d.wrapper) {
     el.appendChild(line);
     const body = E("div", "ifbody sents"); regList(body, s.children, feat, true); renderSentenceList(s.children, feat, body);
-    const add2 = E("button", "addsent", "+ add inside"); add2.type = "button";
+    const add2 = fk(E("button", "addsent", "+ add inside"), "addin:" + s.id); add2.type = "button";
     add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true); });
     body.appendChild(add2); el.appendChild(body);
   } else if (showGs) {
@@ -873,9 +983,9 @@ function savesLine(r) {
 /* The shelf, in the ability editor's look: coloured blocks with a grip, hover for what each does. */
 function shelfBlock(label, color, uses, title, dragKind, value, onClick, disabled) {
   const b = E("button", "pal"); b.type = "button"; b.style.setProperty("--c", "var(" + color + ")");
-  b.dataset.drag = dragKind; b.dataset.value = value; b.title = title;
+  b.dataset.drag = dragKind; b.dataset.value = value; b.title = title; fk(b, "shelf:" + dragKind + ":" + value);
   const h = E("span", "grip"); h.innerHTML = GRIP; b.appendChild(h); b.appendChild(E("span", "pl", label));
-  if (uses) b.appendChild(E("span", "uses", uses.toLocaleString()));
+  if (uses) { const u = E("span", "uses", uses.toLocaleString()); u.title = "Used " + uses.toLocaleString() + " times in core content"; b.appendChild(u); }
   if (disabled) b.setAttribute("aria-disabled", "true");
   b.addEventListener("click", () => { if (b.dataset.dragged) return; onClick(); });
   return b;
@@ -889,7 +999,7 @@ function renderShelf() {
   shelf.appendChild(s);
   const match = t => !q || t.toLowerCase().includes(q.toLowerCase());
   const at = openId && findFeature(openId);
-  shelf.appendChild(E("p", "hint", "Drag a feature onto a level, or click to add it to " + (at ? "the open feature's level" : "the first level") + ". Hover any block for what it does."));
+  shelf.appendChild(E("p", "hint", "Drag onto a level or into a feature, or click to add. Hover a block for what it does; numbers are how often core classes use it."));
   const fh = E("h4"); fh.appendChild(E("span", null, "Ready-made features")); shelf.appendChild(fh);
   const fg = E("div", "palgroup");
   READY.filter(t => match(t.title + " " + t.desc)).forEach(t => {
@@ -898,72 +1008,151 @@ function renderShelf() {
   });
   shelf.appendChild(fg);
   shelf.appendChild(E("h4", null, "Blocks"));
-  shelf.appendChild(E("p", "hint", at ? "Drag into \u201c" + featName(at.feat) + "\u201d, or click to add at its end." : "Open a feature, then drag blocks into it."));
+  shelf.appendChild(E("p", "hint", at ? "Click adds to \u201c" + featName(at.feat) + "\u201d." : "Click starts a new feature with the block."));
   GROUPS.forEach(g => {
     const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && match(SENT[t].label + " " + g[1] + " " + (SENT[t].desc || ""))); if (!types.length) return;
     const gh = E("h5", "palhead"); const sw = E("span", "sw"); sw.style.background = "var(" + g[2] + ")"; gh.appendChild(sw); gh.appendChild(document.createTextNode(g[1])); shelf.appendChild(gh);
     const box = E("div", "palgroup");
     types.forEach(t => box.appendChild(shelfBlock(SENT[t].label, g[2], SENT[t].uses, SENT[t].desc || SENT[t].label, "sentence", t,
-      () => { if (!at) return toast("Open a feature first (or add an Empty feature from above)."); addSentence(at.feat, at.feat.sentences, t); }, !at)));
+      () => { if (!at) { const nf = feature("", []); nf.id = newId("f"); change(() => { (cls.lanes[laneKeys()[0]] = cls.lanes[laneKeys()[0]] || []).push(nf); openId = nf.id; }); return addSentence(nf, nf.sentences, t); }
+        addSentence(at.feat, at.feat.sentences, t); })));
     shelf.appendChild(box);
   });
-  shelf.appendChild(E("p", "hint", "Numbers are how often content uses each kind of record today."));
 }
-/* The right-hand column: what the engine would store, for the open feature and the whole class. */
+/* What's left to finish, per feature (hard) and worth checking (soft), each with a fix where one is obvious.
+   Shown in the status column and as a red mark on the feature's chip. */
+const REQUIRED = { stat: ["value"], damage: ["amount"], immunity: ["amount"], resource: ["num"], reminder: ["text"], modAbility: ["name"], condImm: ["conds"], language: ["ids"], perkChoice: ["groups"] };
+function textStale(f) { return !!f.text && f.textBasis != null && f.textBasis !== autoText(f); }
+function staleNote(f) {
+  const n = E("div", "stale"); n.appendChild(E("span", null, "The blocks have changed since this text was written. Does it still match?"));
+  const a = E("button", "btn small", "Use the blocks' wording"); a.type = "button"; a.addEventListener("click", () => change(() => { f.text = ""; f.textBasis = null; }));
+  const b = E("button", "btn small", "The text is still right"); b.type = "button"; b.addEventListener("click", () => change(() => { f.textBasis = autoText(f); }));
+  n.appendChild(a); n.appendChild(b); return n;
+}
+function featureIssues(f, lane) {
+  const out = [], nm = "\u201c" + featName(f) + "\u201d", [a, n] = laneLabel(lane);
+  const add = (msg, soft, fix) => out.push({ feat: f, lane, msg, soft, fix });
+  if (!f.sentences.length) add(nm + " doesn't do anything yet.", false, { label: "Delete it", run: () => { change(() => { cls.lanes[lane] = cls.lanes[lane].filter(x => x !== f); }); toast("Deleted.", { label: "Undo", run: undo }); } });
+  if (featName(f) === "Unnamed feature") add("A feature at " + a + " " + n + " has no name.", true);
+  (function walk(list) { list.forEach(s => {
+    const d = SENT[s.type];
+    if (s.type === "onlyIf" && !s.children.length) add("An \u201cOnly if\u201d in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
+    if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
+    if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,
+      { label: "Edit it", run: () => openEditor({ rec: s.f.rec, display: s.f.display || null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
+    if (s.type === "abilityChoice") {
+      if (!s.f.options.length) add(nm + " has no abilities to choose from.", false, { label: "+ New ability", run: () => newOption(s.f, f) });
+      else if (s.f.options.length < (+s.f.num || 1)) add(nm + " offers " + s.f.options.length + " but players choose " + s.f.num + ".", false, { label: "+ New ability", run: () => newOption(s.f, f) });
+      s.f.options.forEach(o => { if (o.problems) add("\u201c" + recName(o.rec) + "\u201d in " + nm + " has " + o.problems.length + " thing" + (o.problems.length === 1 ? "" : "s") + " to finish: " + o.problems[0], false,
+        { label: "Edit it", run: () => openEditor({ rec: o.rec, kind: "ability" }, (rec, dd, problems) => { o.rec = rec; o.problems = problems; }) }); });
+    }
+    if (s.type === "skills" && !s.f.granted.length && !(+s.f.num > 0)) add(nm + " gives no skills: pick fixed skills or a number to choose.", false);
+    (REQUIRED[s.type] || []).forEach(k => { const v = s.f[k]; if (v == null || v === "" || (Array.isArray(v) && !v.length)) add("\u201c" + d.label + "\u201d in " + nm + " is missing a value.", false); });
+    if (s.children) walk(s.children);
+  }); })(f.sentences);
+  if (textStale(f)) add("The blocks in " + nm + " changed since its text was written.", true, { label: "Use the blocks' wording", run: () => change(() => { f.text = ""; f.textBasis = null; }) });
+  return out;
+}
+function findList(f, s) { let r = null; (function walk(l) { l.forEach(x => { if (x === s) r = l; if (x.children) walk(x.children); }); })(f.sentences); return r; }
+function classIssues() {
+  const out = [];
+  if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
+  if (!cls.gains.length) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
+  cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
+  if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
+  laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k))));
+  return out;
+}
+/* The right-hand column: the class's status (what's left to finish), then what the engine would store. */
 function renderSide() {
   side.innerHTML = "";
-  side.appendChild(E("h3", "sec", "Saved data"));
+  const issues = classIssues(), hard = issues.filter(x => !x.soft), soft = issues.filter(x => x.soft);
+  side.appendChild(E("h3", "sec", "Status"));
+  const sum = E("div", "status " + (hard.length ? "bad" : soft.length ? "check" : "ok"));
+  sum.appendChild(E("span", "dot")); sum.appendChild(E("span", null, hard.length ? hard.length + " thing" + (hard.length === 1 ? "" : "s") + " to finish" + (soft.length ? ", " + soft.length + " worth checking" : "")
+    : soft.length ? "Ready to save, " + soft.length + " thing" + (soft.length === 1 ? "" : "s") + " worth checking" : "Ready to save"));
+  side.appendChild(sum);
+  const list = E("ul", "issues");
+  hard.concat(soft).forEach((x, i) => {
+    const li = E("li", x.soft ? "soft" : ""); li.appendChild(E("span", "msg", x.msg));
+    const row = E("div", "fixes");
+    if (x.feat) { const go = fk(E("button", "btn small", "Show"), "go:" + i); go.type = "button"; go.addEventListener("click", () => openFeature(x.feat.id)); row.appendChild(go); }
+    if (x.fix) { const b = E("button", "btn small primary", x.fix.label); b.type = "button"; b.addEventListener("click", () => x.fix.run()); row.appendChild(b); }
+    if (row.children.length) li.appendChild(row);
+    list.appendChild(li);
+  });
+  side.appendChild(list);
+  if (!issues.length) side.appendChild(E("p", "hint", "Every feature is finished. The class saves as the records below."));
   savedPanel();
 }
 function savedPanel() {
   const at = openId && findFeature(openId);
-  side.appendChild(E("p", "hint", "What the engine would store. Nothing here is saved anywhere: copy it to keep it."));
-  const btns = E("div", "feat-foot");
+  const det = E("details", "savedbox"); det.open = !!savedOpen; det.addEventListener("toggle", () => { savedOpen = det.open; });
+  det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
+  det.appendChild(E("p", "hint", "For developers. To send this class to someone, use Share instead."));
   const json = JSON.stringify(compiled, null, 2);
-  const cp = E("button", "btn small", "Copy class JSON"); cp.type = "button";
-  cp.addEventListener("click", () => copyText(json, null));
-  btns.appendChild(cp); side.appendChild(btns);
-  if (at) {
-    side.appendChild(E("h3", "sec", "“" + featName(at.feat) + "”"));
-    side.appendChild(E("pre", "saved", JSON.stringify(compileFeature(at.feat), null, 2)));
-  }
-  side.appendChild(E("h3", "sec", "Whole class"));
+  const cp = E("button", "btn small", "Copy the engine record"); cp.type = "button"; cp.addEventListener("click", () => copyText(json, null)); det.appendChild(cp);
+  if (at) { det.appendChild(E("h3", "sec", "\u201c" + featName(at.feat) + "\u201d")); det.appendChild(E("pre", "saved", JSON.stringify(compileFeature(at.feat), null, 2))); }
+  det.appendChild(E("h3", "sec", "Whole class (empty levels left out)"));
   const sm = Object.assign({}, compiled, { levels: Object.fromEntries(Object.entries(compiled.levels).filter(([, v]) => v.features.length)) });
-  side.appendChild(E("pre", "saved", JSON.stringify(sm, null, 2)));
-  side.appendChild(E("p", "hint", "Empty levels are left out of this view; Copy includes all of them."));
+  det.appendChild(E("pre", "saved", JSON.stringify(sm, null, 2)));
+  side.appendChild(det);
 }
+let savedOpen = false;
 
 // ---------------------------------------------------------------------------------------------
 // Start
 document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("redoBtn").addEventListener("click", redo);
 document.getElementById("showGs").addEventListener("change", e => { showGs = e.target.checked; render(); });
 document.addEventListener("keydown", e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); undo(); }
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if ((e.ctrlKey || e.metaKey) && !typing && ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y")) { e.preventDefault(); redo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !typing) { e.preventDefault(); undo(); }
   if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); const s = shelf.querySelector("input.search"); if (s) s.focus(); }
 });
 /* Share a class: Export gives this page's own model as text to copy (downloads don't work in the
    artifact viewer); Import takes that text back, pasted or from a saved .json file. */
 function exportBuilder(btn) {
   const text = JSON.stringify({ classBuilder: 1, cls });
-  menuAt(btn, m => { m.appendChild(E("div", "q", "Copy this and send it; anyone can paste it into Import to open the class.")); const ta = E("textarea", "io"); ta.readOnly = true; ta.value = text; m.appendChild(ta);
+  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Copy this text and send it. Whoever gets it pastes it into Import, and the class opens as a new class beside theirs.")); const ta = E("textarea", "io"); ta.readOnly = true; ta.value = text; m.appendChild(ta);
     const yn = E("div", "yn"); const c = E("button", "btn primary", "Copy"); c.type = "button"; c.addEventListener("click", () => copyText(text, ta)); yn.appendChild(c); m.appendChild(yn); });
 }
 function loadBuilderText(t) {
   let d; try { d = JSON.parse(t); } catch (e) { return toast("That isn't valid JSON. Paste the whole text from Export."); }
   if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class from this builder (use Export to make one).");
   const ids = t.match(/"id":"[a-z](\d+)"/g) || []; ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
-  closeMenu(); change(() => { cls = migrateClass(d.cls); openId = null; }); toast("Opened \u201c" + cls.name + "\u201d. Undo goes back to the class you had.");
+  // An imported class opens as a new class in the list; the one you had stays as it was.
+  closeMenu(); const c = migrateClass(d.cls); if (store.classes[c.id]) c.id = guid();
+  newClass(c); toast("Opened \u201c" + cls.name + "\u201d as a new class. Your other classes are in the Open list.");
 }
 function importBuilder(btn) {
-  menuAt(btn, m => { m.appendChild(E("div", "q", "Paste a class from Export, or choose a saved .json file.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
+  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Paste a class someone shared with you, or choose a saved file. It opens as a new class; yours stay as they are.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
     const yn = E("div", "yn"); const o = E("button", "btn primary", "Open pasted class"); o.type = "button"; o.addEventListener("click", () => loadBuilderText(ta.value));
-    const fi = E("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.id = "importFile"; fi.addEventListener("change", () => { const fl = fi.files[0]; if (fl) fl.text().then(loadBuilderText); });
-    yn.appendChild(o); yn.appendChild(fi); m.appendChild(yn); });
+    const fl = E("label", "btn filebtn", "Choose a file\u2026"); const fi = E("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.id = "importFile";
+    fi.addEventListener("change", () => { const x = fi.files[0]; if (x) x.text().then(loadBuilderText); }); fl.appendChild(fi);
+    yn.appendChild(o); yn.appendChild(fl); m.appendChild(yn); });
 }
 document.getElementById("exportBtn").addEventListener("click", ev => { ev.stopPropagation(); exportBuilder(ev.currentTarget); });
 document.getElementById("importBtn").addEventListener("click", ev => { ev.stopPropagation(); importBuilder(ev.currentTarget); });
+/* The Open list: every class kept in this browser, plus New and Delete. */
 const openSel = document.getElementById("openSel");
-[["draft", "Your class (kept in this browser)"], ["blank", "New blank class"]].forEach(([v, t]) => { const o = E("option", null, t); o.value = v; openSel.appendChild(o); });
-openSel.addEventListener("change", () => { if (openSel.value === "blank") { change(() => { cls = blankClass(); openId = null; }); } openSel.value = "draft"; });
-cls = loadDraft() || blankClass();
-render();
+function updateOpenSel() {
+  openSel.innerHTML = "";
+  const g = E("optgroup"); g.label = "Your classes (kept in this browser)";
+  const seen = {};
+  store.order.forEach(id => { const c = store.classes[id]; if (!c) return; const nm = c.cls.name || "Unnamed class"; seen[nm] = (seen[nm] || 0) + 1;
+    const o = E("option", null, nm + (seen[nm] > 1 ? " (" + seen[nm] + ")" : "")); o.value = "open:" + id; g.appendChild(o); });
+  openSel.appendChild(g);
+  [["new", "+ New blank class"], ["delete", "Delete this class\u2026"]].forEach(([v, t]) => { const o = E("option", null, t); o.value = v; openSel.appendChild(o); });
+  openSel.value = "open:" + cls.id;
+}
+openSel.addEventListener("change", () => {
+  const v = openSel.value;
+  if (v.startsWith("open:")) openClass(v.slice(5));
+  else if (v === "new") { newClass(); toast("Started a new class. Your other classes are in the Open list."); }
+  else if (v === "delete") { updateOpenSel(); askConfirm(openSel, "Delete \u201c" + cls.name + "\u201d from this browser? This can't be undone.", "Delete class", deleteClass); return; }
+  updateOpenSel();
+});
+loadStore();
+if (store.current && store.classes[store.current]) openClass(store.current); else newClass();

@@ -4353,6 +4353,16 @@ if (EMBED) {
     ab.owner = m.owner || ""; insertAt = null; editingId = null; kwEditing = false; undoStack = []; lastSnap = null; compiledCache = null; refresh();
     window.scrollTo(0, 0);
   });
+  // Escape with nothing else open counts as Cancel (a menu or a block being edited closes first).
+  window.addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (document.querySelector(".menu, .picker, .popup") || editingId || kwEditing) return;
+    parent.postMessage({ type: "cb-cancel" }, "*");
+  }, true);
+  // Phone width inside the class builder: one column (blocks, then shelf, then card).
+  const st = document.createElement("style");
+  st.textContent = "@media (max-width: 760px) { .dlg-body { grid-template-columns: minmax(0, 1fr) !important; } .dlg-body > .main { grid-column: 1; grid-row: 1; } .dlg-body > .palette { grid-column: 1 !important; grid-row: 2 !important; position: static; max-height: none; border-left: none; border-top: 1px solid var(--line); } .dlg-body > .side { grid-column: 1; grid-row: 3; } }";
+  document.head.appendChild(st);
   parent.postMessage({ type: "cb-ready" }, "*");
 }
 </script>

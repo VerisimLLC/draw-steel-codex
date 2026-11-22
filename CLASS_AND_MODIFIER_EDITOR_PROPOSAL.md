@@ -668,3 +668,44 @@ More elegant alternatives considered:
   - Turning on slow start shows "4 features moved to Encounter 1 · Undo", plus a one-time explanation.
   - Fixes 5, 6 and 11.
   - Failure: full-screen loses the class context.
+
+**Done (2026-11-22): A, the quick fixes, and B.**
+- **A. A status column.** "Ready to save / N things to finish / worth checking", each item with Show and
+  a fix where one is obvious. It covers:
+  - features that do nothing, unnamed features, and an empty Only if;
+  - abilities not built yet, or with things left to finish (the problems the editor reported on Done);
+  - an ability choice with no abilities, or fewer than players choose;
+  - missing values, a Skills block that gives nothing, the resource name and amounts.
+
+  Chips with something to finish get a red mark. **Typed text remembers the blocks' wording** it was
+  written against. When the blocks change, the feature shows "Does it still match?" with "Use the blocks'
+  wording" or "The text is still right" (no number matching, so no false alarms on prose). The saved
+  data moved under a "Saved data (for developers)" disclosure.
+- **B. Focus and history.**
+  - Focus: controls carry stable keys and keep focus across edits. Text fields commit after focus moves,
+    so Tab works. Arrow keys move through menus, and Escape returns focus to the word that opened them.
+  - History: classes are kept in a list in the browser, each with undo and redo that survive a reload
+    (Redo button, Ctrl+Shift+Z or Ctrl+Y).
+  - Import opens the class as a new class beside yours, and the Open list has New and Delete.
+- **Quick fixes:**
+  - **Leftovers:** abilities are only added on Done, so Cancel and Escape leave nothing behind (Escape
+    works inside the editor).
+  - **Slow start:** turning it on or off says "N features moved … · Undo", and a hint explains the
+    encounter lanes.
+  - **Delete:** deleting a feature, block or resource gain shows a notice with Undo.
+  - **Wording:**
+    - "Only if you have at least [3] Victories" and "you are at least level [5]";
+    - the fx menu reads in words, and shows the formula only with "Show saved fields";
+    - no design-brief note in the ability-name menu;
+    - arrays are shown as numbers, standard by default and following the starting characteristics,
+      with your own arrays one per line;
+    - Export is now Share, and its text says what to do with it.
+  - **Defaults:** Skills starts with no groups ticked (meaning any skill); Enter keeps the fx menu
+    open; a new level step starts empty.
+  - **Shelf:**
+    - the counts are explained on hover;
+    - blocks are never greyed out (with nothing open, a block starts a new feature);
+    - the Skills block is renamed "Have or choose skills";
+    - chips use the shelf's names (Kit, Resource, Triggered ability).
+  - **Phone:** the editor pop-up is full-screen, in one column.
+  - **Other:** the share box and file button are styled, and saved data no longer shows ligatures.

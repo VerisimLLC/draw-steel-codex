@@ -196,6 +196,27 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .fxrow .fxlv { width: 4ch; }
 .fxrow .fxval { width: 14ch; }
 .menu .fxrow button, .menu > .btn.small { width: auto; border: 1px solid var(--line); margin: 2px 6px; }
+/* Status column: what's left to finish, then the saved data under a disclosure. */
+.status { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font-weight: 600; }
+.status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+.status.bad .dot { background: var(--err); } .status.check .dot { background: var(--warn); }
+.status.bad { border-color: color-mix(in srgb, var(--err) 55%, var(--line)); }
+ul.issues { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.issues li { border-left: 3px solid var(--err); background: var(--panel); border-radius: 0 4px 4px 0; padding: 6px 8px; }
+ul.issues li.soft { border-left-color: var(--warn); }
+ul.issues .fixes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+details.savedbox { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.savedbox summary { cursor: pointer; color: var(--dim); }
+pre.saved { font-variant-ligatures: none; }
+.stale { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 8px; border: 1px dashed var(--warn); border-radius: 4px; color: var(--warn); font-size: 12px; }
+.chip.bad { border-left-color: var(--err); }
+.chip.bad .nm::after { content: " \25CF"; color: var(--err); font-size: 10px; vertical-align: 2px; }
+.menu.wide { max-width: min(560px, calc(100vw - 32px)); }
+.menu textarea.io { width: 100%; }
+.filebtn { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.toast { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 760px) { .modal { padding: 0; } .modal iframe { border-radius: 0; } }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; padding: 8px 12px; z-index: 120; max-width: calc(100vw - 32px); }
 .loading { padding: 40px; text-align: center; color: var(--dim); }
 </style>
@@ -207,8 +228,9 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
     <label class="note" for="openSel">Open</label>
     <select id="openSel" class="btn"></select>
     <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
-    <button type="button" class="btn" id="exportBtn" title="Download this class as a builder file to share">Export</button>
-    <button type="button" class="btn" id="importBtn" title="Open a class builder file">Import</button>
+    <button type="button" class="btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    <button type="button" class="btn" id="exportBtn" title="Copy this class as text to send to someone">Share</button>
+    <button type="button" class="btn" id="importBtn" title="Open a class someone shared with you">Import</button>
     <label class="toggle"><input type="checkbox" id="showGs"> Show saved fields</label>
   </div>
   <div class="body">

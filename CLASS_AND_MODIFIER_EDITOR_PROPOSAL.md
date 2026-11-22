@@ -549,6 +549,10 @@ damage types, custom attributes and resources).
 - **Saved data** column: the open feature's record and the whole class record, with Copy. (A book-page
   preview was tried and removed at the designer's request: the class builder doesn't need one.) A feature
   without its own text reads as its blocks.
+- **Formula amounts (fx):** resource gains, stat values, extra damage, immunity and resource amounts take
+  a number or a formula (quick picks: Victories, a die, level, a characteristic) and can change with level
+  ("1d3, 1d3 + 1 from 7th level"). The checklist line saves the level steps as a `GoblinScriptTable` (as
+  Shadow's content does); the trigger and modifiers save `(1d3 + 1) when Level >= 7 else (1d3)`.
 - **Sharing:** Export gives the builder's own class as text to copy; Import opens it (pasted or a .json
   file). Work in progress is kept in the viewer's browser.
 

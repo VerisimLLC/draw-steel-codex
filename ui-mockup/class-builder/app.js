@@ -39,7 +39,8 @@ function toast(msg) {
 }
 let openMenu = null;
 function closeMenu() { if (openMenu) { openMenu.remove(); openMenu = null; } }
-document.addEventListener("click", ev => { if (openMenu && !openMenu.contains(ev.target)) closeMenu(); });
+// A click on something the menu just rebuilt (no longer in the page) isn't a click outside it.
+document.addEventListener("click", ev => { if (openMenu && ev.target.isConnected && !openMenu.contains(ev.target)) closeMenu(); });
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeMenu(); });
 /* A popup menu under an element. build(menu) fills it; it closes on outside click or Escape. */
 function menuAt(el, build) {
@@ -110,6 +111,59 @@ function copyText(text, selectEl) {
   const fallback = () => { if (selectEl) { selectEl.focus(); if (selectEl.select) selectEl.select(); } toast("Press Ctrl+C (or Cmd+C) to copy the selected text."); };
   try { navigator.clipboard.writeText(text).then(() => toast("Copied."), fallback); } catch (e) { fallback(); }
 }
+/* Amounts that can be formulas ("fx"): a number, a GoblinScript formula (Victories, 1d3, Presence...),
+   and optionally steps that change it with level ("1d3, 1d3 + 1 from 7th level"). The steps live in
+   obj[key + "Lv"] as [{ from, value }]. fxFormula gives one formula for the engine; fxTable gives the
+   level table core classes store on checklist lines. */
+const fxSteps = (obj, key) => (obj[key + "Lv"] || []).filter(x => x.from && x.value !== "").slice().sort((a, b) => +a.from - +b.from);
+function fxText(obj, key) {
+  const st = fxSteps(obj, key), base = String(obj[key] == null ? "" : obj[key]);
+  return st.length ? base + " (" + st.map(x => x.value + " from " + ORD(+x.from) + " level").join(", ") + ")" : base;
+}
+function fxFormula(obj, key) {
+  let f = String(obj[key] == null ? "" : obj[key]).trim() || "0";
+  fxSteps(obj, key).forEach(x => { f = "(" + x.value + ") when Level >= " + x.from + " else (" + f + ")"; });
+  return f;
+}
+function fxTable(obj, key) {
+  const st = fxSteps(obj, key); if (!st.length) return numOr(obj[key]);
+  return { __typeName: "GoblinScriptTable", id: "table", field: "Level", editableField: true,
+    entries: [{ threshold: 1, script: String(obj[key]) }].concat(st.map(x => ({ threshold: +x.from, script: String(x.value) }))) };
+}
+const FX_PICKS = [["1", "a number"], ["Victories", "your Victories"], ["1d3", "a die roll (1d3)"], ["Level", "your level"]].concat(CHARS.map(c => [c[1], "your " + c[1]]));
+function fxTok(obj, key, placeholder) {
+  const t = tok(fxText(obj, key) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null);
+  t.classList.add("fx"); t.title = "A number or a formula; click for options"; return t;
+}
+function fillFx(m, obj, key) {
+  m.innerHTML = "";
+  const hint = E("div", "hint"); const upd = () => { hint.textContent = "Saves as " + fxFormula(obj, key); }; upd();
+  const edit = fn => { change(fn, true); upd(); };
+  m.appendChild(E("h5", null, "Amount (a number or a formula)"));
+  const i = E("input", "filter"); i.value = obj[key] == null ? "" : obj[key]; i.placeholder = "e.g. 2, Victories, 1d3, Presence"; i.id = "fxInput";
+  i.addEventListener("change", () => edit(() => { obj[key] = i.value.trim(); }));
+  i.addEventListener("keydown", e => { if (e.key === "Enter") { change(() => { obj[key] = i.value.trim(); }); } });
+  m.appendChild(i);
+  const quick = E("div", "fxquick");
+  FX_PICKS.forEach(([v, l]) => { const b = E("button", "btn small", l); b.type = "button"; b.addEventListener("click", () => { i.value = v; edit(() => { obj[key] = v; }); }); quick.appendChild(b); });
+  m.appendChild(quick);
+  m.appendChild(E("h5", null, "Changes with level"));
+  const steps = obj[key + "Lv"] = obj[key + "Lv"] || [];
+  steps.forEach((x, n) => {
+    const row = E("div", "fxrow"); row.appendChild(document.createTextNode("From level "));
+    const lv = E("input", "fxlv"); lv.value = x.from; lv.inputMode = "numeric"; lv.setAttribute("aria-label", "From level");
+    lv.addEventListener("change", () => edit(() => { x.from = lv.value.trim(); }));
+    const va = E("input", "fxval"); va.value = x.value; va.placeholder = "e.g. 1d3 + 1"; va.setAttribute("aria-label", "Amount from that level");
+    va.addEventListener("change", () => edit(() => { x.value = va.value.trim(); }));
+    const rm = E("button", "btn small", "\u2715"); rm.type = "button"; rm.title = "Remove this step";
+    rm.addEventListener("click", () => { change(() => { steps.splice(n, 1); }, true); fillFx(m, obj, key); });
+    row.appendChild(lv); row.appendChild(document.createTextNode(":")); row.appendChild(va); row.appendChild(rm); m.appendChild(row);
+  });
+  const add = E("button", "btn small", "+ a different amount from a level"); add.type = "button";
+  add.addEventListener("click", () => { change(() => { steps.push({ from: String(steps.length ? +steps[steps.length - 1].from + 3 : 4), value: String(obj[key] || "") }); }, true); fillFx(m, obj, key); });
+  m.appendChild(add);
+  m.appendChild(hint);
+}
 const lbl = t => document.createTextNode(" " + t + " ");
 
 // ---------------------------------------------------------------------------------------------
@@ -161,9 +215,9 @@ const SENT = {
     render: (f, add) => {
       add(lbl("Your")); add(pickTok(f, "attr", STAT_OPTS.concat(CUSTOM_FLAGS.map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
       add(pickTok(f, "op", [["add", "increases by"], ["sub", "decreases by"], ["max", "increases to"], ["set", "is"], ["min", "can't go above"]]));
-      add(textTok(f, "value", "number or formula"));
+      add(fxTok(f, "value", "number or formula"));
     },
-    compile: (f, feat) => { const r = modBase(feat, { behavior: "attribute", attribute: f.attr, value: numOr(f.op === "sub" ? "-" + f.value : f.value) });
+    compile: (f, feat) => { const v = fxFormula(f, "value"); const r = modBase(feat, { behavior: "attribute", attribute: f.attr, value: numOr(f.op === "sub" ? "-(" + v + ")" : v) });
       if (f.op === "max" || f.op === "set" || f.op === "min") r.operation = f.op; return r; } },
   move: { desc: "A movement type: fly, climb, swim or burrow.", label: "Movement type", group: "stats", uses: 12, make: () => ({ mode: "fly" }),
     render: (f, add) => { add(lbl("You can")); add(pickTok(f, "mode", MOVES)); },
@@ -191,15 +245,15 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "power", modtype: f.mod, rollType: "enemy_ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: true }) },
   damage: { desc: "Your abilities deal extra damage, optionally only with some keywords or a damage type.", label: "Extra damage", group: "rolls", uses: 208, make: () => ({ amount: "2", dtype: "", keywords: [], applies: "always" }),
     render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "damaging", "and")); add(lbl("abilities deal"));
-      add(textTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); appliesPhrase(f, add); },
+      add(fxTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); appliesPhrase(f, add); },
     prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities deal " + f.amount + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" + (f.applies === "choose" ? " (you choose when to use this)" : "") + ".",
-    compile: (f, feat) => { const r = modBase(feat, { behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: f.amount,
+    compile: (f, feat) => { const r = modBase(feat, { behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: fxFormula(f, "amount"),
       keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: f.applies === "always" });
       if (f.dtype) r.damageModifierType = f.dtype; return r; } },
   immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
-    render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(textTok(f, "amount", "amount")); },
+    render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(fxTok(f, "amount", "amount")); },
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
-    compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: [{ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: f.dtype, dr: f.kind === "weakness" ? "-(" + f.amount + ")" : f.amount }] }) },
+    compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: [{ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: f.dtype, dr: f.kind === "weakness" ? "-(" + fxFormula(f, "amount") + ")" : fxFormula(f, "amount") }] }) },
   condImm: { desc: "You can't gain the conditions you pick.", label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
     render: (f, add) => { add(lbl("You can't be")); add(multiTok(f, "conds", T.conditions.map(c => [c[0], c[1].toLowerCase()]), "choose conditions")); },
     compile: (f, feat) => modBase(feat, { behavior: "conditionimmunity", conditions: f.conds.slice() }) },
@@ -210,8 +264,8 @@ const SENT = {
     render: (f, add) => { add(lbl("You know")); add(multiTok(f, "ids", T.languages.map(s => [s[0], s[1]]), "choose languages", "and")); },
     compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "language", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
   resource: { desc: "You have a number of Recoveries (or another resource).", label: "Recoveries or a resource", group: "res", uses: 35, make: () => ({ res: RES.recovery, num: "8" }),
-    render: (f, add) => { add(lbl("You have")); add(textTok(f, "num", "number")); add(pickTok(f, "res", RESOURCE_OPTS)); },
-    compile: (f, feat) => modBase(feat, { behavior: "resource", resourceType: f.res, num: numOr(f.num) }) },
+    render: (f, add) => { add(lbl("You have")); add(fxTok(f, "num", "number")); add(pickTok(f, "res", RESOURCE_OPTS)); },
+    compile: (f, feat) => modBase(feat, { behavior: "resource", resourceType: f.res, num: numOr(fxFormula(f, "num")) }) },
   kit: { desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
@@ -387,11 +441,11 @@ function compileGains() {
   const checklist = [], triggers = [];
   cls.gains.forEach(g => {
     const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0];
-    const details = ev[1] + ", you gain " + g.qty + " " + res.toLowerCase() + ".";
-    checklist.push({ name: ev[1], details, guid: g.guid, mode: ev[2], quantity: numOr(g.qty) });
+    const details = ev[1] + ", you gain " + fxText(g, "qty") + " " + res.toLowerCase() + ".";
+    checklist.push({ name: ev[1], details, guid: g.guid, mode: ev[2], quantity: fxTable(g, "qty") });
     triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name: ev[1], description: details,
       triggeredAbility: { __typeName: "TriggeredAbility", name: ev[1], description: details, trigger: ev[0], targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: ev[1] + ": gain " + res + ".",
-        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: String(g.qty), resourceid: RES.heroic }] } });
+        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] } });
   });
   return { checklist, triggers };
 }
@@ -559,13 +613,13 @@ function renderBoard() {
   const gs = E("div", "sents");
   cls.gains.forEach((g, i) => {
     const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
-    el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(textTok(g, "qty", "1"));
+    el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(fxTok(g, "qty", "1"));
     el.appendChild(lbl((cls.resourceName || "resource").toLowerCase()));
     el.appendChild(E("span", "grow"));
     const mb = E("button", "mb", "\u22ef"); mb.type = "button"; mb.setAttribute("aria-label", "Options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => cls.gains.splice(i, 1)); }); m.appendChild(x); }); });
     el.appendChild(mb);
-    if (showGs) { const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0]; el.appendChild(E("div", "saves", "saves as checklist line (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + ") + trigger " + ev[0] + ": Replenish " + g.qty + ", checklistid linked")); }
+    if (showGs) { const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0]; el.appendChild(E("div", "saves", "saves as checklist line (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + ") + trigger " + ev[0] + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked")); }
     gs.appendChild(el);
   });
   const ag = E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()); ag.type = "button";

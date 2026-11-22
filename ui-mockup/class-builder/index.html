@@ -187,6 +187,15 @@ h5.palhead .sw { width: 10px; height: 10px; border-radius: 2px; }
 .dragging { opacity: .35; }
 .dropline { height: 3px; background: var(--gold); border-radius: 2px; margin: 1px 0; }
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
+/* Formula amounts: an "fx" mark on the value; the menu has quick picks and level steps. */
+.tok.fx::after { content: "fx"; font: italic 600 9.5px var(--font-mono); margin-left: 3px; opacity: .75; vertical-align: 1px; }
+.fxquick { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 4px 6px; }
+.menu .fxquick button { width: auto; border: 1px solid var(--line); }
+.fxrow { display: flex; align-items: center; gap: 4px; padding: 2px 6px; flex-wrap: wrap; }
+.fxrow input { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 2px 5px; }
+.fxrow .fxlv { width: 4ch; }
+.fxrow .fxval { width: 14ch; }
+.menu .fxrow button, .menu > .btn.small { width: auto; border: 1px solid var(--line); margin: 2px 6px; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; padding: 8px 12px; z-index: 120; max-width: calc(100vw - 32px); }
 .loading { padding: 40px; text-align: center; color: var(--dim); }
 </style>

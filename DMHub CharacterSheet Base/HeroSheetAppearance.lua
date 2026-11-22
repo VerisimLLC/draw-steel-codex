@@ -6700,8 +6700,9 @@ function AnthemMGS.ConnectWindow()
 end
 
 --- How to get a Michael Ghelfi Studios track you can only listen to: what includes it
---- (a Patreon tier or an album) with a button to their page, and Connect for someone
---- who has it already but has not connected their account here.
+--- (a Patreon tier or an album). Like a locked map pack, the account is linked first:
+--- until it is connected the only action is Connect account; after that it is the
+--- button to their Patreon or album page.
 --- @param track MGSTrack
 function AnthemMGS.AccessWindow(track)
     local frame
@@ -6721,20 +6722,24 @@ function AnthemMGS.AccessWindow(track)
     local connected = MGSAudio.IsConnected()
     local after = cond(connected,
         "Once your account includes it, it is ready to use here.",
-        "Already have it? Connect your account to use it here.")
-    local footerLeft = nil
-    if not connected then
-        local connect = SmallButton{
-            text = "Connect account",
-            click = function()
-                HeroSheetWindow.ClosePopup(frame)
-                AnthemMGS.ConnectWindow()
-            end,
-        }
-        connect.selfStyle.valign = "center"
-        footerLeft = connect
-    end
+        "Connect your account first.")
     local url = track.accessUrl
+    local saveText = nil
+    local onSave = nil
+    if not connected then
+        saveText = "Connect account"
+        onSave = function()
+            HeroSheetWindow.ClosePopup(frame)
+            AnthemMGS.ConnectWindow()
+            --closed above, before the connect window opens.
+            return false
+        end
+    elseif url ~= nil and go ~= nil then
+        saveText = go
+        onSave = function()
+            dmhub.OpenURL(url)
+        end
+    end
     frame = HeroSheetWindow.ShowDialog{
         title = "Michael Ghelfi Studios",
         width = 520,
@@ -6772,11 +6777,8 @@ function AnthemMGS.AccessWindow(track)
                 textWrap = true,
             },
         },
-        footerLeft = footerLeft,
-        saveText = (url ~= nil and go ~= nil) and go or nil,
-        onSave = (url ~= nil and go ~= nil) and function()
-            dmhub.OpenURL(url)
-        end or nil,
+        saveText = saveText,
+        onSave = onSave,
     }
 end
 

@@ -193,8 +193,12 @@ Before the monster side picks its next group, the process also waits while any
 live player combatant has a trigger prompt the player has not answered
 (`FindPendingPlayerTrigger` in `MonsterAIPanel.lua`): the Gunslinger's Begin
 Round "Showdown", Hesitation Is Weakness, any custom class's trigger. It is
-data-driven, with no ability-name list. Hostile prompts, power-roll modifiers
-and the hidden members of a merged prompt do not count. It also waits up to
+data-driven, with no ability-name list. Power-roll modifiers and the hidden
+members of a merged prompt do not count. Hostile prompts (Bleeding's Stamina
+loss, an aura's environment roll) do count, so a player cannot put off harm by
+leaving the card unanswered. They never expire, and under strict action economy
+(forced on in EotW) nobody but a Director can dismiss them, so the monsters wait
+until the hero accepts. It also waits up to
 10s while a trigger event relayed to that hero's client is still being
 evaluated there, because the prompt does not exist until it has been (in the
 2026-10-19 playtest Showdown arrived while the AI was already choosing). The

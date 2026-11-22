@@ -8934,8 +8934,9 @@ local function MGSConnectDialog()
 end
 
 --- How to get an MGS track you can only preview: what includes it (a Patreon tier or
---- an album) with a button to their page, and Connect for someone who has it already
---- but has not connected their account here.
+--- an album). Like a locked map pack, the account is linked first: until it is
+--- connected the only action is Connect account; after that it is the button to their
+--- Patreon or album page.
 --- @param track MGSTrack
 local function MGSAccessDialog(track)
 	local need
@@ -8954,7 +8955,7 @@ local function MGSAccessDialog(track)
 	local connected = MGSAudio.IsConnected()
 	local after = cond(connected,
 		"Once your account includes it, it is ready to play here.",
-		"Already have it? Connect your account to play it here.")
+		"Connect your account first.")
 	local url = track.accessUrl
 
 	local dlg = DialogShell.CreateNew{
@@ -9009,15 +9010,14 @@ local function MGSAccessDialog(track)
 	}
 	if not connected then
 		dlg:AddFooterButton{
-			slot = 2,
+			slot = 3,
 			text = "Connect account",
 			click = function(shell)
 				shell:Close()
 				MGSConnectDialog()
 			end,
 		}
-	end
-	if url ~= nil and go ~= nil then
+	elseif url ~= nil and go ~= nil then
 		dlg:AddFooterButton{
 			slot = 3,
 			text = go,

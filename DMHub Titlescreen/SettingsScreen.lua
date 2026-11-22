@@ -7453,7 +7453,9 @@ function CreateSettingsScreen(dialog, args)
 		id = "settingsDialog",
 		classes = {"dialog"},
 
-		width = 1140,
+		--9 tabs (Director, with Shortcuts) at the 130px "tab" style width = 1170px,
+		--plus the dialog's padding and a little margin each side.
+		width = 1240,
 		height = 900,
 		halign = "center",
 		valign = "center",

@@ -351,7 +351,7 @@ const SENT = {
      hero has had this turn ("Heroic Resources This Turn", the turn's high-water mark), each from a level.
      Each row holds ordinary blocks. It saves the display table (growingresources) plus every row's
      modifiers, with conditions written for you, including rows that replace an earlier one. */
-  growing: { desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "grow", uses: 11, container: true, featName: "",
+  growing: { shelf: false, desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "grow", uses: 11, container: true, featName: "",
     make: () => ({ rows: [2, 4, 6].map(n => ({ id: newId("r"), at: String(n), level: "1", replaces: "", text: "", blocks: [] })) }),
     render: (f, add, s, feat) => {
       add(lbl("The most " + resWord() + " you've had this turn unlocks these rows (they stay unlocked until your next turn)"));
@@ -432,7 +432,7 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
    presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
    blocks are added there. Authors' own ready-made features join the shelf the same way. */
 const RECIPES = [
-  { key: "growing", label: "Growing table (core shape)", group: "grow", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
+  { key: "growing", label: "Growing table", group: "grow", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
     blocks: () => [["growing", { rows: [["2", "1"], ["4", "1"], ["6", "1"], ["8", "4"], ["10", "7"], ["12", "10"]].map(([at, level]) => ({ id: newId("r"), at, level, replaces: "", text: "", blocks: [] })) }]] },
   { key: "charinc", label: "Characteristic Increase", group: "choice", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
     blocks: () => primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]]) },

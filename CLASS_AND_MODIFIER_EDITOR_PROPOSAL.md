@@ -832,7 +832,7 @@ they've had at any point during their turn.
 - **The problem for authors:** they write the table text and the conditions separately, and the two
   can disagree.
 
-**The builder: a Growing table block** (its own group, and a "core shape" recipe with rows at 2, 4 and
+**The builder: a Growing table block** (one "Growing table" recipe on the shelf, with rows at 2, 4 and
 6, then 8 from 4th level, 10 from 7th and 12 from 10th).
 - **Rows.** Each row is "At [N] ferocity, from level [L]" and holds ordinary blocks (no choices or
   nested tables). A row can say "replaces the row at N"; the default is "adds to earlier rows".

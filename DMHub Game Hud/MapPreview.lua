@@ -13,10 +13,12 @@ local mod = dmhub.GetModLoading()
 
 MapPreview = rawget(_G, "MapPreview") or {}
 
---the test tokens, by bestiary name: the first TEST_TOKEN_COUNT of these the
---game's bestiary has are put at the most open spot of the map.
-local TEST_TOKEN_NAMES = {"Human Warrior", "Human Archer", "Human Guard", "Goblin Warrior", "Wolf"}
-local TEST_TOKEN_COUNT = 4
+--the test tokens, by bestiary name, put at the most open spot of the map:
+--each of these the game's bestiary has, then a flyer (TEST_FLYER_NAME, else
+--the first size 1 creature with a fly speed that is not a minion), so the
+--preview shows how the map treats a flying creature.
+local TEST_TOKEN_NAMES = {"Goblin Warrior", "Human Warrior"}
+local TEST_FLYER_NAME = "Fire Drake"
 
 --an imported map's ground is its map images, so no tile is standing room
 --until they have loaded. Once the window's loading cover lifts, the test
@@ -180,20 +182,47 @@ local function Finish(preview)
     end
 end
 
---Bestiary ids for the test tokens, in TEST_TOKEN_NAMES order.
+--If a bestiary entry is a size 1 creature (1T to 1L) with a fly speed that
+--is not a minion.
+--- @param monster table a bestiary entry from assets.monsters
+--- @return boolean
+local function IsTestFlyer(monster)
+    local props = monster.properties
+    if props == nil or props.minion then
+        return false
+    end
+    local ok, result = pcall(function()
+        local size = props:GetBaseCreatureSize()
+        return type(size) == "string" and string.sub(size, 1, 1) == "1" and props:CanFly()
+    end)
+    return ok and result == true
+end
+
+--Bestiary ids for the test tokens: TEST_TOKEN_NAMES in order, then a flyer.
 local function TestTokenIds()
     local byName = {}
+    local flyers = {}
     for id, monster in pairs(assets.monsters) do
         local name = monster.name
         if not monster.hidden and type(name) == "string" and byName[name] == nil then
             byName[name] = id
+            if name ~= TEST_FLYER_NAME and IsTestFlyer(monster) then
+                flyers[#flyers + 1] = {name = name, id = id}
+            end
         end
     end
     local ids = {}
     for _, name in ipairs(TEST_TOKEN_NAMES) do
-        if byName[name] ~= nil and #ids < TEST_TOKEN_COUNT then
+        if byName[name] ~= nil then
             ids[#ids + 1] = byName[name]
         end
+    end
+    if byName[TEST_FLYER_NAME] ~= nil then
+        ids[#ids + 1] = byName[TEST_FLYER_NAME]
+    elseif #flyers > 0 then
+        --by name, so the same game always gets the same flyer.
+        table.sort(flyers, function(a, b) return a.name < b.name end)
+        ids[#ids + 1] = flyers[1].id
     end
     return ids
 end

@@ -123,15 +123,16 @@ local function ParseSource(source)
 end
 
 --- What a grant row comes from: the item and its step, as the choice's
---- source text names them, or else the complication the build engine names
---- (a complication's choices say only "Feat"). The culture's own language
---- choice is the Culture's.
+--- source text names them, or else the complication or title the build engine
+--- names (their choices say only "Feat"). The culture's own language choice is
+--- the Culture's.
 --- @param feature table the choice
---- @param owner nil|string the complication granting it, from the engine's pool
+--- @param owner nil|string the complication or title granting it, from the engine's pool
 --- @param engine nil|HeroBuildEngine the build rules the row was read with; nil for the main game's
+--- @param ownerKind nil|string the step the owner belongs to; nil means a complication
 --- @return nil|string name
 --- @return nil|string step
-local function RowSource(feature, owner, engine)
+local function RowSource(feature, owner, engine, ownerKind)
     local guid, source = nil, nil
     pcall(function()
         guid = feature:try_get("guid")
@@ -142,7 +143,7 @@ local function RowSource(feature, owner, engine)
     end
     local name, step = ParseSource(source)
     if step == nil and owner ~= nil then
-        return owner, SOURCE_KINDS.Complication
+        return owner, ownerKind or SOURCE_KINDS.Complication
     end
     return name, step
 end
@@ -416,7 +417,7 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
     local poolGuids = {}
     for _, pool in ipairs(build.hero.Pools(hero, kind)) do
         local feature = pool.wrapper:GetFeature()
-        local name, step = RowSource(feature, pool.owner, build)
+        local name, step = RowSource(feature, pool.owner, build, cond(pool.source == "titles", SOURCE_KINDS.Title, nil))
         if step == "Class" and feature:try_get("classid") ~= nil and feature:try_get("classid") ~= mainClassId then
             step = "Subclass"
         end
@@ -426,6 +427,10 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
         local stepWord = step ~= nil and KindWord(step) or nil
         if stepWord ~= nil and stepWord ~= item then
             title = string.format("%s: %s", stepWord, item)
+        end
+        --a title's row names its benefit too: a title offers several.
+        if pool.source == "titles" and pool.name ~= nil and pool.name ~= item then
+            title = string.format("%s: %s", item, pool.name)
         end
         local picks = {}
         for _, id in ipairs(pool.selected) do
@@ -731,6 +736,24 @@ end
 --- @return boolean
 local function Offers(row, id)
     return row.allowed == nil or row.allowed[id] == true
+end
+
+--- What a grant row's slot can hold: what the row allows, less what the Hero
+--- has from anywhere else. The slot's own pick stays on offer.
+--- @param draft HeroSkillsDraft
+--- @param row HeroSkillsRow
+--- @param slot integer
+--- @return HeroSkillsEntry[]
+function HeroSkillsLanguages.SlotOptions(draft, row, slot)
+    local result = {}
+    for _, entry in ipairs(draft.entries) do
+        local free = HeroSkillsLanguages.Holder(draft, entry.id) == nil and draft.known[entry.id] == nil
+            and Offers(row, entry.id)
+        if free or entry.id == row.picks[slot] then
+            result[#result+1] = entry
+        end
+    end
+    return result
 end
 
 --- The first row with room that takes this one: grants first, then an
@@ -1615,7 +1638,10 @@ function HeroSkillsLanguages.Panel(args)
                 statusBox.selfStyle.width = width
                 statusLabel.selfStyle.width = width
                 if paneRows then
+                    --the labels too: wider than their column, they spill out of the row.
                     titleColumn.selfStyle.width = rowInner - width - 10
+                    titleLabel.selfStyle.width = rowInner - width - 10
+                    lineLabel.selfStyle.width = rowInner - width - 10
                 else
                     values.selfStyle.width = rowInner - width - 20 - titleWidth
                 end
@@ -2341,10 +2367,10 @@ function HeroSkillsLanguages.Panel(args)
             hpad = COLUMN_HPAD,
             vpad = COLUMN_VPAD,
             borderBox = true,
-            --scrolls only once its content is taller (FitScroll): a scrolling
-            --panel is slow to lay out for every panel inside it, which made
-            --the window slow to show.
-            vscroll = false,
+            --side by side with a set height, each column scrolls, from creation:
+            --the engine wires a scroll bar only on a panel's first frame, so one
+            --turned on later drags its handle but not the content.
+            vscroll = not stacked and args.height ~= nil,
             flow = "vertical",
             valign = "top",
             --a click on empty space clears a selected row.
@@ -2411,7 +2437,7 @@ function HeroSkillsLanguages.Panel(args)
         root = gui.Panel{
             width = args.width,
             height = args.height or "auto",
-            vscroll = false,
+            vscroll = args.height ~= nil,
             flow = "vertical",
             gui.Panel{
                 width = "100%",
@@ -2430,38 +2456,6 @@ function HeroSkillsLanguages.Panel(args)
             left,
             right,
         }
-    end
-    --Turn scrolling on for a column (or the stacked whole) whose content has
-    --grown taller than it, after layout. Once on it stays on.
-    local function FitScroll()
-        --sized to its content (no height), it never needs to scroll.
-        if args.height == nil then
-            return
-        end
-        HeroSheetWindow.AfterLayout(function()
-            local scrollers = cond(stacked, {root}, {left, right})
-            for _, panel in ipairs(scrollers) do
-                --the window may have closed in the two frames waited.
-                if panel.valid then
-                    local content = panel.children[1]
-                    if content ~= nil and content.valid and not panel.vscroll then
-                        local room = panel.renderedHeight
-                        if not stacked then
-                            local scale = panel.renderedWidth / columnWidth
-                            room = room - 2 * COLUMN_VPAD * scale
-                        end
-                        if content.renderedHeight > room + 0.5 then
-                            panel.vscroll = true
-                        end
-                    end
-                end
-            end
-        end)
-    end
-    local refreshRows = Refresh
-    Refresh = function()
-        refreshRows()
-        FitScroll()
     end
     Refresh()
 

@@ -3858,6 +3858,16 @@ function ActivatedAbilityDamageBehavior:EditorItems(parentPanel)
         end,
     }
 
+    --Repeats of this damage to a creature within one combat turn are one damage
+    --instance (immunity applies once), e.g. damage per square moved over several drags.
+    result[#result+1] = gui.Check{
+        text = "One Damage Instance per Turn",
+        value = self:try_get("combinePerTurn", false),
+        change = function(element)
+            self.combinePerTurn = element.value
+        end,
+    }
+
 	self:SeparateRollsEditor(parentPanel, result)
 	return result
 end

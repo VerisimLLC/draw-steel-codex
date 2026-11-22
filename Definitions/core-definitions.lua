@@ -149,6 +149,11 @@ function Commands.AccumulateMenuItems(result, subfolders, includeFiltered) end
 --- @type DiceStudioLua
 dicestudio = nil
 
+--- The Table Studio API (TableStudio.cs). Set by ScriptEngine.cs only for admin accounts (and
+--- in the editor), like dicestudio; nil for everyone else and in engine builds without it.
+--- @type TableStudioLua|nil
+tablestudio = nil
+
 --- The live game HUD: the object the codex's CreateGameHud returns, installed by
 --- SheetHud.cs. nil until a game's HUD has been created (not set at the title screen).
 --- @type GameHud

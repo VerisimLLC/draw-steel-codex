@@ -35,6 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
+--- @field powerRollEnterOnly boolean If true, the entry power roll fires only when a creature enters the area, not at the start of a turn spent in it. Same field name as Aura; copied onto zone auras along with the roll.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
 --- @field creatureFilter string GoblinScript evaluated against each creature to decide whether the keyword affects it at all. Empty (the class default) affects everyone. Applies to the whole keyword -- modifiers, triggers, the entry power roll, the move damage, AND the terrain rules (difficult terrain, water, concealment, climbable). The terrain half needs the engine: an aura reporting a filter is left out of FloorController.GetTileRulesAtLoc unless the caller names the creature it is asking about, and Aura.ApplyTo consults the filter for everything else, evaluating this script through AuraInstance:CreaturePassesFilterForToken and caching the verdict per creature per game update. Merged onto an aura's own creatureFilter with an "and" rather than skipped like the other fields, because a filter is a restriction -- dropping it would WIDEN who the keyword affects.
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
@@ -72,6 +73,7 @@ EnvironmentalKeyword.movementDamageFilter = "all"
 EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
 EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
+EnvironmentalKeyword.powerRollEnterOnly = false
 EnvironmentalKeyword.includeAdjacent = false
 EnvironmentalKeyword.creatureFilter = ""
 
@@ -272,6 +274,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 				auraDef.powerRollEnabled = true
 				auraDef.powerRollBonus = keyword:try_get("powerRollBonus", 0)
 				auraDef.powerRollTiers = dmhub.DeepCopy(tiers)
+				if keyword:try_get("powerRollEnterOnly", false) == true then
+					auraDef.powerRollEnterOnly = true
+				end
 			end
 		end
 	end)

@@ -1235,13 +1235,18 @@ RegisterMastSpin("Spin The Mast (Back Mast)")
 --------------------------------------------------------------------------------
 
 local flingObjects = 3
+--The fling's "slide 5" (undead.yaml), for aiming each object before paying.
+local flingSlideDistance = 5
 
 --Returns the objects to fling, plus counts of the objects passed over and why
 --(for the decision log: which objects the AI thinks are loose, N5 playtest).
-local function FlingObjects(token, ability)
+--An object counts only if the caster can target it (a Solid pillar blocks its own
+--line of sight, and one bad target refuses the whole cast) and its slide would hit
+--an enemy: a miss just lands it beside them.
+local function FlingObjects(ai, token, ability)
     local enemies = HostileCreatures(token)
     local result = {}
-    local skipped = {filter = 0, noEnemyNear = 0, notChecked = 0}
+    local skipped = {filter = 0, noSight = 0, noEnemyNear = 0, noHit = 0, notChecked = 0}
     for _,object in ipairs(dmhub.allObjectTokens) do
         if #result >= flingObjects then
             skipped.notChecked = skipped.notChecked + 1
@@ -1250,6 +1255,10 @@ local function FlingObjects(token, ability)
                 skipped.filter = skipped.filter + 1
             elseif NearestEnemyWithin(object.loc, enemies, 3) == nil then
                 skipped.noEnemyNear = skipped.noEnemyNear + 1
+            elseif not ai:StrikePairIsLegal(ability, token, object) then
+                skipped.noSight = skipped.noSight + 1
+            elseif MonsterAI.FindObjectMissileHit(token, enemies, object, flingSlideDistance) == nil then
+                skipped.noHit = skipped.noHit + 1
             else
                 result[#result+1] = object
             end
@@ -1282,13 +1291,15 @@ MonsterAI:RegisterMaliceAbility{
     id = "Undead Malice: Paranormal Fling",
     monsterGroups = undeadGroup,
     abilities = {"Paranormal Fling"},
-    description = "Spend 3 Malice to fling up to three loose objects at nearby enemies, when at least two objects have a target. A full three-object fling goes ahead even while saving for Dread March.",
+    description = "Spend 3 Malice to fling up to three loose objects at nearby enemies, when at least two objects can be aimed to hit one. A full three-object fling goes ahead even while saving for Dread March.",
     score = function(self, ai, token, ability, context)
-        local objects, skipped, enemies = FlingObjects(token, ability)
+        local objects, skipped, enemies = FlingObjects(ai, token, ability)
         ai:LogDecision("FLING CANDIDATES", {
             found = #objects,
             skippedByFilter = skipped.filter,
             skippedNoEnemyWithin3 = skipped.noEnemyNear,
+            skippedNotTargetable = skipped.noSight,
+            skippedWouldMiss = skipped.noHit,
             notChecked = skipped.notChecked,
             objectTokens = #dmhub.allObjectTokens,
         })
@@ -1307,7 +1318,7 @@ MonsterAI:RegisterMaliceAbility{
         return {score = cond(strong, 0.9, 0.75), objects = #objects}
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
-        local objects, _, enemies = FlingObjects(token, ability)
+        local objects, _, enemies = FlingObjects(ai, token, ability)
         local targets = {}
         local startLocs = {}
         for _,object in ipairs(objects) do
@@ -1333,6 +1344,216 @@ MonsterAI:RegisterMaliceAbility{
                 maliceSpent = maliceBefore - CharacterResource.GetMalice(),
             })
         end
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Specter: Decaying Touch aimed where its weakened sticks, and Hidden Movement
+-- (invisible, a second move of its speed) to reach a far target or to slip
+-- away after striking. Corruptive Phasing is automated by the rules.
+--------------------------------------------------------------------------------
+
+local specterMonsters = {"Specter"}
+
+--Rough chance of each power roll tier on 2d10 + 2, used to weigh potency.
+local specterTierChances = {0.3, 0.45, 0.25}
+--Edge-sized bonus for a target the strike will probably weaken.
+local specterWeakenBonus = 0.3
+--After breaking away it stays within this many squares of an enemy, so it can
+--strike again next turn.
+local specterBreakawayMaxDistance = 4
+
+local function Presence(token)
+    local result = 0
+    pcall(function()
+        result = token.properties:GetAttribute("prs"):Value()
+    end)
+    return result
+end
+
+--The chance this strike leaves the target weakened: the tiers' "P<n" potency
+--against its Presence. 0 when it is already weakened.
+local function WeakenChance(ability, target)
+    if target.properties == nil or target.properties:HasNamedCondition("Weakened") then
+        return 0
+    end
+    local presence = Presence(target)
+    local chance = 0
+    for _,behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            for i,tier in ipairs(behavior:try_get("tiers") or {}) do
+                local potency = tonumber(string.match(tier or "", "P<(%-?%d+)"))
+                if potency ~= nil and presence < potency then
+                    chance = chance + (specterTierChances[i] or 0)
+                end
+            end
+        end
+    end
+    return chance
+end
+
+local function DecayingTouchTargetScore(ability)
+    return function(target, edges)
+        return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
+            + specterWeakenBonus*WeakenChance(ability, target)
+    end
+end
+
+--The best Decaying Touch from the squares in `paths` (ai.paths when nil).
+local function PlanDecayingTouch(ai, token, ability, paths)
+    local savedPaths = ai.paths
+    if paths ~= nil then
+        ai.paths = paths
+    end
+    local ok, loc, score = pcall(ai.FindBestMoveToUseStrike, ai, token, ability, DecayingTouchTargetScore(ability))
+    ai.paths = savedPaths
+    if not ok then
+        error(loc)
+    end
+    return loc, score
+end
+
+local function SpecterSpeed(token)
+    return math.max(0, token.properties:CurrentMovementSpeed() or 0)
+end
+
+local function SpecterRemainingMovement(token)
+    return math.max(0, SpecterSpeed(token) - token.properties:DistanceMovedThisTurn())
+end
+
+--Casts Hidden Movement with its move prompt answered by `loc`.
+local function ExecuteHiddenMovement(ai, token, ability, loc)
+    ai:SetTargetsForExpectedPrompt{
+        casterid = token.charid,
+        targets = {{loc = loc}},
+        sleep = movementPause,
+    }
+    ai:ExecuteAbility(token, ability, {{token = token}}, {sleep = abilityPause})
+end
+
+MonsterAI:RegisterMove{
+    id = "Specter: Decaying Touch",
+    category = "Main Actions",
+    monsters = specterMonsters,
+    abilities = {"Decaying Touch"},
+    description = "Strike, favouring a target whose Presence the weakened potency beats and who is not already weakened.",
+    score = function(self, ai, token, ability)
+        local loc, score = PlanDecayingTouch(ai, token, ability)
+        if loc == nil then
+            return nil, "no reachable target"
+        end
+        return {score = score, loc = loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        ai.Sleep(movementPause)
+
+        local scoreOf = DecayingTouchTargetScore(ability)
+        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        table.sort(targets, function(a, b)
+            return scoreOf(a.token, a.edges) > scoreOf(b.token, b.edges)
+        end)
+        ai:ExecuteAbility(token, ability, targets)
+    end,
+}
+
+--No target is in reach this turn by walking, but one is with Hidden Movement's
+--extra move as well: move invisibly toward it, then walk in and strike.
+MonsterAI:RegisterMove{
+    id = "Specter: Hidden Movement to Strike",
+    category = "Maneuvers",
+    monsters = specterMonsters,
+    abilities = {"Hidden Movement", "Decaying Touch"},
+    description = "When no target is in walking reach, move invisibly toward one that Hidden Movement brings into reach.",
+    score = function(self, ai, token, hiddenMovement, decayingTouch)
+        if PlanDecayingTouch(ai, token, decayingTouch) ~= nil then
+            return nil, "a target is already in walking reach"
+        end
+        local speed = SpecterSpeed(token)
+        local remaining = SpecterRemainingMovement(token)
+        local combined = ai:CalculateMovementPaths(token, (speed + remaining)*10)
+        local strikeLoc = PlanDecayingTouch(ai, token, decayingTouch, combined)
+        if strikeLoc == nil then
+            return nil, "no target in reach even with Hidden Movement"
+        end
+
+        --Hidden Movement first: get as close to the strike square as one move allows.
+        local best = nil
+        for _,info in pairs(ai:CalculateMovementPaths(token, speed*10)) do
+            local loc = info.loc
+            local value = -loc:DistanceInTiles(strikeLoc) - (info.cost or 0)*0.001
+            if best == nil or value > best.value then
+                best = {loc = loc, value = value}
+            end
+        end
+        if best == nil or ai:MovementTokenIsAtLoc(token, best.loc) then
+            return nil, "Hidden Movement gets no closer"
+        end
+        return {score = 0.9, loc = best.loc, strikeLoc = strikeLoc}
+    end,
+    execute = function(self, ai, token, scoringInfo, hiddenMovement, decayingTouch)
+        ExecuteHiddenMovement(ai, token, hiddenMovement, scoringInfo.loc)
+    end,
+}
+
+--Enemies adjacent to the specter who could make an opportunity attack on it.
+local function AdjacentOpportunityAttackers(ai, token)
+    local result = {}
+    for _,enemy in ipairs(ai:OpportunityAttackCapableEnemies(token)) do
+        if MonsterAI.TargetDistance(token, enemy) <= 1 then
+            result[#result+1] = enemy
+        end
+    end
+    return result
+end
+
+--After its strike, a specter still next to an enemy moves invisibly to a square
+--no enemy is next to, staying close enough to strike again next turn. Only when
+--no adjacent enemy can make an opportunity attack: Avoid Opportunity Attacks
+--would refuse the move anyway.
+MonsterAI:RegisterMove{
+    id = "Specter: Hidden Movement Breakaway",
+    category = "Maneuvers",
+    monsters = specterMonsters,
+    abilities = {"Hidden Movement"},
+    description = "After striking, move invisibly out of melee to a square near the enemies.",
+    score = function(self, ai, token, ability)
+        local decayingTouch = FindAbility(token, "Decaying Touch")
+        if decayingTouch ~= nil and decayingTouch:CanAfford(token) then
+            return nil, "has not struck yet"
+        end
+        local enemies = HostileCreatures(token)
+        if NearestEnemyWithin(token.loc, enemies, 1) == nil then
+            return nil, "no enemy adjacent"
+        end
+        local attackers = AdjacentOpportunityAttackers(ai, token)
+        if #attackers > 0 then
+            return nil, string.format("%d enemies could make opportunity attacks", #attackers)
+        end
+
+        local best = nil
+        for _,info in pairs(ai:CalculateMovementPaths(token, SpecterSpeed(token)*10)) do
+            local loc = info.loc
+            if NearestEnemyWithin(loc, enemies, 1) == nil then
+                local nearest = math.huge
+                for _,enemy in ipairs(enemies) do
+                    nearest = math.min(nearest, enemy:Distance(loc))
+                end
+                if nearest <= specterBreakawayMaxDistance then
+                    local value = math.min(nearest, 3) - (info.cost or 0)*0.001
+                    if best == nil or value > best.value then
+                        best = {loc = loc, value = value}
+                    end
+                end
+            end
+        end
+        if best == nil then
+            return nil, "nowhere out of melee within reach of the enemies"
+        end
+        return {score = 0.6, loc = best.loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ExecuteHiddenMovement(ai, token, ability, scoringInfo.loc)
     end,
 }
 

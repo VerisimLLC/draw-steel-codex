@@ -169,7 +169,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'target',
 		text = 'Target',
 		condition = function(ability)
-			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.trigger == "collide" or ability.silent
+			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.trigger == "linkedtrigger" or ability.trigger == "collide" or ability.silent
 		end,
 	},
     {

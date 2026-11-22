@@ -34,7 +34,7 @@ function dice.CreateTableTracker(args) end
 --- @return table
 function dice.GetAvailableDice() end
 
---- Returns a list of all dice sets registered in the system, regardless of ownership.
+--- Returns a list of all dice sets registered in the system, regardless of ownership: {id, text (the internal name), displayName (the name players see, or the internal name if it has none)}.
 --- @return table
 function dice.GetAllDice() end
 

@@ -272,6 +272,7 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             --- Only `activity` is used here: CountActiveCasts skips casts marked "reaping".
             ---@class AbilityRemoveCreatureCastInfo
             ---@field activity string|nil
+            ---@field waitsForAllCasts boolean|nil
 
             ---@type AbilityRemoveCreatureCastInfo
             local castInfo = ActivatedAbility.CurrentCastInfo() or {}
@@ -286,6 +287,10 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
                     coroutine.yield(0.1)
                 end
             else
+                --This waits on every other cast, so none may wait on it in turn: an
+                --invoke queued behind it (ActivatedAbility.HasCoroutinesNotInSnapshot)
+                --would never start, and this would sit out the full 120s (3DPN6VF2).
+                castInfo.waitsForAllCasts = true
                 while dmhub.Time() < startTime + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
                     coroutine.yield(0.1)
                 end
@@ -297,6 +302,7 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             end
 
             castInfo.activity = nil
+            castInfo.waitsForAllCasts = nil
 
             --guard against token being destroyed/despawned during the coroutine yield.
             if not target.token.valid or target.token.properties == nil then

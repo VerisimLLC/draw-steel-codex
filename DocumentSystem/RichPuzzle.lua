@@ -280,12 +280,68 @@ local function SmallButton(text, press)
     }
 end
 
+---@param id string|nil
+---@return boolean
+local function HasHowToPlay(id)
+    local def = id ~= nil and Puzzle.GetType(id) or nil
+    return def ~= nil and def.howToPlay ~= nil
+end
+
+--Toggle the type's "How to play" popup on the "?" button.
+---@param element Panel
+---@param id string|nil
+local function ToggleHowToPlay(element, id)
+    if element.popup ~= nil then
+        element.popup = nil
+        return
+    end
+    local def = id ~= nil and Puzzle.GetType(id) or nil
+    local help = def ~= nil and def.howToPlay or nil
+    if type(help) == "function" then
+        help = help(Puzzle.ReadConfig(id --[[@as string]]))
+    end
+    if def == nil or type(help) ~= "string" or help == "" then
+        return
+    end
+    local children = {
+        gui.Label{
+            classes = {"sizeM", "bold"},
+            width = 420,
+            height = "auto",
+            vmargin = 2,
+            text = string.format("How to play: %s", def.name),
+        },
+    }
+    for paragraph in string.gmatch(help .. "\n\n", "(.-)\n%s*\n") do
+        if paragraph:match("%S") then
+            children[#children + 1] = gui.Label{
+                classes = {"sizeS"},
+                width = 420,
+                height = "auto",
+                vmargin = 3,
+                text = paragraph,
+            }
+        end
+    end
+    element.popupsInheritStyles = true
+    element.popup = gui.Panel{
+        classes = {"bordered", "bg"},
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        pad = 10,
+        borderBox = true,
+        children = children,
+    }
+end
+
 --Build the frame for one puzzle. opts.editing() reports whether the page is in
 --edit mode (no moves then); opts.atLock marks a window opened at the puzzle's
 --lock; opts.where (a string, or a function returning one) says where this
---player has it open, for other players' presence lines.
+--player has it open, for other players' presence lines; opts.noHelp drops the
+--"?" (the window has its own in the corner).
 ---@param id string|nil nil shows the "save the page first" message
----@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil, atLock: boolean|nil, where: string|(fun(): string|nil)|nil}|nil
+---@param opts {editing: (fun(): boolean)|nil, placeholder: string|nil, atLock: boolean|nil, where: string|(fun(): string|nil)|nil, noHelp: boolean|nil}|nil
 ---@return Panel
 function Puzzle.CreatePanel(id, opts)
     opts = opts or {}
@@ -304,6 +360,7 @@ function Puzzle.CreatePanel(id, opts)
     local directorRow
     local timerButtons
     local helpButton
+    local directorPill
     local Refresh
 
     local function Editing()
@@ -337,9 +394,14 @@ function Puzzle.CreatePanel(id, opts)
         local children = {}
         for _, assist in ipairs(def.assists or {}) do
             local assistid = assist.id
+            --no theme minimum width (it widened the whole window), and the
+            --frame's own text size rather than the checkbox default.
             children[#children + 1] = gui.Check{
                 classes = {"sizeS"},
                 width = "auto",
+                minWidth = 0,
+                fontSize = 14,
+                rmargin = 12,
                 height = 22,
                 halign = "left",
                 text = assist.label,
@@ -450,7 +512,7 @@ function Puzzle.CreatePanel(id, opts)
                 "Save the page to set up this puzzle.",
                 opts.placeholder or "Puzzle: choose a type in the annotations strip below.")
             placeholder:SetClass("collapsed", false)
-            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel, helpButton}) do
+            for _, panel in ipairs({banner, hintLabel, statusLabel, timerLabel, assistRow, directorRow, awayLabel, helpButton, directorPill}) do
                 panel:SetClass("collapsed", true)
             end
             return
@@ -460,6 +522,7 @@ function Puzzle.CreatePanel(id, opts)
         local id = m_id --[[@as string]]
         local away = Away()
         local ctx = Puzzle.Context(id, { editing = Editing(), away = away })
+        directorPill:SetClass("collapsed", not ctx.isDirector)
         if away then
             local name = Puzzle.LockObjectName(id)
             awayLabel.text = name ~= nil and string.format("Solve this at the %s.", name) or "Solve this at its lock."
@@ -498,7 +561,7 @@ function Puzzle.CreatePanel(id, opts)
         end
         statusLabel.text = line or ""
         statusLabel:SetClass("collapsed", line == nil)
-        helpButton:SetClass("collapsed", def.howToPlay == nil)
+        helpButton:SetClass("collapsed", def.howToPlay == nil or opts.noHelp == true)
 
         local left = Puzzle.TimeLeft(id)
         local limit = Puzzle.EffectiveLimit(ctx.config)
@@ -589,49 +652,20 @@ function Puzzle.CreatePanel(id, opts)
         valign = "top",
         hover = gui.Tooltip("How to play"),
         press = function(element)
-            if element.popup ~= nil then
-                element.popup = nil
-                return
-            end
-            local def = m_id ~= nil and Puzzle.GetType(m_id) or nil
-            local help = def ~= nil and def.howToPlay or nil
-            if type(help) == "function" then
-                help = help(Puzzle.ReadConfig(m_id --[[@as string]]))
-            end
-            if def == nil or type(help) ~= "string" or help == "" then
-                return
-            end
-            local children = {
-                gui.Label{
-                    classes = {"sizeM", "bold"},
-                    width = 420,
-                    height = "auto",
-                    vmargin = 2,
-                    text = string.format("How to play: %s", def.name),
-                },
-            }
-            for paragraph in string.gmatch(help .. "\n\n", "(.-)\n%s*\n") do
-                if paragraph:match("%S") then
-                    children[#children + 1] = gui.Label{
-                        classes = {"sizeS"},
-                        width = 420,
-                        height = "auto",
-                        vmargin = 3,
-                        text = paragraph,
-                    }
-                end
-            end
-            element.popupsInheritStyles = true
-            element.popup = gui.Panel{
-                classes = {"bordered", "bg"},
-                width = "auto",
-                height = "auto",
-                flow = "vertical",
-                pad = 10,
-                borderBox = true,
-                children = children,
-            }
+            ToggleHowToPlay(element, m_id)
         end,
+    }
+
+    --types draw the Director a board players never see (every page, the answer).
+    directorPill = gui.Panel{
+        classes = {"collapsed", "multiselectChip"},
+        interactable = false,
+        hmargin = 0,
+        gui.Label{
+            classes = {"multiselectChipText", "sizeXs", "bold"},
+            hmargin = 4,
+            text = "Director view",
+        },
     }
 
     assistRow = gui.Panel{
@@ -781,6 +815,7 @@ function Puzzle.CreatePanel(id, opts)
         end,
         data = {},
 
+        directorPill,
         --the "?" sits beside the board's top-right corner, never over the board.
         gui.Panel{
             flow = "horizontal",
@@ -1243,12 +1278,27 @@ function Puzzle.OpenWindow(id, opts)
                 Puzzle.MarkPresent(id, false)
             end
         end,
+        gui.Button{
+            classes = {"sizeXs", cond(HasHowToPlay(id), nil, "collapsed")},
+            floating = true,
+            text = "?",
+            width = 22,
+            height = 22,
+            halign = "right",
+            valign = "top",
+            hover = gui.Tooltip("How to play"),
+            press = function(element)
+                ToggleHowToPlay(element, id)
+            end,
+        },
         gui.Panel{
             flow = "horizontal",
             width = "auto",
             height = "auto",
             halign = "left",
             vmargin = 4,
+            --clear of the corner "?".
+            rmargin = 30,
             gui.Label{
                 classes = {"sizeL", "bold"},
                 width = "auto",
@@ -1266,7 +1316,7 @@ function Puzzle.OpenWindow(id, opts)
                 end,
             },
         },
-        Puzzle.CreatePanel(id, { atLock = opts.atLock, where = opts.where }),
+        Puzzle.CreatePanel(id, { atLock = opts.atLock, where = opts.where, noHelp = true }),
     }
     gui.ShowDialog(mod, window)
     g_windows[id] = window

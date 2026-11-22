@@ -1574,6 +1574,151 @@ pcall(function()
     end
 end)
 
+--Zones whose keyword affects adjacent squares (Environmental Keyword
+--includeAdjacent: Flaming Debris, Lava) also stripe that one-square rim at
+--half the zone's opacity, so players can see those squares are affected too.
+--The rim mirrors the engine's (Aura.cs AddAuraFromLua): 8-way, same floor,
+--minus the zone's own tiles -- and minus every tile of any zone of the same
+--keyword on that floor, so neighbouring patches don't stripe over each other.
+--A tile next to both a player-visible and a hidden zone of one keyword goes to
+--the visible rim only, so the hidden zone's rim never doubles it up.
+--Rim entries carry no label, no seam key and no rule flags: rim tiles take no
+--terrain rules, so built-in stripes there must not be suppressed. Stripes only:
+--a zone's floor/sprite appearance (MarkupZoneVisuals) stays on the zone itself.
+--
+--Works on the FINAL list (after the zone-type filter, dispel carving and the
+--Zones-list fade), so a rim follows whatever its zone draws. Cached on the zone
+--revision, which every change to that list bumps (see the feed below) and which
+--is the engine's own re-mesh key, plus the compendium id for keyword edits.
+local ADJACENT_RIM_OPACITY = 0.5
+---@type {revision: number|nil, tablesId: any, result: table[]|nil}
+local g_adjacentRims = { revision = nil, tablesId = nil, result = nil }
+
+---@param zones table[]
+---@return table[]
+local function AppendAdjacentRims(zones)
+    local cache = g_adjacentRims
+    if cache.result ~= nil and cache.revision == m.zoneRevision and cache.tablesId == dmhub.tablesUpdateId then
+        return cache.result
+    end
+
+    local keywordsTable = dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
+    local adjacentById = {}
+    local function IncludesAdjacent(keywordid)
+        if keywordid == nil then
+            return false
+        end
+        local known = adjacentById[keywordid]
+        if known == nil then
+            known = false
+            local keyword = keywordsTable[keywordid]
+            if keyword ~= nil then
+                local ok, value = pcall(keyword.try_get, keyword, "includeAdjacent", false)
+                known = ok and value == true
+            end
+            adjacentById[keywordid] = known
+        end
+        return known
+    end
+
+    --claimed[keywordid .. "@" .. floor] = set of "x,y": every same-keyword zone
+    --tile, then each rim tile as it is handed out.
+    local claimed = {}
+    local groups = {}
+    local groupByKey = {}
+    for _,zone in ipairs(zones) do
+        if IncludesAdjacent(zone.keywordid) and zone.floorIndex ~= nil then
+            local claimKey = zone.keywordid .. "@" .. zone.floorIndex
+            local set = claimed[claimKey]
+            if set == nil then
+                set = {}
+                claimed[claimKey] = set
+            end
+            for _,loc in ipairs(zone.locs) do
+                --rounded: aura loc coordinates are not guaranteed to be exact
+                --integers, and 3.0 .. "" is "3.0", not "3".
+                set[math.floor(loc.x + 0.5) .. "," .. math.floor(loc.y + 0.5)] = true
+            end
+
+            local visible = zone.playerVisible == true
+            local groupKey = claimKey .. "|" .. tostring(visible) .. "|" .. tostring(zone.color)
+            local group = groupByKey[groupKey]
+            if group == nil then
+                group = { claimKey = claimKey, visible = visible, zone = zone, zones = {} }
+                groupByKey[groupKey] = group
+                groups[#groups+1] = group
+            end
+            group.zones[#group.zones+1] = zone
+        end
+    end
+
+    local rims = {}
+    if #groups > 0 then
+        --player-visible groups claim shared rim tiles first; stable otherwise.
+        local ordered = {}
+        for _,group in ipairs(groups) do
+            if group.visible then
+                ordered[#ordered+1] = group
+            end
+        end
+        for _,group in ipairs(groups) do
+            if not group.visible then
+                ordered[#ordered+1] = group
+            end
+        end
+
+        for _,group in ipairs(ordered) do
+            local set = claimed[group.claimKey]
+            local floorIndex = group.zone.floorIndex
+            local rimLocs = {}
+            for _,zone in ipairs(group.zones) do
+                for _,loc in ipairs(zone.locs) do
+                    local x = math.floor(loc.x + 0.5)
+                    local y = math.floor(loc.y + 0.5)
+                    for dx = -1, 1 do
+                        for dy = -1, 1 do
+                            local key = (x + dx) .. "," .. (y + dy)
+                            if set[key] == nil then
+                                set[key] = true
+                                rimLocs[#rimLocs+1] = core.Loc{
+                                    x = x + dx,
+                                    y = y + dy,
+                                    floorIndex = floorIndex,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+
+            if #rimLocs > 0 then
+                rims[#rims+1] = {
+                    locs = rimLocs,
+                    color = m.zoneStripes.FadeColor(group.zone.color, ADJACENT_RIM_OPACITY),
+                    angleRadians = group.zone.angleRadians,
+                    playerVisible = group.visible,
+                    floorIndex = floorIndex,
+                    keywordid = group.zone.keywordid,
+                }
+            end
+        end
+    end
+
+    local result = zones
+    if #rims > 0 then
+        --rims first, so any zone drawn at full strength sits on top of them.
+        result = rims
+        for _,zone in ipairs(zones) do
+            result[#result+1] = zone
+        end
+    end
+
+    cache.revision = m.zoneRevision
+    cache.tablesId = dmhub.tablesUpdateId
+    cache.result = result
+    return result
+end
+
 --GetMarkupZones is polled every frame. The parsed mapoverlay:shownzones set and
 --the filtered zone list are kept until their inputs change, instead of being
 --rebuilt per poll.
@@ -1810,6 +1955,9 @@ pcall(function()
                 climbable = entry.flags.climbable,
             }
         end
+
+        --the half-strength rim of zones that affect adjacent squares.
+        zones = AppendAdjacentRims(zones)
 
         return {
             panelOpen = panelOpen,

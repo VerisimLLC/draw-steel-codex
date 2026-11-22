@@ -2091,6 +2091,61 @@ function Encounter.TagWaveTokensFromSpawn(self, charids)
 end
 
 -- ===========================================================================
+-- Saved floors
+--
+-- A saved position only holds a floor NUMBER, which points at a different
+-- floor once a floor is added or removed below it. Monsters staged indoors
+-- used to come back on the roof. So each position also saves its floor's id.
+-- ===========================================================================
+
+-- The floor stamp to save next to a position. Returns false, not nil, when
+-- the position is on no floor of this map: a nil would leave a gap in the
+-- saved list, and saving closes gaps, shifting every later entry.
+--- @param loc Loc
+--- @return string|false
+function Encounter.StampSavedFloor(loc)
+    local map = game.currentMap
+    if map == nil then
+        return false
+    end
+    for _, floor in ipairs(map.floors) do
+        if floor.floorIndex == loc.floor then
+            return string.format("%d,%d,%d,%s", loc.x, loc.y, loc.floor, floor.floorid)
+        end
+    end
+    return false
+end
+
+-- A saved position moved back onto the floor it was saved on. Returns loc
+-- unchanged when there is no stamp (older saves), the stamp was made for a
+-- different position, or that floor is no longer on the current map.
+-- A stamp records the position it was made for, so one left behind after the
+-- positions were rewritten is ignored instead of moving the wrong monster.
+--- @param loc Loc
+--- @param stamp string|false|nil
+--- @return Loc
+function Encounter.LocOnSavedFloor(loc, stamp)
+    local map = game.currentMap
+    if type(stamp) ~= "string" or map == nil then
+        return loc
+    end
+    local savedX, savedY, savedFloorNumber, floorid = string.match(stamp, "^(-?%d+),(-?%d+),(-?%d+),(.+)$")
+    if tonumber(savedX) ~= loc.x or tonumber(savedY) ~= loc.y or tonumber(savedFloorNumber) ~= loc.floor then
+        return loc
+    end
+    for _, floor in ipairs(map.floors) do
+        if floor.floorid == floorid then
+            local index = floor.floorIndex
+            if index >= 0 and index ~= loc.floor then
+                return loc:WithDifferentFloor(index)
+            end
+            return loc
+        end
+    end
+    return loc
+end
+
+-- ===========================================================================
 -- Saved mount relationships
 --
 -- A monster sitting in another monster's saddle -- a goblin riding a wolf, or
@@ -5159,6 +5214,8 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                     --it on the ground (down into a pit as well as up a cliff).
                     local onGround = false
                     if loc ~= nil then
+                        --back onto the floor it was saved on, if the map's floors changed.
+                        loc = Encounter.LocOnSavedFloor(loc, (group.spawnfloors or {})[slot])
                         if not loc.isValidFloor then
                             loc = loc.withCurrentFloor
                         end

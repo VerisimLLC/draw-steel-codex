@@ -584,8 +584,11 @@ local CITY_LOCATIONS = {
         end,
         open = function(ctx) ctx.OpenDangerRooms() end,
     },
+    --Off the map until the player hears of it carousing (a tier 1 lead) or
+    --one of their heroes falls.
     {
         id = "graveyard",
+        lead = "graveyard",
         label = T("eotw.locations.graveyard.label"),
         icon = "phosphor/hands-praying-fill.png",
         --the south-east corner, just north of the southern river and clear of
@@ -600,8 +603,10 @@ local CITY_LOCATIONS = {
     --Encounter of the Week, and the victory screen each saw. The Hall is
     --open to all; the Construction only with a hero at home
     --(SiteLockedReason). label and icon follow which it is (LocationNode).
+    --Off the map until the player hears of it carousing (a tier 1 lead).
     {
         id = "hall",
+        lead = "hall-of-heroes",
         label = function(ctx) return cond(EotwRoster.HallBuilt(), T("eotw.locations.hall.label"), T("eotw.locations.construction.label")) end,
         icon = function(ctx) return cond(EotwRoster.HallBuilt(), "phosphor/trophy-fill.png", "phosphor/hammer-fill.png") end,
         x = 0.33,
@@ -621,9 +626,11 @@ local CITY_LOCATIONS = {
     --The Town Hall's building site until the town has built it
     --(EotwRoster.TownHallBuilt); then the Town Hall: town votes and
     --petitions. The Town Hall is open to all, even with no hero yet (taking
-    --part needs one); the site only with a hero at home.
+    --part needs one); the site only with a hero at home. Off the map until
+    --the player hears of it carousing (a tier 1 lead).
     {
         id = "townhall",
+        lead = "town-hall",
         label = function(ctx) return cond(EotwRoster.TownHallBuilt(), T("eotw.locations.town_hall.label"), T("eotw.locations.town_hall_site.label")) end,
         icon = function(ctx) return cond(EotwRoster.TownHallBuilt(), "phosphor/scroll-fill.png", "phosphor/hammer-fill.png") end,
         --PLACEHOLDER spot, between the Gate and the Proving Pits: check it
@@ -645,9 +652,11 @@ local CITY_LOCATIONS = {
     --The Training Grounds' building site until the town has built them
     --(EotwRoster.TrainingGroundsBuilt); then the Training Grounds, where
     --heroes Level up. Open to all, even with no hero yet; the site only with
-    --a hero at home.
+    --a hero at home. Off the map until the player hears of them carousing
+    --(a tier 1 lead).
     {
         id = "traininggrounds",
+        lead = "training-grounds",
         label = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), T("eotw.locations.training_grounds.label"), T("eotw.locations.training_grounds_site.label")) end,
         --built: crossed swords (game-icons.net "crossed-swords" by Lorc, CC BY
         --3.0), a core image asset since the engine's game-icons/ set lacks it.
@@ -2019,7 +2028,7 @@ function EncounterOfTheWeek.SetEncounterNotch(moduleid, mapName, notch, callback
     }
 end
 
---── pregen hero cache ────────────────────────────────────────────────
+-- pregen hero cache ------------------------------------------------
 --The codex-encounteroftheweek module ships premade heroes as module
 --characters. We eagerly download its content snapshot (engine API
 --module.DownloadModuleSnapshot; the snapshot is permanently disk-cached,
@@ -2246,7 +2255,7 @@ function EncounterOfTheWeek.GetPregens()
     return result
 end
 
---── Hero module pregens ──────────────────────────────────────────────
+-- Hero module pregens ----------------------------------------------
 --Heroes shipped inside the player's Hero modules (classes and ancestries
 --from their inventory, see HeroModules.lua) are pregens too. Only modules
 --actually installed in the lobby count: that is every switched-on module the
@@ -4651,7 +4660,7 @@ CreateScreen = function(args)
         }
     end
 
-    --── refreshers: rebuild each region from the lobby document ─────────
+    -- refreshers: rebuild each region from the lobby document ---------
 
     --One action button on a game row.
     local RowButton = function(text, clickfn)
@@ -5362,7 +5371,8 @@ CreateScreen = function(args)
     --game heartbeats it) and says what newcomers may do: record.lateJoin
     --"join" (bring heroes: before combat, or in combat round 1) or "observe"
     --(watch only). A newcomer asks; the host accepts or declines from inside
-    --the game; once accepted we are a member, join the engine game and enter.
+    --the game (the city admits a watcher of a public party at once); once
+    --accepted we are a member, join the engine game and enter.
     --Design: EncounterOfTheWeek.md, "Joining a game under way".
 
     --(Late is declared above CreateScreen: this function is at Lua's
@@ -5612,7 +5622,8 @@ CreateScreen = function(args)
             end)
         elseif Late.Of(record) ~= nil then
             --a party under way: Join opens its view to pick the heroes to
-            --bring; Watch asks the host straight away.
+            --bring; Watch asks the host straight away (or, for a public
+            --party, lets us in).
             if Late.Of(record) == "join" then
                 buttons[#buttons+1] = RowButton(T("eotw.party.row_join_button"), function()
                     if OpenGameView ~= nil then
@@ -5671,7 +5682,7 @@ CreateScreen = function(args)
                     height = "auto",
                 },
                 gui.Label{
-                    text = T("eotw.party.row_byline", { host = record.hostName or "?", filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
+                    text = T("eotw.party.row_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), filled = slotsFilled, total = slotsTotal, encounter = EncounterSuffix(record) }),
                     fontSize = 18,
                     color = Styles.textColor,
                     opacity = 0.8,
@@ -5691,7 +5702,7 @@ CreateScreen = function(args)
         }
     end
 
-    --── the game lobby view: slots, heroes, membership controls ─────────
+    -- the game lobby view: slots, heroes, membership controls ---------
 
     --One filled slot row. myIndex is this hero's position in OUR claim
     --list (nil for other players' heroes); it drives the Remove button.
@@ -6077,7 +6088,7 @@ CreateScreen = function(args)
 
         local ownerText = nil
         if params.ownerName ~= nil then
-            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName })
+            ownerText = T("eotw.party.card_controlled_by", { player = params.ownerName .. EotwPlayerTags.Inline(params.ownerTag) })
         end
 
         local chipText = nil
@@ -6268,13 +6279,13 @@ CreateScreen = function(args)
         local memberNames = {}
         if record.players ~= nil then
             for _,player in pairs(record.players) do
-                memberNames[#memberNames+1] = player.name or "?"
+                memberNames[#memberNames+1] = (player.name or "?") .. EotwPlayerTags.Inline(player.tag)
             end
         end
         table.sort(memberNames)
         children[#children+1] = gui.Label{
-            text = #memberNames > 0 and T("eotw.party.view_byline", { host = record.hostName or "?", players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
-                or T("eotw.party.view_byline_no_players", { host = record.hostName or "?", encounter = EncounterSuffix(record) }),
+            text = #memberNames > 0 and T("eotw.party.view_byline", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), players = table.concat(memberNames, ", "), encounter = EncounterSuffix(record) })
+                or T("eotw.party.view_byline_no_players", { host = (record.hostName or "?") .. EotwPlayerTags.Inline(record.hostTag), encounter = EncounterSuffix(record) }),
             fontSize = 18,
             color = Styles.textColor,
             opacity = 0.8,
@@ -6358,6 +6369,7 @@ CreateScreen = function(args)
                     gameid = gameid,
                     heroEntry = heroEntry,
                     ownerName = player.name,
+                    ownerTag = player.tag,
                     ownerUserid = userid,
                     myIndex = myIndex,
                     kickUserid = kickUserid,
@@ -6848,8 +6860,9 @@ CreateScreen = function(args)
                         end,
                     }
                 end
+                --a public party lets anyone watch without asking its host.
                 buttons[#buttons+1] = gui.Button{
-                    text = T("eotw.late.ask_watch_button"),
+                    text = cond(record.public == true, T("eotw.late.row_watch_button"), T("eotw.late.ask_watch_button")),
                     fontSize = 20,
                     width = 180,
                     height = 44,
@@ -7668,37 +7681,52 @@ CreateScreen = function(args)
         end)
     end
 
+    --The row under the chat tabs: who is in town (or in the party, on the Game
+    --Chat tab). Each name is followed by its plaque; the row wraps and is clipped
+    --to two lines, so a busy town cannot push the input off the drawer.
     local RefreshPresence = function()
         if presenceLabel == nil or not presenceLabel.valid or m_conn == nil then
             return
         end
         local presence = m_conn:GetPath("/presence")
-        local names = {}
-        --the Game Chat tab lists the party, marking who is not in town.
+        ---@type EotwTagNameListPerson[]
+        local people = {}
+        local heading
         if m_viewGameid ~= nil and m_chatTab == "game" then
             local record = m_conn:GetPath("/state/games/" .. m_viewGameid)
             for userid,player in pairs(record ~= nil and record.players or {}) do
-                local name = ChatPlain(player.name or "?")
-                if presence == nil or presence[userid] == nil then
-                    name = name .. " <color=#ffffff80>" .. T("eotw.chat.presence_away") .. "</color>"
-                end
-                names[#names+1] = name
+                local away = presence == nil or presence[userid] == nil
+                people[#people+1] = { name = ChatPlain(player.name or "?"), tag = player.tag, note = cond(away, T("eotw.chat.presence_away"), nil) }
             end
-            table.sort(names)
-            presenceLabel.text = T("eotw.chat.presence_party", { count = #names, names = table.concat(names, ", ") })
+            heading = T("eotw.chat.presence_party", { count = #people })
+        else
+            for _,entry in pairs(presence or {}) do
+                people[#people+1] = { name = ChatPlain(entry.name or "?"), tag = entry.tag }
+            end
+            heading = T("eotw.chat.presence_town", { count = #people })
+        end
+        table.sort(people, function(a, b) return a.name < b.name end)
+
+        --this runs on every chat message, so stop when the row would look the same.
+        --The tag revision is in the key because badges can change when the tag list arrives.
+        local keyParts = { heading, tostring(EotwPlayerTags.revision) }
+        for _, person in ipairs(people) do
+            keyParts[#keyParts+1] = string.format("%s|%s|%s", person.name, person.tag or "", person.note or "")
+        end
+        local key = table.concat(keyParts, "\n")
+        if presenceLabel.data.key == key then
             return
         end
-        if presence ~= nil then
-            for _,entry in pairs(presence) do
-                names[#names+1] = entry.name or "?"
-            end
+        presenceLabel.data.key = key
+
+        local rowStyle = { fontSize = 16, color = Styles.textColor, opacity = 0.7, rowHeight = 21, badgeMaxWidth = 160 }
+        if #people == 0 then
+            presenceLabel.children = {
+                gui.Label{ text = T("eotw.chat.presence_empty"), fontSize = rowStyle.fontSize, color = rowStyle.color, opacity = rowStyle.opacity, width = "auto", height = "auto", valign = "center" },
+            }
+            return
         end
-        table.sort(names)
-        if #names == 0 then
-            presenceLabel.text = T("eotw.chat.presence_empty")
-        else
-            presenceLabel.text = T("eotw.chat.presence_town", { count = #names, names = table.concat(names, ", ") })
-        end
+        presenceLabel.children = EotwPlayerTags.NameList(heading, people, rowStyle)
     end
 
     RefreshChat = function()
@@ -7832,18 +7860,29 @@ CreateScreen = function(args)
             local body, urls = ChatLinkify(msg.text or "")
             --a horn's announcement reads as one gold line: "Aria blows the horn! ...",
             --as does its close (horn-launched / horn-canceled / horn-expired).
-            if type(msg.kind) == "string" and (msg.kind == "horn" or msg.kind:sub(1, 5) == "horn-") then
+            local isHorn = type(msg.kind) == "string" and (msg.kind == "horn" or msg.kind:sub(1, 5) == "horn-")
+            if isHorn then
                 name = string.format("<color=#d9b56a><b>%s</b>", ChatPlain(msg.name or "?"))
                 body = body .. "</color>"
             end
-            children[#children+1] = gui.Label{
-                text = string.format("%s%s %s%s", stamp, name, body, edited),
+            --a player showing a Player Tag: the plaque sits beside their name on a
+            --header row, and the message wraps underneath.
+            local badge = nil
+            if msg.source ~= "discord" and not isHorn then
+                badge = EotwPlayerTags.Badge(msg.tag, { fontSize = 12, maxWidth = 200 })
+            end
+            local lineText = string.format("%s%s %s%s", stamp, name, body, edited)
+            if badge ~= nil then
+                lineText = body .. edited
+            end
+            local line = gui.Label{
+                text = lineText,
                 fontSize = 16,
                 color = Styles.textColor,
-                width = "96%",
+                width = cond(badge ~= nil, "100%", "96%"),
                 height = "auto",
                 halign = "left",
-                vmargin = 2,
+                vmargin = cond(badge ~= nil, 0, 2),
                 --pressing a link opens it. Approved sites open at once; for
                 --any other the engine asks the player first.
                 links = #urls > 0,
@@ -7874,6 +7913,35 @@ CreateScreen = function(args)
                     }
                 end,
             }
+            if badge ~= nil then
+                children[#children+1] = gui.Panel{
+                    width = "96%",
+                    height = "auto",
+                    halign = "left",
+                    flow = "vertical",
+                    vmargin = 3,
+                    gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        bmargin = 1,
+                        gui.Label{
+                            text = string.format("%s<b>%s</b>", stamp, ChatPlain(msg.name or "?")),
+                            fontSize = 16,
+                            color = Styles.textColor,
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            textWrap = false,
+                            rmargin = 6,
+                        },
+                        badge,
+                    },
+                    line,
+                }
+            else
+                children[#children+1] = line
+            end
         end
         chatMessagesPanel.children = children
         if m_chatStickBottom then
@@ -7927,7 +7995,7 @@ CreateScreen = function(args)
         RefreshChat()
     end
 
-    --── add-hero picker ─────────────────────────────────────────────────
+    -- add-hero picker -------------------------------------------------
     --Fills one of our (up to 4) slots with a hero: either one of the
     --local titlescreen heroes, or a pregen from the weekly module.
 
@@ -8143,7 +8211,7 @@ CreateScreen = function(args)
         resultPanel:AddChild(dlg)
     end
 
-    --── create-game dialog ──────────────────────────────────────────────
+    -- create-game dialog ----------------------------------------------
     --The two-layer create flow: reserve with the lobby (one hosted game per
     --user, arbitrated server-side), create the real DMHub game through the
     --engine, then confirm the gameid so the lobby publishes the roster
@@ -8707,31 +8775,67 @@ CreateScreen = function(args)
             end
         end
 
-        --An encounter's heading, with the Withdraw button when it carries one.
-        --The button asks for a second click, then makes the module Private.
-        local EncounterHeading = function(key)
+        --An encounter's heading. Clicking the arrow or title folds the encounter's
+        --feedback (entriesPanel) away, so a long list doesn't bury the encounters
+        --below it. Carries the Withdraw button when the encounter has one: it asks
+        --for a second click, then makes the module Private.
+        local EncounterHeading = function(key, entriesPanel)
             local moduleid = withdrawOn[key]
+            local collapsed = false
+            --Points right when folded, down when open.
+            local arrow = gui.ExpandoArrow{
+                classes = { "expanded" },
+                bgcolor = "#d9b56a",
+                width = 8,
+                height = 8,
+                lmargin = 0,
+                rmargin = 10,
+                valign = "center",
+                styles = {
+                    {
+                        selectors = { "parent:hover" },
+                        bgcolor = "#f2dca0",
+                    },
+                },
+            }
+            --The Withdraw button sits beside this panel, not inside it, so
+            --clicking the button never folds the feedback.
+            local toggle = gui.Panel{
+                --Leaves room for the 200-wide Withdraw button when there is one.
+                width = cond(moduleid == nil, "100%", "100%-200"),
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 14,
+                bmargin = 6,
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+                press = function()
+                    collapsed = not collapsed
+                    entriesPanel:SetClass("collapsed", collapsed)
+                    arrow:SetClass("expanded", not collapsed)
+                end,
+                arrow,
+                --ListSectionTitle's look, narrowed by the arrow (8 wide + 10 margin).
+                gui.Label{
+                    text = string.upper(titles[key] or ""),
+                    fontSize = 17,
+                    bold = true,
+                    color = "#d9b56a",
+                    width = "100%-18",
+                    height = "auto",
+                    valign = "center",
+                },
+            }
             if moduleid == nil then
-                return ListSectionTitle(titles[key])
+                return toggle
             end
             local moduleName = moduleNames[moduleid]
             return gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
-                --ListSectionTitle's look, sized to its text so the button fits.
-                gui.Label{
-                    text = string.upper(titles[key] or ""),
-                    fontSize = 17,
-                    bold = true,
-                    color = "#d9b56a",
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    valign = "center",
-                    tmargin = 14,
-                    bmargin = 6,
-                },
+                toggle,
                 gui.Button{
                     text = T("eotw.feedback.withdraw_button"),
                     fontSize = 16,
@@ -8815,8 +8919,8 @@ CreateScreen = function(args)
                 local rows = {}
                 for _,key in ipairs(keys) do
                     local stats = (result.stats or {})[key]
-                    rows[#rows+1] = EncounterHeading(key)
-                    rows[#rows+1] = gui.Label{
+                    local entries = {}
+                    entries[#entries+1] = gui.Label{
                         text = cond(stats == nil, T("eotw.feedback.not_tried"),
                             TP("eotw.feedback.stats", stats ~= nil and stats.plays or 0, { up = stats ~= nil and stats.up or 0,
                                 down = stats ~= nil and stats.down or 0 })),
@@ -8828,7 +8932,7 @@ CreateScreen = function(args)
                     for _,f in ipairs(result.feedback or {}) do
                         if f.encounter == key then
                             local vote = cond((f.vote or 0) > 0, T("eotw.feedback.vote_up"), cond((f.vote or 0) < 0, T("eotw.feedback.vote_down"), T("eotw.feedback.no_vote")))
-                            rows[#rows+1] = gui.Label{
+                            entries[#entries+1] = gui.Label{
                                 text = (f.feedback ~= nil and f.feedback ~= "") and T("eotw.feedback.entry", { player = f.name or "?", vote = vote, feedback = tostring(f.feedback) })
                                     or T("eotw.feedback.entry_no_text", { player = f.name or "?", vote = vote }),
                                 fontSize = 16,
@@ -8840,6 +8944,14 @@ CreateScreen = function(args)
                             }
                         end
                     end
+                    local entriesPanel = gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+                        children = entries,
+                    }
+                    rows[#rows+1] = EncounterHeading(key, entriesPanel)
+                    rows[#rows+1] = entriesPanel
                 end
                 body.children = rows
             end,
@@ -9979,7 +10091,7 @@ CreateScreen = function(args)
         end)
     end
 
-    --── the town ──────────────────────────────────────────────────────────
+    -- the town ----------------------------------------------------------
 
     --The map covers the screen (it is wider than tall but not as wide as
     --16:9) and pans by dragging. Everything on it -- the location nodes --
@@ -12269,18 +12381,17 @@ CreateScreen = function(args)
             ChatTab("game", T("eotw.chat.tab_game")),
         },
 
-        gui.Label{
-            fontSize = 16,
-            color = Styles.textColor,
-            opacity = 0.7,
+        gui.Panel{
             width = "94%",
             --two lines at most, so a busy town cannot push the input
             --off the bottom of the drawer.
             height = 42,
-            textAlignment = "topleft",
-            textOverflow = "ellipsis",
+            flow = "horizontal",
+            wrap = true,
+            clip = true,
             halign = "center",
-            text = "",
+            --remembers who the row shows, so a refresh with no change skips the rebuild.
+            data = { key = nil },
             create = function(element)
                 presenceLabel = element
                 RefreshPresence()
@@ -12406,9 +12517,9 @@ CreateScreen = function(args)
                 end }
             end
         else
-            --under way: joining opens its view to pick the heroes to bring;
-            --watching asks the host straight away. A private party's host
-            --is asked the same way.
+            --under way: joining opens its view to pick the heroes to bring.
+            --Watching a public party lets us straight in; a private party's
+            --host is asked first.
             local late = Late.Of(record)
             if late ~= nil then
                 joinable = true
@@ -12880,6 +12991,7 @@ CreateScreen = function(args)
                     reveal()
                 end
                 EotwRoster.AnnounceReturns(resultPanel)
+                EotwPlayerTags.AnnounceEarned(resultPanel)
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()
@@ -13032,7 +13144,7 @@ CreateScreen = function(args)
     return resultPanel
 end
 
---── stale-screen sweep ──────────────────────────────────────────────────
+-- stale-screen sweep --------------------------------------------------
 --Returning from a game reloads the titlescreen codemods but PRESERVES the
 --titlescreen's panel tree -- including any EotW screen that was open when
 --the game was entered (which is always the case for a game launched from

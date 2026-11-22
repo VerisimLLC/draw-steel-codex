@@ -189,12 +189,12 @@ text("eotw.chat.tab_game", [[Game Chat]])
 text("eotw.chat.tab_new", [[NEW]])
 --The small red marker on the line between read and unread messages.
 text("eotw.chat.new_divider", [[NEW]])
---The line above the messages: who is in town. {count} is how many, {names}
---their names.
-text("eotw.chat.presence_town", [[Here now ({count}): {names}]])
+--The line above the messages: who is in town. {count} is how many; their
+--names (with any achievement badges) follow it.
+text("eotw.chat.presence_town", [[Here now ({count}):]])
 text("eotw.chat.presence_empty", [[Nobody is here yet.]])
 --On the Game Chat tab: who is in the party.
-text("eotw.chat.presence_party", [[In this party ({count}): {names}]])
+text("eotw.chat.presence_party", [[In this party ({count}):]])
 --After a party member's name when they are not in town.
 text("eotw.chat.presence_away", [[(away)]])
 --The message box's placeholder.
@@ -884,6 +884,8 @@ text("guild.row.active", [[Active in town]])
 --{party} is the name of the party the hero is with.
 text("guild.row.away", [[Away: {party}]])
 text("guild.row.loading", [[Loading...]])
+text("guild.row.joining", [[Joining the guild...]])
+text("guild.row.dismissing", [[Dismissing...]])
 --Captions under the hero's numbers. Short: a few letters each.
 text("guild.stats.stamina", [[Stamina]])
 text("guild.stats.recoveries", [[Recov.]])
@@ -1014,6 +1016,9 @@ text("roster.hall.hero_fallback", [[Hero]])
 text("roster.hall.encounter_fallback", [[An Encounter of the Week]])
 --{players} is the players' names, separated by commas.
 text("roster.hall.played_by", [[Played by {players}]])
+--The same line when the players show achievement badges: this heading, then
+--each name with its badge.
+text("roster.hall.played_by_heading", [[Played by]])
 --Under the names: the encounter and when it was won. {encounter} is the
 --encounter's name, {when} the date.
 text("roster.hall.encounter_when", [[{encounter}, {when}]])
@@ -1483,6 +1488,41 @@ text("leads.temple.built_narration", [[You can now visit the Temple to revive yo
 text("leads.temple.site_npc", [[I hear a Temple is being built that will allow restoring of the dead. I do wonder if one such as yourself would like to help build it?]])
 text("leads.temple.site_narration", [[You may now access the project to build the temple.]])
 
+--The tier 1 leads: each puts a place on the player's map. DRAFT text and
+--PLACEHOLDER tellers. Each has a name (the "A New Lead!" banner), a teller
+--("{name}, {title}"), and the teller's line plus a narration line: one pair
+--for a building still being built (site_) and one once built (built_).
+--The Graveyard (no project; also learned when a hero first falls).
+text("leads.graveyard.title", [[The Graveyard]])
+text("leads.graveyard.npc_name", [[Mother Ash]])
+text("leads.graveyard.npc_title", [[Gravedigger]])
+text("leads.graveyard.npc", [[Every hero who falls in this town ends up with me, sooner or later. The Graveyard's past the southern river, if you want to pay your respects.]])
+text("leads.graveyard.narration", [[You can now visit the Graveyard.]])
+--The Hall of Heroes.
+text("leads.hall.title", [[The Hall of Heroes]])
+text("leads.hall.npc_name", [[Wren Lightfingers]])
+text("leads.hall.npc_title", [[Storyteller]])
+text("leads.hall.built_npc", [[They've finished the Hall of Heroes. Every party that beat the Encounter of the Week is up on its walls.]])
+text("leads.hall.built_narration", [[You can now visit the Hall of Heroes.]])
+text("leads.hall.site_npc", [[The town is raising a Hall of Heroes, to remember every party that wins the Encounter of the Week. They could use a strong back.]])
+text("leads.hall.site_narration", [[You may now help build the Hall of Heroes.]])
+--The Town Hall.
+text("leads.town_hall.title", [[The Town Hall]])
+text("leads.town_hall.npc_name", [[Clerk Odril]])
+text("leads.town_hall.npc_title", [[Town Clerk]])
+text("leads.town_hall.built_npc", [[The Town Hall is open. Vote on the town's business, or bring a petition of your own.]])
+text("leads.town_hall.built_narration", [[You can now visit the Town Hall.]])
+text("leads.town_hall.site_npc", [[Blackbottom needs a Town Hall, somewhere folk can have their say. The site is between the Gate and the Proving Pits.]])
+text("leads.town_hall.site_narration", [[You may now help build the Town Hall.]])
+--The Training Grounds.
+text("leads.training_grounds.title", [[The Training Grounds]])
+text("leads.training_grounds.npc_name", [[Sergeant Holt]])
+text("leads.training_grounds.npc_title", [[Veteran]])
+text("leads.training_grounds.built_npc", [[Heroes go to the Training Grounds in the east district to grow stronger. You look like you could use it.]])
+text("leads.training_grounds.built_narration", [[You can now visit the Training Grounds.]])
+text("leads.training_grounds.site_npc", [[There's talk of Training Grounds in the east district, where heroes can grow stronger. They need hands to build them.]])
+text("leads.training_grounds.site_narration", [[You may now help build the Training Grounds.]])
+
 --The name above an NPC's line in a conversation.
 text("leads.conversation.npc_speaker", [[{name}, {title}]])
 --A hero's name when the game cannot find it.
@@ -1912,3 +1952,37 @@ text("moderation.ban.length_days.other", [[for {count} more days]])
 text("moderation.ban.come_back_note", [[You are welcome back in town once the ban ends.]])
 --The button that closes it. Short: a button.
 text("moderation.ban.ok_button", [[OK]])
+
+----------------------------------------------------------------------------
+-- ACHIEVEMENTS: badges players earn and show beside their name. Players see
+-- them as "achievements"; the code calls them Player Tags (EotwPlayerTags.lua,
+-- the list itself in EotwPlayerTagDefs.lua).
+----------------------------------------------------------------------------
+
+--The Hero's Guild button that opens the achievements list. Short: a button.
+text("tags.guild_button", [[Achievements]])
+--Its tooltip.
+text("tags.guild_tooltip", [[Pick the achievement that shows beside your name around town.]])
+--The list's heading and the line under it.
+text("tags.picker.title", [[Your Achievements]])
+text("tags.picker.subtitle", [[Pick one to show beside your name. Everyone in town will see it.]])
+--The first row of the list: show no achievement at all.
+text("tags.picker.none", [[Show nothing]])
+--Beside the achievement being shown.
+text("tags.picker.showing", [[Showing]])
+--Beside an achievement not yet earned (only you see these).
+text("tags.picker.locked", [[Not yet]])
+--When nothing has been earned yet.
+text("tags.picker.empty", [[Nothing here yet. Win an encounter or lend a hand on a town project, and your first one will turn up.]])
+--The button that closes the list. Short: a button.
+text("tags.picker.close_button", [[Close]])
+--When the town could not change the shown achievement.
+text("tags.select_failed", [[That didn't take. Give it another try in a moment.]])
+--The banner when one achievement is earned: its heading (its description is shown under it).
+text("tags.banner.title_one", [[Achievement Earned!]])
+--The banner when several are earned at once.
+text("tags.banner.title_many", [[{count} Achievements Earned!]])
+--The banner's buttons. Short: buttons.
+text("tags.banner.show_button", [[Show It Off]])
+text("tags.banner.choose_button", [[Take a Look]])
+text("tags.banner.later_button", [[Not Now]])

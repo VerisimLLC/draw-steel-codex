@@ -11,7 +11,7 @@
   --fg: #ede5d5; --dim: #a3998a; --gold: #cca350; --err: #e2685a; --warn: #e0a040; --ok: #7cc28a;
   --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #b36125; --c-skill: #9a6d1c;
   --c-res: #8a6a20; --c-rem: #6b6258; --c-if: #b05a24; --c-adv: #5b564e; --c-cond: #8e3f86;
-  --c-choice: #3d7a3a; --c-head: #8c6a24;
+  --c-choice: #3d7a3a; --c-mine: #7a4f8f; --c-head: #8c6a24;
   --card-bg: #fdfcf8; --card-fg: #141414;
   --font-ui: "Inter", system-ui, sans-serif; --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-card: "Bitter", Georgia, serif; --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -179,6 +179,11 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .grip svg { width: 10px; height: 14px; fill: currentColor; margin: auto; }
 .sent > .grip, .sent .ifline > .grip { touch-action: none; }
 .palgroup { display: flex; flex-direction: column; gap: 4px; }
+.palrow { display: flex; gap: 4px; align-items: stretch; }
+.palrow .pal { flex: 1; min-width: 0; }
+.palrow .mb { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--fg); cursor: pointer; padding: 0 8px; }
+.pal .recipe { margin-left: 6px; font: 600 9px var(--font-head); letter-spacing: .08em; text-transform: uppercase; background: rgba(0,0,0,.28); border-radius: 3px; padding: 1px 4px; vertical-align: 1px; }
+h5.palhead .btn.link { margin-left: auto; font: 400 11.5px var(--font-ui); text-transform: none; letter-spacing: 0; }
 h5.palhead { margin: 6px 0 0; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); display: flex; align-items: center; gap: 6px; }
 h5.palhead .sw { width: 10px; height: 10px; border-radius: 2px; }
 .chip { touch-action: none; user-select: none; }

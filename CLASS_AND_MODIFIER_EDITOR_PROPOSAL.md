@@ -709,3 +709,32 @@ More elegant alternatives considered:
     - chips use the shelf's names (Kit, Resource, Triggered ability).
   - **Phone:** the editor pop-up is full-screen, in one column.
   - **Other:** the share box and file button are styled, and saved data no longer shows ligatures.
+
+## 12. One shelf, and authors' own ready-made features (2026-11-22)
+
+Asked for: alternative C from the critique, plus ready-made features authors make and share.
+
+- **One shelf.** Ready-made features and blocks are now one list, grouped by colour (Choices, Stats, Rolls,
+  Defences, Abilities, Languages, Resources and kits, Reminders, Only if), each group ordered by use.
+  - **Dropping an entry on a level** makes a feature named after it: "Choose a perk" makes "Perk",
+    "Have or choose skills" makes "Skills", "Kit" makes "Kit".
+  - **Dropping it into a feature** adds its blocks where the gold line shows.
+  - **Clicking** adds the entry to the open feature, or starts a new feature if none is open.
+  - The lane's "+ add a feature" menu lists the same entries.
+- **Recipes** are entries that add several blocks, or one block with presets. They sit beside their
+  blocks, marked "recipe":
+  - Characteristic Increase (raised scores plus "raise another");
+  - Signature ability;
+  - Heroic ability choice.
+
+  The plain "Choose an ability" block is offered only through those two recipes, and the separate
+  Recoveries/Kit/Languages features are now just their blocks. That removes the duplicate entries.
+- **Your ready-made features.**
+  - **Saving:** "Save as ready-made" on any feature keeps a copy, with its abilities, in a "Your
+    ready-made features" group at the top of the shelf. It's named on save, and dragging it in copies
+    it with fresh ids.
+  - **Managing:** each one has Share, Rename and Delete (Delete has Undo), and "Share all" copies the
+    whole group as text.
+  - **Importing:** Import accepts shared features as well as classes, and they join your shelf.
+  - **Where they live:** in the prototype, in the browser. In DMHub they would be a compendium table, so
+    a table or organisation can publish its own (see the Lua study).

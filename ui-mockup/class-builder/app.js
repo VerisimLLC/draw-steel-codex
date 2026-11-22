@@ -200,13 +200,13 @@ const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier"
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
    record type from its blocks (one choice alone -> that choice; a mix -> a feature list). */
 const SENT = {
-  perkChoice: { desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
+  perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
   /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
      records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
-  skills: { desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "choice", uses: 118, choice: true,
+  skills: { featName: "Skills", desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "choice", uses: 118, choice: true,
     make: () => ({ granted: [], num: "1", groups: [], named: [] }),
     render: (f, add) => {
       // Empty parts read naturally: "You have no fixed skills and choose 5 skills from ... (+ named skills)".
@@ -230,7 +230,7 @@ const SENT = {
     // No groups and no named skills means any skill: every group is offered, as core classes store it.
     compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num,
       categories: Object.fromEntries((f.groups.length || f.named.length ? f.groups : SKILL_GROUPS).map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
-  charChoice: { desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
+  charChoice: { featName: "Characteristic Increase", desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
     // Options are the characteristics this feature doesn't already raise (its "score increases to" blocks).
@@ -238,7 +238,7 @@ const SENT = {
       return Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
         options: CHARS.filter(c => !raised.includes(c[0])).map(c => ({ __typeName: "CharacterFeature", name: c[1], description: "", tags: { Hidden: true },
           modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1, cap: numOr(f.max) }] })) }); } },
-  abilityChoice: { desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
+  abilityChoice: { shelf: false, desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
       if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
@@ -253,7 +253,7 @@ const SENT = {
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
       options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
-  subclassChoice: { desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
+  subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
     render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(name the feature College, Circle, Domain...; subclasses are made in the subclass editor)")); },
     prose: (f, feat) => "Choose your " + (feat && feat.name ? feat.name : "subclass") + ".",
@@ -304,13 +304,13 @@ const SENT = {
   condImm: { desc: "You can't gain the conditions you pick.", label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
     render: (f, add) => { add(lbl("You can't be")); add(multiTok(f, "conds", T.conditions.map(c => [c[0], c[1].toLowerCase()]), "choose conditions")); },
     compile: (f, feat) => modBase(feat, { behavior: "conditionimmunity", conditions: f.conds.slice() }) },
-  language: { desc: "You know the languages you pick.", label: "You know a language", group: "skill", uses: 4, make: () => ({ ids: [] }),
+  language: { featName: "Languages", desc: "You know the languages you pick.", label: "You know a language", group: "skill", uses: 4, make: () => ({ ids: [] }),
     render: (f, add) => { add(lbl("You know")); add(multiTok(f, "ids", T.languages.map(s => [s[0], s[1]]), "choose languages", "and")); },
     compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "language", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
-  resource: { desc: "You have a number of Recoveries (or another resource).", label: "Recoveries or a resource", group: "res", uses: 35, make: () => ({ res: RES.recovery, num: "8" }),
+  resource: { featName: "Recoveries", desc: "You have a number of Recoveries (or another resource).", label: "Recoveries or a resource", group: "res", uses: 35, make: () => ({ res: RES.recovery, num: "8" }),
     render: (f, add) => { add(lbl("You have")); add(fxTok(f, "num", "number")); add(pickTok(f, "res", RESOURCE_OPTS)); },
     compile: (f, feat) => modBase(feat, { behavior: "resource", resourceType: f.res, num: numOr(fxFormula(f, "num")) }) },
-  kit: { desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
+  kit: { featName: "Kit", desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
   ability: { desc: "Grant an ability. Opens the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
@@ -372,23 +372,53 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
 // ---------------------------------------------------------------------------------------------
 // Features: a name, its book text, and blocks. Ready-made features are just pre-filled blocks; every
 // block in them stays editable, and dragging one in copies it.
-const READY = [
-  { key: "perk", title: "Perk", uses: 54, c: "choice", desc: "One perk from [groups]", make: () => feature("Perk", [["perkChoice"]]) },
-  { key: "skills", title: "Skills", c: "choice", uses: 69, desc: "Fixed skills and [N] chosen from [groups]", make: () => feature("Skills", [["skills"]]) },
-  { key: "charinc", title: "Characteristic Increase", c: "choice", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
-  { key: "heroic", title: "Choose a heroic ability", c: "choice", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
-  { key: "signature", title: "Signature ability", c: "choice", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
-  { key: "subclass", title: "Subclass choice", c: "choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature("Subclass", [["subclassChoice"]]) },
-  { key: "kit", title: "Kit", c: "res", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", [["kit"]]) },
-  { key: "recoveries", title: "Recoveries", c: "res", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", [["resource"]]) },
-  { key: "languages", title: "Languages", c: "skill", uses: 6, desc: "You know [languages]", make: () => feature("Languages", [["language"]]) },
-  { key: "withability", title: "Feature with an ability", c: "abil", uses: 601, desc: "Name, text and an ability card", make: () => feature("", [["ability"]]), opens: "ability" },
-  { key: "withtrigger", title: "Feature with a triggered ability", c: "abil", uses: 220, desc: "Name, text and a trigger card", make: () => feature("", [["trigger"]]), opens: "trigger" },
-  { key: "empty", title: "Empty feature", c: "adv", uses: null, desc: "Name, text, then add blocks", make: () => feature("", []) },
+/* One shelf (critique alternative C): every block, plus a few recipes (several blocks, or a block with
+   presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
+   blocks are added there. Authors' own ready-made features join the shelf the same way. */
+const RECIPES = [
+  { key: "charinc", label: "Characteristic Increase", group: "choice", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
+    blocks: () => primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]]) },
+  { key: "signature", label: "Signature ability", group: "choice", uses: 9, desc: "The player chooses one signature ability from a list you build.", name: "Signature Ability", blocks: () => [["abilityChoice", { cat: "signature" }]] },
+  { key: "heroic", label: "Heroic ability choice", group: "choice", uses: 45, desc: "The player chooses one heroic ability costing N of your resource, from a list you build.", name: "", blocks: () => [["abilityChoice", { cat: "heroic" }]] },
 ];
+/* An entry key is "s:<block type>", "r:<recipe>", "t:<your template id>" or "empty". */
+function entryOf(key) {
+  if (key === "empty") return { label: "Empty feature", name: "", blocks: () => [] };
+  const [k, v] = [key.slice(0, 1), key.slice(2)];
+  if (k === "s") { const d = SENT[v]; return { label: d.label, name: d.featName || "", blocks: () => [[v]], opens: d.opensEditor }; }
+  if (k === "r") { const r = RECIPES.find(x => x.key === v); return r && { label: r.label, name: r.name, blocks: r.blocks }; }
+  if (k === "t") { const t = (store.templates || []).find(x => x.id === v); return t && { label: t.name, template: t }; }
+  return null;
+}
+/* A copy of a feature with fresh ids (for templates, and Duplicate). */
+function cloneFeature(f) {
+  const c = JSON.parse(JSON.stringify(f)); c.id = newId("f");
+  (function walk(l) { l.forEach(x => { x.id = newId("s"); if (x.f && x.f.options) x.f.options.forEach(o => { o.id = newId("o"); }); if (x.children) walk(x.children); }); })(c.sentences || []);
+  return c;
+}
+/* The blocks an entry adds (fresh copies). */
+function entryBlocks(e) {
+  if (e.template) return cloneFeature(e.template.feature).sentences;
+  return e.blocks().map(([t, o]) => { const x = makeSentence(t); Object.assign(x.f, o || {}); return x; });
+}
+/* Drop or click an entry onto a level: a new feature, named after the entry. */
+function addEntryToLane(key, laneKey) {
+  const e = entryOf(key); if (!e) return;
+  const f = e.template ? cloneFeature(e.template.feature) : Object.assign(feature(e.name, []), { sentences: entryBlocks(e) });
+  if (!e.template) f.id = newId("f");
+  addFeature({ make: () => f, opens: e.opens === "triggered" ? "trigger" : e.opens }, laneKey);
+}
+/* Drop or click an entry into a feature's block list (at idx). */
+function addEntryToList(key, feat, list, idx, inIf) {
+  const e = entryOf(key); if (!e) return;
+  if (key.startsWith("s:")) return addSentence(feat, list, key.slice(2), idx);
+  const blocks = entryBlocks(e);
+  if (inIf && blocks.some(b => SENT[b.type].choice || SENT[b.type].wrapper)) return toast("A choice can't go inside \u201cOnly if\u201d.");
+  change(() => { list.splice(idx == null ? list.length : idx, 0, ...blocks); if (!feat.name && e.name) feat.name = e.name; });
+}
 /* types: [[sentence type, field overrides]] */
 function feature(name, types) { return { kind: "feature", name, text: "", sentences: types.map(([t, o]) => { const x = makeSentence(t); Object.assign(x.f, o || {}); return x; }) }; }
-function newFeature(tpl) { const f = tpl.make(); f.id = newId("f"); return f; }
+function newFeature(tpl) { const f = tpl.make(); if (!f.id) f.id = newId("f"); return f; }
 /* Drafts and exports from before choice blocks stored ready-made features as their own kinds. */
 function migrateFeature(f) {
   if (!f || f.kind === "feature" || !f.kind) return f;
@@ -427,6 +457,8 @@ function sentenceProse(f) {
   (function walk(list, prefix) { list.forEach(s => {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test) || ONLY_IF[0]; walk(s.children, "If " + t[3](s.f) + ", "); return; }
     if (s.type === "ability" || s.type === "trigger") return;
+    // An unfinished block stays out of the book text (the status column lists it instead).
+    if ((REQUIRED[s.type] || []).some(k => { const v = s.f[k]; return v == null || v === "" || (Array.isArray(v) && !v.length); })) return;
     if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f, f)); return; }
     const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
     let t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
@@ -788,7 +820,9 @@ function renderLane(k) {
   const items = E("div", "items");
   (cls.lanes[k] || []).forEach(f => items.appendChild(f.id === openId ? renderFeature(f, k) : chip(f, k)));
   const add = fk(E("button", "addf", "+ add a feature"), "addf:" + k); add.type = "button";
-  add.addEventListener("click", ev => { ev.stopPropagation(); menuAt(add, m => READY.forEach(t => { const x = E("button", null, t.title); x.type = "button"; x.addEventListener("click", () => { closeMenu(); addFeature(t, k); }); m.appendChild(x); })); });
+  add.addEventListener("click", ev => { ev.stopPropagation(); menuAt(add, m => { addFilter(m);
+    shelfEntries().forEach(([group, items]) => { if (!items.length) return; m.appendChild(E("h5", null, group));
+      items.forEach(it => { const x = E("button", null, it.label); x.type = "button"; x.title = it.desc || ""; x.addEventListener("click", () => { closeMenu(); addEntryToLane(it.key, k); }); m.appendChild(x); }); }); }); });
   items.appendChild(add); lane.appendChild(items);
   return lane;
 }
@@ -840,15 +874,18 @@ document.addEventListener("pointerup", () => {
   d.el.dataset.dragged = "1"; setTimeout(() => delete d.el.dataset.dragged, 0);
   if (d.target) doDrop(d, d.target);
 });
-const isFeatureDrag = k => k === "ready" || k === "feature";
+const isFeatureDrag = k => k === "feature";
 /* Where would this land? A level (features) or a position in a block list (blocks). */
 function dropTarget(x, y) {
   const under = document.elementFromPoint(x, y); if (!under) return null;
   if (isFeatureDrag(drag.kind)) { const lane = under.closest(".lane"); return lane ? { lane: lane.dataset.lane, el: lane } : null; }
-  const box = under.closest(".sents[data-list]"); if (!box) return null;
+  // A shelf entry over an open feature's blocks goes into them; anywhere else on a level, it makes a feature.
+  const box = under.closest(".sents[data-list]");
+  if (!box) { if (drag.kind !== "entry") return null; const lane = under.closest(".lane"); return lane ? { lane: lane.dataset.lane, el: lane } : null; }
   const L = LISTS[box.dataset.list]; if (!L) return null;
-  const type = drag.kind === "sentence" ? drag.value : (findSentence(drag.value) || {}).s?.type;
+  const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
   if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper)) return null;
+  if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return null;
   const rows = [...box.children].filter(c => c.classList.contains("sent"));
   let idx = rows.length;
   for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) { idx = i; break; } }
@@ -867,12 +904,12 @@ function findSentence(id) {
 }
 function doDrop(d, t) {
   if (t.lane) {
-    if (d.kind === "ready") return addFeature(READY.find(x => x.key === d.value), t.lane);
+    if (d.kind === "entry") return addEntryToLane(d.value, t.lane);
     return change(() => { const at = findFeature(d.value); if (!at || at.lane === t.lane) return; cls.lanes[at.lane] = cls.lanes[at.lane].filter(x => x !== at.feat); (cls.lanes[t.lane] = cls.lanes[t.lane] || []).push(at.feat);
       const n = +t.lane.slice(6); if (t.lane.startsWith("level-") && n > cls.showLevels) cls.showLevels = n; });
   }
   const L = LISTS[t.list];
-  if (d.kind === "sentence") return addSentence(L.feat, L.list, d.value, t.idx);
+  if (d.kind === "entry") return addEntryToList(d.value, L.feat, L.list, t.idx, L.inIf);
   const from = findSentence(d.value); if (!from) return;
   const inside = (x, l) => !!x.children && (x.children === l || x.children.some(c => inside(c, l)));
   if (inside(from.s, L.list)) return;   // an "Only if" can't go inside itself
@@ -910,8 +947,11 @@ function renderFeature(f, laneKey) {
     x.addEventListener("click", () => change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); (cls.lanes[k] = cls.lanes[k] || []).push(f); if (k.startsWith("level-") && +k.slice(6) > cls.showLevels) cls.showLevels = +k.slice(6); })); m.appendChild(x); })); });
   foot.appendChild(mv);
   const dup = fk(E("button", "btn small", "Duplicate"), "dup:" + f.id); dup.type = "button";
-  dup.addEventListener("click", () => change(() => { const c = JSON.parse(JSON.stringify(f)); c.id = newId("f"); JSON.stringify(c, (k, v) => { if (v && typeof v === "object" && typeof v.id === "string" && /^s\d+$/.test(v.id)) v.id = newId("s"); return v; }); cls.lanes[laneKey].push(c); openId = c.id; }));
+  dup.addEventListener("click", () => change(() => { const c = cloneFeature(f); cls.lanes[laneKey].push(c); openId = c.id; pendingFk = "fname:" + c.id; }));
   foot.appendChild(dup);
+  const sv = fk(E("button", "btn small", "Save as ready-made"), "tpl:" + f.id); sv.type = "button"; sv.title = "Keep a copy on your shelf to reuse in any class, and share";
+  sv.addEventListener("click", ev => { ev.stopPropagation(); saveTemplateMenu(sv, f); });
+  foot.appendChild(sv);
   const del = fk(E("button", "btn small", "Delete"), "del:" + f.id); del.type = "button";
   del.addEventListener("click", () => { pendingFk = "addf:" + laneKey; change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); openId = null; });
     toast("Deleted \u201c" + featName(f) + "\u201d.", { label: "Undo", run: undo }); });
@@ -991,33 +1031,79 @@ function shelfBlock(label, color, uses, title, dragKind, value, onClick, disable
   return b;
 }
 const groupColor = g => (GROUPS.find(x => x[0] === g) || [0, 0, "--c-adv"])[2];
+/* The shelf's entries by group: [group label, [{ key, label, color, uses, desc }]]. */
+function shelfEntries() {
+  const out = [];
+  const mine = (store.templates || []).map(t => ({ key: "t:" + t.id, label: t.name, color: "--c-mine", desc: "Your ready-made feature: " + (sentenceProse(t.feature) || "(no blocks)"), tpl: t }));
+  out.push(["Your ready-made features", mine]);
+  GROUPS.forEach(g => {
+    const items = Object.keys(SENT).filter(t => SENT[t].group === g[0] && SENT[t].shelf !== false).map(t => ({ key: "s:" + t, label: SENT[t].label, color: g[2], uses: SENT[t].uses, desc: SENT[t].desc }))
+      .concat(RECIPES.filter(r => r.group === g[0]).map(r => ({ key: "r:" + r.key, label: r.label, color: g[2], uses: r.uses, desc: r.desc + " A recipe: adds the blocks for you to edit.", recipe: true })));
+    // Recipes sit beside the blocks they're made of, ordered by use like the rest.
+    items.sort((a, b) => (b.uses || 0) - (a.uses || 0));
+    out.push([g[1], items, g[2]]);
+  });
+  out.push(["Start empty", [{ key: "empty", label: "Empty feature", color: "--c-adv", desc: "A feature with a name and text; add blocks to it." }]]);
+  return out;
+}
 function renderShelf() {
   const q = (shelf.querySelector("input.search") || {}).value || "";
   shelf.innerHTML = "";
-  const s = E("input", "search"); s.id = "shelfSearch"; s.placeholder = "Search features and blocks ( / )"; s.value = q; s.setAttribute("aria-label", "Search the shelf");
+  const s = E("input", "search"); s.id = "shelfSearch"; s.placeholder = "Search the shelf ( / )"; s.value = q; s.setAttribute("aria-label", "Search the shelf");
   s.addEventListener("input", () => { const pos = s.selectionStart; renderShelf(); const n = shelf.querySelector("input.search"); n.focus(); n.setSelectionRange(pos, pos); });
   shelf.appendChild(s);
   const match = t => !q || t.toLowerCase().includes(q.toLowerCase());
   const at = openId && findFeature(openId);
-  shelf.appendChild(E("p", "hint", "Drag onto a level or into a feature, or click to add. Hover a block for what it does; numbers are how often core classes use it."));
-  const fh = E("h4"); fh.appendChild(E("span", null, "Ready-made features")); shelf.appendChild(fh);
-  const fg = E("div", "palgroup");
-  READY.filter(t => match(t.title + " " + t.desc)).forEach(t => {
-    const tip = t.desc.replace(/\[|\]/g, "") + ". Adds a feature made of blocks you can edit." + (t.uses ? " Core classes use this " + t.uses + " times." : "");
-    fg.appendChild(shelfBlock(t.title, "--c-" + t.c, t.uses, tip, "ready", t.key, () => addFeature(t, at ? at.lane : laneKeys()[0])));
-  });
-  shelf.appendChild(fg);
-  shelf.appendChild(E("h4", null, "Blocks"));
-  shelf.appendChild(E("p", "hint", at ? "Click adds to \u201c" + featName(at.feat) + "\u201d." : "Click starts a new feature with the block."));
-  GROUPS.forEach(g => {
-    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && match(SENT[t].label + " " + g[1] + " " + (SENT[t].desc || ""))); if (!types.length) return;
-    const gh = E("h5", "palhead"); const sw = E("span", "sw"); sw.style.background = "var(" + g[2] + ")"; gh.appendChild(sw); gh.appendChild(document.createTextNode(g[1])); shelf.appendChild(gh);
+  shelf.appendChild(E("p", "hint", "Drop on a level for a new feature, or into a feature to add to it. Click adds to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + ". Numbers are how often core classes use each."));
+  shelfEntries().forEach(([group, items, color]) => {
+    const vis = items.filter(it => match(it.label + " " + group + " " + (it.desc || "")));
+    if (group === "Your ready-made features") { if (!vis.length && q) return; }
+    else if (!vis.length) return;
+    const gh = E("h5", "palhead"); const sw = E("span", "sw"); sw.style.background = "var(" + (color || (group.startsWith("Your") ? "--c-mine" : "--c-adv")) + ")"; gh.appendChild(sw); gh.appendChild(document.createTextNode(group));
+    if (group === "Your ready-made features" && (store.templates || []).length) {
+      const sh = fk(E("button", "btn link", "Share all"), "tplshareall"); sh.type = "button"; sh.addEventListener("click", ev => { ev.stopPropagation(); shareTemplates(sh, store.templates); }); gh.appendChild(sh);
+    }
+    shelf.appendChild(gh);
     const box = E("div", "palgroup");
-    types.forEach(t => box.appendChild(shelfBlock(SENT[t].label, g[2], SENT[t].uses, SENT[t].desc || SENT[t].label, "sentence", t,
-      () => { if (!at) { const nf = feature("", []); nf.id = newId("f"); change(() => { (cls.lanes[laneKeys()[0]] = cls.lanes[laneKeys()[0]] || []).push(nf); openId = nf.id; }); return addSentence(nf, nf.sentences, t); }
-        addSentence(at.feat, at.feat.sentences, t); })));
+    if (group === "Your ready-made features" && !vis.length) box.appendChild(E("p", "hint", "Open a feature and choose \u201cSave as ready-made\u201d to keep it here. Import adds ones others share."));
+    vis.forEach(it => {
+      const click = () => { if (at) { const top = at.feat.sentences; addEntryToList(it.key, at.feat, top, top.length, false); } else addEntryToLane(it.key, laneKeys()[0]); };
+      const b = shelfBlock(it.label, it.color, it.uses, it.desc, "entry", it.key, click);
+      if (it.recipe) b.querySelector(".pl").appendChild(E("span", "recipe", "recipe"));
+      if (it.tpl) { const row = E("div", "palrow"); row.appendChild(b); const mb = fk(E("button", "mb", "\u22ef"), "tplmb:" + it.tpl.id); mb.type = "button"; mb.setAttribute("aria-label", it.label + " options");
+        mb.addEventListener("click", ev => { ev.stopPropagation(); templateMenu(mb, it.tpl); }); row.appendChild(mb); box.appendChild(row); }
+      else box.appendChild(b);
+    });
     shelf.appendChild(box);
   });
+}
+/* Your ready-made features: saved in this browser (store.templates), shared as text like classes. */
+function saveTemplateMenu(btn, f) {
+  menuAt(btn, m => {
+    m.appendChild(E("div", "q", "Save a copy of this feature to your shelf, to reuse in any class. Its abilities come with it."));
+    const i = E("input", "filter"); i.value = featName(f) === "Unnamed feature" ? "" : featName(f); i.placeholder = "Name on the shelf"; m.appendChild(i);
+    const yn = E("div", "yn"); const ok = E("button", "btn primary", "Save"); ok.type = "button";
+    ok.addEventListener("click", () => { const name = i.value.trim() || featName(f); const c = JSON.parse(JSON.stringify(f)); delete c.id; c.name = name;
+      (store.templates = store.templates || []).push({ id: guid(), name, feature: c }); closeMenu(); saveStore(); render(); toast("Saved \u201c" + name + "\u201d to your ready-made features."); });
+    i.addEventListener("keydown", e => { if (e.key === "Enter") ok.click(); });
+    yn.appendChild(ok); m.appendChild(yn);
+  });
+}
+function templateMenu(btn, t) {
+  menuAt(btn, m => {
+    const item = (label, fn) => { const x = E("button", null, label); x.type = "button"; x.addEventListener("click", fn); m.appendChild(x); };
+    item("Share", () => shareTemplates(btn, [t]));
+    item("Rename", () => { m.innerHTML = ""; const i = E("input", "filter"); i.value = t.name; m.appendChild(i); i.focus(); i.select();
+      i.addEventListener("keydown", e => { if (e.key === "Enter") { t.name = i.value.trim() || t.name; closeMenu(); saveStore(); render(); } }); });
+    item("Delete", () => { closeMenu(); store.templates = store.templates.filter(x => x !== t); saveStore(); render();
+      toast("Deleted \u201c" + t.name + "\u201d from your shelf.", { label: "Undo", run: () => { store.templates.push(t); saveStore(); render(); } }); });
+  });
+}
+function shareTemplates(btn, list) {
+  const text = JSON.stringify({ classBuilderTemplates: 1, templates: list.map(t => ({ name: t.name, feature: t.feature })) });
+  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Copy this and send it. Whoever gets it pastes it into Import, and " + (list.length === 1 ? "the feature joins" : "these " + list.length + " features join") + " their shelf."));
+    const ta = E("textarea", "io"); ta.readOnly = true; ta.value = text; m.appendChild(ta);
+    const yn = E("div", "yn"); const c = E("button", "btn primary", "Copy"); c.type = "button"; c.addEventListener("click", () => copyText(text, ta)); yn.appendChild(c); m.appendChild(yn); });
 }
 /* What's left to finish, per feature (hard) and worth checking (soft), each with a fix where one is obvious.
    Shown in the status column and as a red mark on the feature's chip. */
@@ -1120,14 +1206,20 @@ function exportBuilder(btn) {
 }
 function loadBuilderText(t) {
   let d; try { d = JSON.parse(t); } catch (e) { return toast("That isn't valid JSON. Paste the whole text from Export."); }
-  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class from this builder (use Export to make one).");
+  if (d && d.classBuilderTemplates && Array.isArray(d.templates)) {
+    const added = d.templates.filter(t => t && t.feature && Array.isArray(t.feature.sentences)).map(t => ({ id: guid(), name: String(t.name || "Shared feature"), feature: migrateClass({ lanes: { x: [Object.assign({ id: "f0" }, t.feature)] } }).lanes.x[0] }));
+    added.forEach(t => delete t.feature.id);
+    store.templates = (store.templates || []).concat(added); closeMenu(); saveStore(); render();
+    return toast("Added " + added.length + " ready-made feature" + (added.length === 1 ? "" : "s") + " to your shelf.");
+  }
+  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class or ready-made feature from this builder (use Share to make one).");
   const ids = t.match(/"id":"[a-z](\d+)"/g) || []; ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
   // An imported class opens as a new class in the list; the one you had stays as it was.
   closeMenu(); const c = migrateClass(d.cls); if (store.classes[c.id]) c.id = guid();
   newClass(c); toast("Opened \u201c" + cls.name + "\u201d as a new class. Your other classes are in the Open list.");
 }
 function importBuilder(btn) {
-  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Paste a class someone shared with you, or choose a saved file. It opens as a new class; yours stay as they are.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
+  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Paste a class or ready-made features someone shared with you, or choose a saved file. A class opens as a new class; features join your shelf.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
     const yn = E("div", "yn"); const o = E("button", "btn primary", "Open pasted class"); o.type = "button"; o.addEventListener("click", () => loadBuilderText(ta.value));
     const fl = E("label", "btn filebtn", "Choose a file\u2026"); const fi = E("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.id = "importFile";
     fi.addEventListener("change", () => { const x = fi.files[0]; if (x) x.text().then(loadBuilderText); }); fl.appendChild(fi);

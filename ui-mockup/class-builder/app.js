@@ -185,9 +185,13 @@ const SENT = {
   skills: { desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Skills", group: "choice", uses: 118, choice: true,
     make: () => ({ granted: [], num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
     render: (f, add) => {
-      add(lbl("You have the")); add(multiTok(f, "granted", T.skills.map(x => [x[0], x[1]]), "no fixed", "and")); add(lbl(f.granted.length === 1 ? "skill, and you choose" : "skills, and you choose"));
-      add(textTok(f, "num", "0")); add(lbl(+f.num === 1 ? "skill from the" : "skills from the")); add(multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or")); add(lbl(f.groups.length === 1 ? "skill group or" : "skill groups or"));
-      add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "no named skills", "or"));
+      // Empty parts read naturally: "You have no fixed skills and choose 5 skills from ... (+ named skills)".
+      const g = f.granted.length;
+      add(lbl(g ? "You have the" : "You have")); add(multiTok(f, "granted", T.skills.map(x => [x[0], x[1]]), "no fixed skills", "and")); if (g) add(lbl(g === 1 ? "skill" : "skills"));
+      add(lbl("and choose")); add(textTok(f, "num", "0")); add(lbl(+f.num === 1 ? "skill from the" : "skills from the"));
+      add(multiTok(f, "groups", SKILL_GROUPS.map(g2 => [g2, g2]), "no", "or")); add(lbl(f.groups.length === 1 ? "skill group" : "skill groups"));
+      if (f.named.length) add(lbl("or"));
+      add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "+ named skills", "or"));
     },
     prose: f => {
       const have = f.granted.map(i => lookupName(T.skills, i)), n = +f.num || 0;

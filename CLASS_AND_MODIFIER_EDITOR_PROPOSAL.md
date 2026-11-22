@@ -801,3 +801,14 @@ start-of-turn gain" from a complication makes the roll 1d4. For flat classes it 
   size becomes its own value.
 
 (b) is consistent for modifiers but changes four classes' data.
+
+**Decision (2026-11-22): keep the data as it is (option a).**
+- **The rules:** dice classes improve with bonuses ("1d3 + 1", "+ 2"), not bigger dice, and the block
+  already saves its level steps that way (table rows "(1d ...) + 1"), as content does.
+- **Why the attribute stays:** it remains the die size for dice classes, because content uses it as the
+  on/off switch (Self-Taught and Gloom Squad set it to 0; Summoner's Essence at Start sets it from
+  stacks).
+- **What the builder says:** for a dice class it names the stat "start-of-turn Wrath die size (1d3)",
+  and the block notes that level bonuses add to the roll. To add to the amount, there's "every Wrath
+  gain" (Heroic Resource Gain Modification).
+- **Book text** reads "1d3 (1d3 + 1 from 7th level, 1d3 + 2 from 10th level)".

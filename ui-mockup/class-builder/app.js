@@ -14,7 +14,10 @@ const charName = id => (CHARS.find(c => c[0] === id) || [id, id])[1];
 const BUILTIN_STATS = [["hitpoints", "Stamina"], ["speed", "speed"], ["forcedmoveresistance", "stability"], ["recoveryvalue", "Recovery value"]];
 const STAT_OPTS = CHARS.concat(BUILTIN_STATS);
 // Resource gain stats read with the class's own resource name ("start-of-turn Wrath gain").
-const statOpts = () => STAT_OPTS.concat([[HR_START, "start-of-turn " + (cls && cls.resourceName || "resource") + " gain"], [HR_ALL, "every " + (cls && cls.resourceName || "resource") + " gain"]]);
+// For a die-roll class the attribute is the die size (1d3); its level bonuses (+1, +2) live in the
+// roll itself, as the rules and core content do, so the option says what it really changes.
+const statOpts = () => { const r = cls && cls.resourceName || "resource", die = cls && cls.startGain && cls.startGain.kind === "die";
+  return STAT_OPTS.concat([[HR_START, "start-of-turn " + r + (die ? " die size (1d" + cls.startGain.n + ")" : " gain")], [HR_ALL, "every " + r + " gain"]]); };
 const CUSTOM_FLAGS = T.customAttributes.filter(a => !/Class Specific|Hidden/i.test(a[2]));
 const statName = id => (STAT_OPTS.find(s => s[0] === id) || T.customAttributes.find(a => a[0] === id) || [id, id])[1];
 const MOVES = [["fly", "fly"], ["climb", "climb at full speed"], ["swim", "swim at full speed"], ["burrow", "burrow"]];
@@ -566,7 +569,9 @@ function compileFeature(f) {
 function startGainText(sg) {
   const st = (sg.steps || []).filter(x => x.from && x.add);
   const base = sg.kind === "die" ? "1d" + sg.n : sg.n;
-  return base + (st.length ? " (" + st.map(x => "+" + x.add + " from " + ORD(+x.from) + " level").join(", ") + ")" : "");
+  // "1d3 (1d3 + 1 from 7th level, 1d3 + 2 from 10th level)": each step adds to the previous ones.
+  let total = 0; const parts = st.map(x => { total += +x.add || 0; return (sg.kind === "die" ? base + " + " + total : String((+sg.n || 0) + total)) + " from " + ORD(+x.from) + " level"; });
+  return base + (parts.length ? " (" + parts.join(", ") + ")" : "");
 }
 function compileStartGain(res) {
   const sg = cls.startGain; if (!sg) return null;
@@ -843,7 +848,9 @@ function renderBoard() {
     const addStep = fk(E("button", "addsent inblock", "+ more from a level"), "startgainstep"); addStep.type = "button";
     addStep.addEventListener("click", () => change(() => { sg.steps = sg.steps || []; const last = sg.steps.length ? +sg.steps[sg.steps.length - 1].from : 4; sg.steps.push({ from: String(last < 7 ? 7 : 10), add: "1" }); }));
     steps.appendChild(addStep); el.appendChild(steps);
-    el.appendChild(E("div", "sgnote", "Other features can change this amount (a complication, title or item): use \u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " gain." +
+    el.appendChild(E("div", "sgnote", (sg.kind === "die"
+      ? "Level bonuses are added to the roll (1d" + sg.n + " + 1, + 2), as the rules say. Other features can switch this gain off or change the die size (\u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " die size); to add to every gain, use \u201cevery " + (cls.resourceName || "resource") + " gain\u201d."
+      : "Other features can change this amount or switch it off (a complication, title or item): use \u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " gain.") +
       (showGs ? "\nsaves as attribute " + HR_START_NAME + " = " + sg.n + (sg.kind === "die" ? " (the die size)" : "") + "; trigger beginturn gains " + (sg.kind === "die" ? "1d " : "") + HR_START_NAME + " while it is above 0; checklist line reads it" : "")));
     gs.appendChild(el);
   }

@@ -1184,6 +1184,10 @@ History.MOVED_VERBS = MOVED_VERBS
 local function MovedWords(moved)
     local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
     local words
+    --immune sets stopped too, but stability did not stop it: say what did, as the card does.
+    if moved.immune then
+        return "Immune to forced movement"
+    end
     if moved.stopped then
         words = string.format("%s stopped", kind)
     elseif moved.distance <= 0 and moved.fell <= 0 then
@@ -3559,9 +3563,14 @@ local function AddLoneTrigger(items, entry, key, kids)
     end
     --each line the trigger becomes stands for the trigger and what is nested under it.
     local sources = {entry}
+    --the rows rebuild when something is nested under it later, so the Director's menu
+    --(Hide, Delete) covers that too.
+    local ids = {tostring(entry)}
     for _, kid in ipairs(kids or {}) do
         sources[#sources + 1] = kid
+        ids[#ids + 1] = tostring(kid)
     end
+    local sig = table.concat(ids, ",")
     for i, who in ipairs(entry.targets) do
         local base = {kind = "line", who = who, causetext = causetext, hiddenfromplayers = entry.hiddenfromplayers, reverted = entry.reverted}
         local parts = {}
@@ -3601,7 +3610,7 @@ local function AddLoneTrigger(items, entry, key, kids)
             items[#items + 1] = {
                 kind = "line",
                 key = string.format("%s-%d-%d", key, i, j),
-                sig = entry,
+                sig = sig,
                 entry = part,
                 sources = sources,
             }
@@ -4399,6 +4408,9 @@ local function CreateFace()
     --The newest entry key the last build showed: a game refresh is not always a new row.
     --- @type string|nil
     local builtNewest = nil
+    --The key of the oldest row built, so a reader scrolled up keeps it as rows arrive.
+    --- @type string|nil
+    local builtFirstKey = nil
 
     --Held while scrolled up: the row at the top of the view and how far into it the
     --view starts, so a rebuild puts it back where it was.
@@ -4733,6 +4745,19 @@ local function CreateFace()
         local items, matches = BuildItems(mapid, fromGame == true and reading)
         builtItems = items
         local first = math.max(1, #items - rowsWanted + 1)
+        --scrolled up: new rows at the bottom must not push the top rows out of the build,
+        --or the row the view is held on goes and the view jumps.
+        if not stick and builtFirstKey ~= nil then
+            for i, item in ipairs(items) do
+                if item.key == builtFirstKey then
+                    if i < first then
+                        first = i
+                        rowsWanted = #items - i + 1
+                    end
+                    break
+                end
+            end
+        end
         --opening on new turns: build back far enough to include the marker.
         local markerShown = false
         if openAtMarker then
@@ -4756,6 +4781,7 @@ local function CreateFace()
             g_toggled = nil
         end
         hasOlder = first > 1
+        builtFirstKey = items[first] ~= nil and items[first].key or nil
         face:FireEventTree("searchResults", matches)
 
         --a row redraws when what is still on changes (Active) or the search does (marks).
@@ -6026,8 +6052,23 @@ end
 --- @param first integer
 --- @return integer|nil
 local function CombatStart(mapid, keys, first)
+    local encounters = mod:GetDocumentSnapshot(History.DocId(mapid)).data.encounters
     for i = #keys, first + 1, -1 do
         local entry = History.Entry(mapid, keys[i])
+        --the map keeps when each combat began, so an out-of-combat line in the middle of a
+        --fight is not taken for its start. A key begins with its entry's stamp.
+        local began = entry ~= nil and entry.encounter ~= nil and type(encounters) == "table"
+            and encounters[entry.encounter] or nil
+        if type(began) == "number" then
+            for j = first, i do
+                if (tonumber(string.sub(keys[j], 1, 13)) or 0) >= began then
+                    --at first, the fight began before anything unseen: nothing to skip.
+                    return j > first and j or nil
+                end
+            end
+            return nil
+        end
+        --a combat the map has no start for (culled): the change of combat is its start.
         if entry ~= nil and entry.encounter ~= nil then
             for j = i - 1, first, -1 do
                 local before = History.Entry(mapid, keys[j])

@@ -60,6 +60,10 @@ function CharacterResource.SetGlobalResource(resourceid, amount, note)
     doc.data = doc.data or {}
     local entry = doc.data[resourceid] or CharacterResource.new{}
     local amountBefore = entry:try_get("unbounded", 0)
+    --a value left from an earlier combat reads as 0 (GetGlobalResource), so it is 0 here too.
+    if resourceInfo.clearOutsideOfCombat and entry:try_get("combatid") ~= q.guid then
+        amountBefore = 0
+    end
     if amountBefore ~= amount then
         GameSystem.NotifyPlayObservers("globalresource", resourceid, amountBefore, amount, note)
     end

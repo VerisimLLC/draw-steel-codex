@@ -869,7 +869,12 @@ local function PlayersMaySeeAbility(actor, name)
     end
     local token = dmhub.GetTokenById(actor.id)
     local key = token ~= nil and MonsterKnowledge.KeyForToken(token) or nil
-    return key ~= nil and MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("ability", name))
+    if key == nil then
+        return false
+    end
+    --a trait (what made it immune, say) is learned as a feature, an action as an ability.
+    return MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("ability", name))
+        or MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("feature", name))
 end
 
 local function Header(entry, width, inTray, close)

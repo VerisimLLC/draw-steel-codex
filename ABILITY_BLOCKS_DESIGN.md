@@ -969,7 +969,7 @@ the fix moved the numbers a lot:
   with the ability picked from the standard abilities list (saved by id, with its parameters). It had been
   Advanced only to avoid resaving it as a custom ability.
 - **Rule text** (`DrawSteelCommand`) reads like tier text: a formula amount in braces (`{2*Reason} damage`),
-  damage "(added)" to the roll's own, and several results in one rule ("push 2; prone" shows as results
+  damage "(added)" to the hit that set off the trigger (it joins that damage instance, so immunity isn't applied twice), and several results in one rule ("push 2; prone" shows as results
   that happen together) open as blocks and save back as the same one rule.
 - **Float Text** is a Display block: "Show [TAUNTED!] over [the triggering creature]". It changes nothing on
   the card.

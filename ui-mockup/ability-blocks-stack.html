@@ -1515,7 +1515,7 @@ function compileTier(list, prefix) {
       // A formula that isn't "N + M" is written in braces in rule text: "{2*Reason} damage".
       const amt = m ? m[1] + " + " + m[2][0] : (f.braces || !/^[\d\s+MARIP-]+$/.test(a.s) ? "{" + a.s + "}" : a.s);
       const added = f.added === "yes" ? " (added)" : "";
-      parts.push(pre + amt + " " + dt(f.dtype) + "damage" + added); prose.push((m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + (f.added === "yes" ? "extra damage" : "damage")); }
+      parts.push(pre + amt + " " + dt(f.dtype) + "damage" + added); prose.push((m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + (f.added === "yes" ? "damage, added to the hit that set it off" : "damage")); }
     else if (st.type === "condition") { const t = conditionText(f); parts.push(pre + t); prose.push(t); }
     else if (st.type === "surges") { const w = { 1: "one surge", 2: "two surges", 3: "three surges" }[f.n] || f.n + " surges"; parts.push(pre + "the target gains " + w); prose.push("the target gains " + w); }
     else if (st.type === "note") { if (!f.text) bad(st.id, "Write the card text."); parts.push(pre + "#" + f.text); prose.push(f.text); }
@@ -1807,7 +1807,7 @@ function renderStep(st, list, ctx, scope) {
     }
     case "damage":
       add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage"));
-      if (f.added === "yes" || (ctx === "tier" && editingId === st.id)) add(sel(f, "added", [["no", "\u2014"], ["yes", "added to the roll's damage"]], null, "added"));
+      if (f.added === "yes" || (ctx === "tier" && editingId === st.id)) add(sel(f, "added", [["no", "\u2014"], ["yes", "added to the hit that set it off"]], null, "added"));
       // Only outside a tier: tier damage always hits the target.
       // "that can't be reduced" only shows when set, or while the block is being edited.
       if (ctx !== "tier" && !f.asRule) { if (!f.who) f.who = "targets"; add(sel(f, "who", [["targets", "to the target"], ["caster", "to you"]], null, "who takes it"));

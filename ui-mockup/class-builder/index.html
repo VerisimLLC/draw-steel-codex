@@ -11,7 +11,7 @@
   --fg: #ede5d5; --dim: #a3998a; --gold: #cca350; --err: #e2685a; --warn: #e0a040; --ok: #7cc28a;
   --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #b36125; --c-skill: #9a6d1c;
   --c-res: #8a6a20; --c-rem: #6b6258; --c-if: #b05a24; --c-adv: #5b564e; --c-cond: #8e3f86;
-  --c-choice: #3d7a3a; --c-mine: #7a4f8f; --c-head: #8c6a24;
+  --c-choice: #3d7a3a; --c-mine: #7a4f8f; --c-grow: #8f3a2e; --c-head: #8c6a24;
   --card-bg: #fdfcf8; --card-fg: #141414;
   --font-ui: "Inter", system-ui, sans-serif; --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-card: "Bitter", Georgia, serif; --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -180,6 +180,12 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .sent > .grip, .sent .ifline > .grip { touch-action: none; }
 .palgroup { display: flex; flex-direction: column; gap: 4px; }
 .sgnote { flex-basis: 100%; font-size: 12px; opacity: .85; white-space: pre-wrap; }
+/* Growing table: rows of blocks inside one block. */
+.growrows { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.growrow { background: rgba(0,0,0,.22); border-radius: 4px; padding: 5px; display: flex; flex-direction: column; gap: 4px; }
+.growhead, .growtext { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.growtext { font-size: 12px; opacity: .9; }
+.growtext .aside { opacity: .7; }
 .gainsteps { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .gstep { display: inline-flex; align-items: center; gap: 2px; background: rgba(0,0,0,.2); border-radius: 4px; padding: 1px 4px; }
 .gainsteps .addsent.inblock { flex-basis: auto; padding: 2px 8px; }

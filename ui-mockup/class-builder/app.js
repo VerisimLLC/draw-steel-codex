@@ -205,7 +205,7 @@ const lbl = t => document.createTextNode(" " + t + " ");
 // Sentence blocks: what a feature does. Each one: shelf label, group, a book-style sentence with
 // underlined values, and the CharacterModifier record it saves as.
 const GROUPS = [["choice", "Choices", "--c-choice"], ["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
-  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"]];
+  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"], ["grow", "Growing table", "--c-grow"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
@@ -345,15 +345,50 @@ const SENT = {
       filterAbility: 'Ability.name = "' + String(f.name).replace(/"/g, "") + '"' }) },
   reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "rem", uses: 89, make: () => ({ text: "" }),
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
+    prose: f => String(f.text || "").replace(/\.?$/, "."),
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
+  /* Growing table (Growing Ferocity, Psionic Mastery...): rows unlocked by the most heroic resource the
+     hero has had this turn ("Heroic Resources This Turn", the turn's high-water mark), each from a level.
+     Each row holds ordinary blocks. It saves the display table (growingresources) plus every row's
+     modifiers, with conditions written for you, including rows that replace an earlier one. */
+  growing: { desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "grow", uses: 11, container: true, featName: "",
+    make: () => ({ rows: [2, 4, 6].map(n => ({ id: newId("r"), at: String(n), level: "1", replaces: "", text: "", blocks: [] })) }),
+    render: (f, add, s, feat) => {
+      add(lbl("The most " + resWord() + " you've had this turn unlocks these rows (they stay unlocked until your next turn)"));
+      const rows = E("div", "growrows");
+      f.rows.forEach((r, i) => {
+        const row = E("div", "growrow");
+        const head = E("div", "growhead");
+        head.appendChild(lbl("At")); head.appendChild(textTok(r, "at", "2")); head.appendChild(lbl(resWord() + ", from level")); head.appendChild(textTok(r, "level", "1"));
+        const earlier = f.rows.filter(x => x !== r && (+x.at < +r.at || (+x.at === +r.at && +x.level < +r.level)));
+        if (earlier.length || r.replaces) { head.appendChild(lbl("\u00b7")); head.appendChild(pickTok(r, "replaces", [["", "adds to earlier rows"]].concat(earlier.map(x => [x.id, "replaces the row at " + x.at + (+x.level > 1 ? " (level " + x.level + ")" : "")])))); }
+        head.appendChild(E("span", "grow"));
+        const rm = fk(E("button", "mb", "\u2715"), "growrm:" + r.id); rm.type = "button"; rm.title = "Remove this row";
+        rm.addEventListener("click", () => { change(() => { f.rows.splice(i, 1); f.rows.forEach(x => { if (x.replaces === r.id) x.replaces = ""; }); }); toast("Removed the row at " + r.at + ".", { label: "Undo", run: undo }); });
+        head.appendChild(rm); row.appendChild(head);
+        const body = E("div", "ifbody sents"); regList(body, r.blocks, feat, true); renderSentenceList(r.blocks, feat, body);
+        const ad = fk(E("button", "addsent", "+ add to this row"), "growadd:" + r.id); ad.type = "button";
+        ad.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(ad, type => addSentence(feat, r.blocks, type), true); });
+        body.appendChild(ad); row.appendChild(body);
+        const tx = E("div", "growtext"); tx.appendChild(lbl("On the sheet:")); tx.appendChild(textTok(r, "text", growRowShort(r) || "short text for the table", 40));
+        if (!r.text) tx.appendChild(E("span", "aside", "(written from the blocks)"));
+        row.appendChild(tx);
+        rows.appendChild(row);
+      });
+      const more = fk(E("button", "addsent inblock", "+ add a row"), "growrow:" + s.id); more.type = "button";
+      more.addEventListener("click", () => change(() => { const last = f.rows[f.rows.length - 1]; f.rows.push({ id: newId("r"), at: String(last ? +last.at + 2 : 2), level: last ? last.level : "1", replaces: "", text: "", blocks: [] }); }));
+      rows.appendChild(more);
+      add(rows);
+    } },
   onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
       const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
-      if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
+      if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4] === "resource this turn" ? resWord() + " this turn" : t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
 };
 /* [id, picker label, engine formula, book wording, word after the number (absent: no number)] */
 const ONLY_IF = [["victories", "you have at least", f => "Victories >= " + (f.n || 0), f => "you have " + (f.n || 0) + " or more Victories", "Victories"],
   ["level", "you are at least level", f => "Level >= " + (f.n || 1), f => "you are level " + (f.n || 1) + " or higher", ""],
+  ["hrturn", "you've had at least", f => "Heroic Resources This Turn >= " + (f.n || 0), f => "you have had " + (f.n || 0) + " or more " + resWord() + " this turn", "resource this turn"],
   ["winded", "you are winded", () => "Stamina <= Maximum Stamina / 2", () => "you are winded"], ["strained", "you are Strained", () => "Strained", () => "you are Strained"],
   ["formula", "a formula is true", f => f.formula || "1", () => "a condition is met"]];
 const numOr = v => /^-?\d+$/.test(String(v).trim()) ? +v : String(v).trim();
@@ -374,7 +409,7 @@ function allAbilityNames() {
   const out = new Set();
   eachFeature(feat => {
     (feat.sentences || []).forEach(function walk(s) { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) out.add(recName(s.f.rec));
-      if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && out.add(recName(o.rec))); (s.children || []).forEach(walk); });
+      if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && out.add(recName(o.rec))); childLists(s).forEach(l => l.forEach(walk)); });
   });
   return [...out];
 }
@@ -382,6 +417,12 @@ function newOption(f, feat) {
   openEditor({ rec: abilitySeed(f.cat, f.cost), kind: "ability" }, (rec, d, problems) => { f.options.push({ id: newId("o"), rec, problems }); });
 }
 const recName = rec => rec.__typeName === "CharacterModifier" ? ((rec.triggeredAbility || {}).name || rec.name) : rec.name;
+/* The block lists inside a block: an Only if's children, or each row of a growing table. */
+const childLists = s => s.type === "onlyIf" ? [s.children] : s.type === "growing" ? s.f.rows.map(r => r.blocks) : [];
+const resWord = () => (cls && cls.resourceName || "resource").toLowerCase();
+/* A row's text: its blocks in words. The sheet's short text is the first sentence, trimmed. */
+function growRowProse(r) { return sentenceProse({ sentences: r.blocks }); }
+function growRowShort(r) { const t = growRowProse(r); return t.length > 90 ? t.slice(0, 87).replace(/\s+\S*$/, "") + "\u2026" : t; }
 function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), type, f: d.make(), children: d.wrapper ? [] : undefined }; }
 
 // ---------------------------------------------------------------------------------------------
@@ -391,6 +432,8 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
    presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
    blocks are added there. Authors' own ready-made features join the shelf the same way. */
 const RECIPES = [
+  { key: "growing", label: "Growing table (core shape)", group: "grow", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
+    blocks: () => [["growing", { rows: [["2", "1"], ["4", "1"], ["6", "1"], ["8", "4"], ["10", "7"], ["12", "10"]].map(([at, level]) => ({ id: newId("r"), at, level, replaces: "", text: "", blocks: [] })) }]] },
   { key: "charinc", label: "Characteristic Increase", group: "choice", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
     blocks: () => primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]]) },
   { key: "signature", label: "Signature ability", group: "choice", uses: 9, desc: "The player chooses one signature ability from a list you build.", name: "Signature Ability", blocks: () => [["abilityChoice", { cat: "signature" }]] },
@@ -401,14 +444,17 @@ function entryOf(key) {
   if (key === "empty") return { label: "Empty feature", name: "", blocks: () => [] };
   const [k, v] = [key.slice(0, 1), key.slice(2)];
   if (k === "s") { const d = SENT[v]; return { label: d.label, name: d.featName || "", blocks: () => [[v]], opens: d.opensEditor }; }
-  if (k === "r") { const r = RECIPES.find(x => x.key === v); return r && { label: r.label, name: r.name, blocks: r.blocks }; }
+  if (k === "r") { const r = RECIPES.find(x => x.key === v); return r && { label: r.label, name: typeof r.name === "function" ? r.name() : r.name, blocks: r.blocks }; }
   if (k === "t") { const t = (store.templates || []).find(x => x.id === v); return t && { label: t.name, template: t }; }
   return null;
 }
 /* A copy of a feature with fresh ids (for templates, and Duplicate). */
 function cloneFeature(f) {
   const c = JSON.parse(JSON.stringify(f)); c.id = newId("f");
-  (function walk(l) { l.forEach(x => { x.id = newId("s"); if (x.f && x.f.options) x.f.options.forEach(o => { o.id = newId("o"); }); if (x.children) walk(x.children); }); })(c.sentences || []);
+  (function walk(l) { l.forEach(x => { x.id = newId("s"); if (x.f && x.f.options) x.f.options.forEach(o => { o.id = newId("o"); });
+    // Rows get new ids too, and "replaces" follows them.
+    if (x.type === "growing") { const map = {}; x.f.rows.forEach(r => { map[r.id] = newId("r"); }); x.f.rows.forEach(r => { r.id = map[r.id]; if (r.replaces) r.replaces = map[r.replaces] || ""; }); }
+    childLists(x).forEach(walk); }); })(c.sentences || []);
   return c;
 }
 /* The blocks an entry adds (fresh copies). */
@@ -456,6 +502,7 @@ function kindLabel(f) {
   if (ch.length) return "Choice";
   if (top.some(x => x.type === "trigger")) return "Triggered ability";
   if (top.some(x => x.type === "ability")) return "Ability";
+  if (top.some(x => x.type === "growing")) return "Growing table";
   if (top.length === 1) return { kit: "Kit", resource: "Resource", language: "Languages" }[top[0].type] || "Feature";
   return "Feature";
 }
@@ -471,6 +518,7 @@ function sentenceProse(f) {
   const out = [];
   (function walk(list, prefix) { list.forEach(s => {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test) || ONLY_IF[0]; walk(s.children, "If " + t[3](s.f) + ", "); return; }
+    if (s.type === "growing") { s.f.rows.forEach(r => { const t = r.text || growRowProse(r); if (t) out.push("At " + r.at + " " + resWord() + (+r.level > 1 ? " (level " + r.level + "+)" : "") + ": " + t.replace(/\.?$/, ".")); }); return; }
     if (s.type === "ability" || s.type === "trigger") return;
     // An unfinished block stays out of the book text (the status column lists it instead).
     if ((REQUIRED[s.type] || []).some(k => { const v = s.f[k]; return v == null || v === "" || (Array.isArray(v) && !v.length); })) return;
@@ -538,6 +586,18 @@ function compileSentences(list, feat, filter) {
   const out = [];
   for (const s of list) {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + t[2](s.f) + ")")); continue; }
+    if (s.type === "growing") {
+      const rows = s.f.rows.filter(r => /^\d+$/.test(String(r.at).trim()));
+      out.push({ __typeName: "CharacterModifier", behavior: "growingresources", name: feat.name, description: "",
+        progression: rows.map(r => ({ resources: +r.at, level: +r.level > 1 ? +r.level : 0, description: r.text || growRowShort(r), tooltip: growRowProse(r) })) });
+      rows.forEach(r => {
+        // Unlocked: reached the amount this turn (and the level). Replaced: a later row that replaces it is unlocked.
+        let c = "Heroic Resources This Turn >= " + r.at + (+r.level > 1 ? " and Level >= " + r.level : "");
+        rows.filter(x => x.replaces === r.id).forEach(x => { c += " and (Heroic Resources This Turn < " + x.at + (+x.level > 1 ? " or Level < " + x.level : "") + ")"; });
+        out.push(...compileSentences(r.blocks, feat, (filter ? filter + " and " : "") + "(" + c + ")"));
+      });
+      continue;
+    }
     const d = SENT[s.type]; if (!d.compile) continue;
     const r = d.compile(s.f, feat); if (!r) continue;
     if (filter) r.filterCondition = r.filterCondition ? "(" + r.filterCondition + ") and " + filter : filter;
@@ -977,7 +1037,7 @@ function dropTarget(x, y) {
   if (!box) { if (drag.kind !== "entry") return null; const lane = under.closest(".lane"); return lane ? { lane: lane.dataset.lane, el: lane } : null; }
   const L = LISTS[box.dataset.list]; if (!L) return null;
   const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
-  if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper)) return null;
+  if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper || SENT[type].container)) return null;
   if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return null;
   const rows = [...box.children].filter(c => c.classList.contains("sent"));
   let idx = rows.length;
@@ -1004,7 +1064,7 @@ function doDrop(d, t) {
   const L = LISTS[t.list];
   if (d.kind === "entry") return addEntryToList(d.value, L.feat, L.list, t.idx, L.inIf);
   const from = findSentence(d.value); if (!from) return;
-  const inside = (x, l) => !!x.children && (x.children === l || x.children.some(c => inside(c, l)));
+  const inside = (x, l) => childLists(x).some(cl => cl === l || cl.some(c => inside(c, l)));
   if (inside(from.s, L.list)) return;   // an "Only if" can't go inside itself
   change(() => { from.L.list.splice(from.i, 1); let idx = t.idx; if (from.L.list === L.list && from.i < idx) idx--; L.list.splice(idx, 0, from.s); });
 }
@@ -1064,7 +1124,7 @@ function addSentence(feat, list, type, idx) {
 function sentenceMenu(el, pick, noWrapper) {
   menuAt(el, m => GROUPS.forEach(g => {
     // Inside an "Only if" there are no choices or nested wrappers (a choice is made when the feature is gained).
-    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && !(noWrapper && (SENT[t].wrapper || SENT[t].choice))); if (!types.length) return;
+    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && !(noWrapper && (SENT[t].wrapper || SENT[t].choice || SENT[t].container))); if (!types.length) return;
     m.appendChild(E("h5", null, g[1]));
     types.forEach(t => { const x = E("button", null, SENT[t].label); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pick(t); }); m.appendChild(x); });
   }));
@@ -1086,7 +1146,7 @@ function renderSentence(s, list, i, feat) {
     const item = (t, fn) => { const x = E("button", null, t); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(fn); }); m.appendChild(x); };
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
-    if (!d.wrapper && !d.choice) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
+    if (!d.wrapper && !d.choice && !d.container) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
     if (d.wrapper) item("Remove the “Only if” (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
     const delItem = E("button", null, "Delete"); delItem.type = "button";
     delItem.addEventListener("click", () => { closeMenu(); pendingFk = "addsent:" + feat.id; change(() => { list.splice(i, 1); }); toast("Deleted \u201c" + d.label + "\u201d.", { label: "Undo", run: undo }); }); m.appendChild(delItem);
@@ -1215,6 +1275,7 @@ function featureIssues(f, lane) {
   if (featName(f) === "Unnamed feature") add("A feature at " + a + " " + n + " has no name.", true);
   (function walk(list) { list.forEach(s => {
     const d = SENT[s.type];
+    if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " does nothing yet (only its sheet text shows).", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "onlyIf" && !s.children.length) add("An \u201cOnly if\u201d in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
     if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,
@@ -1227,12 +1288,12 @@ function featureIssues(f, lane) {
     }
     if (s.type === "skills" && !s.f.granted.length && !(+s.f.num > 0)) add(nm + " gives no skills: pick fixed skills or a number to choose.", false);
     (REQUIRED[s.type] || []).forEach(k => { const v = s.f[k]; if (v == null || v === "" || (Array.isArray(v) && !v.length)) add("\u201c" + d.label + "\u201d in " + nm + " is missing a value.", false); });
-    if (s.children) walk(s.children);
+    childLists(s).forEach(walk);
   }); })(f.sentences);
   if (textStale(f)) add("The blocks in " + nm + " changed since its text was written.", true, { label: "Use the blocks' wording", run: () => change(() => { f.text = ""; f.textBasis = null; }) });
   return out;
 }
-function findList(f, s) { let r = null; (function walk(l) { l.forEach(x => { if (x === s) r = l; if (x.children) walk(x.children); }); })(f.sentences); return r; }
+function findList(f, s) { let r = null; (function walk(l) { l.forEach(x => { if (x === s) r = l; childLists(x).forEach(walk); }); })(f.sentences); return r; }
 function classIssues() {
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });

@@ -812,3 +812,38 @@ start-of-turn gain" from a complication makes the roll 1d4. For flat classes it 
   and the block notes that level bonuses add to the roll. To add to the amount, there's "every Wrath
   gain" (Heroic Resource Gain Modification).
 - **Book text** reads "1d3 (1d3 + 1 from 7th level, 1d3 + 2 from 10th level)".
+
+## 15. Growing tables (2026-11-22)
+
+**Asked for:** growing resource tables, where several classes gain benefits from the most heroic resource
+they've had at any point during their turn.
+
+**What content does:**
+- **Where they appear.** Eleven `growingresources` tables: Fury's Growing Ferocity per subclass and per
+  stormwight kit, the Null's Psionic Mastery per tradition, and Beastheart's Rampage.
+- **The table.** Each is a display-only table (`Draw Steel Modifiers/ModifierGrowingResources.lua`):
+  rows of threshold, minimum level, short sheet text and tooltip.
+- **The rules.** The rules for each row are separate modifiers (power, trigger, attribute,
+  modifyability) whose conditions read `Heroic Resources This Turn`. That's the turn's high-water mark
+  (`MCDMCreature.lua:1836`, `HeroicResourceHighWaterMarkForTurn`).
+- **Replacement.** A row that replaces an earlier one ("2 surges instead of 1", "double edge") makes
+  the earlier row's condition exclude it: `Heroic Resources This Turn >= 6 and (Heroic Resources This
+  Turn < 10 or level < 7)`.
+- **The problem for authors:** they write the table text and the conditions separately, and the two
+  can disagree.
+
+**The builder: a Growing table block** (its own group, and a "core shape" recipe with rows at 2, 4 and
+6, then 8 from 4th level, 10 from 7th and 12 from 10th).
+- **Rows.** Each row is "At [N] ferocity, from level [L]" and holds ordinary blocks (no choices or
+  nested tables). A row can say "replaces the row at N"; the default is "adds to earlier rows".
+- **Sheet text.** Each row's sheet text is written from its blocks, and can be overridden. The tooltip
+  is the full wording.
+- **What it saves:** the `growingresources` table, plus every row's modifiers with conditions written
+  for it.
+  - Unlocked: `Heroic Resources This Turn >= N` (and `Level >= L`).
+  - Replaced: `and (Heroic Resources This Turn < N2 or Level < L2)` for each row that replaces it.
+
+  A test rebuilding Berserker's table produced the same conditions as the content.
+- **Only if** also offers "you've had at least [N] ferocity this turn", for one-off benefits outside a
+  table.
+- **Status.** An empty row is "worth checking" (only its sheet text would show).

@@ -3174,6 +3174,13 @@ function EncounterOfTheWeek.CodexMenuItems()
             end,
         },
         {
+            text = "Achievements...",
+            icon = "phosphor/medal-fill.png",
+            click = function()
+                EotwModeration.ShowAchievementsDialog{}
+            end,
+        },
+        {
             text = "Set Hero Victories...",
             icon = "phosphor/star-fill.png",
             click = function()

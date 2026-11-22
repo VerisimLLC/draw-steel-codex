@@ -17442,7 +17442,7 @@ function PanelDocument.CreateRailBubble(opts, side, slot, rect)
             --the panel brought in front by any path while the bubble is
             --up: the preview has done its job.
             local data = element.data
-            if not data.evenInFront and PanelDocument.PanelInFront(data.key, data.panelName) then
+            if PanelDocument.PanelInFront(data.key, data.panelName) then
                 element:FireEvent("bubbleFade")
             end
             --the pointer on the bubble holds it; leaving starts the linger again.
@@ -17539,12 +17539,10 @@ end
 --- Shows rows in a panel's bubble beside its rail button, building the bubble if needed.
 --- Nothing shows when the panel is already in front or has no rail button of its own
 --- (grouped away, or parked in the overflow).
---- evenInFront: show although the panel is in front, for rows the panel itself does not
---- hold (audio captions beside Chat).
---- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[], evenInFront: boolean|nil}
+--- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[]}
 --- @return boolean shown
 function PanelDocument.ShowRailBubble(args)
-    if #args.rows == 0 or (not args.evenInFront and PanelDocument.PanelInFront(args.key, args.panelName)) then
+    if #args.rows == 0 or PanelDocument.PanelInFront(args.key, args.panelName) then
         return false
     end
     local side, slot, button = PanelDocument.FindRailButton(args.key)
@@ -17564,10 +17562,6 @@ function PanelDocument.ShowRailBubble(args)
     end
     if bubble == nil then
         return false
-    end
-    --rows the panel itself doesn't hold keep the bubble up while the panel is in front.
-    if args.evenInFront then
-        bubble.data.evenInFront = true
     end
     for _, row in ipairs(args.rows) do
         bubble:FireEvent("addBubbleRow", row.contents, row.click)

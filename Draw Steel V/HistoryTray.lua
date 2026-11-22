@@ -6476,6 +6476,11 @@ local function PlaceRailButton()
     if not RailModeActive() then
         return
     end
+    --either log filed in a folder already has its place there (a View from before History
+    --keeps the old log in one); a button below Chat as well would leave a gap.
+    if PanelDocument.WindowOwner("history") ~= "history" or PanelDocument.WindowOwner("action log") ~= "action log" then
+        return
+    end
     if History.UsingOldLog() then
         --the rail draws the old log in History's slot (its standsInFor), so a stored layout
         --keeps History's key and matches its View; only a layout with no History gets one.

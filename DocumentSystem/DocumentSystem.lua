@@ -12611,8 +12611,11 @@ local function SaveRailLayout(sides, inert)
         end
     end
     for _, e in ipairs(inert or {}) do
-        if stored[e.key] == nil then
-            stored[e.key] = { side = e.side, slot = e.slot }
+        --a stand-in removed or filed away is saved under its panel's key too, or the layout
+        --would lose that panel (Remove from rail on the old Action Log dropped History).
+        local storedKey = PanelDocument.railStandIns[e.key] or e.key
+        if stored[storedKey] == nil then
+            stored[storedKey] = { side = e.side, slot = e.slot }
         end
     end
     dmhub.SetSettingValue("iconraillayout", stored)

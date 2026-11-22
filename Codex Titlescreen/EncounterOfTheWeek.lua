@@ -81,6 +81,51 @@ EncounterOfTheWeek.fastLaunchSetting = setting{
     storage = "preference",
 }
 
+--Sizes for the "Here now" row and its drag bar. Kept at file scope because the
+--town screen's builder function is already at Lua's 200-local limit.
+local g_presenceSize = {
+    defaultHeight = 42, --two lines of names
+    minHeight = 21, --one line of names
+    handleHeight = 8,
+    --total height of the drawer's other rows (title, tabs, error line, input,
+    --margins). Update it if you add or resize a row there.
+    otherHeight = 116,
+    --the least room the chat messages keep, however far the bar is dragged.
+    minMessagesHeight = 120,
+    ---@type number|nil the height in use; nil until first read from the setting
+    height = nil,
+}
+
+--Height in pixels of the town chat's "Here now" row. The player drags the bar
+--under the row to show more names.
+setting{
+    id = "eotw:presenceheight",
+    default = g_presenceSize.defaultHeight,
+    storage = "preference",
+}
+
+---@return number
+function g_presenceSize.Get()
+    if g_presenceSize.height == nil then
+        g_presenceSize.height = math.max(g_presenceSize.minHeight, tonumber(dmhub.GetSettingValue("eotw:presenceheight")) or g_presenceSize.defaultHeight)
+    end
+    return g_presenceSize.height
+end
+
+--The tallest the row may be in a chat drawer this tall, so the messages keep their room.
+---@param drawerHeight number
+---@return number
+function g_presenceSize.MaxHeight(drawerHeight)
+    return math.max(g_presenceSize.minHeight, drawerHeight - g_presenceSize.otherHeight - g_presenceSize.handleHeight - g_presenceSize.minMessagesHeight)
+end
+
+--The chat messages take whatever the "Here now" row leaves.
+---@param presenceHeight number
+---@return string
+function g_presenceSize.MessagesHeight(presenceHeight)
+    return string.format("100%%-%d", g_presenceSize.otherHeight + g_presenceSize.handleHeight + presenceHeight)
+end
+
 function EncounterOfTheWeek.FastLaunch()
     return dmhub.GetSettingValue("eotw:fastlaunch") ~= false
 end
@@ -7683,7 +7728,7 @@ CreateScreen = function(args)
 
     --The row under the chat tabs: who is in town (or in the party, on the Game
     --Chat tab). Each name is followed by its plaque; the row wraps and is clipped
-    --to two lines, so a busy town cannot push the input off the drawer.
+    --to the height the player dragged it to (two lines by default).
     local RefreshPresence = function()
         if presenceLabel == nil or not presenceLabel.valid or m_conn == nil then
             return
@@ -12383,12 +12428,17 @@ CreateScreen = function(args)
 
         gui.Panel{
             width = "94%",
-            --two lines at most, so a busy town cannot push the input
-            --off the bottom of the drawer.
-            height = 42,
+            --the player's chosen height (see the drag bar below); names past
+            --it are clipped so a busy town cannot push the input off the drawer.
+            height = g_presenceSize.Get(),
             flow = "horizontal",
             wrap = true,
+            --clipping uses the background image as its outline, so the row needs one;
+            --clipHidden keeps that background from being drawn.
             clip = true,
+            clipHidden = true,
+            bgimage = "panels/square.png",
+            bgcolor = "white",
             halign = "center",
             --remembers who the row shows, so a refresh with no change skips the rebuild.
             data = { key = nil },
@@ -12398,9 +12448,69 @@ CreateScreen = function(args)
             end,
         },
 
+        --drag bar under "Here now": pull it down to see more names.
         gui.Panel{
             width = "94%",
-            height = "100%-158",
+            height = g_presenceSize.handleHeight,
+            halign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            hoverCursor = "vertical-expand",
+            draggable = true,
+            --the bar stays put; the rows around it resize instead.
+            dragMove = false,
+            --checks now and then that a height saved in a bigger window still fits.
+            thinkTime = 1,
+            data = { startHeight = 0 },
+            styles = {
+                { selectors = { "presenceGrip" }, bgcolor = "#8f8a7f55" },
+                { selectors = { "presenceGrip", "parent:hover" }, bgcolor = "#e6dcc6cc" },
+            },
+            applyHeight = function(element, height)
+                g_presenceSize.height = height
+                if presenceLabel ~= nil and presenceLabel.valid then
+                    presenceLabel.selfStyle.height = height
+                end
+                if chatMessagesPanel ~= nil and chatMessagesPanel.valid then
+                    chatMessagesPanel.selfStyle.height = g_presenceSize.MessagesHeight(height)
+                end
+            end,
+            think = function(element)
+                --0 means the drawer has not been laid out yet.
+                if element.dragging or chatPanel == nil or chatPanel.renderedHeight <= 0 then
+                    return
+                end
+                --shrinks only what is shown; the saved setting is left for a bigger window.
+                local maxHeight = g_presenceSize.MaxHeight(chatPanel.renderedHeight)
+                if g_presenceSize.Get() > maxHeight then
+                    element:FireEvent("applyHeight", maxHeight)
+                end
+            end,
+            beginDrag = function(element)
+                element.data.startHeight = g_presenceSize.Get()
+            end,
+            dragging = function(element)
+                local maxHeight = g_presenceSize.MaxHeight(chatPanel.renderedHeight)
+                local height = element.data.startHeight + element.dragDelta.y
+                element:FireEvent("applyHeight", math.floor(math.clamp(height, g_presenceSize.minHeight, maxHeight)))
+            end,
+            drag = function(element)
+                dmhub.SetSettingValue("eotw:presenceheight", g_presenceSize.Get())
+            end,
+            gui.Panel{
+                classes = { "presenceGrip" },
+                width = 40,
+                height = 2,
+                halign = "center",
+                valign = "center",
+                bgimage = "panels/square.png",
+                interactable = false,
+            },
+        },
+
+        gui.Panel{
+            width = "94%",
+            height = g_presenceSize.MessagesHeight(g_presenceSize.Get()),
             halign = "center",
             flow = "vertical",
             vscroll = true,

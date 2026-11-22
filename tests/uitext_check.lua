@@ -38,6 +38,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwDowntime.lua",
     "Codex Titlescreen/EotwForge.lua",
     "Codex Titlescreen/EotwHeroCard.lua",
+    "Codex Titlescreen/HeroCardBack.lua",
     "Codex Titlescreen/EotwHeroSheet.lua",
     "Codex Titlescreen/EotwHeroSheetData.lua",
     "Codex Titlescreen/EotwLeads.lua",

@@ -131,6 +131,13 @@ local m_importing = {}
 --charids created on this machine that have not reached the city yet; the
 --sync must not mistake them for heroes deleted elsewhere.
 local m_pendingCreates = {}
+--Roster changes the Guild shows before the city confirms them, so a click
+--answers at once. m_joining: charid -> { heroid, summary, order } for a hero
+--on its way to the city (dropped when list-heroes includes it, or on a
+--failure). m_dismissing: heroid -> true while its delete-hero is in flight.
+local m_joining = {}
+local m_joinOrder = 0
+local m_dismissing = {}
 --the last error a roster operation reported, for the guild's status line.
 EotwRoster.lastError = nil
 
@@ -227,6 +234,27 @@ function EotwRoster.FormatDetails(level, ancestry, className)
     return table.concat(parts, " ")
 end
 
+--A portrait id other players can load. A custom avatar is a cloud asset id
+--only its owner's games resolve; its public "md5:<blob>" form loads anywhere
+--(as AdventurePage.PortableImageId does). Videos keep their asset id: an
+--md5: id loads as a still image.
+local function PortablePortrait(id)
+    if type(id) ~= "string" or id == "" or string.sub(id, 1, 4) == "md5:" then
+        return id
+    end
+    local result = id
+    pcall(function()
+        local asset = assets.imagesTable[id]
+        if asset ~= nil and not asset.isVideo then
+            local blob = asset.imageid
+            if type(blob) == "string" and blob ~= "" then
+                result = "md5:" .. blob
+            end
+        end
+    end)
+    return result
+end
+
 --The summary the city keeps beside the record: what other players see in
 --parties and town lists without loading the whole sheet.
 local function BuildSummary(tok)
@@ -242,7 +270,7 @@ local function BuildSummary(tok)
     pcall(function()
         local p = tok.offTokenPortrait
         if type(p) == "string" and p ~= "" then
-            summary.portrait = p
+            summary.portrait = PortablePortrait(p)
         end
     end)
     pcall(function()
@@ -296,6 +324,8 @@ function EotwRoster.Attach(conn)
     m_slots = nil
     m_leads = nil
     m_carouse = nil
+    m_joining = {}
+    m_dismissing = {}
     EotwRoster.lastError = nil
     --project states are per server too (the town can switch staging/release).
     EotwDowntime.ForgetProjects()
@@ -328,6 +358,40 @@ end
 
 function EotwRoster.LivingCount()
     return #(m_heroes or {})
+end
+
+--Heroes this machine has sent to the city that it has not listed yet, in
+--the order they were started: hero-like views { heroid, summary, joining }.
+function EotwRoster.JoiningHeroes()
+    local result = {}
+    for _, entry in pairs(m_joining) do
+        result[#result+1] = entry
+    end
+    table.sort(result, function(a, b) return a.order < b.order end)
+    return result
+end
+
+--Is this hero's dismissal waiting on the city?
+function EotwRoster.IsDismissing(heroid)
+    return m_dismissing[heroid] == true
+end
+
+--Show a hero in the Guild as joining while it travels to the city.
+--summary is what the row shows until the working copy loads.
+local function StartJoining(charid, summary)
+    if m_joining[charid] ~= nil then
+        return
+    end
+    m_joinOrder = m_joinOrder + 1
+    m_joining[charid] = { heroid = charid, summary = summary or {}, joining = true, order = m_joinOrder }
+    Bump()
+end
+
+local function StopJoining(charid)
+    if m_joining[charid] ~= nil then
+        m_joining[charid] = nil
+        Bump()
+    end
 end
 
 --This account's hero slots (4 plus one per Guild expansion).
@@ -773,6 +837,28 @@ local function PromoteSlowStart(tok)
     }
     printf("EotW town: %s promoted from the slow start to full level 1", tostring(tok.name))
     return true
+end
+
+--A recruited hero (a copy of the player's own, or a pregen) starts exactly
+--where a hero built in town does: Level 1 with no XP or Victories, so it
+--cannot Level up at once on what it earned elsewhere. Picks the source made
+--at higher Levels stay stored and pre-fill those Levels' Level up pages.
+--Call inside a ModifyProperties.
+---@param props character
+local function ResetToNewHeroLevel(props)
+    --CharacterLevel() is max(class levels, levelOverride).
+    if props:try_get("levelOverride", 1) ~= 1 then
+        props.levelOverride = 1
+    end
+    for _,entry in ipairs(props:try_get("classes", {})) do
+        entry.level = 1
+    end
+    if props:try_get("xp", 0) ~= 0 then
+        props.xp = 0
+    end
+    if props:try_get("victories", 0) ~= 0 then
+        props.victories = 0
+    end
 end
 
 --Import one hero's record from the city into its working copy.
@@ -1341,6 +1427,8 @@ function EotwRoster.Refresh()
             local heroes = {}
             for _,hero in ipairs(result.heroes or {}) do
                 heroes[#heroes+1] = hero
+                --a joining hero the city now lists is a real roster row.
+                m_joining[hero.heroid] = nil
             end
             m_heroes = heroes
             m_unlocks = type(result.unlocks) == "table" and result.unlocks or {}
@@ -1352,6 +1440,7 @@ function EotwRoster.Refresh()
                 end
             end
             EotwRoster.SetListedLeads(result.leads, result.carouse)
+            EotwPlayerTags.Apply(result.tags)
             Bump()
             SyncWorkingCopies()
             FlushPendingHall()
@@ -1466,8 +1555,8 @@ function EotwRoster.PushHero(charid, onDone, extraArgs)
 end
 
 --Run fn once the character resolves in the lobby game (a create or an
---import lands through a server echo).
-local function WhenCharacterExists(charid, fn)
+--import lands through a server echo). onFail (optional) runs if it never does.
+local function WhenCharacterExists(charid, fn, onFail)
     dmhub.Coroutine(function()
         for _ = 1, 200 do
             if mod.unloaded then
@@ -1481,6 +1570,9 @@ local function WhenCharacterExists(charid, fn)
             coroutine.yield(0.05)
         end
         Fail(T("roster.error.never_appeared"))
+        if onFail ~= nil then
+            onFail()
+        end
     end)
 end
 
@@ -1489,6 +1581,8 @@ end
 local function JoinRoster(tok, onDone, how)
     local charid = tok.charid
     m_pendingCreates[charid] = true
+    --a recruit already shows as joining from the moment it was imported.
+    StartJoining(charid, BuildSummary(tok))
     AdoptLobbyParty(charid)
     tok:ModifyProperties{
         description = "Join the Blackbottom roster",
@@ -1522,6 +1616,7 @@ local function JoinRoster(tok, onDone, how)
             if not ok then
                 --the city refused it (e.g. the roster is full): this machine
                 --must not keep a town hero the city does not know about.
+                StopJoining(charid)
                 game.DeleteCharacters({charid})
             elseif #EotwRoster.ActiveHeroes() < EotwRoster.MAX_ACTIVE then
                 --a new hero starts out active while there is room.
@@ -1534,8 +1629,15 @@ local function JoinRoster(tok, onDone, how)
     end)
 end
 
+--Heroes still joining hold their slots: the city counts them once they land.
 function EotwRoster.CanAddHero()
-    return EotwRoster.LivingCount() < EotwRoster.Slots()
+    local joining = 0
+    for charid in pairs(m_joining) do
+        if EotwRoster.FindHero(charid) == nil then
+            joining = joining + 1
+        end
+    end
+    return EotwRoster.LivingCount() + joining < EotwRoster.Slots()
 end
 
 --Why a hero cannot be added: the roster fills every slot.
@@ -1648,8 +1750,22 @@ function EotwRoster.CanRebuildHero(heroid)
     return EotwRoster.FindHero(heroid) ~= nil and EotwRoster.AwayHeroes()[heroid] == nil
 end
 
+--What a joining recruit's row shows before its copy loads: the source hero's
+--details and art under the chosen name, at Level 1.
+local function RecruitSummary(source, name)
+    local className, ancestry = EotwRoster.HeroDetails(source)
+    local summary = { name = name, className = className, ancestry = ancestry, level = 1 }
+    pcall(function()
+        local p = source.offTokenPortrait
+        if type(p) == "string" and p ~= "" then
+            summary.portrait = p
+        end
+    end)
+    return summary
+end
+
 --Recruit a pregen: copy the module's pregen into the lobby game under the
---player's chosen name, then add it to the roster.
+--player's chosen name, at Level 1, then add it to the roster.
 function EotwRoster.RecruitPregen(pregenId, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1675,8 +1791,19 @@ function EotwRoster.RecruitPregen(pregenId, name, onDone)
         return
     end
     m_pendingCreates[charid] = true
+    StartJoining(charid, RecruitSummary(source, name))
     WhenCharacterExists(charid, function(tok)
+        --a Hero module's pregen may be authored above Level 1.
+        tok:ModifyProperties{
+            description = "Encounter of the Week: a fresh hire",
+            undoable = false,
+            execute = function()
+                ResetToNewHeroLevel(tok.properties --[[@as character]])
+            end,
+        }
         JoinRoster(tok, onDone, "pregen")
+    end, function()
+        StopJoining(charid)
     end)
 end
 
@@ -1697,8 +1824,9 @@ end
 
 --Recruit one of the player's own titlescreen heroes: a COPY joins the town
 --roster, and the titlescreen hero is never touched. Town heroes start fresh,
---so the copy comes in at level 1 (and Levels up in town, at the Training
---Grounds) with no items (treasure is earned in town); its kit is kept.
+--so the copy comes in at level 1 with no XP or Victories (and Levels up in
+--town, at the Training Grounds) and no items (treasure is earned in town);
+--its kit is kept.
 function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1724,6 +1852,7 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
         return
     end
     m_pendingCreates[charid] = true
+    StartJoining(charid, RecruitSummary(source, name))
     WhenCharacterExists(charid, function(tok)
         tok:ModifyProperties{
             description = "Encounter of the Week: a fresh copy",
@@ -1735,13 +1864,7 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
                 --JoinRoster re-points it, but do it here too so nothing ever
                 --saves this stripped copy over the original's char-cache.
                 props.originalid = charid
-                --level 1: CharacterLevel() is max(class levels, levelOverride).
-                if props:try_get("levelOverride", 1) ~= 1 then
-                    props.levelOverride = 1
-                end
-                for _,entry in ipairs(props:try_get("classes", {})) do
-                    entry.level = 1
-                end
+                ResetToNewHeroLevel(props)
                 --no items: the pack and every equipment slot.
                 props.inventory = {}
                 props.equipment = {}
@@ -1757,6 +1880,8 @@ function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
             end,
         }
         JoinRoster(tok, onDone, "titlescreen")
+    end, function()
+        StopJoining(charid)
     end)
 end
 
@@ -1910,17 +2035,32 @@ end
 
 --Dismiss a hero: gone from the city, then from this machine.
 function EotwRoster.DismissHero(heroid, onDone)
-    if m_conn == nil then
+    if m_conn == nil or m_dismissing[heroid] then
         return
     end
     local dismissed = dmhub.GetCharacterById(heroid)
     local fields = dismissed ~= nil and AnalyticsHero(dismissed) or {}
     fields.heroid = heroid
+    --the Guild greys the row out at once and drops it when the city agrees.
+    m_dismissing[heroid] = true
+    Bump()
     m_conn:Request{
         action = "delete-hero",
         args = { heroid = heroid },
         success = function()
+            m_dismissing[heroid] = nil
             EotwAnalytics.Track("eotw_hero_dismiss", fields)
+            --drop the hero from the list now rather than after the re-list.
+            if m_heroes ~= nil then
+                local kept = {}
+                for _, hero in ipairs(m_heroes) do
+                    if hero.heroid ~= heroid then
+                        kept[#kept+1] = hero
+                    end
+                end
+                m_heroes = kept
+            end
+            Bump()
             if dmhub.GetCharacterById(heroid) ~= nil then
                 game.DeleteCharacters({heroid})
             end
@@ -1930,6 +2070,7 @@ function EotwRoster.DismissHero(heroid, onDone)
             end
         end,
         error = function(message)
+            m_dismissing[heroid] = nil
             Fail(message)
             if onDone ~= nil then
                 onDone(false, message)
@@ -2456,7 +2597,7 @@ local function ShowRecruitPicker(host, onDone)
                     rollName = function()
                         return RecruitName(pregen)
                     end,
-                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
+                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(1, pregen.ancestry, pregen.className) }),
                     confirm = function(name, done)
                         EotwRoster.RecruitPregen(pregen.id, name, done)
                     end,
@@ -2546,6 +2687,11 @@ local GUILD_STYLES = {
     {
         selectors = { "eotwGuildRow", "hover" },
         bgcolor = "#2c2318",
+    },
+    --a hero joining or being dismissed, waiting on the city.
+    {
+        selectors = { "eotwGuildRow", "pending" },
+        opacity = 0.55,
     },
     --an active hero's row: a gold stripe down its left edge and a gold
     --frame on the portrait. Resting heroes keep both quiet.
@@ -2692,6 +2838,7 @@ end
 local function GuildRow(hero, away, host)
     local heroid = hero.heroid
     local confirmingDismiss = false
+    local actionsPanel = nil --the star / edit / dismiss column
 
     --the Hero's art and name open the EotW hero sheet (the row's icons keep
     --their own actions, so the click sits here rather than on the row)
@@ -2785,17 +2932,30 @@ local function GuildRow(hero, away, host)
                 end
             end
 
+            local joining = hero.joining == true
+            local dismissing = EotwRoster.IsDismissing(heroid)
             local status = {}
-            if hero.active == true then
-                status[#status+1] = T("guild.row.active")
-            end
-            if away ~= nil then
-                status[#status+1] = T("guild.row.away", { party = away })
-            end
-            if tok == nil then
-                status[#status+1] = T("guild.row.loading")
+            if joining then
+                status[#status+1] = T("guild.row.joining")
+            elseif dismissing then
+                status[#status+1] = T("guild.row.dismissing")
+            else
+                if hero.active == true then
+                    status[#status+1] = T("guild.row.active")
+                end
+                if away ~= nil then
+                    status[#status+1] = T("guild.row.away", { party = away })
+                end
+                if tok == nil then
+                    status[#status+1] = T("guild.row.loading")
+                end
             end
 
+            --the row's actions wait until the city has settled the change.
+            element:SetClass("pending", joining or dismissing)
+            if actionsPanel ~= nil then
+                actionsPanel:SetClass("collapsed", joining or dismissing)
+            end
             element:SetClass("active", hero.active == true)
             nameLabel.text = name
             detailsLabel.text = details
@@ -2869,6 +3029,11 @@ local function GuildRow(hero, away, host)
             halign = "right",
             valign = "center",
             flow = "vertical",
+            create = function(element)
+                --the row's own create may have run first, before this existed.
+                actionsPanel = element
+                element:SetClass("collapsed", hero.joining == true or EotwRoster.IsDismissing(heroid))
+            end,
 
             activeIcon,
             gui.Panel{
@@ -2940,6 +3105,26 @@ function EotwRoster.GuildPanel(host)
         end
         local heroes = EotwRoster.GetHeroes()
         local away = EotwRoster.AwayHeroes()
+        --heroes on their way to the city follow the listed ones, so a new
+        --hero's row is there the moment the player confirms.
+        local joining = {}
+        if heroes ~= nil then
+            for _, hero in ipairs(EotwRoster.JoiningHeroes()) do
+                if EotwRoster.FindHero(hero.heroid) == nil then
+                    joining[#joining+1] = hero
+                end
+            end
+            if #joining > 0 then
+                local all = {}
+                for _, hero in ipairs(heroes) do
+                    all[#all+1] = hero
+                end
+                for _, hero in ipairs(joining) do
+                    all[#all+1] = hero
+                end
+                heroes = all
+            end
+        end
         local rows = {}
         if heroes == nil then
             rows[1] = gui.Label{ text = T("guild.loading"), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
@@ -2962,7 +3147,7 @@ function EotwRoster.GuildPanel(host)
         end
         listPanel.children = rows
 
-        local count = EotwRoster.LivingCount()
+        local count = EotwRoster.LivingCount() + #joining
         --one pip per slot the roster has: filled for a hero, hollow for a
         --free slot. How many more the Guild could ever build is not shown
         --(user direction): players just try to expand it.
@@ -3209,6 +3394,8 @@ function EotwRoster.GuildPanel(host)
                     EotwModeration.ShowFindHeroesDialog()
                 end,
             },
+            --the player's achievements, after the hero buttons and set apart from them.
+            EotwPlayerTags.GuildButton(host),
         },
 
         --rebuild whenever the roster (or a working copy) changes.
@@ -3770,6 +3957,24 @@ local function OpenHallEntry(host, entry)
     end)
 end
 
+--A Hall entry's "Played by" line. When any player shows an achievement it is
+--a wrapping row of names with their badges; otherwise one plain line.
+---@param players EotwTagNameListPerson[]
+---@return Panel
+local function HallPlayedBy(players)
+    local playerNames = {}
+    local anyTag = false
+    for _, player in ipairs(players) do
+        playerNames[#playerNames+1] = player.name
+        anyTag = anyTag or EotwPlayerTags.Def(player.tag) ~= nil
+    end
+    if not anyTag then
+        return gui.Label{ text = T("roster.hall.played_by", { players = table.concat(playerNames, ", ") }), fontSize = 14, color = DIM, width = "100%", height = "auto" }
+    end
+    local items = EotwPlayerTags.NameList(T("roster.hall.played_by_heading"), players, { fontSize = 14, color = DIM, rowHeight = 22, badgeMaxWidth = 170 })
+    return gui.Panel{ width = "100%", height = "auto", flow = "horizontal", wrap = true, children = items }
+end
+
 --The Hall of Heroes location's card: tabs, sort and the list of entries (the
 --scene above it carries the title). host mounts the victory-screen replays.
 function EotwRoster.HallPanel(host)
@@ -3802,6 +4007,8 @@ function EotwRoster.HallPanel(host)
             end
             loading = false
             for _,e in ipairs(result.entries or {}) do
+                --the players' Player Tags, as the city reported them with this page.
+                e.playerTags = type(result.tags) == "table" and result.tags or {}
                 entries[#entries+1] = e
             end
             more = result.more == true
@@ -3838,9 +4045,12 @@ function EotwRoster.HallPanel(host)
                 portraits[#portraits+1] = Portrait(h.portrait, 45, 60, "left")
             end
         end
-        local playerNames = {}
+        local playerTags = type(e.playerTags) == "table" and e.playerTags or {}
+        ---@type EotwTagNameListPerson[]
+        local players = {}
         for _,p in ipairs(summary.players or {}) do
-            playerNames[#playerNames+1] = p.name or "?"
+            local tag = p.userid ~= nil and playerTags[p.userid] or nil
+            players[#players+1] = { name = p.name or "?", tag = tag }
             if p.userid == dmhub.loginUserid then
                 mine = true
             end
@@ -3880,7 +4090,7 @@ function EotwRoster.HallPanel(host)
             valign = "center",
             lmargin = 14,
             gui.Label{ text = table.concat(names, ", "), fontSize = 20, bold = true, color = TEXT, width = "100%", height = "auto" },
-            gui.Label{ text = T("roster.hall.played_by", { players = table.concat(playerNames, ", ") }), fontSize = 14, color = DIM, width = "100%", height = "auto" },
+            HallPlayedBy(players),
             gui.Label{ text = when, fontSize = 14, color = DIM, width = "100%", height = "auto" },
             gui.Label{ text = stats, fontSize = 14, color = TEXT, width = "100%", height = "auto" },
         }

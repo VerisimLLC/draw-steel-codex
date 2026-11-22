@@ -730,6 +730,241 @@ function EncounterReinforcements.LivingEnemies(who)
     return result
 end
 
+--- the "Mark:" line: markers on the creatures the heroes must deal with ------
+
+--The script's "Mark:" lines, each with the ids of the reinforcement sections
+--it names. Cached until the game's content changes: the arrows ask many times a second.
+local m_marks = nil
+local m_marksUpdate = nil
+local function MarkSpecs()
+    if m_marks ~= nil and m_marksUpdate == dmhub.gameContentUpdateSeq then
+        return m_marks
+    end
+    local specs = {}
+    pcall(function()
+        local beat = EncounterReinforcements.EncounterBeat()
+        if beat == nil then
+            return
+        end
+        for _, ins in ipairs(beat.setup or {}) do
+            if ins.kind == "mark" then
+                local sections = {}
+                for _, section in ipairs(beat.reinforcements or {}) do
+                    local name = lower(section.name)
+                    name = string.gsub(name, "^the%s+", "")
+                    for _, markName in ipairs(ins.names) do
+                        if markName.text == name then
+                            sections[section.id] = true
+                        end
+                    end
+                end
+                specs[#specs + 1] = { ins = ins, sections = sections }
+            end
+        end
+    end)
+    m_marks = specs
+    m_marksUpdate = dmhub.gameContentUpdateSeq
+    return specs
+end
+
+--Is this token one of the creatures a "Mark:" spec names?
+local function MatchesMark(token, spec)
+    local section = nil
+    pcall(function() section = token.properties:try_get("eotwReinforcement") end)
+    if section ~= nil and spec.sections[section] then
+        return true
+    end
+    local tokenName = lower(token.name)
+    for _, markName in ipairs(spec.ins.names) do
+        local text = markName.text
+        if tokenName == text or string.sub(tokenName, 1, #text + 1) == text .. " " then
+            return true
+        end
+        if IsKind(token, text) or (markName.singular ~= text and IsKind(token, markName.singular)) then
+            return true
+        end
+    end
+    return false
+end
+
+--Marks show only during an EotW fight.
+local function MarksActive()
+    local queue = dmhub.initiativeQueue
+    if queue == nil or queue.hidden then
+        return false
+    end
+    local eotw = false
+    pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
+    return eotw and #MarkSpecs() > 0
+end
+
+--The living enemies the script's "Mark:" lines name.
+function EncounterReinforcements.MarkedEnemies()
+    local result = {}
+    local specs = MarkSpecs()
+    for _, token in ipairs(EncounterReinforcements.LivingEnemies(nil)) do
+        for _, markSpec in ipairs(specs) do
+            if MatchesMark(token, markSpec) then
+                result[#result + 1] = token
+                break
+            end
+        end
+    end
+    return result
+end
+
+--The charids that get an arrow, worked out at most twice a second and shared
+--by every arrow (finding them walks every token on the map).
+local m_markedSet = {}
+local m_markedTime = nil
+local function MarkedSet()
+    local now = dmhub.Time()
+    if m_markedTime ~= nil and now - m_markedTime < 0.5 then
+        return m_markedSet
+    end
+    local set = {}
+    if MarksActive() then
+        for _, token in ipairs(EncounterReinforcements.MarkedEnemies()) do
+            set[token.charid] = true
+        end
+    end
+    m_markedSet = set
+    m_markedTime = now
+    return set
+end
+
+--The pointers, drawn in screen space on every client: a red arrow bobbing
+--over each marked creature in view, and one at the edge of the view pointing
+--toward each marked creature out of it. Nothing is written to the game.
+local MARK_COLOR = "#e0402a"
+local ARROW_W = 28
+local ARROW_H = 22
+local EDGE_MARGIN = 36
+--Edge arrows stay below the initiative bar and objective line across the top.
+local TOP_INSET = 270
+
+local m_markOverlay = nil
+
+--A world point in the overlay's units (origin top left, y down).
+local function WorldToOverlay(wx, wy, bounds, width, height)
+    return (wx - bounds.x1) / (bounds.x2 - bounds.x1) * width, (1 - (wy - bounds.y1) / (bounds.y2 - bounds.y1)) * height
+end
+
+--Puts one arrow per marked creature; spare arrows are hidden, not destroyed.
+--- @param overlay Panel
+local function UpdateMarkOverlay(overlay)
+    local arrows = overlay.data.arrows
+    local used = 0
+    local bounds = dmhub.cameraBounds
+    local usable = dmhub.cameraUsableBounds
+    local width, height = overlay.renderedWidth, overlay.renderedHeight
+    if bounds ~= nil and usable ~= nil and bounds.x2 > bounds.x1 and bounds.y2 > bounds.y1
+        and type(width) == "number" and width > 0 and type(height) == "number" and height > 0 then
+        --how far the arrows bob, in overlay units (up to 10): arrows over a token
+        --move 60% of it, edge arrows 40%, so the edge ones don't bounce off the screen.
+        local bob = math.abs(math.sin(dmhub.Time() * 4)) * 10
+        --the part of the screen not under the docks, shrunk so edge arrows sit inside it.
+        local ux1, uy1 = WorldToOverlay(usable.x1, usable.y2, bounds, width, height)
+        local ux2, uy2 = WorldToOverlay(usable.x2, usable.y1, bounds, width, height)
+        ux1, uy1, ux2, uy2 = ux1 + EDGE_MARGIN, math.max(uy1 + EDGE_MARGIN, TOP_INSET), ux2 - EDGE_MARGIN, uy2 - EDGE_MARGIN
+        local cx, cy = (ux1 + ux2) / 2, (uy1 + uy2) / 2
+        for charid, _ in pairs(MarkedSet()) do
+            local token = dmhub.GetTokenById(charid)
+            if token ~= nil and token.valid and token.hasTokenOnThisMap and not token.invisibleToPlayers then
+                local pos = token.pos
+                local tx, ty = WorldToOverlay(pos.x, pos.y, bounds, width, height)
+                local x, y, angle
+                if tx >= ux1 and tx <= ux2 and ty >= uy1 and ty <= uy2 then
+                    --in view: above the token, pointing down at it.
+                    local half = (token.tileSize or 1) * 0.5 * width / (bounds.x2 - bounds.x1)
+                    x, y, angle = tx, ty - half - ARROW_H / 2 - 4 - bob * 0.6, 0
+                else
+                    --out of view: where the line from the view's centre to it
+                    --leaves the view, pointing along that line.
+                    local dx, dy = tx - cx, ty - cy
+                    local scale = 1
+                    if dx ~= 0 then
+                        scale = math.min(scale, ((dx > 0 and ux2 or ux1) - cx) / dx)
+                    end
+                    if dy ~= 0 then
+                        scale = math.min(scale, ((dy > 0 and uy2 or uy1) - cy) / dy)
+                    end
+                    local len = math.sqrt(dx * dx + dy * dy)
+                    x, y = cx + dx * scale, cy + dy * scale
+                    if len > 0 then
+                        x, y = x + dx / len * bob * 0.4, y + dy / len * bob * 0.4
+                    end
+                    --the triangle image points down at rotate 0.
+                    angle = math.deg(math.atan(dx, dy))
+                end
+                used = used + 1
+                local arrow = arrows[used]
+                if arrow == nil then
+                    arrow = gui.Panel{
+                        interactable = false,
+                        bgimage = "panels/triangle.png",
+                        bgcolor = MARK_COLOR,
+                        width = ARROW_W,
+                        height = ARROW_H,
+                        halign = "left",
+                        valign = "top",
+                    }
+                    arrows[used] = arrow
+                    overlay:AddChild(arrow)
+                end
+                arrow:SetClass("collapsed", false)
+                arrow.x = x - ARROW_W / 2
+                arrow.y = y - ARROW_H / 2
+                arrow.selfStyle.rotate = angle
+            end
+        end
+    end
+    for i = used + 1, #arrows do
+        arrows[i]:SetClass("collapsed", true)
+    end
+end
+
+--Puts the overlay up while a marked creature stands in an EotW fight, and
+--takes it down after. A slow poll, so it heals itself across reloads.
+dmhub.Coroutine(function()
+    while true do
+        coroutine.yield(0.5)
+        local want = false
+        if not mod.unloaded then
+            pcall(function() want = next(MarkedSet()) ~= nil end)
+        end
+        local shown = m_markOverlay ~= nil and m_markOverlay.valid
+        --a reload rebuilds the HUD, so the old parent can be a destroyed panel.
+        local parent = GameHud.instance and GameHud.instance.parentPanel or nil
+        if want and not shown and parent ~= nil and parent.valid then
+            m_markOverlay = gui.Panel{
+                interactable = false,
+                blocksGameInteraction = false,
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+                styles = {
+                    { selectors = { "collapsed" }, collapsed = 1 },
+                },
+                data = { arrows = {} },
+                thinkTime = 0.03,
+                think = function(element)
+                    UpdateMarkOverlay(element)
+                end,
+            }
+            parent:AddChild(m_markOverlay)
+        elseif not want and shown then
+            ---@cast m_markOverlay -nil
+            m_markOverlay:DestroySelf()
+            m_markOverlay = nil
+        end
+        if mod.unloaded then
+            return
+        end
+    end
+end)
+
 --Host, while combat is live: true once the script's "Victory:" line is met.
 function EncounterReinforcements.ClearMapVictory()
     local beat = EncounterReinforcements.EncounterBeat()

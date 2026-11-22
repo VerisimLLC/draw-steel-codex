@@ -324,6 +324,10 @@ function EncounterZones.RunEncounterSetup(beat)
                     --nothing to set up: the host's outcome check reads it
                     --(EncounterReinforcements.ClearMapVictory).
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "victory", text = instruction.text }
+                elseif instruction.kind == "mark" then
+                    --nothing to set up: every client draws the markers while
+                    --combat runs (the pointer overlay in EncounterReinforcements.lua).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "mark", text = instruction.text }
                 elseif instruction.kind == "parallax" then
                     --nothing to set up: the host keeps the setting applied
                     --(EnforceStrictRules in EncounterOfTheWeek.lua).

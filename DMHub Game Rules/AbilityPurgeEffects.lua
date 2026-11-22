@@ -222,6 +222,21 @@ function ActivatedAbilityPurgeEffectsBehavior:CastPurge(ability, casterToken, ta
         return
     end
 
+    --An earlier behavior can destroy a target (Paranormal Fling's object breaking on
+    --impact); it has nothing left to purge. Indexing it errored and ended the cast
+    --before its cost was paid.
+    local liveTargets = {}
+    for _,target in ipairs(targets) do
+        if target.token == nil or (target.token.valid and target.token.properties ~= nil) then
+            liveTargets[#liveTargets+1] = target
+        end
+    end
+    if #liveTargets == 0 then
+        ability:CommitToPaying(casterToken, options)
+        return
+    end
+    targets = liveTargets
+
     -- Works out which creature a field like "Confer To" is naming.
     -- Writing "Target" in one of those fields used to come back empty, because by now
     -- the ability's target is no longer something the field can see. We hand it back

@@ -27,7 +27,8 @@ local mod = dmhub.GetModLoading()
 --    event that is ready (EncounterGauntlet.RegisterCustomEvent), or is
 --    passed over silently.
 --  * Every roll a hero makes in the beat (assists and Pardon My Friend
---    included) adds a bane to their later rolls in it ("Weary"); the count
+--    included) adds a bane to their later rolls in it ("Weary") until three
+--    tests by other heroes (not assists) have been made after it; the count
 --    starts again with the next beat.
 --  After each section the party moves on by its route
 --  (EncounterScript.GauntletNext); past the last section the beat is done.
@@ -44,7 +45,10 @@ local mod = dmhub.GetModLoading()
 --                                          from (its exit is the route on)
 --    path      = { entry id, ... },     -- what the party has met, in order
 --    skipped   = { section id, ... },   -- event points with nothing ready
---    rolls     = { [charid] = n },      -- rolls made: the fatigue count
+--    rolls     = { [charid] = { stamp, ... } }, -- one per roll the hero made:
+--                                          #tests when it was made (Weary)
+--    tests     = { charid, ... },       -- who made each test (not assists),
+--                                          in order: wears Weary off
 --    events    = { [pointId] = { eventId, record } | false },
 --    vote      = nil | { sectionId, individual = bool,
 --                  choices = { [voterKey] = { optionIndex, userid, heroid,
@@ -365,18 +369,66 @@ function EncounterGauntlet.NoteInterrupted(m, t)
     m.gauntlet.heroEmote = { heroid = t.heroid, emote = "alarmed", seq = t.seq }
 end
 
---How many rolls this hero has made in the Gauntlet (the fatigue count).
-function EncounterGauntlet.RollsMade(m, charid)
-    local g = m ~= nil and m.gauntlet or nil
-    return tonumber(((g ~= nil and g.rolls) or {})[charid or ""]) or 0
+--A roll stops making its hero Weary once this many tests have been made by
+--other heroes after it (assists do not count; David 2026-11-19).
+local WEARY_WEARS_OFF_AFTER = 3
+
+--A hero's roll stamps (see `rolls` in the state comment). A narrative saved
+--before Weary wore off stored a plain count: those rolls are stamped 0.
+local function RollStamps(g, charid)
+    local stamps = (g.rolls or {})[charid]
+    if type(stamps) == "table" then
+        return stamps
+    end
+    local result = {}
+    for i = 1, (tonumber(stamps) or 0) do
+        result[i] = 0
+    end
+    return result
 end
 
+--How many of this hero's rolls in the narrative still make them Weary: each
+--one does until WEARY_WEARS_OFF_AFTER tests by other heroes come after it.
+function EncounterGauntlet.WearyRolls(m, charid)
+    local g = m ~= nil and m.gauntlet or nil
+    if g == nil or charid == nil then
+        return 0
+    end
+    local tests = g.tests or {}
+    local count = 0
+    for _, stamp in ipairs(RollStamps(g, charid)) do
+        local others = 0
+        for i = (tonumber(stamp) or 0) + 1, #tests do
+            if tests[i] ~= charid then
+                others = others + 1
+            end
+        end
+        if others < WEARY_WEARS_OFF_AFTER then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+--Any roll a hero makes (test, assist, Pardon My Friend) makes them Weary.
 local function CountRoll(m, charid)
     if charid == nil or m.gauntlet == nil then
         return
     end
+    local stamps = RollStamps(m.gauntlet, charid)
+    stamps[#stamps + 1] = #(m.gauntlet.tests or {})
     m.gauntlet.rolls = m.gauntlet.rolls or {}
-    m.gauntlet.rolls[charid] = (tonumber(m.gauntlet.rolls[charid]) or 0) + 1
+    m.gauntlet.rolls[charid] = stamps
+end
+
+--A test (not an assist) has been made by `charid`: it helps every other
+--hero's Weary wear off.
+local function CountTest(m, charid)
+    if charid == nil or m.gauntlet == nil then
+        return
+    end
+    m.gauntlet.tests = m.gauntlet.tests or {}
+    m.gauntlet.tests[#m.gauntlet.tests + 1] = charid
 end
 
 --Is the option's "When <condition>:" story gate shut? Then nobody is
@@ -627,7 +679,7 @@ end
 --Host, as the party arrives at the beat (EncounterMontage.HostTick): seed
 --the state and put the first section up. Inside an open change of `doc`.
 function EncounterGauntlet.Open(m, doc, beat, heroes)
-    m.gauntlet = { path = {}, skipped = {}, rolls = {}, events = {}, ritualUsed = {} }
+    m.gauntlet = { path = {}, skipped = {}, rolls = {}, tests = {}, events = {}, ritualUsed = {} }
     --no party-size draw in a Gauntlet; an empty one stops the montage from
     --ever making one.
     m.removed = {}
@@ -1113,6 +1165,7 @@ local function LandGroupRoll(m, doc, section, heroes, charid, tier, total, natur
         end
     end
     CountRoll(m, charid)
+    CountTest(m, charid)
     rec.status = "done"
     rec.tier = tierIndex
     rec.total = total
@@ -1430,13 +1483,16 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
             local option = EncounterMontage.TurnOption(EncounterMontage.TurnEntry(beat, t), t)
             if option == nil or option.roll == nil or not option.roll.interrupted then
                 CountRoll(m, t.heroid)
+                CountTest(m, t.heroid)
             end
         end
         return false
     elseif kind == "pardonRolled" then
+        --Pardon My Friend: the stand-in makes the test, so it counts as a test.
         local p = t ~= nil and t.pardon or nil
         if t ~= nil and t.gauntlet and t.status == "pardon" and p ~= nil and p.userid == userid and p.rollSeq == req.rollSeq then
             CountRoll(m, p.heroid)
+            CountTest(m, p.heroid)
         end
         return false
     end
@@ -1684,12 +1740,12 @@ end
 
 --- rolls (client) -----------------------------------------------------------------
 
---The Weary chip for `charid` (every roll they have already made in this
---Gauntlet is a bane; Draw Steel caps it at a double bane) and, when
+--The Weary chip for `charid` (each of their rolls not yet worn off is a
+--bane; Draw Steel caps it at a double bane) and, when
 --`includeAssist`, the assist's edge or bane. Appends to `modifiers`.
 function EncounterGauntlet.AppendRollModifiers(modifiers, turn, charid, includeAssist)
     local I = M()
-    local n = EncounterGauntlet.RollsMade(EncounterMontage.GetState(), charid)
+    local n = EncounterGauntlet.WearyRolls(EncounterMontage.GetState(), charid)
     local chip = nil
     if n == 1 then
         chip = I.PerkChip(T("gauntlet.chip.weary_one"), T("gauntlet.chip.weary_description"), "bane")
@@ -2014,9 +2070,11 @@ function EncounterGauntlet.PrintState()
     printf("EotW gauntlet: phase %s, section %s (%s)", tostring(m.phase), tostring(g.section),
         tostring(section ~= nil and section.kind or "?"))
     printf("  path: %s", table.concat(g.path or {}, " > "))
-    for charid, n in pairs(g.rolls or {}) do
+    printf("  tests: %d", #(g.tests or {}))
+    for charid, _ in pairs(g.rolls or {}) do
         local tok = dmhub.GetCharacterById(charid)
-        printf("  rolls: %s %d", tostring(tok ~= nil and tok.name or charid), n)
+        printf("  rolls: %s %d, Weary %d", tostring(tok ~= nil and tok.name or charid), #RollStamps(g, charid),
+            EncounterGauntlet.WearyRolls(m, charid))
     end
     local turn = m.turn
     if turn ~= nil then

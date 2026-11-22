@@ -847,3 +847,35 @@ they've had at any point during their turn.
 - **Only if** also offers "you've had at least [N] ferocity this turn", for one-off benefits outside a
   table.
 - **Status.** An empty row is "worth checking" (only its sheet text would show).
+
+## 16. Coverage of the core classes (2026-11-22)
+
+A script (`ui-mockup/class-builder-data/coverage.py`, `coverage2.py`) surveyed the 11 core classes and
+their subclasses. It listed every feature type, modifier behaviour and field, and what the class builder
+can make.
+
+**Covered:**
+- **Features:** feature, choice, list, skill choice, perk choice, subclass choice, which is 1,809 of
+  about 1,980 features.
+- **Modifiers:** activated 613, attribute 397, trigger 269, power 212, trigger display 115, modify
+  ability 68, power roll trigger 50, resistance 36, resource 34, proficiency 30, kit 8, growing table 6,
+  condition immunity 5, reminder 3. That's about 1,850 of about 1,960 modifiers.
+
+**Gaps, most used first:**
+
+| Gap | Uses | Classes | What it is | Proposal |
+|---|---|---|---|---|
+| Effects defined inside a feature (`CharacterOngoingEffect`) | 51 | 9 of 11 | Effects that a feature's abilities or triggers apply ("Rampaging - Surges On Ally Damage") | "Effects" section in a feature: name, duration, blocks inside (the modifier sentences); the ability editor's "Apply an effect" can pick them |
+| Usage limits on triggers (`resourceRefreshType`) | 60 | all 11 | Once per round / turn / encounter / respite / victory | A phrase on the trigger block: "[once per round]"; check the ability editor writes it |
+| Power roll options with a cost (`resourceCostType: cost`) | 52 | 7 | "Spend 1 wrath: ..." edges, damage and tier changes on a roll | An "applies" choice: "you can spend [1] [wrath] when you roll"; also tier changes (`tier3`, `replaceroll`, `tierup`) as Rolls blocks |
+| Auras (`aura`) | 28 | 5 | Blessings, Null Field-like areas around you | Reuse the ability editor's Create Aura block as a modifier sentence |
+| Domain prerequisites (`CharacterPrerequisite` type domain) + Deity and Domains choice | 150 + 2 | Censor, Conduit | Domain features offered only if the deity grants that domain | "Choose your deity and domains" choice block, and "Only offered with the [Fate] domain" on a choice option |
+| Companion (`modcompanion`, `CharacterCompanionChoice`) | 23 + 1 | Beastheart | Changes to the companion (characteristic increases apply to both) | "Your companion" as the target of stat/rolls blocks; a companion choice block |
+| Summoner minions (`modsummoner`) | 7 | Summoner | Minion stat improvements by tier | A "Your minions" target, like the companion |
+| Routines (`routine`) | 13 | Troubadour | Performance abilities with their own display | Routine ability card via the ability editor (aura-like "while this performance is active") |
+| Ability improvements (`abilityimprovement`) | 10 | Null, Talent | Optional augments with a cost (Expanded Power) | "Your [Psionic] abilities can [increase their area by 1] for [N] [clarity]" |
+| Modify a trigger (`modifytrigger`) | 7 | Summoner, Talent, Troubadour | Changes an existing triggered ability | Like "Change an ability", for triggers |
+| Add to the resource checklist (`modifyresourcechecklist`) | 5 | Troubadour subclasses | A subclass adds a way to gain the resource | The "How you gain" blocks, offered inside subclass features |
+| Suppress abilities, forced movement swaps, bestow condition, alternate appearance, journal explanation, power-table additional | 1-3 each | - | Rare | Advanced block (saved untouched) |
+| Ability category names (`abilityCategoryNames`) | 4 classes | Conduit, Elementalist, Fury... | "Signature Prayer" / "Heroic Spells" | Basics row: "Your abilities are called [Prayers]" |
+| Subclasses (`subclasses` table: `primaryClassId`, own levels and checklist) | 33 subclasses | all | Subclass features at levels 1-10 | The same builder in "subclass" mode: lanes, no basics, linked to the class |

@@ -86,6 +86,7 @@
 --- @field portraitFrameBrightness number
 --- @field portraitFrame nil|string
 --- @field portraitFrameMaterial nil|string Id of a premium frame material registered with dmhub.tokenFrames:Register that lights this token's frame ring (normal map, roughness/metallic, sheen). nil or empty = plain frame texture. This does not change portraitFrame: set portraitFrame to the material's albedo asset as well, so clients and UI that only know the flat frame still show it. Upload with UploadAppearance.
+--- @field frameOverride nil|string Client-local: the id of a premium frame registered with dmhub.tokenFrames to draw on this token's map token instead of its own frame (its albedo, its material, no hue/saturation/brightness tint), or nil to draw the token's own. Display only: it is never saved or sent to other clients, and portraitFrame / portraitFrameMaterial keep the token's real appearance, so every client sets it for itself, e.g. from the creature's modifiers. An id that is not registered draws the token's own frame. nil while the token is not on the map.
 --- @field portraitRibbon nil|string (Undocumented: engine-internal, not part of the modding API.)
 --- @field teleportAnimation string The id of the registered token animation (see dmhub.tokenAnimations:RegisterTeleport) played when this token teleports. Empty string -> no animation, logical teleport only.
 --- @field animation CharacterTokenAnimationLua The per-token animation interface used inside a token-animation callback. Provides Light / Billboard / PlayEffect / Tween / SetVisible primitives plus a sound passthrough. Spawns made while a scripted animation is running are tracked and stopped automatically when the animation ends.
@@ -385,10 +386,10 @@ function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg) e
 --- @return number
 function CharacterToken:GetLineOfSightToSpace(loc, pierceSurfacesArg) end
 
---- GetLineOfSightToSpace with where the line is blocked. cover is the same 1 / 0.5 / 0.25 / 0 value; obstructionDist is how far (0-1) along the line from this creature to the space the obstacle that hides it lies, 1 when nothing does. A movement arrow can pass it as MarkMovementArrow's errorFrom.
+--- GetLineOfSightToSpace with where the line is blocked. cover is the same 1 / 0.5 / 0.25 / 0 value; obstructionDist is how far (0-1) along the line from this creature to the space the obstacle that hides it lies, 1 when nothing does. A movement arrow can pass it as MarkMovementArrow's errorFrom. description names that obstacle (wall, ridge, or an aura's GetCoverDescription such as its name) and is nil when the line is clear.
 --- @param loc Loc Where this creature's body would stand, with its absolute altitude (a space in the air is allowed).
 --- @param pierceSurfacesArg? number How many thin walls the line may pass through.
---- @return {cover: number, obstructionDist: number}
+--- @return {cover: number, obstructionDist: number, description: string|nil}
 function CharacterToken:GetLineOfSightToSpaceInfo(loc, pierceSurfacesArg) end
 
 --- The distance in native units to a loc, path, or another token. nil when either token no longer has a map token (deleted, or not built yet).

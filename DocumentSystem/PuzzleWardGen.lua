@@ -576,15 +576,8 @@ function PuzzleWardGen.DecidingLine(ward, i)
         end
         return #m.rules + 1
     end
-    if m.afterGlyphs then
-        return 1
-    end
-    if m.twoColumns then
-        if ward.face.candles > 3 then
-            return 1
-        end
-        return 2
-    end
+    --the dial's first line decides: the Glyphs rule waits for nothing else, and
+    --otherwise the page is the table alone (its candle columns are headers).
     return 1
 end
 
@@ -636,10 +629,20 @@ end
 
 PuzzleWardGen.pageHeader = "Check in order. Follow the first rule that fits."
 
---A module's codex page: {title, intro, lines}, lines numbered in order.
+---@class WardPage
+---@field title string
+---@field intro string
+---@field lines string[]
+---@field single boolean|nil
+---@field columns integer[][]|nil Glyphs only: rune indices, each column top to bottom
+---@field lookup {headers: string[], rows: integer[][]}|nil Sigil dial only: one row of rune indices per starting rune
+
+--A module's codex page, lines numbered in order. A page with no rule but its
+--fallback has single = true: one unnumbered instruction, no "Otherwise", and
+--no first-match header. The Glyphs columns are data, drawn as real columns.
 ---@param ward table
 ---@param i integer
----@return {title: string, intro: string, lines: string[]}
+---@return WardPage
 function PuzzleWardGen.PageText(ward, i)
     local m = ward.modules[i]
     local lines = {}
@@ -654,36 +657,32 @@ function PuzzleWardGen.PageText(ward, i)
         for k, rule in ipairs(m.rules) do
             lines[k] = string.format("%d. %s", k, GLYPH_RULES[rule.id].text(rule))
         end
-        lines[#lines + 1] = string.format("%d. Otherwise, find the column that holds all four of your glyphs and touch them in the order they appear in it, from top to bottom.", #m.rules + 1)
-        for c, col in ipairs(m.columns) do
-            local names = {}
-            for k, rune in ipairs(col) do
-                names[k] = RuneName(rune)
-            end
-            lines[#lines + 1] = string.format("Column %d: %s", c, table.concat(names, ", "))
+        local single = #m.rules == 0
+        if single then
+            lines[1] = "Find the column that holds all four of your glyphs and touch them in the order they appear in it, from top to bottom."
+        else
+            lines[#lines + 1] = string.format("%d. Otherwise, find the column that holds all four of your glyphs and touch them in the order they appear in it, from top to bottom.", #m.rules + 1)
         end
-        return { title = "Glyphs", intro = intro, lines = lines }
+        return { title = "Glyphs", intro = intro, lines = lines, single = single or nil, columns = m.columns }
     end
     local intro = "Turn the dial and press Set the seal. Only a wrong setting is a strike."
-    local n = 0
-    if m.afterGlyphs then
-        n = n + 1
-        lines[#lines + 1] = string.format("%d. If the Glyphs are done, set it to the rune that comes after the last glyph you touched in the Lexicon's ring.", n)
+    --the candle split is the table's column headers, not a rule.
+    local single = not m.afterGlyphs
+    if single then
+        lines[1] = "Use the table."
+    else
+        lines[1] = "1. If the Glyphs are done, set it to the rune that comes after the last glyph you touched in the Lexicon's ring."
+        lines[2] = "2. Otherwise, use the table."
     end
+    local headers = { "Dial started on", "Set it to" }
     if m.twoColumns then
-        n = n + 1
-        lines[#lines + 1] = string.format("%d. If more than 3 candles are lit, use the right-hand column of the table.", n)
+        headers = { "Dial started on", "3 candles or fewer", "More than 3 candles" }
     end
-    n = n + 1
-    lines[#lines + 1] = string.format("%d. Otherwise, use the table%s.", n, m.twoColumns and " (left-hand column)" or "")
+    local rows = {}
     for rune = 1, RUNE_COUNT do
-        if m.twoColumns then
-            lines[#lines + 1] = string.format("Wakes on %s: %s | %s", RuneName(rune), RuneName(m.left[rune]), RuneName(m.right[rune]))
-        else
-            lines[#lines + 1] = string.format("Wakes on %s: set it to %s", RuneName(rune), RuneName(m.left[rune]))
-        end
+        rows[rune] = m.twoColumns and { rune, m.left[rune], m.right[rune] } or { rune, m.left[rune] }
     end
-    return { title = "Sigil dial", intro = intro, lines = lines }
+    return { title = "Sigil dial", intro = intro, lines = lines, single = single or nil, lookup = { headers = headers, rows = rows } }
 end
 
 --Which Lexicon pages (1-3) the ward's pages refer to.
@@ -703,7 +702,7 @@ end
 
 --The Lexicon's three pages.
 ---@param ward table
----@return {title: string, intro: string, lines: string[]}[]
+---@return WardPage[]
 function PuzzleWardGen.LexiconText(ward)
     local lex = ward.lex
     local c1, c2 = lex.colourRules[1], lex.colourRules[2]
@@ -800,7 +799,7 @@ function PuzzleWardGen.Questions(ward, key)
             end
         end
     else
-        Ask("What rune did the dial wake on?")
+        Ask("What rune did the dial start on?")
         if m.twoColumns then
             Ask("How many candles are lit?")
         end

@@ -2892,6 +2892,23 @@ local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
 * You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.
 ]]
 
+--- The Hero Tokens rules and the party's recent changes, as the Hero Tokens
+--- box shows them on hover; for other surfaces that show hero tokens (the
+--- EotW hero card's back).
+--- @param creature any
+--- @return string
+function TacPanel.HeroTokenTooltipText(creature)
+    local text = HERO_TOKEN_TOOLTIP
+    local history = creature:GetHeroTokenHistory()
+    if history ~= nil and #history > 0 then
+        text = text .. "\n<b>Recent Changes:</b>"
+        for _,entry in ipairs(history) do
+            text = string.format("%s\n%s: %d by %s %s", text, entry.note, entry.value, entry.who, entry.when)
+        end
+    end
+    return text
+end
+
 --- Build a linger handler that shows an attribute's base value and each
 --- modification in a tooltip.
 --- @param tokenInfo table Holds the live `.token`
@@ -4026,6 +4043,9 @@ local function KitStatsTooltip(kit)
     end
     return string.format("%s\n%s", name, string.join(lines, "\n"))
 end
+
+--for other surfaces that show a hero's kit (the EotW hero card's back).
+TacPanel.KitStatsTooltip = KitStatsTooltip
 
 --- The identity strip: name, class and subclass against level, ancestry and
 --- kit (monsters: type and keywords against EV, level/role, size and free
@@ -8140,6 +8160,23 @@ function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end
 
+--- Every registered heroic-resource display, ordered by `ord`, for other
+--- surfaces that show them (the EotW hero card's resource tab).
+--- @return {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean}[]
+function TacPanel.GetHeroicResourceDisplays()
+    local result = {}
+    for _, entry in pairs(g_heroicResourceDisplays) do
+        result[#result+1] = entry
+    end
+    table.sort(result, function(a, b)
+        if (a.ord or 0) ~= (b.ord or 0) then
+            return (a.ord or 0) < (b.ord or 0)
+        end
+        return a.id < b.id
+    end)
+    return result
+end
+
 TacPanel.RegisterHeroicResourceDisplay{
     id = "victories",
     create = TacPanel.VictoriesBox,
@@ -9998,6 +10035,78 @@ local function FillAurasEmittingPanels(token, chips)
     end
 end
 
+--- Every chip the AURAS, CONDITIONS, & EFFECTS section shows for a token:
+--- its conditions, status effects and custom conditions, the auras touching
+--- it and the auras it emits, each with its own controls (remove, set
+--- caster, aura colour and visibility). The Hero card's back
+--- (HeroCardBack.lua) shows the same list. firstChild (the section's add
+--- button) leads the list; a "No conditions" line follows it when there is
+--- nothing else. Controls marked "editOnly" hide, and their handlers do
+--- nothing, under a "readonly" ancestor (TacPanel.IsReadOnly).
+--- @param token CharacterToken
+--- @param firstChild nil|Panel
+--- @return Panel[]
+function TacPanel.ConditionChipList(token, firstChild)
+    local children = {}
+    if firstChild ~= nil then
+        children[1] = firstChild
+    end
+    local empty = #children
+
+    local creature = token.properties
+    local conditions = creature:try_get("inflictedConditions", {})
+
+    -- Gather status effects (ongoing effects with statusEffect flag)
+    local ongoingTable = dmhub.GetTable("characterOngoingEffects")
+    local activeEffects = creature:ActiveOngoingEffects()
+    local statusEffects = {}
+    for _, entry in ipairs(activeEffects) do
+        local effectInfo = ongoingTable[entry.ongoingEffectid]
+        if effectInfo ~= nil and effectInfo.statusEffect then
+            statusEffects[#statusEffects + 1] = { entry = entry, info = effectInfo }
+        end
+    end
+
+    -- Condition chips
+    for condid, cond in pairs(conditions) do
+        children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
+    end
+
+    -- Status effect chips
+    for _, se in ipairs(statusEffects) do
+        children[#children + 1] = TacPanel.StatusEffectChip(se.entry, se.info, token)
+    end
+
+    -- Custom condition chips
+    local customConditions = creature:try_get("customConditions", {})
+    for key, entry in pairs(customConditions) do
+        children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
+    end
+
+    -- Aura chips
+    local aurasTouching = creature:GetAurasAffecting(token) or {}
+    local seenAuraKeys = {}
+    for _, auraInfo in ipairs(aurasTouching) do
+        local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+        if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then --we'll see our own auras because we emit them.
+            if auraKey ~= nil then seenAuraKeys[auraKey] = true end
+            children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+        end
+    end
+
+    --auras emitting.
+    FillAurasEmittingPanels(token, children)
+
+    -- "No conditions" placeholder when nothing to show
+    if #children == empty then
+        children[#children + 1] = gui.Label{
+            classes = {"label", "cond-empty"},
+            text = "No conditions",
+        }
+    end
+    return children
+end
+
 --- Open the "Add Condition" pop-up (conditions, status effects, a custom
 --- condition input, and custom auras) on args.button, applied to args.tokens.
 --- @param args {tokens: CharacterToken[], button: Panel}
@@ -10838,12 +10947,12 @@ function TacPanel.ConditionsRow()
             end
 
             --One chip per aura name: several casters (e.g. each wyvern's Tenacious Hunter) would repeat it.
-            local seenAuraNames = {}
+            local seenAuraKeys = {}
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                local auraName = auraInfo.auraInstance.name
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then
-                    seenAuraNames[auraName] = true
+                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then
+                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -12984,62 +13093,8 @@ function TacPanel.Conditions()
                 return
             end
 
-            local creature = token.properties
-            local conditions = creature:try_get("inflictedConditions", {})
-
-            -- Gather status effects (ongoing effects with statusEffect flag)
-            local ongoingTable = dmhub.GetTable("characterOngoingEffects")
-            local activeEffects = creature:ActiveOngoingEffects()
-            local statusEffects = {}
-            for _, entry in ipairs(activeEffects) do
-                local effectInfo = ongoingTable[entry.ongoingEffectid]
-                if effectInfo ~= nil and effectInfo.statusEffect then
-                    statusEffects[#statusEffects + 1] = { entry = entry, info = effectInfo }
-                end
-            end
-
             -- Rebuild chips each refresh (lists are small)
-            local children = {MakeAddButton()}
-
-            -- Condition chips
-            for condid, cond in pairs(conditions) do
-                children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
-            end
-
-            -- Status effect chips
-            for _, se in ipairs(statusEffects) do
-                children[#children + 1] = TacPanel.StatusEffectChip(se.entry, se.info, token)
-            end
-
-            -- Custom condition chips
-            local customConditions = creature:try_get("customConditions", {})
-            for key, entry in pairs(customConditions) do
-                children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
-            end
-
-            -- Aura chips (DISABLED FOR DIAGNOSTIC)
-            local aurasTouching = creature:GetAurasAffecting(token) or {}
-            local seenAuraNames = {}
-            for _, auraInfo in ipairs(aurasTouching) do
-                local auraName = auraInfo.auraInstance.name
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and not seenAuraNames[auraName] then --we'll see our own auras because we emit them.
-                    seenAuraNames[auraName] = true
-                    children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
-                end
-            end
-
-            --auras emitting.
-            FillAurasEmittingPanels(token, children)
-
-            -- "No conditions" placeholder when nothing to show
-            if #children == 1 then
-                children[#children + 1] = gui.Label{
-                    classes = {"label", "cond-empty"},
-                    text = "No conditions",
-                }
-            end
-
-            element:FireEventTree("setContent", children)
+            element:FireEventTree("setContent", TacPanel.ConditionChipList(token, MakeAddButton()))
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)

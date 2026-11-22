@@ -1148,6 +1148,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 elseif self:try_get("promptCard", false) and self.abilityType == "standard" and target.token ~= nil and target.token.valid then
                     --Posts a red "!" card on the target so its controller chooses when to resolve the
                     --standard ability on themselves (e.g. Swooping Torment: take damage or fall prone).
+                    local casterSymbols = casterToken.properties:LookupSymbol{}
                     AbilityInvocation.PromptStandardAbility{
                         token = target.token,
                         invoker = casterToken,
@@ -1156,9 +1157,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         targeting = "self",
                         hostile = true,
                         prompt = self:try_get("promptCardTitle", ability.name),
-                        rules = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}),
+                        rules = StringInterpolateGoblinScript(self.promptText, casterSymbols),
                         activateText = tr("Choose"),
-                        castPrompt = self:try_get("castPromptText", self.promptText),
+                        castPrompt = StringInterpolateGoblinScript(self:try_get("castPromptText", self.promptText), casterSymbols),
                     }
                 elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
@@ -1388,6 +1389,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --they had actually learned it.
                         if (self:CastsAsCustom() or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
+                            --A kit's signature ability already has its kit's bonus in its numbers. Mark the strike it
+                            --nests the same way, so the kit modifier below skips it, unless another creature makes the strike.
+                            if ability:try_get("_tmp_fromKit") and target.token.charid == casterToken.charid then
+                                abilityClone._tmp_fromKit = true
+                            end
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
                                 if abilityClone == nil then break end
@@ -1490,6 +1496,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                             if stability > 0 then
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+                            end
+
+                            --Nothing else matters once the target can't be moved, so this replaces the other notes.
+                            if target.token.properties:CannotBeForceMoved() then
+                                adjustedRange = 0
+                                adjustments = {"Immune to Forced Movement"}
                             end
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
@@ -1710,11 +1722,32 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
     local snapshot = ActivatedAbility.GetActiveCastSnapshot()
+    --DIAG: every 5s while this wait holds, log which of its three conditions is true.
+    --A hang here used to leave no trace (3VAQJS4A, YYK97NNG). Safe to keep.
+    local preWaitLogged = dmhub.Time()
+    local function LogPreContinueWait()
+        local now = dmhub.Time()
+        if now - preWaitLogged < 5 then
+            return
+        end
+        preWaitLogged = now
+        local rolling = gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()
+        local barCasting = gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() or nil
+        local barName = tostring(barCasting ~= nil and barCasting ~= false)
+        if type(barCasting) == "table" then
+            pcall(function() barName = tostring(barCasting.name) end)
+        end
+        print(string.format("INVOKEDIAG:: %s waiting to start: rollDialog=%s actionBar=%s newCasts=%s T=%.2f",
+            tostring(abilityClone.name), tostring(rolling), barName,
+            tostring(ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)), now))
+    end
     while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()) or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell()) or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
+        LogPreContinueWait()
         coroutine.safe_sleep_while(function()
             if not gamehud.actionBarPanel.valid then
                 return false
             end
+            LogPreContinueWait()
             return gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
         end)
 
@@ -1882,8 +1915,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
         end
 
-        --false unless the Monster AI controls the invoker.
-        local aiPromptCallback = creature.GetTokenAIPromptCallback(invokerToken.charid)
+        --Who picks the answer. Usually the invoker, but an ability can name someone else:
+        --Behold the Face of Justice! pushes as the struck monster, yet the Censor's player picks.
+        local deciderToken = invokerToken
+        local deciderId = abilityClone:try_get("promptDeciderId")
+        if deciderId ~= nil then
+            local token = dmhub.GetTokenById(deciderId)
+            if token ~= nil and token.valid then
+                deciderToken = token
+            end
+        end
+        --false unless the Monster AI controls the decider.
+        local aiPromptCallback = creature.GetTokenAIPromptCallback(deciderToken.charid)
         --A Director-run creature the AI is not driving right now (a dying minion's
         --death strike on a hero's turn) still has its prompts answered while the AI
         --runs, as its rolls already are. rawget: Monster AI may not be loaded.
@@ -1891,11 +1934,12 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local monsterAI = rawget(_G, "MonsterAI")
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
-                aiPromptCallback = fallback(invokerToken) or false
-                --When a hero's ability acts on a monster, the monster is the caster here, but
-                --the hero's player still chooses (where to push it). Only prompts marked
-                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                aiPromptCallback = fallback(deciderToken) or false
+                --When a hero's ability acts on a monster, the hero's player still chooses (where
+                --to push it). Only answersForCaster prompts, like a free strike the monster makes
+                --itself, go to the AI, and never one that already names who picks.
                 if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and deciderToken == invokerToken
                     and monsterAI.PromptAnswersForCaster(abilityClone) then
                     aiPromptCallback = fallback(casterToken) or false
                 end
@@ -2046,12 +2090,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 --almost always free custom abilities); callers that invoke a REAL costed ability
                 --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
                 --The selected area is cast state and must survive this invoke boundary.
+                --invokeMarkLineOfSight: targeting arrows the invoker drew (the Monster
+                --AI), handed to the cast so its roll dialog can badge them. Not
+                --markLineOfSight, which nested invokes inherit from their parent cast.
                 local castOptions = {
                     symbols = symbols,
                     targetArea = options.targetArea,
                     targetAreaList = options.targetAreaList,
                     pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
+                    markLineOfSight = options.invokeMarkLineOfSight,
                 }
                 abilityClone:Cast(casterToken, targets, castOptions)
             end
@@ -3008,6 +3056,12 @@ function AbilityInvocation:Invoke()
 
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+		end
+
+		--Nothing else matters once the target can't be moved, so this replaces the other notes.
+		if targetToken.properties:CannotBeForceMoved() then
+			adjustedRange = 0
+			adjustments = {"Immune to Forced Movement"}
 		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare

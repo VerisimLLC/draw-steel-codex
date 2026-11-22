@@ -23,6 +23,18 @@
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
 --- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
 --- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
+--- @field haloOutsideOnly boolean When true, the halo is drawn only outside the die's silhouette, as a glow around its edges. Use it on see-through dice: by default the halo is drawn behind the die body, which on a see-through die also fills the die's interior and covers the billboard glow.
+--- @field smokeTrailEnabled boolean Whether soft smoke trails behind each die while it moves: hundreds of overlapping puffs laid along its path that swirl, spread and fade like real smoke. See smokeTrailColor/smokeTrailIntensity/smokeTrailStrands/smokeTrailWidth/smokeTrailLength/smokeTrailWander/smokeTrailOpacity/smokeTrailWisp.
+--- @field smokeTrailColor Color The smoke strands' color (HDR: values above 1 glow brighter).
+--- @field smokeTrailIntensity number HDR brightness multiplier of the smoke strands.
+--- @field smokeTrailStrands number How many smoke streams trail behind each die (1 to 6). Each stream is laid from its own point near the die's centre.
+--- @field smokeTrailWidth number Smoke puff size as a fraction of the die's diameter (above 1 = wider than the die, wrapping it in smoke).
+--- @field smokeTrailLength number How long each smoke puff lives, in seconds (longer = a longer trail that lingers).
+--- @field smokeTrailWander number How far the smoke streams drift from the die's centre, in die diameters: higher = the streams spread and curl further apart.
+--- @field smokeTrailOpacity number Overall opacity of the smoke (0 to 1).
+--- @field smokeTrailWisp number Wispiness of the smoke: 0 = soft, smooth puffs; 1 = eaten away into curling wisps and stirred harder.
+--- @field smokeTrailCurl number Curl of the smoke: 0 = the streams wander on their own over time; 1 = they swing round in big loose loops as the die travels. Curls follow the distance the die moves, so a fast throw still curls instead of stretching into straight lines.
+--- @field smokeTrailTaper number Taper of the smoke: 0 = puffs swell as they age, like real smoke spreading; 1 = they start wide around the die and shrink into a thin tail, like a flame.
 --- @field rayBurstEnabled boolean Whether this dice set fires a burst of light rays outward past each die's silhouette when it lands. The die's surface material can only draw rays inside the die itself; this carries them into the surrounding area. See rayBurstColor/rayBurstSize/rayBurstDuration/rayBurstIntensity/rayBurstSaturation/rayBurstCount/rayBurstContrast/rayBurstSpeed/rayBurstInnerRadius for its look.
 --- @field rayBurstColor Color The color of the landing ray burst. HDR: values above 1 make it glow brighter.
 --- @field rayBurstSize number How far the landing ray burst reaches, as a multiple of the die's diameter (3 == three dice wide).
@@ -100,6 +112,30 @@
 --- @field billboardStretch number Horizontal-only stretch of the billboard quad (1 = square, matching billboardSize in both axes). Values above 1 stretch the quad sideways without growing it vertically -- for image billboards that read as a beam, e.g. a lensing streak reaching out past the die's sides.
 --- @field billboardFalloff number The billboard gradient's falloff exponent (higher = tighter, more concentrated core). Only used in gradient mode.
 --- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
+--- @field billboardRingsEnabled boolean Whether electric orbit rings circle the billboard core: rings tilted away from the camera that precess around the core with a pulse running along them, drawn inside the die with the billboard. Only shown while billboardEnabled is on. See billboardRingColor/billboardRingIntensity/billboardRingCount/billboardRingRadius/billboardRingWidth/billboardRingTilt/billboardRingSpeed/billboardRingCrackle.
+--- @field billboardRingColor Color The orbit rings' color (HDR: values above 1 glow brighter).
+--- @field billboardRingIntensity number HDR brightness multiplier of the orbit rings.
+--- @field billboardRingCount number How many orbit rings circle the core (1 to 6).
+--- @field billboardRingRadius number Orbit ring size as a fraction of the billboard's half-size (1 reaches the billboard's edge).
+--- @field billboardRingWidth number Orbit ring line thickness, in the same units as billboardRingRadius.
+--- @field billboardRingTilt number How far the orbit rings tilt away from the camera: 0 = round circles facing the camera, 1 = seen edge-on as flat lines.
+--- @field billboardRingSpeed number How fast the orbit rings themselves turn around the core. 0 == the rings stay still (their waves and flow can still move; see billboardRingFlowSpeed).
+--- @field billboardRingCrackle number Electric crackle of the orbit rings: 0 = clean steady rings, 1 = broken, wobbling, flickering arcs.
+--- @field billboardRingJitter number Erratic electric motion of the orbit rings: 0 = smooth flowing rings, 1 = the rings jump in angle, size and shape in rapid discrete steps and their wobble turns jagged, like lightning.
+--- @field billboardRingSpread number How the orbit rings are arranged: 0 = gathered into one band of close strands that turn together, like a river of light circling the core; 1 = spread evenly round the core like an atom's orbits.
+--- @field billboardRingFlow number Liquid flow along the orbit rings: 0 = none (a single bright pulse runs round each ring), 1 = a churning liquid pattern streams smoothly along every strand and the strands undulate gently.
+--- @field billboardRingSoftness number Softness of the orbit rings: 0 = crisp bright lines, 1 = soft, faded glowing bands.
+--- @field billboardRingWave number Waviness of the orbit rings: 0 = smooth round rings, 1 = the whole band undulates strongly as one current while each strand drifts off its neighbours and back, so close strands branch apart and rejoin.
+--- @field billboardRingFlowSpeed number How fast the liquid flow, the waves and the bright pulse travel round the orbit rings, independent of how fast the rings turn (billboardRingSpeed). 0 == the waves only churn in place.
+--- @field billboardRingVariety number Irregularity of the orbit rings: 0 = a regular, symmetrical set, 1 = each ring has its own random angle, size, tilt and off-centre shift, for a loose hand-drawn look. The arrangement is fixed per billboardRingSeed.
+--- @field billboardRingSeed number Which random arrangement billboardRingVariety uses (a whole number). Change it to reroll the rings' angles, sizes, tilts and offsets.
+--- @field billboardSparksEnabled boolean Whether small round sparks shoot out of the billboard core in random directions, drawn inside the die with the billboard. Only shown while billboardEnabled is on. See billboardSparkColor/billboardSparkIntensity/billboardSparkCount/billboardSparkSize/billboardSparkSpeed/billboardSparkReach.
+--- @field billboardSparkColor Color The core sparks' color (HDR: values above 1 glow brighter).
+--- @field billboardSparkIntensity number HDR brightness multiplier of the core sparks.
+--- @field billboardSparkCount number How many sparks fly at once (0 to 24); each relaunches from the core in a new direction when it fades.
+--- @field billboardSparkSize number Spark dot size as a fraction of the billboard's half-size.
+--- @field billboardSparkSpeed number How often each spark relaunches, per second: higher = shorter, faster flights.
+--- @field billboardSparkReach number How far the sparks fly from the core before fading, as a fraction of the billboard's half-size.
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field physicsEnabled boolean Whether this dice set overrides the global dice physics settings with its own per-set 'feel' (see physicsGravity/physicsVelocity/physicsDrag/physicsAngularDrag/physicsBounciness). When false the set rolls with the global dice:* settings.

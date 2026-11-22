@@ -3724,6 +3724,8 @@ function EncounterMontage.ApplyPendingCombatBoons()
         return
     end
 
+    local remaining = nil
+    local foesChanged = hasFoes
     ElevateToHostPermissions()
     local ok, err = pcall(function()
         for charid, amount in pairs(hasSurges and pending or {}) do
@@ -3735,29 +3737,61 @@ function EncounterMontage.ApplyPendingCombatBoons()
             end
         end
         if hasFoes then
-            EncounterMontage.ApplyFoeResistances(foes)
+            remaining, foesChanged = EncounterMontage.ApplyFoeResistances(foes --[[@as table[] ]])
         end
     end)
     DropHostPermissions()
     if not ok then
         printf("EotW montage: combat boon payout failed: %s", tostring(err))
+        remaining = nil
+        foesChanged = hasFoes
     end
 
+    --this runs every host tick: don't re-upload the document while foes are only waiting.
+    if not hasSurges and not foesChanged then
+        return
+    end
     doc:BeginChange()
     doc.data.surges = nil
-    doc.data.foeResistances = nil
+    --monster weaknesses that could not be applied yet stay saved and are tried again next tick.
+    doc.data.foeResistances = remaining
     doc:CompleteChange("Montage: combat boons paid out", { undoable = false })
 end
+
+--How long a montage weakness or immunity keeps retrying before giving up.
+--A newly made effect normally becomes usable within a few seconds.
+local FOE_RESISTANCE_RETRY_SECONDS = 60
 
 --"The undead gain damage immunity 2": put the resistance on every monster
 --on the map with the keyword, for this combat only. Monsters that arrive
 --later (reinforcements, summons) do not get it.
+--An effect made moments ago can't be applied until the game's effect list
+--refreshes, so that foe is handed back to be tried again later.
+--Returns the foes still waiting (nil if none) and whether that list differs
+--from `foes`, so the caller knows if the bank needs rewriting.
+---@param foes table[]
+---@return table[]|nil remaining
+---@return boolean changed
 function EncounterMontage.ApplyFoeResistances(foes)
+    local remaining = {}
+    local changed = false
     for _, foe in ipairs(foes) do
-        local effectid = EnsureFoeResistanceEffect(foe.kind, foe.damageType, foe.qty)
+        --reuse the effect made on the first try, so retries don't create duplicates.
+        local effectid = foe.effectid or EnsureFoeResistanceEffect(foe.kind, foe.damageType, foe.qty)
         local keyword = string.lower(tostring(foe.keyword or ""))
-        local count = 0
-        if effectid ~= nil and GetTableCached("characterOngoingEffects")[effectid] ~= nil then
+        local firstTryAt = tonumber(foe.firstTryAt) or dmhub.serverTime
+        local visible = effectid ~= nil and GetTableCached("characterOngoingEffects")[effectid] ~= nil
+        if effectid ~= nil and not visible and dmhub.serverTime - firstTryAt < FOE_RESISTANCE_RETRY_SECONDS then
+            local waiting = DeepCopy(foe)
+            waiting.effectid = effectid
+            waiting.firstTryAt = firstTryAt
+            if foe.effectid ~= effectid or foe.firstTryAt == nil then
+                changed = true
+            end
+            remaining[#remaining + 1] = waiting
+        elseif visible then
+            local count = 0
+            changed = true
             for _, token in ipairs(dmhub.allTokens or {}) do
                 local props = token.properties
                 if token.valid and props ~= nil and not token.playerControlled and not props:IsHero() then
@@ -3779,11 +3813,20 @@ function EncounterMontage.ApplyFoeResistances(foes)
                     end
                 end
             end
+            printf("EotW montage: %s %s %s %d on %d monsters", keyword, tostring(foe.damageType), foe.kind, foe.qty or 0, count)
         else
-            printf("EotW montage: the resistance effect for '%s' is not visible to the rules engine yet; not applied", keyword)
+            changed = true
+            if effectid == nil then
+                printf("EotW montage: could not create the resistance effect for '%s'; not applied", keyword)
+            else
+                printf("EotW montage: the resistance effect for '%s' never reached the rules engine; not applied", keyword)
+            end
         end
-        printf("EotW montage: %s %s %s %d on %d monsters", keyword, tostring(foe.damageType), foe.kind, foe.qty or 0, count)
     end
+    if #remaining == 0 then
+        return nil, changed
+    end
+    return remaining, changed
 end
 
 --The initiative outcome a montage decided for the next encounter, or nil

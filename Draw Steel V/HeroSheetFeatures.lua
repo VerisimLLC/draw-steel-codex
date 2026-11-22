@@ -510,9 +510,11 @@ local function AddGrowingTables(ctx)
     end
 end
 
---Held titles the shared read did not list. A title whose benefit is not
---chosen yet shows its own text and the Choose a benefit plate, which opens
---the Titles window on it. Needs AddReaderItems (ctx.titled).
+--Held titles the shared read did not list: one still to choose, or one whose
+--benefit is tagged Hidden (Elemental Dabbler's Blaster and Immunity). The card
+--shows the title's own text, then the picked benefit's name and text; while a
+--pick is missing, the Choose a benefit plate opens the Titles window on it.
+--Needs AddReaderItems (ctx.titled).
 --- @param ctx HeroFeatureReadContext
 local function AddTitles(ctx)
     local heldTitles = {}
@@ -521,43 +523,88 @@ local function AddTitles(ctx)
             heldTitles[title.name] = title
         end
     end)
+    --- @type table<string, HeroSkillsDraft>
+    local drafts = {}
+    --Both loops below ask about the same titles: each is walked only once.
+    --- @type table<string, HeroSheetTitleWalk>
+    local walks = {}
     --- @param name string
-    --- @return nil|string the title's id when its benefit choice has no pick
-    local function TitleToChoose(name)
+    --- @return nil|string todo the title's id when a pick is still to make
+    --- @return table[] benefits the picked benefit features
+    local function TitleBenefits(name)
         local title = heldTitles[name]
         if title == nil then
-            return nil
+            return nil, {}
         end
-        local info = title:try_get("modifierInfo")
-        for _, feature in ipairs((info ~= nil and info.features) or {}) do
-            if feature.typeName == "CharacterFeatureChoice" then
-                local picks = ctx.levelChoices[feature.guid]
-                if type(picks) ~= "table" or picks[1] == nil then
-                    return title.id
+        local walk = walks[name]
+        if walk == nil then
+            walk = HeroSheetWindows.TitleWalk(title, ctx.creature, ctx.levelChoices, drafts)
+            walks[name] = walk
+        end
+        return cond(walk.todo, title.id, nil), walk.benefits
+    end
+    --Build the rules once for every title here: a title with a skill or
+    --language pick reads the build's rows, which is slow.
+    HeroBuild.main.Cached(function()
+        for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
+            if entry.name ~= nil and not ctx.titled[entry.name] then
+                ctx.titled[entry.name] = true
+                local todo, benefits = TitleBenefits(entry.name)
+                local names = {}
+                local text = OwnText(entry)
+                local abilities = {}
+                local grants = {}
+                for _, benefit in ipairs(benefits) do
+                    for _, ability in ipairs(GrantedAbilities(benefit)) do
+                        abilities[#abilities+1] = ability
+                    end
+                    for _, grant in ipairs(Grants(benefit)) do
+                        grants[#grants+1] = grant
+                    end
+                    local benefitName = nil
+                    pcall(function() benefitName = benefit.name end)
+                    if benefitName ~= nil and benefitName ~= entry.name then
+                        names[#names+1] = benefitName
+                    end
+                    local words = ""
+                    pcall(function() words = Clean(benefit:GetDescription()) end)
+                    if words ~= "" then
+                        text = cond(text ~= "", text .. "\n\n" .. words, words)
+                    end
+                end
+                ctx.Add("title", {
+                    titleChoose = todo,
+                    key = tostring(entry.guid or entry.name),
+                    name = entry.name,
+                    sub = cond(#names > 0, table.concat(names, DOT), nil),
+                    text = text,
+                    pillars = {},
+                    core = false,
+                    custom = false,
+                    abilities = abilities,
+                    search = "",
+                    feature = entry.feature,
+                    grants = grants,
+                })
+            end
+        end
+        --A title the shared read listed can still owe a pick: some titles have two
+        --choices, and the read lists the benefit of the one already made. The
+        --title's first card carries the plate.
+        local section = ctx.model.sections.title
+        local checked = {}
+        for _, item in ipairs((section ~= nil and section.items) or {}) do
+            if not checked[item.name] then
+                checked[item.name] = true
+                if item.titleChoose == nil then
+                    item.titleChoose = (TitleBenefits(item.name))
+                    if item.titleChoose ~= nil then
+                        section.need = section.need + 1
+                    end
                 end
             end
         end
-        return nil
-    end
-    for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
-        if entry.name ~= nil and not ctx.titled[entry.name] then
-            ctx.titled[entry.name] = true
-            ctx.Add("title", {
-                titleChoose = TitleToChoose(entry.name),
-                key = tostring(entry.guid or entry.name),
-                name = entry.name,
-                sub = nil,
-                text = OwnText(entry),
-                pillars = {},
-                core = false,
-                custom = false,
-                abilities = {},
-                search = "",
-                feature = entry.feature,
-                grants = {},
-            })
-        end
-    end
+    end)
 end
 
 --Complications: one card each, its own Benefit and Drawback words. Its
@@ -1969,9 +2016,8 @@ end
 --- @param id string
 --- @param expanded table<string, boolean>
 --- @param from Panel where the shared editors open from
---- @param grew fun() the list got taller (an opened group): it may need to scroll
 --- @return HeroFeatureGroup
-local function NewGroup(id, expanded, from, grew)
+local function NewGroup(id, expanded, from)
     local key = "f:" .. id
     local folded = HeroSheetLists.IsFolded(key)
     --- @type HeroFeatureCard[]
@@ -2068,7 +2114,6 @@ local function NewGroup(id, expanded, from, grew)
             caret.selfStyle.rotate = cond(folded, 90, 0)
             if not folded then
                 Fill()
-                grew()
             end
         end,
         caret,
@@ -2191,9 +2236,8 @@ HeroSheetFeatures.BarButton = BarButton
 --- @class HeroFeaturesPane
 --- @field filters Panel the pillar chips and the search, placed by the lists' frame
 --- @field bar Panel Edit mode's buttons (New feature, Paste feature, Show hidden features)
---- @field body Panel the list, scrolling once it is taller than its room
+--- @field body Panel the list, scrolling when it is taller than its room
 --- @field route fun(text: nil|string) open filtered by this text (the search's way in)
---- @field fit fun() the room changed: scroll if the list no longer fits
 --- @field setEditing fun(editing: boolean)
 
 --- The Features list for the lists' frame (HeroSheetLists.Create places its
@@ -2206,8 +2250,6 @@ function HeroSheetFeatures.Create()
     local expanded = {}
     --- @type fun()
     local ApplyFilter
-    --- @type fun()
-    local FitScroll
     --- @type Panel
     local list
 
@@ -2347,7 +2389,7 @@ function HeroSheetFeatures.Create()
     local groups = {}
     local groupPanels = {coreHolder}
     for _, sectionDef in ipairs(SECTIONS) do
-        local group = NewGroup(sectionDef.id, expanded, bar, function() FitScroll() end)
+        local group = NewGroup(sectionDef.id, expanded, bar)
         groups[sectionDef.id] = group
         groupPanels[#groupPanels+1] = group.panel
     end
@@ -2429,7 +2471,6 @@ function HeroSheetFeatures.Create()
             shown = shown + shownInGroup
         end
         nothing:SetClass("collapsed", not (filtered and shown == 0))
-        FitScroll()
     end
 
     list = HeroSheetRefresh.Block({
@@ -2472,26 +2513,19 @@ function HeroSheetFeatures.Create()
         end,
     })
 
-    --scrolls once its content is taller: panels made inside a scrolling
-    --panel lay out far more slowly, so the cards are made first.
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the list.
     --its height is set by the lists' frame (what the filters leave).
     local body = gui.Panel{
         width = "100%",
         height = "100%-6",
         flow = "vertical",
+        vscroll = true,
+        --cards well outside the view are skipped, so the tab shows and scrolls faster.
+        hideObjectsOutOfScroll = true,
         tmargin = 6,
         list,
     }
-    FitScroll = function()
-        HeroSheetWindow.AfterLayout(function()
-            if body.valid and not body.vscroll and list.renderedHeight > body.renderedHeight + 0.5 then
-                body.vscroll = true
-                --the engine then skips cards well outside the view, so the tab shows and
-                --scrolls faster. Set only once the scroll view exists: before that the engine errors.
-                body.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     return {
         filters = filters,
@@ -2505,9 +2539,6 @@ function HeroSheetFeatures.Create()
             --through the field's edit handler, which also shows its clear X.
             search.text = text or ""
             search:FireEvent("edit")
-        end,
-        fit = function()
-            FitScroll()
         end,
         setEditing = function(editing)
             if editing then

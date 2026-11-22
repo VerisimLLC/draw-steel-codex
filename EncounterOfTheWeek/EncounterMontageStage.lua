@@ -2999,7 +2999,7 @@ local function GauntletAssistChildren(m, t)
     elseif a ~= nil and a.outcome == "bane" then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_bane", { helper = a.heroName or "" })
     end
-    local rolls = EncounterGauntlet.RollsMade(m, t.heroid)
+    local rolls = EncounterGauntlet.WearyRolls(m, t.heroid)
     if rolls == 1 then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_weary_one")
     elseif rolls >= 2 then
@@ -7342,13 +7342,14 @@ function EncounterMontageStage.GauntletClaimOptions(charid)
 end
 
 --A narrative's Weary as a chip on the hero card (EotwHeroCard's
---extraChips): one bane after a roll, a double bane (badge "2") after two.
+--extraChips): one bane for one roll not yet worn off, a double bane (badge
+--"2") for two or more.
 function EncounterMontageStage.WearyChips(charid)
     local m = EncounterMontage.GetState()
     if m == nil or m.gauntlet == nil then
         return {}
     end
-    local n = EncounterGauntlet.RollsMade(m, charid)
+    local n = EncounterGauntlet.WearyRolls(m, charid)
     if n <= 0 then
         return {}
     end

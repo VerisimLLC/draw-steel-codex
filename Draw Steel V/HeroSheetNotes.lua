@@ -425,8 +425,7 @@ end
 
 --- @class HeroNotesPane
 --- @field bar Panel Edit mode's Add a section
---- @field body Panel the sections, scrolling once they are taller than their room
---- @field fit fun() the room changed: scroll if the sections no longer fit
+--- @field body Panel the sections, scrolling when they are taller than their room
 --- @field setEditing fun(editing: boolean)
 
 --- The Notes for the lists' frame (HeroSheetLists.Create places its Edit bar
@@ -434,8 +433,6 @@ end
 --- note changes, here or on another client.
 --- @return HeroNotesPane
 function HeroSheetNotes.Create()
-    --- @type fun()
-    local FitScroll
     --- @type HeroNoteCard[]
     local cards = {}
     local holder = gui.Panel{
@@ -524,40 +521,27 @@ function HeroSheetNotes.Create()
                 cards[i].panel:SetClass("collapsed", true)
             end
             SyncAdd()
-            FitScroll()
         end,
     })
 
-    --scrolls once its content is taller (as the Features list); its height
-    --is set by the lists' frame.
+    --scrolls from creation (as the Features list): the engine wires a scroll
+    --bar only on a panel's first frame. Its height is set by the lists' frame.
     local body = gui.Panel{
         width = "100%",
         height = "100%-6",
         flow = "vertical",
+        vscroll = true,
+        hideObjectsOutOfScroll = true,
         tmargin = 6,
         --another Hero's notes start at the top.
         heroSheetHero = function(element)
-            if element.vscroll then
-                element.vscrollPosition = 1
-            end
+            element.vscrollPosition = 1
         end,
         list,
     }
-    FitScroll = function()
-        HeroSheetWindow.AfterLayout(function()
-            if body.valid and not body.vscroll and list.renderedHeight > body.renderedHeight + 0.5 then
-                body.vscroll = true
-                body.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
-
     return {
         bar = bar,
         body = body,
-        fit = function()
-            FitScroll()
-        end,
         setEditing = function(editing)
             SyncAdd()
         end,

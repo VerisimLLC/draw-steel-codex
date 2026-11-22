@@ -10447,14 +10447,34 @@ local CreateAudioLibraryTree = function()
 	--its whole ancestor chain into view. Clips are filtered to matches only, within
 	--whichever folders survive. Matched folders are recorded into matchedFolderSet so
 	--CreateFolderNode can force them open + built regardless of remembered expansion.
+	--The search-only folder, always last, holding the MGS tracks that match but that
+	--neither the game has nor the account includes.
+	local MGS_LOCKED_FOLDER = "mgs|locked"
+
 	local function FilterMaps(foldersByParent, clipsByFolder, mgsByFolder, searchText, matchedFolderSet)
 		if searchText == "" then
 			return foldersByParent, clipsByFolder, mgsByFolder
 		end
-		--MGS tracks match on their title, genre, composer and keywords.
+		--MGS tracks match on their title, genre, composer and keywords. Tracks the
+		--game lacks and the account does not include are left out of the folders:
+		--they are listed after everything else, under their own heading.
 		local function MGSMatches(entry)
 			return string.find(entry.track.search, searchText, 1, true) ~= nil
 		end
+		local function MGSUsable(entry)
+			return entry.asset ~= nil or entry.track.entitled
+		end
+		local locked = {}
+		for _,list in pairs(mgsByFolder) do
+			for _,entry in ipairs(list) do
+				if not MGSUsable(entry) and MGSMatches(entry) then
+					locked[#locked+1] = entry
+				end
+			end
+		end
+		table.sort(locked, function(a, b)
+			return string.lower(a.track.title) < string.lower(b.track.title)
+		end)
 
 		--Recursively decide (and memoise) whether folderid should survive the filter:
 		--its own name matches, one of its direct clips matches, or a child folder does.
@@ -10480,7 +10500,7 @@ local CreateAudioLibraryTree = function()
 			end
 			if not survives then
 				for _,entry in ipairs(mgsByFolder[folderid] or {}) do
-					if MGSMatches(entry) then
+					if MGSUsable(entry) and MGSMatches(entry) then
 						survives = true
 						break
 					end
@@ -10522,7 +10542,7 @@ local CreateAudioLibraryTree = function()
 
 					local mgs = {}
 					for _,mgsEntry in ipairs(mgsByFolder[entry.id] or {}) do
-						if MGSMatches(mgsEntry) then
+						if MGSUsable(mgsEntry) and MGSMatches(mgsEntry) then
 							mgs[#mgs+1] = mgsEntry
 						end
 					end
@@ -10533,6 +10553,14 @@ local CreateAudioLibraryTree = function()
 			end
 		end
 		FilterLevel("__root__")
+
+		if #locked > 0 then
+			local t = outFoldersByParent["__root__"]
+			if t == nil then t = {} outFoldersByParent["__root__"] = t end
+			t[#t+1] = { id = MGS_LOCKED_FOLDER, folder = { description = "Needs Michael Ghelfi Studios access", virtual = true } }
+			outMGSByFolder[MGS_LOCKED_FOLDER] = locked
+			matchedFolderSet[MGS_LOCKED_FOLDER] = true
+		end
 
 		return outFoldersByParent, outClipsByFolder, outMGSByFolder
 	end
@@ -11106,6 +11134,18 @@ local CreateAudioLibraryTree = function()
 		end
 		local children = {}
 		for _,entry in ipairs(foldersByParent["__root__"] or {}) do
+			if entry.id == MGS_LOCKED_FOLDER then
+				--a gap and a rule set the tracks you cannot use apart from your own.
+				children[#children+1] = gui.Panel{
+					bgimage = "panels/square.png",
+					bgcolor = "@border",
+					opacity = 0.35,
+					width = "100%",
+					height = 1,
+					tmargin = 14,
+					bmargin = 4,
+				}
+			end
 			children[#children+1] = CreateFolderNode(entry, foldersByParent, clipsByFolder)
 		end
 		element.children = children

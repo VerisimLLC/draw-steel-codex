@@ -4681,7 +4681,7 @@ local function ArtWindow(target)
         end
         local top = 0
         local range = total - ART_GRID_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -4707,6 +4707,7 @@ local function ArtWindow(target)
         width = "100%",
         height = ART_GRID_H,
         flow = "vertical",
+        vscroll = true,
         thinkTime = 0.03,
         think = function(element)
             Scroll()
@@ -4718,16 +4719,14 @@ local function ArtWindow(target)
     --- A fresh tab or search: rebuild the rows, back to the top.
     Refill = function()
         Build()
-        holder.vscroll = false
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
-        --built without scrolling, then scrolling turned on once laid out:
-        --building under a scroll view costs more per panel.
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then
                 return
             end
-            holder.vscroll = total > ART_GRID_H
             holder.vscrollPosition = 1
         end)
     end
@@ -6869,19 +6868,25 @@ local function AnthemWindow()
     --each MGS genre folder row's words, by "<kind>|<genre>".
     --- @type table<string, {label: string, count: integer, owned: integer}>
     local mgsHeaders = {}
+    --a search's matches your account lacks, counted for their heading row.
+    local mgsLockedCount = 0
 
     --- The Michael Ghelfi Studios rows after the game's own: "mgs:<track id>" for a
     --- track, "mgshdr:<kind>|<genre>" for a genre folder, "mgsnote:<what>" for a note.
     --- The whole library, connected or not: with no search in a folder per genre, with
-    --- a search as one list. Tracks your account includes come first in each.
+    --- a search as one list. Tracks your account includes come first in each; in a
+    --- search the rest sit after everything usable, under an "mgsnote:locked" heading.
     --- @param list string[]
     local function AppendMGS(list)
+        mgsLockedCount = 0
         local kinds = AnthemMGS.TAB_KINDS[tab]
         if kinds == nil then
             return
         end
         local state = MGSAudio.State()
-        if not MGSAudio.IsConnected() then
+        local connected = MGSAudio.IsConnected()
+        --a search puts the connect note under the locked heading instead.
+        if not connected and (search == "" or #MGSAudio.Tracks() == 0) then
             list[#list+1] = "mgsnote:connect"
         end
         local tracks = MGSAudio.Tracks()
@@ -6922,6 +6927,13 @@ local function AnthemWindow()
             table.sort(locked, ByTitle)
             for _, track in ipairs(owned) do
                 list[#list+1] = "mgs:" .. track.id
+            end
+            if #locked > 0 then
+                mgsLockedCount = #locked
+                list[#list+1] = "mgsnote:locked"
+                if not connected then
+                    list[#list+1] = "mgsnote:connect"
+                end
             end
             for _, track in ipairs(locked) do
                 list[#list+1] = "mgs:" .. track.id
@@ -7135,6 +7147,16 @@ local function AnthemWindow()
                 textWrap = false,
             },
         }
+        --the line under a section heading row.
+        local rule = gui.Panel{
+            classes = {"heroSheetDivider", "collapsed"},
+            bgimage = "panels/square.png",
+            floating = true,
+            width = "100%",
+            height = 1,
+            valign = "bottom",
+            interactable = false,
+        }
         local playSlot = gui.Panel{
             width = 30,
             height = 30,
@@ -7226,7 +7248,17 @@ local function AnthemWindow()
             },
             mark,
             action,
+            rule,
         }
+        --- Paint the row as a plain heading with a line under it, or as a tile.
+        --- @param on boolean
+        local function SetSection(on)
+            row:SetClass("heroLookTile", not on)
+            row:SetClass("hoverable", not on)
+            row:SetClass("heroLookSection", on)
+            row.selfStyle.border = cond(on, 0, 1)
+            rule:SetClass("collapsed", not on)
+        end
         --- Show the right side's button with these words, or hide it (nil).
         --- @param text nil|string
         local function ShowAction(text)
@@ -7257,6 +7289,12 @@ local function AnthemWindow()
                     words = string.format("%s \xC2\xB7 %d in your account", words, info.owned)
                 end
                 sub.text = words
+                return
+            end
+            if id == "mgsnote:locked" then
+                SetSection(true)
+                name.text = "Needs Michael Ghelfi Studios access"
+                sub.text = string.format("%d %s", mgsLockedCount, cond(mgsLockedCount == 1, "track", "tracks"))
                 return
             end
             if prefix == "mgsnote" then
@@ -7300,6 +7338,7 @@ local function AnthemWindow()
             if id == nil then
                 return
             end
+            SetSection(false)
             if string.sub(id, 1, 3) == "mgs" then
                 PaintMGS(id)
                 return
@@ -7364,7 +7403,7 @@ local function AnthemWindow()
         end
         local top = 0
         local range = #ids * ANTHEM_ROW_H - ANTHEM_LIST_H
-        if range > 0 and holder.vscroll then
+        if range > 0 then
             --vscrollPosition runs 1 at the top to 0 at the bottom.
             top = (1 - (holder.vscrollPosition or 1)) * range
         end
@@ -7384,6 +7423,7 @@ local function AnthemWindow()
         width = "100%",
         height = ANTHEM_LIST_H,
         flow = "vertical",
+        vscroll = true,
         thinkTime = 0.03,
         think = function(element)
             Scroll()
@@ -7395,16 +7435,14 @@ local function AnthemWindow()
     --- A fresh tab or search: rebuild the rows, back to the top.
     function Refill()
         Build()
-        holder.vscroll = false
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
-        --built without scrolling, then scrolling turned on once laid out:
-        --building under a scroll view costs more per panel.
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then
                 return
             end
-            holder.vscroll = #ids * ANTHEM_ROW_H > ANTHEM_LIST_H
             holder.vscrollPosition = 1
         end)
     end
@@ -8752,6 +8790,7 @@ local function DiceWindow()
         height = DICE_GRID_H,
         tmargin = 12,
         flow = "vertical",
+        vscroll = true,
         grid,
     }
     local holder = gui.Panel{
@@ -8789,14 +8828,6 @@ local function DiceWindow()
         body = holder,
         onDone = function() end,
     }
-    --built without scrolling, then scrolling turned on once laid out:
-    --building under a scroll view costs more per panel.
-    HeroSheetWindow.AfterLayout(function()
-        if not scroller.valid then
-            return
-        end
-        scroller.vscroll = grid.renderedHeight > scroller.renderedHeight + 0.5
-    end)
     --each set's showcase dice are built a few frames apart after opening:
     --building one on its first hover stalls that frame.
     for i, set in ipairs(sets) do
@@ -10657,26 +10688,6 @@ local function BuildBody(state, bus)
     local content
     local holder
 
-    --- The body scrolls only once its content overflows: a panel under a
-    --- scroll view costs more to build and lay out.
-    local fitGen = 0
-    local function FitScroll()
-        fitGen = fitGen + 1
-        local gen = fitGen
-        HeroSheetWindow.AfterLayout(function()
-            if gen ~= fitGen or not holder.valid then
-                return
-            end
-            if holder.renderedHeight <= 0 then
-                return
-            end
-            local over = content.renderedHeight > holder.renderedHeight + 0.5
-            if (holder.vscroll == true) ~= over then
-                holder.vscroll = over
-            end
-        end)
-    end
-
     --whether the sheet shows this tab: the map preview's floor exists only
     --while it is on screen, and a preview stops when the tab goes.
     local sheetState = HeroSheet.State()
@@ -10713,7 +10724,6 @@ local function BuildBody(state, bus)
             pane:SetClass("collapsed", paneid ~= id)
         end
         HeroSheetRefresh.CatchUpShown()
-        FitScroll()
         SyncShown()
     end
     bus.ShowSubtab = Show
@@ -10985,21 +10995,13 @@ local function BuildBody(state, bus)
         panes.effects,
         panes.summons,
     }
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the content.
     holder = gui.Panel{
         width = "100%",
         height = "100%-42",
         flow = "vertical",
-        --content that grows in place (dice rows appearing, a card row) must
-        --turn scrolling on too, or its top goes out of reach.
-        data = {height = -1},
-        thinkTime = 0.25,
-        think = function(element)
-            local renderedHeight = content.renderedHeight
-            if renderedHeight ~= element.data.height then
-                element.data.height = renderedHeight
-                FitScroll()
-            end
-        end,
+        vscroll = true,
         content,
     }
     Show("look")
@@ -11010,7 +11012,7 @@ local function BuildBody(state, bus)
     bus.RevealArt = function()
         Show("look")
         dmhub.Schedule(0.05, function()
-            if mod.unloaded or not holder.valid or holder.vscroll ~= true then
+            if mod.unloaded or not holder.valid then
                 return
             end
             local range = content.renderedHeight - holder.renderedHeight
@@ -11025,15 +11027,8 @@ local function BuildBody(state, bus)
         width = "100%",
         height = "100%",
         flow = "vertical",
-        heroSheetLayout = function(element)
-            FitScroll()
-        end,
-        heroSheetTier = function(element)
-            FitScroll()
-        end,
         heroSheetHero = function(element)
             StopAudition()
-            FitScroll()
         end,
         heroSheetTab = function(element, tabid)
             tabShown = tabid == "Appearance"
@@ -11053,7 +11048,6 @@ local function BuildBody(state, bus)
             hosted = host.builder
             hostShown = host.shown
             SyncShown()
-            FitScroll()
         end,
         strip,
         holder,

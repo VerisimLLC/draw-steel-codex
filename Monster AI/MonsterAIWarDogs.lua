@@ -325,7 +325,8 @@ local function WithMinionDeathResolver(ai, marks, fn)
 end
 
 --Casts something that reduces these war dogs to 0 Stamina, then waits for
---their loyalty collars to go off.
+--their loyalty collars to go off. A captain's collar can go off after the cast
+--has finished, so answer any collars still waiting before moving on.
 local function ExecuteDetonation(ai, detonator, victims, fn)
     local marks = {}
     for _,victim in ipairs(victims) do
@@ -334,6 +335,9 @@ local function ExecuteDetonation(ai, detonator, victims, fn)
     WithMinionDeathResolver(ai, marks, function()
         fn()
         ai:WaitForAbilityIdle(30)
+        if ai:ResolveDyingCreatureTriggers() > 0 then
+            ai:WaitForAbilityIdle(30)
+        end
     end)
 end
 
@@ -840,6 +844,97 @@ local function ExecuteCubePlan(ai, token, ability, center, symbols)
     end)
     DestroyArea(area)
 end
+
+--------------------------------------------------------------------------------
+-- Commando: hide after Daggers.
+--------------------------------------------------------------------------------
+
+--Daggers lets each commando that used it take the Hide maneuver, even if
+--observed. In a squad strike the content offers the "Caster May Hide" prompt
+--once per target, to the first commando that struck it. A commando that
+--struck a creature a squad-mate struck first is never asked, so the AI hides
+--those itself.
+
+--True when hiding here would stick: cover or concealment (the Hide maneuver's
+--own test, canhidehere), and nothing that reveals it at once (grabbed, or an
+--enemy next to it).
+local function CommandoCanHide(token)
+    if not LiveCreature(token) or token.playerControlled then
+        return false
+    end
+    local c = token.properties
+    if c:IsHidden() or c:HasNamedCondition("Grabbed") then
+        return false
+    end
+    for _,enemy in ipairs(HostileCreatures(token)) do
+        if MonsterAI.TargetDistance(token, enemy) <= 1 then
+            return false
+        end
+    end
+    return c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+end
+
+--Squad-mates who struck in this squad strike but were not the first to strike
+--any target, so get no hide prompt of their own.
+local function UnpromptedSquadStrikers(casterToken, options)
+    local symbols = options ~= nil and options.symbols or nil
+    local targetPairs = symbols ~= nil and symbols.targetPairs or nil
+    local result = {}
+    if type(targetPairs) ~= "table" then
+        return result
+    end
+    local struckTargets = {}
+    local prompted = {}
+    for _,pair in ipairs(targetPairs) do
+        if not struckTargets[pair.b] then
+            struckTargets[pair.b] = true
+            prompted[pair.a] = true
+        end
+    end
+    local seen = {}
+    local casterType = MonsterType(casterToken)
+    for _,pair in ipairs(targetPairs) do
+        local member = FindTokenByCharid(pair.a)
+        if member ~= nil and not prompted[pair.a] and not seen[pair.a]
+            and member.charid ~= casterToken.charid and LiveCreature(member)
+            and member:IsFriend(casterToken) and MonsterType(member) == casterType then
+            seen[pair.a] = true
+            result[#result+1] = member
+        end
+    end
+    return result
+end
+
+MonsterAI:RegisterPrompt{
+    id = "War Dog Commando: Hide after Daggers",
+    prompts = {"War Dog Commando:Caster May Hide"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if casterToken == nil or casterToken.playerControlled then
+            return nil
+        end
+
+        for _,member in ipairs(UnpromptedSquadStrikers(casterToken, options)) do
+            if CommandoCanHide(member) then
+                member:ModifyProperties{
+                    description = "Hide",
+                    execute = function()
+                        member.properties:BecomeHidden(member)
+                    end,
+                }
+                ai:LogDecision("COMMANDO HIDES", {
+                    hider = MonsterAI.TokenLogName(member),
+                    reason = "struck a target a squad-mate struck first, so had no prompt",
+                })
+            end
+        end
+
+        if CommandoCanHide(casterToken) then
+            return {targets = {{token = casterToken}}}
+        end
+        --The hide targets its caster whatever targets it is given, so decline it.
+        return {decline = true, reason = "no cover or concealment, or an enemy is adjacent"}
+    end,
+}
 
 --------------------------------------------------------------------------------
 -- Strikes.
@@ -2154,11 +2249,13 @@ MonsterAI:RegisterMaliceAbility{
 
 --Fodder Run: each minion that can get next to an enemy shifts there, makes a
 --free strike, and is reduced to 0 Stamina, so its collar goes off there too.
---Minions who cannot reach anyone simply stay out of it and live.
-local function PlanFodderRun(ai, token, context)
+--Minions who cannot reach anyone simply stay out of it and live. Only minions
+--the ability can target and the caster can see are planned.
+local function PlanFodderRun(ai, token, context, ability)
+    --A Hidden enemy is unseen: the runners neither head for it nor can strike it.
     local enemies = {}
     for _,enemy in ipairs(context.enemyTokens or {}) do
-        if LiveCreature(enemy) then
+        if LiveCreature(enemy) and not MonsterAI.ActorIsHidden(enemy) then
             enemies[#enemies+1] = enemy
         end
     end
@@ -2172,7 +2269,8 @@ local function PlanFodderRun(ai, token, context)
 
     local minions = {}
     for _,other in ipairs(FriendlyWarDogs(token)) do
-        if IsMinion(other) then
+        if IsMinion(other) and ability:TargetPassesFilter(token, other, {})
+            and (other.charid == token.charid or CanSee(token, other)) then
             local nearest = 999
             for _,enemy in ipairs(enemies) do
                 nearest = math.min(nearest, MonsterAI.TargetDistance(other, enemy))
@@ -2226,7 +2324,7 @@ MonsterAI:RegisterMaliceAbility{
     abilities = {"Fodder Run"},
     description = "Spend 7 Malice to send at least three minions who are worth more exploded than alive running at the enemy to strike and detonate.",
     score = function(self, ai, token, ability, context)
-        local plans, total = PlanFodderRun(ai, token, context)
+        local plans, total = PlanFodderRun(ai, token, context, ability)
         if plans == nil or #plans < fodderRunMinimumMinions or total < fodderRunMinimumGain then
             return nil, string.format("only %d minions gain %.1f by running", plans ~= nil and #plans or 0, total or 0)
         end
@@ -2237,60 +2335,35 @@ MonsterAI:RegisterMaliceAbility{
         }
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
-        local plans = PlanFodderRun(ai, token, context)
+        local plans = PlanFodderRun(ai, token, context, ability)
         if plans == nil or #plans == 0 then
             return
         end
         Speak(ai, token, "fodderRun")
-        --Pay for the feature, then drive each runner directly.
-        local area = dmhub.CalculateShape{
-            shape = "map",
-            token = token,
-        }
-        ActivateWithBehaviors(ai, token, ability, {}, {}, {
-            sleep = stationaryPause,
-            symbols = {targetArea = area},
-            targetArea = area,
-        })
-
+        --The ability itself shifts every runner to its planned square, then free
+        --strikes with each, then destroys them all, even a runner that could not
+        --strike. The AI used to spare a runner with no free strike.
+        local targets = {}
+        local victims = {}
+        local runnerIds = {}
         for _,plan in ipairs(plans) do
-            local minion = plan.token
-            if LiveCreature(minion) then
-                local ok, err = ai:RunWithTokenControl(minion, function()
-                    ExecuteGrantedShift(ai, minion, plan.loc, minion.properties:CurrentMovementSpeed() or 0)
-                    if not LiveCreature(minion) then
-                        return
-                    end
-                    local strike = BestFreeStrikeFrom(ai, minion, minion.loc, FreeStrikeOptions(minion))
-                    if strike == nil then
-                        --Only a minion who strikes is spent.
-                        ai:LogDecision("FODDER RUN", {
-                            actor = ai.TokenLogName(minion),
-                            reason = "no free strike from where the run ended",
-                            result = "minion kept",
-                        })
-                        return
-                    end
-                    ExecuteFreeStrike(ai, minion, strike)
-                    if LiveCreature(minion) then
-                        --Reduced to 0 Stamina, which sets off its loyalty collar.
-                        local spend = ActivatedAbility.Create{
-                            name = "Fodder Run",
-                            iconid = ability.iconid,
-                            display = ability.display,
-                            targetType = "self",
-                            actionResourceId = "none",
-                            behaviors = {ActivatedAbilityDestroyBehavior.new{}},
-                        }
-                        ExecuteDetonation(ai, minion, {minion}, function()
-                            ai:ExecuteAbility(minion, spend, {{token = minion}}, {sleep = grantedActionPause})
-                        end)
-                    end
-                end)
-                if not ok then
-                    print(string.format("AI:: Fodder Run failed for %s: %s", minion.name or minion.charid, tostring(err)))
-                end
-            end
+            targets[#targets+1] = {token = plan.token}
+            victims[#victims+1] = plan.token
+            runnerIds[#runnerIds+1] = plan.token.charid
+            MonsterAI.plannedShiftDestinations[plan.token.charid] = plan.loc
+        end
+        local ok, err = ai:RunYieldingFunction(function()
+            ExecuteDetonation(ai, token, victims, function()
+                ai:ExecuteAbility(token, ability, targets, {sleep = stationaryPause})
+            end)
+        end)
+        --A runner that never got its Shift prompt must not keep its square.
+        for _,runnerId in ipairs(runnerIds) do
+            MonsterAI.plannedShiftDestinations[runnerId] = nil
+        end
+        if not ok then
+            error(err, 0)
         end
     end,
 }
+

@@ -2960,6 +2960,9 @@ function GameHud.CreateRollDialog(self)
                 end
             end
 
+            --A triggered modifier can also take others off this row (removeModifiers).
+            ActiveTrigger.RemoveModifiersForTriggers(m_options.modifiers)
+
             resultPanel:FireEventTree('prepare', m_options)
             local roll = CalculateRollText {
                 surges = m_multitargets[index].surges or 0,

@@ -91,7 +91,7 @@ local mod = dmhub.GetModLoading()
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field each? number On a minions line: one minion's Stamina.
 --- @field damage? number On a minions line: the damage behind the deaths.
---- @field mk? string On a minions line: the squad's Monster Knowledge key. On a non-Hero's staminaset or temporarystamina line (and a row target's pool): its key, "" when Monster Info can't learn it; players see the numbers only when its Stamina bar would show them the number.
+--- @field mk? string On a minions line: the squad's Monster Knowledge key. On a non-Hero's staminaset or temporarystamina line, a damage line with soaked (and a row target's pool or soaked): its key, "" when Monster Info can't learn it; players see the numbers only when its Stamina bar would show them the number.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title. On a reinforcements line: the wave. On a reveal line: the modifier.
 --- @field names? string[] On an ended line: what ended.
@@ -528,11 +528,11 @@ end
 --The Monster Knowledge keys of the monsters an entry has Stamina numbers for, or nil.
 local function StaminaKeys(entry)
     local keys = nil
-    if (entry.family == "staminaset" or entry.family == "temporarystamina") and entry.mk ~= nil then
+    if (entry.family == "staminaset" or entry.family == "temporarystamina" or entry.family == "damage") and entry.mk ~= nil then
         keys = {entry.mk}
     end
     for _, who in ipairs(entry.targets or {}) do
-        if who.pool ~= nil and who.mk ~= nil then
+        if (who.pool ~= nil or who.soaked ~= nil) and who.mk ~= nil then
             keys = keys or {}
             keys[#keys + 1] = who.mk
         end
@@ -645,9 +645,14 @@ local function ForPlayers(entry)
         and not StaminaKnown(entry.mk) then
         return nil
     end
+    --a monster's temporary Stamina soak shows its pool, so it goes the same way.
+    if entry.family == "damage" and entry.mk ~= nil and not StaminaKnown(entry.mk) then
+        entry.soaked = nil
+    end
     for _, who in ipairs(entry.targets or {}) do
-        if who.pool ~= nil and who.mk ~= nil and not StaminaKnown(who.mk) then
+        if who.mk ~= nil and not StaminaKnown(who.mk) then
             who.pool = nil
+            who.soaked = nil
         end
     end
     --effects hidden from enemies, on a creature off the heroes' side.

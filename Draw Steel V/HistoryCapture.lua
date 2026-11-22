@@ -32,7 +32,7 @@ local mod = dmhub.GetModLoading()
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field mk? string On a target with a pool: its Monster Knowledge key for the Stamina cut (see HistoryEntry.mk).
+--- @field mk? string On a target with a pool or a soak: its Monster Knowledge key for the Stamina cut (see HistoryEntry.mk).
 --- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil, ref: string|nil, cid: string|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players. ref is an ongoing effect's instance id and cid a condition's id, so History can tell whether it is still on (Active).
 --- @field ended? string[] On a target: names of what it ended.
 --- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
@@ -1020,6 +1020,21 @@ local function TypeWord(damagetype)
     return string.lower(damagetype)
 end
 
+--What a Stamina line keeps so players see its numbers only when the token's Stamina bar would
+--show them the number: the monster's Monster Knowledge key, "" for a creature Monster Info
+--can't learn about, nil for a Hero (always shown).
+local function StaminaGateKey(token)
+    local hero = token.playerControlled
+    if not hero then
+        local ok, result = pcall(function() return token.properties:IsHero() end)
+        hero = ok and result == true
+    end
+    if hero then
+        return nil
+    end
+    return MonsterKnowledge.KeyForToken(token) or ""
+end
+
 local function OnDamage(creature, info)
     if not History.Enabled() then
         return
@@ -1054,6 +1069,8 @@ local function OnDamage(creature, info)
             WriteLine(token, "damage", NoteHand{
                 taken = info.landed,
                 soaked = soaked > 0 and soaked or nil,
+                --a monster's soak is its temporary Stamina: players see it only as they see that.
+                mk = soaked > 0 and StaminaGateKey(token) or nil,
                 damagetype = damagetype,
                 causetext = cause,
             })
@@ -1072,6 +1089,7 @@ local function OnDamage(creature, info)
     target.taken = (target.taken or 0) + info.landed
     if soaked > 0 then
         target.soaked = (target.soaked or 0) + soaked
+        target.mk = StaminaGateKey(token)
     end
     if damagetype ~= nil and info.landed > 0 then
         target.types = target.types or {}
@@ -1314,21 +1332,6 @@ local function OnMinionsDied(creature, info)
         damage = info.damage,
         mk = MonsterKnowledge.KeyForToken(token),
     })
-end
-
---What a Stamina line keeps so players see its numbers only when the token's Stamina bar would
---show them the number: the monster's Monster Knowledge key, "" for a creature Monster Info
---can't learn about, nil for a Hero (always shown).
-local function StaminaGateKey(token)
-    local hero = token.playerControlled
-    if not hero then
-        local ok, result = pcall(function() return token.properties:IsHero() end)
-        hero = ok and result == true
-    end
-    if hero then
-        return nil
-    end
-    return MonsterKnowledge.KeyForToken(token) or ""
 end
 
 local function OnTemporaryStamina(creature, before, after, note)

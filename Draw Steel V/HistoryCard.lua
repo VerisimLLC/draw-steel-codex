@@ -2209,8 +2209,12 @@ local function NumbersRows(entry, kids, width)
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
             --a monster's stat block gives its roll a flat number, not a characteristic, so its
-            --characteristic goes into Bonus.
-            local monster = entry.actor ~= nil and not entry.actor.hero
+            --characteristic goes into Bonus. An action keeps its roller in actor; a test line, in who.
+            local roller = entry.actor
+            if roller == nil and entry.family == "test" then
+                roller = entry.who
+            end
+            local monster = roller ~= nil and not roller.hero
             if roll.characteristic ~= nil and not monster then
                 rows[#rows + 1] = ReceiptLine(width, {label = roll.characteristic.name, value = Signed(roll.characteristic.value)})
             end

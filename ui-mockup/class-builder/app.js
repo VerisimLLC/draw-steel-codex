@@ -115,13 +115,51 @@ const lbl = t => document.createTextNode(" " + t + " ");
 // ---------------------------------------------------------------------------------------------
 // Sentence blocks: what a feature does. Each one: shelf label, group, a book-style sentence with
 // underlined values, and the CharacterModifier record it saves as.
-const GROUPS = [["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
+const GROUPS = [["choice", "Choices", "--c-choice"], ["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
   ["skill", "Skills and languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
+/* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
+   don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
+   record type from its blocks (one choice alone -> that choice; a mix -> a feature list). */
 const SENT = {
+  perkChoice: { label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
+    render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
+    prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
+    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
+  skillChoice: { label: "Choose skills", group: "choice", uses: 82, choice: true, make: () => ({ num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
+    render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(lbl((+f.num === 1 ? "skill" : "skills") + " of your choice from the")); add(multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or")); add(lbl("skill groups, or")); add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "no named skills", "or")); },
+    prose: f => "You gain " + word(f.num) + " skill" + (+f.num === 1 ? "" : "s") + " of your choice from the " + listWords(f.groups) + " skill groups" + (f.named.length ? ", or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "") + ".",
+    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num || 1, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) },
+  charChoice: { label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
+    render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
+    prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
+    // Options are the characteristics this feature doesn't already raise (its "score increases to" blocks).
+    compileChoice: (f, feat, base) => { const raised = feat.sentences.filter(x => x.type === "stat" && CHARS.some(c => c[0] === x.f.attr)).map(x => x.f.attr);
+      return Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
+        options: CHARS.filter(c => !raised.includes(c[0])).map(c => ({ __typeName: "CharacterFeature", name: c[1], description: "", tags: { Hidden: true },
+          modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1, cap: numOr(f.max) }] })) }); } },
+  abilityChoice: { label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
+    render: (f, add, s, feat) => {
+      add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
+      if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
+      add(abilityCards(f.options.map(o => ({ rec: o.rec })), feat, (i, rec) => { f.options[i].rec = rec; }, i => f.options.splice(i, 1), s, () => abilitySeed(f.cat, f.cost)));
+      const b = E("button", "addsent inblock", "+ new ability to choose from"); b.type = "button";
+      b.addEventListener("click", ev => { ev.stopPropagation(); const o = { id: newId("o"), rec: null }; change(() => f.options.push(o));
+        openEditor({ rec: abilitySeed(f.cat, f.cost), kind: "ability" }, rec => { o.rec = rec; }); });
+      add(b);
+    },
+    prose: f => f.cat === "signature" ? "Choose " + word(f.num) + " signature ability from the following options. Signature abilities can be used at will."
+      : "Choose " + word(f.num) + " heroic ability from the following options, each of which costs " + f.cost + " " + (cls.resourceName || "heroic resource").toLowerCase() + " to use.",
+    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
+      options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
+        modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
+  subclassChoice: { label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
+    render: (f, add) => { add(lbl("Choose your")); add(textTok(cls, "subclassWord", "subclass")); const h = E("span", "aside", "(subclasses are made in the subclass editor)"); add(h); },
+    prose: () => "Choose your " + (cls.subclassWord || "subclass") + ".",
+    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
   stat: { label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
-      add(lbl("Your")); add(pickTok(f, "attr", STAT_OPTS.concat(CUSTOM_FLAGS.map(a => [a[0], a[1]]))));
+      add(lbl("Your")); add(pickTok(f, "attr", STAT_OPTS.concat(CUSTOM_FLAGS.map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
       add(pickTok(f, "op", [["add", "increases by"], ["sub", "decreases by"], ["max", "increases to"], ["set", "is"], ["min", "can't go above"]]));
       add(textTok(f, "value", "number or formula"));
     },
@@ -214,8 +252,8 @@ function abilityNameTok(f) {
 function allAbilityNames() {
   const out = new Set();
   eachFeature(feat => {
-    (feat.sentences || []).forEach(function walk(s) { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) out.add(recName(s.f.rec)); (s.children || []).forEach(walk); });
-    (feat.options || []).forEach(o => o.rec && out.add(recName(o.rec)));
+    (feat.sentences || []).forEach(function walk(s) { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) out.add(recName(s.f.rec));
+      if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && out.add(recName(o.rec))); (s.children || []).forEach(walk); });
   });
   return [...out];
 }
@@ -223,43 +261,48 @@ const recName = rec => rec.__typeName === "CharacterModifier" ? ((rec.triggeredA
 function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), type, f: d.make(), children: d.wrapper ? [] : undefined }; }
 
 // ---------------------------------------------------------------------------------------------
-// Features. "feature" is built from sentences; the rest are the ready-made shapes core classes repeat.
-const FKINDS = {
-  feature: "Feature", abilities: "Ability choice", skills: "Skills", perk: "Perk", subclass: "Subclass choice", charinc: "Characteristic Increase",
-};
+// Features: a name, its book text, and blocks. Ready-made features are just pre-filled blocks; every
+// block in them stays editable, and dragging one in copies it.
 const READY = [
-  { key: "perk", title: "Perk", uses: 54, desc: "One perk from [groups]", make: () => ({ kind: "perk", name: "Perk", groups: ["exploration", "interpersonal", "intrigue"] }) },
-  { key: "skills", title: "Skills", uses: 69, desc: "[N] skills from [groups]", make: () => ({ kind: "skills", name: "Skills", num: "1", groups: SKILL_GROUPS.slice(), named: [] }) },
-  { key: "charinc", title: "Characteristic Increase", uses: 33, desc: "Scores increase to [N]; choose another", make: () => ({ kind: "charinc", name: "Characteristic Increase", fixed: primaryChars().map(c => ({ attr: c, to: "3" })), num: "1", max: "3" }) },
-  { key: "heroic", title: "Choose a heroic ability", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => ({ kind: "abilities", name: "", cat: "heroic", cost: "3", num: "1", options: [] }) },
-  { key: "signature", title: "Signature ability", uses: 9, desc: "Choose one of [list]", make: () => ({ kind: "abilities", name: "Signature Ability", cat: "signature", cost: "", num: "1", options: [] }) },
-  { key: "subclass", title: "Subclass choice", uses: 12, desc: "College, Circle, Domain...", make: () => ({ kind: "subclass", name: (cls.subclassWord || "Subclass") }) },
-  { key: "kit", title: "Kit", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", "You can use and gain the benefits of a kit.", ["kit"]) },
-  { key: "recoveries", title: "Recoveries", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", "", ["resource"]) },
-  { key: "languages", title: "Languages", uses: 6, desc: "You know [languages]", make: () => feature("Languages", "", ["language"]) },
-  { key: "withability", title: "Feature with an ability", uses: 601, desc: "Name, text and an ability card", make: () => feature("", "", ["ability"]), opens: "ability" },
-  { key: "withtrigger", title: "Feature with a triggered ability", uses: 220, desc: "Name, text and a trigger card", make: () => feature("", "", ["trigger"]), opens: "trigger" },
-  { key: "empty", title: "Empty feature", uses: null, desc: "Name, text, then add sentences", make: () => feature("", "", []) },
+  { key: "perk", title: "Perk", uses: 54, desc: "One perk from [groups]", make: () => feature("Perk", [["perkChoice"]]) },
+  { key: "skills", title: "Skills", uses: 69, desc: "[N] skills from [groups]", make: () => feature("Skills", [["skillChoice"]]) },
+  { key: "charinc", title: "Characteristic Increase", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
+  { key: "heroic", title: "Choose a heroic ability", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
+  { key: "signature", title: "Signature ability", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
+  { key: "subclass", title: "Subclass choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature(cls.subclassWord || "Subclass", [["subclassChoice"]]) },
+  { key: "kit", title: "Kit", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", [["kit"]]) },
+  { key: "recoveries", title: "Recoveries", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", [["resource"]]) },
+  { key: "languages", title: "Languages", uses: 6, desc: "You know [languages]", make: () => feature("Languages", [["language"]]) },
+  { key: "withability", title: "Feature with an ability", uses: 601, desc: "Name, text and an ability card", make: () => feature("", [["ability"]]), opens: "ability" },
+  { key: "withtrigger", title: "Feature with a triggered ability", uses: 220, desc: "Name, text and a trigger card", make: () => feature("", [["trigger"]]), opens: "trigger" },
+  { key: "empty", title: "Empty feature", uses: null, desc: "Name, text, then add blocks", make: () => feature("", []) },
 ];
-function feature(name, text, types) { return { kind: "feature", name, text, sentences: types.map(makeSentence) }; }
-function newFeature(tpl) { const f = tpl.make(); f.id = newId("f"); if (f.kind === "feature" && f.text == null) f.text = ""; if (f.text == null) f.text = ""; return f; }
+/* types: [[sentence type, field overrides]] */
+function feature(name, types) { return { kind: "feature", name, text: "", sentences: types.map(([t, o]) => { const x = makeSentence(t); Object.assign(x.f, o || {}); return x; }) }; }
+function newFeature(tpl) { const f = tpl.make(); f.id = newId("f"); return f; }
+/* Drafts and exports from before choice blocks stored ready-made features as their own kinds. */
+function migrateFeature(f) {
+  if (!f || f.kind === "feature" || !f.kind) return f;
+  const blocks = { perk: () => [["perkChoice", { groups: f.groups }]], skills: () => [["skillChoice", { num: f.num, groups: f.groups, named: f.named || [] }]],
+    subclass: () => [["subclassChoice"]], abilities: () => [["abilityChoice", { num: f.num, cat: f.cat, cost: f.cost, options: f.options || [] }]],
+    charinc: () => (f.fixed || []).map(x => ["stat", { attr: x.attr, op: "max", value: x.to }]).concat(+f.num > 0 ? [["charChoice", { num: f.num, max: f.max }]] : []) }[f.kind];
+  const n = feature(f.name, blocks ? blocks() : []); n.id = f.id; n.text = f.text || ""; return n;
+}
+function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); }); return c; }
+/* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
+function kindLabel(f) {
+  const top = f.sentences || [], ch = top.filter(x => SENT[x.type].choice);
+  if (ch.length === 1 && top.length === 1) return { perkChoice: "Perk", skillChoice: "Skills", charChoice: "Choice", abilityChoice: "Ability choice", subclassChoice: "Subclass" }[ch[0].type];
+  if (ch.length) return "Choice";
+  if (top.some(x => x.type === "ability" || x.type === "trigger")) return "Ability";
+  return "Feature";
+}
 const primaryChars = () => Object.keys(cls.primary || {}).length ? Object.keys(cls.primary) : ["mgt"];
 function eachFeature(fn) { laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => fn(f, k))); }
 function findFeature(id) { let r = null; eachFeature((f, k) => { if (f.id === id) r = { feat: f, lane: k }; }); return r; }
 
-// Generated book text for ready-made features (used when the author hasn't written their own).
-function autoText(f) {
-  switch (f.kind) {
-    case "perk": return "You gain one " + listWords(f.groups) + " perk of your choice.";
-    case "skills": return "You gain " + word(f.num) + " skill" + (+f.num === 1 ? "" : "s") + (f.named.length ? " (" + listWords(f.named.map(i => lookupName(T.skills, i)), "and") + ")" : "") + " of your choice from the " + listWords(f.groups) + " skill groups.";
-    case "charinc": return f.fixed.map(x => "Your " + charName(x.attr) + " score increases to " + x.to + ".").join(" ") + (+f.num > 0 ? " Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + "." : "");
-    case "abilities": return f.cat === "signature" ? "Choose " + word(f.num) + " signature ability from the following options. Signature abilities can be used at will."
-      : "Choose " + word(f.num) + " heroic ability from the following options, each of which costs " + f.cost + " " + (cls.resourceName || "heroic resource").toLowerCase() + " to use.";
-    case "subclass": return "Choose your " + (f.name || "subclass") + ".";
-    case "feature": return sentenceProse(f);
-    default: return "";
-  }
-}
+// A feature with no book text of its own reads as its blocks.
+const autoText = f => sentenceProse(f);
 /* A sentence-built feature with no book text of its own reads as its sentences (ability cards are
    shown on their own, so those sentences are left out). */
 function sentenceProse(f) {
@@ -267,14 +310,20 @@ function sentenceProse(f) {
   (function walk(list, prefix) { list.forEach(s => {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); walk(s.children, "If " + t[1].replace(/\bN\b/, s.f.n || "N").replace(/^you are/, "you're").replace(/\(a GoblinScript test\)/, "a condition is met") + ", "); return; }
     if (s.type === "ability" || s.type === "trigger") return;
+    if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f)); return; }
     const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
-    let t = tmp.textContent.replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
+    let t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
     if (prefix) t = prefix + t.charAt(0).toLowerCase() + t.slice(1);
     out.push(t.replace(/[.,]?$/, "."));
   }); })(f.sentences || [], "");
   return out.join(" ");
 }
-const featName = f => f.name || (f.kind === "abilities" && f.cat === "heroic" ? f.cost + "-" + (cls.resourceName || "Resource") + " Heroic Abilities" : "") || "Unnamed feature";
+/* An unnamed heroic choice is named the way the book names it: "3-Wrath Heroic Abilities". */
+function featName(f) {
+  if (f.name) return f.name;
+  const hc = (f.sentences || []).find(x => x.type === "abilityChoice" && x.f.cat === "heroic");
+  return hc ? hc.f.cost + "-" + (cls.resourceName || "Resource") + " Heroic Abilities" : "Unnamed feature";
+}
 const featText = f => f.text || autoText(f);
 
 // ---------------------------------------------------------------------------------------------
@@ -306,34 +355,26 @@ function compileSentences(list, feat, filter) {
   const out = [];
   for (const s of list) {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + t[2](s.f) + ")")); continue; }
-    const d = SENT[s.type]; const r = d.compile(s.f, feat); if (!r) continue;
+    const d = SENT[s.type]; if (d.choice) continue;
+    const r = d.compile(s.f, feat); if (!r) continue;
     if (filter) r.filterCondition = r.filterCondition ? "(" + r.filterCondition + ") and " + filter : filter;
     Object.keys(r).forEach(k => r[k] === undefined && delete r[k]);
     out.push(r); if (d.extra) out.push(...d.extra(s.f));
   }
   return out;
 }
+/* The record type follows from the blocks (the author never picks it): modifiers only -> a feature;
+   one choice alone -> that choice record; anything else -> a feature list holding a hidden feature with
+   the modifiers, then each choice (as core classes store Characteristic Increase). */
 function compileFeature(f) {
   const name = featName(f), description = featText(f), base = { name, description, classid: cls.id };
-  switch (f.kind) {
-    case "feature": return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: compileSentences(f.sentences, { name, text: description }) });
-    case "perk": return Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") });
-    case "skills": return Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num || 1, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) });
-    case "subclass": return Object.assign({ __typeName: "CharacterSubclassChoice" }, base);
-    case "abilities": return Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
-      options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
-        modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) });
-    case "charinc": {
-      // Stored the way core classes store it: one hidden feature per fixed score, plus a choice of +1.
-      const fixed = f.fixed.map(x => ({ __typeName: "CharacterFeature", name: charName(x.attr), description: "Your " + charName(x.attr) + " is " + x.to + ".", tags: { Hidden: true },
-        modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: charName(x.attr), description: "", attribute: x.attr, operation: "max", value: numOr(x.to) }] }));
-      const parts = fixed.slice();
-      if (+f.num > 0) parts.push({ __typeName: "CharacterFeatureChoice", name, description, numChoices: +f.num, allowDuplicateChoices: false,
-        options: CHARS.filter(c => !f.fixed.some(x => x.attr === c[0])).map(c => ({ __typeName: "CharacterFeature", name: c[1], description: "", tags: { Hidden: true },
-          modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1, cap: numOr(f.max) }] })) });
-      return Object.assign({ __typeName: "CharacterFeatureList" }, base, { features: parts });
-    }
-  }
+  const choices = f.sentences.filter(x => SENT[x.type].choice);
+  const mods = compileSentences(f.sentences, { name, text: description });
+  if (!choices.length) return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: mods });
+  const parts = choices.map(x => SENT[x.type].compileChoice(x.f, f, base));
+  if (parts.length === 1 && !mods.length) return parts[0];
+  const list = mods.length ? [{ __typeName: "CharacterFeature", name, description, tags: { Hidden: true }, modifiers: mods }] : [];
+  return Object.assign({ __typeName: "CharacterFeatureList" }, base, { features: list.concat(parts) });
 }
 /* "How you gain your resource" writes two linked records, as decided: the checklist line players see,
    and the trigger that grants it (its Replenish step points at the line by checklistid). */
@@ -378,7 +419,7 @@ function change(fn, keepMenu) {
 }
 function undo() { if (!undoStack.length) return toast("Nothing to undo."); cls = JSON.parse(undoStack.pop()); render(); saveDraft(); }
 function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ cls, uid })); } catch (e) {} }
-function loadDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); if (d && d.cls && d.cls.lanes) { uid = Math.max(uid, d.uid || 1); return d.cls; } } catch (e) {} return null; }
+function loadDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); if (d && d.cls && d.cls.lanes) { uid = Math.max(uid, d.uid || 1); return migrateClass(d.cls); } } catch (e) {} return null; }
 
 // ---------------------------------------------------------------------------------------------
 // The ability editor (simple ability editor in embedded mode). One iframe, reused.
@@ -500,27 +541,32 @@ function renderBoard() {
     lbl("of 2; the other scores use one of these arrays:"), textTok(cls, "arrays", "[2, -1, -1] [1, 1, -1]", 30));
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   row("Subclass", lbl("Subclasses are called"), textTok(cls, "subclassWord", "College, Circle, Domain..."));
-  b.appendChild(E("p", "hint", "Recoveries, skills and kits are features: drag them in from the shelf (Recoveries, Skills, Kit)."));
   board.appendChild(b);
+  board.appendChild(E("p", "hint", "Recoveries, skills and kits are features: drag them in from the shelf (Recoveries, Skills, Kit)."));
 
   // Heroic resource
   board.appendChild(E("h3", "sec", "Heroic resource"));
   const r = E("div", "fixed");
   const rr = E("div", "row"); rr.appendChild(E("span", "lbl", "Name")); rr.appendChild(textTok(cls, "resourceName", "e.g. Wrath")); rr.appendChild(lbl("epic resource")); rr.appendChild(textTok(cls, "epicName", "optional")); r.appendChild(rr);
-  r.appendChild(E("div", "hint", "How you gain " + (cls.resourceName || "it").toLowerCase() + ":"));
+  board.appendChild(r);
+  // How you gain it: one block per way, like any sentence (each writes a checklist line and its trigger).
+  const gl = E("div", "lbl2", "How you gain " + (cls.resourceName || "it").toLowerCase()); board.appendChild(gl);
+  const gs = E("div", "sents");
   cls.gains.forEach((g, i) => {
-    const line = E("div", "chk");
-    const s = E("div"); s.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); s.appendChild(lbl(", you gain")); s.appendChild(textTok(g, "qty", "1"));
-    s.appendChild(lbl((cls.resourceName || "resource").toLowerCase() + "."));
-    line.appendChild(s);
-    const x = E("button", "btn small", "Remove"); x.type = "button"; x.addEventListener("click", () => change(() => cls.gains.splice(i, 1))); line.appendChild(x);
-    const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0];
-    const l = E("div", "link"); l.innerHTML = "Writes the sheet's checklist line <b>and</b> the trigger that grants it (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + "), linked so they can't disagree.";
-    line.appendChild(l); r.appendChild(line);
+    const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
+    el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(textTok(g, "qty", "1"));
+    el.appendChild(lbl((cls.resourceName || "resource").toLowerCase()));
+    el.appendChild(E("span", "grow"));
+    const mb = E("button", "mb", "\u22ef"); mb.type = "button"; mb.setAttribute("aria-label", "Options");
+    mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => cls.gains.splice(i, 1)); }); m.appendChild(x); }); });
+    el.appendChild(mb);
+    if (showGs) { const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0]; el.appendChild(E("div", "saves", "saves as checklist line (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + ") + trigger " + ev[0] + ": Replenish " + g.qty + ", checklistid linked")); }
+    gs.appendChild(el);
   });
   const ag = E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()); ag.type = "button";
   ag.addEventListener("click", () => change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })));
-  r.appendChild(ag); board.appendChild(r);
+  gs.appendChild(ag); board.appendChild(gs);
+  board.appendChild(E("p", "hint", "Each way writes the sheet's checklist line and the trigger that grants it, linked so they can't disagree."));
 
   // Levels
   const lh = E("div", "lanes-head");
@@ -571,7 +617,7 @@ function renderLane(k) {
 }
 function chip(f, k) {
   const c = E("button", "chip"); c.type = "button"; c.draggable = true;
-  c.appendChild(E("span", "kind", FKINDS[f.kind] || "Feature")); c.appendChild(E("span", "nm", featName(f)));
+  c.appendChild(E("span", "kind", kindLabel(f))); c.appendChild(E("span", "nm", featName(f)));
   c.title = featText(f) || "Click to open";
   c.addEventListener("click", () => { openId = f.id; render(); });
   c.addEventListener("dragstart", ev => { dragData = { kind: "feature", id: f.id }; ev.dataTransfer.setData("text/plain", f.id); c.classList.add("dragging"); });
@@ -590,24 +636,26 @@ let dragData = null;
 function renderFeature(f, laneKey) {
   const box = E("div", "feat");
   const head = E("div", "feat-head");
-  head.appendChild(E("span", "kind", FKINDS[f.kind]));
+  head.appendChild(E("span", "kind", kindLabel(f)));
   const nin = E("input", "fname"); nin.value = f.name; nin.placeholder = featName(f) === "Unnamed feature" ? "Feature name" : featName(f); nin.setAttribute("aria-label", "Feature name");
   nin.addEventListener("change", () => change(() => { f.name = nin.value.trim(); })); head.appendChild(nin);
   const close = E("button", "btn small", "Close"); close.type = "button"; close.addEventListener("click", () => { openId = null; render(); }); head.appendChild(close);
   box.appendChild(head);
   const ta = E("textarea", "ftext"); ta.value = f.text; ta.placeholder = autoText(f) || "The feature's text, as the book prints it";
   ta.addEventListener("change", () => change(() => { f.text = ta.value; })); box.appendChild(ta);
-  if (!f.text && autoText(f)) box.appendChild(E("div", "hint", "The book text above is written from the sentences below until you type your own."));
-  box.appendChild(E("div", "lbl2", f.kind === "feature" ? "What it does" : "Settings"));
+  if (!f.text && autoText(f)) box.appendChild(E("div", "hint", "The book text above is written from the blocks below until you type your own."));
+  const lb = E("div", "lbl2", "What it does");
+  if (showGs) lb.appendChild(E("span", "mono saves-type", " \u00b7 saves as " + compileFeature(f).__typeName));
+  box.appendChild(lb);
   const sents = E("div", "sents");
-  if (f.kind === "feature") {
+  {
     renderSentenceList(f.sentences, f, sents);
     const add = E("button", "addsent", "+ add what it does"); add.type = "button";
     add.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add, type => addSentence(f, f.sentences, type)); });
     sents.appendChild(add);
     sents.addEventListener("dragover", ev => { if (dragData && dragData.kind === "sentence") { ev.preventDefault(); sents.classList.add("drop-target"); } });
     sents.addEventListener("drop", ev => { ev.preventDefault(); const d = dragData; dragData = null; if (d && d.kind === "sentence") addSentence(f, f.sentences, d.type); });
-  } else renderReadyBody(f, sents);
+  }
   box.appendChild(sents);
   const foot = E("div", "feat-foot");
   const lanes = laneKeys();
@@ -635,7 +683,8 @@ function addSentence(feat, list, type) {
 }
 function sentenceMenu(el, pick, noWrapper) {
   menuAt(el, m => GROUPS.forEach(g => {
-    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && !(noWrapper && SENT[t].wrapper)); if (!types.length) return;
+    // Inside an "Only if" there are no choices or nested wrappers (a choice is made when the feature is gained).
+    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && !(noWrapper && (SENT[t].wrapper || SENT[t].choice))); if (!types.length) return;
     m.appendChild(E("h5", null, g[1]));
     types.forEach(t => { const x = E("button", null, SENT[t].label); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pick(t); }); m.appendChild(x); });
   }));
@@ -655,7 +704,7 @@ function renderSentence(s, list, i, feat) {
     const item = (t, fn) => { const x = E("button", null, t); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(fn); }); m.appendChild(x); };
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
-    if (!d.wrapper) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
+    if (!d.wrapper && !d.choice) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
     if (d.wrapper) item("Remove the “Only if” (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
     item("Delete", () => { list.splice(i, 1); });
   }); });
@@ -667,8 +716,9 @@ function renderSentence(s, list, i, feat) {
     add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true); });
     body.appendChild(add2); el.appendChild(body);
   } else if (showGs) {
-    const recs = compileSentences([s], { name: featName(feat), text: featText(feat) });
-    el.appendChild(E("div", "saves", recs.length ? recs.map(savesLine).join("\n") : "(nothing saved yet)"));
+    if (d.choice) { const r = d.compileChoice(s.f, feat, {}); el.appendChild(E("div", "saves", "saves as a " + r.__typeName + " (the player's choice)" + (r.options ? ": " + r.options.length + " option" + (r.options.length === 1 ? "" : "s") : r.tag ? ": tag " + r.tag : ""))); }
+    else { const recs = compileSentences([s], { name: featName(feat), text: featText(feat) });
+      el.appendChild(E("div", "saves", recs.length ? recs.map(savesLine).join("\n") : "(nothing saved yet)")); }
   }
   return el;
 }
@@ -678,35 +728,6 @@ function savesLine(r) {
   const parts = Object.keys(r).filter(k => !skip.has(k)).map(k => k + " " + JSON.stringify(r[k]).slice(0, 80));
   return "saves as " + (r.behavior || r.__typeName) + (parts.length ? ": " + parts.join(", ") : "");
 }
-/* Settings for ready-made features, as sentences. */
-function renderReadyBody(f, into) {
-  const S = (...nodes) => { const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-skill)"); nodes.forEach(n => el.appendChild(n)); into.appendChild(el); return el; };
-  switch (f.kind) {
-    case "perk": S(lbl("You gain one"), multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or"), lbl("perk of your choice")); break;
-    case "skills": S(lbl("You gain"), textTok(f, "num", "1"), lbl("skill(s) of your choice from the"), multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or"), lbl("skill groups"));
-      S(lbl("or these named skills:"), multiTok(f, "named", T.skills.map(s => [s[0], s[1]]), "none", "and")); break;
-    case "subclass": { const el = S(lbl("The player chooses their"), textTok(f, "name", cls.subclassWord || "subclass"));
-      el.appendChild(E("span", "hint", " (the subclasses themselves are made in the subclass editor)")); break; }
-    case "charinc": {
-      f.fixed.forEach((x, i) => { const el = S(lbl("Your"), pickTok(x, "attr", CHARS), lbl("score increases to"), textTok(x, "to", "3"));
-        const rm = E("button", "mb", "✕"); rm.type = "button"; rm.title = "Remove"; rm.addEventListener("click", () => change(() => f.fixed.splice(i, 1))); el.appendChild(E("span", "grow")); el.appendChild(rm); });
-      const a = E("button", "addsent", "+ another score that increases"); a.type = "button"; a.addEventListener("click", () => change(() => f.fixed.push({ attr: "agl", to: "3" }))); into.appendChild(a);
-      S(lbl("Additionally, you can increase"), textTok(f, "num", "1"), lbl("other characteristic score(s) by 1, to a maximum of"), textTok(f, "max", "3"));
-      break;
-    }
-    case "abilities": {
-      const el = S(lbl("Choose"), textTok(f, "num", "1"), lbl("of these " + (f.cat === "signature" ? "signature abilities" : "heroic abilities")));
-      if (f.cat === "heroic") { el.appendChild(lbl(", each costing")); el.appendChild(textTok(f, "cost", "3")); el.appendChild(lbl((cls.resourceName || "resource").toLowerCase())); }
-      into.appendChild(abilityCards(f.options.map(o => ({ rec: o.rec })), f, (i, rec) => { f.options[i].rec = rec; }, i => f.options.splice(i, 1), null, () => abilitySeed(f.cat, f.cost)));
-      const add = E("button", "addsent", "+ new ability to choose from"); add.type = "button";
-      add.addEventListener("click", () => { const o = { id: newId("o"), rec: null }; change(() => f.options.push(o));
-        openEditor({ rec: abilitySeed(f.cat, f.cost), kind: "ability" }, rec => { o.rec = rec; }); });
-      into.appendChild(add);
-      break;
-    }
-  }
-}
-
 function renderShelf() {
   const q = (shelf.querySelector("input.search") || {}).value || "";
   shelf.innerHTML = "";
@@ -774,9 +795,10 @@ function bookPage() {
       b.appendChild(E("h5", null, featName(f)));
       if (featText(f)) b.appendChild(E("p", null, featText(f)));
       const recs = [];
-      if (f.kind === "feature") (function walk(l) { l.forEach(s => { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) recs.push([s.f.rec, s.f.display, s.type === "trigger"]); if (s.children) walk(s.children); }); })(f.sentences);
-      if (f.kind === "abilities") f.options.forEach(o => o.rec && recs.push([o.rec, null, false]));
-      if (recs.length && f.kind === "feature") b.appendChild(E("p", null, "You have the following ability" + (recs.length > 1 ? "s" : "") + ":"));
+      let granted = 0;
+      (function walk(l) { l.forEach(s => { if ((s.type === "ability" || s.type === "trigger") && s.f.rec) { recs.push([s.f.rec, s.f.display, s.type === "trigger"]); granted++; }
+        if (s.type === "abilityChoice") s.f.options.forEach(o => o.rec && recs.push([o.rec, null, false])); if (s.children) walk(s.children); }); })(f.sentences);
+      if (granted) b.appendChild(E("p", null, "You have the following ability" + (recs.length > 1 ? "s" : "") + ":"));
       recs.forEach(([r, d, t]) => b.appendChild(cardFor(r, d, t)));
     });
   });
@@ -819,7 +841,7 @@ function loadBuilderText(t) {
   let d; try { d = JSON.parse(t); } catch (e) { return toast("That isn't valid JSON. Paste the whole text from Export."); }
   if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class from this builder (use Export to make one).");
   const ids = t.match(/"id":"[a-z](\d+)"/g) || []; ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
-  closeMenu(); change(() => { cls = d.cls; openId = null; }); toast("Opened \u201c" + cls.name + "\u201d. Undo goes back to the class you had.");
+  closeMenu(); change(() => { cls = migrateClass(d.cls); openId = null; }); toast("Opened \u201c" + cls.name + "\u201d. Undo goes back to the class you had.");
 }
 function importBuilder(btn) {
   menuAt(btn, m => { m.appendChild(E("div", "q", "Paste a class from Export, or choose a saved .json file.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);

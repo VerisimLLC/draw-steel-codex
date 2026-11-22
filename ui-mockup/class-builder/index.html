@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Class Builder</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono&display=swap">
@@ -10,6 +11,7 @@
   --fg: #ede5d5; --dim: #a3998a; --gold: #cca350; --err: #e2685a; --warn: #e0a040; --ok: #7cc28a;
   --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #b36125; --c-skill: #9a6d1c;
   --c-res: #8a6a20; --c-rem: #6b6258; --c-if: #b05a24; --c-adv: #5b564e; --c-cond: #8e3f86;
+  --c-choice: #3d7a3a; --c-head: #8c6a24;
   --card-bg: #fdfcf8; --card-fg: #141414;
   --font-ui: "Inter", system-ui, sans-serif; --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-card: "Bitter", Georgia, serif; --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -54,13 +56,13 @@ h3.sec:first-child { margin-top: 2px; }
 .clsname input { background: none; border: none; border-bottom: 1px dashed var(--line); font: 600 22px var(--font-head); padding: 2px 0; min-width: 0; width: 260px; max-width: 100%; }
 .clsname input:focus { border-bottom-color: var(--gold); outline: none; }
 textarea.details { width: 100%; min-height: 54px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; resize: vertical; color: var(--fg); }
-.fixed { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 8px 10px; margin-top: 8px; }
-.fixed .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
-.fixed .row:last-child { border-bottom: none; }
-.fixed .lbl { color: var(--dim); min-width: 110px; }
-.chk { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
-.chk .link { grid-column: 1 / -1; color: var(--dim); font-size: 11.5px; }
-.chk .link b { color: var(--ok); font-weight: 600; }
+/* Basics and the resource name read as header blocks, like "What is it" in the ability editor. */
+.fixed { display: flex; flex-direction: column; margin-top: 6px; }
+.fixed .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; background: var(--c-head); color: #fff; border: 1px solid rgba(0,0,0,.35); border-top: none; padding: 7px 10px; }
+.fixed .row:first-child { border-top: 1px solid rgba(0,0,0,.35); border-radius: 4px 4px 0 0; }
+.fixed .row:last-child { border-radius: 0 0 4px 4px; }
+.fixed .row:only-child { border-radius: 4px; }
+.fixed .lbl { color: rgba(255,255,255,.72); min-width: 104px; }
 
 /* Underlined values: each opens one control (inline select / input). */
 .tok { border-bottom: 1px dotted rgba(255,255,255,.8); padding: 0 1px; cursor: pointer; font-weight: 600; background: none; border-top: none; border-left: none; border-right: none; border-radius: 0; color: inherit; }
@@ -96,7 +98,7 @@ select.edit-in option { background: var(--dlg); color: var(--fg); }
 .feat-head input.fname { flex: 1 1 200px; min-width: 0; background: none; border: none; border-bottom: 1px dashed var(--line); font: 600 15px var(--font-head); padding: 2px 0; }
 .feat-head input.fname:focus { outline: none; border-bottom-color: var(--gold); }
 .feat textarea.ftext { width: 100%; min-height: 46px; margin-top: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; resize: vertical; font: 13.5px/1.45 var(--font-card); color: var(--fg); }
-.feat .lbl2 { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin: 8px 0 4px; }
+.lbl2 { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin: 8px 0 4px; }
 .sents { display: flex; flex-direction: column; gap: 4px; }
 .sent { --c: var(--c-adv); background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; position: relative; }
 .sent.drop-target { outline: 2px dashed var(--gold); }
@@ -109,6 +111,10 @@ select.edit-in option { background: var(--dlg); color: var(--fg); }
 .sent .ifbody { background: rgba(0,0,0,.25); border-radius: 4px; padding: 4px; display: flex; flex-direction: column; gap: 4px; }
 .addsent { background: none; border: 1px dashed var(--line); border-radius: 4px; color: var(--dim); padding: 5px 9px; cursor: pointer; text-align: left; font-size: 12px; }
 .addsent:hover { color: var(--gold); border-color: var(--gold); }
+.addsent.inblock { color: #fff; border-color: rgba(255,255,255,.55); flex-basis: 100%; }
+.addsent.inblock:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,.1); }
+.sent .aside { opacity: .75; font-size: 12px; }
+.saves-type { text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 400; }
 .feat-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
 .feat-foot .spacer { flex: 1; }
 .warn { color: var(--warn); font-size: 12px; }
@@ -153,7 +159,7 @@ select.edit-in option { background: var(--dlg); color: var(--fg); }
 .book h3 { font: 700 16px var(--font-card); margin: 16px 0 4px; border-bottom: 1px solid var(--card-fg); }
 .book h5 { font: 700 13.5px var(--font-card); margin: 10px 0 2px; }
 .book p { margin: 4px 0; white-space: pre-wrap; }
-.book table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 6px; }
+.book table { color: inherit; font: inherit; font-size: 12px; border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 6px; }
 .book th, .book td { border-bottom: 1px solid #ccc; padding: 3px 4px; text-align: left; vertical-align: top; }
 .book .card { border: 1px solid #222; margin: 6px 0; cursor: default; }
 .book .card:hover { box-shadow: none; }

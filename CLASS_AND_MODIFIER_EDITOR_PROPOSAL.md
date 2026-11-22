@@ -526,8 +526,15 @@ damage types, custom attributes and resources).
   Encounter 1, and turning it off asks before moving encounter features into 1st level.
 - **Ready-made features** (drag onto a level or click): Perk, Skills, Characteristic Increase, Choose a
   heroic ability (with its cost), Signature ability, Subclass choice, Kit, Recoveries, Languages, Feature
-  with an ability, Feature with a triggered ability, Empty feature. Each saves as the record shape core
-  classes use (`CharacterFeatChoice`, `CharacterSkillChoice`, `CharacterFeatureList` + choice, ...).
+  with an ability, Feature with a triggered ability, Empty feature. **They are pre-filled blocks**, in the
+  same design language as every other block (designer feedback: a separate settings form for perks and
+  skills didn't match the editors). **Choices** is a block group: choose a perk, choose skills, raise a
+  characteristic, choose an ability (cards inside the block), choose your subclass. The feature's record
+  type is decided from its blocks, never picked: modifiers only -> `CharacterFeature`; one choice alone ->
+  that choice (`CharacterFeatChoice`, `CharacterSkillChoice`, `CharacterFeatureChoice`,
+  `CharacterSubclassChoice`); a mix -> `CharacterFeatureList` with a hidden feature holding the modifiers,
+  then each choice (how core classes store Characteristic Increase). Choices can't sit inside "Only if".
+  Basics and the resource name read as header blocks, and each way to gain the resource is a block.
 - **Sentences** (Section 4.2): change a stat, movement type, "you have" a custom attribute, edge or bane on
   tests/ability rolls (with the "always applies / you choose" phrase), rolls against you, extra damage,
   immunity or weakness, can't be (condition), skill, language, Recoveries or a resource, kit, gain an

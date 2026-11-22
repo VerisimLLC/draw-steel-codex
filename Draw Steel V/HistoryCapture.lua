@@ -841,7 +841,7 @@ local function CastFinished(ability, casterToken, options)
             landedOn.landedon = true
         end
         if state.landingOn.finished then
-            History.Rewrite(state.entry)
+            History.RewriteCaptured(state.entry)
         end
         return
     end
@@ -1057,7 +1057,7 @@ local function OnDamage(creature, info)
         falling.moved.falldamage = (falling.moved.falldamage or 0) + info.landed
         falling.moved.fallseparate = true
         if falling.row == nil or falling.row.finished then
-            History.Rewrite(falling.entry)
+            History.RewriteCaptured(falling.entry)
         end
     end
     if state == nil then
@@ -1311,7 +1311,7 @@ local function OnFell(creature, info)
     falling.landed = true
     falling.moved.fell = info.distance
     if falling.row == nil or falling.row.finished then
-        History.Rewrite(falling.entry)
+        History.RewriteCaptured(falling.entry)
     end
 end
 
@@ -1558,7 +1558,7 @@ local function OnResource(creature, key, before, after, refreshType, note)
         entry.amount = change
         entry.resourceid = key
         entry.refreshtype = refreshType
-        History.Rewrite(entry)
+        History.RewriteCaptured(entry)
         return
     end
     local icon = key == CharacterResource.heroicResourceId and History.HeroicIcon(creature) or nil
@@ -1665,6 +1665,9 @@ local function OnNote(creature, title, detail)
     })
 end
 
+--How long Undo waits for other clients' claims to arrive before it refunds, in seconds.
+local UNDO_SETTLE_SECONDS = 1.5
+
 --- Puts a resource line, or a heal with its Recovery, back the way it was. Whoever controls
 --- the creature can do this.
 --- @param entry HistoryEntry
@@ -1679,26 +1682,39 @@ function History.UndoResource(entry)
     if stored == nil or stored.undone or stored.reverted ~= nil then
         return
     end
-    --not on the undo stack: Ctrl+Z would put the resource back while the line still read Undone.
-    token:ModifyProperties{
-        description = "Undo Resource",
-        undoable = false,
-        execute = function()
-            --a heal with its Recovery: the Stamina goes back too, set straight so no damage line follows.
-            if entry.family == "heal" then
-                local props = token.properties
-                props:SetCurrentHitpoints(props:CurrentHitpoints() - entry.healed, "Undo")
-            end
-            if entry.amount > 0 then
-                token.properties:ConsumeResource(entry.resourceid, entry.refreshtype, entry.amount, "Undo")
-            else
-                token.properties:RefreshResource(entry.resourceid, entry.refreshtype, -entry.amount, "Undo")
-            end
-        end,
-    }
+    --two clients pressing Undo at once would both refund. Each claims the line with its own
+    --id; once the document has settled, only the client whose claim stuck gives anything back.
+    local claim = dmhub.GenerateGuid()
     entry.undone = true
     stored.undone = true
+    stored.undoneby = claim
     History.Rewrite(stored)
+    dmhub.Schedule(UNDO_SETTLE_SECONDS, function()
+        if mod.unloaded or not token.valid then
+            return
+        end
+        local settled = History.Stored(entry)
+        if settled == nil or settled.undoneby ~= claim or settled.reverted ~= nil then
+            return
+        end
+        --not on the undo stack: Ctrl+Z would put the resource back while the line still read Undone.
+        token:ModifyProperties{
+            description = "Undo Resource",
+            undoable = false,
+            execute = function()
+                --a heal with its Recovery: the Stamina goes back too, set straight so no damage line follows.
+                if entry.family == "heal" then
+                    local props = token.properties
+                    props:SetCurrentHitpoints(props:CurrentHitpoints() - entry.healed, "Undo")
+                end
+                if entry.amount > 0 then
+                    token.properties:ConsumeResource(entry.resourceid, entry.refreshtype, entry.amount, "Undo")
+                else
+                    token.properties:RefreshResource(entry.resourceid, entry.refreshtype, -entry.amount, "Undo")
+                end
+            end,
+        }
+    end)
 end
 
 --Malice is shown to the Director only, except a spend, which is on its row for all.

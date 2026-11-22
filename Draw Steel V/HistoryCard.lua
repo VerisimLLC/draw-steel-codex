@@ -2086,7 +2086,16 @@ local function SecretRollRow(entry, width)
             valign = "center",
             click = function(element)
                 roll.revealed = (not roll.revealed) or nil
-                History.RewriteQuietly(entry)
+                --flip it on the stored entry, so nothing another client set since is lost
+                --and an entry deleted or culled meanwhile is not brought back.
+                local stored = History.Stored(entry)
+                if stored ~= nil then
+                    local storedRoll = stored.privacy or stored.roll
+                    if storedRoll ~= nil then
+                        storedRoll.revealed = roll.revealed
+                        History.RewriteQuietly(stored)
+                    end
+                end
                 element:FireEvent("visible", roll.revealed == true)
             end,
             linger = function(element)

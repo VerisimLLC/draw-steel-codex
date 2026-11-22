@@ -80,6 +80,7 @@ local mod = dmhub.GetModLoading()
 --- @field resourceid? string On a resource line or a Recovery heal: the resource, for Undo.
 --- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
 --- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
+--- @field undoneby? string On an undone line: the claim of the client that gives the resource back.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
 --- @field strained? boolean On a strained line: it became strained, or stopped being.
 --- @field squad? string On a captain line: the squad it now leads.
@@ -903,6 +904,40 @@ function History.Rewrite(entry)
     History.Write(entry)
 end
 
+--What other clients may have set on a stored entry since this client wrote its copy: the
+--Director's Hide and reveal eye, a revert, an Undo.
+local function KeepOthersChanges(entry, stored)
+    entry.hiddenfromplayers = stored.hiddenfromplayers
+    entry.reverted = stored.reverted
+    entry.undone = stored.undone
+    entry.undoneby = stored.undoneby
+    for _, field in ipairs({"roll", "privacy"}) do
+        local mine, theirs = entry[field], stored[field]
+        if type(mine) == "table" and type(theirs) == "table" then
+            mine.revealed = theirs.revealed
+        end
+    end
+end
+
+--- Rewrites an entry from the copy capture kept while it happened (a fall that landed after
+--- its row was written, a Recovery joining its heal). What it says comes from that copy; what
+--- other clients have set on it since is kept. An entry deleted or culled meanwhile stays gone.
+--- @param entry HistoryEntry
+function History.RewriteCaptured(entry)
+    for _, waiting in ipairs(g_waiting) do
+        if waiting == entry then
+            --not written yet: the write already waiting carries the change.
+            return
+        end
+    end
+    local stored = History.Stored(entry)
+    if stored == nil then
+        return
+    end
+    KeepOthersChanges(entry, stored)
+    History.Write(entry)
+end
+
 --Entry ids rewritten with nothing on this client's screen changing. The tray keeps their
 --built rows and open card instead of rebuilding them (which flickers), then clears the id.
 --- @type table<string, boolean>
@@ -977,7 +1012,12 @@ end
 function History.SetHiddenFromPlayers(entries, hidden)
     for _, entry in ipairs(entries) do
         entry.hiddenfromplayers = hidden or nil
-        History.Rewrite(entry)
+        --set on the stored entry, so nothing another client set since is lost.
+        local stored = History.Stored(entry)
+        if stored ~= nil then
+            stored.hiddenfromplayers = hidden or nil
+            History.Rewrite(stored)
+        end
     end
 end
 

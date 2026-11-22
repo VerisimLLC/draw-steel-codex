@@ -1230,6 +1230,163 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--Shared by the square friend-counting fields below. Returns the caster's token
+--and the filter list (always starting with "ally"), or nil when the square has
+--no caster to measure friendship from.
+--- @param loc Loc
+--- @return CharacterToken|nil caster
+--- @return any[] criteria
+local function LocFriendCriteria(loc, ...)
+    local casterid = rawget(loc, "_tmp_casterid")
+    local caster = casterid ~= nil and dmhub.GetTokenById(casterid) or nil
+    --A creature passed in from a formula arrives as a function; call it to get the creature.
+    local criteria = {"ally", ...}
+    for i = 1, #criteria do
+        if type(criteria[i]) == "function" then
+            criteria[i] = criteria[i]("self")
+        end
+    end
+    if caster == nil or not caster.valid then
+        return nil, criteria
+    end
+    return caster, criteria
+end
+
+--True if tok is a creature other than the caster that passes every filter,
+--judged from the caster's side, exactly like the creature Count Nearby Friends.
+--- @param caster CharacterToken
+--- @param tok CharacterToken
+--- @param criteria any[]
+--- @return boolean
+local function LocFriendMatches(caster, tok, criteria)
+    if not tok.valid or tok.properties == nil or tok.charid == caster.charid then
+        return false
+    end
+    return creature.NearbyTokenMatchesCriteria(caster, tok, criteria)
+end
+
+--Count Nearby Friends for a square: the caster's live allies within N squares
+--of this square, filtered like the creature version. Lets a move pick only
+--squares next to friends: `target.Count Nearby Friends(1, "Minion") > 0`.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "Count Nearby Friends",
+    type = "function",
+    desc = "A function which is given a distance in squares and tells us the number of live creatures allies within that distance of this location. The creature using the ability never counts. Extra parameters filter the creatures, the same as the creature version of Count Nearby Friends (e.g. \"Minion\", \"Winded\", or ~ to invert). A number after the distance is the largest height difference, in squares, from the creature using the ability.",
+    seealso = {"Count Chained Friends", "Creatures Here"},
+    examples = {"target.Count Nearby Friends(1, \"Minion\") > 0"},
+    calculate = function(loc)
+        return function(distance, ...)
+            --Same default as the creature version: one square.
+            distance = tonumber(distance) or 1
+            local engineLoc = rawget(loc, "_tmp_loc")
+            local caster, criteria = LocFriendCriteria(loc, ...)
+            if engineLoc == nil or caster == nil then
+                return 0
+            end
+            local count = 0
+            for _, tok in ipairs(dmhub.GetTokens{haveProperties = true}) do
+                --nil while a token is still being created or deleted.
+                local dist = tok:Distance(engineLoc)
+                if dist ~= nil and dist <= distance and LocFriendMatches(caster, tok, criteria) then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
+--A target filter asks for the chain once per candidate square, and it is the
+--same for all of them, so it is worked out once per frame and reused.
+local g_chainCache = { frame = -1, chains = {} }
+
+--The caster's friends linked back to the caster by a chain: each one is
+--within `distance` of the caster or of a friend already in the chain.
+--- @param caster CharacterToken
+--- @param distance number
+--- @param criteria any[]
+--- @return CharacterToken[]
+local function FriendChainFromCaster(caster, distance, criteria)
+    local frame = dmhub.FrameCount()
+    if g_chainCache.frame ~= frame then
+        g_chainCache = { frame = frame, chains = {} }
+    end
+    local keyParts = { caster.charid, tostring(distance) }
+    for _, criterion in ipairs(criteria) do
+        keyParts[#keyParts+1] = tostring(criterion)
+    end
+    local key = table.concat(keyParts, "|")
+    local cached = g_chainCache.chains[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local candidates = {}
+    for _, tok in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        if LocFriendMatches(caster, tok, criteria) then
+            candidates[#candidates+1] = tok
+        end
+    end
+
+    --Spread outward from the caster one hop at a time until no new friend joins.
+    local chain = {}
+    local frontier = { caster }
+    local linked = {}
+    while #frontier > 0 do
+        local nextFrontier = {}
+        for _, from in ipairs(frontier) do
+            for _, tok in ipairs(candidates) do
+                if not linked[tok.charid] then
+                    --nil while a token is still being created or deleted.
+                    local dist = from:Distance(tok)
+                    if dist ~= nil and dist <= distance then
+                        linked[tok.charid] = true
+                        chain[#chain+1] = tok
+                        nextFrontier[#nextFrontier+1] = tok
+                    end
+                end
+            end
+        end
+        frontier = nextFrontier
+    end
+
+    g_chainCache.chains[key] = chain
+    return chain
+end
+
+--Count Chained Friends for a square: like Count Nearby Friends, but a friend
+--only counts if a chain of matching friends links it back to the caster, e.g.
+--Minion Bridge: `target.Count Chained Friends(1, "Minion") > 0`.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "Count Chained Friends",
+    type = "function",
+    desc = "A function which is given a distance in squares and tells us how many live allies of the creature using the ability are within that distance of this location AND linked back to that creature by a chain: each ally in the chain is within the distance of the creature or of another ally in the chain. Extra parameters filter which allies can form the chain, the same as Count Nearby Friends (e.g. \"Minion\"). A number after the distance is the largest height difference, in squares, from the creature using the ability.",
+    seealso = {"Count Nearby Friends"},
+    examples = {"target.Count Chained Friends(1, \"Minion\") > 0"},
+    calculate = function(loc)
+        return function(distance, ...)
+            --Same default as the creature version: one square.
+            distance = tonumber(distance) or 1
+            local engineLoc = rawget(loc, "_tmp_loc")
+            local caster, criteria = LocFriendCriteria(loc, ...)
+            if engineLoc == nil or caster == nil then
+                return 0
+            end
+            local count = 0
+            for _, tok in ipairs(FriendChainFromCaster(caster, distance, criteria)) do
+                --nil while a token is still being created or deleted.
+                local dist = tok:Distance(engineLoc)
+                if dist ~= nil and dist <= distance then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
 --EV (encounter value). The raw value is stored in `monster.ev`; access it
 --through these accessors rather than the raw field so "Modify Attributes"
 --CharacterModifiers targeting the "ev" attribute are applied. Registered as

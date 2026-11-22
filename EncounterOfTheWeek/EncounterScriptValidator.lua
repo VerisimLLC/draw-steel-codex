@@ -365,6 +365,8 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_bystanders", { label = tostring(ins.label), names = table.concat(ins.names or {}, ", ") }))
             elseif ins.kind == "victory" then
                 Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+            elseif ins.kind == "mark" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_mark", { who = tostring(ins.whoText) }))
             elseif ins.kind == "parallax" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
             elseif ins.kind == "herolevel" then
@@ -753,12 +755,15 @@ end
 local ROUTE_PARTY_SIZES = { 3, 4, 5 }
 --How many routes are spelled out per party size (all are counted).
 local ROUTE_LIST_LIMIT = 8
+--Weary wears off after this many tests by other heroes (EncounterGauntlet).
+local WEARY_WEARS_OFF_AFTER = 3
 
 --Rows for every narrative beat with a choice of route or a test: per party
 --size, the routes through it
 --(EncounterScript.GauntletRoutes) and how many tests the longest one asks
---for, against the number of heroes (every roll after a hero's first is a
---Weary bane).
+--for, against the number of heroes. A roll is a Weary bane until three
+--tests by other heroes follow it, so a party of four or more can take turns
+--and never be Weary; a smaller party with more tests than heroes cannot.
 function GauntletRouteRows(parse)
     local rows = {}
     local function Row(depth, class, text)
@@ -785,7 +790,7 @@ function GauntletRouteRows(parse)
                     most = math.max(most, r.tests)
                 end
                 Row(1, "entry", T("author.validator.routes.party", { heroes = size, routes = #routes, fewest = fewest or 0, most = most }))
-                if most > size then
+                if most > size and size - 1 < WEARY_WEARS_OFF_AFTER then
                     Row(2, "note", T("author.validator.routes.weary", { heroes = size, tests = most, rolls = math.ceil(most / size) }))
                 end
                 for i, r in ipairs(routes) do

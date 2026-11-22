@@ -469,7 +469,12 @@ local function DiagramProfileFromPath(token, path)
 		end
 	end
 
-	if multiFloor and not stairsTraversal then
+	--A Ctrl-drag teleport dialed up onto a higher floor (a walkway over the cursor's floor):
+	--the C# harness draws it like a jump up onto a ledge, so allow it and always show it.
+	local teleportAscend = multiFloor and not stairsTraversal and path.teleport and
+	                       steps[1]:FloorDifference(steps[n]) > 0
+
+	if multiFloor and not stairsTraversal and not teleportAscend then
 		--A cross-floor FALL (walk/pushed along one floor, then fall to a lower floor -- e.g.
 		--shoved off a balcony) still has a meaningful vertical cross-section: the C# harness
 		--stacks the floors and draws the drop with the upper floor as a thin platform and a
@@ -590,7 +595,7 @@ local function DiagramProfileFromPath(token, path)
 	--mount's back or steps down off it, which the C# harness draws by lifting that end of the
 	--path onto the mount (see MovementCrossSection.cs).
 	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump" or
-	                    stairsTraversal or path.mount or (airborne and crossesAura)
+	                    stairsTraversal or teleportAscend or path.mount or (airborne and crossesAura)
 	for i = 1, n do
 		local e = entries[i]
 		--Walking along a platform deck (a bridge) is flat, but there is a drop beneath it worth

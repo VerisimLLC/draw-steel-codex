@@ -973,9 +973,8 @@ end
 --show is hidden.
 --- @param def table a GROUPS entry
 --- @param first boolean the list's first group sits closer to the header
---- @param grew fun() the list got taller (an opened group): it may need to scroll
 --- @return HeroListGroupPanel
-local function NewGroup(def, first, grew)
+local function NewGroup(def, first)
     local key = "ab:" .. def.id
     local folded = IsFolded(key)
     local compact = def.compact == true
@@ -1119,7 +1118,6 @@ local function NewGroup(def, first, grew)
             caret.selfStyle.rotate = cond(folded, 90, 0)
             if not folded then
                 Fill()
-                grew()
             end
         end,
         children = headerChildren,
@@ -1260,14 +1258,11 @@ function HeroSheetLists.Create(args)
     --so both columns' rules line up.
     local headH = math.max(26, HeroSheetWindow.TargetSize(28))
 
-    --- @type fun()
-    local FitScroll
-
     --- @type HeroListGroupPanel[]
     local groups = {}
     local groupPanels = {}
     for i, def in ipairs(GROUPS) do
-        local group = NewGroup(def, i == 1, function() FitScroll() end)
+        local group = NewGroup(def, i == 1)
         groups[i] = group
         groupPanels[i] = group.panel
     end
@@ -1281,27 +1276,20 @@ function HeroSheetLists.Create(args)
         bmargin = 14,
         children = groupPanels,
     }
-    --scrolls once its content is taller: panels made inside a scrolling
-    --panel lay out far more slowly, so the rows are made first.
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the list.
     --its height is what the heading, the Edit bar and the rule leave (Arrange):
     --never "100% available", which the engine restyles every frame.
     local abilityBody = gui.Panel{
         width = "100%",
         height = "100%-42",
         flow = "vertical",
+        vscroll = true,
+        --cards well outside the view are skipped, so the tab shows and scrolls faster.
+        hideObjectsOutOfScroll = true,
         tmargin = 6,
         abilityList,
     }
-    FitScroll = function()
-        HeroSheetWindow.AfterLayout(function()
-            if abilityBody.valid and not abilityBody.vscroll and abilityList.renderedHeight > abilityBody.renderedHeight + 0.5 then
-                abilityBody.vscroll = true
-                --the engine then skips cards well outside the view, so the tab shows and
-                --scrolls faster. Set only once the scroll view exists: before that the engine errors.
-                abilityBody.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     local abilityCount = gui.Label{
         classes = {"heroSheetCardSub"},
@@ -1502,9 +1490,6 @@ function HeroSheetLists.Create(args)
         SetTabOn(mediumTabs.notes, pane == "notes")
         --a pane hidden while the Hero changed is drawn before the frame shows it.
         HeroSheetRefresh.CatchUpShown()
-        FitScroll()
-        features.fit()
-        notes.fit()
     end
 
     --Measures whether the filters fit beside the tabs at Wide (after layout:
@@ -1544,7 +1529,7 @@ function HeroSheetLists.Create(args)
             featuresTab = id
         end
         Arrange()
-        --the sheet fits its parts again (a Narrow pane scrolls once it overflows).
+        --the sheet fits its parts again.
         local fit = HeroSheetRefresh.afterRedraw
         if fit ~= nil then
             fit()
@@ -1663,7 +1648,6 @@ function HeroSheetLists.Create(args)
             abilityCount.text = tostring(total)
             mediumCount.text = tostring(total)
             SetEditing(HeroSheet.Editing())
-            FitScroll()
         end,
     }
 
@@ -1691,8 +1675,6 @@ function HeroSheetLists.Create(args)
         end,
         heroSheetLayout = function(element)
             MeasureFilters()
-            features.fit()
-            notes.fit()
         end,
         heroSheetEdit = function(element, editing)
             SetEditing(editing)

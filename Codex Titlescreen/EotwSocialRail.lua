@@ -626,6 +626,12 @@ local function FriendRow(friend, status)
         textOverflow = "ellipsis",
         valign = "center",
     } }
+    --their Player Tag, while they are in town (capped so the name keeps room).
+    local badge = EotwPlayerTags.Badge(EotwPlayerTags.TagOf(friend.uid), { fontSize = 11, maxWidth = cond(hasButtons, 80, 120) })
+    if badge ~= nil then
+        badge.selfStyle.lmargin = 6
+        nameRow[#nameRow+1] = badge
+    end
     for _,icon in ipairs(SourceIcons(friend)) do
         nameRow[#nameRow+1] = icon
     end

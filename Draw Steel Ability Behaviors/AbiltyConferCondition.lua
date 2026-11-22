@@ -715,7 +715,9 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
     return result
 end
 --------------------------------------------------------------------------------
--- Taunt By Nearest behavior.
+-- Taunt By Nearest behavior. DEPRECATED: hidden from the behavior pickers and
+-- kept only so existing abilities still run. New content should use a Lua Script
+-- behavior; the Wyvern malice ability Overflowing Rage is a working example.
 --
 -- Used after a power roll (e.g. a Director malice "each enemy makes a test").
 -- For each target on a selected tier, finds the NEAREST OTHER creature or object
@@ -737,7 +739,9 @@ ActivatedAbilityTauntByNearestBehavior.duration = "save_ends"
 ActivatedAbility.RegisterType
 {
     id = 'tauntbynearest',
-    text = 'Taunt By Nearest',
+    text = 'Taunt By Nearest (Deprecated)',
+    --Deprecated: kept out of the pickers so no new ability uses it.
+    hidden = true,
     createBehavior = function()
         return ActivatedAbilityTauntByNearestBehavior.new{
             duration = "save_ends",
@@ -753,17 +757,17 @@ local g_tauntConditionDurations = {
     eoe = "eoe",
 }
 
--- Returns the nearest other live creature or attackable-object token to `token`
--- (ties: first found), or nil if there is none.
+-- Returns the nearest other live creature or attackable-object token to `token` on the
+-- same floor, ignoring tokens players cannot see (ties: first found), or nil if none.
 function ActivatedAbilityTauntByNearestBehavior.FindNearestToken(token)
     local best = nil
     local bestDistance = nil
     for _,other in ipairs(dmhub.allTokensIncludingObjects) do
-        if other.valid and other.charid ~= token.charid and other.properties ~= nil then
+        if other.valid and other.charid ~= token.charid and other.properties ~= nil and other.floorid == token.floorid then
             local eligible = true
             if other.isObject then
-                eligible = other.isAttackableObject
-            elseif other.properties:IsDead() then
+                eligible = other.isAttackableObject and not other.objectInvisibleToPlayers
+            elseif other.properties:IsDead() or other.invisibleToPlayers then
                 eligible = false
             end
 
@@ -820,7 +824,7 @@ function ActivatedAbilityTauntByNearestBehavior:Cast(ability, casterToken, targe
                 end
 
                 targetToken:ModifyProperties{
-                    description = "Taunted by nearest",
+                    description = tr("Taunted by nearest"),
                     execute = function()
                         ability.RecordTokenMessage(targetToken, options, tr("Taunted"))
                         targetToken.properties:InflictCondition(tauntedId, {
@@ -865,15 +869,15 @@ function ActivatedAbilityTauntByNearestBehavior:EditorItems(parentPanel)
         classes = {"formPanel"},
         gui.Label{
             classes = {"formLabel"},
-            text = "Duration:",
+            text = tr("Duration:"),
         },
         gui.Dropdown{
             classes = {"formDropdown"},
             width = 240,
             options = {
-                {id = "save_ends", text = "Save Ends"},
-                {id = "end_of_next_turn", text = "End of Next Turn"},
-                {id = "eoe", text = "End of Encounter"},
+                {id = "save_ends", text = tr("Save Ends")},
+                {id = "end_of_next_turn", text = tr("End of Next Turn")},
+                {id = "eoe", text = tr("End of Encounter")},
             },
             idChosen = self:try_get("duration", "save_ends"),
             change = function(element)
@@ -882,7 +886,7 @@ function ActivatedAbilityTauntByNearestBehavior:EditorItems(parentPanel)
         },
     }
 
-    local effectChoices = {{id = "none", text = "None"}}
+    local effectChoices = {{id = "none", text = tr("None")}}
     for k,effect in pairs(dmhub.GetTable("characterOngoingEffects") or {}) do
         if not effect:try_get("hidden") then
             effectChoices[#effectChoices+1] = {id = k, text = effect.name}
@@ -894,7 +898,7 @@ function ActivatedAbilityTauntByNearestBehavior:EditorItems(parentPanel)
         classes = {"formPanel", "formPanel-inline"},
         gui.Label{
             classes = {"formLabel"},
-            text = "Also Apply Effect:",
+            text = tr("Also Apply Effect:"),
         },
         gui.Dropdown{
             classes = {"formDropdown"},

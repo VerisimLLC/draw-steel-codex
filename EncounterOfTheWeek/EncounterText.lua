@@ -881,11 +881,12 @@ text("montage.assassin.dice_label", [[Assassin's blade]])
 ----------------------------------------------------------------------------
 -- GAUNTLET: the words on a Gauntlet's rolls (EncounterGauntlet.lua)
 ----------------------------------------------------------------------------
---The fatigue chip on a roll: every roll a hero has made in this Gauntlet
---adds a bane. {count} is how many rolls they have made so far.
-text("gauntlet.chip.weary_one", [[Weary (1 roll so far)]])
-text("gauntlet.chip.weary_many", [[Weary ({count} rolls so far)]])
-text("gauntlet.chip.weary_description", [[Every roll you have already made in this part of the story puts a bane on this one (at most a double bane).]])
+--The fatigue chip on a roll: each roll a hero has made in this narrative
+--adds a bane until three tests by other heroes come after it. {count} is
+--how many of their rolls still do.
+text("gauntlet.chip.weary_one", [[Weary (1 recent roll)]])
+text("gauntlet.chip.weary_many", [[Weary ({count} recent rolls)]])
+text("gauntlet.chip.weary_description", [[Each roll you make puts a bane on your rolls. It wears off when three other heroes make rolls.]])
 --The assist chip on the main roll. {hero} assisted; {tier} is the tier
 --their assist roll landed on.
 text("gauntlet.chip.assist_bane", [[Bane: {hero} assisted]])

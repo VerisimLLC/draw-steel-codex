@@ -799,7 +799,7 @@ function EotwTownHall.Panel(host)
             gui.Label{ text = T("townhall.petitions.tally", { up = tonumber(p.up) or 0, down = tonumber(p.down) or 0 }), fontSize = 12, color = DIM, width = "100%", height = "auto", textAlignment = "center", tmargin = 2 },
         }
 
-        local byline = T("townhall.petitions.byline", { name = Plain(p.name), when = DescribeServerTimestamp(p.at) })
+        local byline = T("townhall.petitions.byline", { name = Plain(p.name) .. EotwPlayerTags.Inline(p.tag), when = DescribeServerTimestamp(p.at) })
         if p.mine then
             byline = T("townhall.petitions.byline_mine", { when = DescribeServerTimestamp(p.at) })
         end

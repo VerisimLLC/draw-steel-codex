@@ -294,6 +294,11 @@ local BEHAVIOR_METADATA = {
         tags = {"audio", "sfx", "sound", "music"},
         group = "narrative",
     },
+    loyalty_collar_explosion = {
+        description = "Blow up the caster's loyalty collar.",
+        tags = {"collar", "war dog", "explosion", "explode"},
+        group = "narrative",
+    },
     show_journal = {
         description = "Display a journal entry to the player.",
         tags = {"journal", "document", "show", "read", "note"},
@@ -302,6 +307,11 @@ local BEHAVIOR_METADATA = {
     open_sheet = {
         description = "Open the caster's character sheet on a chosen tab (e.g. Builder).",
         tags = {"character sheet", "builder", "open", "show", "tab"},
+        group = "narrative",
+    },
+    log_note = {
+        description = "Post a note card to the action log (title + detail), e.g. to explain a silent trigger.",
+        tags = {"log", "chat", "note", "message", "explain", "action log"},
         group = "narrative",
     },
 

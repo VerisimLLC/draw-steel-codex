@@ -367,6 +367,13 @@ local function SelectTab(tabid)
     state.tab = tabid
     state.editing = false
     ShowBuilder(window, tabid == "Builder")
+    --leaving the Inventory tab returns its list to the Hero's items: coming
+    --back, players expect their own inventory, not the stash. Done here, as
+    --the hidden tab no longer hears the switch.
+    local inventory = TabModule("HeroSheetInventory")
+    if tabid ~= "Inventory" and inventory ~= nil and inventory.Source() == "stash" then
+        inventory.SetSource("items")
+    end
     window:FireEventTree("heroSheetTab", tabid)
     window:FireEventTree("heroSheetEdit", false)
     window:FireEventTree("heroSheetTitle")
@@ -568,11 +575,14 @@ local function BuildContent()
         valign = "top",
         tmargin = 8,
     }
+    --Narrow's panes scroll from creation: the engine wires a scroll bar only
+    --on a panel's first frame. Content that fits shows no bar.
     local statsPane = gui.Panel{
         classes = {"collapsed"},
         width = "100%",
         height = "100%-36",
         flow = "vertical",
+        vscroll = true,
         statsInner,
     }
     local gearInner = gui.Panel{
@@ -588,6 +598,7 @@ local function BuildContent()
         width = "100%",
         height = "100%-36",
         flow = "vertical",
+        vscroll = true,
         gearInner,
     }
     local lists = HeroSheetLists.Create{statsPane = statsPane, gearPane = gearPane}
@@ -692,14 +703,6 @@ local function BuildContent()
                 local over = stats.renderedHeight / perUnit
                 if HeroSheet.Tier() == "narrow" then
                     over = (bannerSlot.renderedHeight + charsSlot.renderedHeight) / perUnit
-                    --Narrow's panes scroll once their content is taller.
-                    for _, pair in ipairs({{statsPane, statsInner}, {gearPane, gearInner}}) do
-                        local pane, inner = pair[1], pair[2]
-                        if not pane:HasClass("collapsed") and pane.renderedHeight > 0 and not pane.vscroll
-                            and inner.renderedHeight > pane.renderedHeight + 0.5 then
-                            pane.vscroll = true
-                        end
-                    end
                 end
                 local room = right.renderedHeight / perUnit - bar - over - HeroSheetLists.TOP_MARGIN
                 short = room < HeroSheetLists.MIN_HEIGHT
@@ -1036,7 +1039,11 @@ local function BuildContent()
             --Appearance's column is its big art and what sits under it:
             --the card, kit and Treasures step aside, and the column never scrolls.
             local onAppearance = tabid == "Appearance" and tier ~= "narrow"
-            treasures:SetClass("collapsed", tabid == "Inventory" or tabid == "Downtime" or onAppearance)
+            --on the Inventory tab the column shows the side the list does not:
+            --the stash beside the Hero's items, Treasures beside the stash.
+            local inventory = TabModule("HeroSheetInventory")
+            local stashListed = tabid == "Inventory" and tier ~= "narrow" and inventory ~= nil and inventory.Source() == "stash"
+            treasures:SetClass("collapsed", (tabid == "Inventory" and not stashListed) or tabid == "Downtime" or onAppearance)
             kit:SetClass("collapsed", (tabid == "Downtime" and tier ~= "narrow") or onAppearance)
             if SyncAppearanceHost ~= nil then
                 SyncAppearanceHost(tabid)
@@ -1045,6 +1052,11 @@ local function BuildContent()
                 element.vscroll = not onAppearance
             end
             FitTreasures()
+        end,
+        --the Inventory list switched between the Hero's items and the stash.
+        heroSheetInventorySource = function(element)
+            local state = HeroSheet.State()
+            element:FireEvent("heroSheetTab", state ~= nil and state.tab or "")
         end,
         card,
         kit,

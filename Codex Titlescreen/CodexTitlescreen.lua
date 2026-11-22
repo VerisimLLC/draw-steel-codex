@@ -1,20 +1,14 @@
 
 local mod = dmhub.GetModLoading()
 
-local g_directlyLaunchingGame = false
-
 --The titlescreen is only built on the first load (TitlescreenVersion guard
 --below), but this file re-runs when the codex reloads on entering the lobby
 --game. Adopt the existing root so TitlescreenHeroes.Edit/Create keep working.
 local g_titlescreen = rawget(_G, "CodexTitlescreenRoot")
 
-for _, str in ipairs(dmhub.commandLineArguments) do
-    if str == "--gameid" then
-        g_directlyLaunchingGame = true
-    end
-end
-
-if g_directlyLaunchingGame then
+--Launched with --gameid: no titlescreen until we leave that game. The engine
+--loads this file again then, with launchedIntoGame false.
+if dmhub.launchedIntoGame then
     return
 end
 
@@ -839,19 +833,22 @@ local function ScaleDimensionsToFill(dim)
     return dim * math.max(a/b, b/a)
 end
 
---Text for a loading-screen quote: the quote in italics, then "- speaker" when
---the quote has one. Shared by the loading screen and the Developer preview.
---The speaker sits in an <indent> block as wide as "- " (measured 0.54em), so a
---speaker written over several lines ("Dancer\nChronicler, ...") lines up
---under its first line instead of under the dash.
+--Text for a loading-screen quote: the quote in italics. The speaker is shown
+--by a separate label under it (see LoadingQuoteSpeaker).
 local function FormatLoadingQuote(quote)
     if quote == nil then
         return ""
     end
-    if quote.speaker ~= nil and quote.speaker ~= "" then
-        return string.format("<i>%s</i>\n- <indent=0.55em>%s</indent>", quote.quote, quote.speaker)
-    end
     return string.format("<i>%s</i>", quote.quote)
+end
+
+--The attribution under a loading-screen quote, or "" for none. A speaker may
+--span several lines (a newline in the speaker string); each line stacks.
+local function LoadingQuoteSpeaker(quote)
+    if quote == nil or quote.speaker == nil then
+        return ""
+    end
+    return quote.speaker
 end
 
 --imageLoaded handler for the loading-screen art panel: crops the art so it
@@ -904,9 +901,9 @@ local function FitLoadingScreenArt(element)
     end
 end
 
---The quote banner along the bottom of the loading screen. Fire
---"setLoadingQuote" on it with new text to swap the quote in place.
-local function CreateLoadingQuoteBanner(quoteText)
+--The quote banner along the bottom of the loading screen, for a CodexQuotes
+--entry (or nil). Fire "setLoadingQuote" on it with another entry to swap it.
+local function CreateLoadingQuoteBanner(quote)
     -- Viewport-sized container so the loading-quote banner stays
     -- in the visible screen area at any aspect ratio. loadingScreen
     -- is oversized by ScaleDimensionsToFill on widescreens, which
@@ -959,19 +956,45 @@ local function CreateLoadingQuoteBanner(quoteText)
                 vmargin = 0,
                 width = "68%",
 
-                gui.Label {
-                    text = quoteText,
-                    fontSize = 20,
+                --Quote and attribution as one block: the attribution sits
+                --under the quote at its right edge, its lines left-aligned.
+                gui.Panel {
+                    flow = "vertical",
                     width = "auto",
                     height = "auto",
-                    textAlignment = "left",
                     halign = "center",
                     valign = "center",
-                    maxWidth = 600,
-                    markdown = true,
-                    setLoadingQuote = function(element, text)
-                        element.text = text
-                    end,
+
+                    gui.Label {
+                        text = FormatLoadingQuote(quote),
+                        fontSize = 20,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "left",
+                        halign = "left",
+                        maxWidth = 600,
+                        markdown = true,
+                        setLoadingQuote = function(element, newQuote)
+                            element.text = FormatLoadingQuote(newQuote)
+                        end,
+                    },
+
+                    gui.Label {
+                        text = LoadingQuoteSpeaker(quote),
+                        fontSize = 20,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "left",
+                        halign = "right",
+                        tmargin = 4,
+                        maxWidth = 600,
+                        classes = { cond(LoadingQuoteSpeaker(quote) == "", "collapsed", nil) },
+                        setLoadingQuote = function(element, newQuote)
+                            local speaker = LoadingQuoteSpeaker(newQuote)
+                            element.text = speaker
+                            element:SetClass("collapsed", speaker == "")
+                        end,
+                    },
                 },
             },
 
@@ -1006,7 +1029,7 @@ function LoadingQuotesPreview.Show()
 
     local index = 1
     local modalLayer = nil
-    local banner = CreateLoadingQuoteBanner("")
+    local banner = CreateLoadingQuoteBanner(nil)
     local counterLabel
 
     local function Close()
@@ -1019,7 +1042,7 @@ function LoadingQuotesPreview.Show()
     local function ShowQuote(i)
         index = ((i - 1) % #ids) + 1
         local id = ids[index]
-        banner:FireEventTree("setLoadingQuote", FormatLoadingQuote(quotes.quotes[id]))
+        banner:FireEventTree("setLoadingQuote", quotes.quotes[id])
         counterLabel.text = string.format("%d / %d   %s", index, #ids, id)
     end
 
@@ -8041,7 +8064,7 @@ function CreateTitlescreen(dialog, options)
                     element.data.loadingScreen = nil
                 end
 
-                local quoteText = FormatLoadingQuote(CodexQuotes.SelectQuote())
+                local loadingQuote = CodexQuotes.SelectQuote()
 
                 -- Show an error with Retry/Cancel if the load stalls past this many seconds.
                 -- The outer watcher panel must stay active (no "hidden" class) so its think
@@ -8209,7 +8232,7 @@ function CreateTitlescreen(dialog, options)
                     },
 
 
-                    CreateLoadingQuoteBanner(quoteText),
+                    CreateLoadingQuoteBanner(loadingQuote),
 
                     -- Viewport-sized container so the ProgressDice stays
                     -- in the visible screen area at any aspect ratio.

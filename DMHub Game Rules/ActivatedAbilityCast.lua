@@ -30,6 +30,7 @@ local mod = dmhub.GetModLoading()
 --- @field forcedMovementCreatureCollisionIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
+--- @field guid? string Unique id of this cast; unset until EnsureGuid is called.
 --- @field _tmp_maliceBannerShown? boolean Set once the Malice ability banner has been shown for this cast; read with try_get.
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
 
@@ -875,6 +876,18 @@ function ActivatedAbilityCast:RecordForcedMovementCreatureCollision(movedToken, 
     for _, charid in ipairs(collidedCreatureIds) do
         ids[charid] = true
     end
+end
+
+--- This cast's unique id, created the first time it is asked for. Use it to tell
+--- one use of an ability from another, e.g. when adding up damage per ability.
+--- @return string
+function ActivatedAbilityCast:EnsureGuid()
+    local guid = self:try_get("guid")
+    if guid == nil then
+        guid = dmhub.GenerateGuid()
+        self.guid = guid
+    end
+    return guid
 end
 
 --- @param retarget {casterid: string, tokenid: string, retargetid: string, retargetType: 'all'|'forcemove'|'none'|'caster'}

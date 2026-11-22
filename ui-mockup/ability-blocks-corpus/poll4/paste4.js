@@ -22,7 +22,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
         const { ability, ctx } = importAbilityText(r.md);
         ab = ability; registerScopes(ab); compiledCache = null;
         const c = { block: 0, advanced: 0, todo: 0, todos: [], types: {} }; walk(ab.steps, c);
-        row.steps = c; row.parsedName = ab.name; row.guesses = ctx.guesses;
+        row.steps = c; row.parsedName = ab.name; row.guesses = ctx.guesses; row.shells = ctx.effectShells || 0;
         const comp = compileAbility(); const rec = comp.rec;
         row.problems = problems.filter(q => !q.soft).map(q => q.msg); row.checks = problems.filter(q => q.soft).map(q => q.msg);
         row.full = c.todo === 0 && row.problems.length === 0;

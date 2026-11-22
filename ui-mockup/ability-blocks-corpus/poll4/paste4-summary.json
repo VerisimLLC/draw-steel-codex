@@ -1,11 +1,11 @@
 {
  "pages": 545,
  "matchedToOurData": 472,
- "fullyBuilt": 52,
+ "fullyBuilt": 84,
  "everyTierResultBuilt": 479,
- "blocksBuilt": 1856,
+ "blocksBuilt": 1986,
  "tierPiecesLeft": 200,
- "effectSentencesLeft": 1095,
+ "effectSentencesLeft": 943,
  "headerAgreesWithOurData": {
   "keywords": 414,
   "action": 457,
@@ -16,14 +16,14 @@
   "tiers": 411
  },
  "byClassFullyBuilt": {
-  "Kits": 6,
-  "Conduit": 10,
-  "Shadow": 6,
-  "Troubadour": 5,
-  "Censor": 6,
+  "Kits": 9,
+  "Conduit": 21,
+  "Shadow": 8,
+  "Troubadour": 8,
+  "Censor": 12,
   "Elementalist": 5,
-  "Tactician": 2,
-  "Null": 6,
-  "Fury": 6
+  "Tactician": 6,
+  "Null": 7,
+  "Fury": 8
  }
 }

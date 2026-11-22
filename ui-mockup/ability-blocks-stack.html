@@ -1239,8 +1239,8 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         out.push(Object.assign(dmg, base));
         const tail = f.unreducible === "yes" ? " that can't be reduced in any way" : "";
         prose.push({ kind: "text", text: f.who === "caster" ? cap("you take " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) : cap("the target takes " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) }); break; }
-      case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: conditionText(f) }, base));
-        prose.push({ kind: "text", text: cap("the target is " + conditionText(f) + fp) }); break;
+      case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: conditionText(f) }, f.who === "caster" ? { applyto: "caster" } : {}, base));
+        prose.push({ kind: "text", text: cap((f.who === "caster" ? "you are " : "the target is ") + conditionText(f) + fp) }); break;
       case "floatText": out.push(Object.assign({ __typeName: "ActivatedAbilityFloatTextBehavior", applyto: f.who, text: f.text, color: f.color }, base)); break;   // display only: nothing on the card
       case "note": if (!f.text) bad(st.id, "Write the card text."); prose.push({ kind: "text", text: f.text.replace(/\.$/, "") }); break;
       case "riders": {
@@ -1325,9 +1325,12 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         break;
       }
       case "applyEffect": {
-        if (!f.effectId) bad(st.id, f.effectName ? "\u201c" + f.effectName + "\u201d is not an effect in the compendium. Pick one from the list." : "Choose which effect to apply.");
+        // A new effect from pasted text: the engine record is made on save; its rules are card text until built.
+        if (!f.effectId && f.newEffect) check(st.id, "\u201c" + f.effectName + "\u201d is a new effect. Until its rules are built in the effect editor, it shows its text on the creature but doesn't automate it.");
+        else if (!f.effectId) bad(st.id, f.effectName ? "\u201c" + f.effectName + "\u201d is not an effect in the compendium. Pick one from the list." : "Choose which effect to apply.");
         const durText = (EFFECT_DURATIONS.find(d => d[0] === f.dur) || ["", f.dur])[1];
-        out.push(Object.assign({ __typeName: "ActivatedAbilityApplyOngoingEffectBehavior", applyto: f.who, ongoingEffect: f.effectId, ongoingEffectCustom: f.effectId, duration: f.dur, stacks: "1" }, base));
+        const eid = f.effectId || (f.newEffect ? "<New effect: " + f.effectName + ">" : "");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityApplyOngoingEffectBehavior", applyto: f.who, ongoingEffect: eid, ongoingEffectCustom: eid, duration: f.dur, stacks: "1" }, base));
         prose.push({ kind: "text", text: cap(whoText(f.who) + " " + (f.who === "caster" ? "get " : "gets ") + (f.effectName || "an effect") + " " + durText + fp) });
         break;
       }
@@ -1423,8 +1426,10 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         out.push(rec); prose.push({ kind: "text", text: cap(f.summary + fp) }); break;
       }
       case "invoke": out.push(Object.assign(f.kind === "standard"
-          ? { __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "standard", standardAbility: f.stdId, standardAbilityParams: f.params || {} }
+          ? Object.assign({ __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "standard", standardAbility: f.stdId, standardAbilityParams: f.params || {} }, f.who === "caster" ? { applyto: "caster" } : {})
           : { __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "named", namedAbility: f.ability }, base));
+        if (f.kind === "standard" && f.stdId === SPEND_RECOVERY_ID) { const n = (f.params || {}).numrecoveries || "1";
+          prose.push({ kind: "text", text: cap(whoText(f.who) + " can spend " + (n === "1" ? "a Recovery" : /available/i.test(n) ? "any number of Recoveries" : n + " Recoveries") + fp) }); break; }
         prose.push({ kind: "text", text: /free strike/i.test(f.ability) ? cap("you make a " + f.ability.toLowerCase().replace(/^(melee |ranged )?/, m => m) + fp) : cap("you use " + f.ability + fp) }); break;
       case "ifStep": {
         if (!st.branches.then.length) bad(st.id, "Nothing happens inside this \"Only if\".");
@@ -1885,7 +1890,8 @@ function renderStep(st, list, ctx, scope) {
         if (f.unreducible === "yes" || editingId === st.id) add(sel(f, "unreducible", [["no", "that can be reduced"], ["yes", "that can't be reduced"]], null, "can it be reduced")); }
       gsHolder = st.slots.amount; break;
     case "condition": {
-      add(lbl("Make the target")); add(sel(f, "cond", CONDITIONS, () => { f.rider = ""; refresh(); }, "condition"));
+      if (f.who && ctx !== "tier") { add(lbl("Make")); add(sel(f, "who", [["targets", "the target"], ["caster", "you"]], null, "who")); } else add(lbl("Make the target"));
+      add(sel(f, "cond", CONDITIONS, () => { f.rider = ""; refresh(); }, "condition"));
       const rs = ridersFor(f.cond);
       if (rs.length || f.rider) add(sel(f, "rider", [["", "\u2014"]].concat(rs.map(r => [r[0], riderText(r)])), null, "extra"));
       add(sel(f, "dur", DURATIONS, null, "duration")); break;
@@ -1922,6 +1928,7 @@ function renderStep(st, list, ctx, scope) {
       if (ctx !== "tier") add(sel(f, "who", WHO_OPTS, null, "who"));
       add(lbl(ctx === "tier" ? "Give the target" : f.who === "caster" ? "get" : "gets"));
       add(effectInput(f));
+      if (f.newEffect && !f.effectId) { const t = E("span", "adv-tag guess", "new effect"); t.title = "Made when you save. What it does, for now card text: " + f.newEffect; add(t); }
       add(sel(f, "dur", ctx === "tier" ? [["save_ends", "save ends"], ["eot", "EoT"]] : EFFECT_DURATIONS, null, "duration"));
       break;
     }
@@ -1966,6 +1973,7 @@ function renderStep(st, list, ctx, scope) {
     case "useNew": add(lbl("Then use a new ability:")); add(inp(f, "name", "name", "follow-up name")); break;
     case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
     case "invoke":
+      if (f.kind === "standard" && f.who) add(sel(f, "who", [["targets", "The target"], ["caster", "You"]], null, "who"));
       if (f.kind === "standard") {
         // A standard ability (Spend Recovery, Shift, Free Strike...): picked by name, saved by its id.
         add(lbl("Use")); const opts = Object.entries(STANDARD_ABILITIES).sort((a, b) => a[1].localeCompare(b[1]));
@@ -2499,6 +2507,72 @@ function insteadIfAlready(m, ctx) {
   });
   return rebuilt ? [] : null;
 }
+const SPEND_RECOVERY_ID = "f57cb6f7-13b9-4ebb-8e88-88ead0a9c203";   // standard ability "May Spend Recovery"
+/* Effect sentences read as "who + what they get": "The target gains 20 temporary Stamina and 3 surges.",
+   "You are weakened and slowed (save ends).", "Each target can spend a Recovery." A sentence that starts
+   "Until the end of the encounter, ..." gives the subject a new effect with that duration; what the effect
+   does is built later in the effect editor (its words show on the creature meanwhile). */
+const NUM_WORD = { a: "1", an: "1", one: "1", two: "2", three: "3", four: "4", five: "5" };
+const CLAUSE_DURATIONS = [
+  [/^until the end of the encounter or until (?:you are|the target is|they are) dying$/i, "eoe_or_dying"],
+  [/^until the end of the encounter$/i, "eoe"],
+  [/^until the end of (?:the target's|their|each target's) next turn$/i, "end_of_next_turn"],
+  [/^until the start of your next turn$/i, "1"]];
+function clauseSubject(t) {
+  const m = t.match(/^(you|the target|each target|a target|each chosen target|the chosen target|they|the creature|each (?:ally|enemy|creature) in the area)\s+(.+)$/i);
+  return m ? { who: /^you$/i.test(m[1]) ? "caster" : "targets", rest: m[2] } : null;
+}
+function clausePredicate(p, who) {
+  let m; p = p.trim().replace(/\.$/, "");
+  const surgeRes = () => (RESOURCE_TABLE.find(x => x[1] === "Surges") || [""])[0];
+  if ((m = p.match(/^gains? (a|an|one|two|three|four|five|\d+) surges?$/i))) { const r = STEPS.resource.make(); r.f.who = who; r.f.res = surgeRes(); r.slots.qty = holderFromText("number", "quantity", NUM_WORD[m[1].toLowerCase()] || m[1]); return [r]; }
+  if ((m = p.match(/^gains? (\d+) temporary stamina$/i))) { const t = STEPS.tempStamina.make(); t.f.who = who; t.slots.amount = holderFromText("number", "tempStamina", m[1]); return [t]; }
+  if ((m = p.match(/^gains? temporary stamina equal to (twice |three times )?your (might|agility|reason|intuition|presence)(?: score)?$/i))) {
+    const t = STEPS.tempStamina.make(); t.f.who = who; t.slots.amount = holderFromText("number", "tempStamina", cap(m[2].toLowerCase()) + (m[1] ? (/twice/i.test(m[1]) ? " * 2" : " * 3") : "")); return [t]; }
+  if ((m = p.match(/^can spend (a|an|one|two|three|\d+|any number of) (?:additional )?recover(?:y|ies)$/i))) {
+    const st = STEPS.invoke.make(); Object.assign(st.f, { kind: "standard", stdId: SPEND_RECOVERY_ID, ability: STANDARD_ABILITIES[SPEND_RECOVERY_ID] || "May Spend Recovery", who,
+      params: { numrecoveries: /any number/i.test(m[1]) ? "Recoveries Available to Spend" : (NUM_WORD[m[1].toLowerCase()] || m[1]) } }); return [st]; }
+  if ((m = p.match(/^(?:is|are|becomes?) ([a-z]+(?:(?:, | and |, and )[a-z]+)*)(?: (?:by|of) you)?(?: \((save ends|eot)\)| until the end of (?:their|the target's|your) next turn)$/i))) {
+    const names = m[1].split(/, and |, | and /); const conds = names.map(n => CONDITIONS.find(c => c.toLowerCase() === n.toLowerCase()));
+    if (conds.some(c => !c)) return null;
+    return conds.map(c => { const st = STEPS.condition.make(); st.f.cond = c; st.f.dur = m[2] && /save/i.test(m[2]) ? "save ends" : "EoT"; st.f.who = who; return st; });
+  }
+  return null;
+}
+function readClause(sen, ctx) {
+  let s = sen.trim().replace(/\.$/, "").replace(/^(?:additionally|then|also),?\s+/i, "");
+  // "Until the end of the encounter, <who> <does something>": a new effect on them, for that long.
+  const dm = s.match(/^(until [^,]+),\s*(.+)$/i);
+  if (dm) {
+    const d = CLAUSE_DURATIONS.find(([re]) => re.test(dm[1])); if (!d) return null;
+    const inner = dm[2], sub = clauseSubject(inner);
+    // A plain condition keeps its own duration words ("Until the end of their next turn, the target is slowed").
+    const e = STEPS.applyEffect.make(); e.f.who = sub ? sub.who : (ctx.selfOnly ? "caster" : "targets"); e.f.dur = d[1];
+    e.f.effectName = ctx.abilityName || "Pasted ability"; e.f.effectId = ""; e.f.newEffect = cap(inner) + ".";
+    // The compendium may already have this ability's effect (same name): use it instead of a new one.
+    const known = EFFECTS.find(r => r[1].toLowerCase() === e.f.effectName.toLowerCase()); if (known) { e.f.effectId = known[0]; e.f.effectName = known[1]; }
+    ctx.effectShells = (ctx.effectShells || 0) + 1; return [e];
+  }
+  // "If the target has R < AVERAGE, they are slowed (EoT).": the results behind a potency test.
+  const pm = s.match(/^if (?:the target|that enemy|the triggering creature|they) ha(?:s|ve) ([MARIP]) < (weak|average|strong),\s*(?:they|the target|that enemy) (.+)$/i);
+  if (pm) {
+    const inner = clausePredicate(pm[3], "targets"); if (!inner) return null;
+    const ch = pm[1].toUpperCase(), tier = cap(pm[2].toLowerCase());
+    const onlyIf = STEPS.ifStep.make();
+    onlyIf.slots.cond = holderFromText("boolean", "stepIf", ctx.pr ? 'not Cast.PassesPotency(Target, "' + ch + '", "' + tier + '")' : 'not Target.PassesPotency("' + ch + '", Caster.' + tier + ")");
+    onlyIf.branches.then.push(...inner); return [onlyIf];
+  }
+  const sub = clauseSubject(s); if (!sub) return null;
+  // "gains 20 temporary Stamina and 3 surges": one subject, several results joined by "and" or commas.
+  const parts = sub.rest.split(/,? and (?=(?:gains?|can|is|are|becomes?|\d|a |an |one |two |three )\b)|, (?=(?:gains?|can)\b)/i);
+  const out = [];
+  for (let i = 0; i < parts.length; i++) {
+    let p = parts[i];
+    if (i > 0 && /^(\d+|a|an|one|two|three) /i.test(p)) p = "gains " + p;   // "... Stamina and 3 surges"
+    const st = clausePredicate(p, sub.who); if (!st) return null; out.push(...st);
+  }
+  return out.length ? out : null;
+}
 const SENTENCE_PATTERNS = [
   { re: /^if the target is already (\w+)(?: of you or another creature)?(?: and this ability would \w+ them again)?,? (?:they|the target) (?:instead )?(.+?)(?: instead)?$/i, build: (m, ctx) => insteadIfAlready(m, ctx) },
   { re: /^you (shift|move|jump|teleport) up to your speed( in a straight line)?(, and enemy squares are not difficult terrain for this movement)?$/i,
@@ -2606,6 +2680,7 @@ function parseEffectParagraph(text, ctx) {
     sen = sen.trim().replace(/\.$/, ""); if (!sen) continue;
     let built = null;
     for (const p of SENTENCE_PATTERNS) { const m = sen.match(p.re); if (m) { built = p.build(m, ctx); if (built) break; } }
+    if (!built) built = readClause(sen, ctx);
     if (built) { out.push(...built); ctx.matched++; }
     else { const t = STEPS.todo.make(); t.f.text = sen + "."; out.push(t); ctx.todo++; }
   }
@@ -2684,7 +2759,7 @@ function importAbilityText(raw) {
     }
     if (target) {
       let tm;
-      if (/^self$/i.test(target)) { a.targetCount = "self"; }
+      if (/^self$/i.test(target)) { a.targetCount = "self"; ctx.selfOnly = true; }
       else if (/^special$/i.test(target)) { a.targetCount = "special"; }
       // Wordings the target picker can't say ("Self and each ally in the area", "One creature or object"):
       // the closest pick does the work and the book's words stay on the card.
@@ -2727,7 +2802,15 @@ function importAbilityText(raw) {
     // Pasted paragraphs are the book's own wording, so they become the saved description (one entry each).
     a.descParas = a.descParas || []; const di = a.descParas.length; a.descParas.push({ label: para.label, text: "" });
     a.overrides["desc" + di] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})["desc" + di] = para.label;
-    a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
+    // Only "Effect" paragraphs always happen. "Strained:" steps go inside "Only if you are Strained";
+    // "Persistent N:" needs the full editor's persistence settings; "Trigger:", "Special:" and other
+    // labels are card words only.
+    if (/^effect$/i.test(para.label)) a.steps.push(...parseEffectParagraph(para.text, ctx));
+    else if (/^strained$/i.test(para.label)) {
+      const inner = parseEffectParagraph(para.text, ctx); const onlyIf = STEPS.ifStep.make();
+      onlyIf.slots.cond = holderFromText("boolean", "stepIf", "Caster.Strained"); onlyIf.branches.then.push(...inner); a.steps.push(onlyIf);
+    } else if (/^persistent\b/i.test(para.label)) { const t = STEPS.todo.make(); t.f.text = para.label + ": " + para.text; a.steps.push(t); ctx.todo++; }
+    para = null; };
   for (; i < lines.length; i++) {
     const l = lines[i]; let m;
     if ((m = l.match(/^power roll \+ (\w+(?:,? (?:or )?\w+)*):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); ctx.pr = pr;
@@ -3355,7 +3438,7 @@ const AURA_WHEN_MISSING = { targetendturnaura: true };
 // "Who" on the new steps. Saved as the behaviour's applyto.
 const WHO_OPTS = [["targets", "The target"], ["caster", "You"]];
 const WHO_OPTS_OBJ = [["targets", "the target"], ["caster", "you"]];
-const EFFECT_DURATIONS = [["save_ends", "(save ends)"], ["eoe", "until the end of the encounter"], ["eoe_or_dying", "until the end of the encounter or until you are dying"], ["until_rest", "until you finish a respite"], ["1", "for 1 round"]];
+const EFFECT_DURATIONS = [["save_ends", "(save ends)"], ["end_of_next_turn", "until the end of the target's next turn"], ["eoe", "until the end of the encounter"], ["eoe_or_dying", "until the end of the encounter or until you are dying"], ["until_rest", "until you finish a respite"], ["1", "for 1 round"]];
 const effectById = id => EFFECTS.find(r => r[0] === id);
 /* Searchable effect picker: 1,000+ effects is too many for a dropdown, so type to filter the list. */
 function effectInput(f) {

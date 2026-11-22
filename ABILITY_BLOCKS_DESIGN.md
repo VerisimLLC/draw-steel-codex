@@ -1094,6 +1094,32 @@ Remaining tier results: vertical pull (18), teleport (8), temporary Stamina (9),
 Header differences that are not reader errors: our data adds a "Kit" keyword the book doesn't print (19),
 and stores aura and "Self and each ally" abilities with other target types.
 
+**Second pass: durations, resources and conditions as sentences (2026-11-22).** Asked for: build the three
+biggest groups and re-run. The reader now reads an effect sentence as "who + what they get":
+- **Durations.** "Until the end of the encounter (or until you are dying) / the start of your next turn /
+  the end of the target's next turn, <...>" gives the subject an effect with that duration (`eoe`,
+  `eoe_or_dying`, 1 round, `end_of_next_turn`). When the compendium already has an effect named after the
+  ability, that effect is used (50 of 64); otherwise it's a **new effect** named after the ability whose
+  rules are the sentence, flagged "worth checking" (never blocking): it shows on the creature but doesn't
+  automate until built in the effect editor (the modifier editor proposal).
+- **Resources.** "gains N surges", "gains N temporary Stamina" (or "equal to (twice) your Presence"), "can
+  spend a / N / any number of Recoveries" (the standard "May Spend Recovery" ability, as content uses it),
+  with several joined by "and" ("gains 20 temporary Stamina and 3 surges").
+- **Conditions as sentences.** "You are weakened and slowed (save ends)", "The target is taunted until the
+  end of their next turn" (the condition block gained "you or the target"), and "If the target has
+  R < AVERAGE, they are slowed (EoT)" (an "Only if" with the potency test).
+- **Paragraph labels.** Only "Effect" paragraphs always happen. "Strained:" steps go inside "Only if you
+  are Strained" (they used to run every time); "Persistent N:" is one item for the full editor;
+  "Trigger:" and "Special:" are card words.
+
+Re-run of all 545 pages (same counting as before): sentences starting "Until ..." left 102 -> 4; resource
+sentences 113 -> 91; condition sentences 61 -> 50. Effect sentences left 1,095 -> 943; blocks built
+1,856 -> 1,986; **fully built 52 -> 84**; the kinds of steps match our content on 86 -> 135 of 472
+(*Exothermic Shield* now comes out with content's own effect, duration and Strained steps). The resource
+and condition sentences still left mostly name someone the blocks can't pick ("one ally within distance",
+"you and each ally within 3 squares of you") or sit behind a condition ("If this damage kills the
+target, ..."). Paste tests and all three open-and-save polls unchanged (45/45, 60/60, 1,148/1,148).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1185,6 +1211,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **Tier agreement checks:** a condition on the card that no step on the tier applies, or a potency letter that differs from the "Only if" check, shows as "worth checking" (never blocks saving). | A real rebuild slipped on both; no false alarms across the 62 "#" abilities in content. |
 | 2026-11-22 | **Steel Compendium markdown pastes; "already X, instead Y" builds tier-only steps; pasted paragraphs save to `description`.** An unnamed page is called "Pasted ability". | Asked for: make the compendium's markdown work for pasting; the pattern matches the user's rebuild of *It Is Justice You Fear*. |
 | 2026-11-22 | **Bulk paste test on all 545 Steel Compendium class and kit pages.** Tables read by cell (any target wording), kit rolls and "M or A" damage, keyword-less actions. Every tier result builds on 479; 52 build completely; 1,095 effect sentences left, grouped (durations 160, resources 121, movement 96, ...). | Asked for: check pasting at scale; evidence for which sentence patterns to add next. |
+| 2026-11-22 | **Effect sentences read as "who + what they get":** durations make an effect on the subject (the ability's existing effect, or a new one whose rules are card text until built); surges, temporary Stamina, Recoveries; conditions as sentences, on you or the target, behind a potency test. "Strained:" paragraphs go inside "Only if you are Strained". Fully built 52 -> 84 of 545. | Asked for: the three biggest groups from the bulk test. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

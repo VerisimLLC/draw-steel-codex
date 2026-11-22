@@ -525,7 +525,6 @@ RuleUtils = {
     --passing powerMod's changeTargetFilter is in `targets`; one that also fails a
     --"reasoned" filter stays listed but gets a tooltip in `reasons` (keyed by
     --charid) and can't be picked. symbols carries current/triggerer/caster.
-    --Same logic as the trigger panel's local BuildRetargetCandidates.
     --- @param powerMod CharacterModifier the trigger's "power" modifier
     --- @param symbols table
     --- @return CharacterToken[] targets

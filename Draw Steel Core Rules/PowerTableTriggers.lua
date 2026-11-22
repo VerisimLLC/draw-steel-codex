@@ -565,8 +565,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     end,
                 }
             else
-                --Only redirects can apply by themselves (see ApplyAutoRedirects in
-                --MCDMAbilityRollBehavior.lua); other passive triggers ignore it.
+                --Only a trigger that changes the strike's target applies by itself; on any
+                --other passive trigger this box does nothing.
                 children[#children+1] = gui.Check{
                     styles = ThemeEngine.GetStyles(),
                     text = "Apply Automatically",

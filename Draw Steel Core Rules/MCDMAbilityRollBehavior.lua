@@ -1405,7 +1405,8 @@ function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multi
                     end
                 end
 
-                --Same range rules as the trigger panel's manual redirect.
+                --Measured like a manual redirect: from the attacker with the strike's own reach
+                --("ability"), from the owner at a fixed distance, or the trigger's own range.
                 local rangeType = powerMod:try_get("changeTargetRange", "none")
                 local sourceToken = ownerToken
                 local range = tonumber(ExecuteGoblinScript(row.modifier:try_get("range", 10), ownerToken.properties:LookupSymbol(symbols), 10))
@@ -1448,7 +1449,7 @@ function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multi
                     })
                     while not answered do
                         coroutine.yield(0.1)
-                        if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                        if mod.unloaded or casterToken == nil or not casterToken.valid or casterToken.properties == nil then
                             answered = true
                         end
                     end

@@ -4073,9 +4073,9 @@ RollCheck.RegisterCustom{
     end,
 }
 
---Roll options that already announce the finished test to anything reacting
---to it. PrepareDialog runs twice on the same options when the test can't go
---on the sidebar card, and the test must only be announced once.
+--dialogOptions tables whose completeRoll already fires the rollpower event.
+--PrepareDialog can run twice on the same table (sidebar card unavailable, then
+--the pop-up), and the event must fire only once.
 local g_testRollCompleteWrapped = setmetatable({}, {__mode = "k"})
 
 --Keep target tests on the existing per-target request path, but give modifiers

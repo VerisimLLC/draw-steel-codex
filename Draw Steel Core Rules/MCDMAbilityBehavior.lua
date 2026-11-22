@@ -397,8 +397,8 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             roll = match.damage,
             type = "damage",
             creature = casterToken.properties,
-            --The player already rolled the power roll on this card, so the damage dice
-            --roll by themselves.
+            --Roll the damage dice straight away: after a power roll the player has
+            --already rolled once, and nothing here needs a choice from them.
             autoroll = true,
             completeRoll = function(rollInfo)
                 complete = true

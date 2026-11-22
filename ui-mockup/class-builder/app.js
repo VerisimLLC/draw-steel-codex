@@ -1228,7 +1228,6 @@ function shelfBlock(label, color, uses, title, dragKind, value, onClick, disable
   const b = E("button", "pal"); b.type = "button"; b.style.setProperty("--c", "var(" + color + ")");
   b.dataset.drag = dragKind; b.dataset.value = value; b.title = title; fk(b, "shelf:" + dragKind + ":" + value);
   const h = E("span", "grip"); h.innerHTML = GRIP; b.appendChild(h); b.appendChild(E("span", "pl", label));
-  if (uses) { const u = E("span", "uses", uses.toLocaleString()); u.title = "Used " + uses.toLocaleString() + " times in core content"; b.appendChild(u); }
   if (disabled) b.setAttribute("aria-disabled", "true");
   b.addEventListener("click", () => { if (b.dataset.dragged) return; onClick(); });
   return b;
@@ -1261,7 +1260,7 @@ function renderShelf() {
   shelf.appendChild(s);
   const match = t => !q || t.toLowerCase().includes(q.toLowerCase());
   const at = openId && findFeature(openId);
-  shelf.appendChild(E("p", "hint", "Drag a block onto a level to make a new feature, or into a feature to add to it. Clicking a block adds it to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + ". The number on each block is how often the core classes use it."));
+  shelf.appendChild(E("p", "hint", "Drag a block onto a level to make a new feature, or into a feature to add to it. Clicking a block adds it to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + "."));
   shelfEntries().forEach(([group, items, color]) => {
     const vis = items.filter(it => match(it.label + " " + group + " " + (it.desc || "")));
     if (group === "Your ready-made features") { if (!vis.length && q) return; }

@@ -1579,9 +1579,9 @@ function compileTier(list, prefix, stepsOut) {
       // Cards write "5 + M damage": a flat number plus a characteristic initial.
       const m = a.s.match(/^(\d+) \+ (Might|Agility|Reason|Intuition|Presence)$/);
       // A formula that isn't "N + M" is written in braces in rule text: "{2*Reason} damage".
-      const amt = m ? m[1] + " + " + m[2][0] : (f.braces || !/^[\d\s+MARIP-]+$/.test(a.s) ? "{" + a.s + "}" : a.s);
+      const amt = f.kitChars ? a.s + " + " + f.kitChars : m ? m[1] + " + " + m[2][0] : (f.braces || !/^[\d\s+MARIP-]+$/.test(a.s) ? "{" + a.s + "}" : a.s);
       const added = f.added === "yes" ? " (added)" : "";
-      parts.push(pre + amt + " " + dt(f.dtype) + "damage" + added); prose.push((m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + (f.added === "yes" ? "damage, added to the hit that set it off" : "damage")); }
+      parts.push(pre + amt + " " + dt(f.dtype) + "damage" + added); prose.push((f.kitChars ? a.s + " + " + f.kitChars : m ? m[1] + " + " + m[2][0] : a.prose) + " " + dt(f.dtype) + (f.added === "yes" ? "damage, added to the hit that set it off" : "damage")); }
     else if (st.type === "condition") { const t = conditionText(f); parts.push(pre + t); prose.push(t); }
     else if (st.type === "surges") { const w = { 1: "one surge", 2: "two surges", 3: "three surges" }[f.n] || f.n + " surges"; parts.push(pre + "the target gains " + w); prose.push("the target gains " + w); }
     else if (st.type === "note") { if (!f.text) bad(st.id, "Write the card text."); parts.push(pre + "#" + f.text); prose.push(f.text); }
@@ -1875,7 +1875,9 @@ function renderStep(st, list, ctx, scope) {
       add(sel(f, "char", opts, null, "characteristic or bonus")); break;
     }
     case "damage":
-      add(lbl("Deal")); add(renderHolder(st.slots.amount)); add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage"));
+      add(lbl("Deal")); add(renderHolder(st.slots.amount));
+      if (f.kitChars) { const k = lbl("+ " + f.kitChars); k.title = "Whichever of these characteristics the power roll used (kit abilities)"; add(k); }
+      add(sel(f, "dtype", DMG_TYPES, null, "damage type")); add(lbl("damage"));
       if (f.added === "yes" || (ctx === "tier" && editingId === st.id)) add(sel(f, "added", [["no", "\u2014"], ["yes", "added to the hit that set it off"]], null, "added"));
       // Only outside a tier: tier damage always hits the target.
       // "that can't be reduced" only shows when set, or while the block is being edited.
@@ -2552,6 +2554,11 @@ function parseTierText(text, ctx) {
       const d = STEPS.damage.make("tier"); d.f.dtype = m[2] ? m[2].toLowerCase() : "untyped"; d.f.added = m[3] ? "yes" : "no"; d.f.braces = true;
       d.slots.amount = holderFromText("roll", "tierDamage", m[1]); steps.push(d); continue;
     }
+    // Kit damage: "5 + M or A damage", "3 + M, R, I, or P holy damage" (the characteristic the roll used).
+    if ((m = seg.match(/^(\d+)\s*\+\s*([MARIP](?:,?\s+(?:or\s+)?[MARIP])+)\s+(?:(\w+)\s+)?damage$/)) && (!m[3] || DMG_TYPES.includes(m[3].toLowerCase()))) {
+      const d = STEPS.damage.make("tier"); d.f.dtype = m[3] ? m[3].toLowerCase() : "untyped"; d.f.kitChars = m[2];
+      d.slots.amount = holderFromText("roll", "tierDamage", m[1]); steps.push(d); continue;
+    }
     if ((m = seg.match(/^(\d+)(?:\s*\+\s*([MARIP]))?\s*(?:(\w+)\s+)?damage(\s*\(added\))?$/i)) && (!m[3] || DMG_TYPES.includes(m[3].toLowerCase()))) {
       if (m[4]) { const d = STEPS.damage.make("tier"); d.f.dtype = m[3] ? m[3].toLowerCase() : "untyped"; d.f.added = "yes"; d.slots.amount = holderFromText("roll", "tierDamage", m[2] ? m[1] + " + " + CHAR_BY_LETTER[m[2].toLowerCase()] : m[1]); steps.push(d); continue; }
       const d = STEPS.damage.make("tier"); d.f.dtype = m[3] ? m[3].toLowerCase() : "untyped";
@@ -2614,16 +2621,20 @@ function cleanPastedText(raw) {
    One creature"), "- **12-16:**" becomes a tier line, and "## Name (5 Wrath)" a header. An italic first
    line is the flavor; with no name above it, the ability is named "Pasted ability" for the author to rename. */
 function markdownToPlain(raw) {
+  raw = raw.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---\r?\n/, "");   // a file's YAML header (copied from the data repo)
   if (!/\]\(https?:|^\s*\||\*\*|^#{1,6}\s/m.test(raw)) return { text: raw, md: false };
   let lines = raw.split(/\n/).map(l => l.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"));
-  let named = false;
+  let named = false, stopped = false;
   const out = [];
   lines.forEach(l => {
     let t = l.trim();
-    if (!t) return;
+    if (!t || stopped) return;
+    // A second heading starts something else (a summoned creature's stat block): stop reading there.
+    if (/^#{1,6}\s/.test(t) && named) { stopped = true; return; }
+    if (/^<!--.*-->$/.test(t)) return;
     if (/^\|?\s*:?-{3,}/.test(t)) return;                         // table separator row
     if (/^#{1,6}\s/.test(t)) { out.push(t.replace(/^#{1,6}\s+/, "").replace(/\*\*/g, "")); named = true; return; }
-    if (/^\|/.test(t)) { t = t.replace(/^\||\|$/g, "").split("|").map(c => c.replace(/\*\*|__/g, "").trim()).filter(Boolean).join(" "); out.push(t); return; }
+    if (/^\|/.test(t)) { t = t.replace(/^\||\|$/g, "").split("|").map(c => c.replace(/\*\*|__/g, "").trim().replace(/^-$/, "")).join(" | ").replace(/^ \| | \| $/g, ""); out.push(t); return; }
     const italicOnly = /^\*[^*].*\*$/.test(t) || /^_[^_].*_$/.test(t);
     t = t.replace(/^[-*+]\s+/, "").replace(/\*\*|__/g, "").replace(/(^|\s)\*([^*]+)\*(?=\s|$|[.,;:])/g, "$1$2").replace(/^\*|\*$/g, "");
     t = t.replace(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s*:\s*/i, "$1 ");   // "12-16: 12 + M..." -> tier line
@@ -2649,9 +2660,14 @@ function importAbilityText(raw) {
   else if (lines[0]) { a.name = lines[0]; ctx.abilityName = lines[0]; ctx.report.push("Name: " + lines[0]); }
   i = 1;
   const actRe = /(main action|maneuver|free triggered action|triggered action|free maneuver|no action)$/i;
-  const isKwLine = l => actRe.test(l) && /^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*\s+/.test(l);
-  if (lines[i] && !isKwLine(lines[i]) && !/^(effect|power roll|distance)/i.test(lines[i])) { a.overrides.flavor = { text: lines[i], basis: null }; i++; ctx.report.push("Flavor text"); }
-  if (lines[i] && isKwLine(lines[i])) {
+  // "Magic, Ranged Main action", or just "Maneuver" when the ability has no keywords.
+  const isKwLine = l => actRe.test(l) && (/^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*\s+/.test(l) || /^(main action|maneuver|free triggered action|triggered action|free maneuver|no action)$/i.test(l));
+  // Markdown table rows arrive as "Magic, Ranged | Maneuver" and "Ranged 10 | Self and each ally".
+  const cells = l => / \| /.test(l) ? l.split(" | ").map(x => x.trim()) : null;
+  const kwCells = l => { const c = cells(l); return c && actRe.test(c[c.length - 1]) ? c : null; };
+  if (lines[i] && !isKwLine(lines[i]) && !kwCells(lines[i]) && !cells(lines[i]) && !/^(effect|power roll|distance)/i.test(lines[i])) { a.overrides.flavor = { text: lines[i], basis: null }; i++; ctx.report.push("Flavor text"); }
+  const kc = lines[i] && kwCells(lines[i]); if (kc) lines[i] = kc.slice(0, -1).join(", ") + (kc.length > 1 && kc[0] ? " " : "") + kc[kc.length - 1];
+  if (lines[i] && (isKwLine(lines[i]) || kc)) {
     const act = lines[i].match(actRe)[1];
     a.action = ACTIONS.map(x => Array.isArray(x) ? x[0] : x).find(x => x.toLowerCase() === act.toLowerCase()) || a.action;
     a.keywords = lines[i].slice(0, lines[i].length - act.length).split(",").map(x => x.trim()).filter(k => ABILITY_KEYWORDS.includes(k));
@@ -2661,13 +2677,28 @@ function importAbilityText(raw) {
   if (lines[i] && !/^(effect|power roll)/i.test(lines[i])) {
     const l = lines[i].replace(/^distance:\s*/i, "");
     let target = null, dist = l;
-    for (const [re, count, n] of TARGET_TEXT) {
+    const dc = cells(l); if (dc && dc.length === 2) { dist = dc[0]; target = dc[1]; }
+    if (!target) for (const [re, count, n] of TARGET_TEXT) {
       const mm = l.match(new RegExp("\\s(" + re.source.replace(/^\^|\$$/g, "") + ")$", "i"));
       if (mm) { target = mm[1]; dist = l.slice(0, l.length - mm[0].length).replace(/\s*target:?\s*$/i, "").trim(); break; }
     }
     if (target) {
+      let tm;
       if (/^self$/i.test(target)) { a.targetCount = "self"; }
       else if (/^special$/i.test(target)) { a.targetCount = "special"; }
+      // Wordings the target picker can't say ("Self and each ally in the area", "One creature or object"):
+      // the closest pick does the work and the book's words stay on the card.
+      else if (!TARGET_TEXT.some(([re]) => re.test(target))) {
+        const rest = target.replace(/^self,?\s+(?:and|or)\s+/i, "");
+        if ((tm = rest.match(/^(one|two|three|four|five)\s+(?:willing\s+|dead\s+)?(creature|enemy|ally|creatures|enemies|allies)\b(.*)$/i))) {
+          a.numTargets = H("number", "numTargets", { one: "1", two: "2", three: "3", four: "4", five: "5" }[tm[1].toLowerCase()]);
+          a.targetCount = tm[2].toLowerCase(); if (/or objects?/i.test(tm[3])) a.objects = true;
+        } else if ((tm = rest.match(/^each (enemy|creature|ally)\b.*in the area$/i))) a.targetCount = "each " + tm[1].toLowerCase() + " in the area";
+        else if (/^self\b/i.test(target)) a.targetCount = "self";
+        else a.targetCount = "special";
+        const plain = { creature: "One creature", "each enemy in the area": "Each enemy in the area" };
+        if (!(a.objects && /^one creature or object$/i.test(target)) && plain[a.targetCount] !== target) a.overrides.target = { text: target, basis: null };
+      }
       else { const w = target.split(" "); a.numTargets = H("number", "numTargets", NUMBER_WORDS[w[0].toLowerCase()] || "1"); a.targetCount = /^each/i.test(target) ? target.toLowerCase() : w.slice(1).join(" ").toLowerCase(); }
       let dm;
       if (/^self/i.test(dist)) { a.distance = "Self"; if (!/^self$/i.test(dist)) a.overrides.distance = { text: dist, basis: null }; }
@@ -2699,7 +2730,9 @@ function importAbilityText(raw) {
     a.steps.push(...parseEffectParagraph(para.text, ctx)); para = null; };
   for (; i < lines.length; i++) {
     const l = lines[i]; let m;
-    if ((m = l.match(/^power roll \+ (\w+):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); ctx.pr = pr; pr.f.char = CHARS.includes(cap(m[1].toLowerCase())) ? cap(m[1].toLowerCase()) : "Might"; ctx.rollChar = pr.f.char; a.steps.push(pr); ctx.report.push("Power roll + " + pr.f.char); continue; }
+    if ((m = l.match(/^power roll \+ (\w+(?:,? (?:or )?\w+)*):?$/i))) { flushPara(); pr = STEPS.powerRoll.make(); ctx.pr = pr;
+      // Kits print "Might or Agility": the roll uses whichever is listed, as content stores it.
+      const parts = m[1].split(/,? (?:or )?/i).map(x => cap(x.toLowerCase())); pr.f.char = parts.every(x => CHARS.includes(x)) ? parts.join(" or ") : "Might"; ctx.rollChar = CHARS.includes(parts[0]) ? parts[0] : "Might"; a.steps.push(pr); ctx.report.push("Power roll + " + pr.f.char); continue; }
     if (pr && (m = l.match(/^(\u2264\s*11|11 or (?:lower|less)|12\s*[-\u2013]\s*16|17\s*\+?)\s+(.+)$/i))) {
       const k = /^(\u2264|11)/.test(m[1]) ? "t1" : /^12/.test(m[1]) ? "t2" : "t3";
       ctx.tier = k; pr.branches[k] = parseTierText(m[2], ctx); ctx.tiersSeen++; continue;
@@ -4030,7 +4063,7 @@ function openBehaviour(b, hidden) {
     return (g ? g[1] : shortType(b)) + (what ? ": " + String(what).slice(0, 90) : ""); };
   const opaque = () => { const o = STEPS.opaque.make(Object.assign({}, b, { summary: friendly() })); o.f.record = JSON.parse(JSON.stringify(b)); o.srcList = null; return o; };
   try {
-    if (t === "ActivatedAbilityPowerRollBehavior" && (m = String(b.roll || "").trim().match(/^2d10 ?\+ ?((?:Might|Agility|Reason|Intuition|Presence)(?: or (?:Might|Agility|Reason|Intuition|Presence))?|Highest Characteristic|\d+)$/))) {
+    if (t === "ActivatedAbilityPowerRollBehavior" && (m = String(b.roll || "").trim().match(/^2d10 ?\+ ?((?:Might|Agility|Reason|Intuition|Presence)(?: or (?:Might|Agility|Reason|Intuition|Presence))*|Highest Characteristic|\d+)$/))) {
       st = STEPS.powerRoll.make(); st.f.char = m[1];
       st.f.srcTiers = {}; st.f.openTiers = {};
       (b.tiers || []).slice(0, 3).forEach((tx, i) => { const ctx = { todo: 0, matched: 0, tier: "t" + (i + 1), rollChar: m[1], guesses: 0 }; st.branches["t" + (i + 1)] = parseTierText(String(tx), ctx); st.f.srcTiers["t" + (i + 1)] = tx; });

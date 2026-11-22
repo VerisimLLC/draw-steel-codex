@@ -1,0 +1,29 @@
+{
+ "pages": 545,
+ "matchedToOurData": 472,
+ "fullyBuilt": 52,
+ "everyTierResultBuilt": 479,
+ "blocksBuilt": 1856,
+ "tierPiecesLeft": 200,
+ "effectSentencesLeft": 1095,
+ "headerAgreesWithOurData": {
+  "keywords": 414,
+  "action": 457,
+  "targetType": 402,
+  "range": 420,
+  "cost": 463,
+  "roll": 462,
+  "tiers": 411
+ },
+ "byClassFullyBuilt": {
+  "Kits": 6,
+  "Conduit": 10,
+  "Shadow": 6,
+  "Troubadour": 5,
+  "Censor": 6,
+  "Elementalist": 5,
+  "Tactician": 2,
+  "Null": 6,
+  "Fury": 6
+ }
+}

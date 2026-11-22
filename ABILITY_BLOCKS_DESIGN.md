@@ -1054,6 +1054,46 @@ left to build: it belongs to an area that reacts to a creature ending its turn t
 work first (4l). Paste tests, the agreement checks, and all three open-and-save polls are unchanged
 (45/45, 60/60, 1,148/1,148).
 
+## 4v. Bulk paste test: every Steel Compendium class and kit ability (2026-11-22)
+
+The Steel Compendium site is blocked from the test machine, but its markdown is published in the
+SteelCompendium/data-md repository, which is readable. All 545 class, kit and common-action pages
+(`Rules/Abilities`) were pasted into the reader; 472 match an ability in our data by name (the rest are
+mostly triggers, which our data stores as modifiers, and the common actions). Scripts:
+`ui-mockup/ability-blocks-corpus/poll4/` (the markdown and full results stay out of git; counts are in
+`paste4-summary.json`).
+
+Reader fixes the run found (before -> after, of 472 compared with our data):
+- **Tables are read cell by cell.** Distance and target come straight from the table, so any target wording
+  works ("Self and each ally", "Two creatures or objects"); the closest target pick does the work and the
+  book's words stay on the card. Range 322 -> 420, target type 374 -> 402.
+- **An ability with no keywords** ("| - | Maneuver |") now reads its action. Action 450 -> 457.
+- **Kit rolls and damage:** "Power Roll + Might, Reason, Intuition, or Presence" and "5 + M or A damage"
+  build (a damage block that keeps the book's letters). Roll 440 -> 462, tiers 394 -> 411 (the remaining tier
+  differences are mostly the same words: "can't" / "cannot", "you can swap" / "you swap").
+- **A page's YAML header** is skipped, and a second heading (a summoned creature's stat block) ends the read.
+
+Results: every tier result builds on 479 of 545 pages; 1,856 blocks built. **52 pages build completely.**
+What's left is effect sentences (1,095) and a few tier results (200). The effect sentences group as:
+
+| Group | Count | Example |
+|---|---|---|
+| Other / clarifications (no blocks needed, card text) | 362 | "You still use the same power roll for both targets." |
+| A duration around an effect ("Until the end of ...") | 160 | "Until the end of the target's next turn, they have damage weakness ..." |
+| Surges, temporary Stamina, Recoveries, resources | 121 | "Each target gains 3 surges." |
+| Movement ("You can shift ...", "You teleport the target ...") | 96 | "You can shift into any square the target leaves after you push them." |
+| Extra targets, extra damage to a second creature | 80 | "One creature of your choice within 2 squares of the target takes fire damage ..." |
+| Areas that act ("Each ally in the area ...") | 77 | "Each ally in the area can spend a Recovery." |
+| Conditions written as sentences | 72 | "The target is taunted until the end of their next turn." |
+| Edges, banes, extra damage, weakness | 64 | "The target takes a bane on their next power roll." |
+| If / when / the first time | 63 | "The first time the target is winded before the end of the encounter, ..." |
+
+Remaining tier results: vertical pull (18), teleport (8), temporary Stamina (9), "The Director loses N Malice"
+(9), a bane on the next roll, weakness N (save ends).
+
+Header differences that are not reader errors: our data adds a "Kit" keyword the book doesn't print (19),
+and stores aura and "Self and each ally" abilities with other target types.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1144,6 +1184,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **New damage saves as rule text unless it needs the Damage behaviour** (dice, to you, can't be reduced). **Tiers can hold steps** ("Only if the target is already slowed: restrained"): saved as tier-only steps (`tiersSelected`) with the tier's card words after "#"; opening content puts them back in their tier. | Asked for: default to command text; and the "#" pattern for effects the tier text can't express. |
 | 2026-11-22 | **Tier agreement checks:** a condition on the card that no step on the tier applies, or a potency letter that differs from the "Only if" check, shows as "worth checking" (never blocks saving). | A real rebuild slipped on both; no false alarms across the 62 "#" abilities in content. |
 | 2026-11-22 | **Steel Compendium markdown pastes; "already X, instead Y" builds tier-only steps; pasted paragraphs save to `description`.** An unnamed page is called "Pasted ability". | Asked for: make the compendium's markdown work for pasting; the pattern matches the user's rebuild of *It Is Justice You Fear*. |
+| 2026-11-22 | **Bulk paste test on all 545 Steel Compendium class and kit pages.** Tables read by cell (any target wording), kit rolls and "M or A" damage, keyword-less actions. Every tier result builds on 479; 52 build completely; 1,095 effect sentences left, grouped (durations 160, resources 121, movement 96, ...). | Asked for: check pasting at scale; evidence for which sentence patterns to add next. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

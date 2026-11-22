@@ -20,6 +20,9 @@ local mod = dmhub.GetModLoading()
 --               show the tag, locked, as a goal in the Guild's list.
 --  opens        "YYYY-MM-DD" (UTC): nobody earns the tag before this day. Any
 --               award made earlier is taken back, to be earned again once it opens.
+--  steam        optional: the API Name of the Steam achievement this tag also
+--               unlocks. It must match an achievement set up in Steamworks.
+--               Keep to tags anyone can earn by playing (wins, defeats, modes).
 --  rule         one of:
 --    { counter = "wins", atLeast = 10 }
 --        counters: wins, defeats, encountersPlayed (each counts games, not heroes),
@@ -39,25 +42,25 @@ local mod = dmhub.GetModLoading()
 EotwPlayerTagDefs = {
     version = 1,
     tags = {
-        { id = "hero-of-blackbottom", name = "Hero of Blackbottom", description = "Won your first encounter for Blackbottom.", style = "bronze", rule = { counter = "wins", atLeast = 1 } },
-        { id = "wayfarer", name = "Wayfarer", description = "Saw 5 encounters through to the end, win or lose.", style = "teal", rule = { counter = "encountersPlayed", atLeast = 5 } },
+        { id = "hero-of-blackbottom", name = "Hero of Blackbottom", description = "Won your first encounter for Blackbottom.", style = "bronze", steam = "EOTW_HERO_OF_BLACKBOTTOM", rule = { counter = "wins", atLeast = 1 } },
+        { id = "wayfarer", name = "Wayfarer", description = "Saw 5 encounters through to the end, win or lose.", style = "teal", steam = "EOTW_WAYFARER", rule = { counter = "encountersPlayed", atLeast = 5 } },
         { id = "bricklayer", name = "Bricklayer", description = "Put 100 points of work into the town's projects.", style = "copper", rule = { counter = "projectPoints", atLeast = 100 } },
-        { id = "seasoned", name = "Seasoned", description = "Won 10 encounters. You know how this goes by now.", style = "silver", rule = { counter = "wins", atLeast = 10 } },
-        { id = "regular", name = "Regular", description = "Saw 25 encounters through. The Guards at the Town Gate knows your face.", style = "teal", rule = { counter = "encountersPlayed", atLeast = 25 } },
+        { id = "seasoned", name = "Seasoned", description = "Won 10 encounters. You know how this goes by now.", style = "silver", steam = "EOTW_SEASONED", rule = { counter = "wins", atLeast = 10 } },
+        { id = "regular", name = "Regular", description = "Saw 25 encounters through. The Guards at the Town Gate knows your face.", style = "teal", steam = "EOTW_REGULAR", rule = { counter = "encountersPlayed", atLeast = 25 } },
         { id = "builder", name = "Builder", description = "Put 1,000 points of work into the town's projects.", style = "copper", hidden = true, rule = { counter = "projectPoints", atLeast = 1000 } },
-        { id = "legend", name = "Legend", description = "Won 50 encounters. They'll be telling stories about you.", style = "gold", hidden = true, rule = { counter = "wins", atLeast = 50 } },
-        { id = "undaunted", name = "Undaunted", description = "Fell in 5 encounters and kept coming back.", style = "slate", hidden = true, rule = { counter = "defeats", atLeast = 5 } },
+        { id = "legend", name = "Legend", description = "Won 50 encounters. They'll be telling stories about you.", style = "gold", hidden = true, steam = "EOTW_LEGEND", rule = { counter = "wins", atLeast = 50 } },
+        { id = "undaunted", name = "Undaunted", description = "Fell in 5 encounters and kept coming back.", style = "slate", hidden = true, steam = "EOTW_UNDAUNTED", rule = { counter = "defeats", atLeast = 5 } },
         { id = "forgewright", name = "Forgewright", description = "Did more than anyone to build the Great Forge.", style = "special", hidden = true, rule = { event = "projectTopBuilder", project = "build-great-forge" } },
         { id = "pilgrim", name = "Pilgrim", description = "Put 100 points of work into restoring the Temple of Saint Llewellyn.", style = "silver", hidden = true, rule = { counter = "projectPoints", atLeast = 100, project = "restore-temple" } },
         { id = "hand-of-saint-llewellyn", name = "Hand of Saint Llewellyn", description = "Did more than anyone to restore the Temple of Saint Llewellyn.", style = "special", hidden = true, rule = { event = "projectTopBuilder", project = "restore-temple" } },
         { id = "keeper-of-the-rite", name = "Keeper of the Rite", description = "Helped bring 5 fallen heroes back from the grave.", style = "gold", hidden = true, rule = { counter = "ritesAided", atLeast = 5 } },
-        { id = "challenger", name = "Challenger", description = "Took on Challenge Mode and won.", style = "ember", hidden = true, rule = { counter = "challengeWins", atLeast = 1 } },
-        { id = "glutton-for-punishment", name = "Glutton for Punishment", description = "Won 10 different encounters in Challenge Mode. Why stop now?", style = "ember", hidden = true, rule = { counter = "challengeWins", atLeast = 10 } },
+        { id = "challenger", name = "Challenger", description = "Took on Challenge Mode and won.", style = "ember", hidden = true, steam = "EOTW_CHALLENGER", rule = { counter = "challengeWins", atLeast = 1 } },
+        { id = "glutton-for-punishment", name = "Glutton for Punishment", description = "Won 10 different encounters in Challenge Mode. Why stop now?", style = "ember", hidden = true, steam = "EOTW_GLUTTON_FOR_PUNISHMENT", rule = { counter = "challengeWins", atLeast = 10 } },
         --PLACEHOLDER DATES: set `before` to the day after the playtest ends, and `opens` to
         --the release day (usually the same day), before deploying to release.
         { id = "founding-hero", name = "Founding Hero", description = "Fought for Blackbottom during the playtest. Thank you.", style = "silver", hidden = true, opens = "2026-12-31", rule = { counter = "encountersPlayed", atLeast = 1, before = "2026-12-31" } },
         --Given by hand (admin-grant-tag), never by a rule: an in-joke about devils' hoofprints pointing the wrong way.
         { id = "devil-podiatrist", name = "Devil Podiatrist", description = "Knows which way a devil's hoofprints should point.", style = "special", hidden = true, rule = { manual = true } },
-        { id = "deathdefier", name = "Deathdefier", description = "Won in Deadly Mode and lived to tell it.", style = "slate", hidden = true, rule = { counter = "deadlyWins", atLeast = 1 } },
+        { id = "deathdefier", name = "Deathdefier", description = "Won in Deadly Mode and lived to tell it.", style = "slate", hidden = true, steam = "EOTW_DEATHDEFIER", rule = { counter = "deadlyWins", atLeast = 1 } },
     },
 }

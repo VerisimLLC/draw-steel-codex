@@ -98,6 +98,7 @@ end
 ---@field description string|nil
 ---@field style string a key of EotwPlayerTags.STYLES
 ---@field hidden boolean|nil
+---@field steam string|nil the Steam achievement API Name this tag also unlocks
 
 --One tag this account has earned.
 ---@class EotwEarnedTag
@@ -161,6 +162,36 @@ function EotwPlayerTags.UnseenCount()
     return count
 end
 
+--Steam API names Steam has accepted this run. A failed unlock stays out, so it
+--is tried again the next time the town sends your achievements.
+---@type table<string, boolean>
+local m_steamUnlocked = {}
+
+--Unlock the Steam achievement for each earned tag that has a `steam` name.
+--Runs whenever the town sends your achievements, so ones earned earlier or
+--on another machine catch up. Does nothing on engines without the call.
+--The engine call must return true once Steam has the unlock, and must do
+--nothing (not raise an error) when the app is not running under Steam.
+local function UnlockSteamAchievements()
+    ---@diagnostic disable-next-line: undefined-field -- engine call not in every build yet
+    local ok, unlock = pcall(function() return dmhub.UnlockSteamAchievement end)
+    if not ok or unlock == nil then
+        return
+    end
+    --Read Steam names from the codex's own tag list: the server's copy may not have them.
+    local localDefs = rawget(_G, "EotwPlayerTagDefs")
+    if localDefs == nil then
+        return
+    end
+    for _, earnedTag in ipairs(m_earned) do
+        for _, def in ipairs(localDefs.tags) do
+            if def.id == earnedTag.id and type(def.steam) == "string" and not m_steamUnlocked[def.steam] then
+                m_steamUnlocked[def.steam] = unlock(def.steam) == true
+            end
+        end
+    end
+end
+
 --Take in list-heroes' `tags` for this account: {defs, earned, chosen}.
 ---@param tags any the server's reply; anything but a table is ignored
 function EotwPlayerTags.Apply(tags)
@@ -186,6 +217,7 @@ function EotwPlayerTags.Apply(tags)
     m_earned = earned
     m_chosen = type(tags.chosen) == "string" and tags.chosen or nil
     EotwPlayerTags.revision = EotwPlayerTags.revision + 1
+    UnlockSteamAchievements()
 end
 
 --The tag another player shows, from the town's presence (nil if they show

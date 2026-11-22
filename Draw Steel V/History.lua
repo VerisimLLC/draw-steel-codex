@@ -149,6 +149,24 @@ local g_oldLogSetting = setting{
     end,
 }
 
+--The Director's way out: with this off nothing is recorded and everyone sees the old Action
+--Log, so a problem in a live game can be stopped without a code change.
+local g_recordSetting = setting{
+    id = "history:record",
+    description = "Record History",
+    help = "Record play in History. When off, nothing is recorded and everyone sees the old Action Log.",
+    editor = "check",
+    default = true,
+    storage = "game",
+    section = "game",
+    classes = {"dmonly"},
+    onchange = function()
+        if History.OnEnabledChanged ~= nil then
+            History.OnEnabledChanged()
+        end
+    end,
+}
+
 --- True if a game system layered on these rules says History can't describe its play
 --- (Crows: no winded, Armor Defense, Wounds). Its module sets
 --- `GameSystem.historyNotSupported = true`; that game then keeps the old Action Log.
@@ -157,17 +175,18 @@ function History.NotSupported()
     return rawget(GameSystem, "historyNotSupported") == true
 end
 
---- True unless the game system doesn't support History: then nothing is recorded.
+--- True unless the game system doesn't support History or the Director turned Record
+--- History off: then nothing is recorded.
 --- @return boolean
 function History.Enabled()
-    return not History.NotSupported()
+    return not History.NotSupported() and g_recordSetting:Get() ~= false
 end
 
---- True if this user sees the old Action Log: their own choice, or a game system History
---- doesn't support.
+--- True if this user sees the old Action Log: their own choice, or History not recording
+--- in this game.
 --- @return boolean
 function History.UsingOldLog()
-    return History.NotSupported() or g_oldLogSetting:Get() == true
+    return not History.Enabled() or g_oldLogSetting:Get() == true
 end
 
 --- The id History files an entry under when there is no map at all (nothing a token is on,

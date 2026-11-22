@@ -3871,18 +3871,15 @@ local function SaveSummonLook(mutate, lookKey)
     if key == nil then
         return
     end
-    --if this save clears the name, summons still showing it get their stat block's name back.
-    local droppedName = nil
+    --the look's name before this save, so live summons still showing it follow the change.
+    local previousName = nil
     local saved = HeroSheetWrite.Save{
         description = "Change summon appearance",
         execute = function(props)
             local all = props:get_or_add("summonAppearances", {})
             local look = all[key] or {}
-            local oldName = look.name
+            previousName = look.name
             mutate(look)
-            if oldName ~= nil and look.name == nil then
-                droppedName = oldName
-            end
             if next(look) == nil then
                 look = nil
             end
@@ -3893,7 +3890,7 @@ local function SaveSummonLook(mutate, lookKey)
     }
     local token = Token()
     if saved and token ~= nil then
-        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, droppedName)
+        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, previousName)
     end
     HeroSheetRefresh.Changed()
 end
@@ -9622,8 +9619,19 @@ local function BuildSummons(bus, Row)
         end)
     end
 
+    --- Save a name still being typed and free the field. Call it before the look
+    --- changes under the field: its own leave event can come a frame late, and
+    --- would then save the typed name over the change.
+    local function CommitNameField()
+        if nameField.hasInputFocus then
+            nameField:FireEvent("defocus")
+            gui.SetFocus(nil)
+        end
+    end
+
     --- Revert to default: the whole saved look goes; the summon stays listed.
     local function Revert()
+        CommitNameField()
         local key = g_summon.key
         local look = SavedLook()
         if key == nil or look == nil then
@@ -9639,6 +9647,8 @@ local function BuildSummons(bus, Row)
                 end
             end,
         }
+        --a late leave event from the Name field now finds it empty and saves nothing.
+        nameField.text = ""
         local token = Token()
         if saved and token ~= nil then
             ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, look.name)
@@ -9803,12 +9813,7 @@ local function BuildSummons(bus, Row)
         if key == g_summon.key then
             return
         end
-        --save a name being typed now (the field's own leave event can come a frame
-        --late), then free the field to show the next summon's.
-        if nameField.hasInputFocus then
-            nameField:FireEvent("defocus")
-            gui.SetFocus(nil)
-        end
+        CommitNameField()
         CommitPending()
         g_summon.key = key
         g_summon.pending = {}

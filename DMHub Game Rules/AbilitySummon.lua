@@ -403,24 +403,32 @@ end
 
 --- Updates the caster's live summons of this creature type on the current map:
 --- reset to the bestiary look, then apply the current custom look, then upload.
---- The reset leaves names alone, so a summon renamed by hand keeps its name. When
---- the look's name is cleared, only summons still showing it get their stat block's name back.
+--- A summon renamed by hand keeps its name. The others follow the look's name;
+--- when the look loses its name they get their stat block's name back.
 --- @param casterToken CharacterToken
 --- @param lookKey string
---- @param droppedName nil|string the look's name before it was cleared or reverted
-function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey, droppedName)
+--- @param previousName nil|string the look's name before this change; pass it whenever the look may have had one
+function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey, previousName)
     local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
     if monster == nil then
         return
     end
     local monsterType = monster.properties:try_get("monster_type", lookKey)
+    local statBlockName = monster.info.name
+    local look = casterToken.properties:GetSummonAppearance(lookKey)
+    local lookHasName = look ~= nil and look.name ~= nil and look.name ~= ""
 
     for _,tok in ipairs(dmhub.GetTokens()) do
         if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
+            --a name that is neither the look's old one nor the stat block's was typed on the map.
+            local oldName = tok.name
+            local renamedByHand = oldName ~= nil and oldName ~= "" and oldName ~= previousName and oldName ~= statBlockName
             ActivatedAbilitySummonBehavior.ResetToBestiaryLook(tok, monster)
             ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
-            if droppedName ~= nil and tok.name == droppedName then
-                tok.name = monster.info.name
+            if renamedByHand then
+                tok.name = oldName
+            elseif not lookHasName and previousName ~= nil and oldName == previousName then
+                tok.name = statBlockName
             end
             tok:UploadAppearance()
         end

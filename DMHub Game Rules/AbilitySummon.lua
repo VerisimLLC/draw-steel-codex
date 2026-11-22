@@ -5,7 +5,11 @@ local mod = dmhub.GetModLoading()
 --- @class ActivatedAbilitySummonBehavior : ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilitySummonBehavior
 --- @field ignoreSummonerLimits boolean If true, summons ignore the caster's MaximumMinions / MaxMinionSquads, even under strict:resources.
+--- @field persistAfterCombat boolean If true, the summons stay on the map when combat ends.
 ActivatedAbilitySummonBehavior = RegisterGameType("ActivatedAbilitySummonBehavior", "ActivatedAbilityBehavior")
+
+--- @class creature
+--- @field summonPersistsAfterCombat? boolean Set on tokens made by a Summon behavior: true keeps the token when combat ends, false dismisses it. Unset (other summoners, older tokens) means only minions are dismissed.
 
 ActivatedAbility.RegisterType
 {
@@ -45,6 +49,10 @@ ActivatedAbilitySummonBehavior.chooseSquad = false
 --Summon past the caster's MaximumMinions / MaxMinionSquads, even under
 --strict:resources (e.g. Explosive Parade: "regardless of your minion maximum").
 ActivatedAbilitySummonBehavior.ignoreSummonerLimits = false
+--Summons are dismissed when combat ends unless this is ticked. Each summoned
+--token records the choice in creature.summonPersistsAfterCombat, which
+--RemoveSummonsAtEndOfCombat reads.
+ActivatedAbilitySummonBehavior.persistAfterCombat = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
@@ -431,18 +439,35 @@ function ActivatedAbilitySummonBehavior.RestyleFollowingSummons(casterToken)
     end
 end
 
---- Deletes all summoned minion characters (live or despawned) and their
---- corpse objects on the current map. Called when combat ends.
+--- Whether a summoned creature should stay on the map when combat ends.
+--- @param persist boolean the behavior's Persist After Combat box
+--- @param replaceCaster boolean the summon stands in for its caster
+--- @param casterIsSummon boolean the caster was itself a summon
+--- @return boolean
+local function SummonPersistsAfterCombat(persist, replaceCaster, casterIsSummon)
+    --A Replace Caster summon stands in for a despawned caster (an animal form),
+    --so dismissing it would make the hero vanish. A summon that turns into
+    --another (an Elemental Mote) has nobody to restore, so it goes as usual.
+    return persist or (replaceCaster and not casterIsSummon)
+end
+
+--- Deletes summoned characters (live or despawned) that don't outlive combat,
+--- and their corpse objects on the current map. Called when combat ends.
+--- Tokens from a Summon behavior go unless it had Persist After Combat ticked;
+--- other summons (companions, older tokens) go only if they are minions.
 function ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
-    local minionCharids = {}
+    local removeCharids = {}
     for charid,tok in pairs(dmhub.GetAllCharacters()) do
         local summonerid = tok.summonerid
-        if summonerid ~= nil and summonerid ~= "" and tok.properties ~= nil and tok.properties.minion then
-            minionCharids[charid] = true
+        if summonerid ~= nil and summonerid ~= "" and tok.properties ~= nil then
+            local persist = tok.properties:try_get("summonPersistsAfterCombat")
+            if persist == false or (persist == nil and tok.properties.minion) then
+                removeCharids[charid] = true
+            end
         end
     end
 
-    if next(minionCharids) == nil then
+    if next(removeCharids) == nil then
         return
     end
 
@@ -451,7 +476,7 @@ function ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
         for _,floor in ipairs(map.floors or {}) do
             for _,obj in pairs(floor.objects or {}) do
                 local corpse = obj:GetComponent("Corpse")
-                if corpse ~= nil and corpse.properties ~= nil and minionCharids[corpse.properties.charid] then
+                if corpse ~= nil and corpse.properties ~= nil and removeCharids[corpse.properties.charid] then
                     obj:Destroy()
                 end
             end
@@ -459,7 +484,7 @@ function ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
     end
 
     local charids = {}
-    for charid,_ in pairs(minionCharids) do
+    for charid,_ in pairs(removeCharids) do
         charids[#charids+1] = charid
     end
     game.DeleteCharacters(charids)
@@ -1473,6 +1498,9 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 
         token.ownerId = casterToken.ownerId
         token.summonerid = casterToken.charid
+        token.properties.summonPersistsAfterCombat = SummonPersistsAfterCombat(
+            self:try_get("persistAfterCombat", false), self.replaceCaster,
+            casterToken.summonerid ~= nil and casterToken.summonerid ~= "")
 
         if initiativeGrouping ~= nil then
             token.properties.initiativeGrouping = initiativeGrouping
@@ -2683,6 +2711,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
 
+        --A Summoner only picks squads for minions, so a Summoner's Dominion fixture
+        --uses no squad slot. Other casters still pick for anyone: captains join squads.
+        local function ChoosesSquadFor(option)
+            return usesSquadChooser and ((not isSummoner) or option.properties:try_get("minion", false))
+        end
+
         --When a summoned creature turns into another one, such as an Elemental
         --Mote, the new creature belongs to whoever summoned the old one. It used
         --to belong to the old creature, which is removed right after.
@@ -2768,7 +2802,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
 
             local loc
             if self.replaceCaster then
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -2792,7 +2826,9 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 loc = casterToken.loc
             elseif manualPlacement then
                 local squadCtxArg = nil
-                if usesSquadChooser then
+                --The player can change creature inside the placement picker, so offer
+                --squads even while the current pick is not a minion.
+                if ChoosesSquadFor(chosenOption) or (usesSquadChooser and creatureChoiceInline) then
                     if placementSquadCtx == nil then
                         local encounterSquadsByType = nil
                         local encounterAllSquads = nil
@@ -2877,6 +2913,10 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     chosenOption = pickedCreature
                     args.symbols.summon = GenerateSymbols(chosenOption.properties)
                 end
+                if squadResult ~= nil and not ChoosesSquadFor(chosenOption) then
+                    --the creature finally placed is not a minion: it takes no squad.
+                    squadResult = nil
+                end
                 if squadResult ~= nil then
                     --PromptPlacementLoc only returns a squad result when given squadCtxArg, which is placementSquadCtx.
                     ---@cast placementSquadCtx -nil
@@ -2891,7 +2931,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end
                 end
             else
-                if usesSquadChooser then
+                if ChoosesSquadFor(chosenOption) then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
@@ -2984,6 +3024,10 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
             elseif not detached then
                 token.summonerid = casterToken.charid
             end
+
+            token.properties.summonPersistsAfterCombat = SummonPersistsAfterCombat(
+                self:try_get("persistAfterCombat", false), self.replaceCaster,
+                casterToken.summonerid ~= nil and casterToken.summonerid ~= "")
 
             if self.shareSurgesWithSummoner then
                 token.properties.sharesSurgesWithSummoner = true
@@ -3099,6 +3143,18 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 token.teleportAnimation = SUMMON_EMERGE_STYLE
                 token.properties.summonEmergeHide = true
                 token.properties.summonEmergeDuration = emergeDuration
+            end
+
+            --a monster-side summon (Abyssal Evolution, a monster calling help) is
+            --named like an encounter spawn ("Demon Ruinant 3"); the spawn skips
+            --OnCreateFromBestiary, so it would otherwise have no name. Hero
+            --summons keep their old unnamed behavior.
+            if not casterToken.playerControlled and (token.name or "") == "" then
+                pcall(function()
+                    if token.properties:IsMonster() then
+                        monster.AssignGeneratedName(token.properties --[[@as monster]], token)
+                    end
+                end)
             end
 
             ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
@@ -3547,6 +3603,16 @@ function ActivatedAbilitySummonBehavior:EditorItems(parentPanel)
 			value = self.groupInitiativeWithCaster,
 			change = function(element)
 				self.groupInitiativeWithCaster = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Persist after combat",
+			hover = gui.Tooltip("Keep the duplicate when combat ends."),
+			minWidth = 300,
+			value = self:try_get("persistAfterCombat", false),
+			change = function(element)
+				self.persistAfterCombat = element.value
 			end,
 		}
 	else
@@ -4023,6 +4089,17 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 	}
 
 	if options.casterControls then
+		--Summon behaviors only (Transform also uses this editor and has no summons to keep).
+		list[#list+1] = gui.Check{
+			text = "Persist after combat",
+			hover = gui.Tooltip("Keep the summons when combat ends."),
+			minWidth = 300,
+			value = self:try_get("persistAfterCombat", false),
+			change = function(element)
+				self.persistAfterCombat = element.value
+			end,
+		}
+
 		list[#list+1] = gui.Check{
 			text = "Caster controls summons",
             minWidth = 300,

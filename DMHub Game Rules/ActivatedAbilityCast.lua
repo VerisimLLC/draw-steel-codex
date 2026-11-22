@@ -30,6 +30,7 @@ local mod = dmhub.GetModLoading()
 --- @field forcedMovementCreatureCollisionIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
+--- @field guid? string Unique id of this cast; unset until EnsureGuid is called.
 --- @field _tmp_maliceBannerShown? boolean Set once the Malice ability banner has been shown for this cast; read with try_get.
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
 
@@ -342,6 +343,13 @@ ActivatedAbilityCast.helpSymbols = {
         },
     },
 
+    anytargetcoverorconcealment = {
+        name = "Any Target Cover Or Concealment",
+        type = "boolean",
+        desc = "True if any target of this ability has concealment, or has cover from at least one enemy (the Concealed and Cover From Any Enemy creature symbols).",
+        examples = {"Cast.AnyTargetCoverOrConcealment"},
+    },
+
     targetsadjacent = {
         name = "Targets Adjacent",
         type = "boolean",
@@ -469,6 +477,19 @@ ActivatedAbilityCast.lookupSymbols = {
 
             return false
         end
+    end,
+
+    --True if any target has concealment or cover (gates Agonizing Stinger's Malice trigger).
+    anytargetcoverorconcealment = function(c)
+        for _, target in ipairs(c:try_get("targets", {})) do
+            if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
+                local props = target.token.properties
+                if props:IsConcealed() or props:CalculateCoverFromEnemies().any then
+                    return true
+                end
+            end
+        end
+        return false
     end,
 
     --Counts this cast's targets standing within `distance` squares of `creature`
@@ -855,6 +876,18 @@ function ActivatedAbilityCast:RecordForcedMovementCreatureCollision(movedToken, 
     for _, charid in ipairs(collidedCreatureIds) do
         ids[charid] = true
     end
+end
+
+--- This cast's unique id, created the first time it is asked for. Use it to tell
+--- one use of an ability from another, e.g. when adding up damage per ability.
+--- @return string
+function ActivatedAbilityCast:EnsureGuid()
+    local guid = self:try_get("guid")
+    if guid == nil then
+        guid = dmhub.GenerateGuid()
+        self.guid = guid
+    end
+    return guid
 end
 
 --- @param retarget {casterid: string, tokenid: string, retargetid: string, retargetType: 'all'|'forcemove'|'none'|'caster'}

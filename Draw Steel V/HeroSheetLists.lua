@@ -242,7 +242,7 @@ local function Read(token)
         end
         for _, ability in ipairs(all) do
             local guid = ability:try_get("guid", "")
-            local isCompanion = ability:has_key("keywords") and ability:HasKeyword("Companion")
+            local isCompanion = ability:HasCompanionKeyword()
             local custom = hero:IsActivatedAbilityInnate(ability) ~= false
             local hidden = ability:try_get("hidden") == true or ability:try_get("categorization") == "Hidden"
             local sharesCustomName = customNames[ability.name] == true and not hidden
@@ -316,11 +316,12 @@ local function DialogLayer(fallback)
     return fallback.root
 end
 
---A Companion-keyword ability added to a Hero is the companion's, so it is
---listed under Companion abilities, not with the Hero's own: say where.
+--An ability with a companion keyword (Companion, or one a module reserved)
+--added to a Hero is the companion's, so it is listed under Companion
+--abilities, not with the Hero's own: say where.
 --- @param ability ActivatedAbility
 local function WarnIfCompanion(ability)
-    if not ability:has_key("keywords") or not ability:HasKeyword("Companion") then
+    if not ability:HasCompanionKeyword() then
         return
     end
     local token = HeroSheet.Token()
@@ -338,7 +339,7 @@ local function WarnIfCompanion(ability)
         title = "Companion ability",
         width = 520,
         bodyHeight = 44,
-        body = HeroSheetWindow.DialogText(string.format("%s has the Companion keyword, so it is listed under Companion abilities, where you can edit or delete it.", ability.name)),
+        body = HeroSheetWindow.DialogText(string.format("%s has a companion keyword, so it is listed under Companion abilities, where you can edit or delete it.", ability.name)),
         onDone = function() end,
     }
 end
@@ -972,9 +973,8 @@ end
 --show is hidden.
 --- @param def table a GROUPS entry
 --- @param first boolean the list's first group sits closer to the header
---- @param grew fun() the list got taller (an opened group): it may need to scroll
 --- @return HeroListGroupPanel
-local function NewGroup(def, first, grew)
+local function NewGroup(def, first)
     local key = "ab:" .. def.id
     local folded = IsFolded(key)
     local compact = def.compact == true
@@ -1118,7 +1118,6 @@ local function NewGroup(def, first, grew)
             caret.selfStyle.rotate = cond(folded, 90, 0)
             if not folded then
                 Fill()
-                grew()
             end
         end,
         children = headerChildren,
@@ -1259,14 +1258,11 @@ function HeroSheetLists.Create(args)
     --so both columns' rules line up.
     local headH = math.max(26, HeroSheetWindow.TargetSize(28))
 
-    --- @type fun()
-    local FitScroll
-
     --- @type HeroListGroupPanel[]
     local groups = {}
     local groupPanels = {}
     for i, def in ipairs(GROUPS) do
-        local group = NewGroup(def, i == 1, function() FitScroll() end)
+        local group = NewGroup(def, i == 1)
         groups[i] = group
         groupPanels[i] = group.panel
     end
@@ -1280,27 +1276,20 @@ function HeroSheetLists.Create(args)
         bmargin = 14,
         children = groupPanels,
     }
-    --scrolls once its content is taller: panels made inside a scrolling
-    --panel lay out far more slowly, so the rows are made first.
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the list.
     --its height is what the heading, the Edit bar and the rule leave (Arrange):
     --never "100% available", which the engine restyles every frame.
     local abilityBody = gui.Panel{
         width = "100%",
         height = "100%-42",
         flow = "vertical",
+        vscroll = true,
+        --cards well outside the view are skipped, so the tab shows and scrolls faster.
+        hideObjectsOutOfScroll = true,
         tmargin = 6,
         abilityList,
     }
-    FitScroll = function()
-        HeroSheetWindow.AfterLayout(function()
-            if abilityBody.valid and not abilityBody.vscroll and abilityList.renderedHeight > abilityBody.renderedHeight + 0.5 then
-                abilityBody.vscroll = true
-                --the engine then skips cards well outside the view, so the tab shows and
-                --scrolls faster. Set only once the scroll view exists: before that the engine errors.
-                abilityBody.hideObjectsOutOfScroll = true
-            end
-        end)
-    end
 
     local abilityCount = gui.Label{
         classes = {"heroSheetCardSub"},
@@ -1501,9 +1490,6 @@ function HeroSheetLists.Create(args)
         SetTabOn(mediumTabs.notes, pane == "notes")
         --a pane hidden while the Hero changed is drawn before the frame shows it.
         HeroSheetRefresh.CatchUpShown()
-        FitScroll()
-        features.fit()
-        notes.fit()
     end
 
     --Measures whether the filters fit beside the tabs at Wide (after layout:
@@ -1543,7 +1529,7 @@ function HeroSheetLists.Create(args)
             featuresTab = id
         end
         Arrange()
-        --the sheet fits its parts again (a Narrow pane scrolls once it overflows).
+        --the sheet fits its parts again.
         local fit = HeroSheetRefresh.afterRedraw
         if fit ~= nil then
             fit()
@@ -1662,7 +1648,6 @@ function HeroSheetLists.Create(args)
             abilityCount.text = tostring(total)
             mediumCount.text = tostring(total)
             SetEditing(HeroSheet.Editing())
-            FitScroll()
         end,
     }
 
@@ -1690,8 +1675,6 @@ function HeroSheetLists.Create(args)
         end,
         heroSheetLayout = function(element)
             MeasureFilters()
-            features.fit()
-            notes.fit()
         end,
         heroSheetEdit = function(element, editing)
             SetEditing(editing)

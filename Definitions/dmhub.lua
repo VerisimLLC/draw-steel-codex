@@ -18,6 +18,7 @@
 --- @field versionStatus AppVersionStatus (Read-only) Where this build sits relative to the app versions published on each channel (/AppVersions). Available immediately from the on-disk cache when one exists; listen to versionStatusEvent to be told when it changes.
 --- @field versionStatusEvent nil|EventSourceLua (Read-only) Event source that fires 'appVersionStatus' on listening panels whenever versionStatus is recomputed, i.e. when the cached or fresh /AppVersions record is applied. nil before the monitor exists.
 --- @field safeMode boolean True if the app was launched with --safe-mode: the lobby game (the titlescreen) loads no module code, so a broken Hero module can be removed.
+--- @field launchedIntoGame boolean True while the app, launched with --gameid, is still in the game it was launched into. The titlescreen is not built until it leaves that game.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
 --- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field tokenFrames TokenFramesLuaInterface Registry of premium token frame materials. Register{...} defines a frame (albedo + normal + roughness maps and lighting parameters); a token uses it by setting token.portraitFrameMaterial to the id (and token.portraitFrame to the material's albedo asset).
@@ -26,6 +27,7 @@
 --- @field loadingScreenHeld boolean (Read-only) True while a Lua hold keeps the game loading screen up. See HoldLoadingScreen.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
+--- @field gameSystem nil|string The game system id of the current game (an entry of dmhub.availableGameSystems, e.g. 'dmhub-legacy', 'dmhub-dnd2024'), with an empty record read as the white label's default ('mcdm-drawsteel' or 'dmhub-legacy'). Readable while code mods load, so rules code can branch on it at load time. nil when no game is loaded.
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
@@ -222,7 +224,7 @@
 --- @field mapTransitionCovered boolean (read-only) Tabletop mode: true while the window that has just taken the map named by mapTransitionMapId should stay covered by what it showed before (its snapshot), because the new map is still building or loading its images. When it turns false the window's cover should fade out over about 0.3 seconds; mapTransitionMapId clears when that is done.
 --- @field mapWindowPictureVisit boolean (read-only) Tabletop mode: true while the engine is visiting maps behind a cover to take their windows' pictures (SetTabletopWindowMaps). A map change seen meanwhile is not the user's: the tabletop must not bring windows forward, flash or refocus them.
 --- @field mapViewportActive boolean (read-only) Tabletop mode: true while a map window panel is showing the live map ("#MapView").
---- @field tabletopSurface string Tabletop mode: the table's surface. One of "leather" (the playmat with the debossed wordmark, the default), "felt" (green card-table felt with the logo burnt into it), "stars" (Sea of Stars: a slowly drifting nebula and twinkling stars with the logo glowing in it), "marble" (polished white marble with the logo chiselled into it), "darkmarble" (the same in polished black marble), "llianar" (white marble veined with gold, the logo gilded, a glint sweeping across it now and then), "soulkiller" (spectral mist: teal fog drifting, souls rising, the logo as a ghost), "terransteel" (etched Damascus gunmetal, the logo engraved and heating to a forge glow now and then), "zodiakol" (molten obsidian: cracked black glass with heat glowing in the cracks and the logo as molten metal) or "custom" (the image in dmhub.tabletopSurfaceImage, scaled to cover the screen). Any other value means "leather". Takes effect at once, frosted panels included. Client-only; not saved.
+--- @field tabletopSurface string Tabletop mode: the table's surface. One of "leather" (the playmat with the debossed wordmark, the default), "felt" (green card-table felt with the logo burnt into it), "stars" (Sea of Stars: a slowly drifting nebula and twinkling stars with the logo glowing in it), "marble" (polished white marble with the logo chiselled into it), "darkmarble" (the same in polished black marble), "llianar" (white marble veined with gold, the logo gilded, a glint sweeping across it now and then), "soulkiller" (spectral mist: teal fog drifting, souls rising, the logo as a ghost), "terransteel" (etched Damascus gunmetal, the logo engraved and heating to a forge glow now and then), "zodiakol" (molten obsidian: cracked black glass with heat glowing in the cracks and the logo as molten metal) or "custom" (the image in dmhub.tabletopSurfaceImage, scaled to cover the screen). "table:<id>" is a table made in the Table Studio and put live (dmhub.GetLiveTables), drawn as leather until its images load; a built-in put live from the studio draws its live version the same way. Any other value means "leather". Takes effect at once, frosted panels included. Client-only; not saved.
 --- @field tabletopSurfaceImage nil|string Tabletop mode: the image the "custom" table surface shows, by image id (a cloud asset id, an "md5:" id or a built-in image path), or nil. Drawn to cover the screen: scaled to fill it with its aspect kept, centred and cropped. Until it has loaded, or if it can't be loaded (or is a video), the leather table is drawn. Client-only; not saved.
 --- @field mouseOutsideMapView boolean (read-only) Tabletop mode: true while the mouse is outside the live map window, or no window shows the map, so the map under the mouse is hidden and takes no input. A creature dragged from a panel and dropped there fires the global event 'tabletopCreatureDropped' {monsterid, monsterids, charids, quantity, screenx, screeny}; a token dragged off the map fires 'tabletopTokenDropped' {charid, charids, screenx, screeny}. screenx/screeny are pixels from the top-left of the screen. Neither fires over a UI panel.
 --- @field tabletopDragSurface nil|string (read-only) Tabletop mode: what a drag released now would land on. "map" while the placement preview (the ghost of a character or creature dragged from a panel or a table card) is showing in the live map window; "table" over the bare table: outside the live map window, with no UI panel under the mouse (the panel being dragged doesn't count), where a drop fires 'tabletopCreatureDropped'. nil otherwise: over a UI panel, inside the window with no preview showing, or with the view off.
@@ -1527,6 +1529,17 @@ function dmhub.RunSteamHandoffDiagnostic(variant, onComplete) end
 --- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete) end
 
+--- Reads a secret stored on this machine only with @see SetLocalSecret (Windows: DPAPI for this Windows user; macOS: the keychain). Returns nil when there is none. Keys are [a-z0-9_-], at most 64 characters.
+--- @param key string
+--- @return nil|string
+function dmhub.GetLocalSecret(key) end
+
+--- Stores a secret on this machine only, never in the cloud, logs or settings files: for credentials such as a partner's device token. nil or an empty string removes it. Returns false when it could not be stored.
+--- @param key string
+--- @param value nil|string
+--- @return boolean
+function dmhub.SetLocalSecret(key, value) end
+
 --- Open the given URL in a web browser. Only links to certain approved domains will be allowed for security reasons.
 --- @param url? string
 function dmhub.OpenURL(url) end
@@ -1846,6 +1859,10 @@ function dmhub.DescribeTabletop() end
 --- @param needPictures nil|string[]
 function dmhub.SetTabletopWindowMaps(mapids, needPictures) end
 
+--- Tabletop mode: the tables put live from the Table Studio, as a list of {id, builtin, name, access, dice, position, version}. id is what dmhub.tabletopSurface takes: a built-in's id ("soulkiller") for one that replaces that built-in, else "table:<id>". builtin is the built-in id it replaces, or nil. name is its name in the players' menu. access is "everyone", "dice" for the owners of the dice set dice (a dice asset id, or nil), or "nobody": unpublished, so players' menus leave it out (and leave out the built-in it replaces). position orders the menu (the built-ins are 1 to 9). Each is drawn once its images have loaded; a built-in's own drawing shows until then.
+--- @return table
+function dmhub.GetLiveTables() end
+
 --- Admin only, for testing: feeds the main window an operating-system file drag step as if files were dragged in from the desktop. x and y are screen pixels from the top-left (the measure of dmhub.mouseScreenPosition). Send "over" steps while moving, then "drop" or "leave"; the drop runs exactly as a real one would (uploads included).
 --- @param args {paths: string[], x: number, y: number, phase: "over"|"leave"|"drop"}
 function dmhub:SimulateFileDrag(args) end
@@ -2152,10 +2169,6 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
---- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
---- @param enabled? boolean
-function dmhub.PanelNursery(enabled) end
-
 --- Diagnostic: how the style cascade finds the rules of each ancestor's styles list that match a panel. 0 = test every rule (the original walk), 1 = test only the rules an index says the panel could match (default), 2 = verify: do both, keep the original result and count any difference. Pass -1 to leave the mode as it is; pass reset=true to zero the counters. Returns the counters. --style-index off|on|verify at startup sets the same switch.
 --- @param mode? integer
 --- @param reset? boolean
@@ -2177,6 +2190,10 @@ function dmhub.PanelMaterialSharing(mode, reset) end
 --- Diagnostic: the renderer's per-frame counters -- SetPass calls, draw calls, batches, vertices -- averaged over the frames recorded so far (up to the last 60). Recording starts on the first call, so call once, let a second pass, and call again.
 --- @return string
 function dmhub.RenderStats() end
+
+--- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
+--- @param enabled? boolean
+function dmhub.PanelNursery(enabled) end
 
 --- Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
 --- @param enabled? boolean
@@ -2446,7 +2463,7 @@ function dmhub.CreateWeatherShelter(options) end
 --- @return ParticleSystemHandleLua|nil
 function dmhub.CreateParticleSystem(options) end
 
---- Spawns a named particle effect (any effect in the token or dice effect libraries, e.g. "Fire Loop sim 3") at a map location, not attached to any token. Args: id (effect name), loc (Loc; the effect sits at the square's center on the Loc's floor), scale (number, default 1), rotation (degrees about Z, or an {x,y,z} euler table), tint (Color), looping (boolean), ttl (seconds; a looping effect with a ttl stops itself after it), sortingOrder (number added to the effect's authored order, default 0). The effect draws above map objects and below tokens. A looping effect whose prefab is not loaded yet spawns as soon as it loads. The effect is client-local (call it on every client that should see it) and is removed by handle:Stop(), its natural end, or when this client changes maps.
---- @param args {id: string, loc: Loc, scale: nil|number, rotation: nil|number|{x: number, y: number, z: number}, tint: nil|ColorArg, looping: nil|boolean, ttl: nil|number, sortingOrder: nil|number}
+--- Spawns a named particle effect (any effect in the token or dice effect libraries, e.g. "Fire Loop sim 3") at a map location, not attached to any token. Args: id (effect name), loc (Loc; the effect sits at the square's center on the Loc's floor), pos (optional Vector2 world position, e.g. token.pos, to place the effect exactly there instead of at the square's center; loc still gives the floor), scale (number, default 1), rotation (degrees about Z, or an {x,y,z} euler table), tint (Color), looping (boolean), ttl (seconds; a looping effect with a ttl stops itself after it), sortingOrder (number added to the effect's authored order, default 0). The effect draws above map objects and below tokens. A looping effect whose prefab is not loaded yet spawns as soon as it loads. The effect is client-local (call it on every client that should see it) and is removed by handle:Stop(), its natural end, or when this client changes maps.
+--- @param args {id: string, loc: Loc, pos: nil|Vector2Arg, scale: nil|number, rotation: nil|number|{x: number, y: number, z: number}, tint: nil|ColorArg, looping: nil|boolean, ttl: nil|number, sortingOrder: nil|number}
 --- @return EffectHandleLua
 function dmhub.PlayEffect(args) end

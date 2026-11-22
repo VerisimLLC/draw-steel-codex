@@ -1,5 +1,13 @@
 local mod = dmhub.GetModLoading()
 
+--Player-facing ability card text lives in UIText so it can be reworded without code changes.
+local g_text = UIText.Define("MCDMActivatedAbility")
+g_text("ability.oppositeSquareOccupied", [[The opposite adjacent square is occupied, so you cannot push the target.]])
+
+--Set in the ability's data (there is no editor field). When true, the ability card warns
+--if another creature stands in the square on the far side of the caster from a target.
+ActivatedAbility.warnOppositeSquareOccupied = false
+
 --effectImplemented is deprecated. Use the 'implementation' field instead.
 --kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
@@ -775,30 +783,39 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+--The damage types an ability's power roll deals ("untyped" for plain damage).
+--Shared by the Ability.DamageTypes symbol and TestRiders, so a rider's "you
+--can deal holy damage" agrees with the conditions modifiers check at roll time.
+--- @param ability ActivatedAbility
+--- @return string[]
+function ActivatedAbility.PowerRollDamageTypes(ability)
+    local strings = {}
+
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local powerRollBehavior = behavior --[[@as ActivatedAbilityPowerRollBehavior]]
+            for _, entry in ipairs(powerRollBehavior.tiers) do
+                local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
+                if damageMatch ~= nil then
+                    local damageType = damageMatch.type or "untyped"
+                    if not table.contains(strings, damageType) then
+                        strings[#strings + 1] = string.lower(damageType)
+                    end
+                end
+            end
+        end
+    end
+
+    return strings
+end
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "damagetypes",
     type = "set",
     desc = "The damage types this ability does.",
     calculate = function(c)
-        local strings = {}
-
-        for _, behavior in ipairs(c.behaviors) do
-            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                local tiers = behavior.tiers
-                for _, entry in ipairs(tiers) do
-                    local damageMatch = regex.MatchGroups(entry, "(?<damage>[0-9 maripd+-]+) +(?<type>[a-z]+)? ?damage")
-                    if damageMatch ~= nil then
-                        local damageType = damageMatch.type or "untyped"
-                        if not table.contains(strings, damageType) then
-                            strings[#strings + 1] = string.lower(damageType)
-                        end
-                    end
-                end
-            end
-        end
-
         return StringSet.new {
-            strings = strings,
+            strings = ActivatedAbility.PowerRollDamageTypes(c),
         }
     end,
 
@@ -1630,8 +1647,9 @@ local function CardBookmarkTab(hide, buildArgs)
 end
 
 --- The power roll whose tier table the ability card shows. A top-level roll wins;
---- otherwise it is a roll inside an invoked custom ability, or inside a trigger of
---- an aura the ability places (e.g. Noxious Bubble's Might test when it bursts).
+--- otherwise it is a roll inside an invoked custom ability or a module invoke type's
+--- preview, or inside a trigger of an aura the ability places (e.g. Noxious Bubble's
+--- Might test when it bursts).
 --- @param ability ActivatedAbility
 --- @param token CharacterToken|nil
 --- @param params table
@@ -1643,14 +1661,14 @@ local function FindCardPowerTableBehavior(ability, token, params)
             --the modes didn't match, so just pass on this one.
         elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
             return behavior --[[@as ActivatedAbilityPowerRollBehavior]]
-        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
-            --if we invoke a power roll ability try to pull that out.
-            --customAbility has no class default and may be unset even when
-            --abilityType resolves to "custom" (the class default), so read it safely.
-            local customAbility = behavior:try_get("customAbility")
+        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            --if we invoke a power roll ability try to pull that out: a custom
+            --ability, or what a module's registered invoke type previews.
+            local invokeBehavior = behavior --[[@as ActivatedAbilityInvokeAbilityBehavior]]
+            local customAbility = invokeBehavior:HeldAbility(token ~= nil and token.properties or nil)
             for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                    result = subbehavior
+                    result = subbehavior --[[@as ActivatedAbilityPowerRollBehavior]]
                 end
             end
         elseif behavior.typeName == "ActivatedAbilityAuraBehavior" then
@@ -1929,7 +1947,14 @@ function ActivatedAbility:Render(options, params)
                     end
                 end
                 if #noteParts > 0 then
-                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    --An optional activationNote explains WHY the modifier applies, e.g.
+                    --"Ruthless Rage +3 damage: another wyvern is within 10 squares".
+                    local activationNote = modifier:try_get("activationNote", "")
+                    if activationNote ~= "" then
+                        notes[#notes+1] = string.format("%s %s: %s", modifier.name, table.concat(noteParts, ", "), activationNote)
+                    else
+                        notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                    end
                 end
             end
         end
@@ -2139,6 +2164,7 @@ function ActivatedAbility:Render(options, params)
 
     --if we have a specific token and there is an aura associated with this ability, add some information about the aura.
     local tokenDependentInfoPanel = nil
+    local oppositeWarningPanel = nil
     if params.token ~= nil and params.token.properties ~= nil then
         local tokenDependentChildren = {}
 
@@ -2237,6 +2263,37 @@ function ActivatedAbility:Render(options, params)
             end
         end
 
+        --Abilities flagged warnOppositeSquareOccupied (Phase Inversion Strike) warn when the
+        --square opposite the caster is taken, since the target then can't be teleported or
+        --pushed. Kept out of tokenDependentInfoPanel because that collapses in the roll dialog.
+        if self.warnOppositeSquareOccupied then
+            local cast = params.symbols ~= nil and params.symbols.cast or nil
+            local castTargets = cast ~= nil and cast:try_get("targets") or nil
+            for _, target in ipairs(castTargets or {}) do
+                if target.token ~= nil and ActivatedAbility.OppositeSquareOccupied(params.token, target.token) then
+                    oppositeWarningPanel = gui.Panel {
+                        classes = { "bgDanger" },
+                        width = "100%-16",
+                        height = "auto",
+                        flow = "vertical",
+                        halign = "center",
+                        tmargin = 6,
+                        borderBox = true,
+                        hpad = 6,
+                        vpad = 4,
+                        gui.Label {
+                            classes = { "sizeS", "fgStrong" },
+                            width = "100%",
+                            height = "auto",
+                            textWrap = true,
+                            text = UIText.T("ability.oppositeSquareOccupied"),
+                        },
+                    }
+                    break
+                end
+            end
+        end
+
         self:RenderTokenDependent(params.token, tokenDependentChildren)
 
         if #tokenDependentChildren > 0 then
@@ -2252,6 +2309,20 @@ function ActivatedAbility:Render(options, params)
                 children = tokenDependentChildren,
             }
         end
+    end
+
+    --One panel holding the token info and the warning, so the card gets a single entry.
+    local infoAndWarningPanel = nil
+    if tokenDependentInfoPanel ~= nil or oppositeWarningPanel ~= nil then
+        local extras = {}
+        if tokenDependentInfoPanel ~= nil then extras[#extras + 1] = tokenDependentInfoPanel end
+        if oppositeWarningPanel ~= nil then extras[#extras + 1] = oppositeWarningPanel end
+        infoAndWarningPanel = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = extras,
+        }
     end
 
     local description = self.description
@@ -3437,7 +3508,7 @@ function ActivatedAbility:Render(options, params)
                     element:SetClass("collapsed", true)
                 end,
 
-                classes = { "abilitySection", cond(self:GetPowerRollDisplay() == "", "collapsed", nil) },
+                classes = { "abilitySection", cond(self:GetPowerRollDisplay(creatureProperties) == "", "collapsed", nil) },
                 width = "100%",
                 height = "auto",
                 tmargin = 2,
@@ -3459,7 +3530,7 @@ function ActivatedAbility:Render(options, params)
 
                 gui.Label {
 
-                    text = self:GetPowerRollDisplay(),
+                    text = self:GetPowerRollDisplay(creatureProperties),
                     fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",
@@ -3546,7 +3617,7 @@ function ActivatedAbility:Render(options, params)
                 },
             },
 
-            tokenDependentInfoPanel,
+            infoAndWarningPanel,
 
 
             gui.Panel {
@@ -5228,7 +5299,14 @@ end
 
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
     if self:try_get("promptOverride") ~= nil then
-        return self.promptOverride .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
+        local reboundHint = ""
+        --A rebounding push bounces with whatever distance is left past the obstacle, so tell
+        --the player where to point.
+        if self:try_get("targeting", "direct") == "straightline" and casterToken ~= nil and casterToken.properties ~= nil
+            and casterToken.properties:GetForcedPushOptions().rebound then
+            reboundHint = ". Click a space behind the collision target to rebound."
+        end
+        return self.promptOverride .. reboundHint .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
     end
 
     if synthesizedSpells ~= nil then
@@ -5799,9 +5877,64 @@ ActivatedAbility.RegisterProperty {
 }
 
 --Line-of-effect gates on targeting: an effect denying the caster line of effect to a set of
---creatures, and an enemy standing in the way with "Block Enemy Line of Effect". Both return
---a reason, so the action bar greys the target out with a tooltip instead of hiding it.
+--creatures, and an enemy in the way with its body or its aura. Each returns a reason, so
+--the action bar greys the target out with a tooltip instead of hiding it.
 local g_baseTargetPassesFilter = ActivatedAbility.TargetPassesFilter
+
+--Which creatures the last area included. The action bar checks every creature in an area,
+--so this works the answer out once per area, not once per creature. It is redone every
+--frame, because creatures can move while the area stays where it is.
+local g_includedInAreaCache = {}
+
+--- The charids an ability already targets, for line-of-effect auras that only block
+--- abilities leaving their owner out (the Doomthief's Doom Magnet). An area includes
+--- every creature in it the ability can target; a pick-your-targets ability includes the
+--- ones picked so far (the action bar puts them in symbols.targetsChosen).
+--- Returns nil, skipping the work, unless an enemy of the caster has such an aura.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @param floorIndex nil|number the floor line of effect is measured on (the area's, for an area)
+--- @return nil|table<string, boolean>
+local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
+    if symbols == nil or not RuleUtils.HostileLineOfEffectAura(casterToken, floorIndex) then
+        return nil
+    end
+
+    local included = nil
+
+    local targetArea = symbols.targetArea
+    if targetArea ~= nil then
+        local cache = g_includedInAreaCache
+        local frame = dmhub.FrameCount()
+        if cache.frame ~= frame or cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
+            --Fill the cache entry before the loop, not after: for an ability with custom target
+            --filters the base filter calls back into TargetPassesFilter and so into this
+            --function for the same area, which would otherwise miss the cache and recurse
+            --until the stack overflows. The nested call sees the set as filled so far.
+            local charids = {}
+            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
+            for _, tok in pairs(dmhub.tokenInfo.TokensInShape(targetArea) or {}) do
+                if tok.valid and tok.properties ~= nil and g_baseTargetPassesFilter(ability, casterToken, tok, symbols) then
+                    charids[tok.charid] = true
+                end
+            end
+        end
+        included = cache.charids
+    end
+
+    local chosen = symbols.targetsChosen
+    if type(chosen) == "table" and #chosen > 0 then
+        local merged = table.shallow_copy(included or {})
+        for _, charid in ipairs(chosen) do
+            merged[charid] = true
+        end
+        included = merged
+    end
+
+    return included
+end
+
 function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
     local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
     if not result then
@@ -5841,7 +5974,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         originLoc = targetArea.origin
     end
 
-    local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc)
+    local floorIndex = (originLoc ~= nil and originLoc.valid) and originLoc.floor or nil
+    local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc,
+        IncludedTargetCharids(self, casterToken, symbols, floorIndex))
     if blocker == nil then
         return result, reason
     end

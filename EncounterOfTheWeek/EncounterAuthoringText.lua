@@ -1011,6 +1011,7 @@ text("author.validator.negotiation.no_argument", [[no argument appeals to {trait
 text("author.validator.negotiation.no_clue", [[{trait} has no clue, so players can only find it by failing]])
 text("author.validator.negotiation.few_motivations", [[the book gives every NPC at least two motivations]])
 text("author.validator.negotiation.no_opening", [[no 'Opening:' line, so the NPC does not speak first]])
+text("author.validator.negotiation.no_pc", [[argument '{argument}' has no 'PC:' line, so the hero has nothing to say when it is chosen]])
 text("author.validator.negotiation.no_offer", [[no '## Offer: {offer}']])
 text("author.validator.negotiation.no_uncover", [[{trait} is 'Unlocked by {label}', but nothing in this script says 'You uncover {label}']])
 text("author.negotiation_builder.intro", [[You write what is said; the negotiation rules work out interest and patience.]])
@@ -1127,6 +1128,7 @@ text("author.script_edit.starter.negotiation.argument_greed", [[Offer them a sha
 text("author.script_edit.starter.negotiation.argument_protection", [[Promise to keep their people safe]])
 text("author.script_edit.starter.negotiation.argument_authority", [[Invoke someone with more power]])
 text("author.script_edit.starter.negotiation.argument_neutral", [[Try to win them over]])
+text("author.script_edit.starter.negotiation.say", [[What the hero says out loud.]])
 text("author.script_edit.starter.negotiation.offer", [[What they agree to at this level of interest.]])
 --The sub-documents the script pulls in. {list} is their names.
 text("author.validator.report.includes.one", [[includes {count} sub-document: {list}]])
@@ -1163,6 +1165,10 @@ text("author.validator.problems.option_problem", [[{where}: option '{option}' --
 text("author.validator.problems.setup_not_understood", [[{where}: setup instruction '{text}' is not understood]])
 --{behavior} is the name the line gave, {known} the Monster AI's behavior names.
 text("author.validator.problems.unknown_ai_behavior", [[{where}: '{behavior}' is not a Monster AI behavior (known: {known})]])
+--A "## Reinforcements:" island that brings nobody. {name} is the section's
+--name, {island} which of its [[encounter]] islands (1, 2, ...).
+text("author.validator.problems.reinforcement_island_no_encounter", [=[{where}: reinforcements '{name}' island {island} has no encounter behind its [[encounter]] tag; nothing arrives from it]=])
+text("author.validator.problems.reinforcement_island_no_monsters", [=[{where}: reinforcements '{name}' island {island} has an encounter with no monsters; nothing arrives from it. Add groups in the encounter builder]=])
 
 --The Names section: every item, monster, object and zone the script names,
 --and whether the game can find it. {name} is the name as written.
@@ -1193,6 +1199,8 @@ text("author.validator.report.setup_place", [[setup {label}: place {qty} x '{obj
 text("author.validator.report.setup_place_delete", [[setup {label}: place {qty} x '{object}' in {zone} zones, delete the other {zone} zones]])
 text("author.validator.report.setup_bystanders", [[setup {label}: bystanders (no initiative): {names}]])
 text("author.validator.report.setup_unrecognized", [[setup {label}: UNRECOGNIZED '{text}']])
+--{who} is what the "Mark:" line names, as the author wrote it (e.g. The Choir).
+text("author.validator.report.setup_mark", [[marked on the map for the heroes: {who}]])
 text("author.validator.report.setup_parallax", [[parallax set to {level} while this is played]])
 text("author.validator.report.setup_hero_level", [[balanced for Level {level} heroes: monsters are leveled up or down by the party's average Level minus {level}]])
 --A "Monster AI:" line. {text} reads like "Bully on for Goblin Sniper".
@@ -1427,6 +1435,7 @@ text("author.script.encounter.unknown_section", [['## {title}' in an encounter b
 text("author.script.encounter.victory_not_understood", [['Victory: {victory}' is not understood (write 'Victory: every enemy on the map is defeated' or 'Victory: every Dwarf on the map is defeated'); ignored]])
 text("author.script.encounter.parallax_not_understood", [['Parallax: {parallax}' is not understood (write 'Parallax: None', 'Parallax: Slight', 'Parallax: Normal' or 'Parallax: Pronounced'); ignored]])
 text("author.script.encounter.level_not_understood", [['Level: {level}' is not understood (write the hero Level this encounter is balanced for, 1 to {max}, e.g. 'Level: 2'); ignored]])
+text("author.script.encounter.mark_not_understood", [['Mark:' names nobody (write e.g. 'Mark: The Choir' or 'Mark: Chorister and Bone Singer'); ignored]])
 text("author.script.encounter.unknown_setup", [[unrecognized encounter setup instruction '{label}: {instruction}'; ignored]])
 
 --Reinforcements ("## Reinforcements: <Name>"). {name} is the group's name,
@@ -1484,6 +1493,9 @@ text("author.script.narrative.everyone_no_roll", [[section '{section}' says ever
 text("author.script.narrative.everyone_extra_option", [[section '{section}': everyone makes the first option's test, so option '{option}' is ignored]])
 text("author.script.narrative.everyone_interrupted", [[section '{section}': a test everyone makes cannot be an interrupted roll; it is rolled normally]])
 text("author.script.narrative.everyone_secret", [[section '{section}': everyone makes this test, so its 'Allow' rider does nothing]])
+text("author.script.narrative.party_result_unknown", [['{result}' is not a party result this game knows (write 'Party result: median'); each hero's result applies to them]])
+text("author.script.narrative.party_result_not_group", [[section '{section}' has a 'Party result:' line but is not an 'Everyone rolls:' section; it is ignored]])
+text("author.script.narrative.option_gate_twice", [[option '{option}' already has a 'When ...:' line; only the first counts]])
 text("author.script.narrative.everyone_route", [[section '{section}': everyone makes this test, so the party always leaves by the section's own exit; the option's routes and 'go to' results are ignored]])
 text("author.script.narrative.spotlight_not_challenge", [[section '{section}' is tagged (Spotlight), which only works on a section with a test one hero takes on; the tag is ignored]])
 text("author.script.narrative.spotlight_first", [[section '{section}' is tagged (Spotlight) but is the first section, so no hero has taken a test yet; until one has, any hero may take it]])
@@ -1519,6 +1531,8 @@ text("author.script.clause.maxstamina", [[Maximum Stamina reduced]])
 text("author.script.clause.malice", [[Malice for the Director]])
 text("author.script.clause.initiative", [[Initiative]])
 text("author.script.clause.nosurprise", [[Cannot be surprised]])
+text("author.script.clause.herosurprised", [[This hero is surprised]])
+text("author.script.clause.retreatkill", [[One of the fleeing monsters is destroyed]])
 text("author.script.clause.fairinitiative", [[Fair roll for initiative]])
 text("author.script.clause.knowstamina", [[Know monsters' Stamina]])
 text("author.script.clause.foeimmunity", [[Monsters gain immunity]])

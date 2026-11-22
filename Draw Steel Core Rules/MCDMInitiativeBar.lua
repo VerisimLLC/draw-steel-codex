@@ -1093,7 +1093,10 @@ dmhub.RegisterEventHandler("restoreFromBackup", function(info)
 	--never arrived) is ignored after a few seconds.
 	local forward = TurnRewind.restoreForward and dmhub.Time() - TurnRewind.restoreTime < 5
 	TurnRewind.restoreForward = false
-	dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	--Settings > Accessibility can turn the distortion off; the label below still shows.
+	if not dmhub.GetSettingValue("accessibility:norewindeffect") then
+		dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
+	end
 	local ok, err = pcall(ShowRewindOsd, forward)
 	if not ok then
 		print("TurnRewind:: rewind label failed:", err)
@@ -1206,6 +1209,10 @@ function TurnRewind.ShowDialog()
 					local err = TurnRewind.GoTo(index)
 					if err ~= nil then
 						gui.ModalMessage{title = "Could Not Rewind", message = err}
+					elseif dialog ~= nil and dialog.valid then
+						--Done with the history once the board has moved; Ctrl+Z reopens it.
+						dialog:DestroySelf()
+						return
 					end
 					if listPanel ~= nil and listPanel.valid then
 						listPanel:FireEvent("refreshRewind")
@@ -1423,6 +1430,73 @@ function TurnRewind.StepOrOpen(direction)
 	list:FireEvent("refreshRewind")
 end
 
+--Encounter of the Week has no ordinary undo, so Ctrl+Z / Ctrl+Y belongs to Turn Rewind
+--alone. A press that cannot rewind says why on the tip banner instead of doing nothing.
+local g_rewindNotYourTurnMessage = "Can only rewind during your turn"
+local g_rewindResolvingMessage = "Cannot rewind during ability resolution"
+local g_rewindHintId = "turn-rewind-refused"
+local g_rewindHintSeconds = 3
+
+--- @type {text: string, untilTime: number}|nil
+local g_rewindHint = nil
+
+--Registered by direct table insert so this file does not depend on GameHud.lua having
+--loaded first (GameHud.lua keeps an existing Tip.notices table).
+Tip = rawget(_G, "Tip") or {}
+Tip.notices = Tip.notices or {}
+Tip.notices[g_rewindHintId] = {
+	id = g_rewindHintId,
+	--above the Monster AI's "waiting on a player" notice: the player just pressed the key.
+	priority = 2000,
+	text = function()
+		if mod.unloaded or g_rewindHint == nil or dmhub.Time() > g_rewindHint.untilTime then
+			return nil
+		end
+		return g_rewindHint.text
+	end,
+}
+
+--- @param text string
+local function ShowRewindHint(text)
+	g_rewindHint = {text = text, untilTime = dmhub.Time() + g_rewindHintSeconds}
+	local gh = GameHud.instance
+	if not gh then
+		return
+	end
+	--a Dismiss of the last hint must not hide this one.
+	local dismissed = gh:try_get("_noticeDismissed")
+	if dismissed ~= nil and dismissed.id == g_rewindHintId then
+		gh._noticeDismissed = nil
+	end
+	--show it now rather than at the banner's next poll (once a second).
+	local ok, err = pcall(function() gh:_TipDriverTick() end)
+	if not ok then
+		print("TurnRewind:: showing the hint failed:", err)
+	end
+end
+
+--In an Encounter of the Week combat, why Ctrl+Z / Ctrl+Y cannot rewind right now, or nil
+--when it can (or when this is not an EotW combat, where the key goes to the ordinary undo).
+--Only the key is refused mid-ability: the Turn History dialog's buttons can still cancel it.
+--- @param q InitiativeQueue|nil
+--- @return string|nil
+function TurnRewind.EotwRefusal(q)
+	if not g_rewindSetting:Get() or q == nil or q.hidden or not IsEotwGame() then
+		return nil
+	end
+	--Turn History opens and explains that the Monster AI is playing.
+	if TurnRewind.MonsterAIBusy(q) then
+		return nil
+	end
+	if not TurnRewind.UndoAvailable(q) then
+		return g_rewindNotYourTurnMessage
+	end
+	if not NothingResolving() then
+		return g_rewindResolvingMessage
+	end
+	return nil
+end
+
 --A Ctrl+Z / Ctrl+Y a listener panel caught. A panel listener always consumes the key,
 --so if Turn History does not apply -- the think has not caught up yet, or this is a
 --listener left behind by an initiative bar that has since been rebuilt -- it unregisters
@@ -1430,6 +1504,13 @@ end
 --- @param element Panel
 --- @param direction integer
 function TurnRewind.HandleUndoKey(element, direction)
+	local refusal = element == TurnRewind.undoListener and TurnRewind.EotwRefusal(dmhub.initiativeQueue) or nil
+	if refusal ~= nil then
+		print(string.format("TurnRewind:: %s key refused: %s", cond(direction < 0, "undo", "redo"), refusal))
+		ShowRewindHint(refusal)
+		return
+	end
+
 	local available = element == TurnRewind.undoListener and TurnRewind.UndoAvailable(dmhub.initiativeQueue)
 	print(string.format("TurnRewind:: %s key, turn history %s", cond(direction < 0, "undo", "redo"), cond(available, "handles it", "passes it on")))
 	if available then
@@ -1471,8 +1552,10 @@ function TurnRewind.CreateUndoListener()
 		thinkTime = 0.2,
 		data = {listening = false},
 		think = function(element)
-			--only the newest initiative bar's listener ever listens.
-			local want = element == TurnRewind.undoListener and TurnRewind.UndoAvailable(dmhub.initiativeQueue)
+			--only the newest initiative bar's listener ever listens. In an EotW combat it
+			--also listens when it cannot rewind, to say why.
+			local q = dmhub.initiativeQueue
+			local want = element == TurnRewind.undoListener and (TurnRewind.UndoAvailable(q) or TurnRewind.EotwRefusal(q) ~= nil)
 			if want ~= element.data.listening then
 				element.data.listening = want
 				if want then
@@ -6817,6 +6900,28 @@ GameHud.RegisterBetweenTurnHandler{
 	end,
 }
 
+--The current queue if it is still the combat `queue` belongs to, else nil
+--(combat ended, or the map changed). Match on guid, not the object: a
+--reconnect re-sends the whole game and rebuilds dmhub.initiativeQueue as a new
+--object for the same combat. The handoff took that for the turn moving on and
+--never advanced initiative, so the Monster AI stalled (SASGFH6V).
+---@param queue InitiativeQueue|nil
+---@return InitiativeQueue|nil
+function GameHud.LiveInitiativeQueue(queue)
+	local live = dmhub.initiativeQueue
+	if queue == nil or live == nil then
+		return nil
+	end
+	if live == queue then
+		return live
+	end
+	local guid = queue:try_get("guid")
+	if guid ~= nil and guid == live:try_get("guid") then
+		return live
+	end
+	return nil
+end
+
 function GameHud:NextInitiative(oncomplete)
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.choiceInitiativeBar
@@ -6827,7 +6932,12 @@ function GameHud:NextInitiative(oncomplete)
 		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
 		local initiativeQueue = info.initiativeQueue
 		g_betweenTurnTransitionInProgress = true
-        
+
+		--An ability still being targeted on this client's action bar for a creature
+		--whose turn is ending would hold every later invoke (3VAQJS4A, YYK97NNG).
+		if DrawSteelActionBar ~= nil and DrawSteelActionBar.CancelUncastAbilityForEndingTurn ~= nil then
+			DrawSteelActionBar.CancelUncastAbilityForEndingTurn(tokens)
+		end
 
         --we have to dispatch end turn BEFORE we change to the next turn,
         --otherwise effects that block until end of turn will not work for any end turn
@@ -6866,11 +6976,18 @@ function GameHud:NextInitiative(oncomplete)
 				endedTokens = tokens,
 			}
 			for _,handler in ipairs(handlers) do
+				--A reconnect during an earlier handler may have rebuilt the queue.
+				context.initiativeQueue = GameHud.LiveInitiativeQueue(context.initiativeQueue) or context.initiativeQueue
 				RunBetweenTurnHandler(handler, context)
 			end
 
 			local newRound = false
-			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
+			local liveQueue = GameHud.LiveInitiativeQueue(initiativeQueue)
+			if liveQueue ~= nil and liveQueue ~= initiativeQueue then
+				print(string.format("ENDTURN:: initiative queue reloaded during the handoff of %s (reconnect); advancing the reloaded queue", tostring(currentInitiativeId)))
+				initiativeQueue = liveQueue
+			end
+			if liveQueue ~= nil and initiativeQueue.entries[currentInitiativeId] ~= nil then
 				local claimedBy = initiativeQueue:try_get("currentTurn")
 				if claimedBy and claimedBy ~= currentInitiativeId then
 					--another entry took the turn while the handlers above held the
@@ -7023,8 +7140,16 @@ function GameHud.WaitForHeroTriggerPrompts(context)
 	local wait = nil
 	local result = nil
 	while result == nil do
-		local claimedBy = q ~= nil and q:try_get("currentTurn") or nil
-		if q == nil or dmhub.initiativeQueue ~= q or q.hidden
+		--Follow the queue across a reconnect, which rebuilds it (SASGFH6V).
+		local live = GameHud.LiveInitiativeQueue(q)
+		if live ~= nil and live ~= q then
+			q = live
+			if context ~= nil then
+				context.initiativeQueue = live
+			end
+		end
+		local claimedBy = live ~= nil and live:try_get("currentTurn") or nil
+		if live == nil or live.hidden
 			or (claimedBy and claimedBy ~= endedId) then
 			--Combat ended, or a hero claimed the turn during the hold
 			--(Hesitation Is Weakness): NextInitiative handles both.

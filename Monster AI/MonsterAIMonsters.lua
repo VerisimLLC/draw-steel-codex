@@ -40,14 +40,36 @@ local function GenerateStandardStrikeExecuteFunction()
     end
 end
 
+--The two generic free strikes score 0.2, so on a tie whichever was scored
+--first won, and a melee monster often plinked from range instead of charging.
+--The one that does not suit the signature's reach (MonsterAI.SignatureReach)
+--scores a little less, so the other wins the tie. Neither changes for a
+--monster whose signature is both melee and ranged, or that has none.
+local g_freeStrikeScore = 0.2
+local g_offReachFreeStrikeScore = 0.19
+
+local function FreeStrikeScoreFunction(reach)
+    local standard = GenerateStandardStrikeScoreFunction(g_freeStrikeScore)
+    return function(self, ai, token, ability)
+        local result = standard(self, ai, token, ability)
+        if result ~= nil then
+            local signatureReach = MonsterAI.SignatureReach(token)
+            if (signatureReach == "melee" or signatureReach == "ranged") and signatureReach ~= reach then
+                result.score = g_offReachFreeStrikeScore
+            end
+        end
+        return result
+    end
+end
+
 MonsterAI:RegisterMove{
     id = "Charge and Free Strike",
     category = "Basic Strikes",
     description = "Move to melee range and use a free strike, charging if possible. This is a generic move that is used if no other good options are available.",
     abilities = {"Melee Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("melee"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -56,9 +78,9 @@ MonsterAI:RegisterMove{
     category = "Basic Strikes",
     description = "Move to ranged attack range and use a free strike. This is a generic move that is used if no other good options are available.",
     abilities = {"Ranged Free Strike"},
-    score = GenerateStandardStrikeScoreFunction(0.2),
-    --always scores exactly 0.2, so it is not even scored once a better move is found.
-    maxScore = 0.2,
+    score = FreeStrikeScoreFunction("ranged"),
+    --never scores above 0.2, so it is not even scored once a better move is found.
+    maxScore = g_freeStrikeScore,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -78,7 +100,7 @@ local function GetKnockbackScoringFunction(token)
             result = result + 0.06
         end
 
-        if targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0 then
+        if targetToken.properties:CannotBeForceMoved() then
             --don't bother knockback on someone who can't be force moved.
             result = result - 100
         end
@@ -87,27 +109,162 @@ local function GetKnockbackScoringFunction(token)
     end
 end
 
+--Score added per point of expected forced-movement damage, and the cap on a
+--knockback's total score: under a signature strike (1.0), so the main action
+--still goes first and the push cannot shove its target out of reach.
+MonsterAI.knockbackDamageWeight = 0.05
+MonsterAI.knockbackMaxScore = 0.9
+
+--The forced movement in each power roll tier of an ability such as Knockback
+--("Push 1", "Push 2", "Push 3"): movement type and per-tier distances, or nil.
+local function ForcedMoveTierDistances(ability)
+    for _,behavior in ipairs(ability.behaviors or {}) do
+        local tiers = behavior:try_get("tiers")
+        if tiers ~= nil then
+            local movement = nil
+            local distances = {}
+            for i=1,3 do
+                local text = string.lower(tiers[i] or "")
+                for _,candidate in ipairs({"push", "pull", "slide"}) do
+                    local n = tonumber(string.match(text, candidate .. "%s+(%d+)"))
+                    if n ~= nil and (movement == nil or movement == candidate) then
+                        movement = candidate
+                        distances[i] = n
+                        break
+                    end
+                end
+            end
+            if movement ~= nil then
+                return movement, distances
+            end
+        end
+    end
+    return nil, nil
+end
+
+--Chance of each tier on 2d10 + bonus (tier 1 at 11 or less, tier 3 at 17+).
+local function PowerRollTierChances(bonus)
+    local chances = {0, 0, 0}
+    for a=1,10 do
+        for b=1,10 do
+            local total = a + b + bonus
+            local tier = 1
+            if total >= 17 then
+                tier = 3
+            elseif total >= 12 then
+                tier = 2
+            end
+            chances[tier] = chances[tier] + 0.01
+        end
+    end
+    return chances
+end
+
+--How far a tier's forced movement really moves targetToken, by the rules in
+--MCDMAbilityBehavior: less Stability, +1 Big Versus Little on a melee weapon
+--ability, plus the target's Forced Movement Increase and the pusher's bonus.
+local function ForcedMoveDistanceAgainst(token, ability, targetToken, movement, distance)
+    local target = targetToken.properties
+    local sizeBonus = 0
+    if ability:HasKeyword("Weapon") and ability:HasKeyword("Melee") then
+        local isKnockback = ability:IsKnockbackManeuver()
+        if token.properties:CreatureSizeWhenForceMoving(isKnockback) > target:CreatureSizeWhenBeingForceMoved(isKnockback) then
+            sizeBonus = 1
+        end
+    end
+    local stability = target:Stability()
+    if token.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+        stability = 0
+    end
+    return math.max(0, distance - stability + sizeBonus
+        + target:CalculateNamedCustomAttribute("Forced Movement Increase")
+        + token.properties:ForcedMovementBonus(movement))
+end
+
+--Plans the knockback: the square to strike from and the target, scored by the
+--old preferences (smaller, less stable targets) plus the damage the push is
+--expected to deal from that square -- into walls, into other heroes, off
+--ledges -- weighted by the chance of rolling each tier.
+local function PlanKnockback(ai, token, ability)
+    local baseScore = GetKnockbackScoringFunction(token)
+    local movement, distances = ForcedMoveTierDistances(ability)
+    local might = token.properties:GetAttribute("mgt"):Modifier()
+    local chances = PowerRollTierChances(might)
+
+    local expectedDamageMemo = {}
+    local function ExpectedDamage(targetToken, attackerLoc)
+        if movement == nil or distances == nil
+            or targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0 then
+            return 0
+        end
+        local key = targetToken.charid .. "@" .. attackerLoc.str
+        local cached = expectedDamageMemo[key]
+        if cached ~= nil then
+            return cached
+        end
+        local expected = 0
+        local byDistance = {}
+        for tier=1,3 do
+            local distance = ForcedMoveDistanceAgainst(token, ability, targetToken, movement, distances[tier] or 0)
+            if distance > 0 then
+                local damage = byDistance[distance]
+                if damage == nil then
+                    damage = MonsterAI.BestForcedMoveDamage(token, targetToken, movement, distance, attackerLoc)
+                    byDistance[distance] = damage
+                end
+                expected = expected + chances[tier]*damage
+            end
+        end
+        expectedDamageMemo[key] = expected
+        return expected
+    end
+
+    local best = nil
+    for _,info in pairs(ai.paths) do
+        for _,target in ipairs(ai:FindValidTargetsOfStrike(token, ability, info.loc)) do
+            local damage = ExpectedDamage(target.token, target.charge or info.loc)
+            local score = baseScore(target.token) + damage*MonsterAI.knockbackDamageWeight
+            score = math.min(score, MonsterAI.knockbackMaxScore) - info.cost*0.001
+            if score > 0 and (best == nil or score > best.score) then
+                best = {score = score, loc = info.loc, targetid = target.token.charid, expectedDamage = damage}
+            end
+        end
+    end
+
+    if best ~= nil then
+        ai:LogDecision("TARGET PLAN", {
+            ability = ability.name,
+            score = best.score,
+            targets = ai.TargetsLogName({{token = dmhub.GetTokenById(best.targetid)}}),
+            plan = string.format("move-to %s; expected-push-damage=%.2f", ai.LocLogName(best.loc), best.expectedDamage),
+        })
+    end
+    return best
+end
+
 MonsterAI:RegisterMove{
     id = "Knockback",
     category = "Maneuvers",
-    description = "Maneuver: The generic knockback maneuver. Monsters prefer knocking back smaller and less stable targets. They won't knockback a grabbed target or a target that cannot be force moved, such as a restrained target.",
+    description = "Maneuver: The generic knockback maneuver. Monsters pick the target and square that let the push deal the most damage (into walls, other enemies or off ledges, never into their allies), then prefer knocking back smaller and less stable targets. They won't knockback a grabbed target or a target that cannot be force moved, such as a restrained target.",
     abilities = {"Knockback"},
     score = function(self, ai, token, ability)
-        --TODO: be selective about target, positioning, etc for knockback.
-        local loc, score = ai:FindBestMoveToUseStrike(token, ability, GetKnockbackScoringFunction(token))
-        if loc ~= nil then
-            return {score = score, loc = loc}
-        end
+        return PlanKnockback(ai, token, ability)
     end,
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Knockback!", "I'll give you a good shove"})
+        ai:Speech(token, ai:VoiceLines(token, "knockback", {"Knockback!", "I'll give you a good shove"}))
         ai.Sleep(0.5)
 
+        --the planned target first, then the old preference order.
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
         local scorefn = GetKnockbackScoringFunction(token)
         table.sort(targets, function(a,b)
+            local aPlanned = a.token.charid == scoringInfo.targetid
+            local bPlanned = b.token.charid == scoringInfo.targetid
+            if aPlanned ~= bPlanned then
+                return aPlanned
+            end
             return scorefn(a.token) > scorefn(b.token)
         end)
         ai:ExecuteAbility(token, ability, targets)
@@ -150,7 +307,7 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"})
+        ai:Speech(token, ai:VoiceLines(token, "grab", {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -318,11 +475,42 @@ MonsterAI:RegisterMove{
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
-        ai:Speech(token, {"Aid Attack!", "Help me get them!"})
+        ai:Speech(token, ai:VoiceLines(token, "aidAttack", {"Aid Attack!", "Help me get them!"}))
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
+    end,
+}
+
+--Solo Action is the same 5 Malice "extra main action" in every solo monster's
+--group, so one rule covers them all. A band that registers its own Solo Action
+--(e.g. the Emerald Dragon, which keeps Malice back) is left to that rule.
+local g_soloActionName = "Solo Action"
+local g_soloActionId = "Generic Malice: Solo Action"
+
+local function HasBandSoloAction(ai, token)
+    for id, registration in pairs(ai.maliceAbilities) do
+        if id ~= g_soloActionId and (registration.abilities or {})[1] == g_soloActionName
+            and MonsterAI.MaliceAbilityMatchesMonster(token, registration, true) then
+            return true
+        end
+    end
+    return false
+end
+
+MonsterAI:RegisterMaliceAbility{
+    id = g_soloActionId,
+    abilities = {g_soloActionName},
+    description = "Spend 5 Malice for an extra main action while enemies remain. Monsters with their own Solo Action AI use that instead.",
+    score = function(self, ai, token, ability, context)
+        if HasBandSoloAction(ai, token) then
+            return nil, "this monster's own AI decides Solo Action"
+        end
+        if #(context.enemyTokens or {}) == 0 then
+            return nil, "no enemies"
+        end
+        return {score = 0.78}
     end,
 }
 

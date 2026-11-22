@@ -5040,6 +5040,31 @@ end
 						end,
 					},
 				},
+
+				-- Draw the halo only outside the die's edges. For see-through dice, where the
+				-- normal halo also fills the die's interior and hides any glow inside it.
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Outside Only:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.haloOutsideOnly == true,
+						newmaterial = function(element)
+							element.value = dicestudio.haloOutsideOnly == true
+						end,
+						change = function(element)
+							dicestudio.haloOutsideOnly = element.value
+							RefreshDice()
+						end,
+					},
+				},
 			},
 		},
 	}
@@ -6188,9 +6213,771 @@ end
 						end,
 					},
 				},
+
+				-- Orbit rings: electric rings circling the billboard core, drawn by the same
+				-- billboard shader so they sit inside the die with it. Rows below collapse while
+				-- the rings are off. The "or default" fallbacks cover builds without the bridge.
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Orbit Rings:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.billboardRingsEnabled == true,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardRingsEnabled == true
+						end,
+						change = function(element)
+							dicestudio.billboardRingsEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.billboardRingsEnabled ~= true)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.billboardRingsEnabled ~= true)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.billboardRingColor or "#bfffccff",
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingColor or "#bfffccff"
+							end,
+							change = function(element)
+								dicestudio.billboardRingColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Brightness:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 8,
+							value = dicestudio.billboardRingIntensity or 2,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingIntensity or 2
+							end,
+							change = function(element)
+								dicestudio.billboardRingIntensity = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- Whole numbers only: the bridge rounds the value to 1..6.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Count:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 1,
+							maxValue = 6,
+							value = dicestudio.billboardRingCount or 3,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingCount or 3
+							end,
+							change = function(element)
+								dicestudio.billboardRingCount = math.floor(element.value + 0.5)
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Radius:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0.05,
+							maxValue = 0.95,
+							value = dicestudio.billboardRingRadius or 0.6,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingRadius or 0.6
+							end,
+							change = function(element)
+								dicestudio.billboardRingRadius = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Width:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0.005,
+							maxValue = 0.15,
+							value = dicestudio.billboardRingWidth or 0.025,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingWidth or 0.025
+							end,
+							change = function(element)
+								dicestudio.billboardRingWidth = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = circles facing the camera, 1 = rings seen edge-on as lines.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Tilt:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingTilt or 0.75,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingTilt or 0.75
+							end,
+							change = function(element)
+								dicestudio.billboardRingTilt = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Turn Speed:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 4,
+							value = dicestudio.billboardRingSpeed or 0.8,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingSpeed or 0.8
+							end,
+							change = function(element)
+								dicestudio.billboardRingSpeed = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = clean steady rings, 1 = broken, wobbling, flickering electric arcs.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Crackle:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingCrackle or 0.5,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingCrackle or 0.5
+							end,
+							change = function(element)
+								dicestudio.billboardRingCrackle = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = smooth flowing rings, 1 = erratic jumps in angle/size/shape, like lightning.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Jitter:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingJitter or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingJitter or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingJitter = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = one band of close strands turning together (a river), 1 = spread like an atom.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Spread:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingSpread or 1,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingSpread or 1
+							end,
+							change = function(element)
+								dicestudio.billboardRingSpread = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = a single running pulse, 1 = a churning liquid pattern streams along the rings.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Flow:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingFlow or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingFlow or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingFlow = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = crisp lines, 1 = soft faded glowing bands.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Softness:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingSoftness or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingSoftness or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingSoftness = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = round rings, 1 = the band undulates and its strands branch apart and rejoin.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Waviness:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingWave or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingWave or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingWave = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- How fast the waves and flow travel round the rings (separate from turning).
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Wave Speed:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 4,
+							value = dicestudio.billboardRingFlowSpeed or 1,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingFlowSpeed or 1
+							end,
+							change = function(element)
+								dicestudio.billboardRingFlowSpeed = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- 0 = regular symmetrical rings, 1 = each ring its own random angle/size/tilt/offset.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Variety:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 1,
+							value = dicestudio.billboardRingVariety or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingVariety or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingVariety = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- Whole numbers: each value is a different random arrangement for Ring Variety.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Ring Layout:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 20,
+							value = dicestudio.billboardRingSeed or 0,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardRingSeed or 0
+							end,
+							change = function(element)
+								dicestudio.billboardRingSeed = math.floor(element.value + 0.5)
+								RefreshDice()
+							end,
+						},
+					},
+				},
+
+				-- Core sparks: small round sparks shooting out of the billboard core, drawn by
+				-- the same shader. Rows below collapse while sparks are off.
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Core Sparks:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.billboardSparksEnabled == true,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardSparksEnabled == true
+						end,
+						change = function(element)
+							dicestudio.billboardSparksEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.billboardSparksEnabled ~= true)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.billboardSparksEnabled ~= true)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.billboardSparkColor or "#ccffd9ff",
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkColor or "#ccffd9ff"
+							end,
+							change = function(element)
+								dicestudio.billboardSparkColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Brightness:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 8,
+							value = dicestudio.billboardSparkIntensity or 2.5,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkIntensity or 2.5
+							end,
+							change = function(element)
+								dicestudio.billboardSparkIntensity = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					-- Whole numbers only: the bridge rounds the value to 0..24.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Count:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0,
+							maxValue = 24,
+							value = dicestudio.billboardSparkCount or 10,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkCount or 10
+							end,
+							change = function(element)
+								dicestudio.billboardSparkCount = math.floor(element.value + 0.5)
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Size:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0.005,
+							maxValue = 0.15,
+							value = dicestudio.billboardSparkSize or 0.035,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkSize or 0.035
+							end,
+							change = function(element)
+								dicestudio.billboardSparkSize = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Speed:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0.1,
+							maxValue = 4,
+							value = dicestudio.billboardSparkSpeed or 1,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkSpeed or 1
+							end,
+							change = function(element)
+								dicestudio.billboardSparkSpeed = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Spark Reach:",
+						},
+						gui.Slider{
+							style = { height = 26, width = 240, fontSize = 14 },
+							sliderWidth = 180,
+							labelWidth = 50,
+							minValue = 0.1,
+							maxValue = 1,
+							value = dicestudio.billboardSparkReach or 0.8,
+							newmaterial = function(element)
+								element.value = dicestudio.billboardSparkReach or 0.8
+							end,
+							change = function(element)
+								dicestudio.billboardSparkReach = element.value
+								RefreshDice()
+							end,
+						},
+					},
+				},
 			},
 		},
 	}
+
+	-- Smoke Trail: soft smoke laid along each die's path while it moves, swirling and fading like
+	-- real smoke (dicestudio.smokeTrail*). Rows below Enabled collapse while it is off.
+	-- The "or default" fallbacks cover builds without the bridge properties.
+	local smokeTrailSection
+	do
+		local function SmokeSlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		smokeTrailSection = gui.TreeNode{
+			text = "Smoke Trail",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Soft smoke that trails behind each die while it moves, swirling and fading like real smoke. Roll the dice to see it: resting dice leave no trail.",
+				},
+
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.smokeTrailEnabled == true,
+						newmaterial = function(element)
+							element.value = dicestudio.smokeTrailEnabled == true
+						end,
+						change = function(element)
+							dicestudio.smokeTrailEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.smokeTrailEnabled ~= true)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.smokeTrailEnabled ~= true)
+					end,
+					newmaterial = function(element)
+						element:SetClass("collapsed", dicestudio.smokeTrailEnabled ~= true)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Smoke Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.smokeTrailColor or "#e61f14ff",
+							newmaterial = function(element)
+								element.value = dicestudio.smokeTrailColor or "#e61f14ff"
+							end,
+							change = function(element)
+								dicestudio.smokeTrailColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					SmokeSlider("Brightness:", 0, 6, 1.5,
+						function() return dicestudio.smokeTrailIntensity end,
+						function(v) dicestudio.smokeTrailIntensity = v end),
+					-- Whole numbers only: the bridge rounds the value to 1..6.
+					SmokeSlider("Strands:", 1, 6, 3,
+						function() return dicestudio.smokeTrailStrands end,
+						function(v) dicestudio.smokeTrailStrands = math.floor(v + 0.5) end),
+					SmokeSlider("Width:", 0.01, 0.6, 0.12,
+						function() return dicestudio.smokeTrailWidth end,
+						function(v) dicestudio.smokeTrailWidth = v end),
+					SmokeSlider("Length (s):", 0.1, 3, 0.8,
+						function() return dicestudio.smokeTrailLength end,
+						function(v) dicestudio.smokeTrailLength = v end),
+					SmokeSlider("Wander:", 0, 1.5, 0.35,
+						function() return dicestudio.smokeTrailWander end,
+						function(v) dicestudio.smokeTrailWander = v end),
+					SmokeSlider("Opacity:", 0, 1, 0.8,
+						function() return dicestudio.smokeTrailOpacity end,
+						function(v) dicestudio.smokeTrailOpacity = v end),
+					SmokeSlider("Wispiness:", 0, 1, 0.6,
+						function() return dicestudio.smokeTrailWisp end,
+						function(v) dicestudio.smokeTrailWisp = v end),
+					-- 0 = strands wander over time, 1 = big loose loops that follow the die's travel.
+					SmokeSlider("Curl:", 0, 1, 0,
+						function() return dicestudio.smokeTrailCurl end,
+						function(v) dicestudio.smokeTrailCurl = v end),
+					-- 0 = puffs swell as they age (real smoke), 1 = wide at the die, thin tail like a flame.
+					SmokeSlider("Taper:", 0, 1, 0,
+						function() return dicestudio.smokeTrailTaper end,
+						function(v) dicestudio.smokeTrailTaper = v end),
+				},
+			},
+		}
+	end
 
 	-- Physics "feel": per-set overrides of the global dice physics (gravity/velocity/drag/etc).
 	-- When "Custom Physics" is off the set rolls with the global dice:* settings (today's feel).
@@ -7489,6 +8276,8 @@ end
 		constellationSection,
 
 		billboardSection,
+
+		smokeTrailSection,
 
 		slotsSection,
 

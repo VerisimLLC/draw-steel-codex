@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The object a map import places for each light: an object with a Light
+--component, in each white label's own cloud ("light" in the Codex's, "Light"
+--in DMHub's).
+local DEFAULT_LIGHT_OBJECT_ID = cond(dmhub.whiteLabel == "mcdm", "2339211c-c35a-4e0a-a5fa-79d2e446bd3b", "5fd062ac-d67e-40b6-a59c-044c352defca")
+
 local function ComponentTypeMatches(value, componentType)
     if value == nil then
         return false
@@ -50,6 +55,72 @@ end
 --dialog reopens without downloading them again: false while in flight,
 --then the game.GetOtherGameMapPreview result (or {failed = true}).
 local s_otherGamePreviews = {}
+
+--The whole map-pack index as Lua tables, shared by every open of the dialog.
+--mappacks.Search{text = ""} converts every entry (~6500, about half a
+--second), so it runs only when the index or the account's access changes,
+--not on each refresh. Treat the lists as read-only: they are shared.
+--  all: every entry in index order; byMap["pack/mapid"]: that map's
+--  variants in variant order.
+local s_index = { key = nil, all = nil, byMap = nil }
+local s_accessStamp = nil
+local s_accessSignature = nil
+
+--what the owned/objectsOwned flags depend on: each pack's full access and
+--the account's pledge to its creator. About 5 ms, so worked out once a frame.
+local function IndexAccessSignature()
+    local now = dmhub.Time()
+    if s_accessStamp ~= now or s_accessSignature == nil then
+        local parts = {}
+        for _, pack in ipairs(mappacks.packs) do
+            local access = mappacks.GetPackAccess(pack.id)
+            parts[#parts + 1] = string.format("%s:%s%d", pack.id, cond(access.full, "F", ""), tonumber(access.cents) or 0)
+        end
+        s_accessSignature = table.concat(parts, ",")
+        s_accessStamp = now
+    end
+    return s_accessSignature
+end
+
+local function IndexCacheKey()
+    return string.format("%d|%d|%s", mappacks.version, mappacks.count, IndexAccessSignature())
+end
+
+--whether AllIndexEntries can answer without searching the engine.
+local function IndexCacheWarm()
+    return s_index.key == IndexCacheKey()
+end
+
+--every index entry (see s_index), searched again only when stale.
+---@return MapPackIndexEntry[]
+local function AllIndexEntries()
+    local key = IndexCacheKey()
+    if s_index.key ~= key then
+        local all = mappacks.Search{ text = "", maxResults = 100000 }
+        local byMap = {}
+        for _, entry in ipairs(all) do
+            local mapKey = entry.pack .. "/" .. entry.id
+            local variants = byMap[mapKey]
+            if variants == nil then
+                variants = {}
+                byMap[mapKey] = variants
+            end
+            variants[#variants + 1] = entry
+        end
+        for _, variants in pairs(byMap) do
+            table.sort(variants, function(a, b) return a.variantIndex < b.variantIndex end)
+        end
+        s_index = { key = key, all = all, byMap = byMap }
+    end
+    --always set by the branch above once the key matches.
+    return s_index.all --[[@as MapPackIndexEntry[] ]]
+end
+
+--the variants of one map in variant order (an empty list when unknown).
+local function IndexMapVariants(pack, mapid)
+    AllIndexEntries()
+    return s_index.byMap[pack .. "/" .. mapid] or {}
+end
 
 --the sidebar section the dialog last showed, so the next open this session
 --returns to it (transient: every app start opens on All Maps). One of
@@ -699,7 +770,7 @@ mod.shared.ShowCreateMapDialog = function(options)
     --owned flag live against the account's pledges), or the entry itself if
     --it is no longer listed.
     local FreshEntry = function(entry)
-        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+        for _, other in ipairs(IndexMapVariants(entry.pack, entry.id)) do
             if SameEntry(other, entry) then
                 return other
             end
@@ -723,14 +794,7 @@ mod.shared.ShowCreateMapDialog = function(options)
     --from the whole index rather than the grid, which only shows one
     --variant per map unless a search asked for more.
     local SiblingVariants = function(entry)
-        local result = {}
-        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
-            if SameMap(other, entry) then
-                result[#result + 1] = other
-            end
-        end
-        table.sort(result, function(a, b) return a.variantIndex < b.variantIndex end)
-        return result
+        return IndexMapVariants(entry.pack, entry.id)
     end
 
     --the entries the grid shows for a search result. Without a search each
@@ -1361,7 +1425,14 @@ mod.shared.ShowCreateMapDialog = function(options)
 
     --searches every pack, keeping the creator the sidebar has filtered to.
     local SearchLibrary = function(text)
-        local entries = mappacks.Search{ text = text, maxResults = 100000 }
+        --an empty search is the whole index, which is cached; a real search
+        --asks the engine, which returns only the matches.
+        local entries
+        if text:match("%S") == nil then
+            entries = AllIndexEntries()
+        else
+            entries = mappacks.Search{ text = text, maxResults = 100000 }
+        end
         if m_creatorFilter == nil then
             return entries
         end
@@ -1407,10 +1478,31 @@ mod.shared.ShowCreateMapDialog = function(options)
         text = "Syncing map packs...",
     }
 
+    --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's
+    --maps with shared markup, m_rankStats how many users have added each
+    --map (see LoadRankSignals).
+    local m_rankMarkup = {}
+    local m_rankStats = nil
+
+    --browsing ranks lazily: m_browseSource is the unranked one-per-map list
+    --(nil while searching) and m_rankedCount how many leading entries of
+    --m_packEntries are in their final browse order. The rest follow in plain
+    --score order until Show More (or a kept selection) reaches them.
+    local m_browseSource = nil
+    local m_rankedCount = 0
+    local EnsureRanked = function(n)
+        if m_browseSource == nil or n <= m_rankedCount or m_rankedCount >= #m_browseSource then
+            return
+        end
+        m_rankedCount = math.min(#m_browseSource, n)
+        m_packEntries = mod.shared.RankMapPackEntriesForBrowsing(m_browseSource, m_rankMarkup, m_rankStats, m_rankedCount)
+    end
+
     --builds tiles for the entries shown so far, plus the Show More card
     --when more remain.
     local RenderTiles
     RenderTiles = function()
+        EnsureRanked(m_shown)
         local count = math.min(#m_packEntries, m_shown)
         local tiles = {}
         for i = 1, count do
@@ -1439,12 +1531,6 @@ mod.shared.ShowCreateMapDialog = function(options)
         packGrid.children = tiles
     end
 
-    --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's
-    --maps with shared markup, m_rankStats how many users have added each
-    --map (see LoadRankSignals).
-    local m_rankMarkup = {}
-    local m_rankStats = nil
-
     local RefreshPackGrid = function()
         if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
             return
@@ -1458,24 +1544,32 @@ mod.shared.ShowCreateMapDialog = function(options)
         m_packEntries = DiversifyEntries(FilterByKind(SearchLibrary(m_search), m_packKind), searching, function(entry)
             return mod.shared.MapPackEntryBoost(entry, m_rankMarkup, m_rankStats)
         end)
+        m_browseSource = nil
+        m_rankedCount = 0
         if not searching then
-            m_packEntries = mod.shared.RankMapPackEntriesForBrowsing(m_packEntries, m_rankMarkup, m_rankStats)
+            m_browseSource = m_packEntries
+            EnsureRanked(GRID_CHUNK)
         end
 
         --keep the selected variant if its map is still listed, even when
         --the grid shows a different variant of it.
         local stillSelected = nil
         local selectedIndex = nil
-        for i, entry in ipairs(m_packEntries) do
-            if SameEntry(entry, m_packEntry) then
-                stillSelected = entry
-                selectedIndex = i
-                break
-            elseif stillSelected == nil and SameMap(entry, m_packEntry) then
-                stillSelected = FreshEntry(m_packEntry)
-                selectedIndex = i
+        local FindSelected = function()
+            stillSelected = nil
+            selectedIndex = nil
+            for i, entry in ipairs(m_packEntries) do
+                if SameEntry(entry, m_packEntry) then
+                    stillSelected = entry
+                    selectedIndex = i
+                    break
+                elseif stillSelected == nil and SameMap(entry, m_packEntry) then
+                    stillSelected = FreshEntry(m_packEntry)
+                    selectedIndex = i
+                end
             end
         end
+        FindSelected()
 
         if mappacks.count == 0 then
             packStatus.text = "No map packs are available yet."
@@ -1484,8 +1578,10 @@ mod.shared.ShowCreateMapDialog = function(options)
         else
             --the grid shows one entry per map without a search, so count
             --maps rather than the index's variant entries.
-            local mapCount = #DiversifyEntries(FilterByKind(SearchLibrary(""), m_packKind), false)
+            --without a search the grid's own list is already one per map.
+            local mapCount = #m_packEntries
             if searching then
+                mapCount = #DiversifyEntries(FilterByKind(SearchLibrary(""), m_packKind), false)
                 local matchedMaps = #DiversifyEntries(m_packEntries, false)
                 packStatus.text = string.format("%d of %d maps", matchedMaps, mapCount)
             else
@@ -1495,9 +1591,13 @@ mod.shared.ShowCreateMapDialog = function(options)
 
         --a fresh list starts back at one chunk, grown as needed so a kept
         --selection is always among the built tiles.
+        --Ranking further can move the selection, so repeat until it lands
+        --inside the shown chunks (m_shown only grows, so this ends).
         m_shown = GRID_CHUNK
-        if selectedIndex ~= nil and selectedIndex > m_shown then
+        while selectedIndex ~= nil and selectedIndex > m_shown do
             m_shown = math.ceil(selectedIndex / GRID_CHUNK) * GRID_CHUNK
+            EnsureRanked(m_shown)
+            FindSelected()
         end
 
         if stillSelected ~= nil then
@@ -1514,7 +1614,50 @@ mod.shared.ShowCreateMapDialog = function(options)
         end
     end
 
+    --Adding a library map or copying one from another game takes seconds
+    --(downloading and writing its floors), after the dialog has closed. A
+    --"Loading map..." stand-in window with a spinner sits on the table until
+    --the map exists, so the click visibly did something. Returns the
+    --stand-in's Close (a no-op when the table is not showing).
+    local ShowAddingMap = function(name, aspect)
+        local loading = Tabletop.ShowLoadingWindow{
+            name = name,
+            aspect = aspect,
+            status = "Adding it to your game...",
+        }
+        return function()
+            if loading ~= nil then
+                loading.Close()
+                loading = nil
+            end
+        end
+    end
+
+    --waits for an added map to arrive in the game (up to 10 s), then closes
+    --the stand-in and shows the map.
+    local ShowWhenAdded = function(mapid, closeLoading)
+        dmhub.Coroutine(function()
+            for i = 1, 200 do
+                if game.GetMap(mapid) ~= nil then
+                    break
+                end
+                coroutine.yield(0.05)
+            end
+            closeLoading()
+            local map = game.GetMap(mapid)
+            if map ~= nil then
+                NotifyCreated(mapid)
+                ShowNewMap(map)
+            end
+        end)
+    end
+
     local AddPackMap = function(entry, name, markupId)
+        local aspect = nil
+        if (tonumber(entry.tilesW) or 0) > 0 and (tonumber(entry.tilesH) or 0) > 0 then
+            aspect = entry.tilesW / entry.tilesH
+        end
+        local closeLoading = ShowAddingMap(name, aspect)
         mappacks.AddMapToGame{
             pack = entry.pack,
             mapid = entry.id,
@@ -1522,21 +1665,10 @@ mod.shared.ShowCreateMapDialog = function(options)
             name = name,
             markupId = markupId,
             success = function(mapid)
-                dmhub.Coroutine(function()
-                    for i = 1, 200 do
-                        if game.GetMap(mapid) ~= nil then
-                            break
-                        end
-                        coroutine.yield(0.05)
-                    end
-                    local map = game.GetMap(mapid)
-                    if map ~= nil then
-                        NotifyCreated(mapid)
-                        ShowNewMap(map)
-                    end
-                end)
+                ShowWhenAdded(mapid, closeLoading)
             end,
             error = function(msg)
+                closeLoading()
                 gui.ModalMessage{
                     title = "Could not add map",
                     message = msg,
@@ -1547,26 +1679,16 @@ mod.shared.ShowCreateMapDialog = function(options)
 
     --copies a map out of another of the user's games, then travels to it.
     local ImportOtherGameMap = function(entry, name)
+        local closeLoading = ShowAddingMap(name, nil)
         game.ImportMapFromOtherGame{
             gameid = entry.gameid,
             mapid = entry.mapid,
             name = name,
             success = function(mapid)
-                dmhub.Coroutine(function()
-                    for i = 1, 200 do
-                        if game.GetMap(mapid) ~= nil then
-                            break
-                        end
-                        coroutine.yield(0.05)
-                    end
-                    local map = game.GetMap(mapid)
-                    if map ~= nil then
-                        NotifyCreated(mapid)
-                        ShowNewMap(map)
-                    end
-                end)
+                ShowWhenAdded(mapid, closeLoading)
             end,
             error = function(msg)
+                closeLoading()
                 gui.ModalMessage{
                     title = "Could not import map",
                     message = msg,
@@ -1995,16 +2117,27 @@ mod.shared.ShowCreateMapDialog = function(options)
     }
     --a creator logo in place of the glyph and the name: its own aspect
     --within the row's height, untinted so a wide wordmark reads, and
-    --centered in the row since it stands alone (the count stays right).
+    --left-aligned with the other rows' glyphs (the count stays right).
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavIcon", "cmNavLogo"},
         width = "auto",
         height = "auto",
         maxWidth = 160,
         maxHeight = 36,
-        halign = "center",
+        halign = "left",
         rmargin = 0,
         autosizeimage = true,
+        bgcolor = "white",
+    }
+    --an emblem logo beside the creator's name: a little taller row so
+    --the emblem reads; the width is set per logo from its aspect.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "cmNavEmblemRow"},
+        height = 40,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavIcon", "cmNavEmblem"},
+        height = 28,
         bgcolor = "white",
     }
     tileStyles[#tileStyles + 1] = {
@@ -2265,7 +2398,7 @@ mod.shared.ShowCreateMapDialog = function(options)
         if not mappacks.synced or not libraryNav.valid then
             return
         end
-        local all = DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+        local all = DiversifyEntries(AllIndexEntries(), false)
         local navKey = string.format("%d|%s", #all, PatreonSignature())
         if navKey == m_libraryNavKey then
             return
@@ -2292,9 +2425,61 @@ mod.shared.ShowCreateMapDialog = function(options)
         if IsPatron() then
             rows[#rows + 1] = LibraryFilterItem("Your Maps", #FilterByKind(all, "owned"), nil, "owned", "phosphor/patreon-logo-fill.png")
         end
+        --a creator's sub-brand sits right under it: a creator whose name is
+        --another creator's name plus more words ("The MAD Cartographer
+        --Sci-Fi") moves to just after that creator's row. Re-run as each
+        --name arrives, since names come from the creator records.
+        local rowsPlaced = false
+        local function GroupSubBrands()
+            local children = libraryNav.children
+            local parentOf = {}
+            for _, row in ipairs(children) do
+                local name = row.data.creatorName
+                if name ~= nil then
+                    local best = nil
+                    for _, other in ipairs(children) do
+                        local otherName = other.data.creatorName
+                        if other ~= row and otherName ~= nil and #otherName < #name
+                            and name:sub(1, #otherName + 1) == otherName .. " "
+                            and (best == nil or #otherName > #best.data.creatorName) then
+                            best = other
+                        end
+                    end
+                    parentOf[row] = best
+                end
+            end
+            local followers = {}
+            local top = {}
+            for _, row in ipairs(children) do
+                local parent = parentOf[row]
+                if parent ~= nil then
+                    followers[parent] = followers[parent] or {}
+                    table.insert(followers[parent], row)
+                else
+                    top[#top + 1] = row
+                end
+            end
+            if next(followers) == nil then
+                return
+            end
+            local ordered = {}
+            local function Emit(row)
+                ordered[#ordered + 1] = row
+                for _, follower in ipairs(followers[row] or {}) do
+                    Emit(follower)
+                end
+            end
+            for _, row in ipairs(top) do
+                Emit(row)
+            end
+            libraryNav.children = ordered
+        end
+
         --one row per creator, named once the creator's record lands.
-        --A creator with a logo shows the logo alone, centered: the name
-        --would only repeat what the wordmark already says.
+        --A creator with a wide logo (a wordmark) shows the logo alone,
+        --left-aligned: the name would only repeat what the wordmark says. A
+        --squarer logo is an emblem with no name in it (Tom Cartos), so it
+        --takes the glyph's place beside the name instead.
         for _, creator in ipairs(creatorOrder) do
             local info = creatorInfo[creator]
             local row = LibraryFilterItem("Map Pack", info.count, creator, "all", "phosphor/user.png")
@@ -2305,25 +2490,54 @@ mod.shared.ShowCreateMapDialog = function(options)
                 end
                 if (record.displayName or "") ~= "" then
                     row.data.label.text = record.displayName
+                    row.data.creatorName = record.displayName
+                    if rowsPlaced then
+                        GroupSubBrands()
+                    end
                 end
-                if (record.logo or "") ~= "" then
+                local logo = record.logo or ""
+                if logo == "" then
+                    return
+                end
+                --the size lookup wants the bare url, without the md5: prefix.
+                local lookup = logo
+                if lookup:sub(1, 4) == "md5:" then
+                    lookup = lookup:sub(5)
+                end
+                gui.GetImageDimensionsCallback(lookup, function(dims)
+                    if not row.valid or dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+                        return
+                    end
                     --a NEW panel, not the glyph panel given a new bgimage: the
                     --engine re-measures an autosized image only when a panel's
                     --first image finishes loading, so a swapped-in logo kept the
                     --glyph's square box (squashed) until the logo was cached.
+                    local logoPanel
+                    if dims.width / dims.height < 2 then
+                        row:SetClass("cmNavEmblemRow", true)
+                        logoPanel = gui.Panel{
+                            classes = {"cmNavIcon", "cmNavEmblem"},
+                            bgimage = logo,
+                            width = math.floor(28 * dims.width / dims.height + 0.5),
+                        }
+                    else
+                        row.data.label:SetClass("collapsed", true)
+                        row:SetClass("cmNavLogoRow", true)
+                        logoPanel = gui.Panel{
+                            classes = {"cmNavIcon", "cmNavLogo"},
+                            bgimage = logo,
+                        }
+                    end
                     row.data.icon:SetClass("collapsed", true)
-                    row.data.label:SetClass("collapsed", true)
-                    row:SetClass("cmNavLogoRow", true)
                     local children = row.children
-                    table.insert(children, 1, gui.Panel{
-                        classes = {"cmNavIcon", "cmNavLogo"},
-                        bgimage = record.logo,
-                    })
+                    table.insert(children, 1, logoPanel)
                     row.children = children
-                end
+                end)
             end)
         end
         libraryNav.children = rows
+        rowsPlaced = true
+        GroupSubBrands()
         --the rows arrive after the dialog opened; when the library view
         --is already showing, light the row for the active filter.
         if m_mainMode == "library" then
@@ -3192,23 +3406,49 @@ mod.shared.ShowCreateMapDialog = function(options)
         pending = pending - 1
     end
 
+    --BuildLibraryNav goes first: its few creator lookups must be queued
+    --ahead of LoadRankSignals' one fetch per pack (hundreds on a first
+    --open), or the sidebar shows "Map Pack" until the flood drains.
+    --the index version the grid was filled from just now, nil if not yet.
+    local filledVersion = nil
     if mappacks.synced then
-        LoadRankSignals()
-        BuildLibraryNav()
-        RefreshPackGrid()
+        filledVersion = mappacks.version
+        local Fill = function()
+            BuildLibraryNav()
+            LoadRankSignals()
+            RefreshPackGrid()
+        end
+        if IndexCacheWarm() then
+            Fill()
+        else
+            --first open this session (or the index changed): reading the
+            --whole index takes a few hundred ms, so let the dialog appear
+            --first and fill the grid on the next frame.
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded or m_dialog == nil or not m_dialog.valid then
+                    return
+                end
+                Fill()
+            end)
+        end
     end
 
     --re-sync on every open so newly published packs appear; only changed
     --pack index blobs are downloaded.
     mappacks.Sync{
         success = function()
-            LoadRankSignals()
+            --nothing was published since: the grid filled above is current,
+            --and rebuilding it would only cost another hitch.
+            if filledVersion ~= nil and mappacks.version == filledVersion then
+                return
+            end
             BuildLibraryNav()
+            LoadRankSignals()
             RefreshPackGrid()
         end,
         error = function(msg)
-            LoadRankSignals()
             BuildLibraryNav()
+            LoadRankSignals()
             RefreshPackGrid()
             if m_dialog ~= nil and m_dialog.valid then
                 packStatus.text = msg
@@ -3362,7 +3602,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         doorObjectId = "-MfWx0b2IlyApLQwasYg",
         windowObjectId = "-MDd3Knydcq2WsjStef2",
         secretDoorObjectId = "-MfWx0b2IlyApLQwasYg",
-        lightObjectId = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b",
+        lightObjectId = DEFAULT_LIGHT_OBJECT_ID,
         structuralWallMode = "wall",
         objectWallMode = "wall",
         terrainWallMode = "wall",
@@ -4105,7 +4345,7 @@ mod.shared.ImportMapToFloorCo = function(info)
         end
     end
 
-    local lightnode = lightnodeChoice or "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
+    local lightnode = lightnodeChoice or DEFAULT_LIGHT_OBJECT_ID
     if lightMode == "asset" and type(data.lights) == "table" and ObjectNodeHasComponent(lightnode, "Light") then
         local foundryGrid = gridSize(data)
         for _, light in ipairs(data.lights) do

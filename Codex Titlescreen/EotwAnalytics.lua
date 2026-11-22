@@ -48,7 +48,9 @@ end
 ---@field practice boolean|nil
 ---@field host boolean|nil
 ---@field phase string|nil
----@field minutes number|nil
+---@field minutes number|nil this run's (this part's) play time on this machine
+---@field gameMinutes number|nil the whole game's play time, every part played in it
+---@field startSeconds number|nil the game's play time when this run began (0 for a game's first part)
 ---@field sittings number|nil
 ---@field ended boolean|nil
 
@@ -146,6 +148,7 @@ function EotwAnalytics.ReconcileRuns(resumableGameid, how)
         how = how or "quit",
         lastPhase = run.phase,
         minutes = run.minutes,
+        gameMinutes = run.gameMinutes,
         host = run.host,
         sittings = run.sittings,
     }, run)
@@ -242,6 +245,7 @@ function EotwAnalytics.BeginRun(info)
             how = "quit",
             lastPhase = prior.phase,
             minutes = prior.minutes,
+            gameMinutes = prior.gameMinutes,
             host = prior.host,
             sittings = prior.sittings,
         }, prior)
@@ -258,6 +262,9 @@ function EotwAnalytics.BeginRun(info)
         host = info.host,
         phase = resume and prior.phase or nil,
         minutes = resume and prior.minutes or 0,
+        gameMinutes = resume and prior.gameMinutes or nil,
+        --a series part played on in the same game starts its own clock here.
+        startSeconds = (resume and tonumber(prior.startSeconds)) or tonumber(info.startSeconds) or 0,
         sittings = (resume and tonumber(prior.sittings) or 0) + 1,
     }
     m_run = run
@@ -293,9 +300,12 @@ function EotwAnalytics.UpdateMinutes(seconds)
         return
     end
     local run = OpenRun()
-    local minutes = math.floor((seconds or 0) / 60)
-    if minutes ~= run.minutes then
+    seconds = seconds or 0
+    local gameMinutes = math.floor(seconds / 60)
+    local minutes = math.floor(math.max(0, seconds - (tonumber(run.startSeconds) or 0)) / 60)
+    if minutes ~= run.minutes or gameMinutes ~= run.gameMinutes then
         run.minutes = minutes
+        run.gameMinutes = gameMinutes
         WriteRun(run)
     end
 end
@@ -344,11 +354,17 @@ function EotwAnalytics.EndRun(outcome, how, fields, seconds)
     end
     report.host = run.host
     report.sittings = run.sittings
+    --minutes/seconds are this run's own (one series part); gameMinutes/
+    --gameSeconds cover every part played in the game.
     if seconds ~= nil then
-        report.minutes = math.floor(seconds / 60)
-        report.seconds = math.floor(seconds)
+        local own = math.max(0, seconds - (tonumber(run.startSeconds) or 0))
+        report.minutes = math.floor(own / 60)
+        report.seconds = math.floor(own)
+        report.gameMinutes = math.floor(seconds / 60)
+        report.gameSeconds = math.floor(seconds)
     else
         report.minutes = run.minutes
+        report.gameMinutes = run.gameMinutes
     end
     EotwAnalytics.Track("eotw_run_end", report)
     WriteRun(nil)

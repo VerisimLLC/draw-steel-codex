@@ -1094,6 +1094,11 @@ local function StageRules()
             height = "100%",
             textAlignment = "center",
         },
+        --"pleased": a red heart in the same balloon.
+        {
+            selectors = {"eotwEmoteHeart"},
+            bgcolor = "#d8342aff",
+        },
         --"alarmed": three yellow dashes fanned out over the head.
         {
             selectors = {"eotwEmoteDash"},
@@ -2674,10 +2679,21 @@ local function GrantedRows(option)
         elseif g.entryName ~= nil and g.entryName ~= "" then
             text = T("stage.option.granted_at", { label = label, entry = g.entryName })
         end
+        --"...: Distracted (you were distracted by the skeletons)": the card
+        --says "Bane: Distracted" and the bracketed words are its tooltip.
+        local detail = g.detail
+        if detail == "" then
+            detail = nil
+        end
         rows[#rows + 1] = gui.Label{
             classes = Classes("eotwRider", cond(EncounterScript.RiderBoons(g.effect) > 0, "met", "hurt")),
             text = text,
-            interactable = false,
+            interactable = detail ~= nil,
+            linger = function(element)
+                if detail ~= nil then
+                    gui.Tooltip(detail)(element)
+                end
+            end,
         }
     end
     return rows
@@ -2776,7 +2792,18 @@ local function OptionCard(entry, option, index, m, extra)
             children[#children + 1] = row
         end
     elseif version.free ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwOptionRoll"}, text = T("stage.option.no_roll_needed"), interactable = false }
+        --"No roll needed" only tells players something beside options that
+        --do roll; on a board of plain choices it is noise.
+        local othersRoll = false
+        for _, other in ipairs((entry or {}).options or {}) do
+            if other ~= option and other.roll ~= nil then
+                othersRoll = true
+                break
+            end
+        end
+        if othersRoll then
+            children[#children + 1] = gui.Label{ classes = {"eotwOptionRoll"}, text = T("stage.option.no_roll_needed"), interactable = false }
+        end
         for _, row in ipairs(RiderRows(EncounterScript.VersionRiders(option, version), verdict)) do
             children[#children + 1] = row
         end
@@ -2972,7 +2999,7 @@ local function GauntletAssistChildren(m, t)
     elseif a ~= nil and a.outcome == "bane" then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_bane", { helper = a.heroName or "" })
     end
-    local rolls = EncounterGauntlet.RollsMade(m, t.heroid)
+    local rolls = EncounterGauntlet.WearyRolls(m, t.heroid)
     if rolls == 1 then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_weary_one")
     elseif rolls >= 2 then
@@ -3299,8 +3326,53 @@ end
 
 --One figure on the stage: the hero (args.charid) or a scene character,
 --pictured by the bestiary monster that plays them (args.monster).
---The mark an emote puts over a figure's head ("alert" or "alarmed").
+--The mark an emote puts over a figure's head ("alert", "alarmed" or "pleased").
 local function EmoteMarker(emote)
+    if emote == "pleased" then
+        --a heart in the alert balloon: two round lobes over a square turned
+        --to a point.
+        local function Lobe(x)
+            local lobe = gui.Panel{
+                classes = {"eotwEmoteHeart"},
+                floating = true,
+                width = 12,
+                height = 12,
+                halign = "center",
+                valign = "center",
+                cornerRadius = 6,
+                bgimage = "panels/square.png",
+                interactable = false,
+            }
+            lobe.selfStyle.x = x
+            lobe.selfStyle.y = -3
+            return lobe
+        end
+        local point = gui.Panel{
+            classes = {"eotwEmoteHeart"},
+            floating = true,
+            width = 12,
+            height = 12,
+            halign = "center",
+            valign = "center",
+            rotate = 45,
+            bgimage = "panels/square.png",
+            interactable = false,
+        }
+        point.selfStyle.y = 2
+        return gui.Panel{
+            classes = {"eotwEmote", "eotwEmoteBalloon"},
+            floating = true,
+            width = 38,
+            height = 38,
+            halign = "right",
+            valign = "top",
+            bgimage = "panels/square.png",
+            interactable = false,
+            point,
+            Lobe(-4),
+            Lobe(4),
+        }
+    end
     if emote == "alert" then
         return gui.Panel{
             classes = {"eotwEmote", "eotwEmoteBalloon"},
@@ -4613,6 +4685,32 @@ local function CurrentConsequenceKeys(m)
     return keys
 end
 
+--Every "Edge on <option>" the party has earned on a test still to come, under
+--the round heading. The round summary only shows the LAST result, so without
+--this an edge earned earlier in the round vanished from view.
+local function StandingModChildren(m, beat)
+    local children = {}
+    local seen = {}
+    for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
+        local finished = (m.taken or {})[entry.id] == true or (m.vanquished or {})[entry.id] == true
+        if not finished and not EncounterMontage.EntryRemoved(m, entry) and not EncounterMontage.EntryExpired(m, entry) then
+            for _, option in ipairs(entry.options or {}) do
+                local key = EncounterScript.MatchKey(option.name)
+                if not seen[key] then
+                    seen[key] = true
+                    for _, g in ipairs(EncounterMontage.OptionTestMods(m, option)) do
+                        if #children == 0 then
+                            children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.round.standing_mods") }
+                        end
+                        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = EncounterScript.DescribeTestMod(g.effect, option.name) }
+                    end
+                end
+            end
+        end
+    end
+    return children
+end
+
 --`consequenceStart(key)` gives when that consequence started playing on this
 --stage, or nil to show it settled (CreateStage's m_consequencesPlayed).
 --- @param consequenceStart nil|fun(key: string): number|nil
@@ -4705,6 +4803,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         Add(gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.round.title", { round = m.round or 1 }) })
         Add(YourMoveLabel())
         for _, child in ipairs(TeamLeaderChildren(m)) do
+            Add(child)
+        end
+        for _, child in ipairs(StandingModChildren(m, beat)) do
             Add(child)
         end
         --a "(Temporary)" threat that ran out pays its consequence at the
@@ -7241,13 +7342,14 @@ function EncounterMontageStage.GauntletClaimOptions(charid)
 end
 
 --A narrative's Weary as a chip on the hero card (EotwHeroCard's
---extraChips): one bane after a roll, a double bane (badge "2") after two.
+--extraChips): one bane for one roll not yet worn off, a double bane (badge
+--"2") for two or more.
 function EncounterMontageStage.WearyChips(charid)
     local m = EncounterMontage.GetState()
     if m == nil or m.gauntlet == nil then
         return {}
     end
-    local n = EncounterGauntlet.RollsMade(m, charid)
+    local n = EncounterGauntlet.WearyRolls(m, charid)
     if n <= 0 then
         return {}
     end
@@ -7427,23 +7529,10 @@ local function GauntletOptionTile(section, option, index, m, heroes, canClaim, s
     }
 end
 
---One option of a vote: its card, the players who chose it, and this
---player's vote button.
+--One option of a vote: its card (clicking it is this player's vote, and
+--clicking their own choice again takes it back) and the players who chose it.
 local function GauntletVoteTile(section, option, index, m, heroes)
     local vote = (m.gauntlet or {}).vote or {}
-    local card = OptionCard(section, option, index, m)
-    local names = {}
-    for _, voter in ipairs(EncounterNarrative.Voters(section, heroes)) do
-        local choice = (vote.choices or {})[voter.key]
-        if choice ~= nil and tonumber(choice.optionIndex) == index then
-            names[#names + 1] = voter.name
-        end
-    end
-    ---@type Panel[]
-    local children = { card }
-    if #names > 0 then
-        children[#children + 1] = gui.Label{ classes = {"eotwChoiceChip"}, text = table.concat(names, ", "), interactable = false }
-    end
     local myKey = EncounterNarrative.VoterKeyForUser(dmhub.loginUserid, heroes)
     local myHeroid = nil
     if vote.individual then
@@ -7458,19 +7547,11 @@ local function GauntletVoteTile(section, option, index, m, heroes)
         end
     end
     local open = vote.decision == nil and vote.result == nil and m.turn == nil
+    local extra = nil
     if open and myKey ~= nil then
         local mineHere = (not vote.individual) and tonumber(((vote.choices or {})[myKey] or {}).optionIndex) == index
-        children[#children + 1] = gui.Panel{
-            classes = Classes("eotwSceneOption", "actionable", mineHere and "unlocked"),
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            hpad = 16,
-            vpad = 6,
-            borderBox = true,
-            tmargin = 4,
-            bgimage = "panels/square.png",
-            gui.Label{ classes = {"eotwSceneOptionName"}, text = cond(mineHere, T("stage.gauntlet.your_vote_button"), T("stage.gauntlet.vote_button")), interactable = false },
+        extra = {
+            classes = mineHere and {"actionable", "chosen"} or {"actionable"},
             press = function(element)
                 audio.FireSoundEvent("Mouse.Click")
                 if mineHere then
@@ -7480,6 +7561,19 @@ local function GauntletVoteTile(section, option, index, m, heroes)
                 end
             end,
         }
+    end
+    local card = OptionCard(section, option, index, m, extra)
+    local names = {}
+    for _, voter in ipairs(EncounterNarrative.Voters(section, heroes)) do
+        local choice = (vote.choices or {})[voter.key]
+        if choice ~= nil and tonumber(choice.optionIndex) == index then
+            names[#names + 1] = voter.name
+        end
+    end
+    ---@type Panel[]
+    local children = { card }
+    if #names > 0 then
+        children[#children + 1] = gui.Label{ classes = {"eotwChoiceChip"}, text = table.concat(names, ", "), interactable = false }
     end
     return gui.Panel{
         width = GAUNTLET_TILE_WIDTH,
@@ -7578,6 +7672,9 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
     local group = (m.gauntlet or {}).group
     local option = section.options[1]
     children[#children + 1] = gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.gauntlet.group_hint"), halign = "center" }
+    if section.partyResult ~= nil then
+        children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_party_hint"), halign = "center" }
+    end
     if option ~= nil then
         children[#children + 1] = gui.Panel{
             width = GAUNTLET_TILE_WIDTH,
@@ -7604,7 +7701,8 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
                 for _, line in ipairs(rec.applied or {}) do
                     children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
                 end
-                if #(rec.applied or {}) == 0 and (rec.tierText or "") ~= "" then
+                --under a party result a hero's own tier text is not what happens.
+                if #(rec.applied or {}) == 0 and (rec.tierText or "") ~= "" and section.partyResult == nil then
                     children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = rec.tierText, interactable = false }
                 end
             else
@@ -7615,6 +7713,16 @@ function EncounterMontageStage.GauntletGroupChildren(beat, m, section)
     if #waiting > 0 then
         children[#children + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.group_waiting", { heroes = table.concat(waiting, ", ") }), halign = "center" }
     elseif group.result ~= nil then
+        local party = group.result.party
+        if party ~= nil then
+            children[#children + 1] = gui.Label{ classes = {"eotwTurnTitle"}, text = T("stage.gauntlet.group_party_result", { tier = TierName(party.tier, true) }), interactable = false }
+            for _, line in ipairs(party.applied or {}) do
+                children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line, interactable = false }
+            end
+            if #(party.applied or {}) == 0 and (party.tierText or "") ~= "" then
+                children[#children + 1] = gui.Label{ classes = {"eotwTurnText"}, text = party.tierText, interactable = false }
+            end
+        end
         children[#children + 1] = GauntletNextLabel(beat, m)
     end
     return children
@@ -7718,10 +7826,23 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
             end
             return children
         end
-        local how = cond(section.kind == "individual", T("stage.gauntlet.individual_how"), T("stage.gauntlet.vote_how"))
-        Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = string.format("%s %s", section.prompt or "", how), halign = "center" })
+        --"one vote per player" only matters when there is more than one
+        --voter; a lone player just picks, under the author's question if any.
+        local how = ""
+        if section.kind == "individual" then
+            how = T("stage.gauntlet.individual_how")
+        elseif #EncounterNarrative.Voters(section, heroes) > 1 then
+            how = T("stage.gauntlet.vote_how")
+        end
+        local promptText = trim(string.format("%s %s", section.prompt or "", how))
+        if promptText ~= "" then
+            Add(gui.Label{ classes = {"eotwNarrativePrompt"}, text = promptText, halign = "center" })
+        end
         for i, option in ipairs(section.options) do
-            tiles[#tiles + 1] = GauntletVoteTile(section, option, i, m, heroes)
+            --an option whose story gate is shut is not on offer.
+            if not EncounterGauntlet.OptionGated(option) then
+                tiles[#tiles + 1] = GauntletVoteTile(section, option, i, m, heroes)
+            end
         end
     elseif section.kind == "group" then
         for _, child in ipairs(EncounterMontageStage.GauntletGroupChildren(beat, m, section)) do
@@ -7767,12 +7888,14 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
     })
     if (section.kind == "choice" or section.kind == "individual") and vote.decision == nil then
         local pending = {}
-        for _, voter in ipairs(EncounterNarrative.Voters(section, heroes)) do
+        local voters = EncounterNarrative.Voters(section, heroes)
+        for _, voter in ipairs(voters) do
             if (vote.choices or {})[voter.key] == nil then
                 pending[#pending + 1] = voter.name
             end
         end
-        if #pending > 0 then
+        --a lone voter is never waiting on anyone else.
+        if #pending > 0 and #voters > 1 then
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = T("stage.gauntlet.waiting_on", { players = table.concat(pending, ", ") }), halign = "center" })
         end
     end
@@ -8526,24 +8649,13 @@ EncounterMontageStage.CreateGauntlet = CreateGauntletStage
 
 --- the negotiation stage -------------------------------------------------------
 --
---A "# Negotiation" beat, played with no Director: the NPC speaks, the party
---picks who talks and what they say, and the runtime (EncounterNegotiation)
---applies the book's rules. Arguments down the left, what the party has noticed
---and learned down the right, the deal on the table above the NPC. Like every
---stage body this only reads state and sends requests.
-
-local NEGOTIATION_RAIL_WIDTH = 380
-local NEGOTIATION_SIDE_WIDTH = 320
-local NEGOTIATION_HEADER_HEIGHT = 146
-local NEGOTIATION_PORTRAIT_WIDTH = 200
-local NEGOTIATION_PORTRAIT_HEIGHT = 270
-local NEGOTIATION_SELECT_MODE = "negotiation"
+--A "# Negotiation" beat, played with no Director, on the shared negotiation
+--screen (Draw Steel V/NegotiationSceneStage.lua) over this game's session
+--(EncounterNegotiation.Session). This passes in the EotW pieces: the NPC's
+--bestiary portrait, the hero cards with stats, the Intelligence hint check
+--and this stage's hero card styles.
 
 local function NegotiationCanAct(charid)
-    local m = EncounterNegotiation.GetState()
-    if m == nil or m.phase ~= "choosing" then
-        return false
-    end
     local tok = dmhub.GetCharacterById(charid)
     if tok == nil or not tok.valid then
         return false
@@ -8556,511 +8668,142 @@ local function NegotiationCanAct(charid)
     return mine == true
 end
 
-local function NegotiationPatienceCue(patience, npc)
-    local cues = {
-        [0] = T("stage.negotiation.patience.none", { npc = npc }),
-        [1] = T("stage.negotiation.patience.one"),
-        [2] = T("stage.negotiation.patience.two", { npc = npc }),
-        [3] = T("stage.negotiation.patience.three", { npc = npc }),
-        [4] = T("stage.negotiation.patience.four", { npc = npc }),
-        [5] = T("stage.negotiation.patience.five", { npc = npc }),
-    }
-    return cues[patience] or ""
-end
+--The figures over the speech box, drawn like a montage scene's: the NPC in the
+--middle (the bestiary entry its script names, "Played by:", else the NPC's own
+--name), and the hero who is talking steps on at the left. The shared stage
+--says who is on and speaking with "negotiationCast"; the NPC's reaction to an
+--argument plays as an emote.
+local function NegotiationPortrait()
+    local m_npcFor = nil
+    local m_npc = nil
+    local m_hero = nil
+    local m_emoteKey = nil
+    local m_fit = 1
+    --both slots shrink from their feet to fit a short figure area.
+    local npcSlot = gui.Panel{ floating = true, width = SCENE_FIGURE_WIDTH, height = SCENE_PORTRAIT_HEIGHT,
+        halign = "center", valign = "bottom", flow = "none", pivot = { x = 0.5, y = 0 }, interactable = false }
+    local heroSlot = gui.Panel{ floating = true, width = SCENE_FIGURE_WIDTH, height = SCENE_PORTRAIT_HEIGHT,
+        halign = "center", valign = "bottom", flow = "none", pivot = { x = 0.5, y = 0 }, interactable = false }
 
-local function NegotiationArgue(argument, heroid)
-    if heroid == nil or not NegotiationCanAct(heroid) then
-        return
+    local function PlaceSlots()
+        npcSlot.selfStyle.scale = m_fit
+        heroSlot.selfStyle.scale = m_fit
+        heroSlot.selfStyle.x = -(SCENE_FIGURE_WIDTH + 40) * m_fit
     end
-    audio.FireSoundEvent("Mouse.Click")
-    SelectHero(nil)
-    EncounterNegotiation.SendRequest("argue", { argumentId = argument.id, heroid = heroid })
-end
+    PlaceSlots()
 
-local function NegotiationArgumentCard(beat, m, argument)
-    local known = argument.traitId ~= nil and (m.learned or {})[argument.traitId] == true
-    local said = (m.usedArguments or {})[argument.id] == true
-    local verdict = m_selectedHero ~= nil and EncounterNegotiation.Verdict(m_selectedHero, argument) or nil
-    local children = {
-        gui.Label{ classes = {"eotwOptionName"}, text = argument.name, interactable = false },
-    }
-    local note = nil
-    if said then
-        note = T("stage.negotiation.argument.said")
-    elseif known and argument.kind == "pitfall" then
-        note = T("stage.negotiation.argument.avoid", { trait = EncounterNegotiation.Trait(beat, argument.traitId).name })
-    elseif known and argument.kind == "motivation" then
-        note = T("stage.negotiation.argument.appeal", { trait = EncounterNegotiation.Trait(beat, argument.traitId).name })
+    local function UpdateNpc()
+        local beat = EncounterNegotiation.CurrentBeat()
+        if beat == nil then
+            return
+        end
+        local key = beat.playedBy ~= "" and beat.playedBy or beat.name
+        if key == m_npcFor then
+            return
+        end
+        m_npcFor = key
+        m_npc = SceneActor{ name = beat.name, monster = key }
+        npcSlot.children = { m_npc }
     end
-    if note ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwEntryDesc"}, text = note, interactable = false }
-    end
-    if verdict ~= nil and verdict.gated then
-        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = T("stage.negotiation.argument.knack"), interactable = false }
-    end
-    if verdict ~= nil and (verdict.boons or 0) > 0 then
-        children[#children + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = T("stage.negotiation.argument.edge"), interactable = false }
-    end
-    return gui.Panel{
-        classes = {"eotwOptionCard", cond(m.phase == "choosing", "actionable", "disabledCard")},
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        pad = 8,
-        borderBox = true,
-        bmargin = 6,
-        bgimage = "panels/square.png",
-        dragTarget = true,
-        dragTargetPriority = 10,
-        data = { argument = argument },
-        children = children,
-        press = function(element)
-            NegotiationArgue(argument, m_selectedHero)
-        end,
-        dragTargets = function(element, on, mode)
-            element:SetClass("droppable", on == true and (mode or "") == NEGOTIATION_SELECT_MODE)
-        end,
-        selectHero = function(element, heroid, mode)
-            element:SetClass("droppable", heroid ~= nil and (mode or "") == NEGOTIATION_SELECT_MODE)
-        end,
-    }
-end
 
-local function CreateNegotiationHeroColumn(hero)
-    local hud = Hud()
-    local charid = hero.charid
-    local card = nil
-    if hud ~= nil and hud.CreateHeroCard ~= nil then
-        card = hud.CreateHeroCard({ charid = charid, mine = false, name = hero.name }, {
-            halign = "center",
-            draggable = NegotiationCanAct(charid),
-            showStats = true,
-            click = function(element, openCharacterPanel)
-                if NegotiationCanAct(charid) then
-                    audio.FireSoundEvent("Mouse.Click")
-                    if m_selectedHero == charid then
-                        SelectHero(nil)
-                    else
-                        SelectHero(charid, NEGOTIATION_SELECT_MODE)
-                    end
-                    return
-                end
-                openCharacterPanel(element)
-            end,
-            beginDrag = function(element)
-                element:SetClass("dragging", true)
-                SelectHero(charid, NEGOTIATION_SELECT_MODE)
-                Broadcast("dragTargets", true, NEGOTIATION_SELECT_MODE)
-            end,
-            canDragOnto = function(element, target)
-                return target:HasClass("eotwOptionCard") and NegotiationCanAct(charid)
-            end,
-            drag = function(element, target)
-                element:SetClass("dragging", false)
-                Broadcast("dragTargets", false)
-                if target ~= nil and target:HasClass("eotwOptionCard") then
-                    NegotiationArgue(target.data.argument, charid)
-                end
-            end,
-        })
-    else
-        card = gui.Label{ width = 132, height = 176, text = hero.name, bgimage = "panels/square.png", bgcolor = "#333333" }
-    end
-    local spokeLabel = gui.Label{ classes = {"eotwHeroChoice"}, text = "", halign = "center" }
-    return gui.Panel{
-        width = "auto",
-        height = "auto",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        hmargin = 6,
-        data = { charid = charid },
-        card,
-        spokeLabel,
-        refreshNegotiation = function(element, m)
-            local n = tonumber((m.spoke or {})[charid]) or 0
-            card.draggable = NegotiationCanAct(charid)
-            card:SetClass("selected", m_selectedHero == charid)
-            card:SetClass("acted", n > 0)
-            local text = T("stage.negotiation.hero.quiet")
-            if n == 1 then
-                text = T("stage.negotiation.hero.spoke_once")
-            elseif n > 1 then
-                text = T("stage.negotiation.hero.spoke_many", { count = n })
+    --one hero on (a new one replaces the last), or none.
+    local function SetHero(charid, name)
+        if m_hero ~= nil and m_hero.valid and m_hero.data.charid == charid then
+            return
+        end
+        if m_hero ~= nil and m_hero.valid then
+            local leaving = m_hero
+            leaving:SetClassTree("eotwSceneOffstage", true)
+            leaving:ScheduleEvent("gone", SCENE_ACTOR_FADE + 0.05)
+        end
+        m_hero = nil
+        if charid == nil then
+            return
+        end
+        local actor = SceneActor{ name = name, charid = charid }
+        actor.data.charid = charid
+        m_hero = actor
+        heroSlot:AddChild(actor)
+        actor:SetClassTreeImmediate("eotwSceneOffstage", true)
+        dmhub.Schedule(0.05, function()
+            if mod.unloaded or not actor.valid then
+                return
             end
-            spokeLabel.text = text
+            actor:SetClassTree("eotwSceneOffstage", false)
+        end)
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        interactable = false,
+        npcSlot,
+        heroSlot,
+        thinkTime = 0.25,
+        create = function(element)
+            UpdateNpc()
+        end,
+        think = function(element)
+            UpdateNpc()
+            local h = element.renderedHeight
+            if h == nil or h <= 0 then
+                return
+            end
+            local fit = math.min(1, h / (SCENE_PORTRAIT_HEIGHT * SCENE_SPEAKING_SCALE))
+            if math.abs(fit - m_fit) >= 0.01 then
+                m_fit = fit
+                PlaceSlots()
+            end
+        end,
+        negotiationCast = function(element, cast)
+            UpdateNpc()
+            SetHero(cast.heroid, cast.heroName)
+            local speaker = cast.speaker
+            if m_hero ~= nil and m_hero.valid then
+                m_hero:SetClassTree("speaking", speaker == "hero")
+                m_hero:SetClassTree("quiet", speaker == "npc")
+            end
+            if m_npc ~= nil and m_npc.valid then
+                m_npc:SetClassTree("speaking", speaker == "npc")
+                m_npc:SetClassTree("quiet", speaker == "hero")
+                if cast.emote ~= nil and cast.emoteKey ~= m_emoteKey then
+                    m_emoteKey = cast.emoteKey
+                    m_npc:FireEvent("emote", cast.emote)
+                end
+            end
         end,
     }
 end
 
 local function CreateNegotiationStage(args)
-    local m_heroSignature = nil
-    local m_cardSignature = nil
-    local m_portraitFor = nil
-
-    local titleLabel = gui.Label{ classes = {"eotwStageTitle"}, text = "", halign = "center" }
-    local wantLabel = gui.Label{ classes = {"eotwStageSubtitle"}, text = "", halign = "center" }
-    local bandLabels = {}
-    local bandsRow = gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "center", tmargin = 4 }
-    local patienceLabel = gui.Label{ classes = {"eotwStageRound"}, text = "", halign = "center" }
-    local header = gui.Panel{
-        width = "100%",
-        height = NEGOTIATION_HEADER_HEIGHT,
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        titleLabel,
-        wantLabel,
-        bandsRow,
-        patienceLabel,
-    }
-
-    local promptLabel = gui.Label{ classes = {"eotwNarrativePrompt"}, text = "", width = "100%", vmargin = 2, valign = "top" }
-    local cardList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local readButton = gui.Button{
-        width = "100%",
-        height = 44,
-        tmargin = 4,
-        valign = "top",
-        text = T("stage.negotiation.read"),
-        click = function(element)
-            local heroid = m_selectedHero
-            if heroid ~= nil and NegotiationCanAct(heroid) then
-                SelectHero(nil)
-                EncounterNegotiation.SendRequest("read", { heroid = heroid })
+    local stage = NegotiationSceneStage.Create{
+        session = EncounterNegotiation.Session(),
+        canAct = NegotiationCanAct,
+        figure = NegotiationPortrait,
+        createHeroCard = function(entry, opts)
+            local hud = Hud()
+            if hud == nil or hud.CreateHeroCard == nil then
+                return nil
             end
+            opts.showStats = true
+            return hud.CreateHeroCard(entry, opts)
         end,
-    }
-    local clueButton = gui.Button{
-        width = "100%",
-        height = 44,
-        tmargin = 4,
-        valign = "top",
-        text = T("stage.negotiation.spend_clue"),
-        click = function(element)
-            EncounterNegotiation.SendRequest("spendClue")
-        end,
-    }
-    local leftRail = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = NEGOTIATION_RAIL_WIDTH,
-        height = "100%",
-        flow = "vertical",
-        halign = "left",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 12,
-        borderBox = true,
-        vscroll = true,
-        promptLabel,
-        cardList,
-        readButton,
-        clueButton,
-    }
-
-    local offerShape = gui.Label{ classes = {"eotwTurnText"}, text = "", halign = "center", textAlignment = "center" }
-    local offerTerms = gui.Label{ classes = {"eotwEntryDesc"}, text = "", halign = "center", textAlignment = "center" }
-    local offerPanel = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = "90%",
-        height = "auto",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 8,
-        borderBox = true,
-        offerShape,
-        offerTerms,
-    }
-    local portrait = gui.Panel{
-        width = NEGOTIATION_PORTRAIT_WIDTH,
-        height = NEGOTIATION_PORTRAIT_HEIGHT,
-        halign = "center",
-        valign = "bottom",
-        bgcolor = "#00000000",
-        bgimage = "panels/square.png",
-        interactable = false,
-    }
-    local speakerLabel = gui.Label{ classes = {"eotwSceneActorName"}, text = "", halign = "left" }
-    local speechLabel = gui.Label{ classes = {"eotwTurnText"}, text = "", width = "100%", textWrap = true }
-    local rollLabel = gui.Label{ classes = {"eotwEntryDesc"}, text = "", width = "100%" }
-    local buttonRow = gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "right", tmargin = 6 }
-    local dialogBox = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        valign = "bottom",
-        bgimage = "panels/square.png",
-        pad = 14,
-        borderBox = true,
-        speakerLabel,
-        speechLabel,
-        rollLabel,
-        buttonRow,
-    }
-    local center = gui.Panel{
-        width = string.format("100%%-%d", NEGOTIATION_RAIL_WIDTH + NEGOTIATION_SIDE_WIDTH + 24),
-        height = "100%",
-        flow = "vertical",
-        halign = "center",
-        valign = "top",
-        hmargin = 12,
-        offerPanel,
-        gui.Panel{ width = "100%", height = "100%-260", flow = "none", portrait },
-        dialogBox,
-    }
-
-    local clueList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local learnedList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local logList = gui.Panel{ width = "100%", height = "auto", flow = "vertical", valign = "top" }
-    local rightRail = gui.Panel{
-        classes = {"eotwTurnPanel"},
-        width = NEGOTIATION_SIDE_WIDTH,
-        height = "100%",
-        flow = "vertical",
-        halign = "right",
-        valign = "top",
-        bgimage = "panels/square.png",
-        pad = 12,
-        borderBox = true,
-        vscroll = true,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.noticed"), width = "100%", vmargin = 2, valign = "top" },
-        clueList,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.learned"), width = "100%", vmargin = 2, tmargin = 10, valign = "top" },
-        learnedList,
-        gui.Label{ classes = {"eotwNarrativePrompt"}, text = T("stage.negotiation.so_far"), width = "100%", vmargin = 2, tmargin = 10, valign = "top" },
-        logList,
-    }
-
-    local body = gui.Panel{
-        width = "100%-40",
-        height = string.format("100%%-%d", NEGOTIATION_HEADER_HEIGHT + HERO_ROW_HEIGHT),
-        flow = "horizontal",
-        halign = "center",
-        valign = "top",
-        leftRail,
-        center,
-        rightRail,
-    }
-    local heroRow = gui.Panel{
-        width = "auto",
-        height = HERO_ROW_HEIGHT,
-        flow = "horizontal",
-        halign = "center",
-        valign = "bottom",
-        tmargin = 10,
-    }
-
-    local function TextRows(texts)
-        local rows = {}
-        for _, text in ipairs(texts) do
-            rows[#rows + 1] = gui.Label{ classes = {"eotwEntryDesc"}, text = text, width = "100%", interactable = false }
-        end
-        return rows
-    end
-
-    local function Buttons(m, beat)
-        local buttons = {}
-        local function Add(text, fn)
-            buttons[#buttons + 1] = gui.Button{ width = 200, height = 44, lmargin = 8, text = text, click = fn }
-        end
-        if m.phase == "choosing" and m.interest >= 1 then
-            Add(T("stage.negotiation.take_deal"), function() EncounterNegotiation.SendRequest("takeDeal") end)
-        elseif m.phase == "reply" or m.phase == "done" then
-            Add(T("stage.negotiation.continue"), function() EncounterNegotiation.SendRequest("continue") end)
-        elseif m.phase == "voting" then
-            Add(T("stage.negotiation.vote_deal"), function() EncounterNegotiation.SendRequest("vote", { choice = "deal" }) end)
-            Add(T("stage.negotiation.vote_talk"), function() EncounterNegotiation.SendRequest("vote", { choice = "talk" }) end)
-        elseif m.phase == "final" then
-            Add(T("stage.negotiation.vote_deal"), function() EncounterNegotiation.SendRequest("vote", { choice = "deal" }) end)
-            Add(T("stage.negotiation.vote_refuse"), function() EncounterNegotiation.SendRequest("vote", { choice = "refuse" }) end)
-        end
-        return buttons
-    end
-
-    local stage
-    local function Refresh(element)
-        local m = EncounterNegotiation.GetState()
-        local beat = EncounterNegotiation.CurrentBeat()
-        if m == nil or beat == nil then
-            return
-        end
-        local npc = beat.name
-        titleLabel.text = npc
-        wantLabel.text = beat.want
-        wantLabel:SetClass("collapsed", beat.want == "")
-
-        if #bandLabels == 0 then
-            local labels = {}
-            for i = 0, NegotiationRules.MAX do
-                labels[i] = gui.Label{ classes = {"eotwEntryDesc"}, width = 110, height = 28, text = NegotiationRules.bands[i], textAlignment = "center", bgimage = "panels/square.png" }
-                bandLabels[#bandLabels + 1] = labels[i]
-            end
-            bandsRow.children = bandLabels
-        end
-        for i, label in ipairs(bandLabels) do
-            local on = i - 1 == m.interest
-            label.selfStyle.bgcolor = cond(on, "#ffffff33", "#00000000")
-            label.selfStyle.opacity = cond(on, 1, 0.65)
-        end
-        patienceLabel.text = NegotiationPatienceCue(m.patience, npc)
-
-        if m_portraitFor ~= beat.playedBy then
-            m_portraitFor = beat.playedBy
-            local _, asset = EncounterMontage.FindMonster(beat.playedBy ~= "" and beat.playedBy or npc)
-            if asset ~= nil then
-                local info = nil
-                pcall(function() info = asset.info end)
-                SetPortraitFrom(portrait, info, NEGOTIATION_PORTRAIT_WIDTH / NEGOTIATION_PORTRAIT_HEIGHT, nil)
-            end
-        end
-
-        local offer = beat.offers[m.interest + 1]
-        offerShape.text = T("stage.negotiation.on_the_table", { shape = NegotiationRules.offerLabels[m.interest] or "" })
-        offerTerms.text = offer ~= nil and offer.text or ""
-        offerTerms:SetClass("collapsed", offerTerms.text == "")
-
-        --who is speaking: the NPC's reply, a read's result, or how it ended.
-        local speaker, speech, roll = npc, beat.opening, ""
-        local last = m.last
-        if last ~= nil and last.kind == "clue" then
-            local trait = EncounterNegotiation.Trait(beat, last.found)
-            roll = T("stage.negotiation.clue_found", { trait = trait ~= nil and trait.name or "" })
-        elseif last ~= nil and last.kind == "read" then
-            speaker = last.heroName
-            local trait = last.found ~= nil and EncounterNegotiation.Trait(beat, last.found) or nil
-            if trait ~= nil then
-                speech = T("stage.negotiation.read_found", { hero = last.heroName, trait = trait.name })
-            elseif (tonumber(last.tier) or 1) <= 1 then
-                speech = T("stage.negotiation.read_pushed", { hero = last.heroName, npc = npc })
-            else
-                speech = T("stage.negotiation.read_nothing", { hero = last.heroName })
-            end
-        elseif last ~= nil then
-            speech = last.reply
-            local argument = EncounterNegotiation.Argument(beat, last.argumentId)
-            if argument ~= nil then
-                roll = T("stage.negotiation.argued", { hero = last.heroName, argument = argument.name })
-            end
-        end
-        if m.phase == "rolling" and m.turn ~= nil then
-            speaker, speech, roll = m.turn.heroName, T("stage.negotiation.rolling"), ""
-        elseif m.phase == "final" or m.phase == "voting" then
-            roll = cond(m.phase == "final", T("stage.negotiation.final_offer"), T("stage.negotiation.voting"))
-            local key = EncounterNarrative.VoterKeyForUser(dmhub.loginUserid, EncounterMontage.Heroes())
-            local mine = key ~= nil and (m.votes or {})[key] or nil
-            if mine ~= nil then
-                local said = cond(mine.choice == "deal", T("stage.negotiation.vote_deal"),
-                    cond(mine.choice == "talk", T("stage.negotiation.vote_talk"), T("stage.negotiation.vote_refuse")))
-                roll = T("stage.negotiation.vote_yours", { text = roll, choice = said })
-            end
-            local waiting = EncounterNegotiation.PendingVoters(m)
-            if #waiting > 0 then
-                roll = T("stage.negotiation.vote_waiting", { text = roll, players = table.concat(waiting, ", ") })
-            end
-        elseif m.phase == "done" and m.result ~= nil then
-            roll = cond(m.result.outcome == "deal", T("stage.negotiation.deal"),
-                cond(m.result.outcome == "refused", T("stage.negotiation.refused"), T("stage.negotiation.no_deal")))
-        end
-        if m.split ~= nil and (m.phase == "choosing" or m.phase == "done") then
-            roll = T("stage.negotiation.split", { player = m.split, text = roll })
-        end
-        speakerLabel.text = speaker
-        speechLabel.text = speech
-        rollLabel.text = roll
-        rollLabel:SetClass("collapsed", roll == "")
-
-        promptLabel.text = cond(m.phase == "voting" or m.phase == "final", T("stage.negotiation.prompt_vote"),
-            cond(m.phase ~= "choosing", T("stage.negotiation.prompt_wait"),
-                cond(m_selectedHero ~= nil, T("stage.negotiation.prompt_argument"), T("stage.negotiation.prompt_hero"))))
-        readButton:SetClass("collapsed", m.phase ~= "choosing" or not m.canRead)
-        local mine = {}
-        for _, hero in ipairs(EncounterMontage.Heroes()) do
-            if hero.ownerId == dmhub.loginUserid or hero.ownerId == "PARTY" then
-                mine[#mine + 1] = hero.charid
-            end
-        end
-        clueButton:SetClass("collapsed", not EncounterNegotiation.CanSpendClue(m, beat)
-            or EncounterMontage.SpendableIntelligence(mine) < 1)
-
-        local clues, learned, log = {}, {}, {}
-        for _, trait in ipairs(beat.traits) do
-            if (m.learned or {})[trait.id] then
-                learned[#learned + 1] = cond(trait.kind == "motivation", T("stage.negotiation.learned_motivation", { trait = trait.name }), T("stage.negotiation.learned_pitfall", { trait = trait.name }))
-            elseif trait.clue ~= "" then
-                clues[#clues + 1] = trait.clue
-            end
-        end
-        for i = #(m.log or {}), math.max(1, #(m.log or {}) - 4), -1 do
-            log[#log + 1] = T("stage.negotiation.log", { hero = m.log[i].heroName, argument = m.log[i].text })
-        end
-
-        local signature = string.format("%s|%s|%s|%s|%s|%s", tostring(m.seq), tostring(m.phase), tostring(m_selectedHero), #clues, #learned, #log)
-        if signature ~= m_cardSignature then
-            m_cardSignature = signature
-            local cards = {}
-            for _, argument in ipairs(beat.arguments) do
-                local secret = false
-                for _, rider in ipairs(argument.riders or {}) do
-                    secret = secret or rider.effect == "allow"
-                end
-                if not secret or (m_selectedHero ~= nil and EncounterNegotiation.CanMakeArgument(m_selectedHero, argument)) then
-                    cards[#cards + 1] = NegotiationArgumentCard(beat, m, argument)
-                end
-            end
-            cardList.children = cards
-            clueList.children = TextRows(clues)
-            learnedList.children = TextRows(learned)
-            logList.children = TextRows(log)
-            buttonRow.children = Buttons(m, beat)
-        end
-
-        local heroes = EncounterMontage.Heroes()
-        local sig = HeroSignature(heroes)
-        if sig ~= m_heroSignature then
-            m_heroSignature = sig
-            local columns = {}
-            for _, hero in ipairs(heroes) do
-                columns[#columns + 1] = CreateNegotiationHeroColumn(hero)
-            end
-            heroRow.children = columns
-        end
-        element:FireEventTree("refreshNegotiation", m)
-    end
-
-    stage = gui.Panel{
-        styles = ThemeEngine.MergeStyles(StageRules()),
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        valign = "center",
-        flow = "vertical",
-        bgcolor = "#00000000",
-        swallowPress = true,
-        children = Classes(header, body, heroRow),
-
+        styles = StageRules(),
+        heroRowHeight = HERO_ROW_HEIGHT,
         monitorGame = EncounterMontage.DocPath(),
-        refreshGame = function(element)
-            Refresh(element)
-        end,
-        create = function(element)
-            Refresh(element)
-        end,
-
-        thinkTime = 0.1,
-        think = function(element)
-            if mod.unloaded then
-                element:DestroySelf()
-                return
+        --a hint is paid for from the local player's own heroes' Intelligence
+        --(plus any shared part).
+        clueAffordable = function()
+            local mine = {}
+            for _, hero in ipairs(EncounterMontage.Heroes()) do
+                if hero.ownerId == dmhub.loginUserid or hero.ownerId == "PARTY" then
+                    mine[#mine + 1] = hero.charid
+                end
             end
-            pcall(EncounterNegotiation.ClientTick)
-            Refresh(element)
-            element:FireEventTree("refreshCard")
+            return EncounterMontage.SpendableIntelligence(mine) >= 1
         end,
     }
-
     m_root = stage
     m_selectedHero = nil
     return stage

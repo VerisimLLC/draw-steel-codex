@@ -25,12 +25,18 @@ end
 --- @field sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
 --- @field sharesHeroicResourceWithSummoner boolean If true, heroic resource consumed/granted on this summoned creature is redirected to its summoner.
 --- @field minionDamageTime number|string Server time this minion was last damaged; a ServerTimestamp() placeholder string until the server fills it in.
+--- @field hiddenBenefitsLostTurnId? string Turn id (InitiativeQueue:GetTurnId) in which LoseHiddenBenefits ran; Hidden This Turn reads false for that turn.
 
 --- @alias SquadInfo table
 
 creature.minion = false
 
 creature.minionDead = false
+
+--The damage type of the blow that killed this creature ("" until it dies).
+--Persisted, unlike _tmp_lastdamagetype, so Encounter of the Week can tell a
+--Revenant burned to death after its token was despawned.
+creature.killingDamageType = ""
 
 creature.initiativeGrouping = false
 
@@ -58,7 +64,7 @@ function creature:MinionSquad()
     return nil
 end
 
---- Returns the subset of summonedMinions entries whose tokens still exist and whose creatures are alive.
+--- Returns the subset of summonedMinions entries whose tokens still exist and are living minions.
 --- Does not mutate the stored list; callers wanting to prune should compare the returned list to the stored one.
 --- @return table[] entries Array of { charid, squad, monsterType } entries.
 function creature:GetLiveSummonedEntries()
@@ -67,7 +73,9 @@ function creature:GetLiveSummonedEntries()
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Only minions count toward squads. Older casts also put non-minion
+            --summons (e.g. a Summoner's Dominion fixture) here, so skip those.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 live[#live+1] = entry
             end
         end
@@ -139,7 +147,9 @@ function creature:RegisterSummonedMinion(charid, squadName, monsterType)
     for _,entry in ipairs(entries) do
         if entry ~= nil and entry.charid ~= nil and entry.charid ~= charid then
             local token = dmhub.GetTokenById(entry.charid)
-            if token ~= nil and token.properties ~= nil and not token.properties:IsDeadOrDying() then
+            --Summons that are not minions don't belong here. Older games may
+            --still have some (e.g. a Summoner's Dominion fixture), so drop them.
+            if token ~= nil and token.properties ~= nil and token.properties.minion and not token.properties:IsDeadOrDying() then
                 pruned[#pruned+1] = entry
             end
         end
@@ -192,6 +202,25 @@ function creature:Potency()
     return self:HighestCharacteristic()
 end
 
+--- Returns the creature's summoner token, or nil if it has none.
+--- Also finds a summoner who is off the map: a summon that replaces its caster (such as
+--- Loverboy, from the Demon Lover complication) takes the caster off the map until it
+--- goes away, and the summon still belongs to them meanwhile.
+--- @param selfToken CharacterToken
+--- @return CharacterToken|nil
+local function FindSummonerToken(selfToken)
+    if not selfToken.summonerid then
+        return nil
+    end
+
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid) or dmhub.GetCharacterById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+
+    return nil
+end
+
 --- If this creature is a minion flagged to use its summoner's potency, returns the summoner token.
 --- Otherwise returns nil (the creature uses its own potency).
 --- @return CharacterToken|nil
@@ -201,12 +230,8 @@ function creature:GetPotencySummonerToken()
         return nil
     end
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then return nil end
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-    return nil
+    if selfToken == nil then return nil end
+    return FindSummonerToken(selfToken)
 end
 
 function creature:BaseNamedCustomAttribute(id)
@@ -376,16 +401,11 @@ function creature:GetSurgeSharingSummonerToken()
     end
 
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return nil
     end
 
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
+    return FindSummonerToken(selfToken)
 end
 
 --- @return creature|nil mentor whose surge pool this retainer shares, else nil.
@@ -506,16 +526,11 @@ function creature:GetHeroicResourceSharingSummonerToken()
     end
 
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return nil
     end
 
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
+    return FindSummonerToken(selfToken)
 end
 
 local g_baseMonsterGetHeroicOrMaliceResources = monster.GetHeroicOrMaliceResources
@@ -567,11 +582,11 @@ end
 --- should not surface villain/malice-cost abilities (malice is a GM resource).
 function creature:IsHeroSummon()
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return false
     end
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken == nil or not summonerToken.valid then
+    local summonerToken = FindSummonerToken(selfToken)
+    if summonerToken == nil then
         return false
     end
     return summonerToken.properties:IsHero()
@@ -767,6 +782,21 @@ function creature:LoseHidden()
     end
 
     self:InflictCondition(g_conditionHiddenId, {purge = true})
+end
+
+--- Takes away every benefit of being hidden for the rest of the current turn: removes
+--- Hidden and makes Hidden This Turn read false, so later rolls this turn get no hidden
+--- edge. A roll that is already open keeps the edge it counted; a trigger takes that off
+--- with removeModifiers (Shoot First, Ask Questions Later). The turn stamp is a saved
+--- field, so every client sees it, unlike the local stamp Hidden This Turn normally
+--- reads. Call inside token:ModifyProperties.
+function creature:LoseHiddenBenefits()
+    self:LoseHidden()
+
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        self.hiddenBenefitsLostTurnId = queue:GetTurnId()
+    end
 end
 
 --- True when this creature has the Hidden condition, whatever applied it.
@@ -1110,9 +1140,7 @@ function monster.OnCreateFromBestiary(self, token, groupid)
                 assignToSquad = true
                 minionName = monsterInfo.properties.monster_type
 
-                if quantity >= 8 and (group.squadSize or 4) < quantity then
-                    numSquads = math.ceil(quantity / (group.squadSize or 4))
-                end
+                numSquads = Encounter.MinionSquadCount(quantity, group.squadSize)
                 break
             end
         end
@@ -1500,12 +1528,42 @@ function creature:Moved(path)
     --self:TryClaimTurn()
 end
 
+--Above zero while ActivatedAbility:ConsumeResources pays for a triggered or
+--invoked cast. Such a cast reacts to something else (Metakinetic Mastery's
+--Knockback after Inertial Shield, N3/6BP3KFZ6), so its Action or Maneuver
+--must not start the hero's turn.
+local g_payingForReactionCast = 0
+
+--- @param ability ActivatedAbility
+--- @param options table|nil
+--- @return boolean
+local function IsTriggeredOrInvokedCast(ability, options)
+    if ability.typeName == "TriggeredAbility" or ability:try_get("invoker") ~= nil then
+        return true
+    end
+    local symbols = options ~= nil and options.symbols or nil
+    return type(symbols) == "table" and rawget(symbols, "invoker") ~= nil
+end
+
+local g_baseConsumeResources = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    if mod.unloaded or not IsTriggeredOrInvokedCast(self, options) then
+        return g_baseConsumeResources(self, casterToken, options)
+    end
+    g_payingForReactionCast = g_payingForReactionCast + 1
+    local ok, err = xpcall(g_baseConsumeResources, debug.traceback, self, casterToken, options)
+    g_payingForReactionCast = g_payingForReactionCast - 1
+    if not ok then
+        error(err, 0)
+    end
+end
+
 --when using an action or a maneuver we also are claiming the turn if
 local g_baseConsumeResource = creature.ConsumeResource
 function creature:ConsumeResource(key, refreshType, quantity, note)
     g_baseConsumeResource(self, key, refreshType, quantity, note)
 
-    if mod.unloaded then
+    if mod.unloaded or g_payingForReactionCast > 0 then
         return
     end
 
@@ -2236,25 +2294,42 @@ creature.RegisterSymbol {
     }
 }
 
-creature.RegisterSymbol {
-    symbol = "saveendseffects",
-    lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "save" then
+--True if the creature has a condition or ongoing effect that ends on a save (options.save)
+--or at the end of its turn (options.eot). options.skipBuffs leaves out the ones marked as buffs.
+--- @param creature creature
+--- @param options {save?: boolean, eot?: boolean, skipBuffs?: boolean}
+--- @return boolean
+local function HasEffectsEnding(creature, options)
+    if creature:has_key("inflictedConditions") then
+        --The table is only needed to tell buffs apart.
+        local conditionsTable = options.skipBuffs and dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, cond in pairs(creature.inflictedConditions) do
+            if (options.save and cond.duration == "save") or (options.eot and cond.duration == "eot") then
+                local info = conditionsTable[condid]
+                if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                     return true
                 end
             end
         end
+    end
 
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeOnSave then
+    local effectsTable = options.skipBuffs and dmhub.GetTable("characterOngoingEffects") or {}
+    for _, effectInstance in ipairs(creature:ActiveOngoingEffects()) do
+        if (options.save and effectInstance.removeOnSave) or (options.eot and effectInstance.removeAtNextTurnEnd) then
+            local info = effectsTable[effectInstance.ongoingEffectid]
+            if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                 return true
             end
         end
+    end
 
-        return false
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "saveendseffects",
+    lookup = function(c)
+        return HasEffectsEnding(c, {save = true})
     end,
     help = {
         name = "Save Ends Effects",
@@ -2266,28 +2341,37 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "eoteffects",
     lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "eot" then
-                    return true
-                end
-            end
-        end
-
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeAtNextTurnEnd then
-                return true
-            end
-        end
-
-        return false
+        return HasEffectsEnding(c, {eot = true})
     end,
     help = {
         name = "EoT Effects",
         type = "boolean",
         desc = "Does this creature have any end of turn effects?",
     }
+}
+
+--True if the creature has a save-ends or end-of-turn effect that is not a buff.
+--Used to stop Reorder prompting when there is nothing worth ending.
+--- @param creature creature
+--- @return boolean
+local function HasEndableEffects(creature)
+    return HasEffectsEnding(creature, {save = true, eot = true, skipBuffs = true})
+end
+
+creature.RegisterSymbol {
+    symbol = "endableeffects",
+    lookup = HasEndableEffects,
+    help = {
+        name = "Endable Effects",
+        type = "boolean",
+        desc = "Does this creature have a save ends or end of turn condition or effect that is not a buff?",
+    }
+}
+
+--Lets Count Nearby Creatures(range, "ally", "endable effects") filter on the same state.
+creature.RegisterMatchString {
+    name = "endable effects",
+    match = HasEndableEffects,
 }
 
 creature.RegisterSymbol {
@@ -2328,7 +2412,12 @@ creature.RegisterSymbol {
                     return false
                 end
 
-                if #c:GetFlankingTokens({ tok, secondTok }) < 2 then
+                --A creature using an ability from another's space flanks from that space, so
+                --the creature standing there can't also be its partner.
+                local firstFlanker = creature.FlankingStandIn(tok)
+                local secondFlanker = creature.FlankingStandIn(secondTok)
+                local actors = {[firstFlanker.charid] = tok, [secondFlanker.charid] = secondTok}
+                if firstFlanker.charid == secondFlanker.charid or #c:GetFlankingTokens({ firstFlanker, secondFlanker }, actors) < 2 then
                     return false
                 end
             end
@@ -2348,13 +2437,13 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "flanked",
     lookup = function(c)
-        return #c:GetFlankingTokens() > 0
+        return c:IsFlankedByAnyone()
     end,
 
     help = {
         name = "Flanked",
         type = "boolean",
-        desc = "Returns true if this creature is currently being flanked.",
+        desc = "Returns true if this creature is currently being flanked, that is, Flanked By is true for at least one creature. A creature using an ability as if in another creature's space flanks from that space while the ability resolves.",
         seealso = {},
     },
 }
@@ -2524,7 +2613,12 @@ local function SetGrantsFlanking(props, value, writes)
     end
 end
 
-local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
+--actors: stand-in token charid -> the creature acting from its space. The stand-in's
+--position counts; whether it can flank (and how) is the acting creature's.
+local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, actors)
+    local function Actor(enemy)
+        return (actors ~= nil and actors[enemy.charid]) or enemy
+    end
     local token = dmhub.LookupToken(self)
     if token == nil or (not token.valid) then
         return {}
@@ -2547,8 +2641,9 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
 
     --remove any enemies that we don't have line of sight to or that can't grant flanking.
     for i = #adjacentEnemies, 1, -1 do
-        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls(), "basic")
-        if los <= 0 or not adjacentEnemies[i].properties:CanGrantFlanking() then
+        local actor = Actor(adjacentEnemies[i])
+        local los = adjacentEnemies[i]:GetLineOfSight(token, actor.properties:GetPierceWalls(), "basic")
+        if los <= 0 or not actor.properties:CanGrantFlanking() then
             table.remove(adjacentEnemies, i)
         end
     end
@@ -2558,7 +2653,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     end
 
     for _, enemy in ipairs(adjacentEnemies) do
-        local allflanking = enemy.properties:FlankFromAnyDirection()
+        local allflanking = Actor(enemy).properties:FlankFromAnyDirection()
         if allflanking then
             return adjacentEnemies
         end
@@ -2567,7 +2662,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     local granterIds = {}
     local numGranters = 0
     for _, enemy in ipairs(adjacentEnemies) do
-        if enemy.properties:GrantFlankingToAllies() then
+        if Actor(enemy).properties:GrantFlankingToAllies() then
             granterIds[enemy.charid] = true
             numGranters = numGranters + 1
         end
@@ -2585,9 +2680,9 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
         grantedFlanking = adjacentEnemies
         for _, enemy in ipairs(adjacentEnemies) do
             if numGranters == 1 and granterIds[enemy.charid] then
-                SetGrantsFlanking(enemy.properties, token.charid, writes)
+                SetGrantsFlanking(Actor(enemy).properties, token.charid, writes)
             else
-                SetGrantsFlanking(enemy.properties, nil, writes)
+                SetGrantsFlanking(Actor(enemy).properties, nil, writes)
             end
         end
     end
@@ -2614,7 +2709,7 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
         for _, tok in ipairs(result) do
             if tok.charid == enemy.charid then
                 found = true
-                SetGrantsFlanking(enemy.properties, nil, writes)
+                SetGrantsFlanking(Actor(enemy).properties, nil, writes)
                 break
             end
         end
@@ -2634,10 +2729,12 @@ end
 --immunity and who can grant flanking come from modifiers. A call made while a creature's
 --modifiers are being built always computes, so that build records the token reads it
 --depends on.
-function creature:GetFlankingTokens(tokensOverride)
+--- @param tokensOverride nil|CharacterToken[] the creatures to consider instead of every adjacent enemy
+--- @param actors nil|table<string, CharacterToken> a stand-in token's charid -> the creature acting from its space; needs tokensOverride
+function creature:GetFlankingTokens(tokensOverride, actors)
     local top = CreatureCache.stack[#CreatureCache.stack]
     if tokensOverride ~= nil or (top ~= nil and top.creature ~= false) then
-        return ComputeFlankingTokens(self, tokensOverride, nil, nil)
+        return ComputeFlankingTokens(self, tokensOverride, nil, nil, actors)
     end
 
     local cache = self:try_get("_tmp_flankingCache")
@@ -2676,13 +2773,82 @@ function creature:GetFlankingTokens(tokensOverride)
     return { table.unpack(result) }
 end
 
+--- The token whose square a creature flanks from right now: its own, or the creature
+--- whose space it is using an ability from. Pass the result to GetFlankingTokens with
+--- actors = {[standIn.charid] = token}, so the creature's own flanking rules still apply.
+--- @param token CharacterToken
+--- @return CharacterToken
+function creature.FlankingStandIn(token)
+    return ActivatedAbility.ActingFromToken(token.charid) or token
+end
+
+--- True when Flanked By is true for at least one creature, so the Flanked symbol always
+--- agrees with it. With no ability being used from another creature's space (the usual
+--- case) this is the plain flanking check.
+--- @return boolean
+function creature:IsFlankedByAnyone()
+    local standInByActor = ActivatedAbility.ActingFromAll()
+    if next(standInByActor) == nil then
+        return #self:GetFlankingTokens() > 0
+    end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return false
+    end
+    --A creature acting from another space may not be next to this one, so ask about it too.
+    local candidates = GetEnemiesAdjacentToToken(token)
+    for charid, _ in pairs(standInByActor) do
+        local actor = dmhub.GetTokenById(charid)
+        if actor ~= nil then
+            AddTokenOnce(candidates, actor)
+        end
+    end
+    local flanked = false
+    for _, candidate in ipairs(candidates) do
+        if self:FlankedBy(candidate) then
+            flanked = true
+            break
+        end
+    end
+    --Last on purpose: puts back the grantor marks for where creatures really stand, which the token HUD's flank arrows read.
+    self:GetFlankingTokens()
+    return flanked
+end
+
+--A creature's cached modifiers can depend on FlankedBy, which reads who is acting from
+--another creature's space. Making that part of every cache key rebuilds each creature
+--once when such a cast starts and once when it ends.
+CreatureCache.RegisterSignature("actingfrom", function(_token)
+    return ActivatedAbility.ActingFromSignature()
+end)
+
 function creature:FlankedBy(otherToken)
     local token = dmhub.LookupToken(self)
-    local flanking = self:GetFlankingTokens()
+    local flanking
+    --Whose square otherToken flanks from: its own, or the creature whose space it is using an ability from.
+    local flankSquare = otherToken
+    --A creature using an ability as if in another creature's space flanks from that
+    --space with its own flanking rules, and its own body is left out: it can't be its
+    --own flanking partner.
+    local actingFrom = ActivatedAbility.ActingFromToken(otherToken.charid)
+    if actingFrom ~= nil and token ~= nil then
+        local others = {}
+        for _, enemy in ipairs(GetEnemiesAdjacentToToken(token)) do
+            if enemy.charid ~= otherToken.charid then
+                others[#others+1] = enemy
+            end
+        end
+        flanking = self:GetFlankingTokens(others, {[actingFrom.charid] = otherToken})
+        flankSquare = actingFrom
+    else
+        flanking = self:GetFlankingTokens()
+    end
     for _, tok in ipairs(flanking) do
         --GetFlankingTokens returns {} when LookupToken(self) is nil, so this loop only runs with a token.
         ---@cast token -nil
-        if tok.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid and tok.charid == otherToken.charid then
+        --Read _tmp_grantsFlanking from otherToken, not tok, on purpose: otherToken holds it
+        --even when it flanks from another creature's space (then tok is that creature).
+        if tok.charid == flankSquare.charid and otherToken.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid then
             return true
         end
     end
@@ -2840,15 +3006,18 @@ function creature:Stability()
     return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
---- If the creature can teleport.
+--- True if push, pull and slide can't move this creature or object.
+--- @return boolean
+function creature:CannotBeForceMoved()
+    return self:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0
+end
+
+--- If the creature can teleport. The engine asks this when a token drag begins to decide
+--- whether holding Ctrl may turn the move into a teleport for a non-Director, so it must
+--- count teleport granted by features (Cinder Step, Translation) as well as an innate speed.
 --- @return boolean
 function creature:CanTeleport()
-    local movementSpeeds = self:try_get("movementSpeeds", {})
-    if movementSpeeds ~= nil then
-        return (movementSpeeds["teleport"] or 0) > 0
-    end
-
-    return false
+    return self:GetSpeed("teleport") > 0
 end
 
 --- Whether the creature can fly up or down under its own power. False for a creature
@@ -2858,6 +3027,86 @@ end
 --- @return boolean
 function creature:CanFlyVertically()
     return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
+--- How many squares this creature's token is above the ground under it. In deep
+--- water the ground is the water surface, and a platform deck (a bridge) the
+--- creature is on or above counts as ground. 0 when standing, swimming at the
+--- surface, diving or burrowing.
+--- @return number
+function creature:HeightAboveGround()
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        return 0
+    end
+    local loc = token.loc
+    local ground = loc.withGroundAltitude.altitude
+    local platform = loc.platformAltitude
+    if platform ~= nil and platform > ground and platform <= loc.altitude then
+        ground = platform
+    end
+    return math.max(0, loc.altitude - ground)
+end
+
+--- The movement modes a player can pick in the Move drawer, in the order shown.
+creature.selectableMoveTypes = { "walk", "fly", "swim", "burrow", "climb" }
+
+--- Why this creature can't switch to the given movement mode right now, or nil if
+--- it can. The mode it is already in is always allowed. Walk and swim are not
+--- really chosen: CurrentMoveType picks between them from the ground under the
+--- token, so picking either one means "on the ground or in the water".
+--- @param moveType string one of creature.selectableMoveTypes
+--- @return nil|string reason player-facing text
+function creature:MoveTypeUnavailableReason(moveType)
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid or moveType == self:CurrentMoveType() then
+        return nil
+    end
+
+    local T = UIText.T
+    local inAir = self:HeightAboveGround() > 0
+    local inWater = token:GetGroundMoveType(false) == "swim"
+    local belowGround = token.distanceBelowGround > 0
+
+    if moveType == "walk" then
+        if self:GetSpeed("walk") <= 0 then
+            return T("movemode.reason.cannot_walk")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        elseif belowGround then
+            return T("movemode.reason.underground")
+        end
+    elseif moveType == "fly" then
+        if not self:CanFly() then
+            return T("movemode.reason.cannot_fly")
+        elseif belowGround then
+            return cond(inWater, T("movemode.reason.underwater"), T("movemode.reason.underground"))
+        end
+    elseif moveType == "swim" then
+        if inAir then
+            return T("movemode.reason.in_air")
+        elseif not inWater then
+            return T("movemode.reason.not_in_water")
+        end
+    elseif moveType == "burrow" then
+        if not self:CanBurrow() then
+            return T("movemode.reason.cannot_burrow")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        end
+    elseif moveType == "climb" then
+        if not self:CanClimb() then
+            return T("movemode.reason.prone")
+        elseif not token.canCurrentlyClimb and not self:IsClingingToCeiling() then
+            return T("movemode.reason.nothing_to_climb")
+        end
+    end
+
+    return nil
 end
 
 creature.stability = 0
@@ -3431,7 +3680,49 @@ end
 --
 --An important property is that innate abilities are not clones unless bindCaster is true. This allows the character sheet
 --and other parts of the app to modify the innate abilities to update the creature.
-local g_defaultExcludeKeywords = { "Companion" }
+--Kept on the global table so reloading only this file keeps the keywords modules added.
+g_companionExcludeKeywords = rawget(_G, "g_companionExcludeKeywords") or { "Companion" }
+local g_defaultExcludeKeywords = g_companionExcludeKeywords
+
+--- Reserve an ability keyword for a companion. Every creature drops abilities with
+--- it by default, as it does "Companion" ones; the companion type that uses them
+--- passes its own excludeKeywords, built with creature.OtherCompanionKeywords so it
+--- still drops the other kinds' keywords (see AnimalCompanion:GetActivatedAbilities).
+--- @param keyword string
+function creature.AddCompanionKeyword(keyword)
+    if not table.contains(g_defaultExcludeKeywords, keyword) then
+        g_defaultExcludeKeywords[#g_defaultExcludeKeywords + 1] = keyword
+    end
+end
+
+--- The reserved keywords a companion leaves out of the abilities it takes from its
+--- hero: every one except its own. A companion type passes this (plus any keywords
+--- of its own to drop) as excludeKeywords, so another kind's abilities don't reach it.
+--- @param ownKeywords string[] the reserved keywords this companion uses
+--- @return string[]
+function creature.OtherCompanionKeywords(ownKeywords)
+    local result = {}
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if not table.contains(ownKeywords, keyword) then
+            result[#result + 1] = keyword
+        end
+    end
+    return result
+end
+
+--- True when the ability carries any companion-reserved keyword (see creature.AddCompanionKeyword).
+--- @return boolean
+function ActivatedAbility:HasCompanionKeyword()
+    if not self:has_key("keywords") then
+        return false
+    end
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if self:HasKeyword(keyword) then
+            return true
+        end
+    end
+    return false
+end
 
 --Hook called by ActivatedAbilityInvokeAbilityBehavior on the invoker creature
 --right before a custom invoked ability is cast. Lets per-creature subclasses
@@ -5139,7 +5430,17 @@ local g_pendingQueuedRoll = {}
 --entries for the roll dialog's modifier list, in the same shape
 --GetModifiersForPowerRoll returns ({ modifier, hint, context }). The
 --journal uses it for a power roll's rider chips (TestRiders).
+--onComplete(tier, naturalRoll) is called when the roll lands; onCancel when
+--it is cancelled or never shown (puzzle tests use both).
+---@param options {modifiers: table[]|nil, onComplete: fun(tier: integer, natural: number|nil)|nil, onCancel: fun()|nil}|nil
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers, options)
+    local onComplete = options ~= nil and options.onComplete or nil
+    local onCancel = options ~= nil and options.onCancel or nil
+    local function Cancelled()
+        if onCancel ~= nil then
+            pcall(onCancel)
+        end
+    end
     local attrid = nil
     local bestModifier = nil
     for id, _ in pairs(characteristics) do
@@ -5155,6 +5456,7 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
 
     if attrid == nil then
         printf("RollCustomPowerTableTest: no matching characteristic for '%s'", title)
+        Cancelled()
         return
     end
 
@@ -5197,13 +5499,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         modifiers[#modifiers + 1] = extra
     end
 
-    --Respect the global roll gate. This drives the singleton rollDialog
-    --directly, which only serializes against itself, so without this it would
-    --pop on top of an in-flight embedded/standalone roll (e.g. a start-of-turn
-    --damage or prayer roll). We cannot yield in this synchronous UI handler, so
-    --wait for every surface to clear inside a coroutine before showing. The
-    --pending registry stops repeated link clicks from stacking waiters.
+    --Respect the global roll gate: showing the card displaces whatever roll is
+    --embedded in the sidebar, so without this it would destroy an in-flight
+    --roll (e.g. a start-of-turn damage or prayer roll). We cannot yield in this
+    --synchronous UI handler, so wait for every surface to clear inside a
+    --coroutine before showing. The pending registry stops repeated link clicks
+    --from stacking waiters.
     if g_pendingQueuedRoll[self] then
+        Cancelled()
         return
     end
     g_pendingQueuedRoll[self] = true
@@ -5224,38 +5527,115 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
         --roll still up (showing now would overlap). The click is dropped and the
         --user can retry; nothing stays queued.
         if mod.unloaded or CharacterPanel.AnyRollDialogShown() then
+            Cancelled()
             return
         end
 
-        GameHud.instance.rollDialog.data.ShowDialog {
-            title = title,
-            description = title,
-            creature = self,
+        --Shown as ShowCharacteristicRollDialog shows a test: a synthetic test
+        --ability in the sidebar with the roll dialog embedded in its card, and
+        --the roller as the single target so post-roll edges/banes refresh the tier.
+        local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
+        local token = dmhub.LookupToken(self)
+        local multitargets = nil
+        local displaying = false
+        if token ~= nil then
+            multitargets = {
+                {
+                    token = token,
+                    boons = 0,
+                    banes = 0,
+                    modifiers = modifiers,
+                    triggers = {},
+                },
+            }
+            CharacterPanel.ForceUnlockDisplayAbility()
+            displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
+        end
 
-            type = rollType,
-            roll = roll,
-            modifiers = modifiers,
+        local function HideCard()
+            if displaying then
+                CharacterPanel.HideAbility(syntheticAbility)
+            end
+        end
 
-            rollProperties = rollProperties,
-            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+        local function ShowRollDialog(dialog)
+            if dialog == nil or not dialog.valid then
+                dialog = GameHud.instance.rollDialog
+            end
+            if not dialog.valid then
+                HideCard()
+                Cancelled()
+                return
+            end
 
-            completeRoll = function(rollInfo)
-            end,
+            local settled = false
+            dialog.data.ShowDialog {
+                title = title,
+                description = title,
+                creature = self,
+                ability = syntheticAbility,
 
-            cancelRoll = function()
-            end,
-        }
+                type = rollType,
+                roll = roll,
+                modifiers = modifiers,
+                multitargets = multitargets,
+                targetCreature = cond(multitargets ~= nil, self, nil),
+                showDialogDuringRoll = true,
+                amendable = true,
+                --once the dice are thrown the result stands: no close (X) or
+                --ESC back to the options, where a failed test could be retried.
+                noCancelOnceThrown = true,
+
+                rollProperties = rollProperties,
+                PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+                completeRoll = function(rollInfo)
+                    settled = true
+                    HideCard()
+                    if onComplete ~= nil then
+                        local tier = 1
+                        pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+                        pcall(onComplete, tier, rollInfo.naturalRoll)
+                    end
+                end,
+
+                cancelRoll = function()
+                    if settled then
+                        return
+                    end
+                    settled = true
+                    HideCard()
+                    Cancelled()
+                end,
+            }
+        end
+
+        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+        if embeddedDialog ~= nil then
+            dmhub.Schedule(0.05, function()
+                if mod.unloaded then
+                    HideCard()
+                    Cancelled()
+                    return
+                end
+                ShowRollDialog(embeddedDialog)
+            end)
+        else
+            ShowRollDialog(nil)
+        end
     end)
 end
 
 --options (optional): onComplete(tier) is called with 1-3 when the roll lands,
---for callers that act on the result (a puzzle lock's bypass test).
+--for callers that act on the result (a puzzle lock's bypass test). autoroll
+--throws the dice as soon as the card is up (a quick roll).
 ---@param attrid string
----@param options {onComplete: fun(tier: integer)|nil}|nil
+---@param options {onComplete: fun(tier: integer)|nil, autoroll: boolean|nil}|nil
 function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
     local onComplete = options ~= nil and options.onComplete or nil
+    local autoroll = options ~= nil and options.autoroll == true or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5298,6 +5678,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
             targetCreature = cond(multitargets ~= nil, self, nil),
             showDialogDuringRoll = true,
             amendable = true,
+            autoroll = autoroll,
 
             rollProperties = rollProperties,
             PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
@@ -6318,6 +6699,36 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
+--Damage taken from the most recent ability, shown to Take Damage triggers as Ability
+--Damage. Saved on the creature so hits that resolve on different clients still add up.
+--A hit from another ability starts a new total.
+creature.abilityDamageCastId = ""
+creature.abilityDamageTotal = 0
+
+--- Adds this hit to the total for the ability that dealt it.
+--- Collision damage carries the pushing cast's id (abilitydamagecastid, set by the
+--- damage behavior from the collide event), so it counts toward the ability that
+--- moved the creature. Any other ability damage is keyed by its own cast.
+--- @param self creature the creature taking the damage
+--- @param info table the TakeDamage info
+--- @param amount number damage this hit dealt, including any absorbed by temporary Stamina
+--- @return number total damage from that ability so far, or amount when no ability dealt it
+local function AccumulateAbilityDamage(self, info, amount)
+    local castid = info.abilitydamagecastid
+    if (castid == nil or castid == "") and info.cast ~= nil then
+        castid = info.cast:EnsureGuid()
+    end
+    if type(castid) ~= "string" or castid == "" then
+        return amount
+    end
+    if self.abilityDamageCastId ~= castid then
+        self.abilityDamageCastId = castid
+        self.abilityDamageTotal = 0
+    end
+    self.abilityDamageTotal = self.abilityDamageTotal + amount
+    return self.abilityDamageTotal
+end
+
 --True only on TargetableObject (a map object with a Targetable component). Lets the
 --damage path skip creature-only outcomes such as the hero "dying" branch.
 creature.isMapObject = false
@@ -6486,6 +6897,7 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
+        eventArg.abilitydamage = AccumulateAbilityDamage(self, info, amount)
         --the minion path never draws on temporary Stamina, so the two are equal.
         eventArg.fulldamage = amount
         eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, amount))
@@ -6681,6 +7093,9 @@ function creature.TakeDamage(self, amount, note, info)
     --damage is the Stamina actually lost; fulldamage also counts what temporary
     --Stamina absorbed (the damage the creature took, by the rules).
     eventArg.fulldamage = original_amount
+    --Counts the full damage, like Damage This Turn, so temporary Stamina does not
+    --hide part of a hit from "10+ damage from one ability" triggers.
+    eventArg.abilitydamage = AccumulateAbilityDamage(self, info, math.max(0, original_amount))
     eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, original_amount))
     --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
     --immunity applied, so its raw damage is just the amount.
@@ -6892,6 +7307,7 @@ function creature.TakeDamage(self, amount, note, info)
         end
 
         if self:IsDead() then
+            self.killingDamageType = string.lower(tostring(eventArg.damagetype or "untyped"))
             self:RemoveAurasOnDeath()
 
             if self:IsDead() then
@@ -7115,6 +7531,8 @@ function creature.SetStaminaDirect(self, amount, note)
     end
 
     if (not isDeadAtStart) and isDeadNow then
+        --set directly, not by a blow: never fire.
+        self.killingDamageType = "untyped"
         self:RemoveAurasOnDeath()
         if self:IsDead() then
             self:ResetDeathSavingThrowStatus()
@@ -7161,6 +7579,43 @@ function creature:CostToMoveThroughToken(otherToken)
     return true
 end
 
+--One direction of the share-space traits: may the creature `subjectProps` (whose token is
+--`subjectToken`) share a square with `otherToken`?
+local function SharesSpaceByTrait(subjectProps, subjectToken, otherToken)
+    if subjectProps:CalculateNamedCustomAttribute("Can Share Space With Any Creature") > 0 then
+        return true
+    end
+    if otherToken:IsFriend(subjectToken) and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Allies") > 0 then
+        return true
+    end
+    if otherToken.properties:HasCondition("da6867b1-01e3-4570-8d1b-1b94ea1ea343") and subjectProps:CalculateNamedCustomAttribute("Can Share Space With Prone Creatures") > 0 then
+        return true
+    end
+    return false
+end
+
+--Draw Steel: a creature can't end its movement in another creature's space. This says
+--whether this creature may stop in a square `otherToken` occupies anyway. The engine calls
+--it when placing creatures (summons, teleports, find-a-free-space), and the movement
+--tooltip uses it to warn about an illegal stop. Either creature's trait is enough, so a
+--creature with "Can Share Space With Any Creature" also lets others into its square.
+--- @param otherToken CharacterToken
+--- @return boolean
+function creature:CanShareSpaceWith(otherToken)
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil or otherToken == nil or otherToken.properties == nil then
+        return false
+    end
+    if self:IsPassthrough() or otherToken.properties:IsPassthrough() then
+        return true
+    end
+    --creatures two or more sizes apart can share a space.
+    if math.abs(ourToken.creatureSizeNumber - otherToken.creatureSizeNumber) >= 2 then
+        return true
+    end
+    return SharesSpaceByTrait(self, ourToken, otherToken) or SharesSpaceByTrait(otherToken.properties, otherToken, ourToken)
+end
+
 --- @param flags {shifting: boolean} if true, the creature is shifting.
 --- @return boolean true if the creature can navigate difficult terrain, false if it cannot.
 function creature:CanNavigateDifficultTerrain(flags)
@@ -7201,6 +7656,16 @@ function creature:AuraDamage(token, info)
             end
         end,
     }
+
+    --A rider on the move damage (e.g. Poisonous Thorns: "bleeding (save ends)").
+    local riderAbility = info.amount > 0 and info.aura.aura:GetMoveDamageRuleAbility() or nil
+    if riderAbility ~= nil then
+        local riderCasterToken = casterToken
+        if riderCasterToken == nil or not riderCasterToken.valid or not riderCasterToken.uploadable then
+            riderCasterToken = token
+        end
+        info.aura:FireTriggeredAbility(riderAbility, self, riderCasterToken)
+    end
 end
 
 function creature:CanMoveThroughWalls()

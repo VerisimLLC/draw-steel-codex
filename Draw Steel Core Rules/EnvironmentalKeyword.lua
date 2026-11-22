@@ -35,6 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
+--- @field powerRollEnterOnly boolean If true, the entry power roll fires only when a creature enters the area, not at the start of a turn spent in it. Same field name as Aura; copied onto zone auras along with the roll.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
 --- @field creatureFilter string GoblinScript evaluated against each creature to decide whether the keyword affects it at all. Empty (the class default) affects everyone. Applies to the whole keyword -- modifiers, triggers, the entry power roll, the move damage, AND the terrain rules (difficult terrain, water, concealment, climbable). The terrain half needs the engine: an aura reporting a filter is left out of FloorController.GetTileRulesAtLoc unless the caller names the creature it is asking about, and Aura.ApplyTo consults the filter for everything else, evaluating this script through AuraInstance:CreaturePassesFilterForToken and caching the verdict per creature per game update. Merged onto an aura's own creatureFilter with an "and" rather than skipped like the other fields, because a filter is a restriction -- dropping it would WIDEN who the keyword affects.
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
@@ -72,6 +73,7 @@ EnvironmentalKeyword.movementDamageFilter = "all"
 EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
 EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
+EnvironmentalKeyword.powerRollEnterOnly = false
 EnvironmentalKeyword.includeAdjacent = false
 EnvironmentalKeyword.creatureFilter = ""
 
@@ -104,6 +106,12 @@ EnvironmentalKeyword.aiDirectiveTypes = {
 		text = "Hold",
 		tooltip = "Creatures the Monster AI controls treat a zone of this type as their post: when they can reach it they always end their movement inside it, and one that is driven out heads back before doing anything else.",
 		filterHelp = "Which creatures hold zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
+	{
+		id = "retreat",
+		text = "Retreat",
+		tooltip = "Where creatures the Monster AI controls run to once they want to retreat (an Encounter Script decides when). A retreating creature flees here, avoiding opportunity attacks where it can, and leaves the map once it reaches the zone. Monsters never retreat unless a script says so.",
+		filterHelp = "Which creatures may escape through zones of this type. Leave it empty for every creature the Monster AI controls.",
 	},
 }
 
@@ -266,6 +274,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 				auraDef.powerRollEnabled = true
 				auraDef.powerRollBonus = keyword:try_get("powerRollBonus", 0)
 				auraDef.powerRollTiers = dmhub.DeepCopy(tiers)
+				if keyword:try_get("powerRollEnterOnly", false) == true then
+					auraDef.powerRollEnterOnly = true
+				end
 			end
 		end
 	end)
@@ -3744,22 +3755,16 @@ creature.RegisterSymbol {
 	},
 }
 
---True if the floor the token stands on is capped by a ceiling (layers report
---their parent floor's). A token whose floor cannot be found counts as covered.
+--True if something is overhead: a roof's art or an upper storey over any square
+--the token occupies, or its floor's ceiling setting. Decided per square by the
+--engine, so a token in a courtyard beside a roofed building is under open sky.
 --- @param token CharacterToken
 --- @return boolean
 local function TokenFloorHasCeiling(token)
-	local map = game.currentMap
-	local loc = token.loc
-	if map == nil or loc == nil then
+	if game.currentMap == nil or token.loc == nil then
 		return true
 	end
-	for _,floor in ipairs(map.floors) do
-		if floor.floorIndex == loc.floor then
-			return floor.hasCeiling == true
-		end
-	end
-	return true
+	return token.coveredOverhead == true
 end
 
 --True if a zone over the squares the token occupies shelters it from the sky:
@@ -3821,7 +3826,7 @@ creature.RegisterSymbol {
 	help = {
 		name = "Exposed To Sky",
 		type = "boolean",
-		desc = "True if nothing is between the creature and the sky: its floor has no ceiling (see the floor's Ceiling setting) and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
+		desc = "True if nothing is between the creature and the sky: no roof or upper floor is over the squares it occupies, its floor's Ceiling setting doesn't cover it, and it is not in a map zone whose type covers the sky, such as a Tree Canopy.",
 		seealso = {"Environment"},
 		examples = {"Exposed To Sky"},
 	},

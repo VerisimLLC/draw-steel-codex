@@ -48,7 +48,8 @@ local function HeroPlayerName(tok)
     end
     local name = owner
     pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
-    return name
+    --their Player Tag, known while the town is connected (not inside a game yet).
+    return name .. EotwPlayerTags.Inline(EotwPlayerTags.TagOf(owner), 90)
 end
 
 --
@@ -365,15 +366,15 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwResIcon"},
-        width = 17,
-        height = 17,
+        width = 25,
+        height = 25,
         halign = "left",
         valign = "center",
         bgcolor = "white",
     },
     {
         selectors = {"eotwResValue"},
-        fontSize = 14,
+        fontSize = 21,
         bold = true,
         color = "#ffffff",
         width = "auto",
@@ -440,12 +441,12 @@ local g_heroCardRules = {
     --with a light ring and the count in white.
     {
         selectors = {"eotwRecoveriesCircle"},
-        width = 16,
-        height = 16,
+        width = 22,
+        height = 22,
         valign = "center",
         halign = "left",
         rmargin = 3,
-        cornerRadius = 8,
+        cornerRadius = 11,
         bgimage = "panels/square.png",
         bgcolor = "#000000aa",
         border = 1,
@@ -457,7 +458,7 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwRecoveriesLabel"},
-        fontSize = 10,
+        fontSize = 15,
         bold = true,
         color = "#ffffff",
         width = "100%",
@@ -471,12 +472,12 @@ local g_heroCardRules = {
     --disc the size of the recoveries circle, brighter on hover.
     {
         selectors = {"eotwSpendRecovery"},
-        width = 14,
-        height = 14,
+        width = 20,
+        height = 20,
         valign = "center",
         halign = "left",
         rmargin = 3,
-        cornerRadius = 7,
+        cornerRadius = 10,
         bgimage = "panels/square.png",
         bgcolor = "#2f7d3acc",
         border = 1,
@@ -489,7 +490,7 @@ local g_heroCardRules = {
     },
     {
         selectors = {"eotwSpendRecoveryLabel"},
-        fontSize = 13,
+        fontSize = 19,
         bold = true,
         color = "#ffffff",
         width = "100%",
@@ -577,9 +578,15 @@ local CARD_WIDTH = 132
 --the player line grows the card and its overlay alike, so the artwork
 --above the overlay keeps its size.
 local CARD_HEIGHT = 176 + PLAYER_HEIGHT
-local OVERLAY_HEIGHT = 60 + PLAYER_HEIGHT
+--the stamina row and the resource row are drawn half again as large as
+--they were (user direction 2026-11-19); the plate grows up over the
+--artwork for them and the card keeps its size.
+local OVERLAY_HEIGHT = 76 + PLAYER_HEIGHT
 --the heroic resource row's share of the overlay (CreateResourceRow).
-local RESOURCE_ROW_HEIGHT = 19
+local RESOURCE_ROW_HEIGHT = 28
+--the card's stamina row and the bar inside it, and the bar's numbers.
+local STAMINA_ROW_HEIGHT = 23
+local CARD_STAMINA_BAR = { height = 21, fontSize = 15 }
 --condition chips in the card's top-right corner: the outer dark/red-bordered
 --chip and the condition icon inside it.
 local CONDITION_CHIP_SIZE = 26
@@ -638,6 +645,192 @@ local STAMINA_SLIDE_TAU = 0.14
 local STAMINA_SLIDE_MAX_TIME = 0.7
 local STAMINA_SLIDE_THINK = 0.02
 
+--How much of a creature's Stamina the local user may see on a card, by the
+--same rules as its token's stamina bar (the "lifebar" in DrawSteelTokenHud):
+--"val" (the numbers), "pct" (a percentage), "bar" (the fill alone) or "none".
+--The Director and the creature's controller always see it all: the token's
+--"shown to Director / controlling player" settings are display preferences,
+--and both can open the sheet anyway. The lobby (the town) is not gated.
+local function StaminaDisplayFor(tok)
+    if dmhub.isDM or dmhub.isLobbyGame then
+        return "val"
+    end
+    local controlled, friend = false, false
+    pcall(function() controlled = tok.canControl == true end)
+    pcall(function() friend = tok.isFriendOfPlayer == true end)
+    if controlled then
+        return "val"
+    end
+    if friend then
+        local party = true
+        pcall(function() party = dmhub.GetSettingValue("hpbarforparty") ~= false end)
+        return cond(party, "val", "none")
+    end
+    local mode = "none"
+    pcall(function() mode = dmhub.GetSettingValue("enemystambardisplay") or "none" end)
+    if mode == "none" or mode == "val" then
+        return mode
+    end
+    --a monster whose Stamina the players have learned (Monster Info) shows
+    --its numbers, as on the token. rawget: Draw Steel Core Rules may not be loaded.
+    local knowledge = rawget(_G, "MonsterKnowledge")
+    if knowledge ~= nil and knowledge.PlayersKnowStaminaExactly ~= nil then
+        local knows = false
+        pcall(function() knows = knowledge.PlayersKnowStaminaExactly(tok.properties, tok) == true end)
+        if knows then
+            return "val"
+        end
+    end
+    return mode
+end
+
+--Whether the local user may make a card's click edits at all (typing a
+--Stamina or heroic resource, spending a Recovery from the circle). The
+--Director always may; players may not in an Encounter of the Week game or
+--under strict resource rules (StrictActionEconomyEnforced).
+--- @return boolean
+local function CardEditsAllowed()
+    if dmhub.isDM then
+        return true
+    end
+    if StrictActionEconomyEnforced() then
+        return false
+    end
+    local eotw = false
+    local eotwGame = rawget(_G, "EncounterOfTheWeekGame")
+    if eotwGame ~= nil then
+        pcall(function() eotw = eotwGame.IsEotwGame() == true end)
+    end
+    return not eotw
+end
+
+--A number box that stands in for a value on the card while it is edited
+--(the Stamina numbers, the heroic resource). open() fills it from
+--args.current() -- nil means no edit is allowed, and nothing opens -- hides
+--args.label and focuses the box. Enter applies the typed whole number
+--through args.apply; Escape or clicking away just closes it.
+--args: label, current, apply; fontSize; width (default "100%"); floating
+--(default true: it lies over the label rather than taking its place).
+--- @class CardNumberEntryArgs
+--- @field label Panel
+--- @field current fun(): number|nil
+--- @field apply fun(value: integer)
+--- @field fontSize number|nil
+--- @field width string|number|nil
+--- @field floating boolean|nil
+
+--- @param args CardNumberEntryArgs
+--- @return Input entry
+--- @return fun() open
+local function CreateNumberEntry(args)
+    ---@type Input
+    local entry
+    --true while the box is up; a change that arrives after it closed (an
+    --escape's focus loss) is not applied.
+    local m_open = false
+    --true once the box really has focus, so the defocus fired while it is
+    --still opening does not shut it again.
+    local m_focused = false
+
+    local function Close()
+        m_open = false
+        m_focused = false
+        if entry.valid then
+            entry:SetClass("collapsed", true)
+            entry.captureEscape = false
+        end
+        if args.label.valid then
+            args.label:SetClass("collapsed", false)
+        end
+    end
+
+    entry = gui.Input{
+        classes = {"collapsed"},
+        floating = args.floating ~= false,
+        width = args.width or "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000dd",
+        color = "#ffffff",
+        bold = true,
+        fontSize = args.fontSize,
+        textAlignment = "center",
+        --blank rather than the default "Enter text...", which is wider
+        --than the box.
+        placeholderText = "",
+        characterLimit = 5,
+        selectAllOnFocus = true,
+        hoverCursor = "text",
+        captureEscape = false,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        --a click inside the box is for the box, not for turning the card.
+        click = function(element) end,
+        escape = function(element)
+            Close()
+            gui.SetFocus(nil)
+        end,
+        focus = function(element)
+            m_focused = true
+        end,
+        defocus = function(element)
+            if not m_focused then
+                return
+            end
+            m_focused = false
+            --a frame later: change also fires on focus loss and must run
+            --first, and a click inside the box defocuses and refocuses it.
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded or not element.valid then
+                    return
+                end
+                if m_focused or not m_open then
+                    return
+                end
+                Close()
+            end)
+        end,
+        change = function(element)
+            if not m_open then
+                return
+            end
+            local text = element.text
+            Close()
+            local value = tonumber(text)
+            if value ~= nil then
+                args.apply(math.floor(value))
+            end
+        end,
+    }
+
+    local function Open()
+        local current = args.current()
+        if current == nil then
+            return
+        end
+        audio.FireSoundEvent("Mouse.Click")
+        entry.textNoNotify = tostring(current)
+        args.label:SetClass("collapsed", true)
+        entry:SetClass("collapsed", false)
+        entry.captureEscape = true
+        m_open = true
+        m_focused = false
+        --a frame later: the box is still collapsed as far as the engine
+        --knows, so focusing it now does not stick.
+        dmhub.Schedule(0.01, function()
+            if mod.unloaded then
+                return
+            end
+            if m_open and entry.valid then
+                gui.SetFocus(entry)
+            end
+        end)
+    end
+
+    return entry, Open
+end
+
 --The stamina bar: the character panel's health bar in miniature -- a
 --theme-bordered track whose border and fill both track the
 --healthy/winded/dying state (success/warning/danger, the documented
@@ -652,7 +845,9 @@ local STAMINA_SLIDE_THINK = 0.02
 --card flashes green.
 --
 --opts (optional): height (default 14) and fontSize for the numbers, for a
---bar drawn larger than the card's (the hero sheet's).
+--bar drawn larger than the card's (the hero sheet's). editable: a click on
+--the numbers swaps them for an entry box holding the current Stamina, and
+--enter sets it (the Director or the creature's controller only).
 local function CreateStaminaBar(charid, opts)
     opts = opts or {}
     local fill = gui.Panel{
@@ -674,6 +869,9 @@ local function CreateStaminaBar(charid, opts)
         bgimage = true,
         interactable = false,
     }
+    --opens the Stamina entry box (opts.editable); set further down.
+    ---@type nil|fun()
+    local OpenEntry = nil
     local numbers = gui.Label{
         classes = {"eotwBarLabel"},
         floating = true,
@@ -681,7 +879,12 @@ local function CreateStaminaBar(charid, opts)
         valign = "center",
         fontSize = opts.fontSize,
         text = "",
-        interactable = false,
+        interactable = opts.editable == true,
+        click = opts.editable and function(element)
+            if OpenEntry ~= nil then
+                OpenEntry()
+            end
+        end or nil,
     }
 
     --what the fill is drawn at right now, easing toward the true fraction
@@ -703,6 +906,62 @@ local function CreateStaminaBar(charid, opts)
     --counting it would flash the card green for it. nil on the same terms
     --as m_seenTotal.
     local m_seenCur = nil
+    --how much of the stamina the local user may see (StaminaDisplayFor).
+    local m_display = "val"
+
+    --who may type a new Stamina: whoever can see the exact numbers and also
+    --controls the creature (or the Director), where card edits are allowed.
+    local function CanEdit(tok)
+        if tok == nil or not tok.valid or tok.properties == nil then
+            return false
+        end
+        if not CardEditsAllowed() or StaminaDisplayFor(tok) ~= "val" then
+            return false
+        end
+        local control = false
+        pcall(function() control = tok.canControl == true end)
+        return dmhub.isDM or control
+    end
+
+    --the entry box for opts.editable; nil when not editable.
+    ---@type Input|nil
+    local entry = nil
+    if opts.editable then
+        entry, OpenEntry = CreateNumberEntry{
+            label = numbers,
+            fontSize = opts.fontSize,
+            current = function()
+                local tok = dmhub.GetCharacterById(charid)
+                if not CanEdit(tok) then
+                    return nil
+                end
+                ---@cast tok -nil
+                return tok.properties:CurrentHitpoints()
+            end,
+            apply = function(value)
+                local tok = dmhub.GetCharacterById(charid)
+                if not CanEdit(tok) then
+                    return
+                end
+                ---@cast tok -nil
+                --only heroes go below zero; they keep counting down while dying.
+                local hero = false
+                pcall(function() hero = tok.properties:IsHero() == true end)
+                if value < 0 and not hero then
+                    return
+                end
+                if value == tok.properties:CurrentHitpoints() then
+                    return
+                end
+                tok:ModifyProperties{
+                    description = "Set Stamina",
+                    execute = function()
+                        tok.properties:SetStaminaDirect(value)
+                    end,
+                }
+            end,
+        }
+    end
 
     --paint the two fills and the numbers from m_shownPct.
     local function Paint()
@@ -721,17 +980,25 @@ local function CreateStaminaBar(charid, opts)
         if m_shownPct ~= m_targetPct and m_cur > 0 then
             shown = math.ceil(pct * m_max)
         end
-        local text = string.format("%d/%d", shown, m_max)
-        if m_temp > 0 then
-            text = string.format("%s +%d", text, m_temp)
+        local text = ""
+        if m_display == "val" then
+            text = string.format("%d/%d", shown, m_max)
+            if m_temp > 0 then
+                text = string.format("%s +%d", text, m_temp)
+            end
+        elseif m_display == "pct" then
+            text = string.format("%d%%", round(100 * pct + 100 * m_temp / m_max))
         end
         numbers.text = text
     end
 
-    return gui.Panel{
+    --the visible bar. It sits in a plain holder that keeps the logic, so
+    --hiding it ("none", StaminaDisplayFor) never stops the refresh or the
+    --slide's think, which would leave it hidden for good.
+    local track = gui.Panel{
         classes = {"bordered"},
         width = "100%",
-        height = opts.height or 14,
+        height = "100%",
         flow = "horizontal",
         halign = "center",
         cornerRadius = 2,
@@ -741,6 +1008,17 @@ local function CreateStaminaBar(charid, opts)
         fill,
         tempFill,
         numbers,
+    }
+    if entry ~= nil then
+        track:AddChild(entry)
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = opts.height or 14,
+        halign = "center",
+        interactable = false,
+        track,
 
         --any character change (damage, healing, temp stamina) lands here
         --straight away, so the flash and the hit sound follow the hit
@@ -781,6 +1059,8 @@ local function CreateStaminaBar(charid, opts)
             end
             m_cur, m_max, m_temp = cur, max, temp
             m_targetPct = math.max(0, math.min(1, cur / max))
+            m_display = StaminaDisplayFor(tok)
+            track:SetClass("collapsed", m_display == "none")
 
             --stamina lost: flash the card and play the hit. Temp stamina
             --is counted in, so a hit fully soaked by temp still reads as
@@ -813,9 +1093,9 @@ local function CreateStaminaBar(charid, opts)
 
             fill:SetClass("winded", winded)
             fill:SetClass("dying", dying)
-            element:SetClass("borderSuccess", not winded and not dying)
-            element:SetClass("borderWarning", winded and not dying)
-            element:SetClass("borderDanger", dying)
+            track:SetClass("borderSuccess", not winded and not dying)
+            track:SetClass("borderWarning", winded and not dying)
+            track:SetClass("borderDanger", dying)
             Paint()
         end,
 
@@ -847,7 +1127,9 @@ end
 --character panel's own source) with the current value beside it. Surges
 --are NOT here -- they render as per-surge icons in the card's bottom-right
 --corner (CreateSurgeCorner).
-local function CreateResourceRow(charid)
+--editable: a click on the value opens a box to type a new one (the Director
+--or the hero's controller, where CardEditsAllowed).
+local function CreateResourceRow(charid, editable)
     local hrIcon = gui.Panel{
         classes = {"eotwResIcon"},
         interactable = false,
@@ -879,10 +1161,17 @@ local function CreateResourceRow(charid)
             end
         end,
     }
+    ---@type nil|fun()
+    local OpenEntry = nil
     local hrValue = gui.Label{
         classes = {"eotwResValue"},
         text = "0",
-        interactable = false,
+        interactable = editable == true,
+        click = editable and function(element)
+            if OpenEntry ~= nil then
+                OpenEntry()
+            end
+        end or nil,
         refreshCard = function(element)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
@@ -893,21 +1182,91 @@ local function CreateResourceRow(charid)
             element.text = tostring(value)
         end,
     }
+    ---@type Panel[]
+    local children = { hrIcon, hrValue }
+    if editable then
+        --who may change it: a hero or companion's controller (or the
+        --Director), where card edits are allowed.
+        local function EditableToken()
+            local tok = dmhub.GetCharacterById(charid)
+            if tok == nil or not tok.valid or tok.properties == nil or not CardEditsAllowed() then
+                return nil
+            end
+            local ok = false
+            pcall(function()
+                ok = (dmhub.isDM or tok.canControl == true)
+                    and (tok.properties:IsHero() or tok.properties:IsCompanion())
+            end)
+            if not ok then
+                return nil
+            end
+            return tok
+        end
+        local entry
+        entry, OpenEntry = CreateNumberEntry{
+            label = hrValue,
+            fontSize = 18,
+            width = 44,
+            floating = false,
+            current = function()
+                local tok = EditableToken()
+                if tok == nil then
+                    return nil
+                end
+                return tok.properties:GetHeroicOrMaliceResources()
+            end,
+            --as the character panel sets it: clamped to what the resource
+            --allows, then refreshed or consumed by the difference.
+            apply = function(value)
+                local tok = EditableToken()
+                if tok == nil then
+                    return
+                end
+                local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
+                local amount = value
+                if resource ~= nil then
+                    amount = resource:ClampQuantity(tok.properties, value)
+                end
+                local diff = amount - tok.properties:GetHeroicOrMaliceResources()
+                if diff == 0 then
+                    return
+                end
+                tok:ModifyProperties{
+                    description = "Change Heroic Resource",
+                    execute = function()
+                        if diff > 0 then
+                            tok.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                        else
+                            tok.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                        end
+                    end,
+                }
+            end,
+        }
+        entry.selfStyle.lmargin = 3
+        entry.selfStyle.height = "100%-4"
+        children[#children+1] = entry
+    end
     return gui.Panel{
         width = "100%",
         height = RESOURCE_ROW_HEIGHT,
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        hrIcon,
-        hrValue,
+        children = children,
     }
 end
 
+--forward-declared: the circle's click and the "+" button both spend one.
+local SpendableRecovery
+local SpendRecovery
+
 --The recoveries circle: the hero's remaining recoveries (max minus the
 --ones spent this long rest), in a small ringed disc. The ring turns red
---when none are left.
-local function CreateRecoveriesCircle(charid)
+--when none are left. Hidden from anyone who may not see the hero's exact
+--Stamina (StaminaDisplayFor); barHolder then takes the circle's room.
+--spendOnClick: a click on the circle spends one (SpendRecovery).
+local function CreateRecoveriesCircle(charid, barHolder, spendOnClick)
     local label = gui.Label{
         classes = {"eotwRecoveriesLabel"},
         text = "0",
@@ -920,6 +1279,11 @@ local function CreateRecoveriesCircle(charid)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
                 return
+            end
+            local hide = StaminaDisplayFor(tok) ~= "val"
+            if hide ~= element:HasClass("collapsed") then
+                element:SetClass("collapsed", hide)
+                barHolder.selfStyle.width = cond(hide, "100%", "100%-25")
             end
             local current = 0
             pcall(function()
@@ -954,13 +1318,20 @@ local function CreateRecoveriesCircle(charid)
             end
             gui.Tooltip(table.concat(lines, "\n"))(element)
         end,
+        click = spendOnClick and function(element)
+            if not CardEditsAllowed() then
+                return
+            end
+            SpendRecovery(charid)
+            element:FireEvent("refreshCard")
+        end or nil,
     }
 end
 
 --Can the local user spend one of this hero's Recoveries right now? They
 --must control the hero, be below max Stamina and have a Recovery left.
 --Returns the Stamina it would give, or nil.
-local function SpendableRecovery(tok)
+SpendableRecovery = function(tok)
     if tok == nil or not tok.valid or tok.properties == nil or IsCardHeroDead(tok) then
         return nil
     end
@@ -984,6 +1355,26 @@ local function SpendableRecovery(tok)
     return amount
 end
 
+--Spends one of the hero's Recoveries for Recovery-value Stamina, if
+--SpendableRecovery allows it; otherwise does nothing.
+--- @param charid string
+SpendRecovery = function(charid)
+    local tok = dmhub.GetCharacterById(charid)
+    if SpendableRecovery(tok) == nil then
+        return
+    end
+    ---@cast tok -nil
+    audio.FireSoundEvent("Mouse.Click")
+    tok:ModifyProperties{
+        description = "Use Recovery",
+        execute = function()
+            local props = tok.properties
+            props:Heal(props:RecoveryAmount(), "Use Recovery")
+            props:ConsumeResource(CharacterResource.recoveryResourceId, "long", 1, "Used Recovery")
+        end,
+    }
+end
+
 --The small "+" beside the recoveries circle: spends one Recovery to regain
 --Recovery-value Stamina, no action needed (EotW montages and the screens
 --before a fight). Collapsed whenever SpendableRecovery says no; barHolder
@@ -997,7 +1388,7 @@ local function CreateSpendRecoveryButton(charid, barHolder)
             local show = SpendableRecovery(dmhub.GetCharacterById(charid)) ~= nil
             if show ~= not element:HasClass("collapsed") then
                 element:SetClass("collapsed", not show)
-                barHolder.selfStyle.width = cond(show, "100%-36", "100%-19")
+                barHolder.selfStyle.width = cond(show, "100%-48", "100%-25")
             end
         end,
         linger = function(element)
@@ -1007,20 +1398,7 @@ local function CreateSpendRecoveryButton(charid, barHolder)
             end
         end,
         press = function(element)
-            local tok = dmhub.GetCharacterById(charid)
-            if SpendableRecovery(tok) == nil then
-                return
-            end
-            ---@cast tok -nil
-            audio.FireSoundEvent("Mouse.Click")
-            tok:ModifyProperties{
-                description = "Use Recovery",
-                execute = function()
-                    local props = tok.properties
-                    props:Heal(props:RecoveryAmount(), "Use Recovery")
-                    props:ConsumeResource(CharacterResource.recoveryResourceId, "long", 1, "Used Recovery")
-                end,
-            }
+            SpendRecovery(charid)
             element:FireEvent("refreshCard")
         end,
         gui.Label{ classes = {"eotwSpendRecoveryLabel"}, text = "+", interactable = false },
@@ -1031,34 +1409,40 @@ end
 --stamina bar filling the rest. The bar keeps firing staminaLost /
 --staminaGained up through this row to the card. noRecoveries drops the
 --circle (a monster or NPC card: they have no recoveries). spendRecovery
---adds the "+" that spends one (CreateSpendRecoveryButton).
-local function CreateStaminaRow(charid, noRecoveries, spendRecovery)
+--adds the "+" that spends one (CreateSpendRecoveryButton). clickToEdit: a
+--click on the Stamina numbers edits them, and one on the circle spends a
+--Recovery.
+local function CreateStaminaRow(charid, noRecoveries, spendRecovery, clickToEdit)
+    local barOpts = CARD_STAMINA_BAR
+    if clickToEdit then
+        barOpts = { height = CARD_STAMINA_BAR.height, fontSize = CARD_STAMINA_BAR.fontSize, editable = true }
+    end
     if noRecoveries then
         return gui.Panel{
             width = "100%",
-            height = 16,
+            height = STAMINA_ROW_HEIGHT,
             halign = "center",
             valign = "center",
             interactable = false,
-            CreateStaminaBar(charid),
+            CreateStaminaBar(charid, barOpts),
         }
     end
     local barHolder = gui.Panel{
-        width = "100%-19",
+        width = "100%-25",
         height = "auto",
         valign = "center",
         interactable = false,
-        CreateStaminaBar(charid),
+        CreateStaminaBar(charid, barOpts),
     }
     ---@type Panel[]
-    local children = { CreateRecoveriesCircle(charid) }
+    local children = { CreateRecoveriesCircle(charid, barHolder, clickToEdit == true) }
     if spendRecovery then
         children[#children+1] = CreateSpendRecoveryButton(charid, barHolder)
     end
     children[#children+1] = barHolder
     return gui.Panel{
         width = "100%",
-        height = 16,
+        height = STAMINA_ROW_HEIGHT,
         flow = "horizontal",
         halign = "center",
         valign = "center",
@@ -1609,6 +1993,14 @@ end
 --              Activities (the town's cards; see CreateDowntimeBadge)
 --  noRecoveries   no recoveries circle beside the stamina bar (a monster or
 --              NPC card on the tabletop view's table, Tabletop.lua)
+--  clickToEdit    a click on the Stamina numbers or the heroic resource
+--              opens a box to type a new value, and a click on the
+--              recoveries circle spends one (the tabletop view's cards;
+--              see CardEditsAllowed)
+--  noTurnButton   no hover button to turn the card over: the host turns it
+--              on a click instead (the tabletop view's cards)
+--  dragBack, onTurn   passed to HeroCardBack.Decorate: the host drags the
+--              turned card by its back, and places the card as it turns
 --  displayName    function(tok) -> the name on the card (default: the
 --              hero's name, "Unnamed Hero" when it has none)
 --  extraChips  function(charid) -> a list of extra status chips to show
@@ -1817,9 +2209,9 @@ local function CreateHeroCard(entry, opts)
     if showSkills then
         overlayChildren[#overlayChildren+1] = CreateSkillsLine(charid)
     end
-    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid, opts.noRecoveries, opts.spendRecovery == true)
+    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid, opts.noRecoveries, opts.spendRecovery == true, opts.clickToEdit == true)
     if showResources then
-        overlayChildren[#overlayChildren+1] = CreateResourceRow(charid)
+        overlayChildren[#overlayChildren+1] = CreateResourceRow(charid, opts.clickToEdit == true)
     end
 
     local overlayHeight = OVERLAY_HEIGHT
@@ -2011,7 +2403,11 @@ local function CreateHeroCard(entry, opts)
     --over to it (HeroCardBack.lua).
     local cardBack = rawget(_G, "HeroCardBack")
     if cardBack ~= nil then
-        cardBack.Decorate(cardArgs, charid, CARD_WIDTH, cardHeight)
+        cardBack.Decorate(cardArgs, charid, CARD_WIDTH, cardHeight, {
+            noButton = opts.noTurnButton == true,
+            dragBack = opts.dragBack == true,
+            onTurn = opts.onTurn,
+        })
     end
     if opts.click ~= nil then
         cardArgs.click = function(element)

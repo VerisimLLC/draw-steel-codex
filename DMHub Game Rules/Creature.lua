@@ -2280,7 +2280,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 	amount = math.floor(amount)
 	local originalAmount = amount
 
-    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --continuesInstance = { raw = N, landed = N, sameTurn = bool }: this damage is added onto a hit that
     --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
     --two count as ONE damage instance. If the hit landed anything, flat immunity and
     --weakness were fully applied to it already, so the extra goes on unmodified. If it
@@ -2337,8 +2337,15 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     end
 
 	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
-    if skipResistance then
+    --sameTurn: the earlier part is this effect's own damage earlier this turn
+    --("One Damage Instance per Turn"), not a hit this damage was added to.
+    local sameTurn = continuesInstance ~= nil and continuesInstance.sameTurn
+    if skipResistance and sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn; immunity and weakness already applied)', note)
+    elseif skipResistance then
         note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn, which dealt none; resisted together as %d)', note, amount)
     elseif continuesInstance ~= nil then
         note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
     end
@@ -6506,7 +6513,11 @@ function creature:FillEquipmentModifiers(result)
 			local features = item:try_get("features")
 			if features then
 				--consumeItemId: a trigger from a consumable spends the item (TriggerPayCost).
-				local params = cond(EquipmentCategory.IsConsumable(item), {consumeItemId = itemid}, nil)
+				--sourceItemId: lets game systems check the item a modifier came from.
+				local params = {sourceItemId = itemid}
+				if EquipmentCategory.IsConsumable(item) then
+					params.consumeItemId = itemid
+				end
 				for i,feature in ipairs(features) do
                     feature:FillModifiers(self, result, params)
 				end
@@ -6692,7 +6703,8 @@ function creature:FillBaseActiveModifiers(result)
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
-    local iscompanion = self.typeName == "AnimalCompanion"
+    --Asked of the creature, not its type name, so a companion subtype gets the companion rules too.
+    local iscompanion = self:IsCompanion()
 
 	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
 	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
@@ -7619,6 +7631,14 @@ function creature:OnTeleport(path)
 		return
 	end
 
+    if path ~= nil and path.origin ~= nil then
+        self:RecordTeleportOrigin(path.origin)
+    end
+
+    if path ~= nil and self:IsTeleportMove(path) then
+        self:HandleTeleportMove(path)
+    end
+
     local eventArgs = {}
     if path ~= nil then
         local ourToken = dmhub.LookupToken(self)
@@ -7633,6 +7653,175 @@ function creature:OnTeleport(path)
     end
 
 	self:DispatchEvent("teleport", eventArgs)
+end
+
+--Where each creature's latest teleport started, keyed by charid: {x, y, floor, size, turnId,
+--time}. Plain numbers, so the synced copy holds no userdata to re-diff on every upload.
+--Not a _tmp_ field, because the engine wipes those whenever it rebuilds the aura index.
+--time is dmhub.serverTime, so it compares with a record synced from another client.
+local g_teleportOrigins = {}
+
+--Out of combat a departure point stays meaningful for this many seconds.
+local g_teleportOriginLifetime = 300
+
+local function MakeTeleportOriginRecord(creatureProps, originLoc)
+    local tok = dmhub.LookupToken(creatureProps)
+    local q = dmhub.initiativeQueue
+    return {
+        x = originLoc.x,
+        y = originLoc.y,
+        floor = originLoc.floor,
+        size = tok ~= nil and tok.tileSize or 1,
+        turnId = (q ~= nil and not q.hidden) and q:GetTurnId() or nil,
+        time = dmhub.serverTime,
+    }
+end
+
+--- Remembers where this creature's latest teleport started, so effects that care about the
+--- departure square (Trail of Cinders' passenger, Burning Ash) can measure from it after the
+--- creature has already arrived. Kept on this client; a teleport made as movement is also
+--- synced (teleportMoveOrigin), so the controller's client can read it when its trigger runs there.
+--- @param originLoc Loc
+function creature:RecordTeleportOrigin(originLoc)
+    local charid = dmhub.LookupTokenId(self)
+    if charid ~= nil then
+        g_teleportOrigins[charid] = MakeTeleportOriginRecord(self, originLoc)
+    end
+end
+
+--- The newer of this client's record and the synced one, if it is still current: in combat
+--- it lasts until the turn changes, so an old departure point never feeds a later Burning Ash.
+--- @return nil|{x: number, y: number, floor: number, size: number, turnId: any, time: number}
+function creature:CurrentTeleportOriginRecord()
+    local charid = dmhub.LookupTokenId(self)
+    local record = charid ~= nil and g_teleportOrigins[charid] or nil
+    local synced = self:try_get("teleportMoveOrigin")
+    if type(synced) == "table" and synced.x ~= nil and (record == nil or (synced.time or 0) > (record.time or 0)) then
+        record = synced
+    end
+    if record == nil or record.x == nil then
+        return nil
+    end
+
+    local q = dmhub.initiativeQueue
+    if record.turnId ~= nil then
+        if q == nil or q.hidden or q:GetTurnId() ~= record.turnId then
+            return nil
+        end
+    elseif dmhub.serverTime - (record.time or 0) > g_teleportOriginLifetime then
+        return nil
+    end
+    return record
+end
+
+--- The footprint (one Loc per occupied square) this creature occupied before its latest
+--- teleport, or nil if there is none still current.
+--- @return nil|Loc[]
+function creature:TeleportOriginFootprint()
+    local record = self:CurrentTeleportOriginRecord()
+    if record == nil then
+        return nil
+    end
+
+    --core.Loc takes no floor of its own; WithDifferentFloor sets it.
+    local origin = core.Loc{ x = record.x, y = record.y }:WithDifferentFloor(record.floor)
+    local result = {}
+    local size = math.max(1, record.size or 1)
+    for i=0,size-1 do
+        for j=0,size-1 do
+            result[#result+1] = origin:dir(i, j)
+        end
+    end
+    return result
+end
+
+--- Distance in squares from another creature's space to the space this creature teleported
+--- away from. 1 means the other creature was adjacent to the departure point. Returns 999
+--- when there is no recorded teleport or the other creature is this creature.
+--- @param other creature
+--- @return number
+function creature:DistanceToTeleportOrigin(other)
+    local footprint = self:TeleportOriginFootprint()
+    local otherToken = other ~= nil and dmhub.LookupToken(other) or nil
+    if footprint == nil or otherToken == nil or otherToken.properties == self then
+        return 999
+    end
+
+    local best = 999
+    for _,otherLoc in ipairs(otherToken.locsOccupying) do
+        for _,originLoc in ipairs(footprint) do
+            if otherLoc.floor == originLoc.floor then
+                best = math.min(best, originLoc:DistanceInTiles(otherLoc))
+            end
+        end
+    end
+    return best
+end
+
+--- A teleport that is the creature's own movement: a Ctrl-drag by a player or a directorless
+--- game's player host of a creature that can teleport (the engine sets path.teleportAsMovement;
+--- never for the Director's), or a relocate flagged "Teleport Counts as Movement".
+--- @param path LuaPath
+--- @return boolean
+function creature:IsTeleportMove(path)
+    if path.teleportAsMovement then
+        return true
+    end
+    return self:try_get("_tmp_teleportCountsAsMovement") == true
+end
+
+--- Resolve a creature teleporting as its own movement (Cinder Step, an innate teleport speed):
+--- spend movement equal to the teleport distance, sync the departure point and fire the
+--- "teleportmove" trigger. An ability flagged "Teleport Counts as Movement" always pays:
+--- using the ability is the rules action.
+--- @param path LuaPath
+function creature:HandleTeleportMove(path)
+    if path.origin == nil or path.destination == nil then
+        return
+    end
+
+    local fromAbility = self:try_get("_tmp_teleportCountsAsMovement") and true or false
+
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+
+    self:RecordTeleportOrigin(path.origin)
+
+    local distance = creature.TeleportPathDistance(path)
+    --A relocate cast marks itself free movement; one flagged "Teleport Counts as Movement" still pays.
+    local paysForMovement = fromAbility or not self:try_get("_tmp_freeMovement")
+    local charge = distance > 0 and self:IsOurTurn() and paysForMovement
+    local syncedOrigin = MakeTeleportOriginRecord(self, path.origin)
+    token:ModifyProperties{
+        description = "Move Cost",
+        execute = function()
+            --Synced so a trigger relayed to the controller's client can read it there.
+            self.teleportMoveOrigin = syncedOrigin
+            if charge then
+                self.moveDistance = self:DistanceMovedThisTurn() + distance
+                self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+            end
+        end,
+    }
+
+    self:DispatchEvent("teleportmove", {
+        path = PathMoved.new{
+            path = path,
+            size = token.tileSize,
+        },
+    })
+end
+
+--- Squares a teleport path covers: the largest single dimension, so a straight climb is
+--- charged for its height. Matches the "Teleport: N squares" line in the movement tooltip.
+--- @param path LuaPath
+--- @return number
+function creature.TeleportPathDistance(path)
+    local distance = path.origin:DistanceInTiles(path.destination)
+    local altitudeDelta = math.abs((path.destination.altitude or 0) - (path.origin.altitude or 0))
+    return math.max(distance, altitudeDelta)
 end
 
 --Teleport opportunity-attack support. A teleport places the token directly at its
@@ -9843,6 +10032,10 @@ local function NearbyTokenMatchesCriteria(token, nearby, criteria)
     return matches
 end
 
+--Public so the square versions of Count Nearby Friends (in MCDMMonster.lua)
+--filter creatures the same way the creature versions below do.
+creature.NearbyTokenMatchesCriteria = NearbyTokenMatchesCriteria
+
 local countriders = function(c, criteria)
     return function(distance, x, y, w, z, xx, yy, ww, zz)
         local token = dmhub.LookupToken(c)
@@ -10638,6 +10831,11 @@ creature.lookupSymbols = {
         local q = dmhub.initiativeQueue
         if q ~= nil and not q.hidden then
             local id = q:GetTurnId()
+            --Something took away this creature's hidden benefits for the rest of this turn
+            --(creature:LoseHiddenBenefits), so it no longer counts as hidden this turn.
+            if c:try_get("hiddenBenefitsLostTurnId") == id then
+                return false
+            end
             return hiddenid == id
         end
 
@@ -12160,6 +12358,55 @@ function creature:DispatchEvent(eventName, info)
 		return
 	end
 
+	--A trigger set to "Fire after other abilities finish" waits for abilities running
+	--where it is evaluated, and the controller's machine cannot see ones running here, so
+	--hold the whole relay (its other triggers wait too), unless something waits on the event.
+	local holdRelay = false
+	if type(info) ~= "table" or rawget(info, "eventwaitid") == nil then
+		for _,entry in ipairs(mods) do
+			if entry.mod:HasTriggeredEvent(self, eventName, targetsOther, "skipLocal") then
+				local ability = entry.mod.triggeredAbility
+				if ability.triggerAfterCasts and ability:MayBePrompted() then
+					holdRelay = true
+					break
+				end
+			end
+		end
+	end
+
+	if holdRelay then
+		--Other code can still change the event's table, so relay it as it is now.
+		local infoAtFire = info ~= nil and table.shallow_copy_with_meta(info) or nil
+		ActivatedAbility.RunWhenCastsComplete(function()
+			--The creature may have died and left the map while waiting; then nothing fires.
+			if mod.unloaded or not token.valid or token.despawned or token.properties == nil then
+				return
+			end
+			--Who controls the creature may have changed while waiting.
+			local controller = TokenPromptControllerId(token)
+			if controller == nil then
+				token.properties:TriggerEvent(eventName, infoAtFire, triggeredOnOthers, "skipLocal")
+			else
+				token.properties:RelayEventToController(eventName, infoAtFire, controller, abilityNames)
+			end
+		end, {casterid = token.charid})
+		return
+	end
+
+	self:RelayEventToController(eventName, info, activecontroller, abilityNames)
+end
+
+--Sends an event to the machine of the user who answers this creature's prompts;
+--that machine evaluates the creature's triggers for it.
+--- @param eventName string
+--- @param info nil|table The event's details; tokens and creatures in it are sent as charid references.
+--- @param activecontroller string The userid of the machine that should evaluate the triggers.
+--- @param abilityNames string[] Names of the triggers being relayed, for the log.
+function creature:RelayEventToController(eventName, info, activecontroller, abilityNames)
+	local token = dmhub.LookupToken(self)
+	if token == nil then
+		return
+	end
 
     if info ~= nil then
         local serializedInfo = {}
@@ -13519,6 +13766,11 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local ignoredShiftEntry = enteredViaShift == true
 		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
 		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
+	--An enter-only roll skipped at the start of a turn must not use up this
+	--turn's entry, or walking in later in the turn would not roll.
+	local skippedBeginTurnRoll = fromBeginTurn == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollEnterOnly", false) == true
 
 	if not adjacentOnly then
 		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
@@ -13549,6 +13801,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
 		adjacentOnly = adjacentOnly == true,
 		enteredViaShift = enteredViaShift == true,
+		fromBeginTurn = fromBeginTurn == true,
 	}
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
@@ -13581,7 +13834,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
 	--for every other kind of entry, including inert auras.
 	local turnid = self:GetTurnId()
-	local consumeEntry = result or not ignoredShiftEntry
+	local consumeEntry = result or not (ignoredShiftEntry or skippedBeginTurnRoll)
 	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
 		info.token:ModifyProperties{
 			description = "Enter Aura",
@@ -15432,4 +15685,11 @@ end
 --- @return boolean
 function monster:IsMonster()
     return true
+end
+
+--- Returns false for most creatures; a hero's companion type (the Beastheart's
+--- AnimalCompanion and its subtypes) overrides it to true.
+--- @return boolean
+function creature:IsCompanion()
+    return false
 end

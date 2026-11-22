@@ -1748,9 +1748,128 @@ local function SeriesPartRecord(comingSoon, part)
 	return "comingSoonParts", { number = part.number, title = part.title, text = comingSoon.text }
 end
 
+--Tokens an Encounter of the Week module leaves out (FNPHVYCT). A game spawns
+--every monster its script's encounters place and brings the heroes from the
+--party, so a hero token, or a token of one of those monsters, still on an
+--encounter map (a playtest's spawn, a pregen) would join the fight twice.
+--Other tokens (bystanders, set dressing, creatures the script never spawns)
+--still ship. checks: one per encounter map, { name, mapids = {id -> true},
+--documents = {docid -> true}, bystanders = {lower-cased names} }.
+--Returns {guid -> true} to leave out, and the warnings that say so.
+local StrayEncounterTokens = function(ctx, checks, montage)
+	local strip = {}
+	local warnings = {}
+	--display names left out, per check (and heroes on no encounter map).
+	local leftOut = {}
+	local heroesElsewhere = {}
+
+	--the script's bystander rule (EncounterOfTheWeekGame.IsBystander): the
+	--token's name, "<name> <anything>", or its bestiary type.
+	local function IsBystander(tokenName, monsterType, names)
+		for _, name in ipairs(names) do
+			if tokenName == name or string.sub(tokenName, 1, #name + 1) == name .. " " or monsterType == name then
+				return true
+			end
+		end
+		return false
+	end
+
+	local seen = {}
+	local function Consider(guid)
+		if seen[guid] then
+			return
+		end
+		seen[guid] = true
+		local info = ctx.assetInfo[guid]
+		if info == nil or info.type ~= "character" then
+			return
+		end
+		local token = dmhub.GetCharacterById(guid)
+		if token == nil then
+			return
+		end
+
+		local check = nil
+		local mapid = token.mapid
+		for _, c in ipairs(checks) do
+			if mapid ~= nil and c.mapids[mapid] then
+				check = c
+				break
+			end
+		end
+
+		local isHero = false
+		pcall(function() isHero = token.properties:IsHero() == true end)
+		local stray = isHero
+		if not stray and check ~= nil then
+			if check.monsterIds == nil then
+				check.monsterIds = montage.EncounterMonsterIds(check.documents)
+				check.monsterNames = {}
+				for id in pairs(check.monsterIds) do
+					local asset = (assets.monsters or {})[id]
+					if asset ~= nil and type(asset.name) == "string" then
+						check.monsterNames[string.lower(asset.name)] = true
+					end
+				end
+			end
+			local monsterType = ""
+			pcall(function() monsterType = string.lower(token.properties:try_get("monster_type") or "") end)
+			local bestiaryId = token.bestiaryId
+			if (bestiaryId ~= nil and check.monsterIds[bestiaryId]) or check.monsterNames[monsterType] then
+				stray = not IsBystander(string.lower(token.name or ""), monsterType, check.bystanders)
+			end
+		end
+
+		if stray then
+			strip[guid] = true
+			local list = heroesElsewhere
+			if check ~= nil then
+				leftOut[check] = leftOut[check] or {}
+				list = leftOut[check]
+			end
+			list[#list + 1] = info.displayName or token.name or guid
+		end
+	end
+	for guid in pairs(ctx.includedAssets) do
+		Consider(guid)
+	end
+	for guid in pairs(ctx.dependencyAssets) do
+		Consider(guid)
+	end
+
+	--"Demon Ensnarer x4, The Iron Orb"
+	local function Summarize(names)
+		local counts = {}
+		local order = {}
+		for _, name in ipairs(names) do
+			if counts[name] == nil then
+				order[#order + 1] = name
+			end
+			counts[name] = (counts[name] or 0) + 1
+		end
+		table.sort(order)
+		local parts = {}
+		for _, name in ipairs(order) do
+			parts[#parts + 1] = cond(counts[name] > 1, string.format("%s x%d", name, counts[name]), name)
+		end
+		return table.concat(parts, ", ")
+	end
+	for _, c in ipairs(checks) do
+		if leftOut[c] ~= nil then
+			warnings[#warnings + 1] = string.format("%s: %d token(s) on the map will be left out of the module: %s. The game spawns the encounter's monsters from the script and brings the heroes from the party, so these would fight twice.", c.name, #leftOut[c], Summarize(leftOut[c]))
+		end
+	end
+	if #heroesElsewhere > 0 then
+		warnings[#warnings + 1] = string.format("%d hero(es) will be left out of the module: %s. Encounter of the Week heroes come from the party.", #heroesElsewhere, Summarize(heroesElsewhere))
+	end
+	return strip, warnings
+end
+
 local CheckEncounterModule = function(ctx)
-	local result = { errors = {}, warnings = {}, encounters = {} }
+	local result = { errors = {}, warnings = {}, encounters = {}, strip = {} }
 	local errors, warnings = result.errors, result.warnings
+	--one per encounter map, for StrayEncounterTokens.
+	local strayChecks = {}
 
 	local eotw = rawget(_G, "EncounterOfTheWeek")
 	local montage = rawget(_G, "EncounterMontage")
@@ -1832,6 +1951,15 @@ local CheckEncounterModule = function(ctx)
 				ctx.include(docid)
 			end
 
+			local strayCheck = { name = m.name, mapids = {}, documents = {}, bystanders = {} }
+			strayChecks[#strayChecks+1] = strayCheck
+			if m.id ~= nil then
+				strayCheck.mapids[m.id] = true
+			end
+			for docid,_ in pairs(found.documents) do
+				strayCheck.documents[docid] = true
+			end
+
 			--a partner's art must carry their credit (a licence term).
 			local unsetWatermarks = {}
 			for _,wm in ipairs({ m, table.unpack(partMaps[m.name] or {}) }) do
@@ -1855,8 +1983,10 @@ local CheckEncounterModule = function(ctx)
 				if not pmOk or pmFound == nil then
 					errors[#errors+1] = string.format("%s: its script could not be read: %s", pm.name, tostring(pmErr))
 				else
+					strayCheck.mapids[pm.id] = true
 					for docid,_ in pairs(pmFound.documents) do
 						ctx.include(docid)
+						strayCheck.documents[docid] = true
 					end
 					if #(pmFound.parts or {}) == 0 then
 						errors[#errors+1] = string.format("%s: its script needs a \"# Part %d\" heading.", pm.name, pm.part)
@@ -1903,6 +2033,12 @@ local CheckEncounterModule = function(ctx)
 
 			if #scripts == 0 and not series then
 				errors[#errors+1] = string.format("%s: no script. File a journal document with # Narrative, # Montage and # Encounter beats in this map's journal folder.", m.name)
+			end
+
+			for _,entry in ipairs(scripts) do
+				for _,name in ipairs(montage.BystanderNames(entry.script.parse)) do
+					strayCheck.bystanders[#strayCheck.bystanders+1] = name
+				end
 			end
 
 			local parts = {}
@@ -1996,6 +2132,12 @@ local CheckEncounterModule = function(ctx)
 		end
 	end
 
+	local strayWarnings
+	result.strip, strayWarnings = StrayEncounterTokens(ctx, strayChecks, montage)
+	for _,w in ipairs(strayWarnings) do
+		warnings[#warnings+1] = w
+	end
+
 	return result
 end
 
@@ -2012,6 +2154,130 @@ local g_heroOptionTables = {
 	complications = true,
 	titles = true,
 }
+
+--Game type names used anywhere inside one published entry, keyed by entry guid.
+--Entries don't change while the dialog is open, so each is walked once.
+local g_entryGameTypesCache = {}
+
+--The data behind a publish-dialog entry, for the entry kinds that can hold
+--game-typed content (compendium objects, bestiary monsters, characters).
+local function PublishedEntryData(guid, info)
+	local t = info.type or ""
+	local tableName = string.match(t, "^object:(.+)$")
+	if tableName ~= nil then
+		local tbl = dmhub.GetTable(tableName)
+		return tbl ~= nil and tbl[guid] or nil
+	elseif t == "Monster" then
+		local monster = assets.monsters[guid]
+		return monster ~= nil and monster.properties or nil
+	elseif t == "character" then
+		local token = dmhub.GetCharacterById(guid)
+		return token ~= nil and token.properties or nil
+	end
+	return nil
+end
+
+--{typeName -> true} for every game-typed table reachable from the entry. Walks
+--with next() so no type's metamethods run.
+local function EntryGameTypes(guid, info)
+	local cached = g_entryGameTypesCache[guid]
+	if cached ~= nil then
+		return cached
+	end
+	local result = {}
+	local seen = {}
+	local function Walk(v, depth)
+		if type(v) ~= "table" or seen[v] or depth > 40 then
+			return
+		end
+		seen[v] = true
+		local mt = getmetatable(v)
+		local typeName = type(mt) == "table" and rawget(mt, "typeName") or nil
+		if type(typeName) == "string" then
+			result[typeName] = true
+		end
+		for _, child in next, v do
+			Walk(child, depth + 1)
+		end
+	end
+	pcall(function() Walk(PublishedEntryData(guid, info), 0) end)
+	g_entryGameTypesCache[guid] = result
+	return result
+end
+
+--Warnings, for every module type, when the content being published uses game
+--types whose code won't reach the people who install it: a code mod of this
+--game that isn't ticked, or no loaded code at all (an engine placeholder).
+--Without it, installers get entries that break the panels that read them
+--(DBVJBNJT: a hero module's Servitor companions, published without their code).
+local function MissingCodeWarnings(ctx)
+	--code this game could bundle: the same lists the Code section offers.
+	local bundleable = {}
+	for _, modid in ipairs(code.loadedModsLocalToGame) do
+		bundleable[modid] = true
+	end
+	for _, modid in ipairs(code.loadedModsFromModules) do
+		bundleable[modid] = true
+	end
+
+	local included = {}
+	for guid, _ in pairs(ctx.includedAssets) do
+		included[guid] = true
+	end
+	for guid, _ in pairs(ctx.dependencyAssets) do
+		included[guid] = true
+	end
+
+	local usersByMod = {}      --{modid -> {entry display names}}
+	local unregistered = {}    --{typeName -> {entry display names}}
+	local registeringMod = rawget(_G, "g_gameTypeRegisteringMod") or {}
+	for guid, _ in pairs(included) do
+		local info = ctx.assetInfo[guid]
+		if info ~= nil and info.type ~= "code" then
+			for typeName, _ in pairs(EntryGameTypes(guid, info)) do
+				if IsPlaceholderGameType(typeName) then
+					local list = unregistered[typeName] or {}
+					list[#list + 1] = info.displayName
+					unregistered[typeName] = list
+				else
+					local modid = registeringMod[typeName]
+					if modid ~= nil and bundleable[modid] and not included[modid] then
+						local list = usersByMod[modid] or {}
+						list[#list + 1] = info.displayName
+						usersByMod[modid] = list
+					end
+				end
+			end
+		end
+	end
+
+	local function NameList(names)
+		local unique, seen = {}, {}
+		for _, name in ipairs(names) do
+			if not seen[name] then
+				seen[name] = true
+				unique[#unique + 1] = name
+			end
+		end
+		table.sort(unique)
+		if #unique > 5 then
+			return string.format("%s and %d more", table.concat(unique, ", ", 1, 5), #unique - 5)
+		end
+		return table.concat(unique, ", ")
+	end
+
+	local warnings = {}
+	for modid, names in pairs(usersByMod) do
+		local modInfo = code.GetMod(modid)
+		local modName = modInfo ~= nil and modInfo.name or modid
+		warnings[#warnings + 1] = string.format("%s need the code mod %s. Tick it under Code.", NameList(names), modName)
+	end
+	for typeName, names in pairs(unregistered) do
+		warnings[#warnings + 1] = string.format("%s use the type %s, which no code in this game defines.", NameList(names), typeName)
+	end
+	table.sort(warnings)
+	return warnings
+end
 
 --Module types. Each entry is an option in the Module Type dropdown at the top
 --of the publish dialog; the chosen id is stored on the module record as
@@ -2035,6 +2301,11 @@ local g_heroOptionTables = {
 --publishingProperties (optional) is called with the same ctx when the module
 --is published and returns {key -> value} to store in the module record's
 --publishingProperties.
+--
+--stripAssets (optional) is called with the same ctx when the module is
+--published and returns {guid -> true} for entries to leave out of the upload
+--even though they are checked or pulled in (an Encounter of the Week map's
+--leftover monster and hero tokens). Say so in a validate warning.
 --
 --excludedDependencyTypes (optional) is {row type -> true} for entries the
 --dependency search never pulls in. Excluding "module" also keeps out anything
@@ -2140,6 +2411,9 @@ local g_moduleTypes = {
 		publishingProperties = function(ctx)
 			return { eotwEncounters = CheckEncounterModule(ctx).encounters }
 		end,
+		stripAssets = function(ctx)
+			return CheckEncounterModule(ctx).strip
+		end,
 	},
 	{
 		--Hero options players add to their inventory on the titlescreen; the
@@ -2148,7 +2422,7 @@ local g_moduleTypes = {
 		--(see HeroModuleReviewAfterPublish below).
 		id = "hero",
 		text = "Hero Module",
-		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. Directors can still install it into a game like any module.",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. " .. UIText.Term("directors") .. " can still install it into a game like any module.",
 		validate = function(ctx)
 			local errors = {}
 			local warnings = {}
@@ -2202,7 +2476,7 @@ local g_moduleTypes = {
 				errors[#errors+1] = string.format("A Hero module's characters must be heroes, which become pregens: %s", table.concat(nonHeroes, ", "))
 			end
 			if hasCode and not dmhub.isAdminAccount then
-				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. Directors can install it into a game straight away."
+				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. " .. UIText.Term("directors") .. " can install it into a game straight away."
 			end
 			return errors, warnings
 		end,
@@ -2252,7 +2526,7 @@ local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeMod
 				report("Its code was approved for an earlier version, so players can use it as a Hero module now.")
 				return
 			end
-			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")
+			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; " .. UIText.Term("directors") .. " can install it now.")
 		end,
 		error = function(msg)
 			report(string.format("Sending it for review failed: %s", msg))
@@ -2327,6 +2601,9 @@ local showShareModuleDialog = function(options)
 	--guid -> {type, displayName} for every entry in the dialog, addressable
 	--or not, so module type validators can tell maps from everything else.
 	local assetInfo = {}
+
+	--content may have been edited since the dialog was last open.
+	g_entryGameTypesCache = {}
 
 	--errors from the selected module type's validator; while non-empty the
 	--Proceed button stays hidden on the content page.
@@ -2609,6 +2886,19 @@ local showShareModuleDialog = function(options)
 						end
 					end
 
+					--what the module type keeps out of the upload (its
+					--validate warning named them).
+					local stripped = {}
+					local stripTypeInfo = GetModuleType(moduleInstance.moduleType)
+					if stripTypeInfo.stripAssets ~= nil then
+						for k,_ in pairs(stripTypeInfo.stripAssets(ModuleTypeContext())) do
+							if assetsIncludingDependencies[k] then
+								assetsIncludingDependencies[k] = nil
+								stripped[#stripped+1] = k
+							end
+						end
+					end
+
 					local notes = nil
 					if versionNotesInput ~= nil then
 						notes = versionNotesInput.text
@@ -2621,6 +2911,28 @@ local showShareModuleDialog = function(options)
 
 					local contentSummary = {}
 					dialogPanel:FireEventTree("collectManifest", contentSummary)
+
+					--the summary lists what is ticked; drop what was stripped.
+					for _,guid in ipairs(stripped) do
+						local info = assetInfo[guid]
+						if info ~= nil then
+							for _,summaryEntry in ipairs(contentSummary) do
+								if summaryEntry.type == info.type then
+									for i,name in ipairs(summaryEntry.items) do
+										if name == info.displayName then
+											table.remove(summaryEntry.items, i)
+											break
+										end
+									end
+								end
+							end
+						end
+					end
+					for i = #contentSummary, 1, -1 do
+						if #contentSummary[i].items == 0 then
+							table.remove(contentSummary, i)
+						end
+					end
 
 					moduleInstance.contentSummary = contentSummary
 
@@ -3680,6 +3992,9 @@ local showShareModuleDialog = function(options)
 		local errors, warnings = {}, {}
 		if typeInfo.validate ~= nil then
 			errors, warnings = typeInfo.validate(ModuleTypeContext())
+		end
+		for _,msg in ipairs(MissingCodeWarnings(ModuleTypeContext())) do
+			warnings[#warnings+1] = msg
 		end
 		--holds Proceed until every selected map's content is known.
 		if SearcherPending() then

@@ -1,5 +1,8 @@
 local mod = dmhub.GetModLoading()
 
+--- @class creature
+--- @field turnDamageInstances? {turnid: any, entries: table<string, {raw: number, landed: number}>} Running damage totals this combat turn for "One Damage Instance per Turn" damage behaviors, keyed by "<ability guid>:<damage type>". See ActivatedAbilityDamageBehavior:TurnInstanceRecord.
+
 ActivatedAbility.RegisterType
 {
 	id = 'damage',
@@ -52,13 +55,24 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
 	local targetGroups = {}
 
+    --If logActorCondition is set and this creature has that condition, the action log
+    --card shows whoever inflicted it (e.g. the grabber, when a grabbed creature takes
+    --the damage).
+    local logActorId = casterToken.charid
+    if self.logActorCondition ~= "" then
+        local entry = casterToken.properties:try_get("inflictedConditions", {})[self.logActorCondition]
+        if entry ~= nil and entry.casterInfo ~= nil and entry.casterInfo.tokenid ~= nil then
+            logActorId = entry.casterInfo.tokenid
+        end
+    end
+
     local logMessage = nil
     if string.trim(self.chatMessage) ~= "" then
         logMessage = ActivatedAbilityDamageChatMessage.new{
             amount = 0,
             damageType = self:EffectiveDamageType(ability, options),
             chatMessage = self.chatMessage,
-            casterid = casterToken.charid,
+            casterid = logActorId,
             targetids = tokenids,
         }
     end
@@ -353,7 +367,21 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, patrondamage = entry.patrondamage})
+								--"One Damage Instance per Turn": this effect's earlier damage to this
+								--target this turn and this damage are one instance, so immunity and
+								--weakness apply once (e.g. Every Step... Death over several drags).
+								local turnRecord = self:TurnInstanceRecord(ability, targetCreature, entry.catName)
+								local continuesInstance = nil
+								if turnRecord ~= nil and turnRecord.raw > 0 then
+									continuesInstance = { raw = turnRecord.raw, landed = turnRecord.landed, sameTurn = true }
+								end
+								--abilitydamagecastid is only set for collision damage. It names the ability that
+								--pushed the creature, so the damage adds to that ability's total.
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, abilitydamagecastid = options.symbols.forcedmovementcastid, patrondamage = entry.patrondamage, continuesInstance = continuesInstance})
+								if turnRecord ~= nil then
+									turnRecord.raw = turnRecord.raw + entry.amount
+									turnRecord.landed = turnRecord.landed + (res.damageDealt or 0)
+								end
 								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage, entry.patrondamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end
@@ -389,11 +417,49 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
     self:PostBonusNote(casterToken, options)
 end
 
+--Optional condition id. When the creature making the damage roll has it, the action log
+--shows whoever inflicted it. Set in the ability's data; there is no editor field.
+ActivatedAbilityDamageBehavior.logActorCondition = ""
+
 --Optional record-only log note for a bonus already folded into the roll (no extra damage instance).
 --logNoteTitle names the source, logNoteDetail the bonus, logNoteAmount is a GoblinScript for its size.
 ActivatedAbilityDamageBehavior.logNoteTitle = ""
 ActivatedAbilityDamageBehavior.logNoteDetail = ""
 ActivatedAbilityDamageBehavior.logNoteAmount = ""
+
+--For a behavior with "One Damage Instance per Turn" (combinePerTurn), the running
+--totals of this effect's damage to targetCreature this combat turn:
+--{ raw = damage before immunity, landed = damage after it }. The caller adds each new
+--part. Stored on the target (synced, and rolled back by Revert Turn) and cleared when the
+--turn changes. Returns nil when the flag is off or there is no combat turn.
+---@param ability ActivatedAbility
+---@param targetCreature creature
+---@param damageType string|nil
+---@return {raw: number, landed: number}|nil
+function ActivatedAbilityDamageBehavior:TurnInstanceRecord(ability, targetCreature, damageType)
+	if not self:try_get("combinePerTurn", false) then
+		return nil
+	end
+
+	local turnid = targetCreature:GetTurnId()
+	if turnid == nil then
+		return nil
+	end
+
+	local store = targetCreature:try_get("turnDamageInstances")
+	if store == nil or store.turnid ~= turnid then
+		store = { turnid = turnid, entries = {} }
+		targetCreature.turnDamageInstances = store
+	end
+
+	local key = string.format("%s:%s", tostring(ability:try_get("guid") or ability.name), string.lower(tostring(damageType or "untyped")))
+	local record = store.entries[key]
+	if record == nil then
+		record = { raw = 0, landed = 0 }
+		store.entries[key] = record
+	end
+	return record
+end
 
 function ActivatedAbilityDamageBehavior:PostBonusNote(casterToken, options)
     if self.logNoteTitle == "" or self.logNoteAmount == "" then

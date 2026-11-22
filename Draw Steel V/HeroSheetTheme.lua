@@ -770,6 +770,8 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroLookTile"}, bgcolor = "#ffffff0a", borderColor = palette.border},
         {selectors = {"heroLookTile", "hover"}, borderColor = palette.cardFg},
         {selectors = {"heroLookTile", "selected"}, borderColor = palette.cardStrong},
+        --a heading row among the tiles (the anthem search's locked tracks).
+        {selectors = {"heroLookSection"}, bgcolor = "clear", borderColor = "clear"},
         --the Summons tab: a customised summon's gold ring in the list.
         {selectors = {"heroSummonCustom"}, bgcolor = "clear", borderColor = palette.info},
         --the Effects tab's dice: a die grows when the pointer is on

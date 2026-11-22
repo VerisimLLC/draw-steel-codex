@@ -50,13 +50,15 @@ setting{
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier
 --patron of every creator organization and of the DMHub campaign: map pack
 --tiers, Patreon-included modules, patronTier. The engine ignores it on
---non-admin accounts. Toggle with /set patreondevgrant true|false; /patreon
---reports whether it is in force. Nothing is written to the server.
+--non-admin accounts. On by default so admins can use every partner map
+--whatever their own pledges; /set patreondevgrant false to see the gated
+--view a player gets. /patreon reports whether it is in force. Nothing is
+--written to the server.
 setting{
     id = "patreondevgrant",
     description = "Admin: pretend to hold every Patreon grant.",
     storage = "preference",
-    default = false,
+    default = true,
 }
 
 setting{
@@ -275,6 +277,18 @@ setting{
     help = "Routes all direct (peer-to-peer) traffic -- token drags, pings, live cursors -- through the game server over your existing connection instead of trying a direct UDP link to other players. Turn this on if peer connections never establish (e.g. a firewall, restrictive NAT, or ISP is blocking UDP). The app also switches to this automatically when it detects the peer link can't be reached, so you normally won't need to set it by hand. Only applies to games on the new server backend.",
     storage = "preference",
     section = "General",
+    editor = "check",
+    default = false,
+}
+
+--Read by the restoreFromBackup handler in MCDMInitiativeBar.lua, which skips the full-screen
+--"vcrRewind" effect when this is on (the REWIND label and sound still play).
+setting{
+    id = "accessibility:norewindeffect",
+    description = "Disable Rewind Visual Effect",
+    help = "Turns off the screen distortion when a turn is rewound.",
+    storage = "preference",
+    section = "Accessibility",
     editor = "check",
     default = false,
 }

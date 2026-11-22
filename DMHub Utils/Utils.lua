@@ -1,5 +1,31 @@
 local mod = dmhub.GetModLoading()
 
+--Which code mod first registered each game type: {typeName -> modid}. The module
+--publish dialog reads it to warn when content uses a type whose code is not being
+--published with it (DBVJBNJT). Types registered before this file runs (lua-core,
+--rules-core) are engine types and are not recorded. A global, so F5 keeps it.
+g_gameTypeRegisteringMod = rawget(_G, "g_gameTypeRegisteringMod") or {}
+do
+    local baseRegister = RegisterGameType
+    --wrap once per lua-core load: a refresh that re-runs lua-core replaces the global.
+    if rawget(_G, "g_gameTypeRegisterRecorder") ~= baseRegister then
+        local recorder = function(typeName, baseTypeName)
+            --an engine placeholder (data loaded before its code) is replaced by
+            --the real registration, which is the one to record.
+            local replacingPlaceholder = IsPlaceholderGameType(typeName)
+            local result = baseRegister(typeName, baseTypeName)
+            if g_gameTypeRegisteringMod[typeName] == nil or replacingPlaceholder then
+                local loading = dmhub.GetModLoading()
+                g_gameTypeRegisteringMod[typeName] = loading ~= nil and loading.modid or nil
+            end
+            return result
+        end
+        g_gameTypeRegisterRecorder = recorder
+        ---@diagnostic disable-next-line: assign-type-mismatch -- same signature; the wrapper only records the loading mod
+        RegisterGameType = recorder
+    end
+end
+
 -- True when this client has real DM/hosting status, INCLUDING a "player host"
 -- (dmhub.playerHostMode, e.g. the Encounter of the Week host): a machine that
 -- hosts the game -- runs setup and the Monster AI -- while its user is

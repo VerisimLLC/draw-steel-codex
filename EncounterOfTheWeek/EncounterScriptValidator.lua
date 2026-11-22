@@ -365,6 +365,8 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_bystanders", { label = tostring(ins.label), names = table.concat(ins.names or {}, ", ") }))
             elseif ins.kind == "victory" then
                 Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+            elseif ins.kind == "mark" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_mark", { who = tostring(ins.whoText) }))
             elseif ins.kind == "parallax" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
             elseif ins.kind == "herolevel" then
@@ -753,12 +755,15 @@ end
 local ROUTE_PARTY_SIZES = { 3, 4, 5 }
 --How many routes are spelled out per party size (all are counted).
 local ROUTE_LIST_LIMIT = 8
+--Weary wears off after this many tests by other heroes (EncounterGauntlet).
+local WEARY_WEARS_OFF_AFTER = 3
 
 --Rows for every narrative beat with a choice of route or a test: per party
 --size, the routes through it
 --(EncounterScript.GauntletRoutes) and how many tests the longest one asks
---for, against the number of heroes (every roll after a hero's first is a
---Weary bane).
+--for, against the number of heroes. A roll is a Weary bane until three
+--tests by other heroes follow it, so a party of four or more can take turns
+--and never be Weary; a smaller party with more tests than heroes cannot.
 function GauntletRouteRows(parse)
     local rows = {}
     local function Row(depth, class, text)
@@ -785,7 +790,7 @@ function GauntletRouteRows(parse)
                     most = math.max(most, r.tests)
                 end
                 Row(1, "entry", T("author.validator.routes.party", { heroes = size, routes = #routes, fewest = fewest or 0, most = most }))
-                if most > size then
+                if most > size and size - 1 < WEARY_WEARS_OFF_AFTER then
                     Row(2, "note", T("author.validator.routes.weary", { heroes = size, tests = most, rolls = math.ceil(most / size) }))
                 end
                 for i, r in ipairs(routes) do
@@ -878,6 +883,59 @@ local function OpeningFightVictories(docid)
     return victories
 end
 
+--How many monsters an island's encounter holds across all its groups, before
+--any party-size gating: 0 means nothing can ever arrive from it.
+---@param encounter table
+---@return integer
+local function EncounterMonsterTotal(encounter)
+    local total = 0
+    local groups = nil
+    pcall(function() groups = encounter.groups end)
+    for _, group in ipairs(groups or {}) do
+        for _, quantity in pairs(group.monsters or {}) do
+            if type(quantity) == "number" and quantity > 0 then
+                total = total + quantity
+            end
+        end
+    end
+    return total
+end
+
+--Every "## Reinforcements:" island that would bring nobody: one whose
+--encounter annotation is missing (or not an encounter), or whose
+--encounter has no monsters. The runtime just logs "0 monsters" each round
+--for these, so the author never hears of it. `script` is { doc, parse } (a
+--LoadScript or FindMapScript result); `resolve` is
+--EncounterReinforcements.IslandEncounter unless a test passes its own.
+--Returns a list of problem strings.
+---@param script table|nil
+---@param resolve? fun(script: table, island: table): table|nil
+---@return string[]
+function EncounterScriptValidator.ReinforcementProblems(script, resolve)
+    local problems = {}
+    if script == nil or script.parse == nil then
+        return problems
+    end
+    resolve = resolve or EncounterReinforcements.IslandEncounter
+    for _, beat in ipairs(script.parse.beats or {}) do
+        for _, r in ipairs(beat.reinforcements or {}) do
+            for index, island in ipairs(r.islands or {}) do
+                local encounter = nil
+                pcall(function() encounter = resolve(script, island) end)
+                local where = tostring(EncounterScript.LineLabel(script.parse, island.line))
+                if encounter == nil then
+                    problems[#problems + 1] = T("author.validator.problems.reinforcement_island_no_encounter",
+                        { where = where, name = tostring(r.name), island = index })
+                elseif EncounterMonsterTotal(encounter) <= 0 then
+                    problems[#problems + 1] = T("author.validator.problems.reinforcement_island_no_monsters",
+                        { where = where, name = tostring(r.name), island = index })
+                end
+            end
+        end
+    end
+    return problems
+end
+
 function EncounterScriptValidator.BuildReport(docid, partyid)
     local children = {}
     local parse = LoadDocument(docid)
@@ -901,6 +959,11 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     local challengeVictories = victories ~= nil and victories + EncounterOfTheWeekGame.CHALLENGE_VICTORIES or nil
     if challengeVictories ~= nil and challengeVictories > CHALLENGE_LIMIT then
         problems[#problems + 1] = T("author.validator.report.victories_high", { challenge = challengeVictories, limit = CHALLENGE_LIMIT })
+    end
+    --the parse LoadDocument made, with its document: all IslandEncounter reads.
+    local reinforcementScript = { docid = docid, doc = (dmhub.GetTable("documents") or {})[docid], parse = parse }
+    for _, p in ipairs(EncounterScriptValidator.ReinforcementProblems(reinforcementScript)) do
+        problems[#problems + 1] = p
     end
 
     children[#children + 1] = gui.Label{

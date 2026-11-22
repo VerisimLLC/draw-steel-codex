@@ -12954,10 +12954,18 @@ end
 --- Whether the user may dismiss this prompt without activating it. A hostile
 --- prompt is a harmful effect forced on the creature, so under "Strictly
 --- Enforce Action Economy and Resource Costs" a player (or a player host)
---- must accept it: the trigger panel withdraws its close button, its Dismiss
---- button, and skips it in Dismiss Triggers. The Director is never restricted.
+--- must accept it: the trigger panel withdraws its close button and its
+--- Dismiss button. The Director is never restricted.
 function ActiveTrigger:CanDismiss()
     return (not self.hostile) or (not StrictActionEconomyEnforced())
+end
+
+--- Whether the trigger panel's "Dismiss Triggers" button clears this prompt.
+--- Hostile prompts are always left alone, even where CanDismiss lets the player
+--- close them one at a time, so clearing optional reactions never throws away
+--- Bleeding damage or a saving throw.
+function ActiveTrigger:CanDismissInBulk()
+    return self:CanDismiss() and not self.hostile
 end
 
 function ActiveTrigger:GetText()

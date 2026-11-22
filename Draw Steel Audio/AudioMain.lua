@@ -1070,6 +1070,20 @@ audio.SoundEvent{
 }
 
 
+--Radenwight version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Radenwight",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Radenwight/Dice_NumGlow_Radenwight_01.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_02.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_03.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_04.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.02,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+
+
+
 
 
 --Spectral version of numglow
@@ -1206,6 +1220,7 @@ DiceImpactFamilies.families = {
     { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
     { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
     { id = "Squishy",      text = "Squishy",            suffix = "Squishy" },
+    { id = "Cheesy",      text = "Cheesy",            suffix = "Cheesy" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1330,6 +1345,109 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.1,
 }
+
+
+
+
+  
+
+
+
+--Cheesy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy",
+    mixgroup = "dice",
+        play = function(instance)
+        audio.FireSoundEvent("DiceImp.Hard_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Hard_Cheesy_Hard_Trans_Wood")
+        end,      
+   }
+
+
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy",
+    mixgroup = "dice",
+     play = function(instance)
+        audio.FireSoundEvent("DiceImp.Mild_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Mild_Cheesy_Hard_Trans_Wood")
+        end, 
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy",
+    mixgroup = "dice",
+    play = function(instance)
+        audio.FireSoundEvent("DiceImp.Soft_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Soft_Cheesy_Hard_Trans_Wood")
+        end, 
+}
+
+
+--Cheesy Dice Impact Layers
+
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Hard_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_06.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Mild_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_06.wav"},
+    volume = 0.07,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Soft_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+
+
+
+
+
+
+
+
 
 
 

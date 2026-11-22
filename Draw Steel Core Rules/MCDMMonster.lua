@@ -210,6 +210,9 @@ function monster:FillFreeStrikes(options, result)
     end
 
     local freeStrikeDamage = tostring(self:OpportunityAttack())
+    --One target pick per free strike. Picks on the same creature combine into
+    --one hit when the strike is cast.
+    local freeStrikeCount = self:FreeStrikeCount()
 
     --Build one free strike clone. Forces the ability name to the
     --canonical "Melee Free Strike" / "Ranged Free Strike" so the name
@@ -222,7 +225,7 @@ function monster:FillFreeStrikes(options, result)
         --Force targeting properties so both Melee and Ranged variants
         --behave identically through the squad-strike pipeline
         ability.targetType = "target"
-        ability.numTargets = "1"
+        ability.numTargets = tostring(freeStrikeCount)
         if signature ~= nil and signature:HasKeyword(signatureKeyword) then
             ability.range = math.max(defaultRange,
                 signatureRanges[signatureKeyword] or defaultRange)
@@ -346,6 +349,14 @@ end
 
 function monster:OpportunityAttack()
     return round(tonumber(self.opportunityAttack) + self:CalculateNamedCustomAttribute("Free Strike Bonus"))
+end
+
+--- How many free strikes this creature makes where others make one (e.g. the
+--- Sprite Dandeknight's Staccato Swings). Set by the "Extra Free Strikes" custom
+--- attribute. Strikes on the same target combine into a single strike.
+--- @return integer
+function creature:FreeStrikeCount()
+    return 1 + math.max(0, math.floor(self:CalculateNamedCustomAttribute("Extra Free Strikes")))
 end
 
 function monster:OpportunityAttackRange()

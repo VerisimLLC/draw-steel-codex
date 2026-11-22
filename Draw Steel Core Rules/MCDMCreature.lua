@@ -6916,7 +6916,9 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.banes = info.cast.banesApplied
             for _, target in ipairs(info.cast.targets or {}) do
                 if target.token ~= nil and target.token.properties == self then
-                    eventArg.numberofattackers = target.numAttackers or 1
+                    --Number of Attackers counts creatures. A creature with extra free strikes
+                    --(Sprite Dandeknight) lands several strikes but is still one attacker.
+                    eventArg.numberofattackers = target.numAttackingCreatures or target.numAttackers or 1
                 end
             end
         end
@@ -7112,7 +7114,9 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.banes = info.cast.banesApplied
         for _, target in ipairs(info.cast.targets or {}) do
             if target.token ~= nil and target.token.properties == self then
-                eventArg.numberofattackers = target.numAttackers or 1
+                --Number of Attackers counts creatures. A creature with extra free strikes
+                --(Sprite Dandeknight) lands several strikes but is still one attacker.
+                eventArg.numberofattackers = target.numAttackingCreatures or target.numAttackers or 1
             end
         end
     end

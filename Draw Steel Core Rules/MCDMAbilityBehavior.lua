@@ -1432,7 +1432,11 @@ local g_rulePatterns = {
                 --scales with charges. Multiplying by it zeroed the roll when the
                 --parent ability was channeled -- its Charges defaults to 0 and is
                 --forwarded below in symbols. See MCDMMonster:FillFreeStrikes.
-                abilityClone.behaviors[1].roll = freeStrikeDamage
+                --Multiply by the free strikes landed on this target (2 for a Sprite
+                --Dandeknight, otherwise 1) so they deal one combined hit. separateRolls
+                --works the count out per target.
+                abilityClone.behaviors[1].roll = freeStrikeDamage .. "*Cast.NumAttackers(Target)"
+                abilityClone.behaviors[1].separateRolls = true
 
                 local symbols = {
                     invoker = GenerateSymbols(casterToken.properties),
@@ -4207,9 +4211,96 @@ local function ShowMaliceBannerForCast(ability, casterToken, targets, options)
     }
 end
 
+--- Merges the picks of a free strike made by a creature with extra free strikes
+--- (the "Extra Free Strikes" attribute, e.g. Sprite Dandeknight). Each pick is one
+--- strike; picks on the same creature become one target entry whose numAttackers
+--- counts them, so the free strike roll (damage * Cast.NumAttackers(Target)) lands
+--- as a single combined strike. A cast with only one target (an opportunity
+--- attack, or a strike the AI or another ability makes) puts every strike on it.
+--- Each entry also gets numAttackingCreatures, so damage triggers that count
+--- attackers (Number of Attackers) count creatures, not strikes.
+--- Returns a new list; the caller's target tables are never changed.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken|nil
+--- @param targets {loc: Loc, token: CharacterToken|nil, numAttackers: integer|nil, numAttackingCreatures: integer|nil}[]
+--- @param symbols table|nil
+--- @return {loc: Loc, token: CharacterToken|nil, numAttackers: integer|nil, numAttackingCreatures: integer|nil}[]
+local function MergeFreeStrikeTargets(ability, casterToken, targets, symbols)
+    if casterToken == nil or casterToken.properties == nil or ability.categorization ~= "Basic Attack" then
+        return targets
+    end
+
+    local strikeCount = casterToken.properties:FreeStrikeCount()
+    if strikeCount <= 1 then
+        return targets
+    end
+
+    local result = {}
+    local entryByTokenId = {}
+    for _, target in ipairs(targets) do
+        local tokenid = target.token ~= nil and target.token.charid or nil
+        local existing = tokenid ~= nil and entryByTokenId[tokenid] or nil
+        if existing ~= nil then
+            existing.numAttackers = existing.numAttackers + (target.numAttackers or 1)
+        else
+            local entry = table.shallow_copy(target)
+            entry.numAttackers = target.numAttackers or 1
+            result[#result + 1] = entry
+            if tokenid ~= nil then
+                entryByTokenId[tokenid] = entry
+            end
+        end
+    end
+
+    local isSquad = ability:UsesSquadStrike(casterToken)
+    if #result == 1 and result[1].token ~= nil then
+        --A lone target takes every strike of each minion aimed at it. An opportunity
+        --attack is one minion acting alone, so it counts as one attacker.
+        local attackerCount = 1
+        local targetPairs = symbols ~= nil and symbols.targetPairs or nil
+        if isSquad and targetPairs ~= nil then
+            local assigned = {}
+            attackerCount = 0
+            for _, pair in ipairs(targetPairs) do
+                if pair.b == result[1].token.charid and not assigned[pair.a] then
+                    assigned[pair.a] = true
+                    attackerCount = attackerCount + 1
+                end
+            end
+            attackerCount = math.max(1, attackerCount)
+        end
+
+        local strikes = attackerCount * strikeCount
+        --Same stacking cap as picking the target repeatedly by hand.
+        local stackLimit = isSquad and ActivatedAbility.SquadStackLimit(casterToken, strikeCount) or nil
+        if stackLimit ~= nil then
+            strikes = math.min(strikes, stackLimit)
+        end
+        result[1].numAttackers = math.max(result[1].numAttackers, strikes)
+    end
+
+    --A lone creature is one attacker however many strikes it lands. In a squad
+    --every minion makes strikeCount strikes, so divide to get the minions.
+    for _, entry in ipairs(result) do
+        if isSquad then
+            entry.numAttackingCreatures = math.ceil(entry.numAttackers / strikeCount)
+        else
+            entry.numAttackingCreatures = 1
+        end
+    end
+
+    return result
+end
+
 local g_baseActivatedAbilityCast = ActivatedAbility.Cast
 function ActivatedAbility:Cast(casterToken, targets, options)
     options = options or {}
+    --Free strikes from a creature with extra free strikes (Sprite Dandeknight):
+    --picks on one creature combine into a single hit. Skipped once this file has
+    --been reloaded, so an old copy of this function cannot merge a second time.
+    if not mod.unloaded then
+        targets = MergeFreeStrikeTargets(self, casterToken, targets, options.symbols)
+    end
     ShowMaliceBannerForCast(self, casterToken, targets, options)
 
     local chosenType = options ~= nil and options.symbols ~= nil and options.symbols.forcedmovement or nil

@@ -4205,25 +4205,40 @@ function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets
         return true
     end
 
-    if self:UsesSquadStrike(casterToken) then
-        --signature abilities can 'stack' targeting up to three times. Summoner
-        --minions and similar bypass this via the "Ignore Minion Target Limit"
-        --custom attribute, letting any number of minions hit the same creature.
-        if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
-            return true
-        end
-
-        local currentTimes = 0
-        for _, target in ipairs(targets) do
-            if target == targetToken.id then
-                currentTimes = currentTimes + 1
-            end
-        end
-
-        return currentTimes < 3
+    --A creature with extra free strikes (Sprite Dandeknight) can pick the same
+    --creature once per free strike. The picks combine into one hit when cast.
+    local freeStrikeCount = 1
+    if self.categorization == "Basic Attack" and casterToken ~= nil and casterToken.properties ~= nil then
+        freeStrikeCount = casterToken.properties:FreeStrikeCount()
     end
 
-    return false
+    local currentTimes = 0
+    for _, target in ipairs(targets) do
+        if target == targetToken.id then
+            currentTimes = currentTimes + 1
+        end
+    end
+
+    if self:UsesSquadStrike(casterToken) then
+        local stackLimit = ActivatedAbility.SquadStackLimit(casterToken, freeStrikeCount)
+        return stackLimit == nil or currentTimes < stackLimit
+    end
+
+    return freeStrikeCount > 1 and currentTimes < freeStrikeCount
+end
+
+--- The most strikes a squad may stack on one creature: three, or three per free
+--- strike for minions that make extra free strikes (six for two). Returns nil for
+--- squads with the "Ignore Minion Target Limit" attribute (summoner minions),
+--- where any number of minions may hit the same creature.
+--- @param casterToken CharacterToken a minion in the squad
+--- @param strikeCount integer strikes each minion makes with this ability
+--- @return integer|nil
+function ActivatedAbility.SquadStackLimit(casterToken, strikeCount)
+    if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
+        return nil
+    end
+    return 3 * strikeCount
 end
 
 --A minion squad's critical hit gives every participating minion another main

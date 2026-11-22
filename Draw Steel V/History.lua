@@ -124,6 +124,9 @@ History = {
     --Entries kept per map, oldest culled first: room for two big encounters while each
     --write stays cheap.
     hardCap = 500,
+    --Entries kept across every map in the game. Each client downloads every map's History
+    --when it joins, so the maps written longest ago are cleared past this.
+    gameCap = 1000,
     --An encounter counts towards dropping older ones only once it has this many entries,
     --so a combat started by mistake and ended at once does not cost the last real fight.
     minEncounterEntries = 5,
@@ -335,6 +338,33 @@ local function CullHoverTexts(data)
 end
 
 --Writes every entry waiting for one map, in one change to its document.
+--A client still syncing a game reads an existing document as new and empty, and a write to
+--it then replaces the whole document in the cloud. So a document that reads as new is only
+--written once the game has been entered (EnterGame, or a reload made while in a game).
+local g_gameEntered = dmhub.inGame == true
+dmhub.RegisterEventHandler("EnterGame", function()
+    g_gameEntered = true
+end)
+
+--Which maps have History, when each was last written and how many entries it keeps, so the
+--game-wide cap and deleted maps can be found without opening every map's document. Each map
+--is its own root key: two clients writing different maps never send the same key.
+local INDEX_DOC = "history-index"
+
+local function NoteMapInIndex(mapid, entries)
+    local count = 0
+    for _ in pairs(entries) do
+        count = count + 1
+    end
+    local doc = mod:GetDocumentSnapshot(INDEX_DOC)
+    if not g_gameEntered and doc.isnew then
+        return
+    end
+    doc:BeginChange()
+    doc.data[mapid] = {t = dmhub.serverTimeMilliseconds, n = count}
+    doc:CompleteChange("History index", {undoable = false})
+end
+
 local function WriteEntries(mapid, list)
     local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
     doc:BeginChange()
@@ -380,21 +410,65 @@ local function WriteEntries(mapid, list)
     Cull(data)
     CullHoverTexts(data)
     doc:CompleteChange("History", {undoable = false})
+    NoteMapInIndex(mapid, data.entries)
 end
 
 --Entries waiting for the next frame, so an aura that hits eight creatures is one
 --write, not eight. Nothing here touches the document from inside a hit.
 local g_waiting = {}
 
---A client still syncing a game reads an existing document as new and empty, and a write to
---it then replaces the whole document in the cloud. So a document that reads as new is only
---written once the game has been entered (EnterGame, or a reload made while in a game).
-local g_gameEntered = dmhub.inGame == true
-dmhub.RegisterEventHandler("EnterGame", function()
-    g_gameEntered = true
-end)
-
 local Flush
+
+--When this client last checked the game-wide budget; it checks at most once a minute.
+local g_lastBudgetCheck = 0
+local BUDGET_CHECK_MS = 60000
+
+--Clears the History of maps that no longer exist, then, past History.gameCap entries across
+--the game, of the maps written longest ago. The map just written, the one being looked at
+--and the game-wide record are never cleared.
+local KeepWithinBudget = function(justWritten)
+    local now = dmhub.serverTimeMilliseconds
+    if now - g_lastBudgetCheck < BUDGET_CHECK_MS or not g_gameEntered or #game.maps == 0 then
+        return
+    end
+    g_lastBudgetCheck = now
+    local index = mod:GetDocumentSnapshot(INDEX_DOC)
+    local rows = {}
+    local total = 0
+    local gone = {}
+    for mapid, row in pairs(index.data) do
+        if type(row) == "table" and type(row.n) == "number" then
+            if mapid ~= History.NO_MAP and game.GetMap(mapid) == nil then
+                gone[#gone + 1] = mapid
+            else
+                rows[#rows + 1] = {map = mapid, t = row.t or 0, n = row.n}
+                total = total + row.n
+            end
+        end
+    end
+    local keep = {[justWritten] = true, [History.NO_MAP] = true, [History.CurrentMap()] = true}
+    table.sort(rows, function(a, b) return a.t < b.t end)
+    for _, row in ipairs(rows) do
+        if total <= History.gameCap then
+            break
+        end
+        if not keep[row.map] then
+            gone[#gone + 1] = row.map
+            total = total - row.n
+        end
+    end
+    if #gone == 0 then
+        return
+    end
+    for _, mapid in ipairs(gone) do
+        History.Clear(mapid)
+    end
+    index:BeginChange()
+    for _, mapid in ipairs(gone) do
+        index.data[mapid] = nil
+    end
+    index:CompleteChange("History index", {undoable = false})
+end
 
 --Writes what is waiting, by map. A map whose document can't be trusted yet keeps its
 --entries for the next try.
@@ -428,6 +502,13 @@ Flush = function()
     end
     if #g_waiting > 0 then
         dmhub.Schedule(0.5, Flush)
+    end
+    for mapid in pairs(byMap) do
+        local ok, err = pcall(KeepWithinBudget, mapid)
+        if not ok then
+            dmhub.Debug(string.format("History: failed to check the budget: %s", tostring(err)))
+        end
+        break
     end
 end
 
@@ -1130,6 +1211,7 @@ function History.Clear(mapid)
     doc:BeginChange()
     doc.data.entries = nil
     doc.data.encounters = nil
+    doc.data.counts = nil
     doc.data.hovers = nil
     doc.data.hoverused = nil
     doc:CompleteChange("Clear History", {undoable = false})

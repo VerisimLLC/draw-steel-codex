@@ -981,6 +981,37 @@ Updated counts: abilities that open fully as blocks 56 to **69 of 88**, banner *
 makes triggers Advanced: Remove Creature 90, Loyalty Collar Explosion 40, Summon 33, Augmented Ability 32,
 Aura 31 (the Aura block exists, but opening a saved aura into it isn't built yet), Destroy 14.
 
+## 4t. Damage as rule text, and tiers that hold their own steps ("#") (2026-11-22)
+
+**New damage saves as rule text by default**, like conditions and forced movement ("5 fire damage"), and
+switches to the Damage behaviour only when it needs it: dice the player rolls (the behaviour opens the roll
+dialog), damage to you, or "can't be reduced in any way" (rule text's "ignores immunity" is a different
+rule). Separate rolls per target and "only on some tiers" are the other behaviour-only options (31 and 21
+uses). Opened content keeps what it was saved as. In content today: 589 Damage behaviours (100 with dice,
+60 not at the target, 51 can't be reduced, 368 with a custom chat line) against 182 damage rules. Engine
+checks before adopting, listed for the handoff: rule-text damage fires "deals damage" and damage bonuses
+the same way; Monster AI scores it; chat and log lines read the same (`ExecuteDamage` suggests both go
+through the same damage call).
+
+**"#" in tiers: steps that only run on one tier.** Content's pattern (62 abilities use "#", 39 of them with
+tier-only steps): the tier text after "#" is card wording the rule reader skips, and separate steps with
+`tiersSelected: [n]` and an "Only if" do the work, e.g. "if the target is already slowed, they are
+restrained instead" (*It Is Justice You Fear*: frightened, or psychic damage if already frightened). In the
+editor:
+- **An "Only if" (or any other step) can go inside a tier.** It is tagged "this tier only". On save it
+  becomes its own step with `tiersSelected` for that tier, after the power roll.
+- **The tier's card words** come from a "Card text" block in the tier, saved after "#". With no Card text
+  block, the editor writes the steps' own wording there.
+- **Opening content puts tier-only steps back inside their tier**, with their "Only if" wrappers; steps for
+  several tiers stay where they are. Saved order is kept.
+- The card shows the "#" words without the "#", with potency boxes ("M<WEAK").
+Examples: *Frostbind* (new, built the way an author would) and *It Is Justice You Fear* (opened from the
+compendium; saves back identical).
+
+Found while building it: restoring an unchanged power roll swallowed the tier steps compiled right after it.
+They are now added after the power roll's own record is settled. All 1,253 opened abilities and triggers
+still save back identical.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1068,6 +1099,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **Trigger conditions use each event's own symbols** (from the engine's trigger definitions): event creatures become roles, yes/no values become tests, an "About this event" picker group, and readings for attacker, distance, allies, damage type lists, condition / trigger / effect names, keywords, effects, path and free strike. Conditions as blocks: 46 to 346 of 571; all triggers still save identically. | The hardest GoblinScript for trigger authors; follows "minimise clicks" and book-like wording. |
 | 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the full editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
 | 2026-11-22 | **Standard abilities, rule text and Float Text are blocks, not Advanced.** "Use another ability" picks standard abilities by name (saved by id); rule text opens like tier text (formula amounts, "(added)", several results); Float Text is a Display block. Triggers fully as blocks 605 to 823 of 1,132; banner cases 278 to 72. | Review of the Mark: Benefit example: these are everyday steps, not advanced ones. |
+| 2026-11-22 | **New damage saves as rule text unless it needs the Damage behaviour** (dice, to you, can't be reduced). **Tiers can hold steps** ("Only if the target is already slowed: restrained"): saved as tier-only steps (`tiersSelected`) with the tier's card words after "#"; opening content puts them back in their tier. | Asked for: default to command text; and the "#" pattern for effects the tier text can't express. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

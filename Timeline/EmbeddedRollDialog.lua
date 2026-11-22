@@ -1617,6 +1617,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field bonus nil|integer A flat number it added to the roll (negative when it took some off).
     --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
     --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
+    --- @field hovermod nil|table The modifier, until the roll is accepted and its hover text is built.
+    --- @field hovertext nil|string The modifier's hover text, for History.
 
     --- Rebuilt by each CalculateRollText, beside m_activeModifiers.
     --- @type EmbeddedRollEdgeSource[]
@@ -1628,6 +1630,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field name string The modifier's name, spoiler markup kept.
     --- @field charid nil|string On a trigger: the creature whose trigger it is.
     --- @field tiers table<integer, table<string, number>> Per tier, the damage it added by type ("untyped" for none); negative when it took damage away.
+    --- @field hovermod nil|table The modifier, until the roll is accepted and its hover text is built.
+    --- @field hovertext nil|string The modifier's hover text, for History.
 
     --- Rebuilt by each CalculateRollText, beside m_edgeSources.
     --- @type EmbeddedRollDamageSource[]
@@ -2019,6 +2023,24 @@ function GameHud.CreateEmbeddedRollDialog()
         return ok and text or nil
     end
 
+    --Sources keep their modifier in hovermod while the dialog recalculates; the hover text is
+    --built once, here, as the roll is accepted, not on every recalculation.
+    local function ResolveHoverTexts(sources)
+        for _, source in ipairs(sources or {}) do
+            if source.hovermod ~= nil then
+                source.hovertext = RecordedHoverText(source.hovermod)
+                source.hovermod = nil
+            end
+        end
+    end
+
+    --Whether History is recording, so the dialog measures sources for it at all (not in Crows,
+    --nor with Record History off).
+    local function RecordingForHistory()
+        local history = rawget(_G, "History")
+        return history ~= nil and history.Enabled()
+    end
+
     --What each modifier adds to or takes from the edges and banes, measured as it is applied,
     --so the sources always add up to the roll's counts. History uses the removals to show an
     --edge that was there but did not count.
@@ -2076,7 +2098,7 @@ function GameHud.CreateEmbeddedRollDialog()
             charid = charid,
             --a triggered action used from this dialog: History gives it a row of its own.
             trigger = mod.modifier:try_get("_tmp_triggerCharid") ~= nil or nil,
-            hovertext = RecordedHoverText(mod),
+            hovermod = mod,
         }
         return after
     end
@@ -2120,7 +2142,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if mod.modFromTarget and charid == nil then
             name = string.format("Target is %s", name)
         end
-        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod),
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovermod = mod,
             trigger = charid ~= nil or nil}
     end
 
@@ -2194,7 +2216,7 @@ function GameHud.CreateEmbeddedRollDialog()
         local afterCritMods = {}
 
         if creature then
-            local edgesBefore = GameSystem.UseBoons and dmhub.ParseRoll(roll) or nil
+            local edgesBefore = (GameSystem.UseBoons and RecordingForHistory()) and dmhub.ParseRoll(roll) or nil
             for i, mod in ipairs(enabledModifiers) do
                 --call this generic function which might be modified by mods.
                 roll = mod.modifier:ApplyToRoll(mod.context, creature, targetCreature, rollType, roll)
@@ -2284,6 +2306,7 @@ function GameHud.CreateEmbeddedRollDialog()
             rollProperties:ResetMods()
 
             local measure = rollProperties.typeName == "RollPropertiesPowerTable" and rollProperties:try_get("tiers") ~= nil
+                and RecordingForHistory()
             for i, mod in ipairs(enabledModifiers) do
                 local before = measure and TierDamage(rollProperties) or nil
                 mod.modifier:ModifyRollProperties(mod.context, creature, rollProperties, targetCreature)
@@ -8411,6 +8434,12 @@ function GameHud.CreateEmbeddedRollDialog()
                         --the second argument says what gave the roll its edges, banes and
                         --bonuses, and whether it went in the Dice Tower, for a record of play
                         --(History); callers may ignore it.
+                        ResolveHoverTexts(m_edgeSources)
+                        ResolveHoverTexts(m_damageSources)
+                        for _, target in ipairs(m_multitargets or {}) do
+                            ResolveHoverTexts(target.edgeSources)
+                            ResolveHoverTexts(target.damageSources)
+                        end
                         completeRollFn(rollInfo, {edgeSources = m_edgeSources, dicetower = dicetower})
                     end
                 end

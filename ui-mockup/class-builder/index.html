@@ -181,6 +181,24 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .menu .yn button { width: auto; border: 1px solid var(--line); }
 .modal.open { display: block; }
 .modal iframe { width: 100%; height: 100%; border: 1px solid var(--gold); border-radius: 6px; background: var(--bg); }
+/* Shelf blocks and dragging, matching the ability editor's palette. */
+.pal { --c: var(--c-adv); display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 5px 8px 5px 4px; font-size: 12.5px; cursor: grab; touch-action: none; user-select: none; }
+.pal:hover { filter: brightness(1.15); }
+.pal[aria-disabled="true"] { opacity: .5; filter: grayscale(.5); }
+.pal .pl { flex: 1; min-width: 0; }
+.pal .uses { font-size: 10.5px; opacity: .75; font-variant-numeric: tabular-nums; }
+.grip { display: inline-flex; width: 14px; height: 14px; flex: none; opacity: .7; cursor: grab; }
+.grip svg { width: 10px; height: 14px; fill: currentColor; margin: auto; }
+.sent > .grip, .sent .ifline > .grip { touch-action: none; }
+.palgroup { display: flex; flex-direction: column; gap: 4px; }
+h5.palhead { margin: 6px 0 0; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+h5.palhead .sw { width: 10px; height: 10px; border-radius: 2px; }
+.chip { touch-action: none; user-select: none; }
+.ghost { position: fixed; left: 0; top: 0; z-index: 130; pointer-events: none; display: none; opacity: .92; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.ghost > * { margin: 0; }
+.dragging { opacity: .35; }
+.dropline { height: 3px; background: var(--gold); border-radius: 2px; margin: 1px 0; }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; padding: 8px 12px; z-index: 120; max-width: calc(100vw - 32px); }
 .loading { padding: 40px; text-align: center; color: var(--dim); }
 </style>

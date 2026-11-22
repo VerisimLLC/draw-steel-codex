@@ -122,15 +122,15 @@ const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier"
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
    record type from its blocks (one choice alone -> that choice; a mix -> a feature list). */
 const SENT = {
-  perkChoice: { label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
+  perkChoice: { desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
-  skillChoice: { label: "Choose skills", group: "choice", uses: 82, choice: true, make: () => ({ num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
+  skillChoice: { desc: "The player picks skills from skill groups, or from skills you name. Saves as a skill choice.", label: "Choose skills", group: "choice", uses: 82, choice: true, make: () => ({ num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(lbl((+f.num === 1 ? "skill" : "skills") + " of your choice from the")); add(multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or")); add(lbl("skill groups, or")); add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "no named skills", "or")); },
     prose: f => "You gain " + word(f.num) + " skill" + (+f.num === 1 ? "" : "s") + " of your choice from the " + listWords(f.groups) + " skill groups" + (f.named.length ? ", or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "") + ".",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num || 1, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) },
-  charChoice: { label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
+  charChoice: { desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
     // Options are the characteristics this feature doesn't already raise (its "score increases to" blocks).
@@ -138,7 +138,7 @@ const SENT = {
       return Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
         options: CHARS.filter(c => !raised.includes(c[0])).map(c => ({ __typeName: "CharacterFeature", name: c[1], description: "", tags: { Hidden: true },
           modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1, cap: numOr(f.max) }] })) }); } },
-  abilityChoice: { label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
+  abilityChoice: { desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
       if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
@@ -153,11 +153,11 @@ const SENT = {
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
       options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
-  subclassChoice: { label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
+  subclassChoice: { desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
     render: (f, add) => { add(lbl("Choose your")); add(textTok(cls, "subclassWord", "subclass")); const h = E("span", "aside", "(subclasses are made in the subclass editor)"); add(h); },
     prose: () => "Choose your " + (cls.subclassWord || "subclass") + ".",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
-  stat: { label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
+  stat: { desc: "Raise, lower or set a stat: Stamina, speed, stability, a characteristic... Saves as an attribute modifier.", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
       add(lbl("Your")); add(pickTok(f, "attr", STAT_OPTS.concat(CUSTOM_FLAGS.map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
       add(pickTok(f, "op", [["add", "increases by"], ["sub", "decreases by"], ["max", "increases to"], ["set", "is"], ["min", "can't go above"]]));
@@ -165,13 +165,13 @@ const SENT = {
     },
     compile: (f, feat) => { const r = modBase(feat, { behavior: "attribute", attribute: f.attr, value: numOr(f.op === "sub" ? "-" + f.value : f.value) });
       if (f.op === "max" || f.op === "set" || f.op === "min") r.operation = f.op; return r; } },
-  move: { label: "Movement type", group: "stats", uses: 12, make: () => ({ mode: "fly" }),
+  move: { desc: "A movement type: fly, climb, swim or burrow.", label: "Movement type", group: "stats", uses: 12, make: () => ({ mode: "fly" }),
     render: (f, add) => { add(lbl("You can")); add(pickTok(f, "mode", MOVES)); },
     compile: (f, feat) => modBase(feat, { behavior: "attribute", attribute: f.mode, value: 1 }) },
-  flag: { label: "You ignore / can't...", group: "stats", uses: 667, make: () => ({ attr: (CUSTOM_FLAGS.find(a => /Ignore Difficult Terrain/.test(a[1])) || CUSTOM_FLAGS[0] || [""])[0] }),
+  flag: { desc: "A rule from the compendium's list, such as Ignore Difficult Terrain.", label: "You ignore / can't...", group: "stats", uses: 667, make: () => ({ attr: (CUSTOM_FLAGS.find(a => /Ignore Difficult Terrain/.test(a[1])) || CUSTOM_FLAGS[0] || [""])[0] }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "attr", CUSTOM_FLAGS.map(a => [a[0], a[1]]))); },
     compile: (f, feat) => modBase(feat, { behavior: "attribute", attribute: f.attr, value: 1 }) },
-  edge: { label: "Edge or bane on rolls", group: "rolls", uses: 620, make: () => ({ mod: "edge", on: "tests", skills: [], keywords: [], applies: "always" }),
+  edge: { desc: "An edge or bane on tests (by skill) or on ability rolls (by keyword).", label: "Edge or bane on rolls", group: "rolls", uses: 620, make: () => ({ mod: "edge", on: "tests", skills: [], keywords: [], applies: "always" }),
     render: (f, add) => {
       add(lbl("You have")); add(pickTok(f, "mod", [["edge", "an edge"], ["double_edge", "a double edge"], ["bane", "a bane"], ["double_bane", "a double bane"]]));
       add(lbl("on")); add(pickTok(f, "on", [["tests", "tests"], ["abilities", "ability rolls"]]));
@@ -179,45 +179,49 @@ const SENT = {
       else { add(lbl("with")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "any keyword", "and")); }
       appliesPhrase(f, add);
     },
+    prose: f => "You have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] + " on " +
+      (f.on === "tests" ? "tests" + (f.skills.length ? " using " + listWords(f.skills.map(i => lookupName(T.skills, i))) : "") : (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls") +
+      (f.applies === "choose" ? " (you choose when to use this)" : "") + ".",
     compile: (f, feat) => modBase(feat, { behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
       keywords: f.on === "abilities" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [],
       skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, activationCondition: f.applies === "always", displayCondition: "" }) },
-  enemy: { label: "Rolls against you", group: "rolls", uses: 252, make: () => ({ mod: "bane", keywords: [] }),
+  enemy: { desc: "Abilities used against you have a bane (or edge).", label: "Rolls against you", group: "rolls", uses: 252, make: () => ({ mod: "bane", keywords: [] }),
     render: (f, add) => { add(lbl("Abilities")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "of any kind", "and")); add(lbl("used against you have"));
       add(pickTok(f, "mod", [["bane", "a bane"], ["double_bane", "a double bane"], ["edge", "an edge"]])); },
     compile: (f, feat) => modBase(feat, { behavior: "power", modtype: f.mod, rollType: "enemy_ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: true }) },
-  damage: { label: "Extra damage", group: "rolls", uses: 208, make: () => ({ amount: "2", dtype: "", keywords: [], applies: "always" }),
+  damage: { desc: "Your abilities deal extra damage, optionally only with some keywords or a damage type.", label: "Extra damage", group: "rolls", uses: 208, make: () => ({ amount: "2", dtype: "", keywords: [], applies: "always" }),
     render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "damaging", "and")); add(lbl("abilities deal"));
       add(textTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities deal " + f.amount + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" + (f.applies === "choose" ? " (you choose when to use this)" : "") + ".",
     compile: (f, feat) => { const r = modBase(feat, { behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: f.amount,
       keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [], activationCondition: f.applies === "always" });
       if (f.dtype) r.damageModifierType = f.dtype; return r; } },
-  immunity: { label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
+  immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(textTok(f, "amount", "amount")); },
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
     compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: [{ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: f.dtype, dr: f.kind === "weakness" ? "-(" + f.amount + ")" : f.amount }] }) },
-  condImm: { label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
+  condImm: { desc: "You can't gain the conditions you pick.", label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
     render: (f, add) => { add(lbl("You can't be")); add(multiTok(f, "conds", T.conditions.map(c => [c[0], c[1].toLowerCase()]), "choose conditions")); },
     compile: (f, feat) => modBase(feat, { behavior: "conditionimmunity", conditions: f.conds.slice() }) },
-  skill: { label: "You have a skill", group: "skill", uses: 36, make: () => ({ ids: [] }),
+  skill: { desc: "You have the skills you pick.", label: "You have a skill", group: "skill", uses: 36, make: () => ({ ids: [] }),
     render: (f, add) => { add(lbl("You have the")); add(multiTok(f, "ids", T.skills.map(s => [s[0], s[1]]), "choose skills", "and")); add(lbl(f.ids.length > 1 ? "skills" : "skill")); },
     compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "skill", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
-  language: { label: "You know a language", group: "skill", uses: 4, make: () => ({ ids: [] }),
+  language: { desc: "You know the languages you pick.", label: "You know a language", group: "skill", uses: 4, make: () => ({ ids: [] }),
     render: (f, add) => { add(lbl("You know")); add(multiTok(f, "ids", T.languages.map(s => [s[0], s[1]]), "choose languages", "and")); },
     compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "language", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
-  resource: { label: "Recoveries or a resource", group: "res", uses: 35, make: () => ({ res: RES.recovery, num: "8" }),
+  resource: { desc: "You have a number of Recoveries (or another resource).", label: "Recoveries or a resource", group: "res", uses: 35, make: () => ({ res: RES.recovery, num: "8" }),
     render: (f, add) => { add(lbl("You have")); add(textTok(f, "num", "number")); add(pickTok(f, "res", RESOURCE_OPTS)); },
     compile: (f, feat) => modBase(feat, { behavior: "resource", resourceType: f.res, num: numOr(f.num) }) },
-  kit: { label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
+  kit: { desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
-  ability: { label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
+  ability: { desc: "Grant an ability. Opens the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
     render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec }], feat, (i, rec) => { f.rec = rec; }, null, s)); },
     compile: (f, feat) => f.rec ? modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }) : null },
-  trigger: { label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
+  trigger: { desc: "Grant a triggered ability. Opens the ability editor in triggered mode.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
     render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true }], feat, (i, rec, display) => { f.rec = rec; f.display = display; }, null, s)); },
     compile: (f) => f.rec ? Object.assign({}, f.rec) : null, extra: f => f.display ? [f.display] : [] },
-  modAbility: { label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
+  modAbility: { desc: "Change an ability: more distance, more targets, or a keyword.", label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
     render: (f, add) => {
       add(lbl("Your")); add(abilityNameTok(f)); add(lbl("ability gains"));
       add(pickTok(f, "change", [["range", "+ distance"], ["numtargets", "+ targets"], ["keyword", "a keyword"]]));
@@ -226,10 +230,10 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "modifyability", ability: { __typeName: "ActivatedAbility", name: "New Ability", abilityModification: true, behaviors: [] },
       attributes: f.change === "keyword" ? [{ id: "modkeywords", keywords: { [f.keyword]: true }, operation: "Add", value: "" }] : [{ id: f.change, operation: "Add", value: f.value }],
       filterAbility: 'Ability.name = "' + String(f.name).replace(/"/g, "") + '"' }) },
-  reminder: { label: "Reminder text", group: "rem", uses: 89, make: () => ({ text: "" }),
+  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "rem", uses: 89, make: () => ({ text: "" }),
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
-  onlyIf: { label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
+  onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
       if (f.test === "victories" || f.test === "level") add(textTok(f, "n", "N")); if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
 };
@@ -264,18 +268,18 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
 // Features: a name, its book text, and blocks. Ready-made features are just pre-filled blocks; every
 // block in them stays editable, and dragging one in copies it.
 const READY = [
-  { key: "perk", title: "Perk", uses: 54, desc: "One perk from [groups]", make: () => feature("Perk", [["perkChoice"]]) },
-  { key: "skills", title: "Skills", uses: 69, desc: "[N] skills from [groups]", make: () => feature("Skills", [["skillChoice"]]) },
-  { key: "charinc", title: "Characteristic Increase", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
-  { key: "heroic", title: "Choose a heroic ability", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
-  { key: "signature", title: "Signature ability", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
-  { key: "subclass", title: "Subclass choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature(cls.subclassWord || "Subclass", [["subclassChoice"]]) },
-  { key: "kit", title: "Kit", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", [["kit"]]) },
-  { key: "recoveries", title: "Recoveries", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", [["resource"]]) },
-  { key: "languages", title: "Languages", uses: 6, desc: "You know [languages]", make: () => feature("Languages", [["language"]]) },
-  { key: "withability", title: "Feature with an ability", uses: 601, desc: "Name, text and an ability card", make: () => feature("", [["ability"]]), opens: "ability" },
-  { key: "withtrigger", title: "Feature with a triggered ability", uses: 220, desc: "Name, text and a trigger card", make: () => feature("", [["trigger"]]), opens: "trigger" },
-  { key: "empty", title: "Empty feature", uses: null, desc: "Name, text, then add blocks", make: () => feature("", []) },
+  { key: "perk", title: "Perk", uses: 54, c: "choice", desc: "One perk from [groups]", make: () => feature("Perk", [["perkChoice"]]) },
+  { key: "skills", title: "Skills", c: "choice", uses: 69, desc: "[N] skills from [groups]", make: () => feature("Skills", [["skillChoice"]]) },
+  { key: "charinc", title: "Characteristic Increase", c: "choice", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
+  { key: "heroic", title: "Choose a heroic ability", c: "choice", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
+  { key: "signature", title: "Signature ability", c: "choice", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
+  { key: "subclass", title: "Subclass choice", c: "choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature(cls.subclassWord || "Subclass", [["subclassChoice"]]) },
+  { key: "kit", title: "Kit", c: "res", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", [["kit"]]) },
+  { key: "recoveries", title: "Recoveries", c: "res", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", [["resource"]]) },
+  { key: "languages", title: "Languages", c: "skill", uses: 6, desc: "You know [languages]", make: () => feature("Languages", [["language"]]) },
+  { key: "withability", title: "Feature with an ability", c: "abil", uses: 601, desc: "Name, text and an ability card", make: () => feature("", [["ability"]]), opens: "ability" },
+  { key: "withtrigger", title: "Feature with a triggered ability", c: "abil", uses: 220, desc: "Name, text and a trigger card", make: () => feature("", [["trigger"]]), opens: "trigger" },
+  { key: "empty", title: "Empty feature", c: "adv", uses: null, desc: "Name, text, then add blocks", make: () => feature("", []) },
 ];
 /* types: [[sentence type, field overrides]] */
 function feature(name, types) { return { kind: "feature", name, text: "", sentences: types.map(([t, o]) => { const x = makeSentence(t); Object.assign(x.f, o || {}); return x; }) }; }
@@ -517,6 +521,7 @@ function abilityCards(items, feat, setRec, onRemove, sent, seedFn) {
 const board = document.getElementById("board"), shelf = document.getElementById("shelf"), side = document.getElementById("side");
 let compiled = null;
 function render() {
+  for (const k in LISTS) delete LISTS[k];
   compiled = compileClass();
   renderBoard(); renderShelf(); renderSide();
   document.getElementById("showGs").checked = showGs;
@@ -607,21 +612,13 @@ function renderLane(k) {
   const add = E("button", "addf", "+ add a feature"); add.type = "button";
   add.addEventListener("click", ev => { ev.stopPropagation(); menuAt(add, m => READY.forEach(t => { const x = E("button", null, t.title); x.type = "button"; x.addEventListener("click", () => { closeMenu(); addFeature(t, k); }); m.appendChild(x); })); });
   items.appendChild(add); lane.appendChild(items);
-  // Drop target for shelf items and for features dragged from another level.
-  lane.addEventListener("dragover", ev => { if (dragData && dragData.kind !== "sentence") { ev.preventDefault(); lane.classList.add("drop"); } });
-  lane.addEventListener("dragleave", ev => { if (!lane.contains(ev.relatedTarget)) lane.classList.remove("drop"); });
-  lane.addEventListener("drop", ev => { ev.preventDefault(); lane.classList.remove("drop"); const d = dragData; dragData = null; if (!d) return;
-    if (d.kind === "ready") addFeature(READY.find(t => t.key === d.key), k);
-    else if (d.kind === "feature") change(() => { const at = findFeature(d.id); if (!at) return; cls.lanes[at.lane] = cls.lanes[at.lane].filter(x => x !== at.feat); (cls.lanes[k] = cls.lanes[k] || []).push(at.feat); }); });
   return lane;
 }
 function chip(f, k) {
-  const c = E("button", "chip"); c.type = "button"; c.draggable = true;
+  const c = E("button", "chip"); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
   c.appendChild(E("span", "kind", kindLabel(f))); c.appendChild(E("span", "nm", featName(f)));
   c.title = featText(f) || "Click to open";
-  c.addEventListener("click", () => { openId = f.id; render(); });
-  c.addEventListener("dragstart", ev => { dragData = { kind: "feature", id: f.id }; ev.dataTransfer.setData("text/plain", f.id); c.classList.add("dragging"); });
-  c.addEventListener("dragend", () => c.classList.remove("dragging"));
+  c.addEventListener("click", () => { if (c.dataset.dragged) return; openId = f.id; render(); });
   return c;
 }
 function addFeature(tpl, laneKey) {
@@ -631,7 +628,75 @@ function addFeature(tpl, laneKey) {
   // Features made around an ability go straight to the ability editor.
   if (tpl.opens) { const s = f.sentences[0]; openEditor({ rec: null, kind: tpl.opens === "trigger" ? "triggered" : "ability" }, (rec, display) => { s.f.rec = rec; if (display !== undefined) s.f.display = display; if (!f.name && rec) f.name = recName(rec); }); }
 }
-let dragData = null;
+/* Pointer dragging, as in the ability editor (works with touch too): a ghost follows the pointer and a
+   gold line shows where it lands. Drag a shelf block onto a level or into the open feature, drag a block
+   to reorder it, or drag a feature chip to another level. A short press is still a click. */
+const GRIP = '<svg viewBox="0 0 10 14" aria-hidden="true"><circle cx="2" cy="2" r="1.4"/><circle cx="8" cy="2" r="1.4"/><circle cx="2" cy="7" r="1.4"/><circle cx="8" cy="7" r="1.4"/><circle cx="2" cy="12" r="1.4"/><circle cx="8" cy="12" r="1.4"/></svg>';
+const LISTS = {};   // id -> { list, feat }, filled while rendering each block list
+let drag = null, dropLine = null;
+const ghost = E("div", "ghost"); document.body.appendChild(ghost);
+document.addEventListener("pointerdown", ev => {
+  if (ev.button !== 0) return;
+  const el = ev.target.closest("[data-drag]"); if (!el || ev.target.closest(".tok, .mb, input, textarea, .card, .btn, .addsent.inblock")) return;
+  drag = { el, kind: el.dataset.drag, value: el.dataset.value, sx: ev.clientX, sy: ev.clientY, live: false };
+  const r = el.getBoundingClientRect(); drag.ox = ev.clientX - r.left; drag.oy = ev.clientY - r.top;
+});
+document.addEventListener("pointermove", ev => {
+  if (!drag) return;
+  if (!drag.live) {
+    if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 6) return;
+    drag.live = true; closeMenu();
+    ghost.innerHTML = ""; const c = drag.el.cloneNode(true); c.style.width = drag.el.getBoundingClientRect().width + "px"; ghost.appendChild(c); ghost.style.display = "block";
+    drag.el.classList.add("dragging"); document.body.classList.add("is-dragging");
+  }
+  ghost.style.transform = "translate(" + (ev.clientX - drag.ox) + "px," + (ev.clientY - drag.oy) + "px)";
+  drag.target = dropTarget(ev.clientX, ev.clientY); showDrop(drag.target);
+});
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const d = drag; drag = null; ghost.style.display = "none"; ghost.innerHTML = ""; d.el.classList.remove("dragging"); document.body.classList.remove("is-dragging"); showDrop(null);
+  if (!d.live) return;
+  d.el.dataset.dragged = "1"; setTimeout(() => delete d.el.dataset.dragged, 0);
+  if (d.target) doDrop(d, d.target);
+});
+const isFeatureDrag = k => k === "ready" || k === "feature";
+/* Where would this land? A level (features) or a position in a block list (blocks). */
+function dropTarget(x, y) {
+  const under = document.elementFromPoint(x, y); if (!under) return null;
+  if (isFeatureDrag(drag.kind)) { const lane = under.closest(".lane"); return lane ? { lane: lane.dataset.lane, el: lane } : null; }
+  const box = under.closest(".sents[data-list]"); if (!box) return null;
+  const L = LISTS[box.dataset.list]; if (!L) return null;
+  const type = drag.kind === "sentence" ? drag.value : (findSentence(drag.value) || {}).s?.type;
+  if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper)) return null;
+  const rows = [...box.children].filter(c => c.classList.contains("sent"));
+  let idx = rows.length;
+  for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) { idx = i; break; } }
+  return { list: box.dataset.list, idx, el: box, before: rows[idx] || box.querySelector(":scope > .addsent") };
+}
+function showDrop(t) {
+  document.querySelectorAll(".lane.drop").forEach(l => l.classList.remove("drop"));
+  if (dropLine) { dropLine.remove(); dropLine = null; }
+  if (!t) return;
+  if (t.lane) { t.el.classList.add("drop"); return; }
+  dropLine = E("div", "dropline"); if (t.before) t.before.before(dropLine); else t.el.appendChild(dropLine);
+}
+function findSentence(id) {
+  for (const k in LISTS) { const L = LISTS[k]; const i = L.list.findIndex(x => x.id === id); if (i >= 0) return { s: L.list[i], L, i }; }
+  return null;
+}
+function doDrop(d, t) {
+  if (t.lane) {
+    if (d.kind === "ready") return addFeature(READY.find(x => x.key === d.value), t.lane);
+    return change(() => { const at = findFeature(d.value); if (!at || at.lane === t.lane) return; cls.lanes[at.lane] = cls.lanes[at.lane].filter(x => x !== at.feat); (cls.lanes[t.lane] = cls.lanes[t.lane] || []).push(at.feat);
+      const n = +t.lane.slice(6); if (t.lane.startsWith("level-") && n > cls.showLevels) cls.showLevels = n; });
+  }
+  const L = LISTS[t.list];
+  if (d.kind === "sentence") return addSentence(L.feat, L.list, d.value, t.idx);
+  const from = findSentence(d.value); if (!from) return;
+  const inside = (x, l) => !!x.children && (x.children === l || x.children.some(c => inside(c, l)));
+  if (inside(from.s, L.list)) return;   // an "Only if" can't go inside itself
+  change(() => { from.L.list.splice(from.i, 1); let idx = t.idx; if (from.L.list === L.list && from.i < idx) idx--; L.list.splice(idx, 0, from.s); });
+}
 
 function renderFeature(f, laneKey) {
   const box = E("div", "feat");
@@ -647,14 +712,12 @@ function renderFeature(f, laneKey) {
   const lb = E("div", "lbl2", "What it does");
   if (showGs) lb.appendChild(E("span", "mono saves-type", " \u00b7 saves as " + compileFeature(f).__typeName));
   box.appendChild(lb);
-  const sents = E("div", "sents");
+  const sents = E("div", "sents"); regList(sents, f.sentences, f, false);
   {
     renderSentenceList(f.sentences, f, sents);
     const add = E("button", "addsent", "+ add what it does"); add.type = "button";
     add.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add, type => addSentence(f, f.sentences, type)); });
     sents.appendChild(add);
-    sents.addEventListener("dragover", ev => { if (dragData && dragData.kind === "sentence") { ev.preventDefault(); sents.classList.add("drop-target"); } });
-    sents.addEventListener("drop", ev => { ev.preventDefault(); const d = dragData; dragData = null; if (d && d.kind === "sentence") addSentence(f, f.sentences, d.type); });
   }
   box.appendChild(sents);
   const foot = E("div", "feat-foot");
@@ -675,9 +738,10 @@ function renderFeature(f, laneKey) {
   box.appendChild(foot);
   return box;
 }
-function addSentence(feat, list, type) {
+function regList(el, list, feat, inIf) { const id = "l:" + (feat.id || "") + ":" + Object.keys(LISTS).length; LISTS[id] = { list, feat, inIf }; el.dataset.list = id; }
+function addSentence(feat, list, type, idx) {
   const s = makeSentence(type);
-  change(() => list.push(s));
+  change(() => { if (idx == null || idx > list.length) list.push(s); else list.splice(idx, 0, s); });
   const d = SENT[type];
   if (d.opensEditor) openEditor({ rec: null, kind: d.opensEditor }, (rec, display) => { s.f.rec = rec; if (display !== undefined) s.f.display = display; if (!feat.name && rec) feat.name = recName(rec); });
 }
@@ -695,7 +759,9 @@ function renderSentenceList(list, feat, into) {
 function renderSentence(s, list, i, feat) {
   const d = SENT[s.type]; const g = GROUPS.find(x => x[0] === d.group);
   const el = E("div", "sent" + (d.wrapper ? " ifwrap" : "")); el.style.setProperty("--c", "var(" + g[2] + ")");
+  el.dataset.drag = "block"; el.dataset.value = s.id;
   const line = d.wrapper ? E("div", "ifline") : el;
+  const grip = E("span", "grip"); grip.innerHTML = GRIP; grip.title = "Drag to move"; line.appendChild(grip);
   const add = n => line.appendChild(n);
   d.render(s.f, add, s, feat);
   const grow = E("span", "grow"); line.appendChild(grow);
@@ -711,7 +777,7 @@ function renderSentence(s, list, i, feat) {
   line.appendChild(mb);
   if (d.wrapper) {
     el.appendChild(line);
-    const body = E("div", "ifbody"); renderSentenceList(s.children, feat, body);
+    const body = E("div", "ifbody sents"); regList(body, s.children, feat, true); renderSentenceList(s.children, feat, body);
     const add2 = E("button", "addsent", "+ add inside"); add2.type = "button";
     add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true); });
     body.appendChild(add2); el.appendChild(body);
@@ -728,40 +794,45 @@ function savesLine(r) {
   const parts = Object.keys(r).filter(k => !skip.has(k)).map(k => k + " " + JSON.stringify(r[k]).slice(0, 80));
   return "saves as " + (r.behavior || r.__typeName) + (parts.length ? ": " + parts.join(", ") : "");
 }
+/* The shelf, in the ability editor's look: coloured blocks with a grip, hover for what each does. */
+function shelfBlock(label, color, uses, title, dragKind, value, onClick, disabled) {
+  const b = E("button", "pal"); b.type = "button"; b.style.setProperty("--c", "var(" + color + ")");
+  b.dataset.drag = dragKind; b.dataset.value = value; b.title = title;
+  const h = E("span", "grip"); h.innerHTML = GRIP; b.appendChild(h); b.appendChild(E("span", "pl", label));
+  if (uses) b.appendChild(E("span", "uses", uses.toLocaleString()));
+  if (disabled) b.setAttribute("aria-disabled", "true");
+  b.addEventListener("click", () => { if (b.dataset.dragged) return; onClick(); });
+  return b;
+}
+const groupColor = g => (GROUPS.find(x => x[0] === g) || [0, 0, "--c-adv"])[2];
 function renderShelf() {
   const q = (shelf.querySelector("input.search") || {}).value || "";
   shelf.innerHTML = "";
-  const s = E("input", "search"); s.placeholder = "Search features and sentences ( / )"; s.value = q; s.setAttribute("aria-label", "Search the shelf");
+  const s = E("input", "search"); s.id = "shelfSearch"; s.placeholder = "Search features and blocks ( / )"; s.value = q; s.setAttribute("aria-label", "Search the shelf");
   s.addEventListener("input", () => { const pos = s.selectionStart; renderShelf(); const n = shelf.querySelector("input.search"); n.focus(); n.setSelectionRange(pos, pos); });
   shelf.appendChild(s);
   const match = t => !q || t.toLowerCase().includes(q.toLowerCase());
-  const h = E("h4"); h.appendChild(E("span", null, "Ready-made features")); h.appendChild(E("span", null, "uses")); shelf.appendChild(h);
-  shelf.appendChild(E("p", "hint", "Drag onto a level, or click to add to the open feature's level."));
-  READY.filter(t => match(t.title + " " + t.desc)).forEach(t => {
-    const b = E("button", "rm"); b.type = "button"; b.draggable = true;
-    const tt = E("div", "t"); tt.appendChild(document.createTextNode(t.title)); if (t.uses) tt.appendChild(E("span", null, String(t.uses))); b.appendChild(tt);
-    b.appendChild(E("div", "d", t.desc));
-    b.addEventListener("dragstart", ev => { dragData = { kind: "ready", key: t.key }; ev.dataTransfer.setData("text/plain", t.key); });
-    b.addEventListener("click", () => { const at = openId && findFeature(openId); addFeature(t, at ? at.lane : laneKeys()[0]); });
-    shelf.appendChild(b);
-  });
   const at = openId && findFeature(openId);
-  const canAdd = at && at.feat.kind === "feature";
-  shelf.appendChild(E("h4", null, "Sentences"));
-  shelf.appendChild(E("p", "hint", canAdd ? "Click to add to “" + featName(at.feat) + "”, or drag onto it." : "Open a feature built from sentences to add these."));
-  GROUPS.forEach(g => {
-    Object.keys(SENT).filter(t => SENT[t].group === g[0] && match(SENT[t].label + " " + g[1])).forEach(t => {
-      const b = E("button", "sb"); b.type = "button"; b.draggable = true; b.style.setProperty("--c", "var(" + g[2] + ")");
-      b.appendChild(document.createTextNode(SENT[t].label)); if (SENT[t].uses) b.appendChild(E("span", null, String(SENT[t].uses)));
-      if (!canAdd) b.setAttribute("aria-disabled", "true");
-      b.addEventListener("dragstart", ev => { dragData = { kind: "sentence", type: t }; ev.dataTransfer.setData("text/plain", t); });
-      b.addEventListener("click", () => { if (!canAdd) return toast("Open a feature first (or add an Empty feature from above)."); addSentence(at.feat, at.feat.sentences, t); });
-      shelf.appendChild(b);
-    });
+  shelf.appendChild(E("p", "hint", "Drag a feature onto a level, or click to add it to " + (at ? "the open feature's level" : "the first level") + ". Hover any block for what it does."));
+  const fh = E("h4"); fh.appendChild(E("span", null, "Ready-made features")); shelf.appendChild(fh);
+  const fg = E("div", "palgroup");
+  READY.filter(t => match(t.title + " " + t.desc)).forEach(t => {
+    const tip = t.desc.replace(/\[|\]/g, "") + ". Adds a feature made of blocks you can edit." + (t.uses ? " Core classes use this " + t.uses + " times." : "");
+    fg.appendChild(shelfBlock(t.title, "--c-" + t.c, t.uses, tip, "ready", t.key, () => addFeature(t, at ? at.lane : laneKeys()[0])));
   });
-  shelf.appendChild(E("p", "hint", "Counts are how often content uses each kind of record today."));
+  shelf.appendChild(fg);
+  shelf.appendChild(E("h4", null, "Blocks"));
+  shelf.appendChild(E("p", "hint", at ? "Drag into \u201c" + featName(at.feat) + "\u201d, or click to add at its end." : "Open a feature, then drag blocks into it."));
+  GROUPS.forEach(g => {
+    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && match(SENT[t].label + " " + g[1] + " " + (SENT[t].desc || ""))); if (!types.length) return;
+    const gh = E("h5", "palhead"); const sw = E("span", "sw"); sw.style.background = "var(" + g[2] + ")"; gh.appendChild(sw); gh.appendChild(document.createTextNode(g[1])); shelf.appendChild(gh);
+    const box = E("div", "palgroup");
+    types.forEach(t => box.appendChild(shelfBlock(SENT[t].label, g[2], SENT[t].uses, SENT[t].desc || SENT[t].label, "sentence", t,
+      () => { if (!at) return toast("Open a feature first (or add an Empty feature from above)."); addSentence(at.feat, at.feat.sentences, t); }, !at)));
+    shelf.appendChild(box);
+  });
+  shelf.appendChild(E("p", "hint", "Numbers are how often content uses each kind of record today."));
 }
-
 function renderSide() {
   side.innerHTML = "";
   const tabs = E("div", "tabs"); tabs.setAttribute("role", "tablist");

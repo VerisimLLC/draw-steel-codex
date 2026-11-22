@@ -3034,8 +3034,11 @@ local function Searching()
     return #g_search.chips > 0 or string.find(g_search.text or "", "%S") ~= nil
 end
 
+--A row's words for search, lower case, without markup. A spoiler's redaction bar is a <mark>
+--around the hidden words, so what is inside one is dropped: search must not find it.
 local function Plain(text)
-    return string.lower((string.gsub(text or "", "<[^>]*>", "")))
+    text = string.gsub(text or "", "<mark[^>]*>.-</mark>", "")
+    return string.lower((string.gsub(text, "<[^>]*>", "")))
 end
 
 --Every creature a row is about: who acted, who it hit, whose trigger, who a line is about.
@@ -3381,14 +3384,20 @@ function History.SearchMark(text)
     end
     local open = string.format("<mark=%s>", MarkColour())
     local out = {}
-    --tags pass through untouched; only the words between them are marked.
+    --tags pass through untouched; only the words between them are marked. Words already
+    --inside a <mark> (a spoiler's redaction bar) are left alone: a mark there would show them.
     local pos = 1
+    local markDepth = 0
     while pos <= #text do
         local tagStart, tagEnd = string.find(text, "<[^>]*>", pos)
         local stop = tagStart ~= nil and tagStart - 1 or #text
         local chunk = string.sub(text, pos, stop)
         local lower = string.lower(chunk)
         local i = 1
+        if markDepth > 0 then
+            out[#out + 1] = chunk
+            i = #chunk + 1
+        end
         while i <= #chunk do
             local best, bestEnd = nil, nil
             for _, term in ipairs(terms) do
@@ -3408,7 +3417,13 @@ function History.SearchMark(text)
         if tagStart == nil then
             break
         end
-        out[#out + 1] = string.sub(text, tagStart, tagEnd)
+        local tag = string.sub(text, tagStart, tagEnd)
+        if string.sub(tag, 1, 5) == "<mark" then
+            markDepth = markDepth + 1
+        elseif tag == "</mark>" then
+            markDepth = math.max(0, markDepth - 1)
+        end
+        out[#out + 1] = tag
         pos = tagEnd + 1
     end
     return table.concat(out)

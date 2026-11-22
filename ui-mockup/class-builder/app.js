@@ -167,7 +167,7 @@ function fxTable(obj, key) {
 const FX_PICKS = [["1", "a number"], ["Victories", "your Victories"], ["1d3", "a die roll (1d3)"], ["Level", "your level"]].concat(CHARS.map(c => [c[1], "your " + c[1]]));
 function fxTok(obj, key, placeholder) {
   const t = tok(fxText(obj, key) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
-  t.classList.add("fx"); t.title = "A number or a formula; click for options"; return t;
+  t.classList.add("fx"); t.title = "Type a number, or click to use your level, Victories, a characteristic or a die roll"; return t;
 }
 function fillFx(m, obj, key) {
   m.innerHTML = "";
@@ -213,14 +213,14 @@ const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier"
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
    record type from its blocks (one choice alone -> that choice; a mix -> a feature list). */
 const SENT = {
-  perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "skill", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
+  perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name.", label: "Choose a perk", group: "skill", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
     // Perks are matched by exact tag text (Feat.lua HasTag, lowercased), so each group uses the tag its perks carry.
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => PERK_TAGS[g] || g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
   /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
      records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
-  skills: { featName: "Skills", desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "skill", uses: 118, choice: true,
+  skills: { featName: "Skills", desc: "Skills the hero always has, plus any the player chooses from skill groups or a list you name.", label: "Have or choose skills", group: "skill", uses: 118, choice: true,
     make: () => ({ granted: [], num: "1", groups: [], named: [] }),
     render: (f, add) => {
       // Empty parts read naturally: "You have no fixed skills and choose 5 skills from ... (+ named skills)".
@@ -244,7 +244,7 @@ const SENT = {
     // No groups and no named skills means any skill: every group is offered, as core classes store it.
     compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num,
       categories: Object.fromEntries((f.groups.length || f.named.length ? f.groups : SKILL_GROUPS).map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
-  charChoice: { featName: "Characteristic Increase", desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "stats", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
+  charChoice: { featName: "Characteristic Increase", desc: "The player raises one characteristic of their choice by 1, up to the maximum you set.", label: "Raise a characteristic", group: "stats", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
     // Options are the characteristics this feature doesn't already raise (its "score increases to" blocks).
@@ -272,10 +272,10 @@ const SENT = {
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
   subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
-    render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(name the feature College, Circle, Domain...; subclasses are made in the subclass editor)")); },
+    render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(rename this feature to what the class calls its subclasses, such as College or Domain; the subclasses themselves are built separately)")); },
     prose: (f, feat) => "Choose your " + (feat && feat.name ? feat.name : "subclass") + ".",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
-  stat: { desc: "Raise, lower or set a stat: Stamina, speed, stability, a characteristic... Saves as an attribute modifier.", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
+  stat: { desc: "Raise, lower or set one of the hero's numbers: Stamina, speed, stability, a characteristic...", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
       add(lbl("Your")); add(pickTok(f, "attr", statOpts().concat(CUSTOM_FLAGS.filter(a => a[0] !== HR_START && a[0] !== HR_ALL).map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
       add(pickTok(f, "op", [["add", "increases by"], ["sub", "decreases by"], ["max", "increases to"], ["set", "is"], ["min", "can't go above"]]));
@@ -286,7 +286,7 @@ const SENT = {
   move: { desc: "A movement type: fly, climb, swim or burrow.", label: "Movement type", group: "stats", uses: 12, make: () => ({ mode: "fly" }),
     render: (f, add) => { add(lbl("You can")); add(pickTok(f, "mode", MOVES)); },
     compile: (f, feat) => modBase(feat, { behavior: "attribute", attribute: f.mode, value: 1 }) },
-  flag: { desc: "A rule from the compendium's list, such as Ignore Difficult Terrain.", label: "You ignore / can't...", group: "stats", uses: 667, make: () => ({ attr: (CUSTOM_FLAGS.find(a => /Ignore Difficult Terrain/.test(a[1])) || CUSTOM_FLAGS[0] || [""])[0] }),
+  flag: { desc: "A special rule the hero follows, such as Ignore Difficult Terrain.", label: "You ignore / can't...", group: "stats", uses: 667, make: () => ({ attr: (CUSTOM_FLAGS.find(a => /Ignore Difficult Terrain/.test(a[1])) || CUSTOM_FLAGS[0] || [""])[0] }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "attr", CUSTOM_FLAGS.map(a => [a[0], a[1]]))); },
     compile: (f, feat) => modBase(feat, { behavior: "attribute", attribute: f.attr, value: 1 }) },
   edge: { desc: "An edge or bane on tests (by skill) or on ability rolls (by keyword).", label: "Edge or bane on rolls", group: "rolls", uses: 620, make: () => ({ mod: "edge", on: "tests", skills: [], keywords: [], applies: "always" }),
@@ -343,10 +343,10 @@ const SENT = {
   kit: { featName: "Kit", desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
-  ability: { desc: "Grant an ability. Opens the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
+  ability: { desc: "Give the hero an ability. You build it in the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
     render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec, problems: f.problems }], feat, (i, rec, d, problems) => { f.rec = rec; f.problems = problems; }, null, s)); usagePhrase(f, add); },
     compile: (f, feat) => f.rec ? usageFields(modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }), f) : null },
-  trigger: { desc: "Grant a triggered ability. Opens the ability editor in triggered mode.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
+  trigger: { desc: "Give the hero an ability they use in response to something happening. You build it in the ability editor.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
     render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true, problems: f.problems }], feat, (i, rec, display, problems) => { f.rec = rec; f.display = display; f.problems = problems; }, null, s)); usagePhrase(f, add); },
     compile: (f) => f.rec ? usageFields(Object.assign({}, f.rec), f) : null, extra: f => f.display ? [f.display] : [] },
   modAbility: { desc: "Change an ability: more distance, more targets, or a keyword.", label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
@@ -358,7 +358,7 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "modifyability", ability: { __typeName: "ActivatedAbility", name: "New Ability", abilityModification: true, behaviors: [] },
       attributes: f.change === "keyword" ? [{ id: "modkeywords", keywords: { [f.keyword]: true }, operation: "Add", value: "" }] : [{ id: f.change, operation: "Add", value: f.value }],
       filterAbility: 'Ability.name = "' + String(f.name).replace(/"/g, "") + '"' }) },
-  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "res", uses: 89, make: () => ({ text: "" }),
+  reminder: { desc: "A note on the hero's sheet, for a rule the game can't apply for you. It doesn't change anything in play.", label: "Reminder text", group: "res", uses: 89, make: () => ({ text: "" }),
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
     prose: f => String(f.text || "").replace(/\.?$/, "."),
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
@@ -366,10 +366,10 @@ const SENT = {
      hero has had this turn ("Heroic Resources This Turn", the turn's high-water mark), each from a level.
      Each row holds ordinary blocks. It saves the display table (growingresources) plus every row's
      modifiers, with conditions written for you, including rows that replace an earlier one. */
-  growing: { shelf: false, desc: "Rows unlocked by the most of your resource you've had this turn (Growing Ferocity). Each row holds blocks; a row can replace an earlier one.", label: "Growing table", group: "res", uses: 11, container: true, featName: "",
+  growing: { shelf: false, desc: "Benefits that switch on as the hero's resource climbs during a turn, like the Fury's Growing Ferocity. Each row says what the hero gets at that amount; a later row can replace an earlier one.", label: "Growing table", group: "res", uses: 11, container: true, featName: "",
     make: () => ({ rows: [2, 4, 6].map(n => ({ id: newId("r"), at: String(n), level: "1", replaces: "", text: "", blocks: [] })) }),
     render: (f, add, s, feat) => {
-      add(lbl("The most " + resWord() + " you've had this turn unlocks these rows (they stay unlocked until your next turn)"));
+      add(lbl("Each row switches on once you've had at least that much " + resWord() + " this turn, and stays on until the start of your next turn"));
       const rows = E("div", "growrows");
       f.rows.forEach((r, i) => {
         const row = E("div", "growrow");
@@ -386,7 +386,7 @@ const SENT = {
         ad.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(ad, type => addSentence(feat, r.blocks, type), true); });
         body.appendChild(ad); row.appendChild(body);
         const tx = E("div", "growtext"); tx.appendChild(lbl("On the sheet:")); tx.appendChild(textTok(r, "text", growRowShort(r) || "short text for the table", 40));
-        if (!r.text) tx.appendChild(E("span", "aside", "(written from the blocks)"));
+        if (!r.text) tx.appendChild(E("span", "aside", "(text made from its blocks)"));
         row.appendChild(tx);
         rows.appendChild(row);
       });
@@ -398,7 +398,7 @@ const SENT = {
   aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "abil", uses: 28, wrapper: true, featName: "",
     make: () => ({ radius: "3", who: "selfandfriends" }),
     render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
-  onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Logic", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
+  onlyIf: { desc: "The blocks inside apply only while something is true: a number of Victories, a level, being winded...", label: "Logic", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
       const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
       if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4] === "resource this turn" ? resWord() + " this turn" : t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
@@ -475,7 +475,7 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
    presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
    blocks are added there. Authors' own ready-made features join the shelf the same way. */
 const RECIPES = [
-  { key: "growing", label: "Growing table", group: "res", uses: 11, desc: "Rows at 2, 4, 6, then 8 from 4th level, 10 from 7th and 12 from 10th, as the core growing tables use.", name: () => "Growing " + (cls.resourceName || "Resource"),
+  { key: "growing", label: "Growing table", group: "res", uses: 11, desc: "Rows at 2, 4 and 6, then 8 at 4th level, 10 at 7th and 12 at 10th: the same steps the core classes use.", name: () => "Growing " + (cls.resourceName || "Resource"),
     blocks: () => [["growing", { rows: [["2", "1"], ["4", "1"], ["6", "1"], ["8", "4"], ["10", "7"], ["12", "10"]].map(([at, level]) => ({ id: newId("r"), at, level, replaces: "", text: "", blocks: [] })) }]] },
   { key: "charinc", label: "Characteristic Increase", group: "stats", uses: 33, desc: "Your starting characteristics increase to 3, and the player raises one other score by 1.", name: "Characteristic Increase",
     blocks: () => primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]]) },
@@ -926,7 +926,7 @@ function renderBoard() {
     lbl("of 2; the other scores use one of these arrays:"), arraysTok());
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   board.appendChild(b);
-  board.appendChild(E("p", "hint", "Recoveries, skills and kits are features: add them to a level (Recoveries, Skills, Kit)."));
+  board.appendChild(E("p", "hint", "Recoveries, skills and kits are added on a level, like any feature: drag \u201cRecoveries or a resource\u201d, \u201cHave or choose skills\u201d or \u201cKit\u201d from the shelf."));
 
   // Heroic resource
   board.appendChild(E("h3", "sec", "Heroic resource"));
@@ -959,8 +959,8 @@ function renderBoard() {
     addStep.addEventListener("click", () => change(() => { sg.steps = sg.steps || []; const last = sg.steps.length ? +sg.steps[sg.steps.length - 1].from : 4; sg.steps.push({ from: String(last < 7 ? 7 : 10), add: "1" }); }));
     steps.appendChild(addStep); el.appendChild(steps);
     el.appendChild(E("div", "sgnote", (sg.kind === "die"
-      ? "Level bonuses are added to the roll (1d" + sg.n + " + 1, + 2), as the rules say. Other features can switch this gain off or change the die size (\u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " die size); to add to every gain, use \u201cevery " + (cls.resourceName || "resource") + " gain\u201d."
-      : "Other features can change this amount or switch it off (a complication, title or item): use \u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " gain.") +
+      ? "Level steps add to the roll (1d" + sg.n + " + 1, then 1d" + sg.n + " + 2). A complication, title or item can change the die or turn this gain off: give it a \u201cChange a stat\u201d block and pick \u201cstart-of-turn " + res + " die size\u201d. To add to every gain instead, pick \u201cevery " + res + " gain\u201d."
+      : "A complication, title or item can change this amount or turn it off: give it a \u201cChange a stat\u201d block and pick \u201cstart-of-turn " + res + " gain\u201d.") +
       (showGs ? "\nsaves as attribute " + HR_START_NAME + " = " + sg.n + (sg.kind === "die" ? " (the die size)" : "") + "; trigger beginturn gains " + (sg.kind === "die" ? "1d " : "") + HR_START_NAME + " while it is above 0; checklist line reads it" : "")));
     gs.appendChild(el);
   }
@@ -978,10 +978,10 @@ function renderBoard() {
   const ag = fk(E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()), "addgain"); ag.type = "button";
   ag.addEventListener("click", ev => { ev.stopPropagation(); if (cls.startGain) return change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() }));
     menuAt(ag, m => { const a = E("button", null, "At the start of each turn (start-of-turn gain)"); a.type = "button"; a.addEventListener("click", () => { closeMenu(); change(() => { cls.startGain = { kind: "flat", n: "2", steps: [], guid: guid() }; }); });
-      const b = E("button", null, "Another way (an event)"); b.type = "button"; b.addEventListener("click", () => { closeMenu(); change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })); });
+      const b = E("button", null, "When something happens (combat starts, you deal damage...)"); b.type = "button"; b.addEventListener("click", () => { closeMenu(); change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })); });
       m.appendChild(a); m.appendChild(b); }); });
   gs.appendChild(ag); board.appendChild(gs);
-  board.appendChild(E("p", "hint", "Each way writes the sheet's checklist line and the trigger that grants it, linked so they can't disagree."));
+  board.appendChild(E("p", "hint", "Each of these is listed on the hero's sheet, and the game adds the " + res + " for them when it happens."));
 
   // Levels
   const lh = E("div", "lanes-head");
@@ -1003,7 +1003,7 @@ function renderBoard() {
   });
   st.appendChild(cb); st.appendChild(document.createTextNode("Uses the slow start rules (Encounters 1–4)")); lh.appendChild(st);
   board.appendChild(lh);
-  if (cls.slowStart) board.appendChild(E("p", "hint", "Slow start: a new hero has Encounter 1's features in their first encounter, adds Encounter 2's in their second, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once it's over."));
+  if (cls.slowStart) board.appendChild(E("p", "hint", "With the slow start, a new hero plays their first encounter with only Encounter 1's features, then adds Encounter 2's, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once all four are done."));
   const keys = laneKeys(); let shown = 0;
   keys.forEach(k => {
     const isLevel = k.startsWith("level-"); const n = isLevel ? +k.slice(6) : 0;
@@ -1130,7 +1130,7 @@ function renderFeature(f, laneKey) {
   const ta = fk(E("textarea", "ftext"), "ftext:" + f.id); ta.value = f.text; ta.placeholder = autoText(f) || "The feature's text, as the book prints it";
   // Typed text remembers the blocks' wording at that moment, so a later change to the blocks is flagged.
   ta.addEventListener("change", () => setTimeout(() => change(() => { f.text = ta.value; f.textBasis = ta.value ? autoText(f) : null; }))); box.appendChild(ta);
-  if (!f.text && autoText(f)) box.appendChild(E("div", "hint", "The book text above is written from the blocks below until you type your own."));
+  if (!f.text && autoText(f)) box.appendChild(E("div", "hint", "The text above is written for you from the blocks below. Type over it to use your own wording."));
   if (textStale(f)) box.appendChild(staleNote(f));
   const lb = E("div", "lbl2", "What it does");
   if (showGs) lb.appendChild(E("span", "mono saves-type", " \u00b7 saves as " + compileFeature(f).__typeName));
@@ -1261,7 +1261,7 @@ function renderShelf() {
   shelf.appendChild(s);
   const match = t => !q || t.toLowerCase().includes(q.toLowerCase());
   const at = openId && findFeature(openId);
-  shelf.appendChild(E("p", "hint", "Drop on a level for a new feature, or into a feature to add to it. Click adds to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + ". Numbers are how often core classes use each."));
+  shelf.appendChild(E("p", "hint", "Drag a block onto a level to make a new feature, or into a feature to add to it. Clicking a block adds it to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + ". The number on each block is how often the core classes use it."));
   shelfEntries().forEach(([group, items, color]) => {
     const vis = items.filter(it => match(it.label + " " + group + " " + (it.desc || "")));
     if (group === "Your ready-made features") { if (!vis.length && q) return; }
@@ -1330,7 +1330,7 @@ function featureIssues(f, lane) {
   if (featName(f) === "Unnamed feature") add("A feature at " + a + " " + n + " has no name.", true);
   (function walk(list) { list.forEach(s => {
     const d = SENT[s.type];
-    if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " does nothing yet (only its sheet text shows).", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
+    if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " has no blocks yet, so it only shows text.", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
     if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
@@ -1379,14 +1379,13 @@ function renderSide() {
     list.appendChild(li);
   });
   side.appendChild(list);
-  if (!issues.length) side.appendChild(E("p", "hint", "Every feature is finished. The class saves as the records below."));
   savedPanel();
 }
 function savedPanel() {
   const at = openId && findFeature(openId);
   const det = E("details", "savedbox"); det.open = !!savedOpen; det.addEventListener("toggle", () => { savedOpen = det.open; });
-  det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
-  det.appendChild(E("p", "hint", "For developers. To send this class to someone, use Share instead."));
+  det.appendChild(E("summary", null, "Saved data (for developers)"));
+  det.appendChild(E("p", "hint", "Only needed when working on the app itself. To send this class to someone, use Share."));
   const json = JSON.stringify(compiled, null, 2);
   const cp = E("button", "btn small", "Copy the engine record"); cp.type = "button"; cp.addEventListener("click", () => copyText(json, null)); det.appendChild(cp);
   if (at) { det.appendChild(E("h3", "sec", "\u201c" + featName(at.feat) + "\u201d")); det.appendChild(E("pre", "saved", JSON.stringify(compileFeature(at.feat), null, 2))); }
@@ -1416,14 +1415,14 @@ function exportBuilder(btn) {
     const yn = E("div", "yn"); const c = E("button", "btn primary", "Copy"); c.type = "button"; c.addEventListener("click", () => copyText(text, ta)); yn.appendChild(c); m.appendChild(yn); });
 }
 function loadBuilderText(t) {
-  let d; try { d = JSON.parse(t); } catch (e) { return toast("That isn't valid JSON. Paste the whole text from Export."); }
+  let d; try { d = JSON.parse(t); } catch (e) { return toast("That text couldn't be read. Copy the whole Share text again and paste all of it."); }
   if (d && d.classBuilderTemplates && Array.isArray(d.templates)) {
     const added = d.templates.filter(t => t && t.feature && Array.isArray(t.feature.sentences)).map(t => ({ id: guid(), name: String(t.name || "Shared feature"), feature: migrateClass({ lanes: { x: [Object.assign({ id: "f0" }, t.feature)] } }).lanes.x[0] }));
     added.forEach(t => delete t.feature.id);
     store.templates = (store.templates || []).concat(added); closeMenu(); saveStore(); render();
     return toast("Added " + added.length + " ready-made feature" + (added.length === 1 ? "" : "s") + " to your shelf.");
   }
-  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class or ready-made feature from this builder (use Share to make one).");
+  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class or ready-made feature shared from this builder.");
   const ids = t.match(/"id":"[a-z](\d+)"/g) || []; ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
   // An imported class opens as a new class in the list; the one you had stays as it was.
   closeMenu(); const c = migrateClass(d.cls); if (store.classes[c.id]) c.id = guid();

@@ -938,3 +938,25 @@ Your ready-made features stay at the very top.
   inside", "This Logic block needs a test".
 - **The group** "Only if, auras and reminders" became **Logic**. **Aura** moved to Abilities, and
   **Reminder** to "Class, kit, resources and reminders".
+
+## 19. Prose pass on the builder's help text (2026-11-22)
+
+The help text was rewritten to say what the author can do, or what happens in play. It no longer
+describes how the class is stored. Words like "record", "modifier", "trigger", "checklist line"
+and "attribute" now appear only under **Show saved fields** and in the developer's saved-data panel.
+
+- **The rule for writing help text:** one sentence on what the block does for the hero, plus,
+  where it helps, one on how to use it. Never say how it is saved.
+- **Examples:**
+
+  | Before | After |
+  |---|---|
+  | "Each way writes the sheet's checklist line and the trigger that grants it, linked so they can't disagree." | "Each of these is listed on the hero's sheet, and the game adds the [resource] for them when it happens." |
+  | "Text shown to the player as a reminder. Automates nothing." | "A note on the hero's sheet, for a rule the game can't apply for you. It doesn't change anything in play." |
+
+- **Block descriptions:** the "Saves as ..." endings are gone from perk, skill and stat blocks.
+  "Pairs with 'score increases to' blocks" and "triggered mode" are also gone.
+- **Start-of-turn note:** it now names the block to use ("give it a Change a stat block and pick
+  start-of-turn [resource] gain"), and the 1d3 steps read "1d3 + 1, then 1d3 + 2".
+- **Errors:** the import error no longer says "JSON" or "Export". The empty-status line ("the
+  class saves as the records below") was removed, because the status already says "Ready to save".

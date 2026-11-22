@@ -575,14 +575,14 @@ local function ForPlayers(entry)
         return nil
     end
     --a creature players could not see on the map (HistoryCreature.unseen): no line about it,
-    --off the target lists, and nameless and faceless where it acted or owned the turn. A
-    --Hidden creature acting is revealed as its ability begins, so only a hidden token's
-    --actions lose the name.
+    --off the target lists, and nameless and faceless where it acted or owned the turn. An
+    --ability that reveals a Hidden user clears its actor's unseen as it is recorded, so only
+    --a hidden token, a trigger or a remainhidden ability loses the name.
     if entry.kind == "line" and entry.who ~= nil and entry.who.unseen ~= nil then
         return nil
     end
     local actor, owner = entry.actor, entry.owner
-    if actor ~= nil and actor.unseen == "token" then
+    if actor ~= nil and actor.unseen ~= nil then
         actor.secret = true
         actor.img = ""
     end
@@ -617,7 +617,7 @@ local function ForPlayers(entry)
         end
         entry.ended = kept
     end
-    --the actor keeps its name unless its token was hidden (above): it was revealed as it acted.
+    --the actor keeps its name unless it stayed unseen (above): it was revealed as it acted.
     entry.actor = nil
     MaskUnseen(entry, 1)
     entry.actor = actor

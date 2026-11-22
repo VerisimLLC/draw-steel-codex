@@ -404,6 +404,13 @@ local function CastBegan(ability, casterToken, targets, options)
     if state.entry.cause ~= nil and outer ~= nil then
         outer.hasNested = true
     end
+    --a Hidden user is revealed as an ordinary ability begins (MCDMRules' cast start handler),
+    --so it keeps its name. A trigger or a remainhidden ability leaves it Hidden: it stays unseen.
+    local actorEntry = state.entry.actor
+    if actorEntry ~= nil and actorEntry.unseen == "hidden" and not (options ~= nil and options.dismiss)
+        and ability:CountsAsRegularAbilityCast() and not ability:HasProperty("remainhidden") then
+        actorEntry.unseen = nil
+    end
     History.AddCombatFacts(state.entry)
     ClaimUpfrontSpend(state, casterToken, ability.name)
     --a free strike for moving away keeps who moved away.

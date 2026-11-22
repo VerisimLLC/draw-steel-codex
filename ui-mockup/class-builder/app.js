@@ -958,10 +958,7 @@ function renderBoard() {
     const addStep = fk(E("button", "addsent inblock", "+ more from a level"), "startgainstep"); addStep.type = "button";
     addStep.addEventListener("click", () => change(() => { sg.steps = sg.steps || []; const last = sg.steps.length ? +sg.steps[sg.steps.length - 1].from : 4; sg.steps.push({ from: String(last < 7 ? 7 : 10), add: "1" }); }));
     steps.appendChild(addStep); el.appendChild(steps);
-    el.appendChild(E("div", "sgnote", (sg.kind === "die"
-      ? "Level steps add to the roll (1d" + sg.n + " + 1, then 1d" + sg.n + " + 2). A complication, title or item can change the die or turn this gain off: give it a \u201cChange a stat\u201d block and pick \u201cstart-of-turn " + res + " die size\u201d. To add to every gain instead, pick \u201cevery " + res + " gain\u201d."
-      : "A complication, title or item can change this amount or turn it off: give it a \u201cChange a stat\u201d block and pick \u201cstart-of-turn " + res + " gain\u201d.") +
-      (showGs ? "\nsaves as attribute " + HR_START_NAME + " = " + sg.n + (sg.kind === "die" ? " (the die size)" : "") + "; trigger beginturn gains " + (sg.kind === "die" ? "1d " : "") + HR_START_NAME + " while it is above 0; checklist line reads it" : "")));
+    if (showGs) el.appendChild(E("div", "sgnote", "saves as attribute " + HR_START_NAME + " = " + sg.n + (sg.kind === "die" ? " (the die size)" : "") + "; trigger beginturn gains " + (sg.kind === "die" ? "1d " : "") + HR_START_NAME + " while it is above 0; checklist line reads it"));
     gs.appendChild(el);
   }
   cls.gains.forEach((g, i) => {

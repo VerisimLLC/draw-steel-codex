@@ -956,8 +956,9 @@ and "attribute" now appear only under **Show saved fields** and in the developer
 
 - **Block descriptions:** the "Saves as ..." endings are gone from perk, skill and stat blocks.
   "Pairs with 'score increases to' blocks" and "triggered mode" are also gone.
-- **Start-of-turn note:** it now names the block to use ("give it a Change a stat block and pick
-  start-of-turn [resource] gain"), and the 1d3 steps read "1d3 + 1, then 1d3 + 2".
+- **Start-of-turn note removed:** the note under the start-of-turn gain is gone. The level steps
+  already show the 1d3 + 1 and + 2 bonuses, and the stat picker lists the start-of-turn gain for
+  other features to change. The note still appears under Show saved fields.
 - **Shelf counts removed:** the shelf no longer shows how often the core classes use each block. That count still sets the order within a group.
 - **Errors:** the import error no longer says "JSON" or "Export". The empty-status line ("the
   class saves as the records below") was removed, because the status already says "Ready to save".

@@ -6932,7 +6932,12 @@ function GameHud:NextInitiative(oncomplete)
 		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
 		local initiativeQueue = info.initiativeQueue
 		g_betweenTurnTransitionInProgress = true
-        
+
+		--An ability still being targeted on this client's action bar for a creature
+		--whose turn is ending would hold every later invoke (3VAQJS4A, YYK97NNG).
+		if DrawSteelActionBar ~= nil and DrawSteelActionBar.CancelUncastAbilityForEndingTurn ~= nil then
+			DrawSteelActionBar.CancelUncastAbilityForEndingTurn(tokens)
+		end
 
         --we have to dispatch end turn BEFORE we change to the next turn,
         --otherwise effects that block until end of turn will not work for any end turn

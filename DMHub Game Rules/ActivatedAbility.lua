@@ -3792,8 +3792,12 @@ function ActivatedAbility.GetActiveCastSnapshot()
 end
 
 function ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
-    for co,_ in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) then
+    for co,info in pairs(ActivatedAbility.coroutineStorage) do
+        --A creature removal parked until every other cast ends (waitsForAllCasts, set in
+        --AbilityRemoveCreature) is waiting on the caller, so the caller must not wait on
+        --it back. That deadlock held a hero's queued Gravitic Disruption slides behind a
+        --dying Umbral Stalker's Monster Death, which waited on those same slides (3DPN6VF2).
+        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) and not info.waitsForAllCasts then
             return true
         end
     end
@@ -4182,8 +4186,9 @@ end
 
 --- The record ActivatedAbility.coroutineStorage keeps for the running cast coroutine. startTime and
 --- lastProgress are dmhub.Time() stamps; activity names what the cast is waiting on (e.g. "reaping"),
---- which CountActiveCasts can exclude. Kept an inline type so callers' structural casts still match.
---- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string}|nil
+--- which CountActiveCasts can exclude. waitsForAllCasts marks a cast parked until every other cast
+--- ends, which HasCoroutinesNotInSnapshot skips. Kept an inline type so callers' structural casts still match.
+--- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string, waitsForAllCasts?: boolean}|nil
 function ActivatedAbility.CurrentCastInfo()
     local co = coroutine.running()
     if co ~= nil then

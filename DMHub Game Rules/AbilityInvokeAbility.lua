@@ -1722,11 +1722,32 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
     local snapshot = ActivatedAbility.GetActiveCastSnapshot()
+    --DIAG: every 5s while this wait holds, log which of its three conditions is true.
+    --A hang here used to leave no trace (3VAQJS4A, YYK97NNG). Safe to keep.
+    local preWaitLogged = dmhub.Time()
+    local function LogPreContinueWait()
+        local now = dmhub.Time()
+        if now - preWaitLogged < 5 then
+            return
+        end
+        preWaitLogged = now
+        local rolling = gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()
+        local barCasting = gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() or nil
+        local barName = tostring(barCasting ~= nil and barCasting ~= false)
+        if type(barCasting) == "table" then
+            pcall(function() barName = tostring(barCasting.name) end)
+        end
+        print(string.format("INVOKEDIAG:: %s waiting to start: rollDialog=%s actionBar=%s newCasts=%s T=%.2f",
+            tostring(abilityClone.name), tostring(rolling), barName,
+            tostring(ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)), now))
+    end
     while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()) or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell()) or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
+        LogPreContinueWait()
         coroutine.safe_sleep_while(function()
             if not gamehud.actionBarPanel.valid then
                 return false
             end
+            LogPreContinueWait()
             return gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
         end)
 

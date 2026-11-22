@@ -884,6 +884,8 @@ text("guild.row.active", [[Active in town]])
 --{party} is the name of the party the hero is with.
 text("guild.row.away", [[Away: {party}]])
 text("guild.row.loading", [[Loading...]])
+text("guild.row.joining", [[Joining the guild...]])
+text("guild.row.dismissing", [[Dismissing...]])
 --Captions under the hero's numbers. Short: a few letters each.
 text("guild.stats.stamina", [[Stamina]])
 text("guild.stats.recoveries", [[Recov.]])

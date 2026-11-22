@@ -5371,7 +5371,8 @@ CreateScreen = function(args)
     --game heartbeats it) and says what newcomers may do: record.lateJoin
     --"join" (bring heroes: before combat, or in combat round 1) or "observe"
     --(watch only). A newcomer asks; the host accepts or declines from inside
-    --the game; once accepted we are a member, join the engine game and enter.
+    --the game (the city admits a watcher of a public party at once); once
+    --accepted we are a member, join the engine game and enter.
     --Design: EncounterOfTheWeek.md, "Joining a game under way".
 
     --(Late is declared above CreateScreen: this function is at Lua's
@@ -5621,7 +5622,8 @@ CreateScreen = function(args)
             end)
         elseif Late.Of(record) ~= nil then
             --a party under way: Join opens its view to pick the heroes to
-            --bring; Watch asks the host straight away.
+            --bring; Watch asks the host straight away (or, for a public
+            --party, lets us in).
             if Late.Of(record) == "join" then
                 buttons[#buttons+1] = RowButton(T("eotw.party.row_join_button"), function()
                     if OpenGameView ~= nil then
@@ -6858,8 +6860,9 @@ CreateScreen = function(args)
                         end,
                     }
                 end
+                --a public party lets anyone watch without asking its host.
                 buttons[#buttons+1] = gui.Button{
-                    text = T("eotw.late.ask_watch_button"),
+                    text = cond(record.public == true, T("eotw.late.row_watch_button"), T("eotw.late.ask_watch_button")),
                     fontSize = 20,
                     width = 180,
                     height = 44,
@@ -12514,9 +12517,9 @@ CreateScreen = function(args)
                 end }
             end
         else
-            --under way: joining opens its view to pick the heroes to bring;
-            --watching asks the host straight away. A private party's host
-            --is asked the same way.
+            --under way: joining opens its view to pick the heroes to bring.
+            --Watching a public party lets us straight in; a private party's
+            --host is asked first.
             local late = Late.Of(record)
             if late ~= nil then
                 joinable = true

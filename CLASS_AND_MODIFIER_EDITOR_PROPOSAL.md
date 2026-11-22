@@ -738,3 +738,26 @@ Asked for: alternative C from the critique, plus ready-made features authors mak
   - **Importing:** Import accepts shared features as well as classes, and they join your shelf.
   - **Where they live:** in the prototype, in the browser. In DMHub they would be a compendium table, so
     a table or organisation can publish its own (see the Lua study).
+
+## 13. Lua effort study (2026-11-22)
+
+See `BLOCK_EDITORS_LUA_STUDY.md`, written by an independent study of the codex Lua; no Lua was changed.
+- **Effort:** about 61-89 person-weeks for both prototypes, about 8-12 of them on rules and data changes.
+  The first milestone, the simple ability editor on existing abilities, is about 25-35. No C# change is
+  required.
+- **Required changes:**
+  - R1: one skill record (extend `CharacterSkillChoice` with `grantedSkills`, allow `numChoices = 0`).
+    Old records keep working; the editor stops producing the two-part shape.
+  - R2: the attribute `cap` field is never read (a live bug in content).
+  - R3: perk tags match by exact text.
+  - R4: change abilities by id.
+- **Recommended changes:**
+  - R5: card overrides on the ability;
+  - R6: an aura "ends turn in the area" trigger;
+  - R7: nested follow-up values.
+
+The prototype was corrected for two findings I checked against the code:
+- **"Raise a characteristic"** now saves +1 plus a separate `min` (cap) modifier, instead of `cap`
+  (`CustomAttribute.lua` ApplyOperation has no cap).
+- **Perk groups** use the tags perks actually carry ("exploration perks", "lore perks", "supernatural
+  perks"; `Feat.lua` HasTag compares lowercased text exactly).

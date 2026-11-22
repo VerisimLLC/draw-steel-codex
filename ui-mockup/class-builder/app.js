@@ -19,6 +19,8 @@ const MOVES = [["fly", "fly"], ["climb", "climb at full speed"], ["swim", "swim 
 const KEYWORDS = ["Animal", "Area", "Charge", "Magic", "Melee", "Psionic", "Ranged", "Strike", "Weapon"];
 const SKILL_GROUPS = ["crafting", "exploration", "interpersonal", "intrigue", "lore"];
 const PERK_GROUPS = ["crafting", "exploration", "interpersonal", "intrigue", "lore", "supernatural"];
+// The tags perks carry in the compendium (some groups are plural there).
+const PERK_TAGS = { crafting: "crafting perk", exploration: "exploration perks", interpersonal: "interpersonal perk", intrigue: "intrigue perk", lore: "lore perks", supernatural: "supernatural perks" };
 const RES = { heroic: "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca", recovery: "5bd90f9b-46be-4cf2-8ca6-a96430d62949", surges: "8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d", epic: "e7b04a7e-61fc-4e17-b999-d95d7e751abb" };
 const RESOURCE_OPTS = [[RES.recovery, "Recoveries"], [RES.surges, "surges"], [RES.epic, "epic resource"]];
 const ACTION_NAMES = Object.fromEntries(T.resources.filter(r => r[2] === "Actions").map(r => [r[0], r[1]]));
@@ -203,7 +205,8 @@ const SENT = {
   perkChoice: { featName: "Perk", desc: "The player picks perks from the groups you name. Saves as a perk choice.", label: "Choose a perk", group: "choice", uses: 54, choice: true, make: () => ({ num: "1", groups: ["exploration", "interpersonal", "intrigue"] }),
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
-    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
+    // Perks are matched by exact tag text (Feat.lua HasTag, lowercased), so each group uses the tag its perks carry.
+    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => PERK_TAGS[g] || g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
   /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
      records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
   skills: { featName: "Skills", desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Have or choose skills", group: "choice", uses: 118, choice: true,
@@ -237,7 +240,10 @@ const SENT = {
     compileChoice: (f, feat, base) => { const raised = feat.sentences.filter(x => x.type === "stat" && CHARS.some(c => c[0] === x.f.attr)).map(x => x.f.attr);
       return Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
         options: CHARS.filter(c => !raised.includes(c[0])).map(c => ({ __typeName: "CharacterFeature", name: c[1], description: "", tags: { Hidden: true },
-          modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1, cap: numOr(f.max) }] })) }); } },
+          // +1, then a separate "min" (Override: set max value) modifier for the maximum: the engine
+          // doesn't read the "cap" field some content uses (see BLOCK_EDITORS_LUA_STUDY.md, R2).
+          modifiers: [{ __typeName: "CharacterModifier", behavior: "attribute", name: c[1], description: "", attribute: c[0], value: 1 },
+            { __typeName: "CharacterModifier", behavior: "attribute", name: c[1] + " maximum", description: "", attribute: c[0], operation: "min", value: numOr(f.max) }] })) }); } },
   abilityChoice: { shelf: false, desc: "The player picks abilities from a list you build here (signature, or heroic with a cost).", label: "Choose an ability", group: "choice", uses: 130, choice: true, make: () => ({ num: "1", cat: "signature", cost: "3", options: [] }),
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));

@@ -10273,6 +10273,10 @@ local function NearbyTokenMatchesCriteria(token, nearby, criteria)
     return matches
 end
 
+--Public so the square versions of Count Nearby Friends (in MCDMMonster.lua)
+--filter creatures the same way the creature versions below do.
+creature.NearbyTokenMatchesCriteria = NearbyTokenMatchesCriteria
+
 local countriders = function(c, criteria)
     return function(distance, x, y, w, z, xx, yy, ww, zz)
         local token = dmhub.LookupToken(c)

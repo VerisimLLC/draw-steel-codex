@@ -847,17 +847,27 @@ local objectMissileReach = 3
 
 --A slid object is a missile (Paranormal Fling, AME33M5U): aim it to hit an enemy
 --within reach, nearest first. The victim scoring below would rate a wall hit higher.
---nil when no enemy is in reach or no line moves the object at all.
-local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPredicate)
+--Returns the square to slide it at, or nil when no line hits an enemy without also
+--hitting one of friendToken's allies. The second result is true when some enemy is
+--in reach at all. The undead Malice choice uses this too, so it only pays for
+--objects that will hit.
+---@param friendToken CharacterToken the side doing the throwing
+---@param candidateEnemies CharacterToken[]
+---@param objectToken CharacterToken
+---@param range number
+---@param filterTargetPredicate nil|fun(loc: any): boolean
+---@return any|nil loc
+---@return boolean enemyInReach
+function MonsterAI.FindObjectMissileHit(friendToken, candidateEnemies, objectToken, range, filterTargetPredicate)
     local enemies = {}
-    for _,enemy in ipairs(ai.enemyTokens or {}) do
+    for _,enemy in ipairs(candidateEnemies or {}) do
         if MonsterAI.TokenIsLiveCombatant(enemy) and not enemy.isObject
             and enemy:Distance(objectToken.loc) <= objectMissileReach then
             enemies[#enemies+1] = enemy
         end
     end
     if #enemies == 0 then
-        return nil
+        return nil, false
     end
     table.sort(enemies, function(a, b)
         return a:Distance(objectToken.loc) < b:Distance(objectToken.loc)
@@ -876,7 +886,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
             for dx = -1,1 do
                 for dy = -1,1 do
                     local loc = occupied:dir(dx, dy):WithAltitude(0)
-                    if not seen[loc.str] and filterTargetPredicate(loc) then
+                    if not seen[loc.str] and (filterTargetPredicate == nil or filterTargetPredicate(loc)) then
                         seen[loc.str] = true
                         candidates[#candidates+1] = loc
                     end
@@ -886,7 +896,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
     end
 
     local bestLoc = nil
-    local bestScore = nil
+    local bestRank = nil
     for _,testLoc in ipairs(candidates) do
         local movementInfo = objectToken:MarkMovementArrow(testLoc, ForcedMovementArrowOptions("slide", range))
         if movementInfo ~= nil then
@@ -898,21 +908,15 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
                     local rank = enemyRank[collideToken.charid]
                     if rank ~= nil then
                         hitRank = math.min(hitRank or rank, rank)
-                    elseif not collideToken.isObject and collideToken:IsFriend(ai.token) then
+                    elseif not collideToken.isObject and collideToken:IsFriend(friendToken) then
                         hitAlly = true
                     end
                 end
-                --Never throw into an ally. Hitting the nearest enemy beats a farther one;
-                --a line that hits no one ends as close to the nearest enemy as it can.
-                if not hitAlly then
-                    local score
-                    if hitRank ~= nil then
-                        score = 1000 - hitRank
-                    else
-                        score = -enemies[1]:Distance(destination)
-                    end
-                    if bestScore == nil or score > bestScore then
-                        bestScore = score
+                --Never throw into an ally, and never settle for a line that hits no one
+                --(the object would only land beside the enemy). The nearest enemy first.
+                if not hitAlly and hitRank ~= nil then
+                    if bestRank == nil or hitRank < bestRank then
+                        bestRank = hitRank
                         bestLoc = testLoc
                     end
                 end
@@ -921,7 +925,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
     end
 
     objectToken:ClearMovementArrow()
-    return bestLoc
+    return bestLoc, true
 end
 
 MonsterAI:RegisterPrompt{
@@ -958,10 +962,16 @@ MonsterAI:RegisterPrompt{
         local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
 
         --Before Force Into: that zone is for creatures, and would take a thrown object off its enemy.
+        --With an enemy in reach but no clean hit, leave the object where it is: the
+        --victim scoring below once sent it into a wall or an ally instead.
         if forcedMovement == "slide" and casterToken.isObject then
-            local missileLoc = FindObjectMissileLocation(ai, casterToken, range, filterTargetPredicate)
+            local missileLoc, enemyInReach = MonsterAI.FindObjectMissileHit(ai.token, ai.enemyTokens,
+                casterToken, range, filterTargetPredicate)
             if missileLoc ~= nil then
                 return AnswerForcedMoveLoc(casterToken, missileLoc, forcedMovement, range)
+            end
+            if enemyInReach then
+                return {decline = true, reason = "no line hits an enemy without hitting an ally"}
             end
         end
 
@@ -1148,25 +1158,9 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
---Hurl Grabbed Creature (Ogre Goon "People Bowling", AbilityRelocateAura.lua):
---two picks. The creature pick carries its candidates in _tmp_hurlCandidates;
---throw the first (the goon normally grabs only one creature anyway). The
---landing pick carries the equally-near free squares in _tmp_restrictLocs;
---any of them satisfies the rule, so take the first.
-MonsterAI:RegisterPrompt{
-    prompts = {"Hurl Grabbed Creature"},
-
-    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
-        local candidates = abilityClone:try_get("_tmp_hurlCandidates")
-        if candidates == nil or #candidates == 0 then
-            return nil
-        end
-        return {
-            targets = { {token = candidates[1]} }
-        }
-    end,
-}
-
+--Where a hurled creature lands (Ogre Goon's People Bowling). When several free
+--squares tie for nearest to the line's end they arrive in _tmp_restrictLocs,
+--and any of them follows the rule, so take the first.
 MonsterAI:RegisterPrompt{
     prompts = {"Hurl Landing Square"},
 

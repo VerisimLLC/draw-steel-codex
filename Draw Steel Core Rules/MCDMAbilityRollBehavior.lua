@@ -4235,6 +4235,11 @@ RollCheck.RegisterCustom{
     end,
 }
 
+--dialogOptions tables whose completeRoll already fires the rollpower event.
+--PrepareDialog can run twice on the same table (sidebar card unavailable, then
+--the pop-up), and the event must fire only once.
+local g_testRollCompleteWrapped = setmetatable({}, {__mode = "k"})
+
 --Keep target tests on the existing per-target request path, but give modifiers
 --and reactions the creature making the test as their roller.
 RollCheck.RegisterCustom{
@@ -4246,7 +4251,10 @@ RollCheck.RegisterCustom{
     end,
     GetRoll = RollCheck.customChecks.resistance_power_roll.GetRoll,
     GetModifiers = RollCheck.customChecks.resistance_power_roll.GetModifiers,
-    ShowDialog = function(check, dialogOptions)
+    --Sets up the test roll: the power table, the creature rolling as its only
+    --target, and the reactions that can respond to it. Kept apart from ShowDialog
+    --so a requested test can be rolled on the sidebar card instead of the old pop-up.
+    PrepareDialog = function(check, dialogOptions)
         local roller = dmhub.LookupToken(dialogOptions.creature)
         local testAbility = check.options.ability
         dialogOptions.ability = testAbility
@@ -4269,27 +4277,33 @@ RollCheck.RegisterCustom{
                 end
             end
             table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
-            local completeRoll = dialogOptions.completeRoll
-            dialogOptions.completeRoll = function(rollInfo)
-                completeRoll(rollInfo)
-                local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
-                local dice = {}
-                for _,die in ipairs(rollInfo.rolls or {}) do
-                    if not die.dropped and die.numFaces == 10 then
-                        dice[#dice+1] = die.result
+            if not g_testRollCompleteWrapped[dialogOptions] then
+                g_testRollCompleteWrapped[dialogOptions] = true
+                local completeRoll = dialogOptions.completeRoll
+                dialogOptions.completeRoll = function(rollInfo)
+                    completeRoll(rollInfo)
+                    local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
+                    local dice = {}
+                    for _,die in ipairs(rollInfo.rolls or {}) do
+                        if not die.dropped and die.numFaces == 10 then
+                            dice[#dice+1] = die.result
+                        end
                     end
+                    table.sort(dice, function(a,b) return a > b end)
+                    roller.properties:DispatchEvent("rollpower", {
+                        surges = 0,
+                        tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
+                        naturalroll = rollInfo.naturalRoll,
+                        highroll = dice[1], lowroll = dice[2],
+                        ability = testAbility,
+                        herotokenreroll = CharacterResource.RollUsedHeroTokenReroll(rollInfo),
+                    })
                 end
-                table.sort(dice, function(a,b) return a > b end)
-                roller.properties:DispatchEvent("rollpower", {
-                    surges = 0,
-                    tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
-                    naturalroll = rollInfo.naturalRoll,
-                    highroll = dice[1], lowroll = dice[2],
-                    ability = testAbility,
-                    herotokenreroll = CharacterResource.RollUsedHeroTokenReroll(rollInfo),
-                })
             end
         end
+    end,
+    ShowDialog = function(check, dialogOptions)
+        RollCheck.customChecks.target_test_power_roll.PrepareDialog(check, dialogOptions)
         return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }

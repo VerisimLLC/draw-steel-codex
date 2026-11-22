@@ -765,11 +765,178 @@ local function CleanResistanceText(text)
     return text
 end
 
-local function Effects(c)
-    local chips = {}
+--Whether this user may change a creature's conditions, effects and auras
+--from its card: the Director, or whoever controls it outside Encounter of the
+--Week (where the character panels are read-only too).
+local function CanEditEffects(tok)
+    if dmhub.isDM then
+        return true
+    end
+    local control = false
+    pcall(function() control = tok.canControl == true end)
+    if not control then
+        return false
+    end
+    local eotw = false
+    local eotwGame = rawget(_G, "EncounterOfTheWeekGame")
+    if eotwGame ~= nil then
+        pcall(function() eotw = eotwGame.IsEotwGame() == true end)
+    end
+    return not eotw
+end
 
+--the add button whose menu is open, if any: the back is not rebuilt under an
+--open menu (see the back face's refreshGame), which would close it.
+---@type Panel|nil
+local g_effectsMenuButton = nil
+--when that menu last closed: the press that closes it by clicking the card
+--must not also turn the card (see the back face's click).
+---@type number|nil
+local g_effectsMenuClosedAt = nil
+
+--- Whether a card's add-a-condition menu is open.
+--- @return boolean
+local function EffectsMenuOpen()
+    local button = g_effectsMenuButton
+    return button ~= nil and button.valid and button.popup ~= nil
+end
+
+--- For a click on the card: true when it closed the add-a-condition menu
+--- (the menu closes on the press), so the card must not turn this time.
+--- @return boolean
+local function ConsumeMenuClick()
+    local button = g_effectsMenuButton
+    if button ~= nil and button.valid and button.popup ~= nil then
+        button.popup = nil
+        g_effectsMenuClosedAt = nil
+        return true
+    end
+    if g_effectsMenuClosedAt ~= nil and dmhub.Time() - g_effectsMenuClosedAt < 1 then
+        g_effectsMenuClosedAt = nil
+        return true
+    end
+    return false
+end
+
+--- The "+" that opens the character panel's add-a-condition menu
+--- (TacPanel.AddConditionMenu) for this creature.
+local function AddEffectButton(tok, tac)
+    return gui.Panel{
+        classes = {"heroCardAddEffect", "editOnly"},
+        width = "auto",
+        height = "auto",
+        hpad = 8,
+        vpad = 1,
+        margin = 2,
+        valign = "top",
+        bgimage = "panels/square.png",
+        bgcolor = "#00000000",
+        border = 1,
+        borderColor = COLOR_GOLD,
+        cornerRadius = 4,
+        styles = {
+            { selectors = {"heroCardAddEffect", "hover"}, bgcolor = "#ffffff22" },
+        },
+        hover = function(element)
+            gui.Tooltip("Add a condition or effect")(element)
+        end,
+        click = function(element)
+            if not CanEditEffects(tok) then
+                return
+            end
+            element.tooltip = nil
+            g_effectsMenuButton = element
+            tac.AddConditionMenu{ tokens = {tok}, button = element }
+            --the menu's dialog look comes from the theme, which the card's
+            --style cascade does not carry: give the menu the theme itself.
+            local theme = rawget(_G, "ThemeEngine")
+            local tacStyles = rawget(_G, "TacPanelStyles")
+            if element.popup ~= nil and theme ~= nil and tacStyles ~= nil then
+                element.popup.styles = theme.MergeStyles(tacStyles.AddConditionMenu)
+            end
+        end,
+        closePopup = function(element)
+            g_effectsMenuClosedAt = dmhub.Time()
+            --picking from the menu closes it on the press, so the release
+            --lands on whatever was under the menu. Over a map window, that
+            --release would bring the map up over the card. Raising the card
+            --here counts as a window activation, so the map stays put
+            --(MapViewport.RaiseOnMapPress).
+            local frame = element:FindParentWithClass("tabletopCard")
+            if frame ~= nil and frame.valid then
+                frame:SetAsLastSibling()
+            end
+        end,
+        gui.Label{
+            text = "+",
+            width = "auto",
+            height = "auto",
+            fontSize = 15,
+            bold = true,
+            color = COLOR_GOLD,
+            interactable = false,
+        },
+    }
+end
+
+--- The character panel's condition, effect and aura chips, with their
+--- controls (TacPanel.ConditionChipList), and a "+" to add one. nil where
+--- that panel isn't loaded (the title screen).
+--- @return Panel|nil
+local function ManagedEffects(tok)
+    local tac = rawget(_G, "TacPanel")
+    local tacStyles = rawget(_G, "TacPanelStyles")
+    if tok == nil or tac == nil or tac.ConditionChipList == nil or tacStyles == nil then
+        return nil
+    end
+    local chips = tac.ConditionChipList(tok, AddEffectButton(tok, tac))
+    --the chips' looks, and "readonly" hiding their controls from a user
+    --who may not change them (TacPanel.IsReadOnly).
+    local styles = {}
+    for _, list in ipairs({tacStyles.Conditions or {}, tacStyles.ReadOnly or {}}) do
+        for _, rule in ipairs(list) do
+            styles[#styles+1] = rule
+        end
+    end
+    --the chips' buttons (Set Caster, remove) take their look from the
+    --theme, which the card's cascade lacks: without it they are invisible
+    --but still pressable. The tactical panel gets the theme from its dock.
+    local theme = rawget(_G, "ThemeEngine")
+    if theme ~= nil then
+        styles = theme.MergeStyles(styles)
+    end
+    return gui.Panel{
+        classes = {"panel", "cond-chips", cond(CanEditEffects(tok), nil, "readonly")},
+        styles = styles,
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        tmargin = 0,
+        bmargin = 4,
+        --a click among the chips (a remove X acts on press) is not for
+        --turning the card.
+        click = function(element) end,
+        children = chips,
+    }
+end
+
+local function Effects(c, tok)
+    local chips = {}
+    ---@type Panel|nil
+    local managed = nil
+    local ok, err = pcall(function() managed = ManagedEffects(tok) end)
+    if not ok then
+        print("HeroCardBack: effects failed:", err)
+    end
+
+    --without the character panel (the title screen): plain chips, with
+    --their rules on hover.
     local conditionsTable = Try(function() return dmhub.GetTable(CharacterCondition.tableName) end, {})
     local inflicted = Try(function() return c:try_get("inflictedConditions", {}) end, {})
+    if managed ~= nil then
+        inflicted = {}
+    end
     for condid, condEntry in pairs(inflicted) do
         local info = conditionsTable[condid]
         if info ~= nil then
@@ -790,6 +957,9 @@ local function Effects(c)
 
     local effectsTable = Try(function() return dmhub.GetTable("characterOngoingEffects") end, {})
     local effects = Try(function() return c:ActiveOngoingEffects() end, {})
+    if managed ~= nil then
+        effects = {}
+    end
     for _, entry in ipairs(effects) do
         local info = effectsTable[entry.ongoingEffectid]
         if info ~= nil and info.statusEffect then
@@ -842,7 +1012,9 @@ local function Effects(c)
     end
 
     local children = {}
-    if #chips > 0 then
+    if managed ~= nil then
+        children[#children+1] = managed
+    elseif #chips > 0 then
         children[#children+1] = gui.Panel{
             width = "100%",
             height = "auto",
@@ -1167,7 +1339,8 @@ local ROW_STYLES = {
 --- @param name string
 --- @param meta string rich text for the right-hand side
 --- @param tooltip fun(): Panel|nil builds the hover card; nil shows none
-local function Row(name, meta, tooltip)
+--- @param onClick nil|fun() what a click does; without it a click does nothing
+local function Row(name, meta, tooltip, onClick)
     return gui.Panel{
         classes = {"heroCardRow"},
         styles = ROW_STYLES,
@@ -1185,8 +1358,13 @@ local function Row(name, meta, tooltip)
                 element.tooltip = CardTip(card)
             end
         end,
-        --a click on a row is for reading it, not for turning the card.
-        click = function(element) end,
+        --a click on a row is never for turning the card.
+        click = function(element)
+            if onClick ~= nil then
+                element.tooltip = nil
+                onClick()
+            end
+        end,
         Text{ text = name, fontSize = 13, bold = true, color = COLOR_TEXT, width = "58%", textWrap = false },
         Text{ text = meta, fontSize = 11.5, color = COLOR_MUTED, width = "42%", textAlignment = "right", textWrap = false },
     }
@@ -1399,7 +1577,7 @@ local function BuildSections(tok)
         function() return StaminaStrip(c) end,
         function() return Characteristics(c) end,
         function() return MovementLine(c) end,
-        function() return Effects(c) end,
+        function() return Effects(c, tok) end,
     }
     local entries = MonsterEntries(tok, c)
     local counts = {}
@@ -1802,10 +1980,43 @@ local function SpendableResource(c)
     return tonumber(value) or 0
 end
 
+--- Starts using an ability from the card, as the action bar does when one of
+--- its abilities is clicked: targeting on the map, then the cast. Only for
+--- whoever controls the hero, and only while the hero is on the map being
+--- shown (the bar targets there).
+--- @param charid string
+--- @param ability ActivatedAbility
+local function UseAbility(charid, ability)
+    local tok = dmhub.GetTokenById(charid)
+    if tok == nil or not tok.valid then
+        return
+    end
+    local control = false
+    pcall(function() control = tok.canControl == true end)
+    if not (dmhub.isDM or control) then
+        return
+    end
+    local hud = rawget(_G, "gamehud")
+    if hud == nil or hud.actionBarPanel == nil then
+        return
+    end
+    audio.FireSoundEvent("Mouse.Click")
+    hud.actionBarPanel:FireEventTree("invokeAbility", tok, ability, {})
+end
+
 --- One ability as a row: its cost and action on the right, its card on hover.
---- Greyed out when the hero can't pay for it now.
+--- Greyed out when the hero can't pay for it now. usable: a click uses it
+--- (UseAbility).
+--- @param usable nil|boolean
 --- @return Panel
-local function AbilityItemRow(item, tok, spendable)
+local function AbilityItemRow(item, tok, spendable, usable)
+    local onClick = nil
+    if usable and item.ability ~= nil then
+        local charid = tok.charid
+        onClick = function()
+            UseAbility(charid, item.ability)
+        end
+    end
     local parts = {}
     if item.costTag ~= nil then
         parts[#parts+1] = string.format("<b><color=%s>%s</color></b>", COLOR_RESOURCE, item.costTag)
@@ -1821,7 +2032,7 @@ local function AbilityItemRow(item, tok, spendable)
             return item.trigger:Render{ token = tok }
         end
         return nil
-    end)
+    end, onClick)
     local cost = item.ability ~= nil and HeroicCost(item.ability) or nil
     if spendable ~= nil and cost ~= nil and cost > spendable then
         Fade(row, 0.45)
@@ -1869,7 +2080,7 @@ local function AbilitiesTab(tok, c, state)
     for _, id in ipairs(HERO_BUCKETS) do
         local rows = {}
         for _, item in ipairs(buckets[id]) do
-            local ok, row = pcall(AbilityItemRow, item, tok, spendable)
+            local ok, row = pcall(AbilityItemRow, item, tok, spendable, true)
             if ok and row ~= nil then
                 rows[#rows+1] = row
             end
@@ -2411,7 +2622,7 @@ local function BuildHeroTab(tok, charid, state)
             function() return StaminaStrip(c, tok) end,
             function() return Characteristics(c, tok) end,
             function() return MovementLine(c, tok) end,
-            function() return Effects(c) end,
+            function() return Effects(c, tok) end,
             function() return PersistentAbilities(c, tok) end,
         }
     end
@@ -2425,7 +2636,15 @@ end
 
 local FOOTER_HEIGHT = 26
 
+--The Hero sheet where it opens for this hero, as the table card's Character
+--Sheet icon does (HeroSheet.CardButton); the character panel otherwise.
 local function OpenSheet(charid, element)
+    local heroSheet = rawget(_G, "HeroSheet")
+    local tok = dmhub.GetCharacterById(charid)
+    if heroSheet ~= nil and tok ~= nil and heroSheet.Routes(tok) then
+        heroSheet.CardButton(charid)
+        return
+    end
     local toggle = rawget(_G, "ToggleCharacterPanelDocument")
     if toggle ~= nil then
         toggle(charid, nil, element)
@@ -2452,16 +2671,18 @@ local function CreateFooter(charid)
             textWrap = false,
         },
         gui.Label{
-            text = "Full sheet",
+            text = "Full Character Sheet",
             width = "auto",
             height = "auto",
             halign = "right",
             valign = "center",
             fontSize = 12,
             bold = true,
-            color = COLOR_GOLD,
             swallowPress = true,
+            --the colour lives in the styles: one set on the label itself
+            --would beat the hover rule.
             styles = {
+                { selectors = {"label"}, color = COLOR_GOLD },
                 { selectors = {"label", "hover"}, color = "#ffffff" },
             },
             click = function(element)
@@ -2478,31 +2699,102 @@ end
 --it keeps the card's exact size and shape at any card size.
 local DESIGN_WIDTH = BACK_WIDTH
 
-local FLIP_SECONDS = 0.42
+local FLIP_SECONDS = 0.21
 --how much bigger the card is while its back is showing. It grows upward and
 --then rises a further TURNED_RISE of its own height, clear of the screen's foot.
 local TURNED_SCALE = 3
 local TURNED_RISE = 0.25
 
+--cards showing their back, oldest first. Only the last one opened draws on
+--top of everything, so a newer card is never hidden under an older one.
+--- @type Panel[]
+local g_turnedOrder = {}
+
+--- Lets only the newest card in the turned list draw above the screen's
+--- other panels, dropping any card that no longer exists.
+local function RaiseNewestTurned()
+    for i = #g_turnedOrder, 1, -1 do
+        if not g_turnedOrder[i].valid then
+            table.remove(g_turnedOrder, i)
+        end
+    end
+    local top = g_turnedOrder[#g_turnedOrder]
+    for _, other in ipairs(g_turnedOrder) do
+        other.renderOnTop = other == top
+    end
+end
+
+--- Records that a card was turned to its back (turned = true) or back to
+--- its face (false), then lets only the newest turned card draw on top.
+--- @param card Panel
+--- @param turned boolean
+local function SetTurnedOrder(card, turned)
+    table.remove_value(g_turnedOrder, card)
+    if turned then
+        g_turnedOrder[#g_turnedOrder+1] = card
+    else
+        card.renderOnTop = false
+    end
+    RaiseNewestTurned()
+end
+
+--Where a turning card goes, in the card's own units: its scale and its x/y
+--offset at the start of the turn and at the end. Scale is around the card's
+--centre. A host that places the card itself (the table) gives one from
+--Decorate's options.onTurn; without one the card grows TURNED_SCALE times
+--where it lies, upward.
+--- @class HeroCardFlipMotion
+--- @field fromScale number
+--- @field toScale number
+--- @field fromX nil|number
+--- @field fromY nil|number
+--- @field toX nil|number
+--- @field toY nil|number
+--- @field turned nil|boolean true when the card is turning to its back
+
 --Turns the card over: squeezes it edge-on, swaps the faces at the midpoint
 --and opens it out again, lifting slightly as it turns. Driven by hand rather
 --than by a style transition so it runs on the card itself, whose styles
---belong to the host. The card grows from fromScale to toScale as it turns,
---rising so the growth goes upward (scale is around the card's centre).
-local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onDone)
+--belong to the host. The card grows from motion.fromScale to motion.toScale
+--as it turns, rising so the growth goes upward, unless the motion gives
+--offsets, which it then moves between instead.
+--- @param motion HeroCardFlipMotion
+local function AnimateFlip(card, cardHeight, motion, onMidpoint, onDone)
     if card.data.heroCardFlipping then
         return
     end
     card.data.heroCardFlipping = true
-    if card.data.heroCardBaseY == nil then
-        card.data.heroCardBaseY = card.selfStyle.y or 0
+    local fromScale, toScale = motion.fromScale, motion.toScale
+    local hosted = motion.fromY ~= nil
+    --a card grows while it shows its back, so any scale but 1 means opening.
+    --A hosted card's scales are relative to the host, so it says which way it turns.
+    local opening = motion.turned
+    if opening == nil then
+        opening = toScale ~= 1
     end
-    local baseY = card.data.heroCardBaseY
-    --the engine pulls an enlarged card back inside the screen.
-    card.constrainToScreen = true
-    local function Lift(size)
-        local grown = (size - 1) / (TURNED_SCALE - 1)
-        return baseY - (size - 1) * cardHeight / 2 - grown * TURNED_RISE * cardHeight
+    --only cards on the screen itself take turns drawing on top; the table
+    --orders its own cards.
+    if opening and not hosted then
+        SetTurnedOrder(card, true)
+    end
+    --puts the card t of the way through the turn, at size grown.
+    local Place
+    if hosted then
+        Place = function(t, grown)
+            card.selfStyle.x = motion.fromX + (motion.toX - motion.fromX) * t
+            card.selfStyle.y = motion.fromY + (motion.toY - motion.fromY) * t
+        end
+    else
+        if card.data.heroCardBaseY == nil then
+            card.data.heroCardBaseY = card.selfStyle.y or 0
+        end
+        local baseY = card.data.heroCardBaseY
+        --the engine pulls an enlarged card back inside the screen.
+        card.constrainToScreen = true
+        Place = function(t, grown)
+            local risen = (grown - 1) / (TURNED_SCALE - 1)
+            card.selfStyle.y = baseY - (grown - 1) * cardHeight / 2 - risen * TURNED_RISE * cardHeight
+        end
     end
     local start = dmhub.Time()
     local swapped = false
@@ -2518,8 +2810,15 @@ local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onD
         if p >= 1 then
             --never nil: clearing selfStyle.scale leaves the card at scale 0.
             card.selfStyle.scale = toScale
-            card.selfStyle.y = Lift(toScale)
-            card.constrainToScreen = toScale ~= 1
+            Place(1, toScale)
+            if not hosted then
+                card.constrainToScreen = opening
+                --stays on top while it shrinks, then hands the top to the card
+                --opened before it.
+                if not opening then
+                    SetTurnedOrder(card, false)
+                end
+            end
             card.data.heroCardFlipping = false
             onDone()
             return
@@ -2529,7 +2828,7 @@ local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onD
         local grown = fromScale + (toScale - fromScale) * eased
         local size = grown * (1 + 0.06 * math.sin(p * math.pi))
         card.selfStyle.scale = {x = sx * size, y = size}
-        card.selfStyle.y = Lift(grown)
+        Place(eased, grown)
         dmhub.Schedule(0.01, Step)
     end
     Step()
@@ -2541,7 +2840,9 @@ end
 --- @param cardWidth number
 --- @param cardHeight number
 --- @return Panel
-local function CreateBackFace(charid, cardWidth, cardHeight)
+--- @param draggable nil|boolean the host drags the card by its back: a press
+--- on the back passes through to it
+local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
     local scale = cardWidth / DESIGN_WIDTH
     local designHeight = math.floor(cardHeight / scale)
     local VPAD = 14
@@ -2693,7 +2994,8 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
         --the back is the same card as the front, so it takes the front's
         --corners: EotwHeroCard draws the card with cornerRadius 8.
         cornerRadius = 8,
-        swallowPress = true,
+        --not swallowed when the host drags the card: the press goes on to it.
+        swallowPress = draggable ~= true,
         styles = {
             {
                 selectors = {"heroCardBackFace"},
@@ -2706,11 +3008,31 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
         },
         --stamina, conditions and the like change under the card: rebuild
         --the back while it is showing.
+        --Not under an open add-a-condition menu, which the rebuild would
+        --close: it waits until the menu is gone.
         monitorGame = "/characters",
         refreshGame = function(element)
-            if element:HasClass("turned") then
-                content:FireEvent("refreshBack")
+            if not element:HasClass("turned") then
+                return
             end
+            if EffectsMenuOpen() then
+                if not element.data.refreshWaiting then
+                    element.data.refreshWaiting = true
+                    dmhub.ScheduleWhen(function()
+                        return mod.unloaded or not EffectsMenuOpen()
+                    end, function()
+                        if mod.unloaded or not element.valid then
+                            return
+                        end
+                        element.data.refreshWaiting = false
+                        if element:HasClass("turned") then
+                            content:FireEvent("refreshBack")
+                        end
+                    end)
+                end
+                return
+            end
+            content:FireEvent("refreshBack")
         end,
         showBack = function(element, show)
             element:SetClass("turned", show)
@@ -2723,6 +3045,11 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
             end
         end,
         click = function(element)
+            --a click that closed the add-a-condition menu only closes it;
+            --the next click turns the card.
+            if ConsumeMenuClick() then
+                return
+            end
             audio.FireSoundEvent("Mouse.Click")
             element.parent:FireEvent("turnCard")
         end,
@@ -2885,8 +3212,20 @@ end
 --card over from Lua (HeroCardBack.TurnAll()).
 local g_cards = setmetatable({}, {__mode = "k"})
 
+--Decorate's options.
+--  noButton   leave off the flip button, for a host that turns the card on a
+--             click (the table's cards)
+--  dragBack   the host drags the turned card: a press on the back reaches it
+--  onTurn     onTurn(turned), called as a turn starts: the host may move the
+--             card's frame and return where the card goes (HeroCardFlipMotion),
+--             or nil for the usual growth in place
+--- @class HeroCardBackOptions
+--- @field noButton nil|boolean
+--- @field dragBack nil|boolean
+--- @field onTurn nil|fun(turned: boolean): HeroCardFlipMotion|nil
+
 --- Gives a hero card (EotwHeroCard.CreateHeroCard) its back: the back face
---- and the flip button go on as the card's top layers, and the card learns
+--- and (unless options.noButton) the flip button go on as the card's top layers, and the card learns
 --- the "turnCard" event they both fire. Mid-turn the card tells its hosts
 --- with "heroCardTurned" (turned) on its parents: the table hides the card's
 --- titlebar, which the grown back would otherwise sit under.
@@ -2894,8 +3233,10 @@ local g_cards = setmetatable({}, {__mode = "k"})
 --- @param charid string
 --- @param cardWidth number
 --- @param cardHeight number
-local function Decorate(cardArgs, charid, cardWidth, cardHeight)
-    local backFace = CreateBackFace(charid, cardWidth, cardHeight)
+--- @param options nil|HeroCardBackOptions
+local function Decorate(cardArgs, charid, cardWidth, cardHeight, options)
+    options = options or {}
+    local backFace = CreateBackFace(charid, cardWidth, cardHeight, options.dragBack)
     local create = cardArgs.create
     cardArgs.create = function(element)
         g_cards[element] = true
@@ -2903,23 +3244,54 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
             create(element)
         end
     end
+    --a turned card can be destroyed (its row rebuilt, the card removed);
+    --the card turned before it then takes the top.
+    local destroy = cardArgs.destroy
+    cardArgs.destroy = function(element)
+        table.remove_value(g_turnedOrder, element)
+        RaiseNewestTurned()
+        if destroy ~= nil then
+            destroy(element)
+        end
+    end
     cardArgs[#cardArgs+1] = backFace
-    local flipButton = CreateFlipButton(charid)
-    cardArgs[#cardArgs+1] = flipButton
-    --History sits just left of the centred flip button, unless this user is on the old Action
-    --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
-    local history = rawget(_G, "History")
-    if history ~= nil and not history.UsingOldLog() then
-        cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
+    ---@type Panel|nil
+    local flipButton = nil
+    if not options.noButton then
+        flipButton = CreateFlipButton(charid)
+        cardArgs[#cardArgs+1] = flipButton
+        --History sits just left of the centred flip button, unless this user is on the old Action
+        --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
+        local history = rawget(_G, "History")
+        if history ~= nil and not history.UsingOldLog() then
+            cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
+        end
     end
     cardArgs.turnCard = function(element)
+        --one turn at a time (the host moves the card as a turn starts).
+        if element.data.heroCardFlipping then
+            return
+        end
         local turned = not backFace:HasClass("turned")
-        flipButton:SetClass("turning", true)
-        AnimateFlip(element, cardHeight, cond(turned, 1, TURNED_SCALE), cond(turned, TURNED_SCALE, 1), function()
+        if flipButton ~= nil then
+            flipButton:SetClass("turning", true)
+        end
+        ---@type HeroCardFlipMotion|nil
+        local motion = nil
+        if options.onTurn ~= nil then
+            motion = options.onTurn(turned)
+        end
+        if motion == nil then
+            motion = {fromScale = cond(turned, 1, TURNED_SCALE), toScale = cond(turned, TURNED_SCALE, 1)}
+        end
+        motion.turned = turned
+        AnimateFlip(element, cardHeight, motion, function()
             backFace:FireEvent("showBack", turned)
             element:FireEventOnParents("heroCardTurned", turned)
         end, function()
-            flipButton:SetClass("turning", false)
+            if flipButton ~= nil and flipButton.valid then
+                flipButton:SetClass("turning", false)
+            end
         end)
     end
 end
@@ -2936,4 +3308,5 @@ end
 HeroCardBack = {
     Decorate = Decorate,
     TurnAll = TurnAll,
+    ConsumeMenuClick = ConsumeMenuClick,
 }

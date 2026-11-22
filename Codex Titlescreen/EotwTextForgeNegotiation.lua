@@ -274,6 +274,16 @@ text("great_forge.workshop.collect_button", [[Collect]])
 --Why the button does nothing (its tooltip).
 text("great_forge.workshop.no_downtime", [[No Downtime Activities left. Take a respite at the Blue Fish Inn to earn more.]])
 text("great_forge.workshop.busy", [[One moment...]])
+--Right-click an unfinished treasure: the menu entry, then the confirm dialog.
+--{item} is the treasure, {hero} who was crafting it, {count} the Downtime
+--Activities given back (1 per 40 Project Points; leftovers give nothing).
+text("great_forge.workshop.cancel_menu", [[Cancel Project]])
+text("great_forge.workshop.cancel_title", [[Cancel {item}?]])
+text("great_forge.workshop.cancel_refund.one", [[{hero} gets back {count} Downtime Activity. The rest of the progress is lost.]])
+text("great_forge.workshop.cancel_refund.other", [[{hero} gets back {count} Downtime Activities. The rest of the progress is lost.]])
+text("great_forge.workshop.cancel_no_refund", [[{hero} gets nothing back: it takes 40 Project Points to earn back a Downtime Activity.]])
+text("great_forge.workshop.cancel_confirm_button", [[Cancel Project]])
+text("great_forge.workshop.cancel_keep_button", [[Keep Crafting]])
 text("great_forge.workshop.not_ready", [[This hero is still loading. Try again in a moment.]])
 text("great_forge.workshop.offline", [[Can't reach the town right now. Try again in a moment.]])
 --Named on the dice: {hero} and {item}.

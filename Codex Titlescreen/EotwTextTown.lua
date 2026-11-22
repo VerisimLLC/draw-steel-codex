@@ -189,12 +189,12 @@ text("eotw.chat.tab_game", [[Game Chat]])
 text("eotw.chat.tab_new", [[NEW]])
 --The small red marker on the line between read and unread messages.
 text("eotw.chat.new_divider", [[NEW]])
---The line above the messages: who is in town. {count} is how many, {names}
---their names.
-text("eotw.chat.presence_town", [[Here now ({count}): {names}]])
+--The line above the messages: who is in town. {count} is how many; their
+--names (with any achievement badges) follow it.
+text("eotw.chat.presence_town", [[Here now ({count}):]])
 text("eotw.chat.presence_empty", [[Nobody is here yet.]])
 --On the Game Chat tab: who is in the party.
-text("eotw.chat.presence_party", [[In this party ({count}): {names}]])
+text("eotw.chat.presence_party", [[In this party ({count}):]])
 --After a party member's name when they are not in town.
 text("eotw.chat.presence_away", [[(away)]])
 --The message box's placeholder.
@@ -884,6 +884,8 @@ text("guild.row.active", [[Active in town]])
 --{party} is the name of the party the hero is with.
 text("guild.row.away", [[Away: {party}]])
 text("guild.row.loading", [[Loading...]])
+text("guild.row.joining", [[Joining the guild...]])
+text("guild.row.dismissing", [[Dismissing...]])
 --Captions under the hero's numbers. Short: a few letters each.
 text("guild.stats.stamina", [[Stamina]])
 text("guild.stats.recoveries", [[Recov.]])
@@ -1014,6 +1016,9 @@ text("roster.hall.hero_fallback", [[Hero]])
 text("roster.hall.encounter_fallback", [[An Encounter of the Week]])
 --{players} is the players' names, separated by commas.
 text("roster.hall.played_by", [[Played by {players}]])
+--The same line when the players show achievement badges: this heading, then
+--each name with its badge.
+text("roster.hall.played_by_heading", [[Played by]])
 --Under the names: the encounter and when it was won. {encounter} is the
 --encounter's name, {when} the date.
 text("roster.hall.encounter_when", [[{encounter}, {when}]])
@@ -1947,3 +1952,37 @@ text("moderation.ban.length_days.other", [[for {count} more days]])
 text("moderation.ban.come_back_note", [[You are welcome back in town once the ban ends.]])
 --The button that closes it. Short: a button.
 text("moderation.ban.ok_button", [[OK]])
+
+----------------------------------------------------------------------------
+-- ACHIEVEMENTS: badges players earn and show beside their name. Players see
+-- them as "achievements"; the code calls them Player Tags (EotwPlayerTags.lua,
+-- the list itself in EotwPlayerTagDefs.lua).
+----------------------------------------------------------------------------
+
+--The Hero's Guild button that opens the achievements list. Short: a button.
+text("tags.guild_button", [[Achievements]])
+--Its tooltip.
+text("tags.guild_tooltip", [[Pick the achievement that shows beside your name around town.]])
+--The list's heading and the line under it.
+text("tags.picker.title", [[Your Achievements]])
+text("tags.picker.subtitle", [[Pick one to show beside your name. Everyone in town will see it.]])
+--The first row of the list: show no achievement at all.
+text("tags.picker.none", [[Show nothing]])
+--Beside the achievement being shown.
+text("tags.picker.showing", [[Showing]])
+--Beside an achievement not yet earned (only you see these).
+text("tags.picker.locked", [[Not yet]])
+--When nothing has been earned yet.
+text("tags.picker.empty", [[Nothing here yet. Win an encounter or lend a hand on a town project, and your first one will turn up.]])
+--The button that closes the list. Short: a button.
+text("tags.picker.close_button", [[Close]])
+--When the town could not change the shown achievement.
+text("tags.select_failed", [[That didn't take. Give it another try in a moment.]])
+--The banner when one achievement is earned: its heading (its description is shown under it).
+text("tags.banner.title_one", [[Achievement Earned!]])
+--The banner when several are earned at once.
+text("tags.banner.title_many", [[{count} Achievements Earned!]])
+--The banner's buttons. Short: buttons.
+text("tags.banner.show_button", [[Show It Off]])
+text("tags.banner.choose_button", [[Take a Look]])
+text("tags.banner.later_button", [[Not Now]])

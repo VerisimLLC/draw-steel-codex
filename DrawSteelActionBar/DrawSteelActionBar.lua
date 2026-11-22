@@ -16599,6 +16599,32 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
         g_abilityController:FireEvent("cancelCasting")
     end
 end)
+
+--- Called just before these creatures' turn ends on this client. If the player picked an
+--- ability from the bar for one of them and is still targeting it (never cast), cancel it,
+--- as Escape would. Left armed, it kept IsCastingSpell() true after the turn passed, and
+--- every later invoke waits for that to clear: the next save card or Monster AI cast
+--- waited forever (3VAQJS4A, YYK97NNG). Invoked prompts are left alone: End Turn already
+--- waits for those to be answered.
+--- @param tokens CharacterToken[]
+function DrawSteelActionBar.CancelUncastAbilityForEndingTurn(tokens)
+    if g_currentAbility == nil or g_abilityController == nil or not g_abilityController.valid then
+        return
+    end
+    if g_currentSymbols ~= nil and g_currentSymbols.invoked then
+        return
+    end
+    if g_token == nil or not g_token.valid then
+        return
+    end
+    for _,tok in ipairs(tokens or {}) do
+        if tok ~= nil and tok.valid and tok.charid == g_token.charid then
+            printf("ENDTURN:: cancelling %s's uncast %s", tostring(g_token.name or g_token.charid), tostring(g_currentAbility.name))
+            g_abilityController:FireEvent("cancelCasting")
+            return
+        end
+    end
+end
 --RegisterCustomActionBar(nil)
 
 -- =============================================================================

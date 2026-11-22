@@ -1573,13 +1573,13 @@ TokenHud.RegisterPanel{
     end
 }
 
---Hovering a token you control shows a small character-panel icon in the
---token's bottom-left corner; clicking it opens that character's ad-hoc
---panel window (ShowCharacterPanelDocument -- the same per-character
---window the journal's Characters section opens). The Party Member
---Controls game setting can extend the icon to party members a player
---doesn't control (CharacterPanel.CanViewToken); the panel itself then
---opens read-only when the setting only grants View access.
+--Hovering a token you control shows a small character icon in the token's
+--bottom-right corner; clicking it puts that character's card on the table
+--beside the token (Tabletop.OpenCard), or brings the card forward if it is
+--already there. With no table (the lobby) it toggles the old character
+--panel window instead. The Party Member Controls game setting can extend
+--the icon to party members a player doesn't control
+--(CharacterPanel.CanViewToken).
 local g_characterPanelLauncherStyles = {
     gui.Style{
         selectors = {"characterPanelLauncher"},
@@ -1609,6 +1609,31 @@ local g_characterPanelLauncherStyles = {
         brightness = 0.7,
     },
 }
+
+--Opens the launcher's card for a character just beside the mouse (the
+--launcher sits on the token, so the card lands next to it), on whichever
+--side has room, or closes it when it is already open (Tabletop.
+--ToggleLauncherCard). A card dragged off onto the table is the table's own
+--and is left alone. Returns false when there is no table to put it on.
+--- @param charid string
+--- @return boolean
+local function OpenCardBesideLauncher(charid)
+    local tabletop = rawget(_G, "Tabletop")
+    if tabletop == nil or not tabletop.IsActive() then
+        return false
+    end
+    local gap = 24
+    local mouse = dmhub.mouseScreenPosition
+    local mx, my = tabletop.ScreenToTable(mouse.x, mouse.y)
+    local cw, ch = tabletop.CardSize()
+    local lw, lh = tabletop.LayerSize()
+    local x = mx + gap
+    if x + cw > lw then
+        x = mx - gap - cw
+    end
+    local y = math.max(0, math.min(my - ch / 2, lh - ch))
+    return tabletop.ToggleLauncherCard(charid, math.floor(x), math.floor(y))
+end
 
 TokenHud.RegisterPanel{
     id = "characterPanelLauncher",
@@ -1689,7 +1714,11 @@ TokenHud.RegisterPanel{
                 if not CharacterPanel.CanViewToken(token) then
                     return
                 end
-                --toggles: a second click while the window is open closes it.
+                if OpenCardBesideLauncher(token.charid) then
+                    audio.FireSoundEvent("Mouse.Click")
+                    return
+                end
+                --no table here: toggle the old character panel window.
                 local toggle = rawget(_G, "ToggleCharacterPanelDocument")
                 if toggle == nil then
                     return

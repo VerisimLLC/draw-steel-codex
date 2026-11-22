@@ -715,7 +715,9 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
     return result
 end
 --------------------------------------------------------------------------------
--- Taunt By Nearest behavior.
+-- Taunt By Nearest behavior. DEPRECATED: hidden from the behavior pickers and
+-- kept only so existing abilities still run. New content should use a Lua Script
+-- behavior; the Wyvern malice ability Overflowing Rage is a working example.
 --
 -- Used after a power roll (e.g. a Director malice "each enemy makes a test").
 -- For each target on a selected tier, finds the NEAREST OTHER creature or object
@@ -737,7 +739,9 @@ ActivatedAbilityTauntByNearestBehavior.duration = "save_ends"
 ActivatedAbility.RegisterType
 {
     id = 'tauntbynearest',
-    text = 'Taunt By Nearest',
+    text = 'Taunt By Nearest (Deprecated)',
+    --Deprecated: kept out of the pickers so no new ability uses it.
+    hidden = true,
     createBehavior = function()
         return ActivatedAbilityTauntByNearestBehavior.new{
             duration = "save_ends",

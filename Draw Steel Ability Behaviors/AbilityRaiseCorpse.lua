@@ -83,6 +83,10 @@ function ActivatedAbilityRaiseCorpseBehavior:Cast(ability, casterToken, targets,
                             creatureToken.properties.activeOngoingEffects = {}
                         end
                     }
+                    --Its old death confirmation stamp (DrawSteelTokenHud, MonsterAI) lasts
+                    --125s. Left on a raised minion it counts as a death already chosen, so
+                    --the squad's next death is never offered and the AI waits (7TF3RPPB).
+                    creatureToken.properties._tmp_minionDeathPending = nil
                     creatureToken.despawned = false
                     object:Destroy()
                 else

@@ -1659,6 +1659,111 @@ function EotwForge.Collect(heroid, onDone)
     end)
 end
 
+--Project Points per Downtime Activity a cancelled craft gives back (the
+--City's FORGE_CANCEL_POINTS_PER_ROLL; the City decides, this only previews).
+local CANCEL_POINTS_PER_ROLL = 40
+
+--Downtime Activities cancelling this craft gives back: 1 per 40 points, partials nothing.
+function EotwForge.CancelRefund(craft)
+    return math.floor((tonumber(craft.points) or 0) / CANCEL_POINTS_PER_ROLL)
+end
+
+--Give up a hero's unfinished treasure. onDone(ok, resultOrMessage), result =
+--{refunded, points, downtime, forge}.
+function EotwForge.CancelCraft(heroid, onDone)
+    local craft = EotwForge.Craft(heroid)
+    Request("forge-cancel-craft", { heroid = heroid }, function(ok, result)
+        if ok then
+            SetStatus(result.forge)
+            EotwRoster.SetListedDowntime(heroid, result.downtime)
+            EotwAnalytics.Track("eotw_forge_cancel", { heroid = heroid, itemid = craft ~= nil and craft.itemid or nil,
+                points = result.points, refunded = result.refunded })
+        end
+        onDone(ok, result)
+    end)
+end
+
+--Asks before cancelling a hero's treasure, saying what comes back.
+--onConfirm() runs on Yes.
+local function ShowCancelConfirm(host, heroName, craft, onConfirm)
+    if host == nil or not host.valid then
+        return
+    end
+    local refund = EotwForge.CancelRefund(craft)
+    local dlg
+    local function Close()
+        if dlg ~= nil and dlg.valid then
+            dlg:DestroySelf()
+        end
+    end
+    local function Button(text, run)
+        return gui.Button{
+            text = text,
+            fontSize = 18,
+            width = 180,
+            height = 42,
+            hmargin = 8,
+            click = function()
+                audio.FireSoundEvent("Mouse.Click")
+                Close()
+                if run ~= nil then
+                    run()
+                end
+            end,
+        }
+    end
+    dlg = gui.Panel{
+        floating = true,
+        width = 560,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#14110dff",
+        borderWidth = 2,
+        borderColor = "#8c7a55",
+        cornerRadius = 10,
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        styles = { Styles.Default },
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            Close()
+        end,
+        gui.Label{
+            text = T("great_forge.workshop.cancel_title", { item = craft.itemName or "" }),
+            fontSize = 26,
+            bold = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+        },
+        gui.Label{
+            text = cond(refund > 0,
+                UIText.Plural("great_forge.workshop.cancel_refund", refund, { hero = heroName }),
+                T("great_forge.workshop.cancel_no_refund", { hero = heroName })),
+            fontSize = 17,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            vmargin = 14,
+        },
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            Button(T("great_forge.workshop.cancel_confirm_button"), onConfirm),
+            Button(T("great_forge.workshop.cancel_keep_button"), nil),
+        },
+    }
+    host:AddChild(dlg)
+end
+
 --A hero's craft as last fetched, or nil.
 function EotwForge.Craft(heroid)
     local status = EotwForge.Status()
@@ -1821,6 +1926,37 @@ local function HeroRow(host, hero, busy, setBusy)
         }
     end
 
+    --right-click an unfinished treasure to give it up for some Downtime back.
+    local rightClick = nil
+    if craft ~= nil and not craft.completed and tok ~= nil and not away then
+        rightClick = function(element)
+            if busy then
+                return
+            end
+            element.popup = gui.ContextMenu{
+                width = 220,
+                entries = {
+                    {
+                        text = T("great_forge.workshop.cancel_menu"),
+                        click = function()
+                            element.popup = nil
+                            ShowCancelConfirm(host, name, craft, function()
+                                setBusy(true)
+                                EotwForge.CancelCraft(hero.heroid, function(ok, result)
+                                    setBusy(false)
+                                    if not ok then
+                                        EotwDowntime.UI.ShowBanner(host, T("great_forge.workshop.error_banner"), tostring(result))
+                                    end
+                                end)
+                            end)
+                        end,
+                    },
+                },
+                click = function() element.popup = nil end,
+            }
+        end
+    end
+
     return gui.Panel{
         width = "100%",
         height = 84,
@@ -1832,6 +1968,7 @@ local function HeroRow(host, hero, busy, setBusy)
         bgcolor = "#1d1913",
         cornerRadius = 6,
         opacity = cond(away, 0.5, 1),
+        rightClick = rightClick,
         children = {
             Portrait(tok),
             itemBox or gui.Panel{ width = 0, height = 0 },

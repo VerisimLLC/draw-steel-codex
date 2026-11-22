@@ -1860,6 +1860,7 @@ local function DetonateExplosive(floorid, objid)
                             props:TakeDamage(EXPLOSIVE_DAMAGE, name .. " explodes", {})
                         end,
                     }
+                    props:FloatLabel(string.format("Bust explodes: %d damage", EXPLOSIVE_DAMAGE), "#ff8822ff")
                 end
             end
         end

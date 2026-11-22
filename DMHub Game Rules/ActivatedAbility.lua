@@ -41,6 +41,7 @@ end
 --- @field _tmp_usedAsAbility nil|boolean On the clone of an invoked ability that is one of the creature's own (named, or chosen from a list), used as part of the invoker.
 --- @field _tmp_forcedMoveStability nil|{requested: number, stability: number, ignored: boolean} On a forced-movement clone: the push before stability and what stability took off, for play observers (see ActivatedAbilityInvokeAbilityBehavior.NoteStability).
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
+--- @field promptDeciderId nil|string Charid of the creature who picks the answer to this ability's prompt, when that is not the invoker (Behold the Face of Justice!'s push). Usually unset: read with try_get.
 --- @field stolenStamp nil|string Fresh guid on each ability copied by Steal Ability, so the action bar flags every steal as new.
 --- @field lineDistance number|string Length for line-area targeting: a number or a GoblinScript formula.
 --- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
@@ -105,7 +106,6 @@ end
 --- @field _tmp_isNewAbility? boolean Transient: set on abilities freshly created in the editor.
 --- @field _tmp_payInvokedCost? boolean Transient: an invoked clone pays its own cost.
 --- @field _tmp_restrictLocs? Loc[] Transient: explicit whitelist of target squares for a pick prompt.
---- @field _tmp_hurlCandidates? table Transient: the grabbed-creature candidates of a hurl's creature pick.
 --- @field _tmp_fromKit? boolean Transient: set by Kit:SignatureAbilities on a kit's signature ability.
 --- @field keywords table<string, boolean> Keyword set (e.g. Strike=true). The class default is one shared empty table, so copy it before writing (AddKeyword does).
 --- @field targetAllegiance? false|string Restricts targets: "ally", "enemy", "none" (objects only) or "dead"; false/nil means any creature.
@@ -3799,8 +3799,12 @@ function ActivatedAbility.GetActiveCastSnapshot()
 end
 
 function ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
-    for co,_ in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) then
+    for co,info in pairs(ActivatedAbility.coroutineStorage) do
+        --A creature removal parked until every other cast ends (waitsForAllCasts, set in
+        --AbilityRemoveCreature) is waiting on the caller, so the caller must not wait on
+        --it back. That deadlock held a hero's queued Gravitic Disruption slides behind a
+        --dying Umbral Stalker's Monster Death, which waited on those same slides (3DPN6VF2).
+        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) and not info.waitsForAllCasts then
             return true
         end
     end
@@ -4189,8 +4193,9 @@ end
 
 --- The record ActivatedAbility.coroutineStorage keeps for the running cast coroutine. startTime and
 --- lastProgress are dmhub.Time() stamps; activity names what the cast is waiting on (e.g. "reaping"),
---- which CountActiveCasts can exclude. Kept an inline type so callers' structural casts still match.
---- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string}|nil
+--- which CountActiveCasts can exclude. waitsForAllCasts marks a cast parked until every other cast
+--- ends, which HasCoroutinesNotInSnapshot skips. Kept an inline type so callers' structural casts still match.
+--- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string, waitsForAllCasts?: boolean}|nil
 function ActivatedAbility.CurrentCastInfo()
     local co = coroutine.running()
     if co ~= nil then

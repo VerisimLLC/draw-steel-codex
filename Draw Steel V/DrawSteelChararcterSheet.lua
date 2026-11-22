@@ -1536,8 +1536,8 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 change = function(element)
                     local token = CharacterSheet.instance.data.info.token
 
-                    --A map object's token name is its art piece's and can't be changed;
-                    --its object's Name field is what the initiative bar shows instead.
+                    --A map object's token name comes from its art and can't be changed, so
+                    --rename the object itself; the initiative bar shows that name.
                     if token.isObject and token.objectInstance ~= nil then
                         token.objectInstance.name = element.text
                         token.objectInstance:Upload()

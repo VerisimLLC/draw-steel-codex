@@ -1120,6 +1120,22 @@ and condition sentences still left mostly name someone the blocks can't pick ("o
 "you and each ally within 3 squares of you") or sit behind a condition ("If this damage kills the
 target, ..."). Paste tests and all three open-and-save polls unchanged (45/45, 60/60, 1,148/1,148).
 
+**A different creature is a new ability (2026-11-22).** User rule: an ability that hits one creature and
+then has an entirely different creature do something is an invoked ability, so the reader builds "Use a
+new ability" with its own targets, as content does:
+- "One ally within distance gains ..." -> used by you, prompted, range = the ability's distance;
+- "A creature of your choice within 2 squares of the target takes ..." / "One ally adjacent to the target
+  can spend a Recovery" -> used from the target (`applyto: first_target`), range 2 / 1.
+"1 ally" / "1 enemy" write the target filter themselves (`Friends(Invoker, Target) and Invoker != Target`,
+compared with you so it still means your allies when the target uses it). Inside, the sentence's results
+build as usual, plus damage ("takes 5 fire damage", "equal to twice your Reason score", kits' "equal to the
+characteristic score used for this ability's power roll" -> `Max(...)` of the roll's characteristics) and
+"a number of surges equal to the tier outcome" (the tier result, passed to it). Any parent value a step
+inside mentions is now passed automatically. *Blessed Light*, *Exploding Arrow*, *Leaping Lightning* and
+*Gasping in Pain* come out with content's structure. Only 24 leftover sentences name another creature this
+way; of the rest, most need an edge or bane on a later roll. Re-run: fully built 84 -> 90, kinds of steps
+matching content 135 -> 141.
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1212,6 +1228,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **Steel Compendium markdown pastes; "already X, instead Y" builds tier-only steps; pasted paragraphs save to `description`.** An unnamed page is called "Pasted ability". | Asked for: make the compendium's markdown work for pasting; the pattern matches the user's rebuild of *It Is Justice You Fear*. |
 | 2026-11-22 | **Bulk paste test on all 545 Steel Compendium class and kit pages.** Tables read by cell (any target wording), kit rolls and "M or A" damage, keyword-less actions. Every tier result builds on 479; 52 build completely; 1,095 effect sentences left, grouped (durations 160, resources 121, movement 96, ...). | Asked for: check pasting at scale; evidence for which sentence patterns to add next. |
 | 2026-11-22 | **Effect sentences read as "who + what they get":** durations make an effect on the subject (the ability's existing effect, or a new one whose rules are card text until built); surges, temporary Stamina, Recoveries; conditions as sentences, on you or the target, behind a potency test. "Strained:" paragraphs go inside "Only if you are Strained". Fully built 52 -> 84 of 545. | Asked for: the three biggest groups from the bulk test. |
+| 2026-11-22 | **A different creature doing something is "Use a new ability"** (its own targets: from you within distance, or from the target within N squares), with ally/enemy written as the filter and parent values passed automatically. | User rule: hitting one creature and then targeting an entirely different one is an invoked ability. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

@@ -24,8 +24,8 @@
    ],
    "behDiffs": [
     "#0 PowerRoll: filterTarget \"0 {Display only - real roll runs inside the burst sub-ability.}\" => \"(0 {Display only - real roll runs inside the burst sub-ability.})\"",
-    "#1 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCrea => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCreatureBehavior\",\"moveme | promptText \"Move up to your Intuition in a straight line toward the closest enemy.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
-    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | inheritKeywords true => undefined | promptText \"Resolve the burst against each enemy in the area.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+    "#1 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCrea => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityRelocateCreatureBehavior\",\"moveme | promptText \"Move up to your Intuition in a straight line toward the closest enemy.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#2 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | inheritKeywords true => undefined | promptText \"Resolve the burst against each enemy in the area.\" => undefined | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
    ]
   },
   "renameDiff": [
@@ -901,7 +901,7 @@
     "numTargets: 2 => \"2\""
    ],
    "behDiffs": [
-    "#1 InvokeAbility: applyto \"caster\" => undefined | autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavi => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavior\",\"damageType\":\"unt | promptText \"Deal {Agility} damage to an adjacent creature or object.\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
+    "#1 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavi => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityDamageBehavior\",\"damageType\":\"unt | promptText \"Deal {Agility} damage to an adjacent creature or object.\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}"
    ]
   },
   "renameDiff": [
@@ -1109,7 +1109,7 @@
    "behDiffs": [
     "#0 PowerRoll: filterTarget \"0 {This is just to display in the ability description.}\" => \"(0 {This is just to display in the ability description.})\"",
     "#1 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"You can shift up to your speed, dividing that movement before or after your strike as desired.\" => undefined",
-    "#2 InvokeAbility: applyto \"caster\" => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | promptText \"Choose Target\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
+    "#2 InvokeAbility: customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBeh => {\"__typeName\":\"ActivatedAbility\",\"behaviors\":[{\"__typeName\":\"ActivatedAbilityPowerRollBehavior\",\"roll\":\"2d10 + | promptText \"Choose Target\" => undefined | abilityType undefined => \"custom\" | targeting undefined => \"inherit\" | standardAbilityParams undefined => {}",
     "#3 InvokeAbility: autoTarget false => undefined | customAbility {\"__typeName\":\"ActivatedAbility\",\"abilityType\":\"none\",\"behaviors\":[],\"description\":\"\",\"display\":{\"bgcolor\":\"#f => undefined | promptText \"You can shift up to your speed, dividing that movement before or after your strike as desired.\" => undefined"
    ]
   },

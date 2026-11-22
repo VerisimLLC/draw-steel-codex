@@ -1392,18 +1392,26 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         if (st.srcList && st.srcList[0].customAbility && sigMode !== "off") child = Object.assign(JSON.parse(JSON.stringify(st.srcList[0].customAbility)), { name: f.name, behaviors: cb });
         ["multipleModes", "modeList", "chooseModeAfterTargeting"].forEach(k => { if (childPatch[k] !== undefined) child[k] = childPatch[k]; });
         if (f.targeting === "prompt") { child.numTargets = cHolder(st.slots.num).s; child.range = cHolder(st.slots.range).s; }
-        if (f.targeting !== "self") { const t = cHolder(st.slots.tf); if (!t.empty) child.targetFilter = t.s; }
+        if (f.targeting !== "self") { const t = cHolder(st.slots.tf); if (!t.empty) child.targetFilter = t.s;
+          // "1 ally" / "1 enemy" written as the filter. Ally means yours even when the target uses the new
+          // ability, so it compares with you (the Invoker), as content does.
+          else if (f.targeting === "prompt" && f.from && /^all(y|ies)$/.test(f.count)) child.targetFilter = "Friends(Invoker, Target) and Invoker != Target";
+          else if (f.targeting === "prompt" && f.from && /^enem(y|ies)$/.test(f.count)) child.targetFilter = "not Friends(Invoker, Target)"; }
         const params = {}; for (const k in paramSink) params[k] = "<<" + paramSink[k] + ">>";
+        // A value written straight into a step ("<<tierresult>>", e.g. from pasted text) is passed too.
+        for (const mm of JSON.stringify(cb).matchAll(/<<(\w+)>>/g)) { const src = SOURCES.find(x => x.id === mm[1]); if (src && !(mm[1] in params)) params[mm[1]] = "<<" + src.expr + ">>"; }
         // Opened from saved data: keep the information it was already passed, unless replaced.
         const src0 = st.srcList && sigMode !== "off" ? st.srcList[0] : null;
         if (src0 && src0.standardAbilityParams) for (const k in src0.standardAbilityParams) if (!(k in params)) params[k] = src0.standardAbilityParams[k];
         paramSink = outerSink;
         const inv = { __typeName: "ActivatedAbilityInvokeAbilityBehavior", abilityType: "custom", targeting: f.targeting, customAbility: child, standardAbilityParams: params };
+        // Who uses it: you (range from you), or the first target (range from them: "within 2 squares of the target").
+        if (f.from) inv.applyto = f.from;
         // Fields the saved record left at their defaults stay absent while the author hasn't changed them.
         if (src0) { if (!("abilityType" in src0)) delete inv.abilityType; if (!("targeting" in src0) && f.targeting === f.openTargeting) delete inv.targeting; if (!("standardAbilityParams" in src0) && !Object.keys(params).length) delete inv.standardAbilityParams; }
         out.push(Object.assign(inv, base));
         if (!cb.length && !(st.srcList && !((st.srcList[0].customAbility || {}).behaviors || []).length)) bad(st.id, "\u201c" + f.name + "\u201d does nothing yet. Add a step inside it.");
-        const tgt = f.targeting === "self" ? "you" : f.targeting === "inherit" ? "the same targets" : cHolder(st.slots.num).prose + " " + f.count + " within " + cHolder(st.slots.range).prose;
+        const tgt = f.targeting === "self" ? "you" : f.targeting === "inherit" ? "the same targets" : cHolder(st.slots.num).prose + " " + f.count + " within " + cHolder(st.slots.range).prose + (f.from === "first_target" ? " squares of the target" : "");
         const tfp = f.targeting !== "self" ? cHolder(st.slots.tf) : { empty: true };  // after the sink closes: prose only
         const inner = (tfp.empty ? "" : "only creatures where " + tfp.prose + "; ") + cp.map(q => q.kind === "roll" ? "make a power roll" : q.text.charAt(0).toLowerCase() + q.text.slice(1)).join(", then ");
         prose.push({ kind: "text", text: cap("then use " + f.name + " on " + tgt + fp + ": " + (inner || "nothing yet")) });
@@ -2020,7 +2028,8 @@ function renderStep(st, list, ctx, scope) {
     inner.appendChild(E("div", "nest-title", "Inside \u201c" + st.f.name + "\u201d"));
     const tg = E("div", "nest-row"); tg.appendChild(lbl("Targets"));
     tg.appendChild(sel(st.f, "targeting", [["inherit", "the same targets"], ["self", "you"], ["prompt", "new targets:"]], null, "follow-up targets"));
-    if (st.f.targeting === "prompt") { tg.appendChild(renderHolder(st.slots.num)); tg.appendChild(sel(st.f, "count", TARGET_COUNTS, null, "target type")); tg.appendChild(lbl("within")); tg.appendChild(renderHolder(st.slots.range)); }
+    if (st.f.targeting === "prompt") { tg.appendChild(renderHolder(st.slots.num)); tg.appendChild(sel(st.f, "count", TARGET_COUNTS, null, "target type")); tg.appendChild(lbl("within")); tg.appendChild(renderHolder(st.slots.range));
+      if (st.f.from) { tg.appendChild(lbl("squares of")); tg.appendChild(sel(st.f, "from", [["caster", "you"], ["first_target", "the target"]], null, "measured from")); } }
     inner.appendChild(tg);
     if (editingId !== st.id) wordBase = readify(tg, st.id, wordBase);
     if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures where")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ add a test (optional)" })); inner.appendChild(tf); if (editingId !== st.id) readify(tf, st.id, wordBase); }
@@ -2526,9 +2535,20 @@ function clausePredicate(p, who) {
   let m; p = p.trim().replace(/\.$/, "");
   const surgeRes = () => (RESOURCE_TABLE.find(x => x[1] === "Surges") || [""])[0];
   if ((m = p.match(/^gains? (a|an|one|two|three|four|five|\d+) surges?$/i))) { const r = STEPS.resource.make(); r.f.who = who; r.f.res = surgeRes(); r.slots.qty = holderFromText("number", "quantity", NUM_WORD[m[1].toLowerCase()] || m[1]); return [r]; }
+  // Inside a new ability: "a number of surges equal to the tier outcome of your power roll" (passed to it).
+  if (clausePredicate.inNew && /^gains? a number of surges equal to the tier outcome of your power roll$/i.test(p)) { const r = STEPS.resource.make(); r.f.who = who; r.f.res = surgeRes(); r.slots.qty = holderFromText("number", "quantity", "<<tierresult>>"); return [r]; }
   if ((m = p.match(/^gains? (\d+) temporary stamina$/i))) { const t = STEPS.tempStamina.make(); t.f.who = who; t.slots.amount = holderFromText("number", "tempStamina", m[1]); return [t]; }
   if ((m = p.match(/^gains? temporary stamina equal to (twice |three times )?your (might|agility|reason|intuition|presence)(?: score)?$/i))) {
     const t = STEPS.tempStamina.make(); t.f.who = who; t.slots.amount = holderFromText("number", "tempStamina", cap(m[2].toLowerCase()) + (m[1] ? (/twice/i.test(m[1]) ? " * 2" : " * 3") : "")); return [t]; }
+  // "takes 5 fire damage", "takes fire damage equal to twice your Reason score", kits: "equal to the
+  // characteristic score used for this ability's power roll" (the highest of the roll's characteristics).
+  if ((m = p.match(/^takes? (\d+) (?:(\w+) )?damage$/i)) && (!m[2] || DMG_TYPES.includes(m[2].toLowerCase()))) {
+    const d = STEPS.damage.make(); d.f.dtype = m[2] ? m[2].toLowerCase() : "untyped"; d.slots.amount = holderFromText("roll", "damage", m[1]); return [d]; }
+  if ((m = p.match(/^takes? (?:(\w+) )?damage equal to (?:(twice|three times) )?(?:your (might|agility|reason|intuition|presence)(?: score)?|(the characteristic score used for this ability's power roll))$/i)) && (!m[1] || DMG_TYPES.includes(m[1].toLowerCase()))) {
+    const rollChars = (clausePredicate.rollChar || "Might").split(" or ");
+    const base = m[3] ? cap(m[3].toLowerCase()) : rollChars.length > 1 ? "Max(" + rollChars.join(", ") + ")" : rollChars[0];
+    const d = STEPS.damage.make(); d.f.dtype = m[1] ? m[1].toLowerCase() : "untyped";
+    d.slots.amount = holderFromText("roll", "damage", base + (m[2] ? (/twice/i.test(m[2]) ? " * 2" : " * 3") : "")); return [d]; }
   if ((m = p.match(/^can spend (a|an|one|two|three|\d+|any number of) (?:additional )?recover(?:y|ies)$/i))) {
     const st = STEPS.invoke.make(); Object.assign(st.f, { kind: "standard", stdId: SPEND_RECOVERY_ID, ability: STANDARD_ABILITIES[SPEND_RECOVERY_ID] || "May Spend Recovery", who,
       params: { numrecoveries: /any number/i.test(m[1]) ? "Recoveries Available to Spend" : (NUM_WORD[m[1].toLowerCase()] || m[1]) } }); return [st]; }
@@ -2562,6 +2582,23 @@ function readClause(sen, ctx) {
     onlyIf.slots.cond = holderFromText("boolean", "stepIf", ctx.pr ? 'not Cast.PassesPotency(Target, "' + ch + '", "' + tier + '")' : 'not Target.PassesPotency("' + ch + '", Caster.' + tier + ")");
     onlyIf.branches.then.push(...inner); return [onlyIf];
   }
+  // "One ally within distance gains 1 surge", "A creature of your choice within 2 squares of the target takes
+  // ... damage": a different creature, so a new ability with its own targets (as content builds it).
+  const om = s.match(/^(one|a|an|two|three) (ally|enemy|creature)( or object)?(?: of your choice| you choose)? (?:within (distance|(\d+) squares? of (the target|you))|adjacent to (the target|you))\s+(?:(?:also|then)\s+)?(.+)$/i);
+  if (om) {
+    clausePredicate.rollChar = ctx.pr ? ctx.pr.f.char : null;
+    if (om[7]) { om[5] = "1"; om[6] = om[7]; }   // "adjacent to the target": within 1 square of them
+    const parts = om[8].split(/,? and (?=(?:gains?|can|is|are|takes?)\b)/i), inner = [];
+    clausePredicate.inNew = true;
+    for (const p of parts) { const st = clausePredicate(p, "targets"); if (!st) { clausePredicate.inNew = false; return null; } inner.push(...st); }
+    clausePredicate.inNew = false;
+    const nu = STEPS.useNew.make(); nu.f.name = (ctx.abilityName || "Pasted ability") + " Effect"; nu.f.targeting = "prompt";
+    nu.f.count = om[2].toLowerCase(); nu.f.from = /target/i.test(om[6] || "") ? "first_target" : "caster";
+    nu.slots.num = holderFromText("number", "numTargets", NUM_WORD[om[1].toLowerCase()] || "1");
+    nu.slots.range = holderFromText("number", "range", om[5] || ctx.rangeText || "10");
+    nu.branches.steps.push(...inner); rescope(nu, nu, true); return [nu];
+  }
+  clausePredicate.rollChar = ctx.pr ? ctx.pr.f.char : null;
   const sub = clauseSubject(s); if (!sub) return null;
   // "gains 20 temporary Stamina and 3 surges": one subject, several results joined by "and" or commas.
   const parts = sub.rest.split(/,? and (?=(?:gains?|can|is|are|becomes?|\d|a |an |one |two |three )\b)|, (?=(?:gains?|can)\b)/i);
@@ -2784,6 +2821,7 @@ function importAbilityText(raw) {
       else if ((dm = dist.match(/^(\d+)\s+cube\s+within\s+(\d+)(?:\s+squares?)?$/i))) { a.distance = "Cube"; a.areaSize = H("number", "areaSize", dm[1]); a.range = H("number", "range", dm[2]); }
       else if ((dm = dist.match(/^(\d+)\s*x\s*(\d+)\s+line\s+within\s+(\d+)(?:\s+squares?)?$/i))) { a.distance = "Line"; a.areaSize = H("number", "areaSize", dm[1]); a.lineWidth = H("number", "lineWidth", dm[2]); a.lineWithin = H("number", "lineWithin", dm[3]); }
       else a.overrides.distance = { text: dist, basis: null };
+      ctx.rangeText = (dist.match(/(\d+)(?:\s+squares?)?$/) || [])[1] || null;
       ctx.report.push("Distance and target: " + dist + " / " + target); i++;
     }
   }
@@ -4179,7 +4217,7 @@ function openBehaviour(b, hidden) {
       st = STEPS.invoke.make(); Object.assign(st.f, { kind: "standard", stdId: b.standardAbility, ability: STANDARD_ABILITIES[b.standardAbility] || "a standard ability", params: JSON.parse(JSON.stringify(b.standardAbilityParams || {})) });
     }
     else if (t === "ActivatedAbilityInvokeAbilityBehavior" && b.customAbility && b.abilityType !== "standard") {
-      st = STEPS.useNew.make(); const ca = b.customAbility; st.f.name = ca.name || "Follow-up"; st.f.targeting = b.targeting || "inherit"; st.f.openTargeting = st.f.targeting;
+      st = STEPS.useNew.make(); const ca = b.customAbility; st.f.name = ca.name || "Follow-up"; st.f.targeting = b.targeting || "inherit"; st.f.openTargeting = st.f.targeting; if (b.applyto === "caster" || b.applyto === "first_target") st.f.from = b.applyto;
       st.branches.steps = openBehaviours(ca.behaviors || [], hidden, ca);
       ["standardAbility", "autoTarget", "inheritRange", "runOnController", "invokeOnCaster"].forEach(k => { if (b[k]) hidden.push("follow-up " + k + " = " + JSON.stringify(b[k]).slice(0, 40)); });
     }

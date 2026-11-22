@@ -1693,7 +1693,7 @@ end
 
 local function RevertSummonLook(lookKey)
     local tok = CharacterSheet.instance.data.info.token
-    --the look's name goes too: summons still showing it get their stat block's name back.
+    --the look's name goes too: summons still showing it go back to no name.
     local oldLook = tok.properties:GetSummonAppearance(lookKey)
     tok:ModifyProperties{
         description = "Change summon appearance",

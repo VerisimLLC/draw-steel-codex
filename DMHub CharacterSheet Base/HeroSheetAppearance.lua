@@ -9752,7 +9752,7 @@ local function BuildSummons(bus, Row)
         local look = saved[entry.key]
 
         --the field keeps what is being typed. Left empty, it shows the stat block's
-        --name in grey, and the summon keeps that name.
+        --name in grey, and the summon is left unnamed, as when first summoned.
         if not nameField.hasInputFocus then
             nameField.text = look ~= nil and look.name or ""
             nameKey = entry.key

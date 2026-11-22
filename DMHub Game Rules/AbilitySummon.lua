@@ -156,7 +156,7 @@ end
 --the summon keeps its bestiary value, except portraitFrame where nil means
 --"copy the caster's frame" and "" means "no frame". A copied frame brings the
 --caster's tint too, unless the look has a tint of its own (portraitFrameHueShift).
---name renames the summon (a familiar's own name); nil keeps its stat block's name.
+--name renames the summon (a familiar's own name); nil leaves its name alone.
 --Map of look key -> { name, portrait, portraitFrame, portraitFrameHueShift,
 --portraitFrameSaturation, portraitFrameBrightness, tokenScale, portraitZoom,
 --portraitOffset, popoutMode, popoutScale, portraitBackground }
@@ -404,7 +404,7 @@ end
 --- Updates the caster's live summons of this creature type on the current map:
 --- reset to the bestiary look, then apply the current custom look, then upload.
 --- A summon renamed by hand keeps its name. The others follow the look's name;
---- when the look loses its name they get their stat block's name back.
+--- when the look loses its name they go back to no name, as when first summoned.
 --- @param casterToken CharacterToken
 --- @param lookKey string
 --- @param previousName nil|string the look's name before this change; pass it whenever the look may have had one
@@ -428,7 +428,7 @@ function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey,
             if renamedByHand then
                 tok.name = oldName
             elseif not lookHasName and previousName ~= nil and oldName == previousName then
-                tok.name = statBlockName
+                tok.name = ""
             end
             tok:UploadAppearance()
         end

@@ -240,7 +240,7 @@ end
 --entries to fit the hard cap. Out-of-combat entries between encounters go with
 --the older encounter, so what stays is this encounter, the last, and between.
 local function Cull(data)
-    local encounters = data.encounters
+    local encounters = data.encounters or {}
     local entries = data.entries
 
     --counts: entries written per encounter. One with no count is from before counts were
@@ -322,6 +322,9 @@ local function CullHoverTexts(data)
         end
     end
     local keepFrom = oldest ~= nil and tonumber(string.sub(oldest, 1, 13)) or math.huge
+    if type(data.hoverused) ~= "table" or type(data.hovers) ~= "table" then
+        return
+    end
     for id, lastUsed in pairs(data.hoverused) do
         if lastUsed < keepFrom then
             data.hoverused[id] = nil
@@ -338,23 +341,26 @@ local function WriteEntries(mapid, list)
     if type(data.entries) ~= "table" then
         data.entries = {}
     end
-    if type(data.encounters) ~= "table" then
-        data.encounters = {}
-    end
-    if type(data.counts) ~= "table" then
-        data.counts = {}
-    end
+    --the other root tables are made only when something goes in them: a new document sends
+    --each root key whole, so an empty one from this client would wipe another client's.
+    local hovers, hoverused = data.hovers, data.hoverused
     --a list here is a table saved before ids had their "h" (see TextHash): start it again.
-    if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" or data.hovers[1] ~= nil then
-        data.hovers = {}
-        data.hoverused = {}
+    local hoversUsable = type(hovers) == "table" and type(hoverused) == "table" and hovers[1] == nil
+    if not hoversUsable then
+        hovers, hoverused = {}, {}
     end
     for _, entry in ipairs(list) do
-        StoreHoverTexts(entry, data.hovers, data.hoverused, entry.t)
+        StoreHoverTexts(entry, hovers, hoverused, entry.t)
         local key = EntryKey(entry)
         local isNew = data.entries[key] == nil
         data.entries[key] = dmhub.ToRawJson(entry)
         if entry.encounter ~= nil then
+            if type(data.encounters) ~= "table" then
+                data.encounters = {}
+            end
+            if type(data.counts) ~= "table" then
+                data.counts = {}
+            end
             if data.encounters[entry.encounter] == nil then
                 data.encounters[entry.encounter] = entry.t
                 --an encounter new to this map starts its count at zero; an older one has none.
@@ -365,6 +371,10 @@ local function WriteEntries(mapid, list)
                 data.counts[entry.encounter] = data.counts[entry.encounter] + 1
             end
         end
+    end
+    if not hoversUsable and (next(hovers) ~= nil or data.hovers ~= nil) then
+        data.hovers = hovers
+        data.hoverused = hoverused
     end
     Cull(data)
     CullHoverTexts(data)

@@ -962,3 +962,31 @@ and "attribute" now appear only under **Show saved fields** and in the developer
 - **Shelf counts removed:** the shelf no longer shows how often the core classes use each block. That count still sets the order within a group.
 - **Errors:** the import error no longer says "JSON" or "Export". The empty-status line ("the
   class saves as the records below") was removed, because the status already says "Ready to save".
+
+## 20. Logic tests built like the ability editor's (2026-11-22)
+
+The Logic block used to offer one of six fixed tests ("you have at least [5] Victories", "you are
+winded"...). Because the default showed Victories, the block looked as if Victories was the only
+test. The block now works like the ability editor's: **Only if [+ choose a test]**. Clicking the
+test opens the same kind of picker, with a search box, test groups, and "Type a formula instead".
+
+- **What a class test can check:** a class feature only knows about the hero who has it. So the
+  ability editor's target, potency, "kind of creature" and triggering-event tests are left out,
+  and every test is about **you**:
+
+  | Group | Tests |
+  |---|---|
+  | Strained (Talent) | You are Strained / not Strained |
+  | Check a condition | You are prone, slowed, grabbed... (every condition) |
+  | Check health | You are winded; your Stamina is at most N; you are dying |
+  | Check the moment | It is your turn; you are in combat |
+  | Compare a number | Victories, level, any characteristic, Stamina, Recoveries left, your resource, the most resource this turn, the combat round, compared with at least / at most / is / is not |
+  | Combine tests | All of these are true; any of these is true; not |
+
+- **How it saves:** tests are stored as a small tree (`{ t: "cmp", a: "Victories", op: ">=", n: "5" }`).
+  They compile to GoblinScript on the modifier's filter condition, e.g.
+  `(Victories >= 3 and not Strained)`. The book text reads "If you have 3 or more Victories and you
+  are not Strained, ...".
+- **Status and old saves:** a Logic block with an empty test, or an empty slot inside a
+  combination, is listed in the status column as "needs a test". Saved classes and ready-made
+  features using the old six tests are converted when they load.

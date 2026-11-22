@@ -398,17 +398,143 @@ const SENT = {
   aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "abil", uses: 28, wrapper: true, featName: "",
     make: () => ({ radius: "3", who: "selfandfriends" }),
     render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
-  onlyIf: { desc: "The blocks inside apply only while something is true: a number of Victories, a level, being winded...", label: "Logic", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
-    render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
-      const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
-      if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4] === "resource this turn" ? resWord() + " this turn" : t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
+  onlyIf: { desc: "The blocks inside apply only while something is true: you're Strained, winded or prone, you have enough Victories, it's your turn...", label: "Logic", group: "if", uses: 720, make: () => ({ cond: null }), wrapper: true,
+    render: (f, add) => { add(lbl("Only if")); add(renderTest(f, "cond", true)); } },
 };
-/* [id, picker label, engine formula, book wording, word after the number (absent: no number)] */
-const ONLY_IF = [["victories", "you have at least", f => "Victories >= " + (f.n || 0), f => "you have " + (f.n || 0) + " or more Victories", "Victories"],
-  ["level", "you are at least level", f => "Level >= " + (f.n || 1), f => "you are level " + (f.n || 1) + " or higher", ""],
-  ["hrturn", "you've had at least", f => "Heroic Resources This Turn >= " + (f.n || 0), f => "you have had " + (f.n || 0) + " or more " + resWord() + " this turn", "resource this turn"],
-  ["winded", "you are winded", () => "Stamina <= Maximum Stamina / 2", () => "you are winded"], ["strained", "you are Strained", () => "Strained", () => "you are Strained"],
-  ["formula", "a formula is true", f => f.formula || "1", () => "a condition is met"]];
+/* Logic tests, built like the ability editor's: "Only if [test]", where a test is a block you pick,
+   and tests can be combined (all of / any of / not). A class feature only knows about the hero who
+   has it, so there is no target, potency or "triggering creature" here; every test is about you.
+   A test is stored as a small tree, e.g. { t: "cmp", a: "Victories", op: ">=", n: "5" }. */
+const TEST_OPS = [[">=", "is at least"], ["<=", "is at most"], ["=", "is"], ["~=", "is not"]];
+const TEST_OP_PROSE = { ">=": n => n + " or more", "<=": n => n + " or less", "=": n => "exactly " + n, "~=": n => "not " + n };
+const TEST_OP_FLIP = { ">=": "<", "<=": ">", "=": "~=", "~=": "=", "<": ">=", ">": "<=" };
+/* Numbers a class feature can compare: [GoblinScript name, word in the block, book wording from "5 or more"]. */
+function testStats() {
+  const r = resWord();
+  return [["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
+    ...CHARS.map(c => [c[1], "your " + c[1], q => "your " + c[1] + " is " + q]),
+    ["Stamina", "your Stamina", q => "your Stamina is " + q],
+    ["Recoveries Available to Spend", "your Recoveries left", q => "you have " + q + " Recoveries left"],
+    ["Heroic Resources Available to Spend", "your " + r, q => "you have " + q + " " + r],
+    ["Heroic Resources This Turn", "the most " + r + " you've had this turn", q => "you have had " + q + " " + r + " this turn"],
+    ["Combat Round", "the combat round", q => "the combat round is " + q]];
+}
+/* Yes/no facts about you: [type, block text, GoblinScript, book wording, negated book wording]. */
+const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strained", "you are not Strained"],
+  ["winded", "You are winded", "Stamina <= Maximum Stamina / 2", "you are winded", "you are not winded"],
+  ["dying", "You are dying", "Dying", "you are dying", "you are not dying"],
+  ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn"],
+  ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat"]];
+const fact = t => TEST_FACTS.find(x => x[0] === t);
+const isNum = v => /^-?\d+(\.\d+)?$/.test(String(v).trim());
+/* The engine formula for a test (an empty test counts as true, but the status column flags it). */
+function testGs(x) {
+  if (!x) return "1";
+  const wrap = y => (y && (y.t === "all" || y.t === "any" || y.t === "raw" || y.t === "winded")) ? "(" + testGs(y) + ")" : testGs(y);
+  switch (x.t) {
+    case "cond": return "Conditions has \"" + x.c + "\"";
+    case "cmp": return x.a + " " + x.op + " " + (isNum(x.n) ? String(x.n).trim() : "(" + (x.n || "0") + ")");
+    case "not": return "not " + wrap(x.a);
+    case "all": case "any": return x.items.map(wrap).join(x.t === "all" ? " and " : " or ");
+    case "raw": return x.src || "1";
+    default: return fact(x.t) ? fact(x.t)[2] : "1";
+  }
+}
+/* The book wording for a test ("you have 5 or more Victories"); neg gives the opposite. */
+function testProse(x, neg) {
+  if (!x) return neg ? "a condition is not met" : "a condition is met";
+  switch (x.t) {
+    case "cond": return "you are " + (neg ? "not " : "") + String(x.c).toLowerCase();
+    case "cmp": { const s = testStats().find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
+      const q = (TEST_OP_PROSE[op] || (n => (op === "<" ? "fewer than " : "more than ") + n))(x.n || "0");
+      return s ? s[2](q) : x.a + " is " + q; }
+    case "not": return testProse(x.a, !neg);
+    case "all": case "any": { const parts = x.items.map(y => testProse(y)); const j = listWords(parts, x.t === "all" ? "and" : "or");
+      return neg ? (x.t === "all" ? "not all of these are true: " : "none of these are true: ") + j : j; }
+    case "raw": return neg ? "a condition is not met" : "a condition is met";
+    default: return fact(x.t) ? fact(x.t)[neg ? 4 : 3] : "";
+  }
+}
+/* True when the test, or any test inside it, still needs picking. */
+const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing));
+/* Draws parent[key] (a test, or an empty "+ choose a test" slot). parent may be an array (an all/any list). */
+function renderTest(parent, key, required) {
+  const x = parent[key];
+  if (!x) {
+    const b = fk(E("button", "empty-test" + (required ? " required" : ""), "+ choose a test"), "test:" + objKey(parent) + ":" + key); b.type = "button";
+    b.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(b, parent, key); });
+    return b;
+  }
+  const e = E("span", "x" + (x.t === "all" || x.t === "any" ? " list" : "")); const add = n => e.appendChild(n);
+  const clear = () => { const c = E("button", "clear", "✕"); c.type = "button"; c.title = "Remove this test"; c.setAttribute("aria-label", "Remove this test");
+    c.addEventListener("click", ev => { ev.stopPropagation(); change(() => { if (Array.isArray(parent) && parent.length > 2) parent.splice(key, 1); else parent[key] = null; }); }); return c; };
+  switch (x.t) {
+    case "cond": add(lbl("You are")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
+    case "cmp": add(pickTok(x, "a", testStats().map(s => [s[0], s[1]]))); add(pickTok(x, "op", TEST_OPS)); add(textTok(x, "n", "0")); break;
+    case "not": add(lbl("Not")); add(renderTest(x, "a")); break;
+    case "raw": add(lbl("Formula")); add(textTok(x, "src", "GoblinScript test", 30)); break;
+    case "all": case "any": {
+      const head = E("div", "listhead", x.t === "all" ? "All of these are true" : "Any of these is true"); head.appendChild(clear()); add(head);
+      x.items.forEach((y, i) => { const it = E("div", "item"); it.appendChild(E("span", "bullet", x.t === "all" ? "and" : "or")); it.appendChild(renderTest(x.items, i)); e.appendChild(it); });
+      const more = fk(E("button", "addtest", "+ another test"), "testmore:" + objKey(x)); more.type = "button";
+      more.addEventListener("click", ev => { ev.stopPropagation(); change(() => x.items.push(null)); }); add(more);
+      return e;
+    }
+    default: add(lbl(fact(x.t) ? fact(x.t)[1] : x.t));
+  }
+  add(clear()); return e;
+}
+/* The test picker: grouped ready-made tests with a search, as in the ability editor. */
+function openTestPicker(anchor, parent, key) {
+  const r = resWord(), set = make => { closeMenu(); change(() => { parent[key] = make(); }); };
+  const cmp = (a, n) => () => ({ t: "cmp", a, op: ">=", n });
+  const groups = [
+    ["Strained (Talent)", "Whether you are, or are not, Strained.", [["You are Strained", () => ({ t: "strained" })], ["You are not Strained", () => ({ t: "not", a: { t: "strained" } })]]],
+    ["Check a condition", "Prone, slowed, grabbed, and so on.", T.conditions.map(c => ["You are " + c[1].toLowerCase(), () => ({ t: "cond", c: c[1] })])],
+    ["Check health", "Winded, dying, or how much Stamina is left.", [["You are winded", () => ({ t: "winded" }), "Stamina is at half or less."],
+      ["Your Stamina is at most [ ]", () => ({ t: "cmp", a: "Stamina", op: "<=", n: "10" })], ["You are dying", () => ({ t: "dying" })]]],
+    ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],
+    ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your Victories are at least [ ]", cmp("Victories", "3")], ["Your level is at least [ ]", cmp("Level", "5")],
+      ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."], ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")],
+      ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")],
+      ["The combat round is at least [ ]", cmp("Combat Round", "2")]]],
+    ["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
+      ["Any of these is true", () => ({ t: "any", items: [null, null] }), "At least one test must pass."], ["Not [ ]", () => ({ t: "not", a: null }), "True when the test inside is false."]]],
+  ];
+  menuAt(anchor, m => {
+    m.classList.add("picker");
+    const ph = E("div", "ph"); ph.appendChild(E("div", "t", "Only if"));
+    ph.appendChild(E("p", null, "The blocks inside apply only while this is true for the hero with this feature."));
+    const search = E("input"); search.placeholder = "What do you want to check? e.g. prone, winded, level"; search.setAttribute("aria-label", "Search tests"); ph.appendChild(search); m.appendChild(ph);
+    const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
+    const draw = () => {
+      pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
+      groups.forEach(([g, gd, opts]) => {
+        const vis = opts.filter(o => !q || (g + " " + o[0] + " " + (o[2] || "")).toLowerCase().includes(q)); if (!vis.length) return;
+        const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
+        const cap = !q && !expanded.has(g) && vis.length > 4;
+        (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip", o[0])); if (o[2]) b.appendChild(E("span", "d", o[2]));
+          b.addEventListener("click", () => set(o[1])); pb.appendChild(b); n++; });
+        if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
+      });
+      if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
+    };
+    search.addEventListener("input", draw); draw();
+    const tb = E("details", "typebox"); tb.appendChild(E("summary", null, "Type a formula instead"));
+    const ta = E("textarea"); ta.spellcheck = false; ta.setAttribute("aria-label", "GoblinScript formula"); ta.placeholder = "e.g. Victories >= 3 and not Strained"; tb.appendChild(ta);
+    const use = E("button", "btn small", "Use this formula"); use.type = "button"; use.addEventListener("click", () => { const src = ta.value.trim(); if (src) set(() => ({ t: "raw", src })); }); tb.appendChild(use);
+    m.appendChild(tb);
+  });
+}
+/* Older saves picked one of six fixed tests; turn them into test blocks. */
+function migrateOnlyIf(f) {
+  if (f.cond !== undefined) return f;
+  const n = f.n || "0", t = f.test;
+  const cond = t === "victories" ? { t: "cmp", a: "Victories", op: ">=", n } : t === "level" ? { t: "cmp", a: "Level", op: ">=", n: f.n || "1" }
+    : t === "hrturn" ? { t: "cmp", a: "Heroic Resources This Turn", op: ">=", n } : t === "winded" ? { t: "winded" } : t === "strained" ? { t: "strained" }
+    : t === "formula" ? (f.formula ? { t: "raw", src: f.formula } : null) : null;
+  return { cond };
+}
 // Outcome changes (power modifier modtypes as content uses them).
 const OUTCOMES = [["tier3", "have a tier 3 outcome"], ["nottierone", "can't have a tier 1 outcome"], ["tierup", "are improved by one tier"], ["tierdown", "are worsened by one tier"], ["nottierthree", "can't have a tier 3 outcome"], ["tier1", "have a tier 1 outcome"]];
 /* Usage limits: "Usable [1] time [per round]" (the modifier's resourceRefreshType and numCharges).
@@ -535,6 +661,7 @@ function migrateFeature(f) {
 function migrateSentence(x) {
   if (x.type === "skill") { x.type = "skills"; x.f = { granted: x.f.ids || [], num: "0", groups: [], named: [] }; }
   else if (x.type === "skillChoice") { x.type = "skills"; x.f = { granted: [], num: x.f.num, groups: x.f.groups || [], named: x.f.named || [] }; }
+  if (x.type === "onlyIf") x.f = migrateOnlyIf(x.f);
   (x.children || []).forEach(migrateSentence); return x;
 }
 function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
@@ -560,7 +687,7 @@ const autoText = f => sentenceProse(f);
 function sentenceProse(f) {
   const out = [];
   (function walk(list, prefix) { list.forEach(s => {
-    if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test) || ONLY_IF[0]; walk(s.children, "If " + t[3](s.f) + ", "); return; }
+    if (s.type === "onlyIf") { walk(s.children, "If " + testProse(s.f.cond) + ", "); return; }
     if (s.type === "aura") { const who = (AURA_WHO.find(x => x[0] === s.f.who) || ["", "Each creature"])[1].toLowerCase(); walk(s.children, "While within " + s.f.radius + " squares of you, " + who + ": "); return; }
     if (s.type === "growing") { s.f.rows.forEach(r => { const t = r.text || growRowProse(r); if (t) out.push("At " + r.at + " " + resWord() + (+r.level > 1 ? " (level " + r.level + "+)" : "") + ": " + t.replace(/\.?$/, ".")); }); return; }
     if (s.type === "ability" || s.type === "trigger") return;
@@ -635,7 +762,7 @@ function compileSentences(list, feat, filter) {
       const r = modBase(feat, { behavior: "aura", radius: String(s.f.radius || "1"), aura: { __typeName: "Aura", name: feat.name, description: feat.text || "", applyto: s.f.who, modifiers: inner } });
       if (filter) r.filterCondition = filter; out.push(r); continue;
     }
-    if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + t[2](s.f) + ")")); continue; }
+    if (s.type === "onlyIf") { out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + testGs(s.f.cond) + ")")); continue; }
     if (s.type === "growing") {
       const rows = s.f.rows.filter(r => /^\d+$/.test(String(r.at).trim()));
       out.push({ __typeName: "CharacterModifier", behavior: "growingresources", name: feat.name, description: "",
@@ -1328,6 +1455,7 @@ function featureIssues(f, lane) {
     const d = SENT[s.type];
     if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " has no blocks yet, so it only shows text.", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
+    if (s.type === "onlyIf" && testMissing(s.f.cond)) add("A Logic block in " + nm + " needs a test.", false);
     if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
     if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,

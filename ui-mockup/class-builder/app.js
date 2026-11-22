@@ -208,8 +208,9 @@ const SENT = {
       options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
   subclassChoice: { desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "choice", uses: 12, choice: true, make: () => ({}),
-    render: (f, add) => { add(lbl("Choose your")); add(textTok(cls, "subclassWord", "subclass")); const h = E("span", "aside", "(subclasses are made in the subclass editor)"); add(h); },
-    prose: () => "Choose your " + (cls.subclassWord || "subclass") + ".",
+    // What subclasses are called (College, Circle, Domain...) is the feature's own name.
+    render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(name the feature College, Circle, Domain...; subclasses are made in the subclass editor)")); },
+    prose: (f, feat) => "Choose your " + (feat && feat.name ? feat.name : "subclass") + ".",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
   stat: { desc: "Raise, lower or set a stat: Stamina, speed, stability, a characteristic... Saves as an attribute modifier.", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
@@ -327,7 +328,7 @@ const READY = [
   { key: "charinc", title: "Characteristic Increase", c: "choice", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
   { key: "heroic", title: "Choose a heroic ability", c: "choice", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
   { key: "signature", title: "Signature ability", c: "choice", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
-  { key: "subclass", title: "Subclass choice", c: "choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature(cls.subclassWord || "Subclass", [["subclassChoice"]]) },
+  { key: "subclass", title: "Subclass choice", c: "choice", uses: 12, desc: "College, Circle, Domain...", make: () => feature("Subclass", [["subclassChoice"]]) },
   { key: "kit", title: "Kit", c: "res", uses: 7, desc: "Use a [martial] kit", make: () => feature("Kit", [["kit"]]) },
   { key: "recoveries", title: "Recoveries", c: "res", uses: 11, desc: "You have [N] Recoveries", make: () => feature("Recoveries", [["resource"]]) },
   { key: "languages", title: "Languages", c: "skill", uses: 6, desc: "You know [languages]", make: () => feature("Languages", [["language"]]) },
@@ -368,7 +369,7 @@ function sentenceProse(f) {
   (function walk(list, prefix) { list.forEach(s => {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); walk(s.children, "If " + t[1].replace(/\bN\b/, s.f.n || "N").replace(/^you are/, "you're").replace(/\(a GoblinScript test\)/, "a condition is met") + ", "); return; }
     if (s.type === "ability" || s.type === "trigger") return;
-    if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f)); return; }
+    if (SENT[s.type].prose) { out.push(SENT[s.type].prose(s.f, f)); return; }
     const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
     let t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
     if (prefix) t = prefix + t.charAt(0).toLowerCase() + t.slice(1);
@@ -391,7 +392,7 @@ const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"], ["be
   ["winded", "The first time you become winded in an encounter", "encounter"], ["dying", "The first time you become dying in an encounter", "encounter"],
   ["forcemove", "The first time each round you force move a creature", "round"], ["useability", "Whenever you use an ability", "recurring"]];
 function blankClass() {
-  return { id: guid(), name: "New Class", details: "", resourceName: "Resolve", epicName: "", subclassWord: "Subclass", slowStart: false,
+  return { id: guid(), name: "New Class", details: "", resourceName: "Resolve", epicName: "", slowStart: false,
     primary: { mgt: 2 }, arrays: "[2, -1, -1] [1, 1, -1] [1, 0, 0]", stamStart: "18", stamPer: "6", showLevels: 5,
     gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }, { id: newId("g"), event: "beginturn", qty: "2", guid: guid() }],
     lanes: {} };
@@ -599,7 +600,6 @@ function renderBoard() {
   row("Characteristics", lbl("You start with"), multiTok({ get list() { return Object.keys(cls.primary); }, set list(v) { cls.primary = Object.fromEntries(v.map(k => [k, cls.primary[k] || 2])); } }, "list", CHARS, "choose", "and"),
     lbl("of 2; the other scores use one of these arrays:"), textTok(cls, "arrays", "[2, -1, -1] [1, 1, -1]", 30));
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
-  row("Subclass", lbl("Subclasses are called"), textTok(cls, "subclassWord", "College, Circle, Domain..."));
   board.appendChild(b);
   board.appendChild(E("p", "hint", "Recoveries, skills and kits are features: drag them in from the shelf (Recoveries, Skills, Kit)."));
 

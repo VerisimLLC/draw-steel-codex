@@ -520,7 +520,7 @@ Source: `ui-mockup/class-builder/` (`index.html`, `app.js`, `tables.js` built by
 `ui-mockup/class-builder-data/build_data.py` from the compendium's skills, languages, conditions,
 damage types, custom attributes and resources).
 
-- **Board:** Basics (characteristics and arrays, Stamina, what subclasses are called), the heroic resource
+- **Board:** Basics (characteristics and arrays, Stamina), the heroic resource
   (name, epic resource, and "how you gain it" sentences), then level lanes. The slow start toggle adds
   Encounters 1-4 and "1st level, after the slow start"; turning it on moves 1st-level features into
   Encounter 1, and turning it off asks before moving encounter features into 1st level.
@@ -529,7 +529,8 @@ damage types, custom attributes and resources).
   with an ability, Feature with a triggered ability, Empty feature. **They are pre-filled blocks**, in the
   same design language as every other block (designer feedback: a separate settings form for perks and
   skills didn't match the editors). **Choices** is a block group: choose a perk, choose skills, raise a
-  characteristic, choose an ability (cards inside the block), choose your subclass. The feature's record
+  characteristic, choose an ability (cards inside the block), choose your subclass (reads "Choose your
+  [feature name]", so what subclasses are called is just the feature's name: College, Circle, Domain). The feature's record
   type is decided from its blocks, never picked: modifiers only -> `CharacterFeature`; one choice alone ->
   that choice (`CharacterFeatChoice`, `CharacterSkillChoice`, `CharacterFeatureChoice`,
   `CharacterSubclassChoice`); a mix -> `CharacterFeatureList` with a hidden feature holding the modifiers,

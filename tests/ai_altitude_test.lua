@@ -93,7 +93,9 @@ _, targets = ai:ExecuteAbility(goblin, map)
 assert(#targets == 2, "map-wide effects remain unlimited")
 assert(ai:ExecuteAbility(goblin, ability, {{token = pixie}}, {targetArea = {}, telegraphArea = false}),
     "placed area membership is independent of direct creature range")
-assert(load(section("function MonsterAI.PromptBelongsToLocalHero", "--AI actions yield")))()
+--TokenLeftMap is a file local defined at the top, so load it in the same chunk as HandlePrompt.
+assert(load(section("local function TokenLeftMap", "---@class MonsterAI: GameType")
+    .. section("function MonsterAI.PromptBelongsToLocalHero", "--AI actions yield")))()
 local controllers = {}
 TokenPromptControllerId = function(t) return controllers[t] end
 function goblin.properties:try_get(_, default) return default end

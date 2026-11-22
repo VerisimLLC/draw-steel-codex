@@ -1,5 +1,14 @@
 local mod = dmhub.GetModLoading()
 
+--True once a token is gone from the map (deleted, or a dead minion removed).
+--Its reference lives on, but it has no properties and engine calls on it
+--(Distance) throw. A dying creature still on the map does not count.
+---@param token CharacterToken|nil
+---@return boolean
+local function TokenLeftMap(token)
+    return token == nil or not token.valid or token.properties == nil
+end
+
 ---@class MonsterAI: GameType
 --- @field new fun(o?: table): MonsterAI
 MonsterAI = RegisterGameType("MonsterAI")
@@ -278,7 +287,7 @@ local function DismissWaitedPrompt(token, triggerid, byHost)
         return
     end
     dmhub.Schedule(HOST_DISMISS_FALLBACK_SECONDS, function()
-        if mod.unloaded or not token.valid or token.properties == nil then
+        if mod.unloaded or TokenLeftMap(token) then
             return
         end
         local props = token.properties
@@ -731,7 +740,7 @@ end
 
 --True when the players cannot see the token, so previewing it would give it away.
 local function HiddenFromPlayers(token)
-    if token == nil or not token.valid or token.properties == nil then
+    if TokenLeftMap(token) then
         return true
     end
     if token.invisibleToPlayers then
@@ -2677,7 +2686,7 @@ function MonsterAI:OpportunityAttackers(token)
         return nil
     end
     local mover = self:GetMovementToken(token)
-    if mover == nil or not mover.valid or mover.properties == nil then
+    if TokenLeftMap(mover) then
         return nil
     end
     local memo = self:PlanningMemo()
@@ -3515,34 +3524,27 @@ function MonsterAI.PromptBelongsToLocalHero(casterToken)
         and TokenPromptControllerId(casterToken) == nil
 end
 
---True once a token is gone from the map (deleted, or a dead minion removed).
---Its reference lives on, but it has no properties and engine calls on it
---(Distance) throw. A dying creature still on the map does not count.
-local function TokenLeftMap(token)
-    return token == nil or not token.valid or token.properties == nil
-end
-
---Returns "skip" once the caster has left the map (or the invoker, when
---checkInvoker is set), nil otherwise. Without its caster the invoke has nothing
---left to cast; "skip" ends it unused, as a declined prompt does. The invoker
---check is a backstop: ExecuteInvoke already ends an invoke whose invoker is gone.
+--Returns "skip" when the caster has left the map (or the invoker, if checkInvoker
+--is true), nil otherwise. "skip" ends the invoke unused, as if it were declined.
+--The engine also stops an invoke whose invoker is gone; checking here as well keeps
+--us from reading the invoker's missing properties first.
 local function SkipPromptForMissingToken(ai, abilityClone, invokerToken, casterToken, checkInvoker)
+    local casterGone = TokenLeftMap(casterToken)
     local invokerGone = checkInvoker and TokenLeftMap(invokerToken)
-    if not invokerGone and not TokenLeftMap(casterToken) then
+    if not casterGone and not invokerGone then
         return nil
     end
     ai:LogDecision("PROMPT SKIPPED", {
         ability = abilityClone.name,
         actorId = casterToken ~= nil and casterToken.charid or nil,
-        reason = TokenLeftMap(casterToken) and "the caster has left the map"
-            or "the invoker has left the map",
+        reason = casterGone and "the caster has left the map" or "the invoker has left the map",
         result = "skipped",
     })
     return "skip"
 end
 
 function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
-    local skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, true)
+    local skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, true --[[checkInvoker]])
     if skipped ~= nil then
         --This prompt will not run, so drop the targets planned for it; otherwise
         --the invoker's next prompt in this action would pick them up.
@@ -3649,10 +3651,10 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         local handler = entry.handler
         attemptedHandlers[#attemptedHandlers+1] = entry.name
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
-        --A handler can wait (the Free Strike handler speaks first) or act itself, and
-        --a minion killed meanwhile is off the map by the time it returns. Only the
-        --caster matters from here on: the cast goes ahead without its invoker.
-        skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, false)
+        --A handler can pause (the Free Strike handler shows a speech line and waits for
+        --hero reactions), and a minion killed meanwhile is off the map when it returns.
+        --Only the caster matters now: the cast can still go ahead without its invoker.
+        skipped = SkipPromptForMissingToken(self, abilityClone, invokerToken, casterToken, false --[[checkInvoker]])
         if skipped ~= nil then
             return skipped
         end
@@ -4825,7 +4827,7 @@ local function IsAIControlledAttacker(attacker)
 end
 
 local function ConfirmAIMinionDeath(token, attacker)
-    if token == nil or not token.valid or token.properties == nil
+    if TokenLeftMap(token)
         or not token.properties.minion or token.properties.minionDead
         or AIMinionDeathPending(token.properties) then
         return false
@@ -4994,7 +4996,7 @@ local function GroupIsListed(group, groupNamesOrIds)
 end
 
 function MonsterAI.MaliceAbilityMatchesMonster(token, maliceAbility, includeDisabled)
-    if token == nil or not token.valid or token.properties == nil then
+    if TokenLeftMap(token) then
         return false
     end
 
@@ -10542,7 +10544,7 @@ end
 --- @param token CharacterToken|nil
 --- @return MonsterAIVoice|nil
 function MonsterAI.VoiceFor(token)
-    if token == nil or not token.valid or token.properties == nil then
+    if TokenLeftMap(token) then
         return nil
     end
     for _,voice in ipairs(MonsterAI.voices) do
@@ -11066,7 +11068,7 @@ end
 --- @return boolean
 function MonsterAI.HasBehavior(token, behaviorId, includeDisabled)
     local behavior = MonsterAI.behaviors[behaviorId]
-    if behavior == nil or token == nil or not token.valid or token.properties == nil then
+    if behavior == nil or TokenLeftMap(token) then
         return false
     end
     local monsterType = token.properties:try_get("monster_type", "")

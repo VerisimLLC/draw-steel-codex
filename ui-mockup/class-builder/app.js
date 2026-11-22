@@ -207,7 +207,7 @@ const lbl = t => document.createTextNode(" " + t + " ");
 /* Shelf groups, by what an entry does for the character (a choice sits with what it gives: raising a
    characteristic is a stat, choosing a perk is with skills). A "Common" list of the most used comes first. */
 const GROUPS = [["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
-  ["skill", "Skills, perks and languages", "--c-skill"], ["res", "Class, kit and resources", "--c-res"], ["if", "Only if, auras and reminders", "--c-if"]];
+  ["skill", "Skills, perks and languages", "--c-skill"], ["res", "Class, kit, resources and reminders", "--c-res"], ["if", "Logic", "--c-if"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
@@ -358,7 +358,7 @@ const SENT = {
     compile: (f, feat) => modBase(feat, { behavior: "modifyability", ability: { __typeName: "ActivatedAbility", name: "New Ability", abilityModification: true, behaviors: [] },
       attributes: f.change === "keyword" ? [{ id: "modkeywords", keywords: { [f.keyword]: true }, operation: "Add", value: "" }] : [{ id: f.change, operation: "Add", value: f.value }],
       filterAbility: 'Ability.name = "' + String(f.name).replace(/"/g, "") + '"' }) },
-  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "if", uses: 89, make: () => ({ text: "" }),
+  reminder: { desc: "Text shown to the player as a reminder. Automates nothing.", label: "Reminder text", group: "res", uses: 89, make: () => ({ text: "" }),
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
     prose: f => String(f.text || "").replace(/\.?$/, "."),
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: "white" }) },
@@ -395,10 +395,10 @@ const SENT = {
       rows.appendChild(more);
       add(rows);
     } },
-  aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "if", uses: 28, wrapper: true, featName: "",
+  aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "abil", uses: 28, wrapper: true, featName: "",
     make: () => ({ radius: "3", who: "selfandfriends" }),
     render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
-  onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Only if...", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
+  onlyIf: { desc: "The blocks inside only apply while a test passes (Victories, level, winded...).", label: "Logic", group: "if", uses: 720, make: () => ({ test: "victories", n: "5", formula: "" }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(pickTok(f, "test", ONLY_IF.map(t => [t[0], t[1]])));
       const t = ONLY_IF.find(x => x[0] === f.test) || ONLY_IF[0];
       if (t[4] != null) { add(lbl("")); add(textTok(f, "n", "3")); if (t[4]) add(lbl(t[4] === "resource this turn" ? resWord() + " this turn" : t[4])); } if (f.test === "formula") add(textTok(f, "formula", "GoblinScript test", 30)); } },
@@ -517,7 +517,7 @@ function addEntryToList(key, feat, list, idx, inIf) {
   const e = entryOf(key); if (!e) return;
   if (key.startsWith("s:")) return addSentence(feat, list, key.slice(2), idx);
   const blocks = entryBlocks(e);
-  if (inIf && blocks.some(b => SENT[b.type].choice || SENT[b.type].wrapper)) return toast("A choice can't go inside \u201cOnly if\u201d.");
+  if (inIf && blocks.some(b => SENT[b.type].choice || SENT[b.type].wrapper)) return toast("A choice can't go inside a Logic block.");
   change(() => { list.splice(idx == null ? list.length : idx, 0, ...blocks); if (!feat.name && e.name) feat.name = e.name; });
 }
 /* types: [[sentence type, field overrides]] */
@@ -1196,7 +1196,7 @@ function renderSentence(s, list, i, feat) {
     const item = (t, fn) => { const x = E("button", null, t); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(fn); }); m.appendChild(x); };
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
-    if (!d.wrapper && !d.choice && !d.container) item("Wrap in “Only if…”", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
+    if (!d.wrapper && !d.choice && !d.container) item("Wrap in Logic (Only if\u2026)", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
     if (d.wrapper) item("Remove the \u201c" + d.label.replace(/\.\.\.$/, "") + "\u201d (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
     const delItem = E("button", null, "Delete"); delItem.type = "button";
     delItem.addEventListener("click", () => { closeMenu(); pendingFk = "addsent:" + feat.id; change(() => { list.splice(i, 1); }); toast("Deleted \u201c" + d.label + "\u201d.", { label: "Undo", run: undo }); }); m.appendChild(delItem);
@@ -1332,7 +1332,7 @@ function featureIssues(f, lane) {
     const d = SENT[s.type];
     if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " does nothing yet (only its sheet text shows).", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
-    if (s.type === "onlyIf" && !s.children.length) add("An \u201cOnly if\u201d in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
+    if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
     if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,
       { label: "Edit it", run: () => openEditor({ rec: s.f.rec, display: s.f.display || null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });

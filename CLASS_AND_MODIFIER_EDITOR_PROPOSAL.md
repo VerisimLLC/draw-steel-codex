@@ -930,3 +930,11 @@ the top. Groups now say what an entry gives the character; a choice sits with wh
 | Only if, auras and reminders | Only if, Reminder, Aura |
 
 Your ready-made features stay at the very top.
+
+**Rename (2026-11-22): "Only if" is "Logic".**
+- **The block's name** is now "Logic" on both shelves, in the ability editor and the class builder. Its
+  sentence still reads "Only if [you have at least 3 Victories]".
+- **Messages follow the new name:** "Wrap in Logic (Only if...)", "A Logic block in ... has nothing
+  inside", "This Logic block needs a test".
+- **The group** "Only if, auras and reminders" became **Logic**. **Aura** moved to Abilities, and
+  **Reminder** to "Class, kit, resources and reminders".

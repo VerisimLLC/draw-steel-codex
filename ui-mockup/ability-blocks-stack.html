@@ -694,7 +694,7 @@ const STEPS = {
     make: () => S("potency", { ch: "Might", tier: "average" }, {}, { then: [] }) },
   heal: { label: "Heal", cat: "help", ctx: ["main"], desc: "The target regains Stamina.",
     make: () => S("heal", {}, { amount: H("roll", "heal", "5") }) },
-  ifStep: { label: "Only if...", cat: "ctrl", ctx: ["main", "tier"], desc: "Steps inside only happen to targets that pass a test. In a tier: for results the tier text can't say, such as \u201cif already slowed, restrained instead\u201d.",
+  ifStep: { label: "Logic", cat: "ctrl", ctx: ["main", "tier"], desc: "Steps inside only happen to targets that pass a test. In a tier: for results the tier text can't say, such as \u201cif already slowed, restrained instead\u201d.",
     make: () => S("ifStep", {}, { cond: H("boolean", "stepIf") }, { then: [] }) },
   invoke: { label: "Use another ability", cat: "ctrl", ctx: ["main"], desc: "Trigger a named ability, such as a free strike.",
     make: () => S("invoke", { ability: "Free Strike" }) },
@@ -1320,7 +1320,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         prose.push({ kind: "text", text: cap("the target regains " + a.prose + " Stamina" + fp) }); break; }
       case "halveDamage": case "changeDamage": case "rollEdge": case "potencyShift": case "changeTarget": {
         if (!rollSink) { bad(st.id, ab.kind !== "triggered" ? "Changing the roll only works in a triggered ability." : "Nothing is being rolled when " + (ab.trig.who === "self" ? "you " + EVENTS[ab.trig.event].you : TRIG_WHO[ab.trig.who].label + " " + EVENTS[ab.trig.event].other) + ". Pick an event such as taking damage or being targeted by a strike, or remove this step."); break; }
-        if (filters.length) bad(st.id, "A roll change cannot sit inside \u201cOnly if\u201d; use \u201cOnly triggers if\u201d instead.");
+        if (filters.length) bad(st.id, "A roll change cannot sit inside a Logic block; use \u201cOnly triggers if\u201d instead.");
         let text;
         if (st.type === "halveDamage") { rollSink.damageMultiplier = "half"; text = "halve the damage"; }
         if (st.type === "changeDamage") { const a = cHolder(st.slots.amount); rollSink.damageModifier = a.s; text = (/^-/.test(a.s) ? "reduce the damage by " + a.prose.replace(/^-/, "") : "increase the damage by " + a.prose); }
@@ -1446,13 +1446,13 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
           prose.push({ kind: "text", text: cap(whoText(f.who) + " can spend " + (n === "1" ? "a Recovery" : /available/i.test(n) ? "any number of Recoveries" : n + " Recoveries") + fp) }); break; }
         prose.push({ kind: "text", text: /free strike/i.test(f.ability) ? cap("you make a " + f.ability.toLowerCase().replace(/^(melee |ranged )?/, m => m) + fp) : cap("you use " + f.ability + fp) }); break;
       case "ifStep": {
-        if (!st.branches.then.length) bad(st.id, "Nothing happens inside this \"Only if\".");
+        if (!st.branches.then.length) bad(st.id, "Nothing happens inside this Logic block.");
         // "You are Strained" is about the caster and has its own engine setting (strainSelection), so it
         // is split off; whatever else the test says becomes the steps' filterTarget as usual.
         const sp = splitStrained(st.slots.cond);
         if (!sp.strain) {
           const c = cHolder(st.slots.cond, 5);
-          if (c.empty) { bad(st.slots.cond.id, "This \"Only if\" needs a test."); }
+          if (c.empty) { bad(st.slots.cond.id, "This Logic block needs a test."); }
           compileSteps(st.branches.then, c.empty ? filters : filters.concat([c]), out, prose);
           break;
         }
@@ -1533,7 +1533,7 @@ function tierAgreement(pr, k, n) {
     if (m && ![...applied].some(t => new RegExp("\\b" + c.toLowerCase() + "\\b").test(t))) check(pr.id, "Tier " + tierName + ": the card says \u201c" + c.toLowerCase() + " (" + m[1] + ")\u201d, but nothing on this tier makes the target " + c.toLowerCase() + ".");
   });
   const onCard = new Set([...words.matchAll(/\b([MARIP])\s*<\s*(weak|average|strong|\d+)/gi)].map(m => m[1].toUpperCase()));
-  if (onCard.size && tested.size) tested.forEach(t => { if (!onCard.has(t)) check(pr.id, "Tier " + tierName + ": the card's potency is " + [...onCard].map(x => CHAR_NAME[x]).join(" or ") + ", but an \u201cOnly if\u201d on this tier checks " + CHAR_NAME[t] + "."); });
+  if (onCard.size && tested.size) tested.forEach(t => { if (!onCard.has(t)) check(pr.id, "Tier " + tierName + ": the card's potency is " + [...onCard].map(x => CHAR_NAME[x]).join(" or ") + ", but a Logic block on this tier checks " + CHAR_NAME[t] + "."); });
 }
 /* Behaviours opened from saved data keep their saved order; a new one stays right after the behaviour it
    followed while editing. */
@@ -2091,7 +2091,7 @@ function renderStep(st, list, ctx, scope) {
     listLabels[listId(st.branches.then)] = "inside the rule";
     e.appendChild(mouth(st.branches.then, "tier", scope)); e.appendChild(E("div", "foot"));
   } else if (st.type === "potency" || st.type === "ifStep" || st.type === "todo") {
-    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : "inside \u201cOnly if\u201d";
+    listLabels[listId(st.branches.then)] = st.type === "potency" ? "inside the potency check" : st.type === "todo" ? "the sentence to build" : "inside the Logic block";
     e.appendChild(mouth(st.branches.then, st.type === "ifStep" ? "main" : ctx, scope));
     e.appendChild(E("div", "foot"));
   }
@@ -3772,7 +3772,7 @@ function stepMenu(st, list, ctx, anchor, scope) {
   const item = (t, fn, dis) => { const b = E("button", null, t); b.type = "button"; if (dis) b.disabled = true, b.style.opacity = .4; else b.addEventListener("click", () => { fn(); refresh(); }); m.appendChild(b); };
   item("Move up", () => { list.splice(i, 1); list.splice(i - 1, 0, st); }, i === 0);
   item("Move down", () => { list.splice(i, 1); list.splice(i + 1, 0, st); }, i === list.length - 1);
-  if (ctx === "main" && st.type !== "ifStep") item("Wrap in “Only if”", () => { const w = STEPS.ifStep.make(); rescope(w, scope, false); w.branches.then.push(st); list.splice(i, 1, w); });
+  if (ctx === "main" && st.type !== "ifStep") item("Wrap in Logic (Only if\u2026)", () => { const w = STEPS.ifStep.make(); rescope(w, scope, false); w.branches.then.push(st); list.splice(i, 1, w); });
   if (ctx === "tier" && st.type !== "potency") item("Wrap in potency check", () => { const w = STEPS.potency.make(); w.branches.then.push(st); list.splice(i, 1, w); });
   if (st.branches && st.branches.then && st.branches.then.length) item("Unwrap (keep the steps inside)", () => { list.splice(i, 1, ...st.branches.then); });
   item("Duplicate", () => { const c = reid(JSON.parse(JSON.stringify(st))); registerScopes(c); rescope(c, scope, false); list.splice(i + 1, 0, c); });

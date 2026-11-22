@@ -380,8 +380,9 @@ mod.shared.CreateTriggerPanel = function()
                 description = "Dismiss All Triggers",
                 execute = function()
                     for _,trigger in pairs(g_token.properties:GetAvailableTriggers() or {}) do
-                        --a hostile prompt under strict action economy must be accepted, not dismissed.
-                        if trigger:CanDismiss() then
+                        --Hostile prompts (e.g. Bleeding damage) are never swept up in bulk;
+                        --where they may be dismissed at all, it is one card at a time.
+                        if trigger:CanDismiss() and not trigger.hostile then
                             trigger.dismissed = true
                             g_token.properties:DispatchAvailableTrigger(trigger)
                         end
@@ -711,8 +712,7 @@ mod.shared.CreateTriggerPanel = function()
 				local children = {}
 
 				--the Dismiss Triggers bar only shows while something on the list
-				--can actually be dismissed (hostile prompts under strict action
-				--economy cannot be).
+				--is one it would dismiss (it always skips hostile prompts).
 				local anyDismissable = false
 
 				local newTriggerPanels = {}
@@ -727,7 +727,7 @@ mod.shared.CreateTriggerPanel = function()
 					end
 
 					if not trigger.dismissed and not hidden then
-						if trigger:CanDismiss() then
+						if trigger:CanDismiss() and not trigger.hostile then
 							anyDismissable = true
 						end
 						local panel = m_activeTriggerPanels[key]

@@ -521,6 +521,35 @@ RuleUtils = {
         return string.format("Choose a new target within %s %s and line of effect of %s", rangeText, unit, sourceName)
     end,
 
+    --The candidate list for a trigger that changes a strike's target. Every token
+    --passing powerMod's changeTargetFilter is in `targets`; one that also fails a
+    --"reasoned" filter stays listed but gets a tooltip in `reasons` (keyed by
+    --charid) and can't be picked. symbols carries current/triggerer/caster.
+    --Same logic as the trigger panel's local BuildRetargetCandidates.
+    --- @param powerMod CharacterModifier the trigger's "power" modifier
+    --- @param symbols table
+    --- @return CharacterToken[] targets
+    --- @return table<string, string> reasons
+    BuildRetargetCandidates = function(powerMod, symbols)
+        local filterFormula = powerMod:try_get("changeTargetFilter")
+        local reasonedFilters = powerMod:try_get("changeTargetReasonedFilters", {})
+        local targets = {}
+        local reasons = {}
+        for _, potential in ipairs(dmhub.allTokens) do
+            symbols.target = potential.properties:LookupSymbol{}
+            if trim(filterFormula or "") == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
+                targets[#targets+1] = potential
+                for _, reasonedFilter in ipairs(reasonedFilters) do
+                    if trim(reasonedFilter.formula or "") ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, potential.properties:LookupSymbol(symbols), 1)) then
+                        reasons[potential.charid] = ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
+                        break
+                    end
+                end
+            end
+        end
+        return targets, reasons
+    end,
+
     --Greys out retarget candidates the striker could not actually hit. Adds a
     --tooltip to `reasons` (charid -> text, the shape changeTargetReasonedFilters
     --uses) for any target beyond `range` squares or with no line of effect.

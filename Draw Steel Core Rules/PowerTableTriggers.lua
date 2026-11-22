@@ -564,6 +564,19 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         Refresh()
                     end,
                 }
+            else
+                --Only redirects can apply by themselves (see ApplyAutoRedirects in
+                --MCDMAbilityRollBehavior.lua); other passive triggers ignore it.
+                children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    text = "Apply Automatically",
+                    hover = gui.Tooltip("For a trigger that changes the target: the strike is redirected by itself before the roll, with the attacker choosing the new target (no choice when only one qualifies). Its owner is never asked."),
+                    value = modifier:try_get("autoActivate", false),
+                    change = function(element)
+                        modifier.autoActivate = element.value
+                        Refresh()
+                    end,
+                }
             end
 
             children[#children+1] = gui.Panel{

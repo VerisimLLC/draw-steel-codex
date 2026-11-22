@@ -5958,9 +5958,37 @@ end
 --- @field lines {row: table, mine: boolean, turn: string}[] What happened, oldest first, as History.Story rows.
 
 --Worked out at most every 0.4 s: the rail asks twice a second and the hover card asks too.
+--The rail's badge needs only the count and gold, so the lines are worked out apart.
 --- @type HistoryUnseen|nil
 local g_unseen = nil
 local g_unseenAt = -1
+--- @type HistoryUnseen|nil
+local g_unseenLines = nil
+local g_unseenLinesAt = -1
+
+--A map's entry keys newer than last, oldest first, and its newest key overall. Only the new
+--keys are sorted: the badge asks every map twice a second while History is closed.
+--- @param mapid string
+--- @param last string|nil
+--- @return string[] keys
+--- @return string|nil newest
+local function KeysSince(mapid, last)
+    local keys = {}
+    local newest = nil
+    local entries = mod:GetDocumentSnapshot(History.DocId(mapid)).data.entries
+    if type(entries) == "table" then
+        for key in pairs(entries) do
+            if newest == nil or key > newest then
+                newest = key
+            end
+            if last ~= nil and key > last then
+                keys[#keys + 1] = key
+            end
+        end
+        table.sort(keys)
+    end
+    return keys, newest
+end
 
 --- The index of the newest combat's first entry among keys[first..], when that combat began
 --- after keys[first] (so something unseen came before it); nil otherwise. Entries this user
@@ -5988,14 +6016,23 @@ local function CombatStart(mapid, keys, first)
 end
 
 --- What this user has not seen yet, across the maps they can follow.
+--- @param withLines boolean|nil Also the lines the hover card shows (lines is empty without).
 --- @return HistoryUnseen
-local function Unseen()
+local function Unseen(withLines)
     local now = dmhub.Time()
-    if g_unseen ~= nil and now - g_unseenAt < 0.4 then
+    if withLines then
+        if g_unseenLines ~= nil and now - g_unseenLinesAt < 0.4 then
+            return g_unseenLines
+        end
+    elseif g_unseen ~= nil and now - g_unseenAt < 0.4 then
         return g_unseen
     end
     --- @type HistoryUnseen
     local result = {turns = 0, gold = false, lines = {}}
+    if withLines then
+        g_unseenLines = result
+        g_unseenLinesAt = now
+    end
     g_unseen = result
     g_unseenAt = now
     if not History.Enabled() or not dmhub.GetSettingValue("history:notifications") then
@@ -6004,18 +6041,15 @@ local function Unseen()
     local turns = {}
     local baselines = {}
     for _, mapid in ipairs(VisibleMaps()) do
-        local keys = History.Keys(mapid)
         local last = History.LastLooked(mapid)
+        local keys, newest = KeysSince(mapid, last)
         if last == nil then
             --never looked: what is there already is not news.
-            if #keys > 0 then
-                baselines[mapid] = keys[#keys]
+            if newest ~= nil then
+                baselines[mapid] = newest
             end
         else
-            local first = #keys + 1
-            while first > 1 and keys[first - 1] > last do
-                first = first - 1
-            end
+            local first = 1
             --a combat that began since: what came before it counts as seen.
             local start = CombatStart(mapid, keys, first)
             if start ~= nil then
@@ -6046,26 +6080,35 @@ local function Unseen()
                         end
                         if entry.kind == "line" then
                             local mine = not dmhub.isDM and Mine(entry.who)
-                            local words = LineWords(entry)
-                            if words ~= nil and words ~= "" then
-                                Add({who = {entry.who}, text = words}, mine)
+                            if withLines then
+                                local words = LineWords(entry)
+                                if words ~= nil and words ~= "" then
+                                    Add({who = {entry.who}, text = words}, mine)
+                                end
                             end
                             if mine then
                                 result.gold = true
                             end
                         else
-                            for _, row in ipairs(History.Story(entry, {})) do
-                                local mine = false
-                                if not dmhub.isDM and not actorMine then
-                                    for _, who in ipairs(row.who or {}) do
-                                        if Mine(who) then
-                                            mine = true
-                                        end
+                            --gold: a creature this player controls is on a row someone else made.
+                            if not dmhub.isDM and not actorMine then
+                                for _, who in ipairs(entry.targets or {}) do
+                                    if Mine(who) then
+                                        result.gold = true
                                     end
                                 end
-                                Add(row, mine)
-                                if mine then
-                                    result.gold = true
+                            end
+                            if withLines then
+                                for _, row in ipairs(History.Story(entry, {})) do
+                                    local mine = false
+                                    if not dmhub.isDM and not actorMine then
+                                        for _, who in ipairs(row.who or {}) do
+                                            if Mine(who) then
+                                                mine = true
+                                            end
+                                        end
+                                    end
+                                    Add(row, mine)
                                 end
                             end
                         end
@@ -6100,6 +6143,7 @@ local function MarkAllLooked()
     end
     SetLooked(marks)
     g_unseen = nil
+    g_unseenLines = nil
 end
 
 --A theme colour as #rrggbb for the rail badge, which takes plain colours.
@@ -6134,7 +6178,7 @@ function History.ShowSincePreview(element, placement)
         if g_tray ~= nil and g_tray.face.valid then
             return
         end
-        local unseen = Unseen()
+        local unseen = Unseen(true)
         --nothing new: the plain name label, as on every other rail button.
         if unseen.turns == 0 then
             return

@@ -884,6 +884,52 @@ Self 247, Subject 156, Damage 109, Attacker 83, Target 54, Used Ability 63. This
 find hardest; a trigger-condition vocabulary (who set it off, the attacker, the damage, the ability used)
 is the next piece of work.
 
+## 4r. Trigger condition blocks (2026-11-22)
+
+"Only triggers if" now speaks the event's language. The engine already describes what each trigger event
+provides (`TriggeredAbility` trigger definitions and `RegisterTrigger` calls: name, type, description,
+sometimes wording); the editor reads that list for the chosen event:
+- **Creatures the event provides become roles beside "you" and "the triggering creature":** the attacker,
+  the target, the caster of a failed save. Every creature test works with them ("the attacker is
+  prone", "the attacker's Stamina...").
+- **Yes/no values become tests** with plain wording ("there is an attacker", "the movement was forced",
+  "the roll is tier 3", "it is part of another ability").
+- **The picker has an "About this event" group** at the top: those yes/no tests, and for each creature
+  "the [attacker] is you", "is within [1] square of you", "is your ally"; for text values "the damage type
+  is [fire]", "the condition is [Grabbed]", "the trigger name is [...]"; and "it has the [Strike] keyword".
+
+New readings, each saving back in the content's own form (and unchanged formulas keep their spelling):
+| Formula in content | Reads as |
+|---|---|
+| `HasAttacker` | there is an attacker |
+| `Attacker = self`, `Subject = Self` | the attacker is you |
+| `Distance(Attacker) <= 1`, `Subject.Distance(Self) > 3` | the attacker is within 1 square of you |
+| `Friends(Self, Attacker)`, `not Friends(...)` | the attacker is (not) your ally |
+| `Damage Type is acid or ... is cold or ... is fire` | the damage type is acid, cold or fire |
+| `Damage Type != "Fire" and Damage Type != "Holy"` | the damage type is not fire or holy |
+| `Condition = "Grabbed"`, `TriggerName = "..."`, `EffectName = "..."` | the condition is Grabbed / the trigger name is ... |
+| `UsedAbility.Keywords has "Melee"`, `Keywords has "Strike"` | the ability used / the damage has the Melee keyword |
+| `UsedAbility.Name is "Hide"`, `UsedAbility.Categorization = "Heroic Ability"` | the ability used's name / category is ... |
+| `Self.OngoingEffects has "Lost Tail"` | you have (don't have) the Lost Tail effect |
+| `Save Ends Effects`, `Self.Rampaging`, `Victories > 0` | you are affected by an effect a saving throw can end / you are rampaging / your Victories is more than 0 |
+| `Path.Forced`, `Path.Shift`, `Used Ability.Free Strike`, `HasAbility` | the movement was forced / was a shift / the ability used is a free strike / the damage came from an ability |
+
+**Result on all 1,148 triggers:** trigger conditions that read entirely as blocks went from **46 to 346 of
+571** (8% to 61%); all 1,148 triggers and their displays still save back identical, none blocked. A power
+roll trigger's condition uses the matching triggered-ability event's list (the power roll trigger events
+have none of their own), and a saved condition naming something the editor doesn't list no longer blocks
+saving.
+
+**Still formulas (by count):** class relationships (`Subject = Self.Companion`, `Subject.Summoner = Self`,
+`HasCompanion`, `Companion.id`, ~45 together), class fields (`Self.DragonsealArmed`,
+`Self.CompanionRampaging`, `HeroicResourceGainatStart`, `Resources.Recovery`, `Summoner.Resources.Epic
+Resource`), `Malice`, `Path.DistanceToCreature(Self)`, `CountNearbyCreatures(...)`, `Cast.HasTarget(Self)`.
+Next candidates: "your companion" and "your summoner" as roles (Beastheart, Summoner), and "the path passes
+within [N] squares of you".
+
+Also: a damage step's "that can't be reduced" phrase shows only when set or while editing, and older steps
+without a "who" default to "to the target".
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -968,6 +1014,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Book first for the card.** The card always follows how the book displays an ability; saved book wording (description, mode rules, flavor, distance and target text) wins over generated text, and generated text uses the book's phrasing. Filters and requirements move off the card. **Strained is a test inside Only if** ("You are Strained"), saved as `strainSelection`, labelled "Strained:" on the card. | Asked for: "always preference the way the book displays it", and one place for conditions. |
 | 2026-11-21 | **Second poll (60: monsters, new class abilities, triggers) passes open-and-save 60/60.** Triggers now open (and the power roll trigger condition field is fixed to `targetFilter`); monster power rolls, villain actions, saved step order in modes, and text-only abilities are handled. The book check shows the remaining card differences come from data that doesn't store the printed wording, mainly monsters: the importer should store distance, target, trigger and effect text verbatim. | Evidence for shipping the editor on existing content, and a concrete content/import task for book-first monster cards. |
 | 2026-11-21 | **Triggers: display toggle, display wording as the card, "+ Add paragraph", and all 1,148 triggers open and save identically (trigger and display).** Toggle defaults by action and opens from whether a display exists; display text is the card and edits save to it; added paragraphs are card text that saves to description / the display. Variations corrected to hold only the option's steps. | Asked for (toggle, paragraphs, trigger poll). Next: trigger conditions read as blocks only 46 of 571 times. |
+| 2026-11-22 | **Trigger conditions use each event's own symbols** (from the engine's trigger definitions): event creatures become roles, yes/no values become tests, an "About this event" picker group, and readings for attacker, distance, allies, damage type lists, condition / trigger / effect names, keywords, effects, path and free strike. Conditions as blocks: 46 to 346 of 571; all triggers still save identically. | The hardest GoblinScript for trigger authors; follows "minimise clicks" and book-like wording. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

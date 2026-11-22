@@ -170,7 +170,7 @@ const lbl = t => document.createTextNode(" " + t + " ");
 // Sentence blocks: what a feature does. Each one: shelf label, group, a book-style sentence with
 // underlined values, and the CharacterModifier record it saves as.
 const GROUPS = [["choice", "Choices", "--c-choice"], ["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
-  ["skill", "Skills and languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"]];
+  ["skill", "Languages", "--c-skill"], ["res", "Resources and kits", "--c-res"], ["rem", "Reminders", "--c-rem"], ["if", "Only if", "--c-if"]];
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
@@ -180,10 +180,24 @@ const SENT = {
     render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(multiTok(f, "groups", PERK_GROUPS.map(g => [g, g]), "any", "or")); add(lbl((+f.num === 1 ? "perk" : "perks") + " of your choice")); },
     prose: f => "You gain " + word(f.num) + " " + listWords(f.groups) + " perk" + (+f.num === 1 ? "" : "s") + " of your choice.",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatChoice" }, base, { tag: "feat," + f.groups.map(g => g + " perk").join(",") }, +f.num > 1 ? { numChoices: +f.num } : {}) },
-  skillChoice: { desc: "The player picks skills from skill groups, or from skills you name. Saves as a skill choice.", label: "Choose skills", group: "choice", uses: 82, choice: true, make: () => ({ num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
-    render: (f, add) => { add(lbl("You gain")); add(textTok(f, "num", "1")); add(lbl((+f.num === 1 ? "skill" : "skills") + " of your choice from the")); add(multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or")); add(lbl("skill groups, or")); add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "no named skills", "or")); },
-    prose: f => "You gain " + word(f.num) + " skill" + (+f.num === 1 ? "" : "s") + " of your choice from the " + listWords(f.groups) + " skill groups" + (f.named.length ? ", or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "") + ".",
-    compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num || 1, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) },
+  /* One Skills block for both: skills you just have, and skills the player chooses. It saves whichever
+     records are needed: a proficiency modifier for the fixed skills, a skill choice for the rest. */
+  skills: { desc: "Skills the hero has, and skills the player chooses (from skill groups or named skills). Saves the fixed skills as a modifier and the rest as a skill choice.", label: "Skills", group: "choice", uses: 118, choice: true,
+    make: () => ({ granted: [], num: "1", groups: SKILL_GROUPS.slice(), named: [] }),
+    render: (f, add) => {
+      add(lbl("You have the")); add(multiTok(f, "granted", T.skills.map(x => [x[0], x[1]]), "no fixed", "and")); add(lbl(f.granted.length === 1 ? "skill, and you choose" : "skills, and you choose"));
+      add(textTok(f, "num", "0")); add(lbl(+f.num === 1 ? "skill from the" : "skills from the")); add(multiTok(f, "groups", SKILL_GROUPS.map(g => [g, g]), "no", "or")); add(lbl(f.groups.length === 1 ? "skill group or" : "skill groups or"));
+      add(multiTok(f, "named", T.skills.map(x => [x[0], x[1]]), "no named skills", "or"));
+    },
+    prose: f => {
+      const have = f.granted.map(i => lookupName(T.skills, i)), n = +f.num || 0;
+      const pick = n ? "choose " + word(n) + " skill" + (n === 1 ? "" : "s") + " from the " + listWords(f.groups) + (f.groups.length === 1 ? " skill group" : " skill groups") + (f.named.length ? " or " + listWords(f.named.map(i => lookupName(T.skills, i))) : "") : "";
+      if (have.length && pick) return "You have the " + listWords(have, "and") + " skill" + (have.length === 1 ? "" : "s") + ". In addition, " + pick + ".";
+      if (have.length) return "You have the " + listWords(have, "and") + " skill" + (have.length === 1 ? "" : "s") + ".";
+      return pick ? pick.charAt(0).toUpperCase() + pick.slice(1) + "." : "";
+    },
+    compile: (f, feat) => f.granted.length ? modBase(feat, { behavior: "proficiency", subtype: "skill", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.granted.map(i => [i, true])) }) : null,
+    compileChoice: (f, feat, base) => +f.num > 0 ? Object.assign({ __typeName: "CharacterSkillChoice" }, base, { numChoices: +f.num, categories: Object.fromEntries(f.groups.map(g => [g, true])), individualSkills: Object.fromEntries(f.named.map(i => [i, true])) }) : null },
   charChoice: { desc: "The player raises one characteristic by 1, up to a maximum. Pairs with \"score increases to\" blocks.", label: "Raise a characteristic", group: "choice", uses: 33, choice: true, make: () => ({ num: "1", max: "3" }),
     render: (f, add) => { add(lbl("You can increase")); add(textTok(f, "num", "1")); add(lbl("other characteristic " + (+f.num === 1 ? "score" : "scores") + " by 1, to a maximum of")); add(textTok(f, "max", "3")); },
     prose: f => "Additionally, you can increase " + word(f.num) + " of your characteristic scores by 1, to a maximum of " + f.max + ".",
@@ -258,9 +272,6 @@ const SENT = {
   condImm: { desc: "You can't gain the conditions you pick.", label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
     render: (f, add) => { add(lbl("You can't be")); add(multiTok(f, "conds", T.conditions.map(c => [c[0], c[1].toLowerCase()]), "choose conditions")); },
     compile: (f, feat) => modBase(feat, { behavior: "conditionimmunity", conditions: f.conds.slice() }) },
-  skill: { desc: "You have the skills you pick.", label: "You have a skill", group: "skill", uses: 36, make: () => ({ ids: [] }),
-    render: (f, add) => { add(lbl("You have the")); add(multiTok(f, "ids", T.skills.map(s => [s[0], s[1]]), "choose skills", "and")); add(lbl(f.ids.length > 1 ? "skills" : "skill")); },
-    compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "skill", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
   language: { desc: "You know the languages you pick.", label: "You know a language", group: "skill", uses: 4, make: () => ({ ids: [] }),
     render: (f, add) => { add(lbl("You know")); add(multiTok(f, "ids", T.languages.map(s => [s[0], s[1]]), "choose languages", "and")); },
     compile: (f, feat) => modBase(feat, { behavior: "proficiency", subtype: "language", proficiency: "proficient", equate: false, skills: Object.fromEntries(f.ids.map(i => [i, true])) }) },
@@ -324,7 +335,7 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
 // block in them stays editable, and dragging one in copies it.
 const READY = [
   { key: "perk", title: "Perk", uses: 54, c: "choice", desc: "One perk from [groups]", make: () => feature("Perk", [["perkChoice"]]) },
-  { key: "skills", title: "Skills", c: "choice", uses: 69, desc: "[N] skills from [groups]", make: () => feature("Skills", [["skillChoice"]]) },
+  { key: "skills", title: "Skills", c: "choice", uses: 69, desc: "Fixed skills and [N] chosen from [groups]", make: () => feature("Skills", [["skills"]]) },
   { key: "charinc", title: "Characteristic Increase", c: "choice", uses: 33, desc: "Scores increase to [N]; raise another", make: () => feature("Characteristic Increase", primaryChars().map(c => ["stat", { attr: c, op: "max", value: "3" }]).concat([["charChoice"]])) },
   { key: "heroic", title: "Choose a heroic ability", c: "choice", uses: 45, desc: "One [N]-[resource] ability from [list]", make: () => feature("", [["abilityChoice", { cat: "heroic" }]]) },
   { key: "signature", title: "Signature ability", c: "choice", uses: 9, desc: "Choose one of [list]", make: () => feature("Signature Ability", [["abilityChoice", { cat: "signature" }]]) },
@@ -342,16 +353,22 @@ function newFeature(tpl) { const f = tpl.make(); f.id = newId("f"); return f; }
 /* Drafts and exports from before choice blocks stored ready-made features as their own kinds. */
 function migrateFeature(f) {
   if (!f || f.kind === "feature" || !f.kind) return f;
-  const blocks = { perk: () => [["perkChoice", { groups: f.groups }]], skills: () => [["skillChoice", { num: f.num, groups: f.groups, named: f.named || [] }]],
+  const blocks = { perk: () => [["perkChoice", { groups: f.groups }]], skills: () => [["skills", { granted: [], num: f.num, groups: f.groups, named: f.named || [] }]],
     subclass: () => [["subclassChoice"]], abilities: () => [["abilityChoice", { num: f.num, cat: f.cat, cost: f.cost, options: f.options || [] }]],
     charinc: () => (f.fixed || []).map(x => ["stat", { attr: x.attr, op: "max", value: x.to }]).concat(+f.num > 0 ? [["charChoice", { num: f.num, max: f.max }]] : []) }[f.kind];
   const n = feature(f.name, blocks ? blocks() : []); n.id = f.id; n.text = f.text || ""; return n;
 }
-function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); }); return c; }
+/* Older blocks: "You have a skill" and "Choose skills" are now one Skills block. */
+function migrateSentence(x) {
+  if (x.type === "skill") { x.type = "skills"; x.f = { granted: x.f.ids || [], num: "0", groups: [], named: [] }; }
+  else if (x.type === "skillChoice") { x.type = "skills"; x.f = { granted: [], num: x.f.num, groups: x.f.groups || [], named: x.f.named || [] }; }
+  (x.children || []).forEach(migrateSentence); return x;
+}
+function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return c; }
 /* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
 function kindLabel(f) {
   const top = f.sentences || [], ch = top.filter(x => SENT[x.type].choice);
-  if (ch.length === 1 && top.length === 1) return { perkChoice: "Perk", skillChoice: "Skills", charChoice: "Choice", abilityChoice: "Ability choice", subclassChoice: "Subclass" }[ch[0].type];
+  if (ch.length === 1 && top.length === 1) return { perkChoice: "Perk", skills: "Skills", charChoice: "Choice", abilityChoice: "Ability choice", subclassChoice: "Subclass" }[ch[0].type];
   if (ch.length) return "Choice";
   if (top.some(x => x.type === "ability" || x.type === "trigger")) return "Ability";
   return "Feature";
@@ -414,7 +431,7 @@ function compileSentences(list, feat, filter) {
   const out = [];
   for (const s of list) {
     if (s.type === "onlyIf") { const t = ONLY_IF.find(x => x[0] === s.f.test); out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + t[2](s.f) + ")")); continue; }
-    const d = SENT[s.type]; if (d.choice) continue;
+    const d = SENT[s.type]; if (!d.compile) continue;
     const r = d.compile(s.f, feat); if (!r) continue;
     if (filter) r.filterCondition = r.filterCondition ? "(" + r.filterCondition + ") and " + filter : filter;
     Object.keys(r).forEach(k => r[k] === undefined && delete r[k]);
@@ -427,10 +444,9 @@ function compileSentences(list, feat, filter) {
    the modifiers, then each choice (as core classes store Characteristic Increase). */
 function compileFeature(f) {
   const name = featName(f), description = featText(f), base = { name, description, classid: cls.id };
-  const choices = f.sentences.filter(x => SENT[x.type].choice);
   const mods = compileSentences(f.sentences, { name, text: description });
-  if (!choices.length) return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: mods });
-  const parts = choices.map(x => SENT[x.type].compileChoice(x.f, f, base));
+  const parts = f.sentences.filter(x => SENT[x.type].compileChoice).map(x => SENT[x.type].compileChoice(x.f, f, base)).filter(Boolean);
+  if (!parts.length) return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: mods });
   if (parts.length === 1 && !mods.length) return parts[0];
   const list = mods.length ? [{ __typeName: "CharacterFeature", name, description, tags: { Hidden: true }, modifiers: mods }] : [];
   return Object.assign({ __typeName: "CharacterFeatureList" }, base, { features: list.concat(parts) });
@@ -836,7 +852,9 @@ function renderSentence(s, list, i, feat) {
     add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true); });
     body.appendChild(add2); el.appendChild(body);
   } else if (showGs) {
-    if (d.choice) { const r = d.compileChoice(s.f, feat, {}); el.appendChild(E("div", "saves", "saves as a " + r.__typeName + " (the player's choice)" + (r.options ? ": " + r.options.length + " option" + (r.options.length === 1 ? "" : "s") : r.tag ? ": tag " + r.tag : ""))); }
+    if (d.choice) { const r = d.compileChoice(s.f, feat, {}), m = d.compile ? compileSentences([s], { name: featName(feat), text: featText(feat) }) : [];
+      const lines = m.map(savesLine); if (r) lines.push("saves as a " + r.__typeName + " (the player's choice)" + (r.options ? ": " + r.options.length + " option" + (r.options.length === 1 ? "" : "s") : r.tag ? ": tag " + r.tag : ""));
+      el.appendChild(E("div", "saves", lines.join("\n") || "(nothing saved yet)")); }
     else { const recs = compileSentences([s], { name: featName(feat), text: featText(feat) });
       el.appendChild(E("div", "saves", recs.length ? recs.map(savesLine).join("\n") : "(nothing saved yet)")); }
   }

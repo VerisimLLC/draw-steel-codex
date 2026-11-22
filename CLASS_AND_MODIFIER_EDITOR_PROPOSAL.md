@@ -528,7 +528,9 @@ damage types, custom attributes and resources).
   heroic ability (with its cost), Signature ability, Subclass choice, Kit, Recoveries, Languages, Feature
   with an ability, Feature with a triggered ability, Empty feature. **They are pre-filled blocks**, in the
   same design language as every other block (designer feedback: a separate settings form for perks and
-  skills didn't match the editors). **Choices** is a block group: choose a perk, choose skills, raise a
+  skills didn't match the editors). **Choices** is a block group: choose a perk, Skills (one block for
+  skills the hero has and skills the player chooses; it saves a proficiency modifier, a skill choice, or
+  both in a feature list, as needed), raise a
   characteristic, choose an ability (cards inside the block), choose your subclass (reads "Choose your
   [feature name]", so what subclasses are called is just the feature's name: College, Circle, Domain). The feature's record
   type is decided from its blocks, never picked: modifiers only -> `CharacterFeature`; one choice alone ->

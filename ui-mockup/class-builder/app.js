@@ -13,6 +13,8 @@ const charName = id => (CHARS.find(c => c[0] === id) || [id, id])[1];
 // custom attributes (ids as content stores them).
 const BUILTIN_STATS = [["hitpoints", "Stamina"], ["speed", "speed"], ["forcedmoveresistance", "stability"], ["recoveryvalue", "Recovery value"]];
 const STAT_OPTS = CHARS.concat(BUILTIN_STATS);
+// Resource gain stats read with the class's own resource name ("start-of-turn Wrath gain").
+const statOpts = () => STAT_OPTS.concat([[HR_START, "start-of-turn " + (cls && cls.resourceName || "resource") + " gain"], [HR_ALL, "every " + (cls && cls.resourceName || "resource") + " gain"]]);
 const CUSTOM_FLAGS = T.customAttributes.filter(a => !/Class Specific|Hidden/i.test(a[2]));
 const statName = id => (STAT_OPTS.find(s => s[0] === id) || T.customAttributes.find(a => a[0] === id) || [id, id])[1];
 const MOVES = [["fly", "fly"], ["climb", "climb at full speed"], ["swim", "swim at full speed"], ["burrow", "burrow"]];
@@ -21,6 +23,10 @@ const SKILL_GROUPS = ["crafting", "exploration", "interpersonal", "intrigue", "l
 const PERK_GROUPS = ["crafting", "exploration", "interpersonal", "intrigue", "lore", "supernatural"];
 // The tags perks carry in the compendium (some groups are plural there).
 const PERK_TAGS = { crafting: "crafting perk", exploration: "exploration perks", interpersonal: "interpersonal perk", intrigue: "intrigue perk", lore: "lore perks", supernatural: "supernatural perks" };
+/* The start-of-turn gain lives in a custom attribute (as core classes store it), so complications,
+   titles and items can change it; another attribute adds to every heroic resource gain. */
+const HR_START = "4d6eb7b5-85d1-41c0-a462-05cff692749a", HR_START_NAME = "Heroic Resource Gain at Start";
+const HR_ALL = "61a3ee0a-353f-4407-a317-d05647551fa5";
 const RES = { heroic: "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca", recovery: "5bd90f9b-46be-4cf2-8ca6-a96430d62949", surges: "8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d", epic: "e7b04a7e-61fc-4e17-b999-d95d7e751abb" };
 const RESOURCE_OPTS = [[RES.recovery, "Recoveries"], [RES.surges, "surges"], [RES.epic, "epic resource"]];
 const ACTION_NAMES = Object.fromEntries(T.resources.filter(r => r[2] === "Actions").map(r => [r[0], r[1]]));
@@ -266,7 +272,7 @@ const SENT = {
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
   stat: { desc: "Raise, lower or set a stat: Stamina, speed, stability, a characteristic... Saves as an attribute modifier.", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
-      add(lbl("Your")); add(pickTok(f, "attr", STAT_OPTS.concat(CUSTOM_FLAGS.map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
+      add(lbl("Your")); add(pickTok(f, "attr", statOpts().concat(CUSTOM_FLAGS.filter(a => a[0] !== HR_START && a[0] !== HR_ALL).map(a => [a[0], a[1]])))); if (CHARS.some(c => c[0] === f.attr)) add(lbl("score"));
       add(pickTok(f, "op", [["add", "increases by"], ["sub", "decreases by"], ["max", "increases to"], ["set", "is"], ["min", "can't go above"]]));
       add(fxTok(f, "value", "number or formula"));
     },
@@ -483,14 +489,15 @@ const featText = f => f.text || autoText(f);
 
 // ---------------------------------------------------------------------------------------------
 // The class model and its levels.
-const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"], ["beginturn", "At the start of each of your turns", "round"],
+const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"],
   ["dealdamage", "The first time each round you deal damage", "round"], ["losehitpoints", "The first time each round you take damage", "round"],
   ["winded", "The first time you become winded in an encounter", "encounter"], ["dying", "The first time you become dying in an encounter", "encounter"],
   ["forcemove", "The first time each round you force move a creature", "round"], ["useability", "Whenever you use an ability", "recurring"]];
 function blankClass() {
   return { id: guid(), name: "New Class", details: "", resourceName: "Resolve", epicName: "", slowStart: false,
     primary: { mgt: 2 }, arrays: "auto", arraysCustom: [], stamStart: "18", stamPer: "6", showLevels: 5,
-    gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }, { id: newId("g"), event: "beginturn", qty: "2", guid: guid() }],
+    gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }],
+    startGain: { kind: "flat", n: "2", steps: [], guid: guid() },
     lanes: {} };
 }
 /* Characteristic arrays: core classes with one starting characteristic use four-number arrays, those with
@@ -550,9 +557,43 @@ function compileFeature(f) {
 }
 /* "How you gain your resource" writes two linked records, as decided: the checklist line players see,
    and the trigger that grants it (its Replenish step points at the line by checklistid). */
+/* Start of turn, written the way core classes do it:
+   - the amount is the "Heroic Resource Gain at Start" attribute (a flat amount, or the die size for 1dN),
+     set by a modifier at 1st level, with level steps as extra modifiers (flat) or table rows (die);
+   - the trigger gains that attribute (or rolls 1d it) and only fires while it's above 0, so a
+     complication that sets it to 0 switches the gain off;
+   - the checklist line reads the attribute, so the sheet shows the changed amount. */
+function startGainText(sg) {
+  const st = (sg.steps || []).filter(x => x.from && x.add);
+  const base = sg.kind === "die" ? "1d" + sg.n : sg.n;
+  return base + (st.length ? " (" + st.map(x => "+" + x.add + " from " + ORD(+x.from) + " level").join(", ") + ")" : "");
+}
+function compileStartGain(res) {
+  const sg = cls.startGain; if (!sg) return null;
+  const st = (sg.steps || []).filter(x => x.from && x.add).slice().sort((a, b) => +a.from - +b.from);
+  const name = "Start of Turn", A = HR_START_NAME;
+  const mods = [{ __typeName: "CharacterModifier", behavior: "attribute", name: res + " at Start of Turn", description: "", attribute: HR_START, value: numOr(sg.n) }];
+  let qty;
+  if (sg.kind === "die") {
+    // 1dN, plus the level steps as table rows: "1d X", "(1d X) + 1" from 7th level...
+    let bonus = 0; const entries = [{ threshold: 1, script: "1d " + A }];
+    st.forEach(x => { bonus += +x.add || 0; entries.push({ threshold: +x.from, script: "(1d " + A + ") + " + bonus }); });
+    qty = entries.length > 1 ? { __typeName: "GoblinScriptTable", id: "table", field: "Level", editableField: true, entries } : "1d " + A;
+  } else {
+    st.forEach(x => mods.push({ __typeName: "CharacterModifier", behavior: "attribute", name: res + " at Start of Turn (" + ORD(+x.from) + " level)", description: "", attribute: HR_START, value: numOr(x.add), filterCondition: "Level >= " + x.from }));
+    qty = A;
+  }
+  const details = sg.kind === "die" ? "At the start of your turn you gain " + startGainText(sg) + " " + res + "." : "At the start of your turn you gain {" + A + "} " + res + ".";
+  return { mods, check: { name, details, guid: sg.guid, mode: "round", quantity: qty },
+    trigger: { __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
+      triggeredAbility: { __typeName: "TriggeredAbility", name, description: details, trigger: "beginturn", targetType: "self", mandatory: "game:heroicresourcetriggers", conditionFormula: A + " > 0",
+        triggerPrompt: "Start of turn: gain " + res + ".", behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: sg.guid, quantity: qty, resourceid: RES.heroic }] } } };
+}
 function compileGains() {
   const res = cls.resourceName || "Resource";
-  const checklist = [], triggers = [];
+  const checklist = [], triggers = [], mods = [];
+  const sg = compileStartGain(res);
+  if (sg) { checklist.push(sg.check); triggers.push(sg.trigger); mods.push(...sg.mods); }
   cls.gains.forEach(g => {
     const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0];
     const details = ev[1] + ", you gain " + fxText(g, "qty") + " " + res.toLowerCase() + ".";
@@ -561,7 +602,7 @@ function compileGains() {
       triggeredAbility: { __typeName: "TriggeredAbility", name: ev[1], description: details, trigger: ev[0], targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: ev[1] + ": gain " + res + ".",
         behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] } });
   });
-  return { checklist, triggers };
+  return { checklist, triggers, mods };
 }
 function compileClass() {
   const primary = Object.fromEntries(Object.keys(cls.primary).map(k => [k, numOr(cls.primary[k])]));
@@ -576,7 +617,7 @@ function compileClass() {
   // The resource feature holds the gain triggers, in the first lane (as core classes do).
   const first = laneKeys()[0];
   rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
-    description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.triggers });
+    description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.mods.concat(g.triggers) });
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);
   return rec;
 }
@@ -624,7 +665,17 @@ function deleteClass() {
   if (store.order.length) openClass(store.order[store.order.length - 1]); else newClass();
   toast("Deleted \u201c" + name + "\u201d from this browser.");
 }
+/* Classes made before the start-of-turn block had it as an ordinary gain: move it into the block. */
+function migrateStartGain(c) {
+  if (c.startGain !== undefined) return;
+  const i = (c.gains || []).findIndex(g => g.event === "beginturn"); c.startGain = null;
+  if (i < 0) return;
+  const g = c.gains[i], q = String(g.qty || "").trim(), m = q.match(/^1d(\d+)$/i);
+  c.startGain = { kind: m ? "die" : "flat", n: m ? m[1] : (/^\d+$/.test(q) ? q : "2"), steps: [], guid: g.guid || guid() };
+  c.gains.splice(i, 1);
+}
 function migrateText(c) {
+  migrateStartGain(c);
   // Typed feature text remembers the blocks' wording it was written against, so a later change can be flagged.
   Object.values(c.lanes || {}).forEach(l => l.forEach(f => { if (f.text && f.textBasis == null) f.textBasis = sentenceProse(f); }));
   if (typeof c.arrays === "string" && c.arrays !== "auto" && c.arrays !== "custom") {
@@ -770,6 +821,32 @@ function renderBoard() {
   // How you gain it: one block per way, like any sentence (each writes a checklist line and its trigger).
   const gl = E("div", "lbl2", "How you gain " + (cls.resourceName || "it").toLowerCase()); board.appendChild(gl);
   const gs = E("div", "sents");
+  const res = (cls.resourceName || "resource").toLowerCase();
+  if (cls.startGain) {
+    const sg = cls.startGain;
+    const el = E("div", "sent startgain"); el.style.setProperty("--c", "var(--c-res)");
+    el.appendChild(lbl("At the start of each of your turns, you gain"));
+    el.appendChild(pickTok(sg, "kind", [["flat", "a set amount:"], ["die", "a die roll: 1d"]]));
+    el.appendChild(textTok(sg, "n", sg.kind === "die" ? "3" : "2")); el.appendChild(lbl(res));
+    el.appendChild(E("span", "grow"));
+    const mb = fk(E("button", "mb", "\u22ef"), "startgainmb"); mb.type = "button"; mb.setAttribute("aria-label", "Start-of-turn gain options");
+    mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "This class doesn't gain " + res + " at the start of its turn"); x.type = "button";
+      x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => { cls.startGain = null; }); toast("Removed the start-of-turn gain.", { label: "Undo", run: undo }); }); m.appendChild(x); }); });
+    el.appendChild(mb);
+    // Level steps: "+1 from 7th level" (core classes use 7th and 10th).
+    const steps = E("div", "gainsteps");
+    (sg.steps || []).forEach((x, i) => {
+      const row = E("span", "gstep"); row.appendChild(lbl("+")); row.appendChild(textTok(x, "add", "1")); row.appendChild(lbl("from")); row.appendChild(textTok(x, "from", "7")); row.appendChild(lbl(ORD(+x.from || 0).replace(/^\d+/, "") + " level"));
+      const rm = E("button", "mb", "\u2715"); rm.type = "button"; rm.title = "Remove this step"; rm.addEventListener("click", () => change(() => sg.steps.splice(i, 1))); row.appendChild(rm);
+      steps.appendChild(row);
+    });
+    const addStep = fk(E("button", "addsent inblock", "+ more from a level"), "startgainstep"); addStep.type = "button";
+    addStep.addEventListener("click", () => change(() => { sg.steps = sg.steps || []; const last = sg.steps.length ? +sg.steps[sg.steps.length - 1].from : 4; sg.steps.push({ from: String(last < 7 ? 7 : 10), add: "1" }); }));
+    steps.appendChild(addStep); el.appendChild(steps);
+    el.appendChild(E("div", "sgnote", "Other features can change this amount (a complication, title or item): use \u201cChange a stat\u201d \u2192 start-of-turn " + (cls.resourceName || "resource") + " gain." +
+      (showGs ? "\nsaves as attribute " + HR_START_NAME + " = " + sg.n + (sg.kind === "die" ? " (the die size)" : "") + "; trigger beginturn gains " + (sg.kind === "die" ? "1d " : "") + HR_START_NAME + " while it is above 0; checklist line reads it" : "")));
+    gs.appendChild(el);
+  }
   cls.gains.forEach((g, i) => {
     const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
     el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(fxTok(g, "qty", "1"));
@@ -782,7 +859,10 @@ function renderBoard() {
     gs.appendChild(el);
   });
   const ag = fk(E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()), "addgain"); ag.type = "button";
-  ag.addEventListener("click", () => change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })));
+  ag.addEventListener("click", ev => { ev.stopPropagation(); if (cls.startGain) return change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() }));
+    menuAt(ag, m => { const a = E("button", null, "At the start of each turn (start-of-turn gain)"); a.type = "button"; a.addEventListener("click", () => { closeMenu(); change(() => { cls.startGain = { kind: "flat", n: "2", steps: [], guid: guid() }; }); });
+      const b = E("button", null, "Another way (an event)"); b.type = "button"; b.addEventListener("click", () => { closeMenu(); change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })); });
+      m.appendChild(a); m.appendChild(b); }); });
   gs.appendChild(ag); board.appendChild(gs);
   board.appendChild(E("p", "hint", "Each way writes the sheet's checklist line and the trigger that grants it, linked so they can't disagree."));
 
@@ -1150,6 +1230,7 @@ function classIssues() {
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
   if (!cls.gains.length) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
+  if (cls.startGain && !/^\d+$/.test(String(cls.startGain.n).trim())) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain needs a whole number" + (cls.startGain.kind === "die" ? " (the die size)." : "."), soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
   if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
   laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k))));

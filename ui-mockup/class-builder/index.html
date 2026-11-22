@@ -179,6 +179,10 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .grip svg { width: 10px; height: 14px; fill: currentColor; margin: auto; }
 .sent > .grip, .sent .ifline > .grip { touch-action: none; }
 .palgroup { display: flex; flex-direction: column; gap: 4px; }
+.sgnote { flex-basis: 100%; font-size: 12px; opacity: .85; white-space: pre-wrap; }
+.gainsteps { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.gstep { display: inline-flex; align-items: center; gap: 2px; background: rgba(0,0,0,.2); border-radius: 4px; padding: 1px 4px; }
+.gainsteps .addsent.inblock { flex-basis: auto; padding: 2px 8px; }
 .palrow { display: flex; gap: 4px; align-items: stretch; }
 .palrow .pal { flex: 1; min-width: 0; }
 .palrow .mb { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; color: var(--fg); cursor: pointer; padding: 0 8px; }

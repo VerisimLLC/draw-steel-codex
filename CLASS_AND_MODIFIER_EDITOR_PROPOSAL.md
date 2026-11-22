@@ -761,3 +761,43 @@ The prototype was corrected for two findings I checked against the code:
   (`CustomAttribute.lua` ApplyOperation has no cap).
 - **Perk groups** use the tags perks actually carry ("exploration perks", "lore perks", "supernatural
   perks"; `Feat.lua` HasTag compares lowercased text exactly).
+
+## 14. Start-of-turn heroic resource gain (2026-11-22)
+
+**Asked for:** make gaining the heroic resource easier, keeping the start-of-turn gain in "Heroic
+Resource Gain at Start" so complications and other features can change it.
+
+**What content does** (data survey of the 11 core classes):
+- **The attribute.** A modifier at 1st level adds to the custom attribute "Heroic Resource Gain at
+  Start" (`4d6eb7b5...`). It adds 2 for flat classes (Censor, Elementalist, Null, Tactician, Summoner)
+  and 3 for 1d3 classes (Beastheart, Fury, Shadow, Talent), where the attribute is the **die size**.
+- **The trigger.** The `beginturn` trigger gains `Heroic Resource Gain at Start` (dice classes use a
+  level table, "1d Heroic Resource Gain at Start", then "(1d ...) + 1" from 7th level). Its condition is
+  `Heroic Resource Gain at Start > 0`.
+- **The checklist line** shows `{Heroic Resource Gain at Start}`.
+- **Level steps.** Flat classes add +1 at 7th and 10th level.
+- **Switching it off.** Complications such as Self-Taught set the attribute to 0.
+- **Conduit and Troubadour** gain an amount the trigger computes ("cast.Heroic Resources Gained").
+- **Every gain.** A separate attribute, "Heroic Resource Gain Modification" (`61a3ee0a...`), is added to
+  every heroic resource gain (`AbilityReplenish.lua:644`, `MCDMAbilityBehavior.lua:1946`).
+
+**The builder:**
+- **A start-of-turn block, first under "How you gain".** It reads "At the start of each of your turns,
+  you gain [a set amount: 2 | a die roll: 1d3] wrath", with "+1 from 7th level" steps.
+  - It writes the whole pattern above: the attribute modifier(s), the trigger with the > 0 condition,
+    and the checklist line.
+  - Flat steps are attribute modifiers with `Level >= N`; die steps are table rows.
+  - The ⋯ menu offers "This class doesn't gain at the start of its turn".
+- **Other gains** (combat starts, dealing damage, and so on) stay as event blocks.
+- **"Change a stat"** offers "start-of-turn Wrath gain" and "every Wrath gain", named with the class's
+  resource. A complication, title, item or later feature can then change them without anyone knowing
+  the attribute names.
+- **Older classes** move their start-of-turn gain into the block.
+
+**Open question (content consistency).** For 1d3 classes the attribute is the die size, so "+1 to
+start-of-turn gain" from a complication makes the roll 1d4. For flat classes it adds 1. Options:
+- (a) Keep the meaning per class, and have the block say which it is.
+- (b) Give dice classes a separate bonus: the attribute always means "added to the gain", and the die
+  size becomes its own value.
+
+(b) is consistent for modifiers but changes four classes' data.

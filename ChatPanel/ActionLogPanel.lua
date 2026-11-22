@@ -212,7 +212,7 @@ function CreateActionLogCard(options)
     if not options.hideName then
         local name = options.nameOverride
         if name == nil and token ~= nil and token.valid then
-            name = token.name
+            name = creature.TokenDisplayName(token)
             if not token.canLocalPlayerSeeName then
                 name = "Unknown"
             end

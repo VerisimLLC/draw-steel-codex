@@ -2399,7 +2399,7 @@ local function AddInitiativeEntryPanel (element, info, playerControlled)
 		local ord = 0
 
 		local tok = list[1]
-		local text = tok.name
+		local text = creature.TokenDisplayName(tok)
 		if (text == nil or text == "") and tok.properties:GetMonsterType() ~= nil then
 			text = tok.properties:GetMonsterType()
 		end
@@ -8036,7 +8036,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 				local tooltip = nil
 				if token ~= nil then
 					if token.canLocalPlayerSeeName then
-						tooltip = token.name
+						tooltip = creature.TokenDisplayName(token)
 					end
 
 					if tooltip == nil or tooltip == '' or token.properties:MinionSquad() ~= nil then

@@ -666,7 +666,8 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 		if GameHud.instance and GameHud.instance:has_key("initiativeInterface") then
 			local tokens = self.GetTokensForInitiativeId(initiativeid)
 			if tokens ~= nil and #tokens > 0 then
-				entry.description = tokens[1].description
+				--a map object's own Name field, not its art piece's name (see TokenDisplayName).
+				entry.description = (tokens[1].isObject and creature.TokenDisplayName(tokens[1])) or tokens[1].description
 
 				local turnsPerRound = tokens[1].properties:TurnsPerRound()
 				if turnsPerRound ~= InitiativeQueueEntry.turnsPerRound then

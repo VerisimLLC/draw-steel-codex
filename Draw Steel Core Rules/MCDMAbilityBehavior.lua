@@ -383,10 +383,23 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
 
     if damage == nil then
         local complete = false
-        local rollid
-        rollid = GameHud.instance.rollDialog.data.ShowDialog{
+        --Roll the dice on the ability's card in the sidebar. The old pop-up is only
+        --used when there is no card to roll on.
+        local dialog = nil
+        if ability ~= nil then
+            dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+        end
+        if dialog == nil or (not dialog.valid) or dialog.data == nil then
+            dialog = GameHud.instance.rollDialog
+        end
+        dialog.data.ShowDialog{
             title = "Damage Roll",
             roll = match.damage,
+            type = "damage",
+            creature = casterToken.properties,
+            --Roll the damage dice straight away: after a power roll the player has
+            --already rolled once, and nothing here needs a choice from them.
+            autoroll = true,
             completeRoll = function(rollInfo)
                 complete = true
                 damage = rollInfo.total

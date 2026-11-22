@@ -152,6 +152,8 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .scope-banner .sb-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .scope-banner .btn.primary { border-color: var(--gold); color: var(--gold); }
 .step.cat-raw > .bar { outline: 1px dashed rgba(216,168,74,.6); outline-offset: -3px; }
+.status.warn .dot { background: var(--gold); }
+ul.problems.checks li { border-left-color: var(--gold); }
 .starter.paste-start { border-color: var(--gold); color: var(--gold); }
 .typeahead input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; }
 .typeahead .opt.hl { background: var(--panel); outline: 1px solid var(--gold); }
@@ -1076,6 +1078,8 @@ let modesHost = null;   // the list whose ability gets the modeList: What happen
 // Non-blocking notes for the side panel (things that save fine but need engine work to run right).
 let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
+// Worth checking, but doesn't stop saving: the card and the steps seem to disagree.
+const check = (id, msg) => problems.push({ id, msg, soft: true });
 function rawPrec(src) { try { return astPrec(parseGS(src)); } catch (e) { return 0; } }
 function cHolder(h, minP) {
   let r;
@@ -1216,6 +1220,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         prose.push({ kind: "roll", char: f.char, tiers: tp, cond: fp });
         // Pushed after the power roll's own record is settled (see keepIfUnchanged below), so restoring an
         // unchanged power roll never swallows them.
+        ["t1", "t2", "t3"].forEach((k, i) => tierAgreement(st, k, i + 1));
         ["t1", "t2", "t3"].forEach((k, i) => { const b2 = []; compileSteps(tierSteps[k], filters, b2, []); b2.forEach(b => { if (!b.tiersSelected) b.tiersSelected = [i + 1]; afterStep.push(b); }); });
         if (!st.branches.t1.length && !st.branches.t2.length && !st.branches.t3.length) bad(st.id, "This power roll has no results yet.");
         break;
@@ -1481,6 +1486,35 @@ function buildDisplay(c) {
   return { __typeName: "CharacterModifier", behavior: "triggerdisplay", name: ab.name,
     ability: { __typeName: "TriggeredAbilityDisplay", name: ab.name, cost, keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
       flavor: o.flavor ? o.flavor.text : "", type: ab.trig.action, distance: o.distance ? o.distance.text : tt.distance, target: o.target ? o.target.text : tt.target, trigger, effect } };
+}
+/* Does a tier's card wording agree with what its steps do? Two easy slips when copying an "Only if":
+   the card names a condition (with a duration) that no step on the tier applies, or the card's potency
+   letter (P < WEAK) differs from the characteristic an "Only if" checks (Might). */
+const CHAR_NAME = { M: "Might", A: "Agility", R: "Reason", I: "Intuition", P: "Presence" };
+function tierAgreement(pr, k, n) {
+  const list = pr.branches[k] || [];
+  const words = list.filter(x => x.type === "note").map(x => x.f.text || "").join(" ");
+  if (!words) return;
+  const applied = new Set(), tested = new Set();
+  const walkX = x => { if (!x || typeof x !== "object") return; if (x.type === "potencyTest" && x.f.ch) tested.add(String(x.f.ch)[0].toUpperCase()); for (const q in x.kids || {}) walkX(x.kids[q].expr); (x.f && x.f.items || []).forEach(it => walkX(it.expr)); };
+  // What the tier's steps apply, as words: a condition, an effect's name ("Slowed and Weakened"), or rule
+  // text the blocks keep as written ("Restrained by Petrify (save ends)").
+  const walk = l => l.forEach(x => {
+    if (x.type === "condition") applied.add(x.f.cond.toLowerCase());
+    if (x.type === "applyEffect" && x.f.effectName) applied.add(x.f.effectName.toLowerCase());
+    if (x.type === "todo" && x.f.text) applied.add(x.f.text.toLowerCase());
+    if (x.type === "opaque" && x.f.record) applied.add(String(x.f.record.rule || x.f.summary || "").toLowerCase());
+    if (x.type === "ifStep") walkX(x.slots.cond && x.slots.cond.expr);
+    for (const q in x.branches || {}) walk(x.branches[q]);
+  });
+  walk(list);
+  const tierName = ["\u226411", "12\u201316", "17+"][n - 1];
+  CONDITIONS.forEach(c => {
+    const m = words.match(new RegExp("\\b" + c + "\\b\\s*\\((save ends|eot)\\)", "i"));
+    if (m && ![...applied].some(t => new RegExp("\\b" + c.toLowerCase() + "\\b").test(t))) check(pr.id, "Tier " + tierName + ": the card says \u201c" + c.toLowerCase() + " (" + m[1] + ")\u201d, but nothing on this tier makes the target " + c.toLowerCase() + ".");
+  });
+  const onCard = new Set([...words.matchAll(/\b([MARIP])\s*<\s*(weak|average|strong|\d+)/gi)].map(m => m[1].toUpperCase()));
+  if (onCard.size && tested.size) tested.forEach(t => { if (!onCard.has(t)) check(pr.id, "Tier " + tierName + ": the card's potency is " + [...onCard].map(x => CHAR_NAME[x]).join(" or ") + ", but an \u201cOnly if\u201d on this tier checks " + CHAR_NAME[t] + "."); });
 }
 /* Behaviours opened from saved data keep their saved order; a new one stays right after the behaviour it
    followed while editing. */
@@ -2792,10 +2826,12 @@ function tierHtml(t) {
 function renderSide(c) {
   side.innerHTML = "";
   const seen = new Set(); const pr = problems.filter(q => { const k = q.id + q.msg; if (seen.has(k)) return false; seen.add(k); return true; });
-  const st = E("div", "status " + (pr.length ? "bad" : "ok"));
+  const hard = pr.filter(q => !q.soft), soft = pr.filter(q => q.soft);
+  const st = E("div", "status " + (hard.length ? "bad" : soft.length ? "warn" : "ok"));
   st.appendChild(E("span", "dot"));
-  st.appendChild(E("div", null, pr.length ? pr.length + " thing" + (pr.length > 1 ? "s" : "") + " to finish before saving." : "Ready to save. The full editor can open it too."));
+  st.appendChild(E("div", null, hard.length ? hard.length + " thing" + (hard.length > 1 ? "s" : "") + " to finish before saving." : soft.length ? "Ready to save, but " + soft.length + " thing" + (soft.length > 1 ? "s look" : " looks") + " worth checking." : "Ready to save. The full editor can open it too."));
   side.appendChild(st);
+  if (soft.length) { const ul = E("ul", "problems checks"); soft.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
   const adv = countOpaque(ab.steps);
   notes.forEach(n => { const q = E("p", "note", n); q.style.borderLeft = "3px solid var(--warn)"; q.style.paddingLeft = "8px"; side.appendChild(q); });
   if (ab.openHidden && ab.openHidden.length) {
@@ -2804,7 +2840,7 @@ function renderSide(c) {
     const ul = E("ul", "note"); ab.openHidden.forEach(h => ul.appendChild(E("li", null, h))); d.appendChild(ul); side.appendChild(d);
   }
   if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the full editor can change. They are kept as they are when you save."));
-  if (pr.length) { const ul = E("ul", "problems"); pr.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
+  if (hard.length) { const ul = E("ul", "problems"); hard.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
   const card = E("div", "card"); const cardNotes = [];
   /* Card text is generated from the blocks. Any line can be reworded by clicking it; the override
@@ -3786,9 +3822,14 @@ const EXAMPLES = {
 /* Open a saved ActivatedAbility record as blocks. Behaviours the blocks understand become blocks;
    anything else becomes an Advanced step carrying its record. "hidden" collects saved settings that
    change what happens but that no block shows, so the editor can say so (or refuse to open). */
-const MEANINGFUL_BEHAVIOUR_KEYS = { strainSelection: null, tiersSelected: "only on some tiers", cannotBeReduced: null,
+const MEANINGFUL_BEHAVIOUR_KEYS = { strainSelection: null, tiersSelected: null, cannotBeReduced: null,
   durationUntilEndOfTurn: "lasts until end of turn", modifiers: "has its own roll modifiers (e.g. an edge)", chatMessage: null, guid: null, name: null, __typeName: null, filterTarget: null, modesSelected: null };
-function resourceNameById(id) { return (RESOURCE_TABLE.find(r => r[0] === id) || [null, null])[1]; }
+// Also reads the prototype's own placeholders ("<Main action>", "<Heroic Resource>"), so its saved data reopens.
+function resourceNameById(id) {
+  const m = String(id || "").match(/^<(.+)>$/);
+  if (m) return { "main action": "Main Action", "maneuver": "Maneuver", "triggered action": "Trigger", "free triggered action": "Free Triggered Action", "free maneuver": "Free Maneuver", "villain action": "Villain Action" }[m[1].toLowerCase()] || m[1];
+  return (RESOURCE_TABLE.find(r => r[0] === id) || [null, null])[1];
+}
 function openAbility(rec) {
   const a = newAbility(); a.keywords = []; a.overrides = {}; a.labels = {};
   const hidden = [];
@@ -3909,6 +3950,8 @@ function openBehaviours(list, hidden, rec, a0) {
     // Marked as a step of its own (not tier text), so it saves back as the behaviour it was.
     if (n && n >= 1 && n <= 3) { top.splice(i, 1); x.f.asStep = true; pr.branches["t" + n].push(x); }
   }
+  // Steps for several tiers stay outside the roll; say which tiers, since no block shows it yet.
+  top.forEach(x => { const t = x.srcList && x.srcList[0].tiersSelected; if (t && t.length > 1) hidden.push(shortType(x.srcList[0]) + ": only on tiers " + t.join(" and ")); });
   return top;
 }
 const shortType = b => String(b.__typeName || "?").replace(/^ActivatedAbility|Behavior$/g, "");

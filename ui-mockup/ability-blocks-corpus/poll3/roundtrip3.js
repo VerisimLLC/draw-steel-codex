@@ -20,7 +20,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
           row.event = ab.trig.event; row.who = ab.trig.who; row.action = ab.trig.action;
           row.steps = count(ab.steps, { block: 0, advanced: 0, todo: 0, advTypes: [] });
           row.hidden = ab.openHidden || [];
-          const c1 = compileAbility(); row.problems = problems.map(q => q.msg);
+          const c1 = compileAbility(); row.problems = problems.filter(q => !q.soft).map(q => q.msg); row.checks = problems.filter(q => q.soft).map(q => q.msg);
           row.same = canon(c1.rec) === canon(r.rec);
           if (!row.same) row.diff = diffKeys(c1.rec, r.rec).map(k => k + ': ' + canon(r.rec[k]).slice(0, 160) + ' => ' + canon(c1.rec[k]).slice(0, 160));
           row.displaySame = r.display ? canon(c1.display) === canon(r.display) : c1.display === null;

@@ -1012,6 +1012,21 @@ Found while building it: restoring an unchanged power roll swallowed the tier st
 They are now added after the power roll's own record is settled. All 1,253 opened abilities and triggers
 still save back identical.
 
+**Card-and-steps agreement checks (2026-11-22).** A user rebuilt *It Is Justice You Fear* as a 3-cost copy and
+made two easy slips when duplicating an "Only if": the "not frightened" branch dealt psychic damage instead of
+making the target frightened, and every potency check used Might while the card said P < WEAK. The editor
+now checks each tier whose card words come from a Card text block:
+- the card names a condition with a duration ("frightened (save ends)") that nothing on that tier applies
+  (conditions, effects whose name includes it, and rule text kept as written all count);
+- the card's potency letter (P < WEAK) differs from the characteristic an "Only if" on that tier checks.
+These show as "Ready to save, but N things look worth checking" with the list in amber: they never block
+saving. Results: the user's copy gets all six flags; the original, Frostbind and the other examples none;
+across all 62 content abilities that use "#", none (after counting effect names and kept rule text, which
+removed 5 false alarms); all polls still save identically. The one content ability already blocked by an
+older check is *Mind Twist* (a potency check with an unquoted letter, a real content bug).
+Also: the prototype's own saved data (with "<Main action>" style placeholders) reopens with its action and
+cost, and steps shown inside their tier no longer appear in "kept as they are".
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.
@@ -1100,6 +1115,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the full editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
 | 2026-11-22 | **Standard abilities, rule text and Float Text are blocks, not Advanced.** "Use another ability" picks standard abilities by name (saved by id); rule text opens like tier text (formula amounts, "(added)", several results); Float Text is a Display block. Triggers fully as blocks 605 to 823 of 1,132; banner cases 278 to 72. | Review of the Mark: Benefit example: these are everyday steps, not advanced ones. |
 | 2026-11-22 | **New damage saves as rule text unless it needs the Damage behaviour** (dice, to you, can't be reduced). **Tiers can hold steps** ("Only if the target is already slowed: restrained"): saved as tier-only steps (`tiersSelected`) with the tier's card words after "#"; opening content puts them back in their tier. | Asked for: default to command text; and the "#" pattern for effects the tier text can't express. |
+| 2026-11-22 | **Tier agreement checks:** a condition on the card that no step on the tier applies, or a potency letter that differs from the "Only if" check, shows as "worth checking" (never blocks saving). | A real rebuild slipped on both; no false alarms across the 62 "#" abilities in content. |
 
 - Picker detail (2026-11-20): each intent shows its first three choices with "Show N more" so every
   intent stays visible; search spans intents. Draw Steel "winded" is its own test block, and the

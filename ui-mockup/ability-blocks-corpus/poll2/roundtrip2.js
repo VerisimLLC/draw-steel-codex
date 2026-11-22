@@ -17,7 +17,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
         ab = openForEditing(src);
         row.steps = count(ab.steps, { block: 0, advanced: 0, todo: 0, advTypes: [], todos: [] });
         row.hidden = ab.openHidden || [];
-        const c1 = compileAbility(); row.problems = problems.map(q => q.msg);
+        const c1 = compileAbility(); row.problems = problems.filter(q => !q.soft).map(q => q.msg); row.checks = problems.filter(q => q.soft).map(q => q.msg);
         row.untouchedSame = canon(c1.rec) === canon(src);
         if (!row.untouchedSame) row.untouchedDiff = diffKeys(c1.rec, src).map(k => k + ': ' + canon(src[k]).slice(0, 200) + '  =>  ' + canon(c1.rec[k]).slice(0, 200));
         // rename

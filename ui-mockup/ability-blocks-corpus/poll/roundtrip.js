@@ -19,7 +19,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
         const a = openForEditing(src);
         row.steps = countSteps(a.steps, { block: 0, advanced: 0, todo: 0, todos: [] });
         row.hidden = a.openHidden;
-        row.problems = (compileAbility(), problems.map(q => q.msg));
+        row.problems = (compileAbility(), problems.filter(q => !q.soft).map(q => q.msg)); row.checks = problems.filter(q => q.soft).map(q => q.msg);
         // 2. untouched save
         const saved = compileAbility().rec;
         row.untouchedSame = canon(saved) === canon(src);

@@ -735,6 +735,8 @@ Commands.RegisterBuiltinDoc{
 -- These replace the engine's own Lua Commands.roll and Commands.dmroll (its
 -- commands.txt; /r calls Commands.roll) and roll exactly as they do, adding only a
 -- callback so a record of play (History) hears the result. Keep them in step.
+-- dmonly nil (not false) lets the engine apply the user's "Visible to GM only" setting.
+--- @param dmonly boolean|nil
 local function RollToChat(str, description, dmonly)
     local tok = dmhub.currentToken
     dmhub.Roll{
@@ -749,7 +751,7 @@ local function RollToChat(str, description, dmonly)
 end
 
 Commands.roll = function(str)
-    RollToChat(str, "Custom Roll", false)
+    RollToChat(str, "Custom Roll", nil)
 end
 
 Commands.dmroll = function(str)

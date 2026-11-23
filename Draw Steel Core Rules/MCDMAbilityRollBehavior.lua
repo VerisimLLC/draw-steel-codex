@@ -445,15 +445,7 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
---- Tells a record of play (History) that a test outside an ability finished, with what it
---- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
---- @param props creature The creature that rolled.
---- @param testName string What the test is called, e.g. "Might test".
---- @param rollInfo table The finished roll.
---- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
---- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
---- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
-function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
+local function NotifyTestedUnguarded(props, testName, rollInfo, details, characteristic, causeCastId)
     local value = nil
     for id, info in pairs(creature.attributesInfo) do
         if characteristic ~= nil and info.description == characteristic then
@@ -486,6 +478,22 @@ function RollUtils.NotifyTested(props, testName, rollInfo, details, characterist
             dicetier = RollUtils.DiceResultToTier(rollInfo),
         } or nil,
     })
+end
+
+--- Tells a record of play (History) that a test outside an ability finished, with what it
+--- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
+--- Called just ahead of the code that settles a roll, so a failure is logged, never raised.
+--- @param props creature The creature that rolled.
+--- @param testName string What the test is called, e.g. "Might test".
+--- @param rollInfo table The finished roll.
+--- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
+--- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
+    local ok, err = xpcall(NotifyTestedUnguarded, debug.traceback, props, testName, rollInfo, details, characteristic, causeCastId)
+    if not ok then
+        print("NotifyTested:: failed:", err)
+    end
 end
 
 --- Who may see a finished roll, for a record of play (History): nil when everyone may.
@@ -2240,7 +2248,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
-            --a roll the players could not see: History hides its numbers from them too (2.4).
+            --a roll the players could not see: History hides its numbers from them too.
             local hiddenRoll = false
             pcall(function() hiddenRoll = rollInfo.gmonly == true end)
             options.symbols.cast.hiddenRoll = hiddenRoll or nil
@@ -2538,12 +2546,26 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                 local surges = 0
                 local potencyApplied = 0
-                if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
-                    surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
+                --this target's row of the roll dialog. Found by token: when targets are chosen as
+                --each tier resolves (promptWhenResolving) every pass has one target at position 1.
+                local multitarget = nil
+                local rows = m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") or nil
+                if rows ~= nil then
+                    multitarget = rows[numTarget]
+                    if multitarget == nil or multitarget.tokenid ~= targetToken.charid then
+                        for _, row in ipairs(rows) do
+                            if row.tokenid == targetToken.charid then
+                                multitarget = row
+                                break
+                            end
+                        end
+                    end
+                end
+                if multitarget ~= nil then
+                    surges = multitarget.surges or 0
 
                     --A target with its own edges or banes rolls a different total. Kept on the
                     --cast beside its tier (tokenToTier) so History can show that target's roll.
-                    local multitarget = m_rollInfo.properties.multitargets[numTarget]
                     if (multitarget.boons or 0) ~= 0 or (multitarget.banes or 0) ~= 0 then
                         local effective = RollUtils.EffectiveRollForTarget(m_result, multitarget)
                         local targetRolls = options.symbols.cast:get_or_add("targetRolls", {})
@@ -2574,8 +2596,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
 
                     --Check modifiers actually applied to roll for this target
-                    for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
+                    --and what raised it, for a record of play (History): "Potency raised with 2 surges".
+                    local potencySources = {}
+                    for _, mod in ipairs(multitarget.modifiersUsed or {}) do
+                        local change = tonumber(mod:try_get("potencymod", 0)) or 0
+                        potencyApplied = potencyApplied + change
+                        if change ~= 0 then
+                            potencySources[#potencySources + 1] = {
+                                name = mod.name,
+                                potency = change,
+                                surges = mod:try_get("resourceCostType") == "surges" and tonumber(mod:try_get("resourceCostAmount", 0)) or nil,
+                            }
+                        end
+                    end
+                    if #potencySources > 0 then
+                        options.symbols.cast:get_or_add("targetPotencySources", {})[targetToken.charid] = potencySources
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
@@ -3436,6 +3471,9 @@ end
 
 function RollPropertiesPowerTable:ResetMods()
     self.surges = nil
+    --the surges among them that can be kept (surgesCanBeKept); cleared here so each
+    --recalculation counts a kept-surge modifier's surges once, not once more per pass.
+    self.nonwastedSurges = nil
     self.shields = nil
     self.tierSuppressed = nil
     if self:has_key("baseTiers") == false then

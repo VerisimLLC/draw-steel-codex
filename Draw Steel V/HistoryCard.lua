@@ -2,8 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --The detail card: what a row in the History tray did, one click from that row. This file
 --holds what the card says and draws it; the tray decides where it sits. The sentences
---are the wordings in docs/action-log-design/COPY.md (N2 and the L lines), worked out from
---the entry when the card opens, so none of this runs during play.
+--are worked out from the entry when the card opens, so none of this runs during play.
 
 --- One line of What happened.
 --- @class HistoryStoryRow
@@ -20,8 +19,7 @@ local CARD_PAD = 14
 --The tail's square: turned 45 degrees it points about 11 px out, across the 12 px gap.
 local TAIL_SIZE = 16
 
---The coloured edge down the card's left side, which ties it to the selected row.
-
+--A What happened row's face, and the gap between it and the sentence.
 local STORY_FACE = 24
 local STORY_GAP = 9
 
@@ -31,7 +29,8 @@ local STORY_NUMBER_WIDTH = 44
 --Room kept beside a sentence for an Ended tag.
 local ENDED_TAG_WIDTH = 60
 
---The single guillemet is in the Codex's fonts (L34); Lua source stays ASCII.
+--The single guillemet is in the Codex's fonts; Lua source must stay ASCII, so it is
+--written as its UTF-8 bytes.
 local BACK_TEXT = "\226\128\185 Back"
 
 --The section heading's words, for the rule that runs on from them.
@@ -77,8 +76,8 @@ local function SingleType(who)
     return only
 end
 
---"took 5 damage" (W1), "took 5 fire damage" (W2) or "took 8 damage: 4 fire and 4 cold"
---(W3). True second means the words end on a list, so nothing can follow them with "and".
+--"took 5 damage", "took 5 fire damage" or "took 8 damage: 4 fire and 4 cold". True
+--second means the words end on a list, so nothing can follow them with "and".
 local function DamageWords(who)
     local only = SingleType(who)
     if only ~= nil then
@@ -105,7 +104,7 @@ local function DamageWords(who)
     return string.format("took %d damage: %s", who.taken, JoinWords(parts)), true
 end
 
---- True when an area ability hit a creature on its user's side (W11, T13).
+--- True when an area ability hit a creature on its user's side.
 --- @param entry HistoryEntry
 --- @param who HistoryCreature
 --- @return boolean
@@ -115,14 +114,37 @@ function History.IsAllyHit(entry, who)
         and (who.taken or 0) > 0 and who.id ~= actor.id and who.hero == actor.hero
 end
 
---What moved it. A push, a fall or both: the fall reads "it fell" (W15, D9).
+--What moved it. A push, a fall or both: the fall reads "it fell".
 --afterDamage: it follows a colon, so it needs no "was".
+--Stability and walls broken go with the push they changed.
 local function MovedWords(moved, afterDamage)
-    local verb = History.MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or "moved"
+    local kind = string.gsub(moved.kind, "vertical_", "")
+    if moved.immune then
+        return "is immune to forced movement"
+    end
+    if moved.stopped then
+        return string.format("held its ground: stability %d stopped the %s", moved.stability, kind)
+    end
+    local verb = History.MOVED_VERBS[kind] or "moved"
+    if moved.distance <= 0 and moved.fell <= 0 then
+        --blocked before it moved a square.
+        local words = "was blocked and didn't move"
+        if (moved.stability or 0) > 0 then
+            words = string.format("%s (stability %d)", words, moved.stability)
+        end
+        return words
+    end
     if moved.distance <= 0 then
         return string.format("fell %s", Squares(moved.fell))
     end
     local words = string.format("%s %s", verb, Squares(moved.distance))
+    if (moved.stability or 0) > 0 and (moved.requested or 0) > moved.distance then
+        words = string.format("%s %d of %d squares (stability %d)", verb, moved.distance, moved.requested, moved.stability)
+    end
+    local walls = moved.walls or 0
+    if walls > 0 then
+        words = string.format("%s, breaking through %s", words, walls == 1 and "a wall" or string.format("%d walls", walls))
+    end
     if moved.fell > 0 then
         words = string.format("%s, it fell %s", words, Squares(moved.fell))
     end
@@ -144,6 +166,10 @@ local function Predicate(who, isAlly)
 
     if (who.taken or 0) > 0 then
         local words, split = DamageWords(who)
+        --struck by a squad: "took 6 damage from 2 minions".
+        if (who.byminions or 0) > 0 and not split then
+            words = string.format("%s from %d %s", words, who.byminions, who.byminions == 1 and "minion" or "minions")
+        end
         splitLead = split
         if who.soaked ~= nil then
             words = string.format("%s, %d of it to temporary Stamina", words, who.soaked)
@@ -177,7 +203,7 @@ local function Predicate(who, isAlly)
     for _, condition in ipairs(who.conds or {}) do
         local duration = DURATION_PHRASES[condition.duration] or ""
         if condition.renewed then
-            --it still had it, so the ability only renewed it (L39).
+            --it still had it, so the ability only renewed it.
             notes[#notes + 1] = condition.name .. " was renewed"
         elseif condition.iscondition then
             adjectives[#adjectives + 1] = string.lower(condition.name) .. duration
@@ -193,6 +219,9 @@ local function Predicate(who, isAlly)
     end
     if type(who.resisted) == "string" then
         verbs[#verbs + 1] = string.format("resisted being %s", who.resisted)
+    elseif who.resisted and who.resistedeffect ~= nil then
+        --an ongoing effect, not a condition: "resisted Can't Hide".
+        verbs[#verbs + 1] = string.format("resisted %s", who.resistedeffect)
     elseif who.resisted then
         verbs[#verbs + 1] = "resisted"
     end
@@ -250,7 +279,7 @@ local function Predicate(who, isAlly)
     return words
 end
 
---"Goblin 1-4" when names differ only by a run of numbers (L30), else a list (L29).
+--"Goblin 1-4" when names differ only by a run of numbers, else a list.
 local function GroupNames(group)
     local base = nil
     local numbers = {}
@@ -306,7 +335,8 @@ local function LandedAmount(who)
     return nil
 end
 
---Adds a creature's row, or joins a row with the same result (L29). Words that start with
+--Adds a creature's row, or joins a row with the same result. Words that start with
+
 --anything but a space can't take "each", so they stay alone.
 local function AddCreature(rows, sameResult, who, isAlly)
     local words = Predicate(who, isAlly)
@@ -344,7 +374,7 @@ local function SquadDeaths(kids)
     return deaths
 end
 
---"1 of 4 minions killed" or "the squad is destroyed" (W9).
+--"1 of 4 minions killed" or "the squad is destroyed".
 local function DeathWords(death)
     if death.left <= 0 then
         return "the squad is destroyed"
@@ -352,7 +382,7 @@ local function DeathWords(death)
     return string.format("%d of %d minions killed", death.killed, death.total)
 end
 
---A squad reads as one creature: what it took together, then who that killed (W9). What
+--A squad reads as one creature: what it took together, then who that killed. What
 --happened to its members besides reads as the squad's when it is the same for them all.
 local function AddSquad(rows, sameResult, name, members, death)
     local whole = {taken = 0, types = {}}
@@ -428,7 +458,7 @@ local function OnlyDamage(who)
         and who.immune == nil and not who.resisted and not who.landedon
 end
 
---What a nested trigger did (W13), or a resource it changed (W14, D5).
+--What a nested trigger did, or a resource it changed.
 local function AddKid(rows, kid)
     if kid.family == "resource" then
         local amount = kid.amount or 0
@@ -441,7 +471,7 @@ local function AddKid(rows, kid)
         return
     end
     --an entry from an earlier build may lack its ability: nothing to name, so no row.
-    if kid.kind ~= "trigger" or kid.ability == nil then
+    if (kid.kind ~= "trigger" and kid.kind ~= "action") or kid.ability == nil then
         return
     end
 
@@ -472,25 +502,34 @@ local function AddKid(rows, kid)
     end
 end
 
---- Whether this viewer may read the totals of an opposed power roll: the Director always,
---- a player only when both sides' rolls reached them unhidden (a GM-only roll's line never
---- arrives; a Dice Tower roll arrives without its result).
+--- Whether this viewer may read the totals of an opposed power roll against one target: the
+--- Director always, a player only when both the user's roll and that target's reached them
+--- unhidden (a GM-only roll's line never arrives; a Dice Tower roll arrives without its result).
 --- @param kids HistoryEntry[]|nil The entries nested under the action.
+--- @param actor HistoryCreature|nil The ability's user.
+--- @param target HistoryCreature The target the totals are for.
 --- @return boolean
-function History.OpposedTotalsShown(kids)
+function History.OpposedTotalsShown(kids, actor, target)
     if dmhub.isDM then
         return true
     end
-    local seen = 0
+    if actor == nil then
+        return false
+    end
+    local actorSeen, targetSeen = false, false
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll then
-            seen = seen + 1
+        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll and kid.who ~= nil then
+            if kid.who.id == actor.id then
+                actorSeen = true
+            elseif kid.who.id == target.id then
+                targetSeen = true
+            end
         end
     end
-    return seen >= 2
+    return actorSeen and targetSeen
 end
 
---- What happened, one row per creature, the result first (COPY N2).
+--- What happened, one row per creature, the result first.
 --- @param entry HistoryEntry An action, or the closing line of an encounter.
 --- @param kids? HistoryEntry[] What is nested under it.
 --- @return HistoryStoryRow[]
@@ -538,8 +577,15 @@ function History.Story(entry, kids)
         end
     end
 
-    --a trigger can finish off a squad this action never touched (L22).
-    for name, death in pairs(deaths) do
+    --a trigger can finish off a squad this action never touched. By name, so the rows
+    --keep their order from one build of the card to the next.
+    local squadNames = {}
+    for name in pairs(deaths) do
+        squadNames[#squadNames + 1] = name
+    end
+    table.sort(squadNames)
+    for _, squadName in ipairs(squadNames) do
+        local name, death = squadName, deaths[squadName]
         --a squad whose name players may not see, as AddSquad shows it.
         if death.who ~= nil and death.who.secret and not dmhub.isDM then
             name = "Unknown creature"
@@ -549,15 +595,27 @@ function History.Story(entry, kids)
             text = string.format("%s %s.", name, DeathWords(death)),
         }
     end
+    --what the action gave its user: "Baiqadrazaar gained 6 surges."
+    if entry.gains ~= nil and entry.actor ~= nil then
+        local names = {}
+        for name in pairs(entry.gains) do
+            names[#names + 1] = name
+        end
+        table.sort(names)
+        for _, name in ipairs(names) do
+            rows[#rows + 1] = {who = {entry.actor}, text = string.format("%s gained %s.",
+                History.ShownName(entry.actor), History.ResourceWords(entry.gains[name].amount, name))}
+        end
+    end
     for _, kid in ipairs(kids) do
         AddKid(rows, kid)
     end
 
     --an opposed power roll: how the user's total compared with each target's.
-    local showTotals = History.OpposedTotalsShown(kids)
     for _, who in ipairs(entry.targets or {}) do
         local opposed = who.opposed
         if opposed ~= nil and entry.actor ~= nil then
+            local showTotals = History.OpposedTotalsShown(kids, entry.actor, who)
             local user, target = History.ShownName(entry.actor), History.ShownName(who)
             local text
             if opposed.attacker == opposed.defender then
@@ -581,7 +639,7 @@ function History.Story(entry, kids)
     return rows
 end
 
---"Main action - Round 2, turn 13" (C1), whichever parts this entry has.
+--"Main action - Round 2, turn 13", whichever parts this entry has.
 local function MetaWords(entry)
     local parts = {}
     local action = entry.ability ~= nil and History.ACTION_WORDS[entry.ability.action] or nil
@@ -596,7 +654,7 @@ local function MetaWords(entry)
     return table.concat(parts, History.DOT)
 end
 
---"Rolled by Ana - 8:33 pm" (C6). Only an action has someone behind it.
+--"Rolled by Ana - 8:33 pm". Only an action has someone behind it.
 local function FooterWords(entry)
     if entry.kind ~= "action" then
         return nil
@@ -611,7 +669,7 @@ local function FooterWords(entry)
     return entry.player .. History.DOT .. time
 end
 
---Hover links in the card's text (2.3d). A name is wrapped in <link=hN>; g_links[N] says
+--Hover links in the card's text. A name is wrapped in <link=hN>; g_links[N] says
 --what its hover shows, so the same thing named twice shares one id.
 local g_links = {}
 local g_linkIds = {}
@@ -637,8 +695,9 @@ local function HoverLink(text, key, payload)
     return string.format("<link=%s>%s</link>", id, text)
 end
 
---A modifier's name, hovering to the roll dialog's text recorded at the roll. Names recorded
---before 2.3d have no text and stay plain.
+--A modifier's name, hovering to the roll dialog's text recorded at the roll. Entries saved
+--before hover texts were recorded have none, so their names stay plain.
+
 --- @param text string
 --- @param name string The modifier's name as recorded, spoiler markup kept.
 --- @param hover string|nil
@@ -695,6 +754,10 @@ local function AbilityCard(ownerid, name, side)
                 return CreateAbilityTooltip(ability, {token = token, width = 480, halign = side})
             end
         end
+    end
+    --a monster's trigger cards are for the Director only, as in TriggerLink below.
+    if not dmhub.isDM and not (token.playerControlled or token.properties:IsHero()) then
+        return nil
     end
     return TriggerCard(ownerid, name, side)
 end
@@ -755,22 +818,25 @@ local HOVER_DELAY = 0.4
 --- @param args table Arguments for gui.Label.
 --- @return table args
 local function Linked(args)
-    --while searching, what matched is marked here too (3.1).
+    --while searching, what matched is marked here too.
     args.text = History.SearchMark(args.text)
     local text = args.text
     if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
         return args
     end
-    --the link waiting for its delay; nil once the pointer leaves it.
+    --the link waiting for its delay; nil once the pointer leaves it. Each hover counts, so
+    --only the newest hover's delay opens a card: two quick hovers would otherwise open two.
     local pending = nil
+    local hovers = 0
     args.links = true
     args.hoverLink = function(element, link)
         element.text = (string.gsub(text, "<link=" .. link .. ">(.-)</link>", "<link=" .. link .. "><u>%1</u></link>", 1))
         pending = link
-        element:ScheduleEvent("historyHoverDwell", HOVER_DELAY)
+        hovers = hovers + 1
+        element:ScheduleEvent("historyHoverDwell", HOVER_DELAY, hovers)
     end
-    args.historyHoverDwell = function(element)
-        if pending ~= nil and element.linkHovered == pending then
+    args.historyHoverDwell = function(element, count)
+        if count == hovers and pending ~= nil and element.linkHovered == pending then
             ShowLink(element, pending)
         end
     end
@@ -803,7 +869,12 @@ local function PlayersMaySeeAbility(actor, name)
     end
     local token = dmhub.GetTokenById(actor.id)
     local key = token ~= nil and MonsterKnowledge.KeyForToken(token) or nil
-    return key ~= nil and MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("ability", name))
+    if key == nil then
+        return false
+    end
+    --a trait (what made it immune, say) is learned as a feature, an action as an ability.
+    return MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("ability", name))
+        or MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("feature", name))
 end
 
 local function Header(entry, width, inTray, close)
@@ -870,7 +941,7 @@ local function Header(entry, width, inTray, close)
         height = "auto",
         textAlignment = "left",
     }
-    --a villain action (L90) or a reverted row (L39) carries its tag beside the round and
+    --a villain action or a reverted row carries its tag beside the round and
     --turn, as its row does.
     local villainAction = entry.ability ~= nil and entry.ability.villainaction or nil
     if villainAction ~= nil or entry.reverted ~= nil then
@@ -959,10 +1030,11 @@ local function SectionHead(text, textWidth, width)
     }
 end
 
---The side view (4.2): a button on a movement row. Hovering it draws the recorded move on
+--The side view: a button on a movement row. Hovering it draws the recorded move on
 --the map (the arrow, and a faded ghost on the square it started from) and shows the move
---side-on, as the drag tooltip does. Needs the engine's dmhub.CreatePath (dmhubclient
---feat/saved-movement-path); without it there is no button.
+--side-on, as the drag tooltip does. Older engine builds have no dmhub.CreatePath, and
+--then there is no button.
+
 local SIDE_VIEW_ICON = "phosphor/arrow-elbow-right-down-bold.png"
 --The side view is drawn at most this wide, as the drag tooltip's.
 local SIDE_VIEW_MAX_WIDTH = 340
@@ -998,7 +1070,8 @@ local function RowMovers(row, mapid)
     for _, who in ipairs(row.who or {}) do
         local steps = MovedSteps(who.moved)
         local token = steps ~= nil and dmhub.GetTokenById(who.id) or nil
-        if token ~= nil and token.valid then
+        --only a token this user can see now: the ghost and arrow would give a hidden one away.
+        if token ~= nil and token.valid and token.canSee then
             movers[#movers + 1] = {token = token, steps = steps, moved = who.moved}
         end
     end
@@ -1073,7 +1146,7 @@ local function SideViewButton(row, mapid)
             local live = {}
             if mapid == game.currentMapId then
                 for _, mover in ipairs(movers) do
-                    if mover.token.valid then
+                    if mover.token.valid and mover.token.canSee then
                         live[#live + 1] = mover
                     end
                 end
@@ -1091,7 +1164,7 @@ local function SideViewButton(row, mapid)
                 collisionDamage = collision > 0 and collision or nil,
             } or nil
             sectioned = view ~= nil
-            --framed as the drag tooltip frames it; the bare name (L35) only when the
+            --framed as the drag tooltip frames it; the bare name only when the
             --engine can't draw this move side-on (it crosses floors).
             local contents
             if view ~= nil then
@@ -1142,7 +1215,7 @@ local function StoryRow(row, width, mapid)
         left[1] = face
         textWidth = textWidth - STORY_FACE - STORY_GAP
     end
-    --what is still on gets Active, always (B8), so "slowed" answers why you are slowed now.
+    --what is still on gets Active, always, so "slowed" answers why you are slowed now.
     --a grouped row is Active while any of its creatures still has it.
     local active = nil
     if not row.ended then
@@ -1199,9 +1272,9 @@ local function StoryRow(row, width, mapid)
     }
 end
 
---The numbers (2.2): the prototype's receipt. One fact per line, every number in one column
---on the right, each total under a line, in the order things resolved: the roll, then each
---target, then triggers and costs. Wordings are COPY.md C3, C4 and Z1-Z7.
+--The numbers: a receipt. One fact per line, every number in one column on the right,
+--each total under a line, in the order things resolved: the roll, then each target, then
+--triggers and costs.
 
 --A signed number. A plain "-": the bold font has no minus sign.
 local function Signed(value)
@@ -1212,34 +1285,36 @@ local function Signed(value)
 end
 
 --Edges and banes as the rules net them: up to two of each count, then they cancel one for
---one (Heroes book; GetRollModFromEdgesAndBanes agrees). Nil when there are none.
+--one, as the Heroes book says. Nil when there are none.
 --- @return {label: string, value: string, side: string|nil, count: integer, note: string|nil, aside: string|nil}|nil
 local function NetEdges(edges, banes)
+    --also History.NetEdges below, so the row's glance chip nets them the same way.
     edges, banes = edges or 0, banes or 0
     if edges == 0 and banes == 0 then
         return nil
     end
-    local e, b = math.min(edges, 2), math.min(banes, 2)
+    local countedEdges, countedBanes = math.min(edges, 2), math.min(banes, 2)
     local net
-    if b == 0 then
-        net = e == 1 and {label = "Edge", value = "+2", side = "edge", count = 1}
+    if countedBanes == 0 then
+        net = countedEdges == 1 and {label = "Edge", value = "+2", side = "edge", count = 1}
             or {label = "Double edge", value = "+1 tier", side = "edge", count = 2}
-    elseif e == 0 then
-        net = b == 1 and {label = "Bane", value = "-2", side = "bane", count = 1}
+    elseif countedEdges == 0 then
+        net = countedBanes == 1 and {label = "Bane", value = "-2", side = "bane", count = 1}
             or {label = "Double bane", value = "-1 tier", side = "bane", count = 2}
-    elseif e > b then
+    elseif countedEdges > countedBanes then
         net = {label = "Edge", value = "+2", side = "edge", count = 1}
-    elseif e < b then
+    elseif countedEdges < countedBanes then
         net = {label = "Bane", value = "-2", side = "bane", count = 1}
     else
         net = {label = "Cancelled out", value = "0", count = 0}
     end
 
-    if e == 2 and b == 1 then
+    if countedEdges == 2 and countedBanes == 1 then
         net.note = "A maximum of two edges count (a double edge); with one bane, the roll is made with one edge."
-    elseif b == 2 and e == 1 then
+    elseif countedBanes == 2 and countedEdges == 1 then
         net.note = "A maximum of two banes count (a double bane); with one edge, the roll is made with one bane."
-    elseif e > 0 and e == b then
+    elseif countedEdges > 0 and countedEdges == countedBanes then
+
         net.note = "Edges and banes cancel out: the roll is made without either."
     elseif edges > 2 then
         net.note = "A maximum of two edges count (a double edge)."
@@ -1259,6 +1334,7 @@ local function NetEdges(edges, banes)
     end
     return net
 end
+History.NetEdges = NetEdges
 
 --The roll dialog's arrows: the image points down (a bane) and is flipped for an edge; a
 --double stacks two.
@@ -1285,6 +1361,7 @@ local function Chevrons(side, count)
         children = arrows,
     }
 end
+History.Chevrons = Chevrons
 
 local function Die(face)
     return gui.Label{
@@ -1448,7 +1525,7 @@ end
 
 local SOURCE_INDENT = 16
 
---What a tier modifier did, for its value in The numbers (Z8); nil for a source that only
+--What a tier modifier did, for its value in The numbers; nil for a source that only
 --gave or took edges and banes.
 --- @param source HistoryEdgeSource
 --- @return string|nil
@@ -1470,7 +1547,7 @@ end
 
 --A rule's or ability's name inside the Why, in square brackets so a name like "Target is
 --Restrained" reads as one thing in the sentence around it, and, as in many games, as
---something that can be hovered (COPY.md Round 15).
+--something that can be hovered.
 --- @param name string
 --- @return string
 local function WhyName(name)
@@ -1497,7 +1574,7 @@ local function SourceText(source, why)
     return text
 end
 
---"Ignored by Twisted" (C5r): what took a side's edges or banes away. Several removers
+--"Ignored by Twisted": what took a side's edges or banes away. Several removers
 --share one reason.
 --- @param sources HistoryEdgeSource[]
 --- @param side "edge"|"bane"
@@ -1517,7 +1594,7 @@ local function RemovedReason(sources, side)
     return string.upper(string.sub(reason, 1, 1)) .. string.sub(reason, 2)
 end
 
---The Director's mark on a modifier players see only as a redaction bar (L28): an eye with
+--The Director's mark on a modifier players see only as a redaction bar: an eye with
 --"Hidden from players". Nil for everyone else, and once the Director has revealed it.
 --- @param name string The modifier's name as recorded, spoiler markup kept.
 --- @return Panel|nil
@@ -1539,12 +1616,12 @@ local function SpoilerEye(name)
     }
 end
 
---One thing that changed the roll's edges or banes, under the line it changed (C5): its
+--One thing that changed the roll's edges or banes, under the line it changed: its
 --arrows, its owner's face, and its name as the roll dialog showed it.
 --- @param source HistoryEdgeSource
 --- @param side "edge"|"bane"
 --- @param struck? boolean Everything it gave was taken away: crossed out, the reason is on the line above.
---- @param remover? boolean The line for a source that took one of several away ("Removed by", C5r).
+--- @param remover? boolean The line for a source that took one of several away ("Removed by").
 local function SourceLine(width, source, side, struck, remover)
     local children = {}
     if remover then
@@ -1611,7 +1688,7 @@ local function AddSideSources(rows, width, sources, side, struck)
     end
 end
 
---A side that lost every edge or bane keeps its line (C5i), crossed out with what it would
+--A side that lost every edge or bane keeps its line, crossed out with what it would
 --have been worth and the reason beside it, so the player sees the edge they lost.
 --- @param side "edge"|"bane"
 --- @param removed integer How many edges or banes were taken away.
@@ -1634,6 +1711,29 @@ local function AddStruckLine(rows, width, side, removed, forTarget, sources)
         struck = true,
     })
     AddSideSources(rows, width, sources, side, true)
+end
+
+--Each tier modifier and flat bonus, after the edges and banes, a trigger's with its
+--owner's face.
+--- @param sources HistoryEdgeSource[]
+local function AddTierSourceLines(rows, width, sources)
+    for _, source in ipairs(sources) do
+        local values = {}
+        values[#values + 1] = TierValue(source)
+        if (source.bonus or 0) ~= 0 then
+            values[#values + 1] = Signed(source.bonus)
+        end
+        for _, value in ipairs(values) do
+            local lead = nil
+            if source.who ~= nil and not source.hand then
+                local face = History.Face(source.who, 20, true)
+                face.selfStyle.rmargin = 6
+                face.selfStyle.halign = "left"
+                lead = {face}
+            end
+            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), eye = SpoilerEye(source.name or ""), value = value})
+        end
+    end
 end
 
 --The net edge or bane line, what gave it each edge and bane (edges first), then the rule
@@ -1682,28 +1782,10 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources, flat)
         rows[#rows + 1] = ReceiptNote(width, net.note)
     end
 
-    --Z8, Z9: each tier modifier and flat bonus after the edges and banes, a trigger's with
-    --its owner's face.
-    for _, source in ipairs(sources) do
-        local values = {}
-        values[#values + 1] = TierValue(source)
-        if (source.bonus or 0) ~= 0 then
-            values[#values + 1] = Signed(source.bonus)
-        end
-        for _, value in ipairs(values) do
-            local lead = nil
-            if source.who ~= nil and not source.hand then
-                local face = History.Face(source.who, 20, true)
-                face.selfStyle.rmargin = 6
-                face.selfStyle.halign = "left"
-                lead = {face}
-            end
-            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), eye = SpoilerEye(source.name or ""), value = value})
-        end
-    end
+    AddTierSourceLines(rows, width, sources)
 end
 
---"Damage immunity 2", "Fire immunity 3", "Fire weakness 3" (Z5).
+--"Damage immunity 2", "Fire immunity 3", "Fire weakness 3".
 local function ResistWords(immunity)
     local typeWord = immunity.damagetype == "damage" and "Damage"
         or (string.upper(string.sub(immunity.damagetype, 1, 1)) .. string.sub(immunity.damagetype, 2))
@@ -1713,9 +1795,9 @@ local function ResistWords(immunity)
     return string.format("%s weakness %d", typeWord, -immunity.amount)
 end
 
---One thing besides the tier that made a target's damage (COPY.md Round 10): a kit (K1), a
---roll dialog modifier named as its badge (K2, a trigger's owner with a face) or surges
---(C3s, behind the roll dialog's surge bolt).
+--One thing besides the tier that made a target's damage: a kit, a roll dialog modifier
+--named as its badge (a trigger's with its owner's face) or surges (shown with the roll
+--dialog's surge bolt).
 --- @param part HistoryDamagePart
 local function DamagePartLine(width, part)
     if part.kind == "kit" then
@@ -1755,12 +1837,86 @@ local function DamagePartLine(width, part)
     return ReceiptLine(width, {lead = lead, label = text, eye = SpoilerEye(part.name or ""), value = Signed(part.amount)})
 end
 
+--- Splits each target's roll sources into what applied to every target and its own. A
+--- target without a list of its own had the roll's (entries saved before targets kept one).
+--- @param roll {sources: HistoryEdgeSource[]|nil}
+--- @param targets HistoryCreature[] The targets to compare.
+--- @return table<HistoryCreature, HistoryEdgeSource[]> shared
+--- @return table<HistoryCreature, HistoryEdgeSource[]> own
+local function SplitSources(roll, targets)
+    local function Sources(who)
+        return (who.roll ~= nil and who.roll.sources) or who.sources or roll.sources or {}
+    end
+    --each source as many times as the target with fewest has it.
+    --- @type table<string, integer>|nil
+    local common = nil
+    for _, who in ipairs(targets) do
+        local counts = {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            counts[key] = (counts[key] or 0) + 1
+        end
+        if common == nil then
+            common = counts
+        else
+            for key, count in pairs(common) do
+                common[key] = math.min(count, counts[key] or 0)
+            end
+        end
+    end
+    local shared, own = {}, {}
+    for _, who in ipairs(targets) do
+        local left = {}
+        for key, count in pairs(common or {}) do
+            left[key] = count
+        end
+        shared[who], own[who] = {}, {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            if (left[key] or 0) > 0 then
+                left[key] = left[key] - 1
+                table.insert(shared[who], source)
+            else
+                table.insert(own[who], source)
+            end
+        end
+    end
+    return shared, own
+end
+
+--What gave this target, alone, edges or banes the roll's line doesn't name: a line per side
+--that it changed, with no number (the roll's line has the count), and its sources under it.
+--- @param sources HistoryEdgeSource[]
+local function AddOwnSources(rows, width, sources)
+    for _, side in ipairs({"edge", "bane"}) do
+        local field = side == "edge" and "edges" or "banes"
+        local removedField = side == "edge" and "removedEdges" or "removedBanes"
+        local any = false
+        for _, source in ipairs(sources) do
+            any = any or (source[field] or 0) > 0 or (source[removedField] or 0) > 0
+        end
+        if any then
+            rows[#rows + 1] = ReceiptLine(width, {
+                lead = {Chevrons(side, 1)},
+                label = side == "edge" and "Edge for this target" or "Bane for this target",
+                labelClass = side == "edge" and "historyEdgeText" or "historyBaneText",
+                value = "",
+            })
+            AddSideSources(rows, width, sources, side)
+        end
+    end
+    AddTierSourceLines(rows, width, sources)
+end
+
 --One target's sum: its own roll if it had one, what the tier dealt, what changed it, and
 --what landed. count > 1 for numbered creatures that all got the same.
-local function AddTargetLines(rows, width, entry, who, count)
+--- @param own? HistoryEdgeSource[] Roll sources that applied to this target alone.
+local function AddTargetLines(rows, width, entry, who, count, own)
     if who.roll ~= nil then
         AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true, who.roll.sources)
         rows[#rows + 1] = ReceiptLine(width, {label = "Their roll", badge = who.tier, value = tostring(who.roll.total), total = true})
+    elseif own ~= nil and #own > 0 then
+        AddOwnSources(rows, width, own)
     end
     --what dealt it: the tier against this target, or the ability when nothing was rolled.
     local source = (who.tier ~= nil and who.tier > 0) and string.format("Tier %d", who.tier) or entry.ability.name
@@ -1788,7 +1944,8 @@ local function AddTargetLines(rows, width, entry, who, count)
             dealt.untyped = taken - typed + (typedImmunity and 0 or changed)
         end
 
-        --the kit, modifiers and surges come off the line of the type they added to (2.3b),
+        --the kit, modifiers and surges come off the line of the type they added to,
+
         --leaving the tier's own damage. If they don't fit the lines, the line stays whole.
         local parts = who.parts or {}
         local base = {}
@@ -1817,11 +1974,24 @@ local function AddTargetLines(rows, width, entry, who, count)
             rows[#rows + 1] = ReceiptLine(width, {label = label, value = first and tostring(raw) or Signed(raw)})
             first = false
         end
+        --a type the tier itself dealt none of (all of it came from a modifier, say) gets no
+        --"Tier 3: lightning 0" line; the modifier's own line below carries it.
+        local lines = {}
         for _, name in ipairs(typeNames) do
-            Dealt(string.format("%s: %s", source, name), base[name])
+            lines[#lines + 1] = {label = string.format("%s: %s", source, name), amount = base[name]}
         end
         if base.untyped ~= nil then
-            Dealt(source, base.untyped)
+            lines[#lines + 1] = {label = source, amount = base.untyped}
+        end
+        local shown = 0
+        for _, line in ipairs(lines) do
+            if line.amount ~= 0 then
+                Dealt(line.label, line.amount)
+                shown = shown + 1
+            end
+        end
+        if shown == 0 and #lines > 0 then
+            Dealt(lines[1].label, lines[1].amount)
         end
         for _, part in ipairs(parts) do
             rows[#rows + 1] = DamagePartLine(width, part)
@@ -1842,11 +2012,31 @@ local function AddTargetLines(rows, width, entry, who, count)
         rows[#rows + 1] = ReceiptLine(width, {label = source, value = tostring(healed)})
         rows[#rows + 1] = ReceiptLine(width, {label = "Regained", value = tostring(healed), valueClass = "historyHealed", total = true})
     end
+
+    --a push that stability shortened or stopped, or that ignored it.
+    local moved = who.moved
+    if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
+        local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
+        rows[#rows + 1] = ReceiptLine(width, {label = kind, value = tostring(moved.requested)})
+        if moved.ignored then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Stability ignored", value = ""})
+        else
+            rows[#rows + 1] = ReceiptLine(width, {label = "Stability", value = Signed(-moved.stability)})
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Moved", value = tostring(moved.distance), total = true})
+    end
 end
 
 --Targets with the same numbers share one sum ("Goblin 1-4", "Taken, each").
-local function ReceiptKey(who)
-    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil then
+--- @param own? HistoryEdgeSource[] Roll sources that applied to this target alone.
+local function ReceiptKey(who, own)
+    own = own or {}
+    local moved = who.moved
+    local stability = ""
+    if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
+        stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
+    end
+    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" and #own == 0 then
         return nil
     end
     local types = {}
@@ -1865,13 +2055,18 @@ local function ReceiptKey(who)
         end
         roll = string.format("%d/%d/%d/%s", who.roll.edges or 0, who.roll.banes or 0, who.roll.total, table.concat(names, ","))
     end
+    local ownKeys = {}
+    for _, source in ipairs(own) do
+        ownKeys[#ownKeys + 1] = History.SourceKey(source)
+    end
+    roll = roll .. "/" .. table.concat(ownKeys, ",")
     local parts = {}
     for _, part in ipairs(who.parts or {}) do
         parts[#parts + 1] = string.format("%s/%s/%s/%d/%s", part.kind, part.name or "", part.who ~= nil and part.who.id or "",
             part.amount, part.damagetype or "")
     end
-    return string.format("%s|%d|%d|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
-        table.concat(parts, ","))
+    return string.format("%s|%d|%d|%s|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
+        table.concat(parts, ","), stability)
 end
 
 --"Rolled in secret." for a roll hidden from players. The Director's copy carries an eye that
@@ -1884,8 +2079,8 @@ local function SecretRollRow(entry, width)
     --a test or dice line keeps who may see it in privacy; an action, on its roll.
     local roll = entry.privacy or entry.roll
     --the eye is the Director's: a player who rolled GM only sees their roll, not the eye.
-    --It writes the entry back, so it must share History.Entry's gate: a viewer holding
-    --the entry as cut for players would lose the roll for everyone.
+    --It writes the entry back, so a viewer holding the players' cut-down copy of the
+    --entry would erase the roll for everyone.
     if roll ~= nil and roll.hidden and dmhub.isDM then
         children[1] = gui.VisibilityPanel{
             visible = roll.revealed == true,
@@ -1896,7 +2091,16 @@ local function SecretRollRow(entry, width)
             valign = "center",
             click = function(element)
                 roll.revealed = (not roll.revealed) or nil
-                History.RewriteQuietly(entry)
+                --flip it on the stored entry, so nothing another client set since is lost
+                --and an entry deleted or culled meanwhile is not brought back.
+                local stored = History.Stored(entry)
+                if stored ~= nil then
+                    local storedRoll = stored.privacy or stored.roll
+                    if storedRoll ~= nil then
+                        storedRoll.revealed = roll.revealed
+                        History.RewriteQuietly(stored)
+                    end
+                end
                 element:FireEvent("visible", roll.revealed == true)
             end,
             linger = function(element)
@@ -1923,7 +2127,7 @@ local function SecretRollRow(entry, width)
     }
 end
 
---What an overridden roll's card says in place of explaining its tier (L92).
+--What an overridden roll's card says in place of explaining its tier.
 --- @param roll table A roll with overridden = {by, dicetier}.
 --- @return string
 local function OverrideWords(roll)
@@ -1968,7 +2172,7 @@ local function NumbersRows(entry, kids, width)
     local rows = {}
     local targets = entry.targets or {}
 
-    --a roll hidden from players: they get this line instead of its numbers (2.4); the
+    --a roll hidden from players: they get this line instead of its numbers; the
     --Director gets it above the numbers, with the eye that shows them to players. Once
     --shown to everyone, only the Director keeps the line, for the eye that hides it again.
     local hidden = entry.privacy or entry.roll
@@ -1977,6 +2181,25 @@ local function NumbersRows(entry, kids, width)
     end
 
     local roll = entry.roll
+    --targets that rolled with the main roll but owed its edges to different things: the
+    --Power roll lines name what applied to all of them, each target's sum its own.
+    local rollSources = roll ~= nil and roll.sources or nil
+    --- @type table<HistoryCreature, HistoryEdgeSource[]>
+    local ownOf = {}
+    if roll ~= nil then
+        local plain, differs = {}, false
+        for _, who in ipairs(targets) do
+            if who.roll == nil and who.tier ~= nil then
+                plain[#plain + 1] = who
+                differs = differs or who.sources ~= nil
+            end
+        end
+        if differs then
+            local sharedOf
+            sharedOf, ownOf = SplitSources(roll, plain)
+            rollSources = sharedOf[plain[1]]
+        end
+    end
     --each side of an opposed power roll, under its roller's name: the same lines a test
     --line's own card shows. A roll players may not see keeps only its heading.
     for _, kid in ipairs(kids or {}) do
@@ -2000,12 +2223,16 @@ local function NumbersRows(entry, kids, width)
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
             --a monster's stat block gives its roll a flat number, not a characteristic, so its
-            --characteristic goes into Bonus (James 2026-11-10).
-            local monster = entry.actor ~= nil and not entry.actor.hero
+            --characteristic goes into Bonus. An action keeps its roller in actor; a test line, in who.
+            local roller = entry.actor
+            if roller == nil and entry.family == "test" then
+                roller = entry.who
+            end
+            local monster = roller ~= nil and not roller.hero
             if roll.characteristic ~= nil and not monster then
                 rows[#rows + 1] = ReceiptLine(width, {label = roll.characteristic.name, value = Signed(roll.characteristic.value)})
             end
-            --a bonus a modifier gave has its own line under the edges (Z9); this is the rest.
+            --a bonus a modifier gave has its own line under the edges; this is the rest.
             local bonus = roll.bonus or 0
             if monster and roll.characteristic ~= nil then
                 bonus = bonus + roll.characteristic.value
@@ -2017,7 +2244,7 @@ local function NumbersRows(entry, kids, width)
                 rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
             end
         end
-        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources, entry.family == "test" and entry.cause ~= nil)
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false, rollSources, entry.family == "test" and entry.cause ~= nil)
         --the tier of the roll itself: a target with edges or banes of its own got another.
         local tier = roll.tier
         for _, who in ipairs(targets) do
@@ -2033,7 +2260,7 @@ local function NumbersRows(entry, kids, width)
             badge = nil
         end
         rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
-        --a test's card has no Why, so its numbers say who set the tier (L92).
+        --a test's card has no Why, so its numbers say who set the tier.
         if entry.family == "test" and roll.overridden ~= nil then
             rows[#rows + 1] = ReceiptNote(width, OverrideWords(roll), "historyReceiptMore")
         end
@@ -2075,7 +2302,7 @@ local function NumbersRows(entry, kids, width)
     local groups = {}
     local byKey = {}
     for _, who in ipairs(targets) do
-        local key = ReceiptKey(who)
+        local key = ReceiptKey(who, ownOf[who])
         if key ~= nil then
             if byKey[key] == nil then
                 byKey[key] = {}
@@ -2086,12 +2313,12 @@ local function NumbersRows(entry, kids, width)
     end
     for _, group in ipairs(groups) do
         rows[#rows + 1] = SubHead(GroupNames(group), width, group[1])
-        AddTargetLines(rows, width, entry, group[1], #group)
+        AddTargetLines(rows, width, entry, group[1], #group, ownOf[group[1]])
     end
 
     local triggered = {}
     for _, kid in ipairs(kids or {}) do
-        if kid.kind == "trigger" and kid.actor ~= nil then
+        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil then
             local net = 0
             for _, who in ipairs(kid.targets or {}) do
                 net = net - (who.taken or 0) + (who.healed or 0)
@@ -2129,17 +2356,25 @@ local function NumbersRows(entry, kids, width)
     return rows
 end
 
---- One line of the card's Why (COPY.md R1, Round 11): a bold lead, then one plain sentence.
+--- One line of the card's Why: a bold lead, then one plain sentence.
 --- @class HistoryWhyRow
 --- @field lead string|nil
 --- @field text string
 --- @field who HistoryCreature|nil A face before the lead: the owner of a modifier.
---- @field plain boolean|nil G6, muted, with no lead.
+--- @field plain boolean|nil The line saying nothing changed the result: muted, with no lead.
+--- @field movers HistoryCreature[]|nil Whose recorded move the lead's side view button shows.
 
---Conditions whose name doesn't follow "cannot be" (G5).
+--Conditions whose name doesn't follow "cannot be".
 local CONDITION_PHRASES = {prone = "knocked prone"}
 
---A trigger name longer than this is taken for its rule text, not a name (G7a).
+--How many surges came from one place, starting a sentence: "Two were gained from...".
+local SURGE_NUMBERS = {"One", "Two", "Three", "Four", "Five"}
+
+--How many minions died, in words: "killed two".
+local MINION_WORDS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+
+--A trigger name longer than this is taken for its rule text, not a name.
+
 local TRIGGER_NAME_MAX = 40
 
 --What one trigger nested under an action did, in What happened's words ("Human Talent took
@@ -2185,7 +2420,7 @@ local function EdgeNoun(side, count)
     return side == "edge" and "an edge" or "a bane"
 end
 
---- One thing that can move a power roll's tier (COPY.md Round 14). Everything that gave
+--- One thing that can move a power roll's tier. Everything that gave
 --- edges is one part, so the line names them together; likewise banes, and what took edges
 --- or banes away. A tier modifier, a flat bonus and a natural 19 or 20 are a part each.
 --- @class HistoryTierPart
@@ -2418,7 +2653,7 @@ end
 --- @field qualifier string ", up from Tier 2", ", down from Tier 3", ", not Tier 3" or "".
 --- @field text string
 
---- A roll's tier line (COPY.md Round 14): where the roll landed and what got it there, worked
+--- A roll's tier line: where the roll landed and what got it there, worked
 --- out for all its parts together. "From" is the tier the dice and characteristic gave alone.
 --- It names the parts on the side the tier moved, and the other side only when that changed
 --- where it landed ("but Twisted ignored it"). Nil when nothing moved or held the tier, and
@@ -2427,7 +2662,7 @@ end
 ---
 --- A line can name only some of the roll's parts (opts.named) over others that stay on
 --- underneath (opts.always): a target's line names what applied to it alone over what
---- applied to every target, so its "from" is the roll's own line (Round 16).
+--- applied to every target, so its "from" is the roll's own line.
 --- @param roll {total: number, edges: number|nil, banes: number|nil, sources: HistoryEdgeSource[]|nil}
 --- @param tier integer The tier the roll came to.
 --- @param natural integer The dice, for the natural 19 or 20 rule.
@@ -2505,12 +2740,12 @@ local function TierStory(roll, tier, natural, opts)
             local without = With(other)
             local kept, keep = {}, {}
             for _, part in ipairs(list) do
-                if With(function(p) return p == part or other(p) end) ~= without then
+                if With(function(candidate) return candidate == part or other(candidate) end) ~= without then
                     kept[#kept + 1] = part
                     keep[part] = true
                 end
             end
-            if #kept > 0 and With(function(p) return keep[p] == true or other(p) end) == tier then
+            if #kept > 0 and With(function(candidate) return keep[candidate] == true or other(candidate) end) == tier then
                 list = kept
             end
         end
@@ -2564,7 +2799,8 @@ local function TierStory(roll, tier, natural, opts)
     return {tier = tier, qualifier = qualifier, text = text .. "."}
 end
 
---- An action's tier lines (COPY.md Rounds 14 and 16). The roll's line names only what applied
+--- An action's tier lines. The roll's line names only what applied
+
 --- to every target. A target gets a line only when something that applied to it alone changed
 --- its tier, and that line names only those things, "from" the roll's line. A modifier that
 --- wasn't on, or didn't reach a target, is never in that target's lists, so it is never named.
@@ -2585,45 +2821,11 @@ local function TierLines(roll, targets)
         return roll.tier ~= nil and TierStory(roll, roll.tier, natural) or nil, {}
     end
 
-    --a target without a list of its own had the roll's (rows from before Round 16 always).
-    local function Sources(who)
-        return (who.roll ~= nil and who.roll.sources) or who.sources or roll.sources or {}
-    end
-    --what applied to every target: each source as many times as the target with fewest has it.
-    --- @type table<string, integer>|nil
-    local common = nil
-    for _, who in ipairs(rolled) do
-        local counts = {}
-        for _, source in ipairs(Sources(who)) do
-            local key = History.SourceKey(source)
-            counts[key] = (counts[key] or 0) + 1
-        end
-        if common == nil then
-            common = counts
-        else
-            for key, count in pairs(common) do
-                common[key] = math.min(count, counts[key] or 0)
-            end
-        end
-    end
-
     --each target's parts, split into the shared ones and its own.
+    local sharedOf, ownOf = SplitSources(roll, rolled)
     local plans = {}
     for _, who in ipairs(rolled) do
-        local left = {}
-        for key, count in pairs(common or {}) do
-            left[key] = count
-        end
-        local shared, own = {}, {}
-        for _, source in ipairs(Sources(who)) do
-            local key = History.SourceKey(source)
-            if (left[key] or 0) > 0 then
-                left[key] = left[key] - 1
-                shared[#shared + 1] = source
-            else
-                own[#own + 1] = source
-            end
-        end
+        local shared, own = sharedOf[who], ownOf[who]
         local parts = TierParts(shared, natural)
         local isShared = {}
         for _, part in ipairs(parts) do
@@ -2663,12 +2865,56 @@ local function TierLines(roll, targets)
     return main, lines
 end
 
---- One thing besides the tier and kit that changed a target's damage (COPY.md Round 17).
+--- One thing besides the tier and kit that changed a target's damage.
 --- @class HistoryDamageBit
 --- @field key string Equal keys are the same thing doing the same, so targets can share it.
 --- @field amount number What it did: positive added damage, negative took it off.
 --- @field order integer Modifiers, then surges, then weakness or immunity.
 --- @field clause string Its words in the damage line: "[Empyrean Boon] added 10 holy".
+--- @field after? string A sentence of its own after the line: where free or gained surges came from.
+
+--Surge source names joined, for a damage line's grouping key (plain names on older rows).
+--- @param sources (string|{name: string})[]|nil
+--- @return string
+local function SourceNames(sources)
+    local names = {}
+    for i, source in ipairs(sources or {}) do
+        names[i] = type(source) == "table" and source.name or tostring(source)
+    end
+    return table.concat(names, ",")
+end
+
+--- "One was gained from [Trained Assassin]...": how many of the surges spent on a target
+--- came from these modifiers, and which they were. Nil when none did.
+--- @param fromThese integer How many of the surges came from these modifiers.
+--- @param count integer All the surges spent on the target.
+--- @param names (string|{name: string, hover: string|nil})[]|nil
+--- @param tail string Added before the full stop.
+--- @return string|nil
+local function SurgeOrigin(fromThese, count, names, tail)
+    if fromThese <= 0 then
+        return nil
+    end
+    local from = {}
+    for _, source in ipairs(names or {}) do
+        --rows from before hovers kept plain names.
+        local name, hover
+        if type(source) == "table" then
+            name, hover = source.name, source.hover
+        else
+            name = source --[[@as string]]
+        end
+        from[#from + 1] = ModifierLink(WhyName(SpoilerName(name)), name, hover)
+    end
+    local source = #from > 0 and JoinClauses(from) or "a modifier"
+    local subject
+    if fromThese == count then
+        subject = count == 1 and "It was" or "They were"
+    else
+        subject = string.format("%s %s", SURGE_NUMBERS[fromThese] or tostring(fromThese), fromThese == 1 and "was" or "were")
+    end
+    return string.format("%s gained from %s%s.", subject, source, tail)
+end
 
 --- What changed one target's damage besides its tier and kit. A kit is the hero's normal
 --- damage, so it stays in the "from" number and is never named.
@@ -2699,11 +2945,20 @@ local function DamageBits(who, actor)
                 clause = string.format("%s (%s's highest characteristic, %s %d)", clause, History.ShownName(actor),
                     part.characteristic, part.each or 0)
             end
+            --where some of the surges came from.
+            local free = part.free or 0
+            local after = SurgeOrigin(free, count, part.freefrom, " and could only be spent on this strike")
+            local gained = SurgeOrigin(math.min(part.gained or 0, count - free), count, part.gainedfrom, "")
+            if gained ~= nil then
+                after = after ~= nil and (after .. " " .. gained) or gained
+            end
             bits[#bits + 1] = {
-                key = string.format("surge|%d|%d|%s|%s", count, part.each or 0, part.damagetype or "", part.characteristic or ""),
+                key = string.format("surge|%d|%d|%s|%s|%d|%s|%d|%s", count, part.each or 0, part.damagetype or "", part.characteristic or "",
+                    free, SourceNames(part.freefrom), part.gained or 0, SourceNames(part.gainedfrom)),
                 amount = amount,
                 order = 2,
                 clause = clause,
+                after = after,
             }
         end
     end
@@ -2722,7 +2977,8 @@ local function DamageBits(who, actor)
     return bits
 end
 
---- One damage sentence: what added, then ", but" what took off, each group in Round 17's order.
+--- One damage sentence: what added, then ", but" what took off, each group in the bits'
+--- order (modifiers, then surges, then weakness or immunity).
 --- @param bits HistoryDamageBit[]
 --- @return string
 local function DamageText(bits)
@@ -2730,11 +2986,11 @@ local function DamageText(bits)
     for i, bit in ipairs(bits) do
         sorted[i] = {bit = bit, index = i}
     end
-    table.sort(sorted, function(a, b)
-        if a.bit.order ~= b.bit.order then
-            return a.bit.order < b.bit.order
+    table.sort(sorted, function(left, right)
+        if left.bit.order ~= right.bit.order then
+            return left.bit.order < right.bit.order
         end
-        return a.index < b.index
+        return left.index < right.index
     end)
     local up, down = {}, {}
     for _, item in ipairs(sorted) do
@@ -2745,7 +3001,13 @@ local function DamageText(bits)
     if #up > 0 and #down > 0 then
         text = text .. ", but " .. JoinClauses(down)
     end
-    return Capitalise(text) .. "."
+    text = Capitalise(text) .. "."
+    for _, item in ipairs(sorted) do
+        if item.bit.after ~= nil then
+            text = text .. " " .. item.bit.after
+        end
+    end
+    return text
 end
 
 --", up from 15", ", down from 20", or nothing when the parts cancelled out.
@@ -2767,7 +3029,7 @@ end
 --- @field qualifier string
 --- @field text string
 
---- An action's damage lines (COPY.md Round 17), shaped like its tier lines. The shared line
+--- An action's damage lines, shaped like its tier lines. The shared line
 --- names what changed the damage of every target that took some: "19 damage, up from 15"
 --- when they all started from the same tier damage, "12 extra damage" when their tiers
 --- differed. A target gets a line only for what applied to it alone, "from" what the shared
@@ -2859,12 +3121,12 @@ local function DamageLines(targets, actor)
     return shared, lines
 end
 
---- Why an action came out as it did, from what the entry recorded: the tier line (COPY.md
---- Round 14), an area that hit an ally, damage modifiers, surges, immunity, condition
---- immunity (Round 11), then
---- the triggers it set off and the notes its author typed (Round 12). A line that several
---- targets share is written once, naming them all. G6 when nothing changed it. No gui, so
---- other views can use the same words.
+--- Why an action came out as it did, from what the entry recorded: the tier line, an area
+--- that hit an ally, damage modifiers, surges, immunity, condition immunity, then the
+--- triggers it set off and the notes its author typed. A line that several targets share is
+--- written once, naming them all. When nothing changed the result, one plain line says so.
+--- No gui, so other views can use the same words.
+
 --- @param entry HistoryEntry
 --- @param kids? HistoryEntry[] What is nested under it.
 --- @return HistoryWhyRow[]
@@ -2876,7 +3138,8 @@ function History.Why(entry, kids)
     end
     local targets = entry.targets or {}
 
-    --each line is built once its targets are known; make gets their names (L29, L30).
+    --each line is built once all its targets are known, so make can name them together
+    --("Goblin 1-4").
     local order = {}
     local byKey = {}
     local function Add(key, make, who)
@@ -2889,7 +3152,22 @@ function History.Why(entry, kids)
         line.who[#line.who + 1] = who
     end
 
-    --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
+    --a triggered action says first what set it off, in its own Trigger line's words. A
+    --monster's rules are the Director's, as its trigger card is.
+    local triggerText = entry.ability ~= nil and entry.ability.triggertext or nil
+    if entry.provoker ~= nil and entry.actor ~= nil then
+        --a free strike for moving away says so in the rules' words instead.
+        rows[#rows + 1] = {
+            lead = "Moved away without shifting",
+            text = string.format("%s moved away from %s, who made a free strike against it.",
+                History.ShownName(entry.provoker), History.ShownName(entry.actor)),
+        }
+    elseif triggerText ~= nil and (dmhub.isDM or (entry.actor ~= nil and entry.actor.hero)) then
+        local name = entry.ability.name
+        rows[#rows + 1] = {lead = TriggerLink(WhyName(name), entry.actor, name), text = "Trigger: " .. triggerText}
+    end
+
+    --The tier lines first: the roll's, then each target that something
     --of its own moved; targets whose lines read the same share one.
     local roll = entry.roll
     if roll ~= nil and roll.overridden ~= nil then
@@ -2908,7 +3186,7 @@ function History.Why(entry, kids)
         end
     end
 
-    --G4: an area ability that hit one of its user's side.
+    --an area ability that hit one of its user's side.
     for _, who in ipairs(targets) do
         if History.IsAllyHit(entry, who) then
             Add("area", function()
@@ -2918,7 +3196,7 @@ function History.Why(entry, kids)
         end
     end
 
-    --The damage lines (Round 17): one sum for what every target that took damage shared, then
+    --The damage lines: one sum for what every target that took damage shared, then
     --each target's own parts; targets whose lines read the same share one.
     local damage, damageLines = DamageLines(targets, entry.actor)
     if damage ~= nil then
@@ -2932,11 +3210,22 @@ function History.Why(entry, kids)
         end, line.who)
     end
 
-    --G5: a condition the target's immunity stopped.
+    --a condition the target's immunity stopped.
     for _, who in ipairs(targets) do
         for _, name in ipairs(who.immune or {}) do
             local condition = string.lower(name)
-            Add("immune|" .. condition, function(group)
+            --the feature that made it immune, named as players could already see it.
+            local source = who.immunefrom ~= nil and who.immunefrom[condition] or nil
+            if source ~= nil and not PlayersMaySeeAbility(who, source) then
+                source = nil
+            end
+            Add("immune|" .. condition .. "|" .. (source or ""), function(group)
+                if source ~= nil then
+                    return {
+                        lead = WhyName(source),
+                        text = string.format("%s %s immune to %s.", GroupNames(group), #group > 1 and "are" or "is", condition),
+                    }
+                end
                 return {
                     lead = "Immune to " .. condition,
                     text = string.format("%s cannot be %s.", GroupNames(group), CONDITION_PHRASES[condition] or condition),
@@ -2945,12 +3234,142 @@ function History.Why(entry, kids)
         end
     end
 
+    --what a fall or a collision added to a forced move.
+    for _, who in ipairs(targets) do
+        local moved = who.moved
+        if moved ~= nil then
+            local name = History.ShownName(who)
+            local fall = moved.falldamage or 0
+            if fall > 0 then
+                local taken = who.taken or 0
+                local total, without = taken, taken - fall
+                if moved.fallseparate then
+                    total, without = taken + fall, taken
+                end
+                local squares = moved.fell or 0
+                local text = string.format("The fall dealt %d damage, for %d instead of %d.", fall, total, without)
+                local canShow = g_canDrawPaths and MovedSteps(moved) ~= nil
+                if canShow then
+                    text = text .. " Hover here for the side view."
+                end
+                Add("fall|" .. who.id, function()
+                    return {
+                        lead = string.format("Fell %d %s", squares, squares == 1 and "square" or "squares"),
+                        text = text,
+                        movers = canShow and {who} or nil,
+                    }
+                end, who)
+            end
+            local left = moved.collision or 0
+            if left > 0 and (moved.collidedobject or moved.collidedwith ~= nil) then
+                local kind = string.lower(string.gsub(moved.kind or "push", "_", " "))
+                local squares = string.format("%d %s", left, left == 1 and "square" or "squares")
+                Add("collision|" .. who.id, function()
+                    if moved.collidedobject or moved.collidedwith == nil then
+                        return {
+                            lead = "Hit an object",
+                            text = string.format("%s had %s of the %s left: %d damage, plus 2 for hitting an object.", name, squares, kind, left),
+                        }
+                    end
+                    local other = History.ShownName(moved.collidedwith)
+                    return {
+                        lead = "Hit " .. other,
+                        text = string.format("%s had %s of the %s left, so it and %s each took %d damage.", name, squares, kind, other, left),
+                    }
+                end, who)
+            end
+        end
+    end
+
+    --how many minions the damage killed, and why that many.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "minions" and (kid.killed or 0) > 0 and kid.each ~= nil and (kid.damage or 0) > 0 then
+            local killed = kid.killed
+            local count = killed == 1 and "one" or (MINION_WORDS[killed] or tostring(killed))
+            local known = dmhub.isDM
+            if not known and kid.mk ~= nil then
+                local knowledge = MonsterKnowledge.StaminaKnowledge(kid.mk, nil)
+                known = knowledge.visible and knowledge.tier >= 3
+            end
+            local text
+            if known then
+                text = string.format("Each minion in this squad has %d Stamina, so %d damage killed %s.", kid.each, kid.damage, count)
+            else
+                text = string.format("%d damage was enough to kill %s %s.", kid.damage, count, killed == 1 and "minion" or "minions")
+            end
+            Add("minions|" .. tostring(kid.id), function()
+                return {lead = "Minions", text = text}
+            end, nil)
+        end
+    end
+
+    --each potency test, and why it went the way it did. Targets with the same
+    --test and outcome share a line.
+    for _, who in ipairs(targets) do
+        --a condition the target is immune to never landed, whatever the potency did: the
+        --immunity line above ("cannot be frightened") says why, so the test gets no line.
+        local immuneTo = {}
+        for _, name in ipairs(who.immune or {}) do
+            immuneTo[string.lower(name)] = true
+        end
+        for _, test in ipairs(who.potency or {}) do
+            if test.what ~= nil and immuneTo[test.what] then
+                goto nextTest
+            end
+            local phrase = nil
+            if test.what ~= nil then
+                phrase = "being " .. (CONDITION_PHRASES[test.what] or test.what)
+            elseif test.effect ~= nil then
+                phrase = test.effect
+            end
+            local hidden = test.mk ~= nil and not dmhub.isDM
+                and not MonsterKnowledge.IsRevealed(test.mk, MonsterKnowledge.EntryKey("attr", test.attrid))
+            local key = table.concat({"potency", test.letter, tostring(test.gate), tostring(test.resisted), phrase or "",
+                hidden and "hidden" or tostring(test.value), tostring(test.surges or "")}, "|")
+            Add(key, function(group)
+                local names = GroupNames(group)
+                local potency = string.format("%s<%d", test.letter, test.gate)
+                if hidden then
+                    --players don't know the monster's characteristic, only how it went.
+                    local lead = phrase ~= nil and string.gsub(phrase, "^being ", "") or "Potency"
+                    lead = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
+                    --the sentence still names who resisted, as the rest of the card does.
+                    return {lead = lead, text = string.format(test.resisted and "%s resisted." or "%s did not resist.", names)}
+                end
+                if test.surges ~= nil and (test.raised or 0) > 0 then
+                    --surges raised the potency.
+                    local from = string.format("%s<%d", test.letter, test.gate - test.raised)
+                    local text
+                    if test.resisted then
+                        text = string.format("%s became %s, but %s resisted.", from, potency, names)
+                    elseif phrase ~= nil then
+                        text = string.format("%s became %s, so %s could not resist %s.", from, potency, names, phrase)
+                    else
+                        text = string.format("%s became %s, so %s could not resist.", from, potency, names)
+                    end
+                    return {lead = string.format("Potency raised with %d %s", test.surges, cond(test.surges == 1, "surge", "surges")), text = text}
+                end
+                --the target's characteristic against the potency.
+                local text
+                if test.resisted then
+                    text = string.format("%s: %s resisted.", potency, names)
+                elseif phrase ~= nil then
+                    text = string.format("%s: %s could not resist %s.", potency, names, phrase)
+                else
+                    text = string.format("%s: %s could not resist.", potency, names)
+                end
+                return {lead = string.format("%s %d", test.attr, test.value), text = text}
+            end, who)
+            ::nextTest::
+        end
+    end
+
     for _, line in ipairs(order) do
         rows[#rows + 1] = line.make(line.who)
     end
 
-    --G7: each trigger this action set off, named so 2.3d can show its card, and what it did.
-    --A resource line from a trigger written before Round 12 has only its small text.
+    --each trigger this action set off, named so its card shows on hover, and what it did.
+    --A resource line saved by an older build has only its small text to name it by.
     local messages = {}
     for _, message in ipairs(entry.messages or {}) do
         messages[#messages + 1] = message
@@ -2965,8 +3384,8 @@ function History.Why(entry, kids)
         local effect = name ~= nil and TriggerEffect(kid) or nil
         if name ~= nil and effect ~= nil then
             --some content names a trigger with its whole rule ("Whenever a creature rolls a
-            --natural 2 ..."); that reads badly as a lead, so it says "trigger" (G7a).
-            --G7a's plain "trigger" hovers too: that is where its rule shows.
+            --natural 2 ..."); that reads badly as a lead, so it says "trigger".
+            --That plain "trigger" hovers too: that is where its rule shows.
             local triggerName = name
             local lead = TriggerLink(WhyName(name), owner, triggerName)
             if string.find(name, "[%.!?]%s*$") ~= nil or #name > TRIGGER_NAME_MAX then
@@ -2986,7 +3405,7 @@ function History.Why(entry, kids)
         end
     end
 
-    --G8: the notes typed on its steps and its triggers' steps, as written, each once.
+    --the notes typed on its steps and its triggers' steps, as written, each once.
     local shown = {}
     for _, message in ipairs(messages) do
         if not shown[message] then
@@ -2998,8 +3417,9 @@ function History.Why(entry, kids)
         return rows
     end
 
-    --G6: only when the roll and the damage are exactly what the tier says. A kit is the
-    --hero's normal damage, so it doesn't count as a change.
+    --"Nothing changed" only when the roll and the damage are exactly what the tier says.
+    --A kit is the hero's normal damage, so it doesn't count as a change.
+
     --a player doesn't know what changed a roll hidden from them.
     if entry.secretroll then
         return rows
@@ -3020,7 +3440,7 @@ function History.Why(entry, kids)
 end
 
 --One Why line: its lead in bold (after a modifier owner's face) over its sentence, with a
---thin rule down the left as in the prototype.
+--thin rule down the left.
 --- @param row HistoryWhyRow
 local function WhyRow(row, width)
     local inner = width - WHY_INDENT
@@ -3042,6 +3462,11 @@ local function WhyRow(row, width)
             halign = "left",
             valign = "center",
         })
+        --the move's side view, the same button the creature's What happened line has.
+
+        if row.movers ~= nil then
+            lead[#lead + 1] = SideViewButton({who = row.movers}, g_linkMap)
+        end
         children[1] = gui.Panel{
             flow = "horizontal",
             width = inner,
@@ -3075,10 +3500,10 @@ local function WhyRow(row, width)
     }
 end
 
---- One row of the Sidebar Preview (3.4): what an action or line did, for the chat bubble
---- beside the History button. An action has a header (L46) over up to two of its sentences
---- and "and {n} more" (L47); a line is its sentence alone. Your creatures' sentences carry
---- the gold edge, as in the hover card.
+--- One row of the Sidebar Preview: what an action or line did, for the chat bubble beside
+--- the History button. An action has a header over up to two of its sentences and "and 3
+--- more"; a line is its sentence alone. Your creatures' sentences carry the gold edge, as
+--- in the hover card.
 --- @param args {title: string|nil, rows: {row: table, mine: boolean}[], width: number}
 --- @return Panel[]
 function History.CreateBubbleContents(args)
@@ -3135,7 +3560,8 @@ function History.CreateBubbleContents(args)
     }
 end
 
---- The rail button's hover card (3.3a, M1-M5): what happened since you last looked, in the
+--- The rail button's hover card: what happened since you last looked, in the
+
 --- detail card's frame and rows. Rows about your own creatures carry a gold edge.
 --- @param args {rows: {row: table, mine: boolean}[], more: integer, width: number}
 --- @return Panel
@@ -3287,6 +3713,8 @@ function History.CreateCard(args)
         }
     end
 
+    local header = Header(entry, width, args.inTray, args.close)
+
     return gui.Panel{
         classes = {"historyCardFrame", cond(args.inTray, "historyCardSolid", nil)},
         bgimage = true,
@@ -3302,7 +3730,7 @@ function History.CreateCard(args)
         valign = "top",
         data = {tail = tail},
 
-        Header(entry, width, args.inTray, args.close),
+        header,
         gui.Panel{
             classes = {"historySeam"},
             bgimage = "panels/square.png",
@@ -3313,7 +3741,16 @@ function History.CreateCard(args)
             flow = "vertical",
             width = "100%",
             height = "auto",
+            --a one-line header's height to start; a title that wraps makes the header taller,
+            --so once it is laid out the body gets what is really left.
             maxHeight = args.maxHeight - 62,
+            create = function(element)
+                gui.AfterLayout(function()
+                    if element.valid and header.valid and (header.renderedHeight or 0) > 0 then
+                        element.selfStyle.maxHeight = args.maxHeight - header.renderedHeight - 1
+                    end
+                end)
+            end,
             vscroll = true,
             gui.Panel{
                 flow = "vertical",

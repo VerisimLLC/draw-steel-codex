@@ -3141,18 +3141,18 @@ local function CreateFlipButton(charid)
     }
 end
 
---- The History chip (3.2): just left of the flip button, in its look, shown only while the card
+--- The History chip: just left of the flip button, in its look, shown only while the card
 --- is hovered. Opens History showing only this hero.
 --- @param charid string
---- @param x number
+--- @param offsetX number Its x offset from the card's centre.
 --- @return Panel
-local function CreateHistoryButton(charid, x)
+local function CreateHistoryButton(charid, offsetX)
     return gui.Panel{
         classes = {"heroCardHistory"},
         floating = true,
         halign = "center",
         valign = "top",
-        x = x,
+        x = offsetX,
         y = 4,
         width = 26,
         height = 26,
@@ -3171,7 +3171,8 @@ local function CreateHistoryButton(charid, x)
                 selectors = {"heroCardHistory", "parent:hover"},
                 hidden = 0,
             },
-            --as the flip button: hover sits on the chip, not the card, so it stays shown.
+            --as on the flip button: with the pointer on the chip the card is no longer
+            --hovered, so the chip's own hover keeps it shown.
             {
                 selectors = {"heroCardHistory", "hover"},
                 hidden = 0,
@@ -3259,10 +3260,10 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight, options)
     if not options.noButton then
         flipButton = CreateFlipButton(charid)
         cardArgs[#cardArgs+1] = flipButton
-        --History sits just left of the centred flip button, when the game has History on. The
-        --top-left corner is the trigger and downtime badges', so it stays out of there.
+        --History sits just left of the centred flip button, unless this user is on the old Action
+        --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
         local history = rawget(_G, "History")
-        if history ~= nil and history.Enabled() then
+        if history ~= nil and not history.UsingOldLog() then
             cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
         end
     end

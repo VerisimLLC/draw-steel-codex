@@ -1617,6 +1617,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field bonus nil|integer A flat number it added to the roll (negative when it took some off).
     --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
     --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
+    --- @field hovermod nil|table The modifier, until the roll is accepted and its hover text is built.
+    --- @field hovertext nil|string The modifier's hover text, for History.
 
     --- Rebuilt by each CalculateRollText, beside m_activeModifiers.
     --- @type EmbeddedRollEdgeSource[]
@@ -1628,6 +1630,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field name string The modifier's name, spoiler markup kept.
     --- @field charid nil|string On a trigger: the creature whose trigger it is.
     --- @field tiers table<integer, table<string, number>> Per tier, the damage it added by type ("untyped" for none); negative when it took damage away.
+    --- @field hovermod nil|table The modifier, until the roll is accepted and its hover text is built.
+    --- @field hovertext nil|string The modifier's hover text, for History.
 
     --- Rebuilt by each CalculateRollText, beside m_edgeSources.
     --- @type EmbeddedRollDamageSource[]
@@ -2003,7 +2007,7 @@ function GameHud.CreateEmbeddedRollDialog()
         return tooltip
     end
 
-    --The hover text History keeps for a modifier that changed the roll (2.3d). Spoilers stay
+    --The hover text History keeps for a modifier that changed the roll. Spoilers stay
     --as markup: History hides them for whoever looks. Nil when it says nothing past the name.
     local function RecordedHoverText(mod)
         local description = mod.modifier:try_get("description") or ""
@@ -2014,7 +2018,27 @@ function GameHud.CreateEmbeddedRollDialog()
         if string.find(description, "%S") == nil and (inflicted == nil or inflicted == "") and not justified then
             return nil
         end
-        return ModifierHoverText(mod, true)
+        --History's record only: a modifier whose text fails to format must not break the roll.
+        local ok, text = pcall(ModifierHoverText, mod, true)
+        return ok and text or nil
+    end
+
+    --Sources keep their modifier in hovermod while the dialog recalculates; the hover text is
+    --built once, here, as the roll is accepted, not on every recalculation.
+    local function ResolveHoverTexts(sources)
+        for _, source in ipairs(sources or {}) do
+            if source.hovermod ~= nil then
+                source.hovertext = RecordedHoverText(source.hovermod)
+                source.hovermod = nil
+            end
+        end
+    end
+
+    --Whether History is recording, so the dialog measures sources for it at all (not in Crows,
+    --nor with Record History off).
+    local function RecordingForHistory()
+        local history = rawget(_G, "History")
+        return history ~= nil and history.Enabled()
     end
 
     --What each modifier adds to or takes from the edges and banes, measured as it is applied,
@@ -2072,7 +2096,9 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = nottierone,
             bonus = bonus ~= 0 and bonus or nil,
             charid = charid,
-            hovertext = RecordedHoverText(mod),
+            --a triggered action used from this dialog: History gives it a row of its own.
+            trigger = mod.modifier:try_get("_tmp_triggerCharid") ~= nil or nil,
+            hovermod = mod,
         }
         return after
     end
@@ -2094,9 +2120,9 @@ function GameHud.CreateEmbeddedRollDialog()
             local beforeTier = before[i] or {}
             local delta = {}
             for typeName, amount in pairs(afterTier) do
-                local d = amount - (beforeTier[typeName] or 0)
-                if d ~= 0 then
-                    delta[typeName] = d
+                local added = amount - (beforeTier[typeName] or 0)
+                if added ~= 0 then
+                    delta[typeName] = added
                     changed = true
                 end
             end
@@ -2116,7 +2142,8 @@ function GameHud.CreateEmbeddedRollDialog()
         if mod.modFromTarget and charid == nil then
             name = string.format("Target is %s", name)
         end
-        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod)}
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovermod = mod,
+            trigger = charid ~= nil or nil}
     end
 
     --this is the current 'base roll' that is being calculated based on.
@@ -2189,12 +2216,14 @@ function GameHud.CreateEmbeddedRollDialog()
         local afterCritMods = {}
 
         if creature then
-            local edgesBefore = GameSystem.UseBoons and dmhub.ParseRoll(roll) or nil
+            local edgesBefore = (GameSystem.UseBoons and RecordingForHistory()) and dmhub.ParseRoll(roll) or nil
             for i, mod in ipairs(enabledModifiers) do
                 --call this generic function which might be modified by mods.
                 roll = mod.modifier:ApplyToRoll(mod.context, creature, targetCreature, rollType, roll)
                 if edgesBefore ~= nil then
-                    edgesBefore = RecordEdgeSource(mod, edgesBefore, roll)
+                    --History's record only: on a failure it stops recording, and the roll goes on.
+                    local ok, after = pcall(RecordEdgeSource, mod, edgesBefore, roll)
+                    edgesBefore = ok and after or nil
                 end
 
                 if rollType == 'damage' then
@@ -2277,11 +2306,15 @@ function GameHud.CreateEmbeddedRollDialog()
             rollProperties:ResetMods()
 
             local measure = rollProperties.typeName == "RollPropertiesPowerTable" and rollProperties:try_get("tiers") ~= nil
+                and RecordingForHistory()
             for i, mod in ipairs(enabledModifiers) do
                 local before = measure and TierDamage(rollProperties) or nil
                 mod.modifier:ModifyRollProperties(mod.context, creature, rollProperties, targetCreature)
                 if before ~= nil then
-                    RecordDamageSource(mod, before, TierDamage(rollProperties))
+                    --History's record only: a failure here must not break the roll.
+                    pcall(function()
+                        RecordDamageSource(mod, before, TierDamage(rollProperties))
+                    end)
                 end
             end
         end
@@ -8150,9 +8183,12 @@ function GameHud.CreateEmbeddedRollDialog()
                                 end
                                 local freeUsed = math.min(math.max(effective, 0), freeGranted)
                                 local sourceNames = {}
+                                --each source's hover text, for History (nil where it says nothing past its name).
+                                local sourceHovers = {}
                                 for _, usedMod in ipairs(target.modifiersUsed or {}) do
                                     if usedMod:try_get("surges", "") ~= "" and not usedMod:try_get("surgesCanBeKept", false) then
                                         sourceNames[#sourceNames + 1] = trim(usedMod.name)
+                                        sourceHovers[#sourceNames] = RecordedHoverText({modifier = usedMod})
                                     end
                                 end
                                 --_G.creature is the creature type: the local `creature` here is the roller.
@@ -8162,6 +8198,22 @@ function GameHud.CreateEmbeddedRollDialog()
                                     cond(#sourceNames > 0, table.concat(sourceNames, ", "), "Modifier"), freeGranted,
                                     cond(freeGranted > 1, "surges", "surge"), targetName, freeUsed,
                                     cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
+                                --and on the cast, for a record of play (History).
+                                if freeUsed > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                    m_symbols.cast:get_or_add("targetFreeSurges", {})[target.token.charid] = {count = freeUsed, sources = sourceNames, hovers = sourceHovers}
+                                end
+                            end
+                            --surges a modifier gave to keep ("you gain 1 surge"), for the same record.
+                            if thisTargetNonWastedSurgesGained > 0 and m_symbols ~= nil and m_symbols.cast ~= nil then
+                                local keptNames = {}
+                                local keptHovers = {}
+                                for _, usedMod in ipairs(target.modifiersUsed or {}) do
+                                    if usedMod:try_get("surges", "") ~= "" and usedMod:try_get("surgesCanBeKept", false) then
+                                        keptNames[#keptNames + 1] = trim(usedMod.name)
+                                        keptHovers[#keptNames] = RecordedHoverText({modifier = usedMod})
+                                    end
+                                end
+                                m_symbols.cast:get_or_add("targetGainedSurges", {})[target.token.charid] = {count = thisTargetNonWastedSurgesGained, sources = keptNames, hovers = keptHovers}
                             end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed
@@ -8267,7 +8319,11 @@ function GameHud.CreateEmbeddedRollDialog()
                                             undoable = false,
                                             execute = function()
                                                 --this also triggers the modifier's custom trigger
-                                                local consume = modifier:ConsumeResource(c)
+                                                --filed under the cast, so History shows the cost on the action's row.
+                                                local consume = false
+                                                GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                                    consume = modifier:ConsumeResource(c)
+                                                end)
                                                 resourceConsumed = consume or resourceConsumed
                                             end,
                                         }
@@ -8291,7 +8347,11 @@ function GameHud.CreateEmbeddedRollDialog()
                                     description = "Consume resources",
                                     undoable = false,
                                     execute = function()
-                                        local consume = modifier:ConsumeResource(creatureUsed)
+                                        --filed under the cast, so History shows the cost on the action's row.
+                                        local consume = false
+                                        GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                            consume = modifier:ConsumeResource(creatureUsed)
+                                        end)
                                         resourceConsumed = consume or resourceConsumed
                                     end,
                                 }
@@ -8326,7 +8386,10 @@ function GameHud.CreateEmbeddedRollDialog()
                                 description = "Consume surges",
                                 undoable = false,
                                 execute = function()
-                                    creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    --filed under the cast, so History shows it on the action's row.
+                                    GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
+                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                    end)
                                 end,
                             }
                         end
@@ -8378,6 +8441,12 @@ function GameHud.CreateEmbeddedRollDialog()
                         --the second argument says what gave the roll its edges, banes and
                         --bonuses, and whether it went in the Dice Tower, for a record of play
                         --(History); callers may ignore it.
+                        ResolveHoverTexts(m_edgeSources)
+                        ResolveHoverTexts(m_damageSources)
+                        for _, target in ipairs(m_multitargets or {}) do
+                            ResolveHoverTexts(target.edgeSources)
+                            ResolveHoverTexts(target.damageSources)
+                        end
                         completeRollFn(rollInfo, {edgeSources = m_edgeSources, dicetower = dicetower})
                     end
                 end

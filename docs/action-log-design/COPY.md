@@ -306,6 +306,7 @@ N2 covers most sentences. These are the cases it doesn't cover, as built in chun
 | X5 | Temporary Stamina grew | {Creature}'s temporary Stamina went from 3 to 10. / ... and temporary Stamina went from 3 to 10. |
 | X6 | A fall with no push | ... took 6 damage and fell 4 squares. |
 | X7 | Resisted, the rule text names no condition | ... took 4 damage and resisted. |
+| X7a | Resisted, the rule text names an ongoing effect, no condition (signed 2026-11-20) | ... took 10 damage and resisted Can't Hide. |
 | X8 | Damage partly typed | ... took 10 damage: 6 fire and 4 untyped. |
 | X9 | W11 for any area, not only a burst | {Creature}, an ally, was caught in the area and took {N} damage. |
 | X10 | A trigger that did more than damage (W13 covers damage) | {Owner}'s {trigger}: {sentence} |
@@ -650,3 +651,69 @@ with the eye-off icon. Monster Info reveals write nothing.
 | ID | What | Line | Cause line |
 |---|---|---|---|
 | L94 | A hidden modifier revealed | {Creature} {Modifier} revealed ({Modifier} revealed with no creature) | the modifier's description, in full |
+
+## Round 23: several maps (6.1, signed off 2026-11-19)
+
+The map switcher sits in History's title row while two or more maps you can see are in combat. It
+shows the map on show, cut short when long; its menu lists those maps by name, the shown one ticked.
+
+| ID | What | Line |
+|---|---|---|
+| L95 | Tooltip on the map switcher | Display history for another map |
+
+## Round 24: empty History (signed off 2026-11-20)
+
+| ID | What | Line |
+|---|---|---|
+| L96 | History on a map with nothing recorded yet | Nothing has happened on this map yet. |
+
+## Round 25: stability and wall breaks (6.5, signed off 2026-11-20)
+
+"Push" stands for the kind: Pull, Slide, Vertical push and Vertical pull read the same way.
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L97 | Caption, stability shortened it | {Push} {moved} · Stability {s} | Push 2 · Stability 1 |
+| L98 | Caption, stability stopped it | {Push} stopped · Stability {s} | Push stopped · Stability 1 |
+| L99 | Card sentence, shortened | ... was pushed {moved} of {n} squares (stability {s}). | Goblin 3 was pushed 2 of 3 squares (stability 1). |
+| L100 | Card sentence, stopped | ... held its ground: stability {s} stopped the push. | Goblin 3 held its ground: stability 1 stopped the push. |
+| L101 | The numbers | Push {n} / Stability -{s} / Moved {moved} | Push 3 / Stability -1 / Moved 2 |
+| L102 | The numbers, the attacker ignores stability | Stability ignored | |
+| L103 | Caption, wall break | Broke {n} wall / Broke {n} walls | Push 3 · Broke 1 wall |
+| L104 | Card sentence, wall break | ..., breaking through {n} wall(s). | Goblin 3 was pushed 3 squares, breaking through a wall. |
+| L105 | Caption, blocked before it moved a square | {Push} blocked | Push blocked · Stability 2 |
+| L106 | Card sentence, blocked | ... was blocked and didn't move (stability {s}). | Devil High Judge was blocked and didn't move (stability 2). |
+
+## Round 26: triggers used inside the roll dialog (6.5b, signed off 2026-11-20)
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L107 | Tag on a trigger row for a triggered action used from the roll dialog | During the roll | During the roll · Bryn · Draconian Guard › Larry -7 |
+
+## Round 27: the rest of 6.6 (signed off 2026-11-20)
+
+James 2026-11-20. L32 is retired: a triggered action's own card says what set it off with Y11's
+words. L16 moves into the persistence line's small text. Rampage needs nothing new: it is an
+ongoing effect and already gets its own lines.
+
+| ID | What | Line | Example |
+|---|---|---|---|
+| L32 | (retired: Y11 instead) | | |
+| Y11 | Why on a triggered action's own card | {Trigger} / Trigger: {the ability's Trigger line} | Mark: Benefit / Trigger: You or an ally uses an ability to deal rolled damage to a creature marked by you. |
+| L16 | Persistence broken by damage, small text (replaces L13's) | Took {n} damage in one turn, 5 times {Characteristic} {r} | Took 12 damage in one turn, 5 times Reason 2 |
+| L108 | Why, collision with an object | Hit an object / {Creature} had {n} squares of the {push} left: {n} damage, plus 2 for hitting an object. | Goblin 1 had 2 squares of the push left: 2 damage, plus 2 for hitting an object. |
+| L109 | Why, collision with a creature | Hit {Other} / {Creature} had {n} squares of the {push} left, so it and {Other} each took {n} damage. | Hit Goblin 2 / Goblin 1 had 2 squares of the push left, so it and Goblin 2 each took 2 damage. |
+| L110 | Strained (F5) | {Creature} is strained / {Creature} is no longer strained; small text {Resource} {n} | Lyra is strained · Clarity -2 |
+| L111 | New squad captain (F5) | {Creature} is now {Squad}'s captain; small text who did it | Goblin 3 is now the Goblin Raiders' captain · Director |
+| Y5c | Surges a modifier gave to keep, after the damage line (signed off 2026-11-21) | {One was / They were} gained from [{Modifier}]. | 2 surges added 2 each (...). They were gained from [I Work Better Alone]. |
+| L26 | (changed 2026-11-21, James: name the creature) | {Condition} / {Creature} did not resist. / {Creature} resisted. | Weakened / Devil High Judge did not resist. |
+
+## Round 28: the switch-over (6.4, signed off 2026-11-21)
+
+History is the default. The old Action Log is hidden unless the setting is on.
+
+| ID | What | Text |
+|---|---|---|
+| L112 | Setting name | Use Old Action Log |
+| L113 | Setting tooltip | Show the old Action Log instead of History |
+| L114 | History's rail button hover | History |

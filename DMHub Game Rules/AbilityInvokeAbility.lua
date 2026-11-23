@@ -1303,6 +1303,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     if abilityTemplate ~= nil then
                         local abilityClone = abilityTemplate:MakeTemporaryClone()
 
+                        --A custom ability is written into the ability that invokes it: a step of
+                        --that ability, not an ability of its own. Records of play (History) file it,
+                        --whatever card it shows, under the invoker's name.
+                        if self.abilityType == "custom" then
+                            --a step inside a step belongs to the outermost ability.
+                            abilityClone._tmp_partOfAbility = ability:try_get("_tmp_partOfAbility") or ability.name
+                        elseif self.abilityType == "named" or self.abilityType == "chooseClassAbility" then
+                            --one of the creature's own abilities, used as part of the invoker.
+                            abilityClone._tmp_usedAsAbility = true
+                        end
+
                         --The invoked ability is cast through the normal path, which pays
                         --its own action cost as well as the invoking ability's. When the
                         --invoker already charges the action for the whole package, that
@@ -1470,8 +1481,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
 
                             local stability = target.token.properties:Stability()
+                            local stabilityIgnored = false
                             if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
                                 stability = 0
+                                stabilityIgnored = true
                                 adjustments[#adjustments+1] = "Ignoring Stability"
                             end
 
@@ -1502,6 +1515,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             if target.token.properties:CannotBeForceMoved() then
                                 adjustedRange = 0
                                 adjustments = {"Immune to Forced Movement"}
+                                ActivatedAbilityInvokeAbilityBehavior.NoteImmune(target.token, forcedMovementType)
+                            else
+                                abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
+                                    baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
                             end
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
@@ -1666,6 +1683,49 @@ function ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
         return "none"
     end
     return string.format("%s:%s:%s", tostring(q.round), tostring(q.turn), tostring(q.currentTurn))
+end
+
+--- What stability did to a forced move, for play observers (History). Put what it returns on
+--- the forced-movement clone as _tmp_forcedMoveStability, so the move reports it when it
+--- lands. A move that stability stops entirely never takes place, so it is reported here.
+--- @param targetToken CharacterToken The creature being moved.
+--- @param kind string "push", "vertical_pull" and so on.
+--- @param requested number Squares before stability.
+--- @param stability number What stability took off (0 when ignored).
+--- @param ignored boolean The mover ignores stability.
+--- @return nil|{requested: number, stability: number, ignored: boolean}
+function ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, kind, requested, stability, ignored)
+    if stability <= 0 and not ignored then
+        return nil
+    end
+    local facts = {requested = requested, stability = stability, ignored = ignored}
+    if stability > 0 and requested > 0 and requested <= stability then
+        GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+            kind = kind,
+            distance = 0,
+            stopped = true,
+            requested = requested,
+            stability = stability,
+            collision = 0,
+            walls = 0,
+        })
+    end
+    return facts
+end
+
+--- Tells play observers that a forced move never happened because its target is immune to
+--- forced movement (the move is set to 0 squares, so no move event follows).
+--- @param targetToken CharacterToken The creature that was to be moved.
+--- @param kind string "push", "vertical_pull" and so on.
+function ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, kind)
+    GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+        kind = kind,
+        distance = 0,
+        stopped = true,
+        immune = true,
+        collision = 0,
+        walls = 0,
+    })
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
@@ -1972,6 +2032,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         if abilityOverride ~= nil then
             options.abilityOverride = nil
             abilityClone = abilityOverride
+            --an ability chosen from a list (Prism's heroic abilities): one of the creature's own.
+            abilityClone._tmp_usedAsAbility = true
             abilityClone.invoker = invokerToken.properties
             installCastCallbacks(abilityClone)
         end
@@ -2070,6 +2132,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                     --if exactly one synthesized ability then just auto-cast it?
                     local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
                     abilityClone = synth[1]
+                    abilityClone._tmp_usedAsAbility = true
                     --Synthesizing builds a fresh ability, so copy the opt-out across.
                     --Without it a minion gets asked for one target per squad member.
                     if preSynthDisableSquad ~= nil then
@@ -3030,8 +3093,10 @@ function AbilityInvocation:Invoke()
 		-- Big Versus Little check
 
 		local stability = targetToken.properties:Stability()
+		local stabilityIgnored = false
 		if stability ~= 0 and pusherToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
 			stability = 0
+			stabilityIgnored = true
 			adjustments[#adjustments+1] = "Ignoring Stability"
 		end
 
@@ -3062,6 +3127,10 @@ function AbilityInvocation:Invoke()
 		if targetToken.properties:CannotBeForceMoved() then
 			adjustedRange = 0
 			adjustments = {"Immune to Forced Movement"}
+			ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, forcedMovementType)
+		else
+			abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
+				baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare

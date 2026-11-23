@@ -37,6 +37,9 @@ end
 --- @field excludedTargetTokenIds nil|table<string, boolean> Charids this clone may not target (the creatures the first use already hit).
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
+--- @field _tmp_partOfAbility nil|string On the clone of an invoked Custom Ability: the name of the ability that invoked it, whose step it is.
+--- @field _tmp_usedAsAbility nil|boolean On the clone of an invoked ability that is one of the creature's own (named, or chosen from a list), used as part of the invoker.
+--- @field _tmp_forcedMoveStability nil|{requested: number, stability: number, ignored: boolean} On a forced-movement clone: the push before stability and what stability took off, for play observers (see ActivatedAbilityInvokeAbilityBehavior.NoteStability).
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
 --- @field promptDeciderId nil|string Charid of the creature who picks the answer to this ability's prompt, when that is not the invoker (Behold the Face of Justice!'s push). Usually unset: read with try_get.
 --- @field stolenStamp nil|string Fresh guid on each ability copied by Steal Ability, so the action bar flags every steal as new.

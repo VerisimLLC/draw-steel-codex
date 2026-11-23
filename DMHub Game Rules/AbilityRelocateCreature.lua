@@ -896,15 +896,16 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 --clone, which InvokeAbility populates with the parent ability's keywords.
                 forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
                 forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
-                if path ~= nil then
-                    --plain numbers, so the route outlives this path object (the side view).
+                --pcall: this is only news for play observers and must not stop the move.
+                if path ~= nil then pcall(function()
+                    --copied as plain numbers, so observers can keep the route after this path object is gone.
                     local savedPath = {}
                     local steps = path.steps or {}
                     for _,step in ipairs(steps) do
                         savedPath[#savedPath+1] = {step.x, step.y, step.floor, step.altitude}
                     end
-                    --a fall adds its landing to the end of the path. That step is no square the
-                    --creature was moved, and path.fallDistance reads 0 once it is there.
+                    --a fall adds its landing as a last step straight down. That is no square the creature
+                    --was moved, so it comes off distance (path.fallDistance already reads 0 here).
                     local last, previous = steps[#steps], steps[#steps-1]
                     local falling = previous ~= nil and last.x == previous.x and last.y == previous.y
                         and (last.floor ~= previous.floor or previous.altitude - last.altitude > 1)
@@ -913,11 +914,16 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         distance = forcemoveEvent.distance - (falling and 1 or 0),
                         falling = falling,
                         collision = forcemoveEvent.collision,
+                        --what it ran into: an object (a wall counts) or the creatures it hit.
+                        collidewithobject = forcemoveEvent.collidewithobject,
+                        collidedwith = collisionInfo ~= nil and collisionInfo.collideWith or nil,
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,
                         cast = options.symbols.cast,
+                        --what stability took off, saved on this clone by the ability that set the move up.
+                        stability = ability:try_get("_tmp_forcedMoveStability"),
                     })
-                end
+                end) end
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 

@@ -303,6 +303,8 @@ local function WindowForMap(mapid)
     return nil
 end
 
+--- @param mapid string
+--- @return string
 local function MapName(mapid)
     local map = game.GetMap(mapid)
     if map == nil or not map.valid then
@@ -318,6 +320,9 @@ local function MapName(mapid)
     end
     return name
 end
+
+--A map's name as its window shows it, for other panels that name maps (History's switcher).
+Tabletop.MapName = MapName
 
 --- True for a Map Preview (MapPreview.lua): a map added only to be looked at
 --- and deleted when its preview ends. Its window is never saved in the layout

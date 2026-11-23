@@ -1690,12 +1690,12 @@ function NegotiationRun.SetTraitRevealed(traitId, revealed)
         if t == nil then
             return
         end
-        local was = t.revealed == true
+        local wasRevealed = t.revealed == true
         t.revealed = revealed
         if revealed then
             NegotiationRun.Log(live, "", "", string.format("Something about %s has become clear.",
                 live.npcName ~= "" and live.npcName or "the NPC"), "system")
-            if not was then
+            if not wasRevealed then
                 NegotiationRun.Note(live, {kind = "reveal", trait = t.name, traitKind = t.kind})
             end
         end
@@ -3793,8 +3793,8 @@ local function CreateNegotiationRunner()
                 --header would offer to show it again.
                 NegotiationRun.Mutate("End negotiation", function(l)
                     local anyAccept = false
-                    for _, v in pairs(l.accepted) do
-                        if v == "accepted" then
+                    for _, answer in pairs(l.accepted) do
+                        if answer == "accepted" then
                             anyAccept = true
                         end
                     end

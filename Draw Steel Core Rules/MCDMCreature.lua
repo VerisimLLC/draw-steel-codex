@@ -4800,6 +4800,18 @@ local function ConditionImmunityIsSilent(c, conditionid)
     return false
 end
 
+--The name of the modifier that makes this creature immune to a condition (a feature such as
+--Fearless), so a record of play can say why. Nil when no modifier of its own grants it.
+local function ConditionImmunitySource(c, conditionid)
+    for _,mod in ipairs(c:GetActiveModifiers()) do
+        local m = mod.mod
+        if m.behavior == "conditionimmunity" and table.contains(m:try_get("conditions", {}), conditionid) then
+            return m.name
+        end
+    end
+    return nil
+end
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
 --- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
@@ -5026,7 +5038,11 @@ function creature:InflictCondition(conditionid, args)
     local immune = self:GetConditionImmunities()[conditionid]
     local result = g_creatureInflictCondition(self, conditionid, args)
     if immune then
-        GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid)
+        --a silent immunity (bookkeeping such as Hampering Roots') shows nothing at the table,
+        --so play observers aren't told of it either.
+        if not args.silent and not ConditionImmunityIsSilent(self, conditionid) then
+            GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid, ConditionImmunitySource(self, conditionid))
+        end
     else
         local entry = self:try_get("inflictedConditions", {})[conditionid]
         if entry ~= nil then
@@ -5527,7 +5543,10 @@ end
 local g_pendingQueuedRoll = {}
 
 local function NotifyTested(creature, attrInfo, rollInfo, details)
-    RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+    --runs before the test's own completion: History's notice must never stop that.
+    pcall(function()
+        RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+    end)
 end
 
 --options (optional): { modifiers = { modifierEntry, ... } } -- extra
@@ -6499,14 +6518,18 @@ end
 
 --What a creature has left of a resource a record of play follows, nil for any other.
 --Actions, maneuvers and triggers are not among them: every turn spends those.
+--It runs inside every spend and refresh, so a failure here reads as "not followed".
 local function RecordedAmount(self, key)
     if key ~= CharacterResource.heroicResourceId and key ~= CharacterResource.surgeResourceId
         and key ~= CharacterResource.recoveryResourceId then
         return nil
     end
-    local info = dmhub.GetTable(CharacterResource.tableName)[key]
-    local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
-    return (self:GetResources()[key] or 0) - (usage or 0)
+    local ok, amount = pcall(function()
+        local info = dmhub.GetTable(CharacterResource.tableName)[key]
+        local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
+        return (self:GetResources()[key] or 0) - (usage or 0)
+    end)
+    return ok and amount or nil
 end
 
 --Compares after the change: a spend can be routed to a mentor or a summoner, and a
@@ -6650,11 +6673,18 @@ local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
         return
     end
 
+    --the damage behind the deaths, all types together.
+    local batchDamage = 0
+    for _, group in pairs(batch.groups) do
+        batchDamage = batchDamage + (group.damage or 0)
+    end
     GameSystem.NotifyPlayObservers("minionsdied", victim, {
         squad = batch.squadName,
         killed = batch.totalKills,
         left = batch.expectedBands,
         cast = batch.cast,
+        damage = batchDamage,
+        each = batch.singleHealth,
     })
 
     for damagetype,group in pairs(batch.groups) do

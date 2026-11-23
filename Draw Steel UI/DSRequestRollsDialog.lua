@@ -1101,14 +1101,17 @@ function GameHud:RequireRollListenerPanel()
 											end
 										end,
 										completeRoll = function(rollInfo, details)
-											if rollType == "table" and check:try_get("tableRef") ~= nil then
-												local castid = request.info.castid ~= "" and request.info.castid or nil
-												RollOnTableProperties.NotifyRolled(tok.properties, check.tableRef, rollInfo, {cause = castid})
-											elseif rollType == "test_power_roll" and request.info.director then
-												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
-											elseif request.info.castid ~= "" then
-												RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text, request.info.castid)
-											end
+											--History's notice must never stop the roll being marked complete below.
+											pcall(function()
+												if rollType == "table" and check:try_get("tableRef") ~= nil then
+													local castid = request.info.castid ~= "" and request.info.castid or nil
+													RollOnTableProperties.NotifyRolled(tok.properties, check.tableRef, rollInfo, {cause = castid, details = details})
+												elseif rollType == "test_power_roll" and request.info.director then
+													RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
+												elseif request.info.castid ~= "" then
+													RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text, request.info.castid)
+												end
+											end)
 											local req = dmhub.GetPlayerActionRequest(k)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then
 												req:BeginChanges()

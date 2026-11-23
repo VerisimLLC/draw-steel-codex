@@ -1430,3 +1430,15 @@ The shelf groups in the table are from before this move.
   the spot.
 - **Side note:** now reads "Hover over dotted text to see its GoblinScript."
 - **Class builder:** the "Recoveries, skills and kits are added on a level..." hint is removed.
+
+## 4z. Test picker: one condition entry, combining first (2026-11-23)
+
+These changes come from reviewer feedback, and apply in both editors:
+
+- **Conditions:** the "Check a condition" group no longer lists every condition. It has one
+  entry, such as "The target has a condition", and the block's own dropdown picks which
+  condition. Searching a condition's name ("slowed") still finds the entry. The class builder
+  has "You have a condition", "You don't have a condition" and, on roll options, "The target
+  has a condition".
+- **Combine tests** (All of these are true, Any of these is true, Not) now lead every test
+  picker.

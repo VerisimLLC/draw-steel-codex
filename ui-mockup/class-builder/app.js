@@ -534,17 +534,20 @@ function openTestPicker(anchor, parent, key, ctx) {
   const r = resWord(), set = make => { closeMenu(); change(() => { parent[key] = make(); }); };
   const cmp = (a, n) => () => ({ t: "cmp", a, op: ">=", n });
   const roll = ctx === "offer" || ctx === "tick";
+  const CONDS_WORDS = T.conditions.map(c => c[1]).join(" ");   // so searching "slowed" finds the condition tests
   // On a roll block the ability and its target come first: they are what roll options test most.
   const rollGroups = !roll ? [] : [
     ["The ability", "What the roll is for: damage, keywords, signature, a named ability...", ABILITY_FACTS.map(a => [a[1], () => ({ t: "ab", k: a[0] })])
       .concat([["It has the [Strike] keyword", () => ({ t: "abKw", kw: "Strike" })], ["The ability is [ ]", () => ({ t: "abName", name: "" }), "Pick it from a list."]])],
     ["The target", "The creature the ability is used against.", TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })])
-      .concat(T.conditions.map(c => ["The target is " + c[1].toLowerCase(), () => ({ t: "tgCond", c: c[1] })]))],
+      .concat([["The target has a condition", () => ({ t: "tgCond", c: "Prone" }), "", CONDS_WORDS]])],
   ].concat(ctx === "offer" ? [["The roll", "How many creatures the ability targets.", [["There are fewer than [2] targets", () => ({ t: "cmp", a: "Cast.Target Count", op: "<", n: "2" })]]]] : []);
-  const groups = rollGroups.concat([
+  // Combining tests (all of, any of, not) is how most tests start, so it leads the list.
+  const groups = [["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
+      ["Any of these is true", () => ({ t: "any", items: [null, null] }), "At least one test must pass."], ["Not [ ]", () => ({ t: "not", a: null }), "True when the test inside is false."]]]].concat(rollGroups).concat([
     ["Strained (Talent)", "Whether you are, or are not, Strained.", [["You are Strained", () => ({ t: "strained" })], ["You are not Strained", () => ({ t: "not", a: { t: "strained" } })]]],
-    ["Check a condition", "Prone, slowed, grabbed, and so on.", T.conditions.map(c => ["You are " + c[1].toLowerCase(), () => ({ t: "cond", c: c[1] })])
-      .concat([["You are not [ ]", () => ({ t: "not", a: { t: "cond", c: "Slowed" } }), "Any condition: change it after."]])],
+    ["Check a condition", "Prone, slowed, grabbed, and so on: pick which in the block.", [["You have a condition", () => ({ t: "cond", c: "Prone" }), "", CONDS_WORDS],
+      ["You don't have a condition", () => ({ t: "not", a: { t: "cond", c: "Prone" } }), "", CONDS_WORDS]]],
     ["Check health", "Winded, dying, or how much Stamina is left.", [["You are winded", () => ({ t: "winded" }), "Stamina is at half or less."],
       ["Your Stamina is at most [ ]", () => ({ t: "cmp", a: "Stamina", op: "<=", n: "10" })], ["You are dying", () => ({ t: "dying" })]]],
     ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],
@@ -552,8 +555,6 @@ function openTestPicker(anchor, parent, key, ctx) {
       ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."], ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")],
       ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")],
       ["The combat round is at least [ ]", cmp("Combat Round", "2")]]],
-    ["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
-      ["Any of these is true", () => ({ t: "any", items: [null, null] }), "At least one test must pass."], ["Not [ ]", () => ({ t: "not", a: null }), "True when the test inside is false."]]],
   ]);
   menuAt(anchor, m => {
     m.classList.add("picker");
@@ -567,7 +568,7 @@ function openTestPicker(anchor, parent, key, ctx) {
     const draw = () => {
       pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
       groups.forEach(([g, gd, opts]) => {
-        const vis = opts.filter(o => !q || (g + " " + o[0] + " " + (o[2] || "")).toLowerCase().includes(q)); if (!vis.length) return;
+        const vis = opts.filter(o => !q || (g + " " + o[0] + " " + (o[2] || "") + " " + (o[3] || "")).toLowerCase().includes(q)); if (!vis.length) return;
         const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
         const cap = !q && !expanded.has(g) && vis.length > 4;
         (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip", o[0])); if (o[2]) b.appendChild(E("span", "d", o[2]));

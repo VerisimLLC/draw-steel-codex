@@ -3286,8 +3286,9 @@ function pickerOptions(h) {
     ]]);
   }
   if (wantBool) {
-    groups.push(["Check a condition", "Prone, slowed, grabbed, and so on.",
-      CONDITIONS.map(c => item(Who + " " + is + " " + c.toLowerCase(), "", () => X("hasCond", { role: who, cond: c }), "condition", true))]);
+    // One entry: the block's own dropdown picks which condition.
+    groups.push(["Check a condition", "Prone, slowed, grabbed, and so on: pick which in the block.",
+      [item(Who + " " + (r0.label === "You" ? "have" : "has") + " a condition", "", () => X("hasCond", { role: who, cond: "Prone" }), "condition " + CONDITIONS.join(" ").toLowerCase(), true)]]);
     const pt = (mode, pv, roll) => () => X("potencyTest", { role: who, mode, ch: "Might", pv, n: "2", roll });
     groups.push(["Check potency", "As on a card: M < STRONG means the effect lands if the target's Might is below the potency. Change M after.", [
       item("M < strong", "The effect lands if the target's Might is below your strong potency. Includes power roll modifiers.", pt("affected", "strong", "yes"), "potency might fails passes affected", true),
@@ -3353,6 +3354,8 @@ function pickerOptions(h) {
     groups.unshift(["From " + pn, "What happened when " + pn + " used this ability.", items]);
   }
   if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
+  // Combining tests (all of, any of, not) is how most tests start, so it leads the list.
+  const ci = groups.findIndex(g => g[0] === "Combine tests"); if (ci > 0) groups.unshift(groups.splice(ci, 1)[0]);
   return groups.filter(g => g[2].length);
 }
 function openPicker(h, anchor) {

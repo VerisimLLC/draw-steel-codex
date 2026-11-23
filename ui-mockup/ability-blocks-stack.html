@@ -505,7 +505,7 @@ const DOCS = {
               { name: "Target Number", type: "number", desc: "1 for the first target, 2 for the second, and so on.", prose: "its target number" },
               { name: "Number of Targets", type: "number", desc: "How many creatures the ability is targeting.", prose: "the number of targets" }],
     examples: [["Enemy", "Only enemies of the caster."], ["not Enemy", "Only allies and yourself."], ["Target Number = 2", "Only the second target."]] },
-  requirement: { who: "Checked against you, the creature using the ability, before it is used.", defaultRole: "You", title: "Can be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
+  requirement: { who: "Checked against you, the creature using the ability, before it is used.", defaultRole: "You", title: "Can only be used when", output: "boolean", help: "Decides whether the ability can be used at all. Checked against you. If false, the reason text is shown to the player.",
     roles: [YOU], symbols: [], examples: [["Level >= 5", "Only at level 5 or higher."], ["Stamina <= Maximum Stamina / 2", "Only while you are winded."]] },
   stepIf: { who: "Checked once for each target. \u201cThe target\u201d is the creature being checked; \u201cyou\u201d is the creature using the ability.", defaultRole: "Target", title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
     subject: "Target", roles: [STEP_TARGET, YOU_CASTER], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
@@ -1102,7 +1102,7 @@ let paramSink = null;
 // Set while compiling: whether a move has marked a trail, and fields a step writes on the ability itself.
 let moveTrail = false, abilityPatch = {};
 let variationOf = null;
-let modesHost = null;   // the list whose ability gets the modeList: What happens, or a follow-up's own steps   // set while compiling one mode option's swapped-in ability (Ability Variations)
+let modesHost = null;   // the list whose ability gets the modeList: When it's used, or a follow-up's own steps   // set while compiling one mode option's swapped-in ability (Ability Variations)
 // Non-blocking notes for the side panel (things that save fine but need engine work to run right).
 let notes = [];
 const bad = (id, msg) => problems.push({ id, msg });
@@ -1294,7 +1294,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
       }
       case "modes": {
         if (variationOf) { const o = f.opts.find(x => x.id === variationOf); if (o) compileSteps(st.branches["o" + o.id] || [], filters, out, prose); break; }
-        if (list !== modesHost) { bad(st.id, "\u201cChoose one when used\u201d must be at the top level of What happens."); break; }
+        if (list !== modesHost) { bad(st.id, "\u201cChoose one when used\u201d must be at the top level of When it's used."); break; }
         if (abilityPatch.modeList) { bad(st.id, "An ability can only have one \u201cChoose one when used\u201d."); break; }
         const heroic = (RESOURCE_TABLE.find(r => r[1] === "Heroic Resource") || [""])[0];
         // How it is saved is decided here, not by the author: if any option targets differently it becomes
@@ -1697,7 +1697,7 @@ function compileTriggered() {
   compileSteps(ab.steps, [], behaviors, prose);
   if (ab.source && sigMode !== "off") { const o = inSavedOrder(behaviors); behaviors.length = 0; behaviors.push(...o); }
   const roll = rollSink; rollSink = null; currentStorage = "ta";
-  if (!ab.steps.length && !ab.source) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  if (!ab.steps.length && !ab.source) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under When it's used." });
   if (storage === "prt" && keywordsOf(ab).length) notes.push("Keywords on a power roll trigger are shown on its card but not saved yet in this prototype (the field to use needs checking in the engine).");
   const range = cHolder(ab.trig.range);
   let rec;
@@ -1737,7 +1737,7 @@ function compileAbility() {
   const reqs = ab.requirements.map(r => { const c = cHolder(r.h); if (c.empty) bad(r.h.id, "This requirement needs a test."); return { c, reason: r.reason }; });
   const behaviors = [], prose = [];
   compileSteps(ab.steps, [], behaviors, prose);
-  if (!ab.steps.length && !(ab.source && !(ab.source.behaviors || []).length)) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under What happens." });
+  if (!ab.steps.length && !(ab.source && !(ab.source.behaviors || []).length)) problems.push({ id: null, msg: "The ability does nothing yet. Add a step under When it's used." });
   const rec = {
     __typeName: "ActivatedAbility", name: ab.name, actionResourceId: "<" + ab.action + ">",
     keywords: Object.fromEntries(keywordsOf(ab).map(k => [k, true])),
@@ -1782,7 +1782,7 @@ function renderHolder(h, opts) {
   if (h.expr) {
     w.appendChild(renderX(h.expr, h));
   } else if (h.kind === "boolean") {
-    const b = E("button", "empty-test" + (opts.required ? " required" : ""), opts.placeholder || "+ add a test");
+    const b = E("button", "empty-test" + (opts.required ? " required" : ""), opts.placeholder || "+ test");
     b.type = "button"; b.addEventListener("click", ev => { ev.stopPropagation(); openPicker(h, b); });
     w.appendChild(b);
   } else {
@@ -1849,7 +1849,7 @@ function renderX(x, h) {
         if (f.items.length > 1) { const c = E("button", "clear", "×"); c.type = "button"; c.title = "Remove this test"; c.addEventListener("click", () => { f.items.splice(i, 1); refresh(); }); row.appendChild(c); }
         e.appendChild(row);
       });
-      const more = E("button", "add-btn", "+ another test"); more.type = "button"; more.style.padding = "2px 8px";
+      const more = E("button", "add-btn", "+ test"); more.type = "button"; more.style.padding = "2px 8px";
       more.addEventListener("click", () => { f.items.push(H("boolean", h.docs)); refresh(); });
       e.appendChild(more);
       break;
@@ -2018,7 +2018,7 @@ function renderStep(st, list, ctx, scope) {
       break;
     }
     case "useNew": add(lbl("Then use a new ability:")); add(inp(f, "name", "name", "follow-up name")); break;
-    case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ choose a test" })); gsHolder = st.slots.cond; break;
+    case "ifStep": add(lbl("Only if")); add(renderHolder(st.slots.cond, { required: true, placeholder: "+ test" })); gsHolder = st.slots.cond; break;
     case "invoke":
       if (f.kind === "standard" && f.who) add(sel(f, "who", [["targets", "The target"], ["caster", "You"]], null, "who"));
       if (f.kind === "standard") {
@@ -2071,7 +2071,7 @@ function renderStep(st, list, ctx, scope) {
       if (st.f.from) { tg.appendChild(lbl("squares of")); tg.appendChild(sel(st.f, "from", [["caster", "you"], ["first_target", "the target"]], null, "measured from")); } }
     inner.appendChild(tg);
     if (editingId !== st.id) wordBase = readify(tg, st.id, wordBase);
-    if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures where")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ add a test (optional)" })); inner.appendChild(tf); if (editingId !== st.id) readify(tf, st.id, wordBase); }
+    if (st.f.targeting !== "self") { const tf = E("div", "nest-row"); tf.appendChild(lbl("Only affects creatures who")); tf.appendChild(renderHolder(st.slots.tf, { placeholder: "+ test" })); inner.appendChild(tf); if (editingId !== st.id) readify(tf, st.id, wordBase); }
     listLabels[listId(st.branches.steps)] = "inside \u201c" + st.f.name + "\u201d";
     inner.appendChild(renderList(st.branches.steps, "main", st));
     m.appendChild(inner); e.appendChild(m);
@@ -2146,7 +2146,7 @@ function renderList(list, ctx, scope) {
   return s;
 }
 /* Where the next block goes: the last "+" used, or the inside of the wrapper just added, or the end
-   of What happens. Shown in gold, and named in the block shelf. */
+   of When it's used. Shown in gold, and named in the block shelf. */
 let insertAt = null;
 const listLabels = {};
 function currentInsert() {
@@ -2157,8 +2157,8 @@ function inserter(list, ctx, scope, idx, end) {
   const id = listId(list), cur = currentInsert(), here = cur.id === id && cur.idx === idx;
   const word = ctx === "tier" ? "+ add result" : "+ add step";
   const b = E("button", "ins" + (end ? " end add-btn" : "") + (here ? " here" : "")); b.type = "button"; b.dataset.ins = id + ":" + idx;
-  if (end) { b.textContent = word; if (here) b.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
-  else { b.appendChild(E("span", "ins-plus", "+")); if (here) b.appendChild(E("span", null, "next block goes here")); b.setAttribute("aria-label", "Insert a step here"); }
+  if (end) { b.textContent = word; }
+  else { b.appendChild(E("span", "ins-plus", "+")); b.setAttribute("aria-label", "Insert a step here"); }
   // A "+" only moves the gold marker; the shelf then shows what fits there. The cursor goes to the
   // shelf search, so typing a few letters and Enter still adds a block without the mouse.
   b.addEventListener("click", ev => {
@@ -2172,7 +2172,7 @@ function markInsertion() {
   const cur = currentInsert();
   main.querySelectorAll(".ins.here").forEach(x => { x.classList.remove("here"); x.querySelectorAll(".here-tag").forEach(t => t.remove()); });
   const el = main.querySelector('[data-ins="' + cur.id + ":" + cur.idx + '"]');
-  if (el) { el.classList.add("here"); if (el.classList.contains("end")) el.appendChild(E("span", "here-tag", "\u2190 next block goes here")); }
+  if (el) { el.classList.add("here");  }
   renderPalette();
 }
 const listIds = new WeakMap(); let listSeq = 1; const listsById = {};
@@ -2199,7 +2199,7 @@ function distancePlain(o = ab) {
   const sq = h => { const v = n(h); return v + (v === "1" ? " square" : " squares"); };
   switch (o.distance) {
     case "Self": return "Only you.";
-    case "Melee": return "A creature within " + sq(o.range) + " of you that you can reach.";
+    case "Melee": return "A creature within " + sq(o.range) + " of you.";
     case "Ranged": return "A creature up to " + sq(o.range) + " away.";
     case "Melee or ranged": return "Either in melee within " + sq(o.meleeRange) + ", or up to " + sq(o.range) + " away.";
     case "Burst": return "Everything within " + sq(o.areaSize) + " of you.";
@@ -2411,7 +2411,7 @@ function renderTriggeredHeader() {
   row.push(sel(t, "event", eventOptions(), null, "event"));
   const b = headBlock([row, [chip]], "hdr-trig");
   main.appendChild(b);
-  const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ add a test (optional)" })]], "hdr-cond");
+  const c = headBlock([[lbl("Only triggers if"), renderHolder(ab.trigCond, { placeholder: "+ test" })]], "hdr-cond");
   c.style.marginTop = "3px"; c.appendChild(gsLine(ab.trigCond)); main.appendChild(c);
   main.appendChild(section("Who its steps affect"));
   // "The attacker" only exists for events with one (TriggeredAbility targetType "attacker").
@@ -2421,7 +2421,7 @@ function renderTriggeredHeader() {
   if (document.getElementById("showGs").checked && compiledCache) {
     main.appendChild(E("span", "gs-line", "Saved as: " + (compiledCache.storage === "prt" ? "Power Roll Trigger (CharacterModifier \"powertabletrigger\")" : "Triggered Ability (CharacterModifier \"trigger\")")));
   }
-  main.appendChild(section("What happens"));
+  main.appendChild(section("When it's used"));
   main.appendChild(renderList(ab.steps, "main"));
 }
 /* The simple editor's scope line. It never refuses an ability (unmodelled parts open as Advanced steps or
@@ -2480,21 +2480,21 @@ function renderMain() {
   t.querySelector(".bar").appendChild(gsWrap([ab.range, ab.areaSize, ab.numTargets]));
   main.appendChild(t);
   const plain = E("p", "note dist-plain", distancePlain()); plain.style.margin = "3px 0 0 10px"; main.appendChild(plain);
-  const tf = headBlock([[lbl("Only affects creatures where"), renderHolder(ab.targetFilter, { placeholder: "+ add a test (optional)" })]], "hdr-tf");
+  const tf = headBlock([[lbl("Only affects creatures who"), renderHolder(ab.targetFilter, { placeholder: "+ test" })]], "hdr-tf");
   tf.style.marginTop = "3px"; tf.appendChild(gsLine(ab.targetFilter)); main.appendChild(tf);
 
-  main.appendChild(section("Can be used when", ab.requirements.length ? "" : "optional"));
+  main.appendChild(section("Can only be used when", ab.requirements.length ? "" : "optional"));
   ab.requirements.forEach((r, i) => {
     const reason = inp(r, "reason", "name", "reason shown to the player"); reason.placeholder = "reason shown to the player";
     const del = E("button", "menu-btn", "×"); del.type = "button"; del.title = "Remove requirement"; del.addEventListener("click", () => { ab.requirements.splice(i, 1); refresh(); });
-    const b = headBlock([[lbl("Only if"), renderHolder(r.h, { required: true, placeholder: "+ choose a test" }), del], [lbl("otherwise say"), reason]], "hdr-req-" + i);
+    const b = headBlock([[lbl("Only if"), renderHolder(r.h, { required: true, placeholder: "+ test" }), del], [lbl("otherwise say"), reason]], "hdr-req-" + i);
     b.style.marginTop = i ? "3px" : "0"; b.appendChild(gsLine(r.h)); main.appendChild(b);
   });
   const addReq = E("button", "add-btn", "+ add a requirement"); addReq.type = "button"; addReq.style.marginTop = ab.requirements.length ? "4px" : "0";
   addReq.addEventListener("click", () => { const h = H("boolean", "requirement"); ab.requirements.push({ h, reason: "" }); refresh(); const el = main.querySelector('[data-holder="' + h.id + '"] button'); if (el) openPicker(h, el); });
   main.appendChild(addReq);
 
-  main.appendChild(section("What happens"));
+  main.appendChild(section("When it's used"));
   if (!ab.steps.length) main.appendChild(starters());
   main.appendChild(renderList(ab.steps, "main"));
 }
@@ -3138,7 +3138,7 @@ function renderSide(c) {
     // Wording with nothing generated under it (its blocks all sit inside tiers) still prints on the card.
     ["effectBefore", "effect"].forEach(k => { if ((ab.overrides || {})[k] && !seq.some(x => x.key === k)) seq.push({ type: "para", key: k, label: "Effect", html: "" }); });
     // The book doesn't print filters or requirements on the card; they are listed under it instead.
-    if (!c.tf.empty) cardNotes.push("Only affects creatures where " + c.tf.prose + ".");
+    if (!c.tf.empty) cardNotes.push("Only affects a creature if " + c.tf.prose + ".");
     c.reqs.forEach(r => { if (!r.c.empty) cardNotes.push("Can only be used if " + r.c.prose + (r.reason ? " (\u201c" + r.reason + "\u201d)" : "") + "."); });
   }
   const genParas = seq.filter(x => x.type === "para").map(x => ({ key: x.key, label: x.label, text: plainText(x.html) }));
@@ -3177,7 +3177,7 @@ function renderSide(c) {
     det.appendChild(E("pre", null, JSON.stringify(c.display ? { trigger: c.rec, display: c.display } : c.rec, null, 2))); side.appendChild(det);
     return;
   }
-  side.appendChild(E("p", "note", "Dotted text comes from a formula: hover it to see the GoblinScript."));
+  side.appendChild(E("p", "note", "Hover over dotted text to see its GoblinScript."));
   const det = E("details", "saved"); det.appendChild(E("summary", null, "Saved data (what the engine stores)"));
   const json = JSON.stringify(c.rec, null, 2);
   const copy = E("button", "btn", "Copy"); copy.type = "button"; copy.style.margin = "6px 0";
@@ -3724,7 +3724,7 @@ function shelfBlock(t, act, faded) {
 function renderPalette() {
   const pal = document.getElementById("palette"); pal.innerHTML = "";
   const act = activeList();
-  const where = listLabels[act.id] || "What happens";
+  const where = listLabels[act.id] || "When it's used";
   // Search, pinned at the top. Enter adds the first result at the gold marker; Esc clears; "/" jumps here.
   const search = E("input", "pal-search"); search.placeholder = "Search blocks  ( / )"; search.value = shelfQuery; search.setAttribute("aria-label", "Search blocks");
   search.addEventListener("input", () => { shelfQuery = search.value; shelfHl = 0; renderPalette(); const n = document.querySelector(".pal-search"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } });

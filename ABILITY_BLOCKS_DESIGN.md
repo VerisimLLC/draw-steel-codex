@@ -1414,3 +1414,19 @@ The shelf groups in the table are from before this move.
 | ctrl2 | Recast Ability | Lets the user pick an ability that any creature used since the round began (limited by a filter) and use a copy of it. Used by the Troubadour's Encore and the Reaver's Death Strike. | Turns the ability into a picker when used. Only abilities recorded in this round's chat log are offered. |
 | ctrl2 | Routine Control | Opens a picker where the Troubadour chooses which routines are active, up to their routine limit. The oldest selection is dropped when they go over. | Troubadour-specific. Marked as trigger-only. |
 | ctrl2 | Steal Ability | Shows the target's abilities, lets the user pick one, and gives the user a copy for the length of an attached effect. An option can use the target's characteristic bonuses in the copy. Used by the Troubadour's College of the Harlequin Mask and the Absorption treasure. | Needs an effect set up, or nothing happens. |
+
+## 4y. Wording pass from review (2026-11-23)
+
+- **Melee targets:** "A creature within 1 square of you that you can reach" now reads "A creature
+  within 1 square of you".
+- **Target filter:** the label is "Only affects creatures who [+ test]". The card note reads "Only
+  affects a creature if ...".
+- **Empty tests:** every empty test slot now reads just "+ test". This covers the target filter,
+  "Only if", "Only triggers if", a follow-up's filter and new items in an all/any list. The class
+  builder's Logic block reads the same way.
+- **Section names:** "Can be used when" is now **Can only be used when**, and "What happens" is
+  now **When it's used**. The messages that name these sections changed to match.
+- **Insertion point:** the "next block goes here" label is gone; the gold outline still marks
+  the spot.
+- **Side note:** now reads "Hover over dotted text to see its GoblinScript."
+- **Class builder:** the "Recoveries, skills and kits are added on a level..." hint is removed.

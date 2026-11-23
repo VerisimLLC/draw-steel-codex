@@ -457,11 +457,11 @@ function testProse(x, neg) {
 }
 /* True when the test, or any test inside it, still needs picking. */
 const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing));
-/* Draws parent[key] (a test, or an empty "+ choose a test" slot). parent may be an array (an all/any list). */
+/* Draws parent[key] (a test, or an empty "+ test" slot). parent may be an array (an all/any list). */
 function renderTest(parent, key, required) {
   const x = parent[key];
   if (!x) {
-    const b = fk(E("button", "empty-test" + (required ? " required" : ""), "+ choose a test"), "test:" + objKey(parent) + ":" + key); b.type = "button";
+    const b = fk(E("button", "empty-test" + (required ? " required" : ""), "+ test"), "test:" + objKey(parent) + ":" + key); b.type = "button";
     b.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(b, parent, key); });
     return b;
   }
@@ -482,7 +482,7 @@ function renderTest(parent, key, required) {
     case "all": case "any": {
       const head = E("div", "listhead", x.t === "all" ? "All of these are true" : "Any of these is true"); head.appendChild(clear()); add(head);
       x.items.forEach((y, i) => { const it = E("div", "item"); it.appendChild(E("span", "bullet", x.t === "all" ? "and" : "or")); it.appendChild(renderTest(x.items, i)); e.appendChild(it); });
-      const more = fk(E("button", "addtest", "+ another test"), "testmore:" + objKey(x)); more.type = "button";
+      const more = fk(E("button", "addtest", "+ test"), "testmore:" + objKey(x)); more.type = "button";
       more.addEventListener("click", ev => { ev.stopPropagation(); change(() => x.items.push(null)); }); add(more);
       return e;
     }
@@ -1060,7 +1060,6 @@ function renderBoard() {
     lbl("of 2; the other scores use one of these arrays:"), arraysTok());
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   board.appendChild(b);
-  board.appendChild(E("p", "hint", "Recoveries, skills and kits are added on a level, like any feature: drag \u201cRecoveries or a resource\u201d, \u201cHave or choose skills\u201d or \u201cKit\u201d from the shelf."));
 
   // Heroic resource
   board.appendChild(E("h3", "sec", "Heroic resource"));

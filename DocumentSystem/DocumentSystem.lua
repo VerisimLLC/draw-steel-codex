@@ -16706,6 +16706,27 @@ end
 --Journal / Chat / Action Log in the bottom-left corner while it takes
 --the hud over) the button is a provider widget nested inside the rail
 --wrapper with no slot, so that case searches the wrapper's tree.
+--- Gives a panel a rail button directly below another panel's, moving the buttons
+--- under it down a slot. Does nothing if the panel already has a place on the rails,
+--- or the other panel has no button. Keys are lowercase.
+--- @param key string
+--- @param belowKey string
+function PanelDocument.RailPlaceBelow(key, belowKey)
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    local side, slot = RailFindButton(belowKey)
+    if layout[key] ~= nil or side == nil then
+        return
+    end
+    for _, entry in pairs(layout) do
+        if type(entry) == "table" and (entry.side or "left") == side and entry.slot ~= nil and entry.slot > slot then
+            entry.slot = entry.slot + 1
+        end
+    end
+    layout[key] = { side = side, slot = slot + 1 }
+    dmhub.SetSettingValue("iconraillayout", layout)
+    RebuildIconRails()
+end
+
 function PanelDocument.FindChatRailButton()
     local function railSideOf(key)
         return cond(string.sub(key, 1, 4) == "left", "left", "right")

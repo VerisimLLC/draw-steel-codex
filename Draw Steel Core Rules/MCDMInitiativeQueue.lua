@@ -29,6 +29,7 @@ end
 --- @field new fun(o?: table): InitiativeQueue
 --- @field priorityids? table<string, boolean> Initiative ids that must act before anyone else this round; cleared each round.
 --- @field _tmp_prestartInitiativeId? string Initiative id whose prestartturn trigger is firing; set only for that window.
+--- @field turnNumber integer Turns started in this combat so far. turn starts again at 1 each round; this does not.
 InitiativeQueue = RegisterGameType("InitiativeQueue")
 
 --- @class InitiativeQueueEntry: GameType
@@ -103,6 +104,8 @@ dmhub.TokensAreFriendly = function(a,b)
 
 	return playera == playerb
 end
+
+InitiativeQueue.turnNumber = 0
 
 --just some default InitiativeQueueEntry values.
 InitiativeQueueEntry.round = 0
@@ -380,6 +383,7 @@ function InitiativeQueue:SelectTurn(initiativeid)
 
 	entry.turn = self.turn
 	self.turn = self.turn + 1
+	self.turnNumber = self.turnNumber + 1
 	entry.startTurnTimestamp = ServerTimestamp()
 
 	self.currentTurn = initiativeid
@@ -415,6 +419,7 @@ function InitiativeQueue:CancelTurn(initiativeid)
 	end
 
 	self.turn = self.turn-1
+	self.turnNumber = self.turnNumber - 1
 	self.currentTurn = false
 end
 

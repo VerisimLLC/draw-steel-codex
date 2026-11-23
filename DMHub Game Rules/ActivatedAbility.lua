@@ -3143,6 +3143,36 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
     end
 end
 
+--Observers of every cast, by id, so a reload of the observing mod replaces its
+--observer instead of adding a second one. Each is {began = fn, finished = fn}.
+local g_castObservers = {}
+
+--- Registers functions told when each ability cast begins and finishes, for code that
+--- keeps a record of play. began(ability, casterToken, targets, options) runs once the
+--- cast has its castid, before anything is paid or resolved. finished(ability,
+--- casterToken, options) runs when it ends: options.abort means it was cancelled and
+--- options.atexit that it stopped with an error. Neither may yield. Either may fail:
+--- a broken observer is logged and the cast carries on.
+--- @param id string Unique name for this observer.
+--- @param observer {began: nil|function, finished: nil|function}
+function ActivatedAbility.RegisterCastObserver(id, observer)
+	g_castObservers[id] = observer
+end
+
+--- Runs every observer's began or finished function. Used by ActivatedAbility.Cast and FinishCast.
+--- @param moment "began"|"finished"
+function ActivatedAbility.NotifyCastObservers(moment, ...)
+	for id,observer in pairs(g_castObservers) do
+		local fn = observer[moment]
+		if fn ~= nil then
+			local ok, err = pcall(fn, ...)
+			if not ok then
+				print("Cast:: observer failed:", id, err)
+			end
+		end
+	end
+end
+
 function ActivatedAbility:FinishCast(casterToken, options)
     if options.executedFinish then
         return
@@ -3173,6 +3203,8 @@ function ActivatedAbility:FinishCast(casterToken, options)
             chat.UpdateCustom(options.chatMessageKey, options.chatMessage)
         end
 	end
+
+	ActivatedAbility.NotifyCastObservers("finished", self, casterToken, options)
 
 	if self:has_key("OnFinishCast") then
 		self.OnFinishCast(self, options)
@@ -3491,6 +3523,8 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
+
+    ActivatedAbility.NotifyCastObservers("began", self, casterToken, targets, options)
 
     local targetTokenIds = {}
     for i,target in ipairs(targets) do

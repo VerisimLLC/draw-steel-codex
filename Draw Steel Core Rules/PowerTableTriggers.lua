@@ -294,6 +294,9 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
         if self.type == "trigger" then
             selfClone.powerRollModifier.resourceCost = g_triggerResourceId
+            --The roll charges this modifier's Drama (resourceCostType) and would
+            --otherwise skip resourceCost, so the triggered action never got spent.
+            selfClone.powerRollModifier.alsoConsumeResourceCost = true
         end
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then

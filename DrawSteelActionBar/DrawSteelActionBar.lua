@@ -10382,6 +10382,169 @@ local ClearCastingTriggers = function()
     end
 
     m_castingTriggers = nil
+    DrawSteelActionBar._castingTriggerCards.Refresh()
+end
+
+--Casting-trigger cards: a prompt this cast raised on ANOTHER creature the local
+--user controls (Harmonize on a Troubadour while you cast with a second hero) is
+--offered in the targeting controls. Otherwise it sits in that creature's trigger
+--panel, which nobody can open mid-cast because selection is locked.
+--Kept on a table, not in locals: this file's main chunk is at Lua's 200-local limit.
+--- @class ActionBarCastingTriggerCards
+--- @field panel nil|Panel The row of cards in the ability controller.
+DrawSteelActionBar._castingTriggerCards = { panel = nil }
+
+--- True if a casting trigger owned by this token should get a card in the local
+--- user's cast controls. A Director does not get cards for heroes another player
+--- owns: that player answers in their own trigger panel.
+--- @param owner CharacterToken
+--- @return boolean
+function DrawSteelActionBar._castingTriggerCards.ShowsFor(owner)
+    if not owner.canControlAsUser then
+        return false
+    end
+    if dmhub.isDM and owner.playerControlled and owner.ownerId ~= dmhub.userid then
+        return false
+    end
+    return true
+end
+
+--- Builds the card for one pending (or just used) casting trigger.
+--- @param owner CharacterToken The creature the trigger belongs to.
+--- @param trigger ActiveTrigger The live prompt on that creature.
+--- @return Panel
+function DrawSteelActionBar._castingTriggerCards.CreateCard(owner, trigger)
+    local name = trigger:GetText() or ""
+    local cost = trigger.heroicResourceCost
+    local costText = ""
+    if cost ~= nil and cost ~= 0 then
+        costText = string.format(" (%d %s)", cost, owner.properties:GetHeroicResourceName())
+    elseif (trigger.epicResourceCost or 0) ~= 0 then
+        costText = string.format(" (%d)", trigger.epicResourceCost)
+    end
+
+    local used = trigger.triggered and true or false
+    local triggerid = trigger.id
+    local ownerid = owner.charid
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        valign = "center",
+        hmargin = 4,
+        gui.CreateTokenImage(owner, {
+            width = 32,
+            height = 32,
+            halign = "left",
+            valign = "center",
+            rmargin = 4,
+        }),
+        gui.Button{
+            classes = {cond(used, "selected")},
+            width = "auto",
+            minWidth = 140,
+            hpad = 12,
+            borderBox = true,
+            text = cond(used, string.format("%s used", name), name .. costText),
+            --The owner's full triggered-action card (cost, distance, trigger,
+            --effect), as the character sheet shows it.
+            hover = function(element)
+                local tok = dmhub.GetTokenById(ownerid)
+                local action = nil
+                if tok ~= nil and tok.valid then
+                    action = tok.properties:GetTriggeredActionInfo(name)
+                end
+                if action ~= nil then
+                    element.tooltip = gui.TooltipFrame(action:Render{token = tok}, {width = 500, halign = "center", valign = "top", pad = 8})
+                else
+                    gui.Tooltip(string.format("%s's triggered action.", owner.name or name))(element)
+                end
+            end,
+            press = function(element)
+                if used then
+                    return
+                end
+                local tok = dmhub.GetTokenById(ownerid)
+                if tok == nil or not tok.valid then
+                    return
+                end
+                --The same write the trigger panel's Activate makes: the cast's own
+                --character watcher (refreshCharacters) then applies the trigger, and
+                --the roll charges its owner when it completes.
+                tok:ModifyProperties{
+                    undoable = false,
+                    description = "Trigger",
+                    execute = function()
+                        local live = (tok.properties:GetAvailableTriggers() or {})[triggerid]
+                        if live == nil or live.triggered then
+                            return
+                        end
+                        live.triggered = true
+                        live.dismissed = live:DismissOnTrigger()
+                        tok.properties:DispatchAvailableTrigger(live)
+                    end,
+                }
+            end,
+        },
+    }
+end
+
+--- Rebuilds the cards from the cast's casting triggers. Cheap to call often: it
+--- only rebuilds when the set of prompts or their used state changes.
+function DrawSteelActionBar._castingTriggerCards.Refresh()
+    local cards = DrawSteelActionBar._castingTriggerCards
+    local panel = cards.panel
+    if panel == nil or not panel.valid then
+        return
+    end
+
+    local entries = {}
+    local signature = {}
+    if m_castingTriggers ~= nil and g_token ~= nil and g_token.valid then
+        for _, castingTrigger in ipairs(m_castingTriggers) do
+            local owner = dmhub.GetTokenById(castingTrigger.charid)
+            if owner ~= nil and owner.valid and owner.charid ~= g_token.charid and cards.ShowsFor(owner) then
+                local live = (owner.properties:GetAvailableTriggers() or {})[castingTrigger.id]
+                if live ~= nil and (live.triggered or not live.dismissed) then
+                    entries[#entries+1] = {owner = owner, trigger = live}
+                    signature[#signature+1] = string.format("%s:%s", live.id, tostring(live.triggered))
+                end
+            end
+        end
+    end
+
+    local key = table.concat(signature, ",")
+    if panel.data.key == key then
+        return
+    end
+    panel.data.key = key
+
+    local children = {}
+    for _, entry in ipairs(entries) do
+        children[#children+1] = cards.CreateCard(entry.owner, entry.trigger)
+    end
+    panel.children = children
+    panel:SetClass("collapsed", #children == 0)
+end
+
+--- The ability controller's row of casting-trigger cards.
+--- @return Panel
+function DrawSteelActionBar._castingTriggerCards.CreatePanel()
+    local panel = gui.Panel{
+        classes = {"collapsed"},
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        vmargin = 4,
+        data = {
+            key = "",
+        },
+    }
+    DrawSteelActionBar._castingTriggerCards.panel = panel
+    return panel
 end
 
 
@@ -13036,6 +13199,8 @@ CreateAbilityController = function()
 
         g_castControlsPanel,
 
+        DrawSteelActionBar._castingTriggerCards.CreatePanel(),
+
         gui.Panel {
             width = "auto",
             height = "auto",
@@ -13413,6 +13578,7 @@ CreateAbilityController = function()
                     m_castingTriggersOwnerPanel = element
                     m_castingTriggersCache = {}
                     element.monitorGame = "/characters"
+                    DrawSteelActionBar._castingTriggerCards.Refresh()
                 end
             end
         end,
@@ -13450,6 +13616,7 @@ CreateAbilityController = function()
                 end
             end
             m_castingTriggers = keptTriggers
+            DrawSteelActionBar._castingTriggerCards.Refresh()
         end,
         clearCastingTriggers = function(element)
             element.monitorGame = nil

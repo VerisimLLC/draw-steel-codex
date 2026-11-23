@@ -1,6 +1,6 @@
 # Block editors across the codex: framework design brief
 
-Status: **DRAFT.** D1-D10 and Q1 decided (see the ledger). Still open: the later rounds in section 6 (states, copy, accessibility, performance, regression surface). This is the single source of truth for taking the block
+Status: **DRAFT.** D1-D10 and Q1 decided (see the ledger). States decided too. Still open: copy, accessibility, performance and regression surface (section 6). This is the single source of truth for taking the block
 design (the ability editor and class builder prototypes in `ui-mockup/`) to every content
 editor, and for how a block is registered. Decisions are recorded in the ledger at the end as
 they are made.
@@ -95,7 +95,7 @@ How much each editor would gain:
 | D1 | **Where a block is declared** | (a) a `block = {...}` key on the type's existing registration; (b) a separate block table keyed by id, like today's picker metadata; (c) data files (JSON/YAML) read by Lua and the prototypes | **(a)**. One place per type, found where the behaviour is written, and it survives re-registration. (b) repeats today's split. (c) cannot hold prose and read-back functions. |
 | D2 | **How slots bind to the record** | (a) declarative: each slot names a `field`, so saving and reading back come free; (b) each block writes `compile`/`parse` functions; (c) (a) by default, with `read`/`write` overrides | **(c)**. Most types map field-for-field. The rest (power modifier's activation, nested choices) need code, and only there. |
 | D3 | **Prose** | (a) the sentence template is the prose, with slot words filled in; (b) a `prose(record, words)` function per block; (c) (a) by default, (b) when the template can't say it | **(c)**. Formula slots use the existing GoblinScript-to-English renderer. Verb agreement comes from `{take|takes}` in the template, so one sentence works for "you" and "the target". The 41 `behaviourProse` templates move onto their blocks. |
-| D4 | **Fields no slot claims** | (a) drop them; (b) keep them untouched and show "More settings (N)", which opens today's form; (c) refuse to show the block | **(b)**. Round-trip safety, plus the old editor as the backup you asked for. |
+| D4 | **Fields no slot claims** | (a) drop them; (b) keep them untouched and show "Advanced editor (N)", which opens today's form; (c) refuse to show the block | **(b)**. Round-trip safety, plus the old editor as the backup you asked for. |
 | D5 | **Types with no block yet** | (a) hide them; (b) a grey generic block named from the registration that opens its form | **(b)**. This is what the ability editor does now. Adding `block` later upgrades the type everywhere. |
 | D6 | **Editors as hosts** | (a) each editor builds its own page around a shared stack widget; (b) `BlockEditor.RegisterHost{record, header, stacks}` declares fixed rows and stacks, and the framework builds the page | **(b)** for the feature-list editors (A, B). Bespoke editors (items, monsters) mount the shared stack widget inside their own form. |
 | D7 | **Point of view** | per block; or per host ("you" for features, "the creature" for effects, "the target" in abilities) | **Per host.** The same block reads right in every editor. |
@@ -170,7 +170,7 @@ BlockEditor.RegisterHost{
 | Blocks | a list of child blocks, for wrappers and choice options |
 
 **Read-back is free for declared fields.** Opening a saved record fills each slot from its
-`field`. Anything unclaimed is shown as "More settings (N)" and saved back unchanged (D4).
+`field`. Anything unclaimed is shown as "Advanced editor (N)" and saved back unchanged (D4).
 
 ## 4a. Slot mapping, worked through (D2)
 
@@ -250,7 +250,7 @@ end,
 ### Rules every level follows
 
 1. **Unclaimed fields are kept.** Any field no slot (or `read`) claims is copied through
-   unchanged on save and counted in "More settings (N)", which opens today's form.
+   unchanged on save and counted in "Advanced editor (N)", which opens today's form.
 2. **`read` may refuse.** If `read` returns `nil` (as above, for after-the-roll options), the
    record opens as the grey generic block with today's form. Nothing is lost or guessed.
 3. **Round trip is tested, not trusted.** Saving a block you didn't touch must give back the
@@ -367,8 +367,7 @@ feature's text.
   no** (see the ledger). Each block reads as its own sentence. An author who wants the book's
   combined sentence writes it in the feature's text, which replaces the generated wording.
 
-- **States:** an empty stack, a record that fails to read back, two authors editing at
-  once.
+- ~~**States**~~: decided (see the ledger and section 6a).
 - **Copy:** the label, description and sentence for each of the 161 types. A copy manifest
   will be generated from the registry.
 - **Accessibility:**
@@ -380,6 +379,19 @@ feature's text.
 - **Regression surface:** list every capability of today's forms and where it lands. "More
   settings" is the catch-all.
 
+## 6a. States (decided)
+
+| State | What the author sees | Copy |
+|---|---|---|
+| Empty stack | Only the add button; no instructions or hint text | "+ add a feature" (block stacks inside a feature: "+ add a block") |
+| A record that can't be read back | A grey block holding the record, with a button to the old form; no reason given | "Make changes in the advanced editor" |
+| Two people saved the same record | Last save wins, as today; the second saver is told and chooses | "Someone else saved this while you were editing." Buttons "Reload theirs" / "Keep mine" |
+| A block whose type no longer exists | A grey block that keeps its saved data; flagged in Status | "Unknown block ([id])" |
+
+The empty stack still counts in Status as "doesn't do anything yet", as the class builder does
+today. "Advanced editor" is the name for today's form everywhere (it replaces "More settings
+(N)" from D4, which now reads "Advanced editor (N)").
+
 ## Decision ledger
 
 | Date | Decision | Why |
@@ -387,7 +399,7 @@ feature's text.
 | 2026-11-23 | **D1: a block is declared with a `block = {...}` key on the type's existing registration** (`ActivatedAbility.RegisterType`, `CharacterModifier.RegisterType`/`TypeInfo`, `CharacterChoice.RegisterChoice`) | Use what already exists: one place per type, beside the code that runs it. Separate tables would repeat today's split metadata. |
 | 2026-11-23 | **D2: slots name the field they save to.** A slot can convert with a `form` or `get`/`set`; a block writes `read`/`write` only when slots and fields don't line up. | Most types map field-for-field and get saving and read-back for free. Code is needed only for the hard cases (roll options). |
 | 2026-11-23 | **D3: the sentence is the prose.** An optional `prose` template covers different book wording; a `prose(record, w)` function covers value-dependent wording. | One declaration gives both the block and the card. The `behaviourProse` templates and `autoDescribe` move onto their blocks. |
-| 2026-11-23 | **D4: unclaimed fields are kept unchanged** and shown as "More settings (N)", which opens today's form. `read` may refuse a record it can't show. | Round-trip safety. The old editor stays as the backup. |
+| 2026-11-23 | **D4: unclaimed fields are kept unchanged** and shown as "Advanced editor (N)", which opens today's form. `read` may refuse a record it can't show. | Round-trip safety. The old editor stays as the backup. |
 | 2026-11-23 | **D5: a type with no block appears as a grey generic block** named from its registration, opening its current form. | Nothing disappears. Adding `block` later upgrades it everywhere. |
 | 2026-11-23 | **D6: editors register a host** (`BlockEditor.RegisterHost{record, header, stacks}`). Bespoke editors (items, monsters) embed the shared stack in their own form. | One framework builds the feature-list editors; no per-editor block code. |
 | 2026-11-23 | **D7: point of view is set per host** ("you" in features, "the creature" in effects, "the target" in abilities). | The same block reads correctly in every editor. |
@@ -395,3 +407,4 @@ feature's text.
 | 2026-11-23 | **D9: a script exports the Lua registry to JSON for the HTML prototypes.** | The prototypes test the real registrations, not hand copies. |
 | 2026-11-23 | **D10: phasing.** (1) Registry plus the one-list editors, then subclasses and classes; (2) one-feature editors; (3) ability steps; (4) the shared stack in kits, treasures and monsters. | Biggest reach first, through the shared pieces A and B. |
 | 2026-11-23 | **Q1: similar statements are not merged.** Each block is its own sentence; an author writes a combined sentence in the feature text. | Keeps prose predictable, with no hidden rewriting. The author stays in control. |
+| 2026-11-23 | **States** (section 6a): an empty stack shows only "+ add a feature"; a record blocks can't show says "Make changes in the advanced editor"; on a conflicting save, last save wins with "Reload theirs / Keep mine"; a removed type shows "Unknown block (id)" and keeps its data. | No directions or justifications in the UI. The author gets the action, not an explanation. Nothing is silently changed or lost. |

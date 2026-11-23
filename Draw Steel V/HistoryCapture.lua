@@ -944,8 +944,6 @@ local function CastFinished(ability, casterToken, options)
         end
     end
     History.Write(entry)
-    --the user's own card folds into the row it became.
-    History.FoldIn(entry)
 end
 
 --The row a result belongs to: the running cast's own, else one it shares through its

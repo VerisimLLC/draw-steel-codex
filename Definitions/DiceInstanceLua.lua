@@ -39,6 +39,10 @@
 --- @field billboardFalloff number Falloff exponent of this die's billboard glow gradient (higher = tighter core). Gradient mode only. Sticky.
 --- @field billboardIntensity number HDR brightness multiplier of this die's billboard glow (higher = glows brighter). Sticky.
 --- @field billboardRotation number Rotation of this die's billboard glow in degrees about the view axis (useful to spin an image as the die rolls). Sticky.
+--- @field trailRate number Multiplier on how many trail sprites this die emits (1 = the set's authored rate, 0 = none; sprites already out live on). Covers both sprite layers and the haze. Needs the set's Trail Sprites turned on. Sticky.
+--- @field trailSize number Multiplier on the size of the trail sprites this die emits from now on (1 = the set's authored size). Needs the set's Trail Sprites turned on. Sticky.
+--- @field trailFrom {x: number, y: number, z: number}|nil Where this die's trail sprites are born: a direction in the die's own space (a table {x=, y=, z=}; it turns with the die). When set, sprites are born on the die's surface within trailFromAngle of that direction, on the side facing the viewer, and drawn in front of the die, instead of round its centre and behind it. The set's Spread is not used then. nil (or a zero vector) goes back to the set's behaviour. Needs the set's Trail Sprites turned on. Sticky.
+--- @field trailFromAngle number How far round the die from trailFrom its trail sprites can be born, in degrees: 0 = one spot, 90 = that whole half of the die, 180 = anywhere. Default 90. Sticky.
 --- @field material DiceMaterialHandleLua Handle for reading/setting any shader property on the die's base material. Sticky writes.
 --- @field surface DiceMaterialHandleLua Handle for reading/setting any shader property on the die's surface-override material (the MatCap/PBR overlay). Has no visible effect when the set has no surface override.
 DiceInstanceLua = {}

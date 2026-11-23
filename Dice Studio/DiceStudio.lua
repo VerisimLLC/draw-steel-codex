@@ -2466,7 +2466,7 @@ do
 		{ name = "_CrustBump", type = "Range", min = 0, max = 2, default = 1, description = "Rock Bumpiness" },
 		{ name = "_CrackWidth", type = "Range", min = 0, max = 1, default = 0.5, description = "Crack Width" },
 		{ name = "_FireDepth", type = "Range", min = 0, max = 0.3, default = 0.08, description = "Crack Depth" },
-		{ name = "_EmberGlow", type = "Range", min = 0, max = 2, default = 0.6, description = "Ember Glow" },
+		{ name = "_EmberGlow", type = "Range", min = 0, max = 2, default = 1, description = "Ember Glow" },
 		{ name = "_FirePulse", type = "Range", min = 0, max = 1, default = 0.4, description = "Heat Pulse" },
 
 		-- The ice side: glacial ice.
@@ -5657,6 +5657,7 @@ end
 			{ id = "spark", text = "Spark" },
 			{ id = "glint", text = "Glint" },
 			{ id = "ember", text = "Ember" },
+			{ id = "cinder", text = "Cinder" },
 			{ id = "bubble", text = "Bubble" },
 		}
 
@@ -5781,7 +5782,7 @@ end
 					TrailSlider("Hue Variation:", 0, 1, 0,
 						function() return dicestudio.trailHueVariation end,
 						function(v) dicestudio.trailHueVariation = v end),
-					TrailSlider("Fall Speed:", 0, 2, 0.4,
+					TrailSlider("Fall Speed:", -2, 2, 0.4,
 						function() return dicestudio.trailFall end,
 						function(v) dicestudio.trailFall = v end),
 					TrailSlider("Spread:", 0, 1, 0.35,

@@ -78,15 +78,7 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
     RuleUtils.RemoveRetargetStrikeTargets(targets, trigger, targetId)
     local allowOriginal = RuleUtils.RetargetAllowsOriginal(trigger)
 
-    local sourceToken = triggerToken
-    local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, triggerToken.properties:LookupSymbol(symbols), 10))
-    local rangeType = powerMod:try_get("changeTargetRange", "none")
-    if rangeType == "ability" then
-        sourceToken = casterToken
-        range = trigger.originalAbilityRange
-    elseif rangeType == "distance" then
-        range = powerMod:try_get("changeTargetDistance", 10)
-    end
+    local sourceToken, range, rangeType = RuleUtils.RetargetRange(trigger.powerRollModifier, triggerToken, casterToken, trigger.originalAbilityRange, symbols)
     --the new target must be one the striking creature could actually
     --hit: inside the strike's distance and in its line of effect.
     if rangeType == "ability" then

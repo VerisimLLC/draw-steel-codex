@@ -1390,84 +1390,84 @@ function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multi
         for _, row in ipairs(target.triggers or {}) do
             local powerMod = row.modifier:try_get("powerRollModifier")
             local ownerToken = dmhub.GetTokenById(row.charid)
-            if ownerToken ~= nil and powerMod ~= nil and target.token ~= nil and not row.triggered
-                and row.modifier:try_get("autoActivate", false) and row.modifier:try_get("type") == "passive"
-                and powerMod:try_get("changeTarget", false) then
-                local symbols = {
-                    current = target.token.properties:LookupSymbol{},
-                    triggerer = ownerToken.properties:LookupSymbol{},
-                    caster = casterToken.properties:LookupSymbol{},
-                }
-                local candidates, reasons = RuleUtils.BuildRetargetCandidates(powerMod, symbols)
-                for i = #candidates, 1, -1 do
-                    if strikeTargets[candidates[i].charid] or candidates[i].charid == casterToken.charid then
-                        table.remove(candidates, i)
-                    end
-                end
+            if ownerToken == nil or powerMod == nil or target.token == nil or row.triggered
+                or not row.modifier:try_get("autoActivate", false) or row.modifier:try_get("type") ~= "passive"
+                or not powerMod:try_get("changeTarget", false) then
+                goto continueRow
+            end
 
-                --Measured like a manual redirect: from the attacker with the strike's own reach
-                --("ability"), from the owner at a fixed distance, or the trigger's own range.
-                local rangeType = powerMod:try_get("changeTargetRange", "none")
-                local sourceToken = ownerToken
-                local range = tonumber(ExecuteGoblinScript(row.modifier:try_get("range", 10), ownerToken.properties:LookupSymbol(symbols), 10))
-                if rangeType == "ability" then
-                    sourceToken = casterToken
-                    range = row.originalAbilityRange
-                    RuleUtils.AddRetargetRangeReasons(candidates, reasons, sourceToken, range)
-                elseif rangeType == "distance" then
-                    range = powerMod:try_get("changeTargetDistance", 10)
-                end
-
-                local anyLegal = false
-                for _, tok in ipairs(candidates) do
-                    if reasons[tok.charid] == nil then
-                        anyLegal = true
-                    end
-                end
-
-                if anyLegal then
-                    local answered = false
-                    local picked = nil
-                    --No radius ring: it is drawn around the action bar's selected token,
-                    --and an AI or scripted cast may have none. The greyed-out choices
-                    --and the prompt text show the range instead.
-                    GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
-                        sourceToken = sourceToken,
-                        chooserToken = casterToken,
-                        targets = candidates,
-                        reasons = reasons,
-                        prompt = string.format("%s: %s", row.modifier.name, RuleUtils.RetargetPromptText(sourceToken, range, rangeType, false)),
-                        autoPickSole = true,
-                        choose = function(tok)
-                            picked = tok
-                            answered = true
-                        end,
-                        --Cancelling keeps the original target.
-                        cancel = function()
-                            answered = true
-                        end,
-                    })
-                    while not answered do
-                        coroutine.yield(0.1)
-                        if mod.unloaded or casterToken == nil or not casterToken.valid or casterToken.properties == nil then
-                            answered = true
-                        end
-                    end
-
-                    if picked ~= nil then
-                        --notakeback: the roll card's trigger chip can't undo it.
-                        --autoActivated: the card doesn't publish it to its owner.
-                        row.triggered = true
-                        row.retargetid = picked.charid
-                        row.dismissed = true
-                        row.notakeback = true
-                        row.autoActivated = true
-                        cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
-                        strikeTargets[picked.charid] = true
-                        redirected = true
-                    end
+            local symbols = {
+                current = target.token.properties:LookupSymbol{},
+                triggerer = ownerToken.properties:LookupSymbol{},
+                caster = casterToken.properties:LookupSymbol{},
+            }
+            local candidates, reasons = RuleUtils.BuildRetargetCandidates(powerMod, symbols)
+            for i = #candidates, 1, -1 do
+                if strikeTargets[candidates[i].charid] then
+                    table.remove(candidates, i)
                 end
             end
+
+            local sourceToken, range, rangeType = RuleUtils.RetargetRange(row.modifier, ownerToken, casterToken, row.originalAbilityRange, symbols)
+            --The new target must be one the attacker could actually hit.
+            if rangeType == "ability" then
+                RuleUtils.AddRetargetRangeReasons(candidates, reasons, sourceToken, range)
+            end
+
+            --With no creature the attacker could legally pick, the redirect doesn't happen and the strike keeps its target.
+            local anyLegal = false
+            for _, tok in ipairs(candidates) do
+                if reasons[tok.charid] == nil then
+                    anyLegal = true
+                    break
+                end
+            end
+            if not anyLegal then
+                goto continueRow
+            end
+
+            local answered = false
+            local picked = nil
+            --No radius ring: it is drawn around the action bar's selected token,
+            --and an AI or scripted cast may have none. The greyed-out choices
+            --and the prompt text show the range instead.
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = sourceToken,
+                chooserToken = casterToken,
+                targets = candidates,
+                reasons = reasons,
+                prompt = string.format("%s: %s", row.modifier.name, RuleUtils.RetargetPromptText(sourceToken, range, rangeType, false)),
+                autoPickSole = true,
+                choose = function(tok)
+                    picked = tok
+                    answered = true
+                end,
+                --Cancelling keeps the original target.
+                cancel = function()
+                    answered = true
+                end,
+            })
+            while not answered do
+                coroutine.yield(0.1)
+                if mod.unloaded or not casterToken.valid or casterToken.properties == nil then
+                    answered = true
+                end
+            end
+
+            if picked ~= nil then
+                --notakeback: the roll card's trigger chip can't undo it.
+                --autoActivated: the card doesn't publish it to its owner.
+                row.triggered = true
+                row.retargetid = picked.charid
+                row.dismissed = true
+                row.notakeback = true
+                row.autoActivated = true
+                cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
+                strikeTargets[picked.charid] = true
+                redirected = true
+            end
+
+            ::continueRow::
         end
     end
     return redirected

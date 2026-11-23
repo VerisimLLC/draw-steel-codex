@@ -553,6 +553,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                 },
             }
 
+            local autoActivateCheck = nil
             if modifier.type ~= "passive" then
                 children[#children+1] = gui.Check{
                     styles = ThemeEngine.GetStyles(),
@@ -565,18 +566,20 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     end,
                 }
             else
-                --Only a trigger that changes the strike's target applies by itself; on any
-                --other passive trigger this box does nothing.
-                children[#children+1] = gui.Check{
+                --Only shown while Change Target is ticked; the power roll editor below
+                --calls changeTargetChanged when that box flips.
+                autoActivateCheck = gui.Check{
                     styles = ThemeEngine.GetStyles(),
+                    classes = {cond(modifier.powerRollModifier:try_get("changeTarget", false), nil, "collapsed")},
                     text = "Apply Automatically",
-                    hover = gui.Tooltip("For a trigger that changes the target: the strike is redirected by itself before the roll, with the attacker choosing the new target (no choice when only one qualifies). Its owner is never asked."),
+                    hover = gui.Tooltip("The strike is redirected by itself before the roll, with the attacker choosing the new target (no choice when only one qualifies). Its owner is never asked."),
                     value = modifier:try_get("autoActivate", false),
                     change = function(element)
                         modifier.autoActivate = element.value
                         Refresh()
                     end,
                 }
+                children[#children+1] = autoActivateCheck
             end
 
             children[#children+1] = gui.Panel{
@@ -992,7 +995,14 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             children[#children+1] = rollModifierEditor
 
         	local rollModifierTypeInfo = CharacterModifier.TypeInfo[modifier.powerRollModifier.behavior]
-            rollModifierTypeInfo.createEditor(modifier.powerRollModifier, rollModifierEditor, {triggered = true})
+            rollModifierTypeInfo.createEditor(modifier.powerRollModifier, rollModifierEditor, {
+                triggered = true,
+                changeTargetChanged = function()
+                    if autoActivateCheck ~= nil and autoActivateCheck.valid then
+                        autoActivateCheck:SetClass("collapsed", not modifier.powerRollModifier:try_get("changeTarget", false))
+                    end
+                end,
+            })
 
             for index,powerRollModifier in ipairs(modifier:try_get("additionalCostModifiers", {})) do
                 children[#children+1] = gui.Label{

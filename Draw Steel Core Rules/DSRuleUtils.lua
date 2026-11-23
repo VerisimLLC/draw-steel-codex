@@ -521,6 +521,30 @@ RuleUtils = {
         return string.format("Choose a new target within %s %s and line of effect of %s", rangeText, unit, sourceName)
     end,
 
+    --Where a retarget's range is measured from and how far it reaches, per the
+    --trigger's "Retarget Range" setting: the trigger's own range from its owner,
+    --the strike's own reach from the attacker, or a fixed distance from the owner.
+    --- @param triggerModifier CharacterModifier the powertabletrigger modifier
+    --- @param ownerToken CharacterToken the trigger's owner
+    --- @param casterToken CharacterToken the creature making the strike
+    --- @param abilityRange number the strike's own range
+    --- @param symbols table
+    --- @return CharacterToken sourceToken
+    --- @return number|nil range
+    --- @return string rangeType "none", "ability" or "distance"
+    RetargetRange = function(triggerModifier, ownerToken, casterToken, abilityRange, symbols)
+        --Only retarget triggers reach here, and those always carry a power roll modifier.
+        local powerMod = triggerModifier.powerRollModifier --[[@as CharacterModifier]]
+        local rangeType = powerMod:try_get("changeTargetRange", "none")
+        if rangeType == "ability" then
+            return casterToken, abilityRange, rangeType
+        elseif rangeType == "distance" then
+            return ownerToken, powerMod:try_get("changeTargetDistance", 10), rangeType
+        end
+        local range = tonumber(ExecuteGoblinScript(triggerModifier:try_get("range", 10), ownerToken.properties:LookupSymbol(symbols), 10))
+        return ownerToken, range, rangeType
+    end,
+
     --The candidate list for a trigger that changes a strike's target. Every token
     --passing powerMod's changeTargetFilter is in `targets`; one that also fails a
     --"reasoned" filter stays listed but gets a tooltip in `reasons` (keyed by

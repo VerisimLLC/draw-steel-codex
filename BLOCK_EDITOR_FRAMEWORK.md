@@ -368,8 +368,25 @@ feature's text.
   combined sentence writes it in the feature's text, which replaces the generated wording.
 
 - ~~**States**~~: decided (see the ledger and section 6a).
-- **Copy:** the label, description and sentence for each of the 161 types. A copy manifest
-  will be generated from the registry.
+- **Copy:** in review. The manifest is the "Block Copy" sheet,
+  https://claude.ai/artifact/UAaxnYmKrca6f8Rh3BezgR (source CSV and scripts in
+  `ui-mockup/block-copy/`). It has 184 rows:
+  - 99 ability behaviours;
+  - 61 modifier types;
+  - 5 choice and Logic blocks;
+  - 10 ability-editor blocks that have no engine type of their own.
+
+  Columns: label, hover text, block sentence, book prose, group, status, engine name, the new
+  editor's own description, and notes. 37 types have built blocks, and 125 still need a
+  sentence or wording.
+- **Q2 (new): one type, several blocks.** Some types already appear as more than one block:
+  - `attribute` is Change a stat, Movement type, You ignore / can't... and Raise a
+    characteristic;
+  - `power` is Edge or bane on rolls, Rolls against you, Extra damage, Change the outcome and
+    Change potency.
+
+  So a type's `block` needs to allow a list of blocks, each with a `match(record)` that says
+  which block reads a given saved record.
 - **Accessibility:**
   - every drag needs a click path;
   - colour is never the only signal, since groups also have names;

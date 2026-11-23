@@ -165,8 +165,17 @@ function fxTable(obj, key) {
     entries: [{ threshold: 1, script: String(obj[key]) }].concat(st.map(x => ({ threshold: +x.from, script: String(x.value) }))) };
 }
 const FX_PICKS = [["1", "a number"], ["Victories", "your Victories"], ["1d3", "a die roll (1d3)"], ["Level", "your level"]].concat(CHARS.map(c => [c[1], "your " + c[1]]));
-function fxTok(obj, key, placeholder) {
-  const t = tok(fxText(obj, key) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
+/* A formula read as words: "Victories" reads "your Victories" (the FX_PICKS wording). */
+function fxWords(obj, key) {
+  const base = String(obj[key] == null ? "" : obj[key]).trim(), pick = FX_PICKS.find(p => p[0] === base && /^your /.test(p[1]));
+  return pick ? fxText(obj, key).replace(base, pick[1]) : fxText(obj, key);
+}
+/* True when an amount is a plain number or dice ("2", "1d3"), so "you gain 2 resolve" reads right;
+   anything else reads "a number of resolve equal to your Victories". */
+const fxIsCount = (obj, key) => /^(\d+|\d*d\d+)$/i.test(String(obj[key] == null ? "" : obj[key]).trim());
+const gainAmountText = (g, res) => fxIsCount(g, "qty") || !String(g.qty || "").trim() ? fxText(g, "qty") + " " + res : "a number of " + res + " equal to " + fxWords(g, "qty");
+function fxTok(obj, key, placeholder, words) {
+  const t = tok((words ? fxWords(obj, key) : fxText(obj, key)) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
   t.classList.add("fx"); t.title = "Type a number, or click to use your level, Victories, a characteristic or a die roll"; return t;
 }
 function fillFx(m, obj, key) {
@@ -845,7 +854,7 @@ function compileGains() {
   if (sg) { checklist.push(sg.check); triggers.push(sg.trigger); mods.push(...sg.mods); }
   cls.gains.forEach(g => {
     const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0];
-    const details = ev[1] + ", you gain " + fxText(g, "qty") + " " + res.toLowerCase() + ".";
+    const details = ev[1] + ", you gain " + gainAmountText(g, res.toLowerCase()) + ".";
     checklist.push({ name: ev[1], details, guid: g.guid, mode: ev[2], quantity: fxTable(g, "qty") });
     triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name: ev[1], description: details,
       triggeredAbility: { __typeName: "TriggeredAbility", name: ev[1], description: details, trigger: ev[0], targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: ev[1] + ": gain " + res + ".",
@@ -1096,8 +1105,12 @@ function renderBoard() {
   }
   cls.gains.forEach((g, i) => {
     const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
-    el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); el.appendChild(lbl(", you gain")); el.appendChild(fxTok(g, "qty", "1"));
-    el.appendChild(lbl((cls.resourceName || "resource").toLowerCase()));
+    el.appendChild(pickTok(g, "event", GAIN_EVENTS.map(e => [e[0], e[1]]))); const rw = (cls.resourceName || "resource").toLowerCase();
+    // "you gain 2 resolve", or "you gain a number of resolve equal to your Victories" for a formula.
+    // The comma sits right against the event word: the row spaces its pieces out, so pull it back.
+    const comma = E("span", null, ","); comma.style.marginLeft = "-4px"; el.appendChild(comma);
+    if (fxIsCount(g, "qty") || !String(g.qty || "").trim()) { el.appendChild(document.createTextNode("you gain ")); el.appendChild(fxTok(g, "qty", "1")); el.appendChild(lbl(rw)); }
+    else { el.appendChild(document.createTextNode("you gain a number of " + rw + " equal to ")); el.appendChild(fxTok(g, "qty", "1", true)); }
     el.appendChild(E("span", "grow"));
     const mb = fk(E("button", "mb", "\u22ef"), "gainmb:" + g.id); mb.type = "button"; mb.setAttribute("aria-label", "Options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => cls.gains.splice(i, 1)); toast("Deleted that way to gain " + (cls.resourceName || "it").toLowerCase() + ".", { label: "Undo", run: undo }); }); m.appendChild(x); }); });

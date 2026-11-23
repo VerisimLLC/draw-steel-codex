@@ -990,3 +990,10 @@ test opens the same kind of picker, with a search box, test groups, and "Type a 
 - **Status and old saves:** a Logic block with an empty test, or an empty slot inside a
   combination, is listed in the status column as "needs a test". Saved classes and ready-made
   features using the old six tests are converted when they load.
+
+## 21. Resource gains that use a formula read as a sentence (2026-11-23)
+
+When the amount of a resource gain is a formula, the gain now reads "When combat starts, you gain a
+number of resolve equal to your Victories" instead of "you gain Victories resolve". A plain number
+or dice still reads "you gain 2 resolve". The text shown on the hero's sheet uses the same wording.
+The comma now also sits right against the event ("When combat starts,").

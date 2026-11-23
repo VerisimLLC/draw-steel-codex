@@ -1,6 +1,6 @@
 # Block editors across the codex: framework design brief
 
-Status: **DRAFT.** D1 decided; D2 and D3 explained below and awaiting sign-off. This is the single source of truth for taking the block
+Status: **DRAFT.** D1-D10 and Q1 decided (see the ledger). Still open: the later rounds in section 6 (states, copy, accessibility, performance, regression surface). This is the single source of truth for taking the block
 design (the ability editor and class builder prototypes in `ui-mockup/`) to every content
 editor, and for how a block is registered. Decisions are recorded in the ledger at the end as
 they are made.
@@ -340,9 +340,8 @@ twice your Might."
 
 Berserker's *Chaos Incarnate* is stored differently: 7 separate resistance modifiers, one damage
 type each, all `Might*2`. Each one alone reads "You have acid immunity equal to twice your
-Might." Joining them into the book's single sentence would be a feature-level step that merges
-neighbouring blocks with the same wording. That is not decided yet; it is listed as open
-question Q1.
+Might." They are not merged (Q1, decided): for the book's single sentence, the author writes it in the
+feature's text.
 
 ### Where today's prose goes
 
@@ -364,9 +363,9 @@ question Q1.
 
 ## 6. Still to decide (after D1-D3)
 
-- **Q1:** should a feature's prose merge neighbouring blocks that read alike? For example,
-  seven one-type immunities would become "acid, cold, ... immunity". Or should authors keep
-  writing that sentence by hand in the feature text?
+- ~~**Q1:** should a feature's prose merge neighbouring blocks that read alike?~~ **Decided:
+  no** (see the ledger). Each block reads as its own sentence. An author who wants the book's
+  combined sentence writes it in the feature's text, which replaces the generated wording.
 
 - **States:** an empty stack, a record that fails to read back, two authors editing at
   once.
@@ -386,3 +385,13 @@ question Q1.
 | Date | Decision | Why |
 |---|---|---|
 | 2026-11-23 | **D1: a block is declared with a `block = {...}` key on the type's existing registration** (`ActivatedAbility.RegisterType`, `CharacterModifier.RegisterType`/`TypeInfo`, `CharacterChoice.RegisterChoice`) | Use what already exists: one place per type, beside the code that runs it. Separate tables would repeat today's split metadata. |
+| 2026-11-23 | **D2: slots name the field they save to.** A slot can convert with a `form` or `get`/`set`; a block writes `read`/`write` only when slots and fields don't line up. | Most types map field-for-field and get saving and read-back for free. Code is needed only for the hard cases (roll options). |
+| 2026-11-23 | **D3: the sentence is the prose.** An optional `prose` template covers different book wording; a `prose(record, w)` function covers value-dependent wording. | One declaration gives both the block and the card. The `behaviourProse` templates and `autoDescribe` move onto their blocks. |
+| 2026-11-23 | **D4: unclaimed fields are kept unchanged** and shown as "More settings (N)", which opens today's form. `read` may refuse a record it can't show. | Round-trip safety. The old editor stays as the backup. |
+| 2026-11-23 | **D5: a type with no block appears as a grey generic block** named from its registration, opening its current form. | Nothing disappears. Adding `block` later upgrades it everywhere. |
+| 2026-11-23 | **D6: editors register a host** (`BlockEditor.RegisterHost{record, header, stacks}`). Bespoke editors (items, monsters) embed the shared stack in their own form. | One framework builds the feature-list editors; no per-editor block code. |
+| 2026-11-23 | **D7: point of view is set per host** ("you" in features, "the creature" in effects, "the target" in abilities). | The same block reads correctly in every editor. |
+| 2026-11-23 | **D8: block families** are modifier, choice, step, logic and recipe. Each host lists the families it accepts; the shelf, search and Unique group are built from the registry. | One shelf system, filtered per editor. |
+| 2026-11-23 | **D9: a script exports the Lua registry to JSON for the HTML prototypes.** | The prototypes test the real registrations, not hand copies. |
+| 2026-11-23 | **D10: phasing.** (1) Registry plus the one-list editors, then subclasses and classes; (2) one-feature editors; (3) ability steps; (4) the shared stack in kits, treasures and monsters. | Biggest reach first, through the shared pieces A and B. |
+| 2026-11-23 | **Q1: similar statements are not merged.** Each block is its own sentence; an author writes a combined sentence in the feature text. | Keeps prose predictable, with no hidden rewriting. The author stays in control. |

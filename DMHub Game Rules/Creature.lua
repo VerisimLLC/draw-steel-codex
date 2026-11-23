@@ -1052,6 +1052,27 @@ function creature.GetTokenDescription(token)
 	end
 end
 
+--- The name to show for a token. A map object's token is named after its art piece,
+--- which can't be renamed, so for objects the object editor's own "Name:" field wins
+--- when it is set (e.g. a statue that takes turns in initiative).
+--- @param token CharacterToken|nil
+--- @return string|nil
+function creature.TokenDisplayName(token)
+	if token == nil then
+		return nil
+	end
+	local objectName = nil
+	pcall(function()
+		if token.isObject then
+			objectName = token.objectInstance.name
+		end
+	end)
+	if type(objectName) == "string" and objectName ~= "" then
+		return objectName
+	end
+	return token.name
+end
+
 dmhub.DescribeToken = function(token)
     if token == nil then
         return "nil token"

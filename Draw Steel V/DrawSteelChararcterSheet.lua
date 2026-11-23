@@ -1530,11 +1530,19 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
 
                 refreshToken = function(element, info)
-                    element.text = info.token.name
+                    element.text = creature.TokenDisplayName(info.token) or ""
                 end,
 
                 change = function(element)
                     local token = CharacterSheet.instance.data.info.token
+
+                    --A map object's token name comes from its art and can't be changed, so
+                    --rename the object itself; the initiative bar shows that name.
+                    if token.isObject and token.objectInstance ~= nil then
+                        token.objectInstance.name = element.text
+                        token.objectInstance:Upload()
+                        return
+                    end
 
                     token.name = element.text
                     token:UploadAppearance()

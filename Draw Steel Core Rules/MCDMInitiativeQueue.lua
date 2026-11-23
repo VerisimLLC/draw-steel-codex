@@ -647,7 +647,7 @@ function InitiativeQueue:DescribeEntry(initiativeid)
 		else
 			local token = dmhub.GetCharacterById(initiativeid)
 			if token ~= nil then
-				return token.description
+				return (token.isObject and creature.TokenDisplayName(token)) or token.description
 			end
 		end
 		return "Unknown, possibly deleted character"
@@ -671,7 +671,8 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 		if GameHud.instance and GameHud.instance:has_key("initiativeInterface") then
 			local tokens = self.GetTokensForInitiativeId(initiativeid)
 			if tokens ~= nil and #tokens > 0 then
-				entry.description = tokens[1].description
+				--A map object's token is named after its art; show the object's own Name field instead.
+				entry.description = (tokens[1].isObject and creature.TokenDisplayName(tokens[1])) or tokens[1].description
 
 				local turnsPerRound = tokens[1].properties:TurnsPerRound()
 				if turnsPerRound ~= InitiativeQueueEntry.turnsPerRound then

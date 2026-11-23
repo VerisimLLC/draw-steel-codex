@@ -3,7 +3,7 @@
 import yaml, re, os, json
 D = "/home/user/verisimllc/draw-steel-data/objectTables"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "class-builder")
-L = yaml.CSafeLoader
+L = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 def load(p):
     t = open(p, encoding="utf-8").read(); t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', ' ', t)
     return yaml.load(t, Loader=L)
@@ -18,6 +18,8 @@ tables = {
     "conditions": sorted([[r["id"], r["name"]] for r in rows("charconditions")], key=lambda x: x[1]),
     "damageTypes": sorted([r["name"].lower() for r in rows("damagetypes") if r["name"].lower() != "untyped"]),
     "customAttributes": sorted([[r["id"], r["name"], r.get("category", "")] for r in rows("customattributes")], key=lambda x: x[1]),
+    # Ongoing effects, for "has the [ ] effect" tests (searched by name; 1,000+ of them).
+    "effects": sorted({r["name"]: [r.get("id", ""), r["name"]] for r in rows("characterongoingeffects") if r.get("name")}.values(), key=lambda x: x[1].lower()),
     "resources": sorted([[r["id"], r["name"], r.get("grouping", "")] for r in rows("characterresources")], key=lambda x: x[1]),
 }
 # Loaded with a <script> tag (works from a file:// page too): window.CB_TABLES = {...}

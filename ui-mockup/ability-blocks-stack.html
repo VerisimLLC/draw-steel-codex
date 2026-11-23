@@ -1219,6 +1219,7 @@ function cX(x, h) {
     case "creatureKw": { if (!f.kw && h.orig == null) bad(x.id, "Name the creature keyword.");
       const r = role(), t = r.prefix + "Keywords has " + JSON.stringify(f.kw || ""); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: r.prose + (r.prose === "you" ? (f.neg ? " don't have" : " have") : (f.neg ? " doesn't have" : " has")) + " the " + (f.kw || "(none)") + " keyword" }; }
     case "hasEffect": { if (!f.name && h.orig == null && !h.fromSaved) bad(x.id, "Name the effect to check for.");
+      else if (f.name && h.orig == null && !h.fromSaved && !EFFECTS.some(r => r[1].toLowerCase() === f.name.toLowerCase())) check(x.id, "\u201c" + f.name + "\u201d isn't an effect in the compendium. Check the spelling, or pick one from the list.");
       const r = role(), t = f.path + " has " + JSON.stringify(f.name); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: r.prose + (r.prose === "you" ? (f.neg ? " don't have " : " have ") : (f.neg ? " doesn't have " : " has ")) + "the " + f.name + " effect" }; }
     case "within": { const a = d.roles.find(r => r.label === f.from) || { prose: "you" }, b = d.roles.find(r => r.label === f.to) || { prose: f.to };
       const words = { "<=": "within " + f.n, "<": "closer than " + f.n, ">=": "at least " + f.n, ">": "more than " + f.n }[f.op];
@@ -1854,7 +1855,7 @@ function renderX(x, h) {
       add(sel(f, "kind", [["Enemies", "enemies"], ["Friends", "allies"], ["Creatures", "creatures"]], null, "which creatures")); add(lbl("within")); add(inp(f, "r", "num", "squares")); add(lbl("squares of")); add(sel(f, "role", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
     case "adjFeature": add(lbl("An ally adjacent to")); add(sel(f, "role", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); add(lbl("has the")); add(inp(f, "name", "name", "feature name")); add(lbl("feature")); break;
     case "creatureKw": add(sel(f, "role", roles, null, "creature")); add(lbl(f.role === "You" ? (f.neg ? "don't have the" : "have the") : (f.neg ? "doesn't have the" : "has the"))); add(inp(f, "kw", "name", "creature keyword")); add(lbl("keyword")); break;
-    case "hasEffect": add(sel(f, "role", roles, null, "creature")); add(lbl(f.role === "You" ? (f.neg ? "don't have the" : "have the") : (f.neg ? "doesn't have the" : "has the"))); add(inp(f, "name", "name", "effect name")); add(lbl("effect")); break;
+    case "hasEffect": add(sel(f, "role", roles, null, "creature")); add(lbl(f.role === "You" ? (f.neg ? "don't have the" : "have the") : (f.neg ? "doesn't have the" : "has the"))); add(effectNameInput(f)); add(lbl("effect")); break;
     case "within": add(sel(f, "to", roles, null, "creature")); add(lbl(f.to === "You" ? "are" : "is")); add(sel(f, "op", [["<=", "within"], ["<", "closer than"], [">=", "at least"], [">", "more than"]], null, "distance")); add(inp(f, "n", "num", "squares")); add(lbl("squares of")); add(sel(f, "from", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
     case "friends": add(sel(f, "b", roles, null, "creature")); add(lbl(f.neg ? "is not an ally of" : "is an ally of")); add(sel(f, "a", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
     case "all": case "any": {
@@ -3680,6 +3681,14 @@ const WHO_OPTS = [["targets", "The target"], ["caster", "You"]];
 const WHO_OPTS_OBJ = [["targets", "the target"], ["caster", "you"]];
 const EFFECT_DURATIONS = [["save_ends", "(save ends)"], ["end_of_next_turn", "until the end of the target's next turn"], ["eoe", "until the end of the encounter"], ["eoe_or_dying", "until the end of the encounter or until you are dying"], ["until_rest", "until you finish a respite"], ["1", "for 1 round"]];
 const effectById = id => EFFECTS.find(r => r[0] === id);
+/* Type-to-search effect name for "has the [ ] effect" tests: the same compendium list, stored as the name. */
+function effectNameInput(f) {
+  const dl = document.getElementById("effectList");
+  if (!dl.childElementCount) EFFECTS.forEach(r => { const o = document.createElement("option"); o.value = r[1]; dl.appendChild(o); });
+  const i = E("input", "f name"); i.setAttribute("list", "effectList"); i.placeholder = "type to search effects"; i.spellcheck = false; i.value = f.name || ""; i.setAttribute("aria-label", "effect");
+  i.addEventListener("change", () => { const hit = EFFECTS.find(r => r[1].toLowerCase() === i.value.trim().toLowerCase()); f.name = hit ? hit[1] : i.value.trim(); refresh(); });
+  return i;
+}
 /* Searchable effect picker: 1,000+ effects is too many for a dropdown, so type to filter the list. */
 function effectInput(f) {
   const dl = document.getElementById("effectList");

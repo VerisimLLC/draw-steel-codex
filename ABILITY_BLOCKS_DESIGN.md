@@ -1500,3 +1500,16 @@ Where the old guide and the code disagreed, the rewrite follows the code:
 - Complications is a list you check with `has`.
 
 Code samples turn off font ligatures, so `>=` shows as typed.
+
+## 4ac. Effect names are searched from the compendium (2026-11-23)
+
+"Has the [ ] effect" tests now pick the effect by searching the compendium's ongoing effects, in
+both editors.
+
+- **Ability editor:** a type-to-search box with the same list "Apply an effect" uses (1,034
+  effects).
+- **Class builder:** a search menu that shows up to 40 matches as you type. Its list is the new
+  `effects` table in `class-builder/tables.js` (1,005 unique names), built by
+  `class-builder-data/build_data.py`.
+- **Custom names:** a typed name that isn't in the compendium is still allowed, because effects
+  can be made in play. It is listed as worth checking ("isn't an effect in the compendium").

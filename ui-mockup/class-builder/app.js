@@ -529,8 +529,8 @@ function renderTest(parent, key, required, ctx) {
     case "abName": add(lbl("The ability is")); add(abilityNameTok(x)); break;
     case "tg": add(lbl((tgFact(x.k) || [0, x.k])[1])); break;
     case "tgCond": add(lbl("The target is")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
-    case "effect": add(lbl("You have the")); add(textTok(x, "name", "effect name")); add(lbl("effect")); break;
-    case "tgEffect": add(lbl("The target has the")); add(textTok(x, "name", "effect name")); add(lbl("effect")); break;
+    case "effect": add(lbl("You have the")); add(effectTok(x)); add(lbl("effect")); break;
+    case "tgEffect": add(lbl("The target has the")); add(effectTok(x)); add(lbl("effect")); break;
     case "tgKw": add(lbl("The target has the")); add(textTok(x, "kw", "Undead")); add(lbl("keyword")); break;
     case "tgDist": add(lbl("The target is within")); add(textTok(x, "n", "1")); add(lbl(+x.n === 1 ? "square of you" : "squares of you")); break;
     case "nearby": add(lbl("There are")); add(pickTok(x, "op", [[">=", "at least"], ["<=", "at most"], ["=", "exactly"]])); add(textTok(x, "n", "1"));
@@ -556,6 +556,27 @@ function renderTest(parent, key, required, ctx) {
   }
   add(clear()); return e;
 }
+/* A searchable list of the compendium's ongoing effects (1,000+, so typed to filter, never one long menu). */
+function effectTok(x) {
+  const all = T.effects || [];
+  return tok(x.name || "choose an effect", b => menuAt(b, m => {
+    m.classList.add("wide");
+    const i = E("input", "filter"); i.placeholder = "Search effects, e.g. Marked"; i.value = x.name || ""; m.appendChild(i);
+    const list = E("div"); m.appendChild(list);
+    const pick = n => { closeMenu(); change(() => { x.name = n; }); };
+    const draw = () => {
+      list.innerHTML = ""; const q = i.value.trim().toLowerCase();
+      const hits = all.filter(e => !q || e[1].toLowerCase().includes(q)).slice(0, 40);
+      hits.forEach(e => { const o = E("button", null, e[1]); o.type = "button"; o.addEventListener("click", () => pick(e[1])); list.appendChild(o); });
+      if (!hits.length) list.appendChild(E("div", "hint", "No effect in the compendium matches. Press Enter to use the name as typed."));
+      else if (all.filter(e => e[1].toLowerCase().includes(q)).length > 40) list.appendChild(E("div", "hint", "Keep typing to narrow the list."));
+    };
+    i.addEventListener("input", draw);
+    i.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const q = i.value.trim(), hit = all.find(e => e[1].toLowerCase() === q.toLowerCase()); if (q) pick(hit ? hit[1] : q); } });
+    draw();
+  }), !x.name, objKey(x) + ":name");
+}
+const isCompendiumEffect = n => (T.effects || []).some(e => e[1].toLowerCase() === String(n || "").toLowerCase());
 /* The test picker: grouped ready-made tests with a search, as in the ability editor. */
 function openTestPicker(anchor, parent, key, ctx) {
   const r = resWord(), set = make => { closeMenu(); change(() => { parent[key] = make(); }); };
@@ -1587,6 +1608,8 @@ function featureIssues(f, lane) {
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
     if (s.type === "onlyIf" && testMissing(s.f.cond)) add("A Logic block in " + nm + " needs a test.", false);
     if (s.f && s.f.applies === "when" && testMissing(s.f.tick)) add("\u201c" + d.label + "\u201d in " + nm + " is automatically selected \u201cwhen\u201d, but needs a test.", false);
+    (function effNames(x) { if (!x || typeof x !== "object") return; if ((x.t === "effect" || x.t === "tgEffect") && x.name && !isCompendiumEffect(x.name)) add("\u201c" + x.name + "\u201d in " + nm + " isn't an effect in the compendium. Check the spelling, or pick one from the list.", true);
+      ["a", "cond", "offer", "tick"].forEach(k => effNames(x[k])); (x.items || []).forEach(effNames); })(s.f);
     if (s.f && s.f.offer && testMissing(s.f.offer)) add("\u201c" + d.label + "\u201d in " + nm + " has an unfinished \u201cOffered when\u201d test.", false);
     if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });

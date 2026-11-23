@@ -404,7 +404,7 @@ end
 --A list of names, each followed by its badge: "Here now (2): Ann [Legend], Bo".
 --Returns the pieces to put in a horizontal panel with wrap = true; each name
 --stays together with its badge when the line wraps.
----@param heading string text before the names
+---@param heading string|nil text before the names; nil for none
 ---@param people EotwTagNameListPerson[]
 ---@param opts EotwTagNameListOpts
 ---@return Panel[]
@@ -421,10 +421,13 @@ function EotwPlayerTags.NameList(heading, people, opts)
             textWrap = false,
         }
     end
-    local headingLabel = Text(heading)
-    --labels drop a trailing space, so the gap after the heading is a margin.
-    headingLabel.selfStyle.rmargin = 5
-    local items = { headingLabel }
+    local items = {}
+    if heading ~= nil then
+        local headingLabel = Text(heading)
+        --labels drop a trailing space, so the gap after the heading is a margin.
+        headingLabel.selfStyle.rmargin = 5
+        items[1] = headingLabel
+    end
     for i, person in ipairs(people) do
         local parts = { Text(person.name) }
         local badge = EotwPlayerTags.Badge(person.tag, { fontSize = 11, maxWidth = opts.badgeMaxWidth })

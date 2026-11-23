@@ -6729,6 +6729,15 @@ The EotW provider (`EncounterOfTheWeekHud.lua`), active in an EotW game
   a short rule, Measuring Tool and Whiteboard buttons (playtest 2026-10-19 N4;
   the takeover hides the map rail that normally carries them). The two share
   one folder window, so pressing the one not on screen switches its tab.
+  The strip stays up through montages and narratives too (user direction
+  2026-11-22): the stage is a full-screen presented dialog on the same
+  documents layer, so the strip's think lifts its rail to just above the
+  stage (`SetAsSiblingAbove`; the right rail stays under, the stage draws
+  its own pools). A window a corner button opens over the stage is raised
+  in front of it, and pressing the button of a window the stage buried
+  raises that window instead of closing it (it does not light as open
+  while buried). Verified live 2026-11-22 (Horizon's Grave montage),
+  UNCOMMITTED.
 - **Encounter Rules book** (user direction 2026-10-20): when the encounter
   has an Encounter Rules document (see "The document, discovery and
   sub-documents"), a book button (`phosphor/book-bookmark.png`, tooltip

@@ -189,12 +189,14 @@ text("eotw.chat.tab_game", [[Game Chat]])
 text("eotw.chat.tab_new", [[NEW]])
 --The small red marker on the line between read and unread messages.
 text("eotw.chat.new_divider", [[NEW]])
---The line above the messages: who is in town. {count} is how many; their
---names (with any achievement badges) follow it.
-text("eotw.chat.presence_town", [[Here now ({count}):]])
+--The line above the messages: how many are in town. {count} is how many;
+--hovering it lists their names (with any achievement badges).
+text("eotw.chat.presence_town.one", [[{count} player here now]])
+text("eotw.chat.presence_town.other", [[{count} players here now]])
 text("eotw.chat.presence_empty", [[Nobody is here yet.]])
---On the Game Chat tab: who is in the party.
-text("eotw.chat.presence_party", [[In this party ({count}):]])
+--On the Game Chat tab: how many are in the party.
+text("eotw.chat.presence_party.one", [[{count} player in this party]])
+text("eotw.chat.presence_party.other", [[{count} players in this party]])
 --After a party member's name when they are not in town.
 text("eotw.chat.presence_away", [[(away)]])
 --The message box's placeholder.

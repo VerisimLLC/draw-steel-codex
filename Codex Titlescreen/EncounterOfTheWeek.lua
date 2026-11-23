@@ -81,51 +81,6 @@ EncounterOfTheWeek.fastLaunchSetting = setting{
     storage = "preference",
 }
 
---Sizes for the "Here now" row and its drag bar. Kept at file scope because the
---town screen's builder function is already at Lua's 200-local limit.
-local g_presenceSize = {
-    defaultHeight = 42, --two lines of names
-    minHeight = 21, --one line of names
-    handleHeight = 8,
-    --total height of the drawer's other rows (title, tabs, error line, input,
-    --margins). Update it if you add or resize a row there.
-    otherHeight = 116,
-    --the least room the chat messages keep, however far the bar is dragged.
-    minMessagesHeight = 120,
-    ---@type number|nil the height in use; nil until first read from the setting
-    height = nil,
-}
-
---Height in pixels of the town chat's "Here now" row. The player drags the bar
---under the row to show more names.
-setting{
-    id = "eotw:presenceheight",
-    default = g_presenceSize.defaultHeight,
-    storage = "preference",
-}
-
----@return number
-function g_presenceSize.Get()
-    if g_presenceSize.height == nil then
-        g_presenceSize.height = math.max(g_presenceSize.minHeight, tonumber(dmhub.GetSettingValue("eotw:presenceheight")) or g_presenceSize.defaultHeight)
-    end
-    return g_presenceSize.height
-end
-
---The tallest the row may be in a chat drawer this tall, so the messages keep their room.
----@param drawerHeight number
----@return number
-function g_presenceSize.MaxHeight(drawerHeight)
-    return math.max(g_presenceSize.minHeight, drawerHeight - g_presenceSize.otherHeight - g_presenceSize.handleHeight - g_presenceSize.minMessagesHeight)
-end
-
---The chat messages take whatever the "Here now" row leaves.
----@param presenceHeight number
----@return string
-function g_presenceSize.MessagesHeight(presenceHeight)
-    return string.format("100%%-%d", g_presenceSize.otherHeight + g_presenceSize.handleHeight + presenceHeight)
-end
-
 function EncounterOfTheWeek.FastLaunch()
     return dmhub.GetSettingValue("eotw:fastlaunch") ~= false
 end
@@ -7733,9 +7688,8 @@ CreateScreen = function(args)
         end)
     end
 
-    --The row under the chat tabs: who is in town (or in the party, on the Game
-    --Chat tab). Each name is followed by its plaque; the row wraps and is clipped
-    --to the height the player dragged it to (two lines by default).
+    --The line under the chat tabs: how many are in town (or in the party, on the
+    --Game Chat tab). Hovering it lists them, each name followed by its plaque.
     local RefreshPresence = function()
         if presenceLabel == nil or not presenceLabel.valid or m_conn == nil then
             return
@@ -7743,42 +7697,29 @@ CreateScreen = function(args)
         local presence = m_conn:GetPath("/presence")
         ---@type EotwTagNameListPerson[]
         local people = {}
-        local heading
+        local text
         if m_viewGameid ~= nil and m_chatTab == "game" then
             local record = m_conn:GetPath("/state/games/" .. m_viewGameid)
             for userid,player in pairs(record ~= nil and record.players or {}) do
                 local away = presence == nil or presence[userid] == nil
                 people[#people+1] = { name = ChatPlain(player.name or "?"), tag = player.tag, note = cond(away, T("eotw.chat.presence_away"), nil) }
             end
-            heading = T("eotw.chat.presence_party", { count = #people })
+            text = TP("eotw.chat.presence_party", #people)
         else
             for _,entry in pairs(presence or {}) do
                 people[#people+1] = { name = ChatPlain(entry.name or "?"), tag = entry.tag }
             end
-            heading = T("eotw.chat.presence_town", { count = #people })
+            text = TP("eotw.chat.presence_town", #people)
         end
         table.sort(people, function(a, b) return a.name < b.name end)
-
-        --this runs on every chat message, so stop when the row would look the same.
-        --The tag revision is in the key because badges can change when the tag list arrives.
-        local keyParts = { heading, tostring(EotwPlayerTags.revision) }
-        for _, person in ipairs(people) do
-            keyParts[#keyParts+1] = string.format("%s|%s|%s", person.name, person.tag or "", person.note or "")
-        end
-        local key = table.concat(keyParts, "\n")
-        if presenceLabel.data.key == key then
-            return
-        end
-        presenceLabel.data.key = key
-
-        local rowStyle = { fontSize = 16, color = Styles.textColor, opacity = 0.7, rowHeight = 21, badgeMaxWidth = 160 }
         if #people == 0 then
-            presenceLabel.children = {
-                gui.Label{ text = T("eotw.chat.presence_empty"), fontSize = rowStyle.fontSize, color = rowStyle.color, opacity = rowStyle.opacity, width = "auto", height = "auto", valign = "center" },
-            }
-            return
+            text = T("eotw.chat.presence_empty")
         end
-        presenceLabel.children = EotwPlayerTags.NameList(heading, people, rowStyle)
+        --the hover list is built from this when the mouse arrives.
+        presenceLabel.data.people = people
+        if presenceLabel.text ~= text then
+            presenceLabel.text = text
+        end
     end
 
     RefreshChat = function()
@@ -12433,91 +12374,41 @@ CreateScreen = function(args)
             ChatTab("game", T("eotw.chat.tab_game")),
         },
 
-        gui.Panel{
+        gui.Label{
+            text = "",
+            fontSize = 16,
+            color = Styles.textColor,
+            opacity = 0.7,
             width = "94%",
-            --the player's chosen height (see the drag bar below); names past
-            --it are clipped so a busy town cannot push the input off the drawer.
-            height = g_presenceSize.Get(),
-            flow = "horizontal",
-            wrap = true,
-            --clipping uses the background image as its outline, so the row needs one;
-            --clipHidden keeps that background from being drawn.
-            clip = true,
-            clipHidden = true,
-            bgimage = "panels/square.png",
-            bgcolor = "white",
+            height = 24,
             halign = "center",
-            --remembers who the row shows, so a refresh with no change skips the rebuild.
-            data = { key = nil },
+            textAlignment = "left",
+            textWrap = false,
+            textOverflow = "ellipsis",
+            ---@type {people: EotwTagNameListPerson[]}
+            data = { people = {} },
             create = function(element)
                 presenceLabel = element
                 RefreshPresence()
             end,
-        },
-
-        --drag bar under "Here now": pull it down to see more names.
-        gui.Panel{
-            width = "94%",
-            height = g_presenceSize.handleHeight,
-            halign = "center",
-            bgimage = "panels/square.png",
-            bgcolor = "clear",
-            hoverCursor = "vertical-expand",
-            draggable = true,
-            --the bar stays put; the rows around it resize instead.
-            dragMove = false,
-            --checks now and then that a height saved in a bigger window still fits.
-            thinkTime = 1,
-            data = { startHeight = 0 },
-            styles = {
-                { selectors = { "presenceGrip" }, bgcolor = "#8f8a7f55" },
-                { selectors = { "presenceGrip", "parent:hover" }, bgcolor = "#e6dcc6cc" },
-            },
-            applyHeight = function(element, height)
-                g_presenceSize.height = height
-                if presenceLabel ~= nil and presenceLabel.valid then
-                    presenceLabel.selfStyle.height = height
-                end
-                if chatMessagesPanel ~= nil and chatMessagesPanel.valid then
-                    chatMessagesPanel.selfStyle.height = g_presenceSize.MessagesHeight(height)
-                end
-            end,
-            think = function(element)
-                --0 means the drawer has not been laid out yet.
-                if element.dragging or chatPanel == nil or chatPanel.renderedHeight <= 0 then
+            hover = function(element)
+                local people = element.data.people
+                if #people == 0 then
                     return
                 end
-                --shrinks only what is shown; the saved setting is left for a bigger window.
-                local maxHeight = g_presenceSize.MaxHeight(chatPanel.renderedHeight)
-                if g_presenceSize.Get() > maxHeight then
-                    element:FireEvent("applyHeight", maxHeight)
-                end
+                element.tooltip = gui.TooltipFrame(gui.Panel{
+                    width = 360,
+                    height = "auto",
+                    flow = "horizontal",
+                    wrap = true,
+                    children = EotwPlayerTags.NameList(nil, people, { fontSize = 16, color = Styles.textColor, rowHeight = 22, badgeMaxWidth = 160 }),
+                }, { halign = "left", valign = "center" })
             end,
-            beginDrag = function(element)
-                element.data.startHeight = g_presenceSize.Get()
-            end,
-            dragging = function(element)
-                local maxHeight = g_presenceSize.MaxHeight(chatPanel.renderedHeight)
-                local height = element.data.startHeight + element.dragDelta.y
-                element:FireEvent("applyHeight", math.floor(math.clamp(height, g_presenceSize.minHeight, maxHeight)))
-            end,
-            drag = function(element)
-                dmhub.SetSettingValue("eotw:presenceheight", g_presenceSize.Get())
-            end,
-            gui.Panel{
-                classes = { "presenceGrip" },
-                width = 40,
-                height = 2,
-                halign = "center",
-                valign = "center",
-                bgimage = "panels/square.png",
-                interactable = false,
-            },
         },
 
         gui.Panel{
             width = "94%",
-            height = g_presenceSize.MessagesHeight(g_presenceSize.Get()),
+            height = "100%-140",
             halign = "center",
             flow = "vertical",
             vscroll = true,

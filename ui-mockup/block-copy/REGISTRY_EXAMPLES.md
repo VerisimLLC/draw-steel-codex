@@ -219,8 +219,11 @@ CharacterModifier.RegisterType("power", "Modify Power Rolls", {
             sentence = "You have {modtype} on {rollType}",
             match = function(rec) return Block.OneOf(rec.modtype, "edge", "double_edge", "bane", "double_bane") end,
             slots = {
-                modtype  = Block.Choice{ field = "modtype", options = { { "edge", "an edge" }, { "double_edge", "a double edge" },
-                               { "bane", "a bane" }, { "double_bane", "a double bane" } } },
+                -- The ids come from the list the old form's dropdown already uses; nothing is retyped.
+                modtype  = Block.Choice{ field = "modtype",
+                               from  = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
+                               only  = { "edge", "double_edge", "bane", "double_bane" },
+                               words = { edge = "an edge", double_edge = "a double edge", bane = "a bane", double_bane = "a double bane" } },
                 rollType = Block.Choice{ field = "rollType", options = { { "test_power_roll", "tests" }, { "ability_power_roll", "ability rolls" } } },
             },
             includes = { RollOptions },
@@ -245,6 +248,35 @@ CharacterModifier.RegisterType("power", "Modify Power Rolls", {
   selected" lands in all five at once.
 - **`form = "set"`** is the Level 2 conversion: keywords are stored as `{ Weapon = true }` and shown
   as a list.
+
+### Setting up a Choice slot
+
+A Choice slot needs two things for each option: the **id** the record stores, and the **words**
+the author and the card see. There are three ways to supply them, in order of preference:
+
+1. **Point at the list the old form already uses.** Most dropdowns in today's editors read from
+   a `{ id, text }` table in the code. `from = <that table>` reuses it as it is. For example,
+   the roll modifier's dropdown is `ActivatedAbilityPowerRollBehavior.s_modificationTypes`
+   (`Draw Steel Core Rules/MCDMAbilityRollBehavior.lua:2479`).
+   - `only = { ... }` keeps the ids this block offers.
+   - `words = { id = "..." }` changes how an option reads in the sentence ("Edge" becomes "an
+     edge").
+   - The ids are never typed fresh, so they can't be misspelled.
+2. **Point at a compendium table** with a name: `from = "damageTypes"`, `"conditions"`,
+   `"skills"`, `"attributes"`, `"ongoingEffects"`... The framework reads it with
+   `dmhub.GetTable`, so options added to the compendium appear without a code change.
+3. **Type the pairs** as `{ "id", "words" }`, only when no list exists. To find the id, open a
+   saved record (the YAML, or "Show saved fields" in the prototypes) or read the old form's
+   `change` handler, which shows the value it writes.
+
+Three checks catch mistakes, so an author never has to get an id right by luck:
+- **At load:** every id named in `only` or `words` must exist in the `from` list, or the
+  developer log names the block and the id.
+- **The round-trip check:** a saved value that isn't one of a slot's options is reported for
+  that type.
+- **In the editor:** an unknown saved value is never changed. It shows as itself (for example
+  `edge_bane`) and is kept on save, or the block's `match` passes the record to another block or
+  to the advanced editor.
 
 ## 6. Choice rows: "Choose a perk", "Raise a characteristic"
 

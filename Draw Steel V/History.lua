@@ -27,8 +27,39 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil} What was used.
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
+--- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
+--- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
+--- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
+--- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
+--- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
+--- "resource", "malice", "globalresource" or "moved".
+--- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
+--- @field amount? number On a resource line: the change, negative when spent.
+--- @field resourceid? string On a resource line: the resource, for Undo.
+--- @field refreshtype? string On a resource line: how it refreshes, for Undo.
+--- @field undone? boolean On a resource line: Undo was pressed.
+--- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
+--- @field costs? table<string, {amount: number, style: string}> On an action: resources it spent.
+--- @field state? string On a threshold line: "winded", "dying" or "killed".
+--- @field killed? integer On a minions line: how many died.
+--- @field left? integer On a minions line: how many of the squad are left.
+--- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
+--- @field name? string On a condition, save or persistence line: what it is about.
+--- @field names? string[] On an ended line: what ended.
+--- @field icon? string On a condition line: its icon.
+--- @field iscondition? boolean On a condition line: a condition, not some other effect.
+--- @field duration? string On a condition line: "save ends", "EoT" or "EoE".
+--- @field passed? boolean On a save line: whether it was made.
+--- @field who? HistoryCreature On a line: who it happened to.
+--- @field causetext? string On a line: the small text under it.
+--- @field taken? number On a damage line: what landed.
+--- @field healed? number On a heal line: what was regained.
+--- @field soaked? number On a damage line: how much of it temporary Stamina took.
+--- @field damagetype? string On a damage line: the type, if it has one.
+--- @field before? number On a temporary Stamina line: the pool before.
+--- @field after? number On a temporary Stamina line: the pool after.
 
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.
@@ -118,9 +149,9 @@ local function Cull(data)
     end
 end
 
-local function Write(entry)
-    local packed = dmhub.ToRawJson(entry)
-    local doc = mod:GetDocumentSnapshot(History.DocId(entry.map))
+--Writes every entry waiting for one map, in one change to its document.
+local function WriteEntries(mapid, list)
+    local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
     doc:BeginChange()
     local data = doc.data
     if type(data.entries) ~= "table" then
@@ -129,30 +160,56 @@ local function Write(entry)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
-    data.entries[EntryKey(entry)] = packed
-    if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
-        data.encounters[entry.encounter] = entry.t
+    for _, entry in ipairs(list) do
+        data.entries[EntryKey(entry)] = dmhub.ToRawJson(entry)
+        if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
+            data.encounters[entry.encounter] = entry.t
+        end
     end
     Cull(data)
     doc:CompleteChange("History", {undoable = false})
 end
 
---- Adds an entry to its map's History. Fills in id and t if they are missing. Whoever
---- calls this is the one client that writes the entry: call it from code that runs on
---- exactly one client. Safe from hot combat code: it can fail, the game carries on.
+--Entries waiting for the next frame, so an aura that hits eight creatures is one
+--write, not eight. Nothing here touches the document from inside a hit.
+local g_waiting = {}
+
+local function Flush()
+    local waiting = g_waiting
+    g_waiting = {}
+    if mod.unloaded then
+        return
+    end
+    local byMap = {}
+    for _, entry in ipairs(waiting) do
+        byMap[entry.map] = byMap[entry.map] or {}
+        table.insert(byMap[entry.map], entry)
+    end
+    for mapid, list in pairs(byMap) do
+        local ok, err = pcall(WriteEntries, mapid, list)
+        if not ok then
+            dmhub.Debug(string.format("History: failed to write entries: %s", tostring(err)))
+        end
+    end
+end
+
+--- Adds an entry to its map's History on the next frame. Fills in id and t if they are
+--- missing. Whoever calls this is the one client that writes the entry: call it from
+--- code that runs on exactly one client. Safe from hot combat code: it can fail, the
+--- game carries on.
 --- @param entry HistoryEntry
---- @return boolean written
+--- @return boolean accepted
 function History.Write(entry)
     if mod.unloaded or not History.Enabled() then
         return false
     end
     entry.id = entry.id or dmhub.GenerateGuid()
     entry.t = entry.t or dmhub.serverTimeMilliseconds
-    local ok, err = pcall(Write, entry)
-    if not ok then
-        dmhub.Debug(string.format("History: failed to write entry: %s", tostring(err)))
+    g_waiting[#g_waiting + 1] = entry
+    if #g_waiting == 1 then
+        dmhub.Schedule(0.01, Flush)
     end
-    return ok
+    return true
 end
 
 --- A map's entry keys, oldest first. Parses nothing, so it is cheap: fetch the
@@ -201,6 +258,12 @@ function History.Entry(mapid, key)
         g_parsed[key] = parsed
     end
     return parsed.entry
+end
+
+--- Rewrites an entry that is already in History, for a change to what it says.
+--- @param entry HistoryEntry
+function History.Rewrite(entry)
+    History.Write(entry)
 end
 
 --- Empties a map's History, for everyone.

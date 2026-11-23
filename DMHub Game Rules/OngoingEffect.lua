@@ -24,6 +24,7 @@ CharacterOngoingEffect.condition = 'none' --the underlying condition for this ef
 CharacterOngoingEffect.statusEffect = true --is this a standard status condition?
 CharacterOngoingEffect.hiddenOnToken = false
 CharacterOngoingEffect.hiddenFromEnemies = false --is this hidden from enemies?
+CharacterOngoingEffect.hiddenFromHistory = false --a marker that only tracks rules: History leaves it out.
 CharacterOngoingEffect.durationUntilEndOfTurn = false
 CharacterOngoingEffect.effectsByName = {}
 CharacterOngoingEffect.endTrigger = "none"

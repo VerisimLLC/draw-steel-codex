@@ -277,3 +277,19 @@ because "Dying Ended" could read as the creature died.
 | L43 | Heading between encounters | Out of combat | |
 | L44 | A test | {Creature} rolled {n} | {Characteristic} test · Tier {n} |
 | L45 | A Dice panel roll | {Creature} rolled {n} | {dice} |
+
+## Round 5: wordings the stage 1 build needed (signed off 2026-11-06)
+
+| ID | What | Draft |
+|---|---|---|
+| D1 | Duration on a condition badge or line | (EoT) / (EoE) / (save ends) |
+| D2 | Cause line when something lapses as the round ends | End of round |
+| D3 | An effect that isn't a condition, no action | {Creature} {Effect} ({duration}) |
+| D4 | A save rolled outside the end of a turn | Rolled {n} ({target} or more ends it) |
+| D5 | A resource spent, no action | {Creature} spent {n} {resource} |
+| D6 | Hero Tokens, shared by the party | {Resource} {before} to {now} |
+| D7 | Forced movement under a target | Push {n} / Pull {n} / Slide {n} / Vertical push {n} / Vertical pull {n} |
+| D8 | With a fall, or only a fall | Push {n} · fell {m} / Fell {m} |
+| D9 | Forced movement, no action | {Creature} was pushed {n} squares, it fell {m} squares |
+| D10 | A creature landed on, on the push's row (signed off 2026-11-07) | Landed on |
+| D11 | Cause when a creature landed on it, no push (signed off 2026-11-07) | Landed on by {Creature} |

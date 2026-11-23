@@ -70,6 +70,55 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
 | 1.5 | F6 resources with a cause; Malice; the Undo button on resource lines | `ConsumeResource`, `RefreshResource`, `CharacterResource.SetMalice` | M |
 | 1.6 | F7 forced movement: distance, collisions, falls, wall breaks, the saved path | `AbilityRelocateCreature`, `LuaPath:Serialize` | M |
 
+### Stage 1 notes
+
+- **1.1 hooks moved, for the better.** `creature.TakeDamage` and `creature.Heal` instead of the damage
+  and heal behaviors: every route ends there, hand edits and falls included, and they know the number
+  that landed. `SetTemporaryHitpoints` instead of `GrantTemporaryStamina`, so ongoing effects count.
+- **One observer:** `GameSystem.RegisterPlayObserver` replaces the cast observer. Later families add a
+  moment to it, not a new mechanism.
+- **Writes batch per frame.** History.Write queues; an aura hitting eight creatures is one write.
+- **Measured per hit:** 1 us with History off, 3 us inside a cast, 40 us for a line, plus the write.
+- **1.2:** events carry `causecastid`, which survives the trip to another client. A trigger's entry names
+  its cause and the tray nests it, so client and order don't matter, and nothing rewrites the parent.
+- **Prompted triggers stay action rows** (REVIEW.md section 1). A prompted trigger does not nest yet;
+  "Before the roll" and "After the roll" (T15) need roll data from stage 2.
+- **1.3:** `creature:EndingEffects(cause, fn)` wraps every place something comes off a creature and
+  works out what ended from what changed, so a new removal path needs one wrapper, not its own logic.
+  Lapsed timers are cleared at turn end, which is how they get reported.
+- **1.3 data pass, still to run, with the Codex closed:** `data/` YAML is never edited while it runs.
+  From the repo root: `python docs/action-log-design/probes/mark-history-hidden.py.txt --apply` ticks
+  Hidden from History on the 40 markers. Without `--apply` it only lists them. Commit it in `data/`.
+- **L13 has no hook.** The Elementalist's 5 x Reason rule only shows floating text; nothing ends the
+  persistence, so "Took {n} damage in one turn" cannot appear until that rule is automated.
+- **1.4:** winded, dying and killed fire where the rules already decide them, in `MCDMCreature.lua`, so
+  hand edits count. Minion deaths wait for the batch that confirms them, then name the squad.
+- **1.5:** resources carry the number that really changed (`ReportResource`). Undo on a resource line
+  goes through `History.UndoResource`, which marks the line undone and keeps it.
+- **1.6:** the saved path is a plain list of {x, y, floor, altitude} from `path.steps`, because what
+  `LuaPath:Serialize` returned never reached the entry. Chunk 4.1 rebuilds a route from that list.
+  Collisions and wall breaks are stored for the detail card; the tray only shows distance and fall.
+- **Falls land after the push.** The engine adds the landing as one last path step, so `numSteps` is one
+  too many and `path.fallDistance` reads 0 afterwards. The real distance only comes with the `fall`
+  event, which the engine fires when the animation ends, outside any cast. So the push leaves its row
+  in `g_falling`, and the landing and the Fall Damage trigger join that row, even if it has closed.
+  A fall with no push behind it stays a line, cause Fall Damage.
+- **A creature landed on** joins the push's row with the caption Landed on. With no push behind the fall
+  it is a line, cause Landed on by {name}. Nothing is guessed from the damage, which is called Fall
+  Damage either way: the engine fires `fallenon` only on creatures in the landing square, and its symbols
+  name the faller. Tested for real, pushes in both orders, falls with no push, and a second fall inside
+  the push's window, which stays off the row. Not tested across clients: if a trigger runs on another
+  client it finds no push there and reads as a line, which is still true.
+- **Tested for real:** Brutal Slam on two clients, real heal and temporary Stamina behaviors, a Reactor
+  trigger nested across clients, real end of turn, a real passing save, a real push with Growing
+  Ferocity nested, a real push off a ledge in both orders (row closed before and after the landing),
+  real Undo, and a Player seeing no Malice lines.
+- **Tested with fed data only:** failed saves, persistence, dying lines, confirmed minion deaths.
+- **Wordings:** the ones the build needed are signed off, COPY.md Round 5.
+- **Left for later:** effects ended by a respite (5.1), "Hidden from enemies" effects reaching players
+  (2.4), the Active tag on a target's badge (3.1). Crows is not checked: `Crowdex/` isn't in this
+  checkout, so check a Crows game before merging.
+
 ## Stage 2: the detail card
 
 Goal: why it happened, one click from the row.

@@ -59,6 +59,10 @@ function CharacterResource.SetGlobalResource(resourceid, amount, note)
 
     doc.data = doc.data or {}
     local entry = doc.data[resourceid] or CharacterResource.new{}
+    local amountBefore = entry:try_get("unbounded", 0)
+    if amountBefore ~= amount then
+        GameSystem.NotifyPlayObservers("globalresource", resourceid, amountBefore, amount, note)
+    end
     entry.unbounded = amount
     entry.history = entry.history or StatHistory.Create()
     entry.history:Append{

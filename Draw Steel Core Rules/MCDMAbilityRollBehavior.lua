@@ -1365,8 +1365,11 @@ local g_activeRollPanel = nil --the panel showing the roll that is currently act
 --- I Don't Know These People, before the roll card opens. For each such redirect the
 --- attacker picks the new target: no picker when only one creature qualifies, and the
 --- Monster AI picks for creatures it runs. With nobody in range nothing happens, and
---- the trigger's owner is never asked. Records each redirect on the cast; returns
---- true if any strike was redirected, so the caller rebuilds its target rows.
+--- the trigger's owner is never asked. An "All Effects" redirect is recorded on the
+--- cast straight away; the other Retarget Effect settings (Split Damage, Forced
+--- Movement, No Effects) are recorded when the roll is accepted, like a manual
+--- redirect. Returns true if any target moved to a new creature, so the caller
+--- rebuilds its target rows.
 --- @param casterToken CharacterToken
 --- @param multitargets table[] the roll's target rows, each with its .triggers
 --- @param options table the cast options; options.symbols.cast records the redirect
@@ -1462,9 +1465,14 @@ function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multi
                 row.dismissed = true
                 row.notakeback = true
                 row.autoActivated = true
-                cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
+                --An "All Effects" redirect moves the whole strike before the roll. For the other
+                --settings the original target is still hit, and accepting the roll records it.
+                if powerMod:try_get("changeTargetEffect", "all") == "all" then
+                    cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
+                    redirected = true
+                end
+                --Taken now, so a second automatic trigger on this strike can't pick the same creature.
                 strikeTargets[picked.charid] = true
-                redirected = true
             end
 
             ::continueRow::

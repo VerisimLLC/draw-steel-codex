@@ -418,7 +418,7 @@ editor.
 | change potency | 58 | yes: Change potency |
 | fixed outcome (tier 3, not tier 1, tier up or down...) | 67 | yes: Change the outcome |
 | change the target | 41 | **no** |
-| remove or ignore edges and banes, edge to bane | 47 | **no** (the modtypes exist; the block doesn't offer them) |
+| remove or ignore edges and banes, edge to bane | 48 | **no** (the modtypes exist; the block doesn't offer them) |
 | replace text in a tier | 37 | **no** |
 | only when the roll has an edge or bane, or has surges (`rollRequirement`) | 32 | **no** |
 | characteristic adjustments | 32 | **no** |

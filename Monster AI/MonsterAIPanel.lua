@@ -365,8 +365,11 @@ local function MonsterAIThread(process)
                             local triggerHandled = false
                             local ok = true
                             local err = nil
+                            --false for a body's expired prompt: it is left alone, not dismissed below.
+                            local attempted = false
                             if not failedTriggers[triggerKey]
                                 and (live or MonsterAI.IsRecentPrompt(trigger)) then
+                                attempted = true
                                 ok, err = ai:RunYieldingFunction(function()
                                     triggerHandled = ai:HandleAvailableTrigger(token, trigger)
                                 end)
@@ -401,7 +404,7 @@ local function MonsterAIThread(process)
                             elseif triggerHandled then
                                 handledTrigger = true
                                 break
-                            elseif not failedTriggers[triggerKey] then
+                            elseif attempted then
                                 --No handler took it: with no Director to leave it
                                 --to, decline it rather than strand it on the host.
                                 local dismissOk, dismissed = pcall(MonsterAI.DismissUnhandledDirectorlessTrigger, ai, token, trigger)

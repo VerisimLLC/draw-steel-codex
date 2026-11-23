@@ -1858,9 +1858,10 @@ local function DetonateExplosive(floorid, objid)
                         description = name .. " explodes",
                         execute = function()
                             props:TakeDamage(EXPLOSIVE_DAMAGE, name .. " explodes", {})
+                            --inside execute so it uploads: outside, only this client sees it.
+                            props:FloatLabel(string.format("Bust explodes: %d damage", EXPLOSIVE_DAMAGE), "#ff8822ff")
                         end,
                     }
-                    props:FloatLabel(string.format("Bust explodes: %d damage", EXPLOSIVE_DAMAGE), "#ff8822ff")
                 end
             end
         end

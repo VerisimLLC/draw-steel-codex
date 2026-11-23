@@ -25,37 +25,71 @@ local mod = dmhub.GetModLoading()
 --- @field kind string What sort of event this is, e.g. "action".
 --- @field map string Id of the map it happened on.
 --- @field encounter? string Guid of the combat it happened in; nil out of combat.
+--- @field mode? string Out of combat: the game mode's id when it was not Exploration, e.g. "respite".
 --- @field round? integer The combat round.
 --- @field turn? integer Running turn number within the combat.
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil, villainaction: string|nil} What was used; villainaction is the stat block slot, "Villain Action 1"; the tag reads only "Villain Action" (L90).
 --- @field player? string On an action: the player who used it. Nil means the Director.
---- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil} The power roll. hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
---- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
+--- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil, overridden: {by: string|nil, dicetier: number}|nil} The power roll. overridden: someone chose the tier after the dice landed (L91-L93). hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
+--- @field cause? string On an automatic trigger or a minions line: id of the cast behind it. On a test or table line: the ability that asked for the roll, whose row it goes under.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
---- "resource", "malice", "globalresource" or "moved".
+--- "resource", "malice", "globalresource", "moved", "test", "dice", "drawsteel",
+--- "respite", "levelup", "montagetest", "montagethreat", "montageend", "montagecounter",
+--- "negotiation", "downtime", "table", "award", "staminaset", "reinforcements", "reveal" or "reverted".
+--- @field spoilerkey? string On a reveal line: the spoilered modifier's key (PowerRollSpoilers.Key); the Director's eye on it hides or shows the line (L94).
+--- @field arrivals? {who: HistoryCreature, name: string, count: integer}[] On a reinforcements line: who arrived, counted by stat block name (L89).
+--- @field byplayer? boolean On a line: a player made this change by hand (L87); it turns the Director's badge gold.
+--- @field counter? string On a montagecounter line: "successes" or "failures".
+--- @field sub? string On a negotiation line: "began", "argument", "pitfall", "read", "reveal", "adjust" or "ended". On a downtime line: "milestone" or "completed". On an award line: "victories", "item", "title", "renown" or "wealth".
+--- @field raw? boolean On a negotiation line: the Director was showing the numbers on the stage.
+--- @field playercause? string On a negotiation line: the cause text players read when raw is false.
+--- @field directoronly? boolean On a negotiation line: players get no line.
+--- @field hiddenfromplayers? boolean The Director chose Hide from players (L41): players get no row.
+--- @field reverted? string Revert Turn or Turn Rewind undid this (L39): the revertkey of the line that says so. The row fades, tagged Reverted, and drops out of the totals.
+--- @field revertkey? string On a reverted line (L40): the key its reverted rows carry.
+--- @field wholeturn? boolean On a reverted line: Revert Turn undid the whole turn, so the turn redone after it starts afresh under its own heading.
+--- @field trait? string On a negotiation line: the motivation or pitfall it is about.
+--- @field text? string On a negotiation argument: what the Hero said.
+--- @field cue? string On a negotiation argument: the stage's cue for how it landed.
+--- @field which? string On a negotiation adjust line: "interest" or "patience".
+--- @field limit? number On a montagecounter line: how many the montage needs.
+--- @field level? integer On a levelup line: the Level reached.
+--- @field heroesFirst? boolean On a drawsteel line: the heroes go first.
+--- @field rolled? number On a drawsteel line: the Draw Steel die, when one was rolled.
+--- @field total? number On a test or dice line: what the roll came to. On a table line: what the dice came to, before any override.
+--- @field dice? number[] On a dice or table line: each die as it landed.
+--- @field result? string On a table line: the row's full text (the row picked, after an override).
+--- @field overridden? string On a table line: the roll dialog's override message, when the result was overridden.
+--- @field project? string On a table line: the downtime project whose event the Director rolled (L77).
+--- @field quantity? number On an item award line: how many.
+--- @field tier? integer On a dice line from the Power Roll tile: its tier.
+--- @field edges? integer On a dice line: edges on the roll.
+--- @field banes? integer On a dice line: banes on the roll.
+--- @field roller? string On a dice or table line with no creature: who rolled ("Director" for the Director).
 --- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
---- @field amount? number On a resource line: the change, negative when spent.
---- @field resourceid? string On a resource line: the resource, for Undo.
---- @field refreshtype? string On a resource line: how it refreshes, for Undo.
---- @field undone? boolean On a resource line: Undo was pressed.
+--- @field amount? number On a resource line (or a heal with its Recovery): the change, negative when spent.
+--- @field resourceid? string On a resource line or a Recovery heal: the resource, for Undo.
+--- @field refreshtype? string On a resource line or a Recovery heal: how it refreshes, for Undo.
+--- @field undone? boolean On a resource line or a Recovery heal: Undo was pressed.
 --- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
 --- @field costs? table<string, {amount: number, style: string}> On an action: resources it spent.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
---- @field name? string On a condition, save or persistence line: what it is about.
+--- @field name? string On a condition, save, persistence or test line: what it is about (a test: "Might test"). On a table line: the table. On an item or title award line: the item or title. On a reinforcements line: the wave. On a reveal line: the modifier.
 --- @field names? string[] On an ended line: what ended.
 --- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
 --- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
 --- @field hidden? table<string, boolean> On an ended line: names players may not see.
 --- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
+--- @field privacy? {hidden: boolean, tower: boolean|nil, userid: string|nil, cause: string|nil, revealed: boolean|nil} On a test or dice line: a roll not everyone saw (L79, L80). GM only reaches its roller and the Director; a Dice Tower roll's result only the Director. cause is the line under it without the result; the Director's eye sets revealed.
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field ref? string On a condition line: the ongoing effect's instance id (see History.IsActive).
@@ -72,12 +106,15 @@ local mod = dmhub.GetModLoading()
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.
 --- @field damagetype? string On a damage line: the type, if it has one.
---- @field before? number On a temporary Stamina line: the pool before.
---- @field after? number On a temporary Stamina line: the pool after.
+--- @field before? number On a temporary Stamina line: the pool before. On a victories, renown or wealth award line: the score before. On a staminaset line: Stamina before.
+--- @field after? number On a temporary Stamina line: the pool after. On a victories, renown or wealth award line: the score after. On a staminaset line: Stamina after.
 
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.
     hardCap = 500,
+    --An encounter counts towards dropping older ones only once it has this many entries,
+    --so a combat started by mistake and ended at once does not cost the last real fight.
+    minEncounterEntries = 5,
     --Set by the tray: runs when the setting changes.
     --- @type nil|function
     OnEnabledChanged = nil,
@@ -148,15 +185,23 @@ local function Cull(data)
     local encounters = data.encounters
     local entries = data.entries
 
+    --counts: entries written per encounter. One with no count is from before counts were
+    --kept, and counts as a real encounter.
+    local counts = data.counts or {}
     local starts = {}
     for id, t in pairs(encounters) do
-        starts[#starts + 1] = {id = id, t = t}
+        if counts[id] == nil or counts[id] >= History.minEncounterEntries then
+            starts[#starts + 1] = {id = id, t = t}
+        end
     end
     if #starts > 2 then
         table.sort(starts, function(a, b) return a.t > b.t end)
         local keepFrom = KeyPrefix(starts[2].t)
-        for i = 3, #starts do
-            encounters[starts[i].id] = nil
+        for id, t in pairs(encounters) do
+            if t < starts[2].t then
+                encounters[id] = nil
+                counts[id] = nil
+            end
         end
         for key in pairs(entries) do
             if key < keepFrom then
@@ -238,6 +283,9 @@ local function WriteEntries(mapid, list)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
+    if type(data.counts) ~= "table" then
+        data.counts = {}
+    end
     --a list here is a table saved before ids had their "h" (see TextHash): start it again.
     if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" or data.hovers[1] ~= nil then
         data.hovers = {}
@@ -245,9 +293,19 @@ local function WriteEntries(mapid, list)
     end
     for _, entry in ipairs(list) do
         StoreHoverTexts(entry, data.hovers, data.hoverused, entry.t)
-        data.entries[EntryKey(entry)] = dmhub.ToRawJson(entry)
-        if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
-            data.encounters[entry.encounter] = entry.t
+        local key = EntryKey(entry)
+        local isNew = data.entries[key] == nil
+        data.entries[key] = dmhub.ToRawJson(entry)
+        if entry.encounter ~= nil then
+            if data.encounters[entry.encounter] == nil then
+                data.encounters[entry.encounter] = entry.t
+                --an encounter new to this map starts its count at zero; an older one has none.
+                data.counts[entry.encounter] = 0
+            end
+            --a rewrite of an entry (an Undo, a reveal) is not another entry.
+            if isNew and data.counts[entry.encounter] ~= nil then
+                data.counts[entry.encounter] = data.counts[entry.encounter] + 1
+            end
         end
     end
     Cull(data)
@@ -278,6 +336,9 @@ local function Flush()
     end
 end
 
+--The last stamp History.Write gave an entry on this client.
+local g_lastStamp = 0
+
 --- Adds an entry to its map's History on the next frame. Fills in id and t if they are
 --- missing. Whoever calls this is the one client that writes the entry: call it from
 --- code that runs on exactly one client. Safe from hot combat code: it can fail, the
@@ -289,7 +350,16 @@ function History.Write(entry)
         return false
     end
     entry.id = entry.id or dmhub.GenerateGuid()
-    entry.t = entry.t or dmhub.serverTimeMilliseconds
+    --entries sort by their stamp, so two written in the same millisecond would fall in a
+    --random order: each new stamp is at least one past the last this client gave out.
+    if entry.t == nil then
+        local now = dmhub.serverTimeMilliseconds
+        if now <= g_lastStamp then
+            now = g_lastStamp + 1
+        end
+        g_lastStamp = now
+        entry.t = now
+    end
     g_waiting[#g_waiting + 1] = entry
     if #g_waiting == 1 then
         dmhub.Schedule(0.01, Flush)
@@ -349,6 +419,9 @@ end
 --- @param entry HistoryEntry
 --- @return HistoryEntry|nil
 local function ForPlayers(entry)
+    if entry.hiddenfromplayers then
+        return nil
+    end
     --effects hidden from enemies, on a creature off the heroes' side.
     if entry.family == "condition" and entry.secret then
         return nil
@@ -370,13 +443,42 @@ local function ForPlayers(entry)
         end
         entry.ended = kept
     end
+    --a negotiation line: the Director's own corrections never reach players, and the
+    --meters read as numbers only if the Director was showing them on the stage (5.1f).
+    if entry.family == "negotiation" then
+        if entry.directoronly then
+            return nil
+        end
+        if not entry.raw then
+            entry.causetext = entry.playercause
+        end
+    end
+    --a test or dice line rolled out of players' sight, as the chat shows it (L79).
+    local privacy = entry.privacy
+    if privacy ~= nil and privacy.hidden and not privacy.revealed then
+        if not privacy.tower and privacy.userid ~= dmhub.userid then
+            return nil
+        elseif privacy.tower then
+            entry.roll = nil
+            entry.dice = nil
+            entry.total = nil
+            entry.tier = nil
+            entry.secretroll = true
+            entry.causetext = privacy.cause
+        end
+    end
     local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed
     if hiddenRoll then
         entry.roll = nil
         entry.secretroll = true
     end
     --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
-    local monster = entry.actor ~= nil and not entry.actor.hero
+    --An action keeps its roller in actor; a test or dice line, in who.
+    local roller = entry.actor
+    if roller == nil and (entry.family == "test" or entry.family == "dice" or entry.family == "table") then
+        roller = entry.who
+    end
+    local monster = roller ~= nil and not roller.hero
     if monster and entry.roll ~= nil then
         WithoutHovers(entry.roll.sources)
     end
@@ -411,8 +513,8 @@ end
 --- @param key string
 --- @return HistoryEntry|nil
 function History.Entry(mapid, key)
-    --a Director looking through a token's eyes sees what a player would.
-    local forPlayers = not MonsterKnowledge.LocalUserSeesAll()
+    --the Codex's usual Director check: looking through a token's eyes changes nothing here.
+    local forPlayers = not dmhub.isDM
     if g_parsedForPlayers ~= forPlayers then
         g_parsed = {}
         g_parsedForPlayers = forPlayers
@@ -559,6 +661,110 @@ History.quiet = {}
 function History.RewriteQuietly(entry)
     History.Write(entry)
     History.quiet[entry.id] = true
+end
+
+--- An entry's key in its map's History.
+--- @param entry HistoryEntry
+--- @return string
+function History.KeyOf(entry)
+    return EntryKey(entry)
+end
+
+--- Removes entries from a map's History, for everyone (the Director's Delete entry, L41).
+--- @param mapid string
+--- @param entries HistoryEntry[]
+function History.Delete(mapid, entries)
+    local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
+    doc:BeginChange()
+    if type(doc.data.entries) == "table" then
+        for _, entry in ipairs(entries) do
+            doc.data.entries[EntryKey(entry)] = nil
+        end
+    end
+    doc:CompleteChange("Delete History entry", {undoable = false})
+end
+
+--- Hides entries from players, or shows them again (the Director's Hide from players /
+--- Reveal to players, L41). The Director still sees them.
+--- @param entries HistoryEntry[]
+--- @param hidden boolean
+function History.SetHiddenFromPlayers(entries, hidden)
+    for _, entry in ipairs(entries) do
+        entry.hiddenfromplayers = hidden or nil
+        History.Rewrite(entry)
+    end
+end
+
+--- Marks what a revert undid (L39, L40). With turn (Revert Turn), every entry of that turn
+--- takes reverted = key. Without it (Turn Rewind), entries stamped after since do, and
+--- entries key marked before that lose it again (rolling forward). Revert Turn goes by the
+--- turn rather than the time because each client stamps with its own estimate of server
+--- time, and a player's can run behind the Director's checkpoint. The revert's line is
+--- written afresh at the end while anything stays reverted, and removed when nothing does.
+--- Reads the stored entries, not this client's copy, which for a player has parts cut out
+--- (ForPlayers) and must never be written back.
+--- @param mapid string
+--- @param since number server ms the restored checkpoint was taken
+--- @param key string the same key for every step of one Turn Rewind turn; a new one per Revert Turn
+--- @param line HistoryEntry the Turn reverted line, without id or t
+--- @param turn? {encounter: string, round: integer, turn: integer} Revert Turn: the turn undone
+function History.SetReverted(mapid, since, key, line, turn)
+    local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
+    local entries = doc.data.entries
+    if type(entries) ~= "table" then
+        return
+    end
+    local changed = {}
+    local oldLines = {}
+    local anyReverted = false
+    for k, raw in pairs(entries) do
+        --keys start with the 13-digit stamp: an entry at or before since only matters if
+        --this key marked it, and then its text holds the key.
+        local stamp = tonumber(string.sub(k, 1, 13)) or 0
+        if turn ~= nil or stamp > since or string.find(raw, key, 1, true) ~= nil then
+            local ok, decoded = pcall(dmhub.FromJson, raw)
+            if ok and decoded.success then
+                local e = decoded.result
+                if e.family == "reverted" then
+                    if e.revertkey == key then
+                        oldLines[#oldLines + 1] = k
+                    end
+                elseif turn ~= nil then
+                    if e.reverted == nil and e.encounter == turn.encounter and e.round == turn.round and e.turn == turn.turn then
+                        e.reverted = key
+                        changed[k] = e
+                        anyReverted = true
+                    end
+                elseif e.reverted == key then
+                    if e.t <= since then
+                        e.reverted = nil
+                        changed[k] = e
+                    else
+                        anyReverted = true
+                    end
+                elseif e.reverted == nil and e.t > since then
+                    e.reverted = key
+                    changed[k] = e
+                    anyReverted = true
+                end
+            end
+        end
+    end
+    if next(changed) == nil and #oldLines == 0 and not anyReverted then
+        return
+    end
+    doc:BeginChange()
+    for k, e in pairs(changed) do
+        doc.data.entries[k] = dmhub.ToRawJson(e)
+    end
+    for _, k in ipairs(oldLines) do
+        doc.data.entries[k] = nil
+    end
+    doc:CompleteChange("History revert", {undoable = false})
+    if anyReverted then
+        line.revertkey = key
+        History.Write(line)
+    end
 end
 
 --- Empties a map's History, for everyone.

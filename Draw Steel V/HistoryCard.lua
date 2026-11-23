@@ -266,7 +266,12 @@ local function GroupNames(group)
     end
     if numbered and #group > 1 then
         table.sort(numbers)
-        if numbers[#numbers] - numbers[1] == #numbers - 1 then
+        --a run only: 1, 1, 3 spans as far as 1-3 but is not it.
+        local run = true
+        for i = 2, #numbers do
+            run = run and numbers[i] == numbers[i - 1] + 1
+        end
+        if run then
             return string.format("%s %d-%d", base, numbers[1], numbers[#numbers])
         end
     end
@@ -324,15 +329,16 @@ end
 local function SquadDeaths(kids)
     local deaths = {}
     for _, kid in ipairs(kids) do
-        if kid.family == "minions" then
+        if kid.family == "minions" and kid.name ~= nil then
             local death = deaths[kid.name]
             if death == nil then
                 death = {killed = 0, total = 0, left = 0, who = kid.who}
                 deaths[kid.name] = death
             end
-            death.killed = death.killed + kid.killed
-            death.total = math.max(death.total, kid.killed + kid.left)
-            death.left = kid.left
+            local killed, left = kid.killed or 0, kid.left or 0
+            death.killed = death.killed + killed
+            death.total = math.max(death.total, killed + left)
+            death.left = left
         end
     end
     return deaths
@@ -425,15 +431,17 @@ end
 --What a nested trigger did (W13), or a resource it changed (W14, D5).
 local function AddKid(rows, kid)
     if kid.family == "resource" then
-        local verb = cond(kid.amount > 0, "gained", "spent")
+        local amount = kid.amount or 0
+        local verb = cond(amount > 0, "gained", "spent")
         rows[#rows + 1] = {
             who = {kid.who},
             text = string.format("%s %s %s.", History.ShownName(kid.who), verb,
-                History.ResourceWords(math.abs(kid.amount), kid.name)),
+                History.ResourceWords(math.abs(amount), kid.name)),
         }
         return
     end
-    if kid.kind ~= "trigger" then
+    --an entry from an earlier build may lack its ability: nothing to name, so no row.
+    if kid.kind ~= "trigger" or kid.ability == nil then
         return
     end
 
@@ -441,7 +449,7 @@ local function AddKid(rows, kid)
     if kid.actor ~= nil then
         owner = string.format("%s's %s", History.ShownName(kid.actor), kid.ability.name)
     end
-    for _, who in ipairs(kid.targets) do
+    for _, who in ipairs(kid.targets or {}) do
         local name = History.ShownName(who)
         if OnlyDamage(who) and (who.types == nil or SingleType(who) ~= nil) then
             local damagetype = SingleType(who)
@@ -464,12 +472,40 @@ local function AddKid(rows, kid)
     end
 end
 
+--- Whether this viewer may read the totals of an opposed power roll: the Director always,
+--- a player only when both sides' rolls reached them unhidden (a GM-only roll's line never
+--- arrives; a Dice Tower roll arrives without its result).
+--- @param kids HistoryEntry[]|nil The entries nested under the action.
+--- @return boolean
+function History.OpposedTotalsShown(kids)
+    if dmhub.isDM then
+        return true
+    end
+    local seen = 0
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "test" and kid.cause ~= nil and kid.total ~= nil and not kid.secretroll then
+            seen = seen + 1
+        end
+    end
+    return seen >= 2
+end
+
 --- What happened, one row per creature, the result first (COPY N2).
 --- @param entry HistoryEntry An action, or the closing line of an encounter.
 --- @param kids? HistoryEntry[] What is nested under it.
 --- @return HistoryStoryRow[]
 function History.Story(entry, kids)
     local rows = {}
+    --a negotiation argument: what the Hero said, then the stage's cue for how it landed.
+    if entry.family == "negotiation" then
+        if (entry.text or "") ~= "" then
+            rows[#rows + 1] = {who = entry.who ~= nil and {entry.who} or {}, text = string.format("\"%s\"", entry.text)}
+        end
+        if (entry.cue or "") ~= "" then
+            rows[#rows + 1] = {who = {}, text = entry.cue}
+        end
+        return rows
+    end
     if entry.family == "encounterend" then
         for _, item in ipairs(entry.ended or {}) do
             rows[#rows + 1] = {
@@ -504,6 +540,10 @@ function History.Story(entry, kids)
 
     --a trigger can finish off a squad this action never touched (L22).
     for name, death in pairs(deaths) do
+        --a squad whose name players may not see, as AddSquad shows it.
+        if death.who ~= nil and death.who.secret and not dmhub.isDM then
+            name = "Unknown creature"
+        end
         rows[#rows + 1] = {
             who = death.who ~= nil and {death.who} or {},
             text = string.format("%s %s.", name, DeathWords(death)),
@@ -511,6 +551,25 @@ function History.Story(entry, kids)
     end
     for _, kid in ipairs(kids) do
         AddKid(rows, kid)
+    end
+
+    --an opposed power roll: how the user's total compared with each target's.
+    local showTotals = History.OpposedTotalsShown(kids)
+    for _, who in ipairs(entry.targets or {}) do
+        local opposed = who.opposed
+        if opposed ~= nil and entry.actor ~= nil then
+            local user, target = History.ShownName(entry.actor), History.ShownName(who)
+            local text
+            if opposed.attacker == opposed.defender then
+                text = showTotals and string.format("%s and %s both rolled %d. A tie changes nothing.", user, target, opposed.attacker)
+                    or string.format("%s and %s tied. A tie changes nothing.", user, target)
+            else
+                local outcome = opposed.attacker > opposed.defender and "succeeded" or "failed"
+                text = showTotals and string.format("%s rolled %d against %s's %d and %s.", user, opposed.attacker, target, opposed.defender, outcome)
+                    or string.format("%s %s against %s.", user, outcome, target)
+            end
+            rows[#rows + 1] = {who = {entry.actor}, text = text}
+        end
     end
 
     if #rows == 0 and entry.actor ~= nil then
@@ -730,7 +789,7 @@ end
 --- @param name string
 --- @return boolean
 local function PlayersMaySeeAbility(actor, name)
-    if MonsterKnowledge.LocalUserSeesAll() then
+    if dmhub.isDM then
         return true
     end
     if actor.secret then
@@ -771,8 +830,28 @@ local function Header(entry, width, inTray, close)
     end
 
     local title = "Encounter ended"
-    if entry.actor ~= nil then
-        children[#children + 1] = History.Face(entry.actor, 30)
+    --a test or Dice panel line: who rolled, and what ("Gordon - Might test", "Gordon - Dice").
+    local roller = entry.who
+    if entry.family == "test" or entry.family == "dice" or entry.family == "table" then
+        local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
+        local what = entry.family == "test" and entry.name or "Dice"
+        if entry.family == "table" then
+            --"Gordon - Prayer Table"; a project event the Director rolled, "Director - Seek the Lost Sword event".
+            what = entry.project ~= nil and (entry.project .. " event") or entry.name or "Table"
+        end
+        title = name .. History.DOT .. what
+        if roller ~= nil then
+            children[#children + 1] = History.Face(roller, 30, true)
+            titleWidth = titleWidth - 39
+        end
+    elseif entry.family == "negotiation" then
+        title = (roller ~= nil and History.ShownName(roller) or "A Hero") .. History.DOT .. "Argument"
+        if roller ~= nil then
+            children[#children + 1] = History.Face(roller, 30, true)
+            titleWidth = titleWidth - 39
+        end
+    elseif entry.actor ~= nil then
+        children[#children + 1] = History.Face(entry.actor, 30, true)
         titleWidth = titleWidth - 39
         --the ability's name is bracketed and hovers to its card, as names do in the Why; only
         --when the card can be found, and not for a creature whose name players may not see.
@@ -784,11 +863,39 @@ local function Header(entry, width, inTray, close)
         end
         title = History.ShownName(actor) .. History.DOT .. name
     end
+    local meta = gui.Label{
+        classes = {"historyCardMeta"},
+        text = MetaWords(entry),
+        width = "100%",
+        height = "auto",
+        textAlignment = "left",
+    }
+    --a villain action (L90) or a reverted row (L39) carries its tag beside the round and
+    --turn, as its row does.
+    local villainAction = entry.ability ~= nil and entry.ability.villainaction or nil
+    if villainAction ~= nil or entry.reverted ~= nil then
+        meta.selfStyle.width = "auto"
+        meta.selfStyle.halign = "left"
+        local parts = {meta}
+        if villainAction ~= nil then
+            parts[#parts + 1] = History.Tag("historyVillainTag", "Villain Action")
+        end
+        if entry.reverted ~= nil then
+            parts[#parts + 1] = History.Tag("historyRevertedTag", "Reverted")
+        end
+        meta = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            children = parts,
+        }
+    end
     children[#children + 1] = gui.Panel{
         flow = "vertical",
         width = titleWidth,
         height = "auto",
-        lmargin = entry.actor ~= nil and 9 or 0,
+        lmargin = (entry.actor ~= nil or (roller ~= nil and (entry.family == "test" or entry.family == "dice" or entry.family == "table"))) and 9 or 0,
         halign = "left",
         valign = "center",
         gui.Label(Linked{
@@ -798,13 +905,7 @@ local function Header(entry, width, inTray, close)
             height = "auto",
             textAlignment = "left",
         }),
-        gui.Label{
-            classes = {"historyCardMeta"},
-            text = MetaWords(entry),
-            width = "100%",
-            height = "auto",
-            textAlignment = "left",
-        },
+        meta,
     }
     children[#children + 1] = gui.Panel{
         classes = {"historyCardClose"},
@@ -865,7 +966,9 @@ end
 local SIDE_VIEW_ICON = "phosphor/arrow-elbow-right-down-bold.png"
 --The side view is drawn at most this wide, as the drag tooltip's.
 local SIDE_VIEW_MAX_WIDTH = 340
-local g_canDrawPaths = pcall(function() return dmhub.CreatePath ~= nil end)
+--pcall's first result only says the read did not raise; the second is the answer.
+local g_pathsRead, g_pathsFound = pcall(function() return dmhub.CreatePath ~= nil end)
+local g_canDrawPaths = g_pathsRead and g_pathsFound == true
 
 --- The squares a creature was moved through, start first, as dmhub.CreatePath takes them,
 --- or nil. History saves them as plain {x, y, floor, altitude} lists.
@@ -945,14 +1048,16 @@ local function SideViewButton(row, mapid)
     --what the hover put on the map, destroyed when it ends.
     --- @type LuaMultiObjectReference[]
     local shown = {}
+    local sectioned = false
     local function Clear()
         for _, item in ipairs(shown) do
             item:Destroy()
         end
-        if #shown > 0 then
+        if #shown > 0 or sectioned then
             dmhub.ClearMovementCrossSection()
         end
         shown = {}
+        sectioned = false
     end
     return gui.Panel{
         classes = {"historySideView"},
@@ -964,15 +1069,28 @@ local function SideViewButton(row, mapid)
         valign = "top",
         hover = function(element)
             Clear()
+            --the card outlives its tokens: one may be gone, or the map changed, since it was built.
+            local live = {}
+            if mapid == game.currentMapId then
+                for _, mover in ipairs(movers) do
+                    if mover.token.valid then
+                        live[#live + 1] = mover
+                    end
+                end
+            end
+            if #live == 0 then
+                return
+            end
             local path
-            shown, path = ShowMoves(movers)
-            local mover = movers[1]
+            shown, path = ShowMoves(live)
+            local mover = live[1]
             local collision = mover.moved.collision or 0
             local view = path ~= nil and dmhub.SetMovementCrossSection{
                 token = mover.token,
                 path = path,
                 collisionDamage = collision > 0 and collision or nil,
             } or nil
+            sectioned = view ~= nil
             --framed as the drag tooltip frames it; the bare name (L35) only when the
             --engine can't draw this move side-on (it crosses floors).
             local contents
@@ -1019,13 +1137,19 @@ local function StoryRow(row, width, mapid)
 
     local left = {}
     if row.who[1] ~= nil then
-        local face = History.Face(row.who[1], STORY_FACE)
+        local face = History.Face(row.who[1], STORY_FACE, mapid ~= nil)
         face.selfStyle.valign = "top"
         left[1] = face
         textWidth = textWidth - STORY_FACE - STORY_GAP
     end
     --what is still on gets Active, always (B8), so "slowed" answers why you are slowed now.
-    local active = not row.ended and row.who[1] ~= nil and History.ActiveStart(row.who[1]) or nil
+    --a grouped row is Active while any of its creatures still has it.
+    local active = nil
+    if not row.ended then
+        for _, who in ipairs(row.who) do
+            active = active or History.ActiveStart(who)
+        end
+    end
     local tagged = row.ended or active ~= nil
     left[#left + 1] = gui.Label{
         classes = {"historyStory"},
@@ -1289,7 +1413,7 @@ end
 local function SubHead(text, width, who)
     local children = {}
     if who ~= nil then
-        local face = History.Face(who, 18)
+        local face = History.Face(who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         children[1] = face
@@ -1361,11 +1485,12 @@ local function SourceText(source, why)
     if source.hand then
         return "Set by hand"
     end
-    local text = SpoilerName(source.name)
+    local sourceName = source.name or ""
+    local text = SpoilerName(sourceName)
     if why then
         text = WhyName(text)
     end
-    text = ModifierLink(text, source.name, source.hover)
+    text = ModifierLink(text, sourceName, source.hover)
     if source.who ~= nil then
         text = string.format("%s's %s", History.ShownName(source.who), text)
     end
@@ -1429,7 +1554,7 @@ local function SourceLine(width, source, side, struck, remover)
         children[1] = Chevrons(side, math.min((side == "edge" and source.edges or source.banes) or 0, 2))
     end
     if source.who ~= nil and not source.hand then
-        local face = History.Face(source.who, 18)
+        local face = History.Face(source.who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         children[#children + 1] = face
@@ -1515,7 +1640,8 @@ end
 --note. A side that was ignored entirely gets its own line, edges before the net line and
 --banes after it.
 --- @param sources HistoryEdgeSource[]|nil
-local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
+--- @param flat? boolean The roll has no tiers (an opposed power roll): a double edge or bane is +4 or -4.
+local function AddEdgeLines(rows, width, edges, banes, forTarget, sources, flat)
     edges, banes = edges or 0, banes or 0
     sources = sources or {}
     local removedEdges, removedBanes = 0, 0
@@ -1527,6 +1653,9 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         AddStruckLine(rows, width, "edge", removedEdges, forTarget, sources)
     end
     local net = NetEdges(edges, banes)
+    if flat and net ~= nil and net.count == 2 then
+        net.value = net.side == "edge" and "+4" or "-4"
+    end
     if net ~= nil then
         local label = net.label
         if forTarget and net.side ~= nil then
@@ -1564,7 +1693,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         for _, value in ipairs(values) do
             local lead = nil
             if source.who ~= nil and not source.hand then
-                local face = History.Face(source.who, 18)
+                local face = History.Face(source.who, 20, true)
                 face.selfStyle.rmargin = 6
                 face.selfStyle.halign = "left"
                 lead = {face}
@@ -1617,7 +1746,7 @@ local function DamagePartLine(width, part)
     local lead = nil
     local text = ModifierLink(SpoilerName(part.name or ""), part.name or "", part.hover)
     if part.who ~= nil then
-        local face = History.Face(part.who, 18)
+        local face = History.Face(part.who, 20, true)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         lead = {face}
@@ -1752,8 +1881,12 @@ end
 --- @return Panel
 local function SecretRollRow(entry, width)
     local children = {}
-    local roll = entry.roll
-    if roll ~= nil and roll.hidden then
+    --a test or dice line keeps who may see it in privacy; an action, on its roll.
+    local roll = entry.privacy or entry.roll
+    --the eye is the Director's: a player who rolled GM only sees their roll, not the eye.
+    --It writes the entry back, so it must share History.Entry's gate: a viewer holding
+    --the entry as cut for players would lose the roll for everyone.
+    if roll ~= nil and roll.hidden and dmhub.isDM then
         children[1] = gui.VisibilityPanel{
             visible = roll.revealed == true,
             width = 14,
@@ -1790,6 +1923,41 @@ local function SecretRollRow(entry, width)
     }
 end
 
+--What an overridden roll's card says in place of explaining its tier (L92).
+--- @param roll table A roll with overridden = {by, dicetier}.
+--- @return string
+local function OverrideWords(roll)
+    return string.format("%s overrode the result: Tier %d. The dice gave Tier %d.",
+        roll.overridden.by or "Director", roll.tier, roll.overridden.dicetier)
+end
+
+--A roll on a table: its dice, any bonus, the total, then the row it landed on in full and,
+--when the result was overridden, the roll dialog's message saying who changed it.
+local function AddTableLines(rows, width, entry)
+    if entry.dice ~= nil and #entry.dice > 0 then
+        local lead = {}
+        local sum = 0
+        for _, face in ipairs(entry.dice) do
+            lead[#lead + 1] = Die(face)
+            sum = sum + face
+        end
+        rows[#rows + 1] = ReceiptLine(width, {lead = lead, value = tostring(sum)})
+        if entry.total ~= nil and entry.total ~= sum then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(entry.total - sum)})
+        end
+    end
+    if entry.total ~= nil then
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", value = tostring(entry.total), total = true})
+    end
+    if entry.result ~= nil then
+        rows[#rows + 1] = SubHead("Result", width)
+        rows[#rows + 1] = ReceiptNote(width, entry.result)
+    end
+    if entry.overridden ~= nil then
+        rows[#rows + 1] = ReceiptNote(width, entry.overridden, "historyReceiptMore")
+    end
+end
+
 --- The receipt's rows for an action entry; empty when it has nothing to add up.
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
@@ -1801,14 +1969,34 @@ local function NumbersRows(entry, kids, width)
     local targets = entry.targets or {}
 
     --a roll hidden from players: they get this line instead of its numbers (2.4); the
-    --Director gets it above the numbers, with the eye that shows them to players.
-    if entry.secretroll or (entry.roll ~= nil and entry.roll.hidden) then
+    --Director gets it above the numbers, with the eye that shows them to players. Once
+    --shown to everyone, only the Director keeps the line, for the eye that hides it again.
+    local hidden = entry.privacy or entry.roll
+    if entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)) then
         rows[#rows + 1] = SecretRollRow(entry, width)
     end
 
     local roll = entry.roll
+    --each side of an opposed power roll, under its roller's name: the same lines a test
+    --line's own card shows. A roll players may not see keeps only its heading.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "test" and kid.cause ~= nil then
+            local name = kid.who ~= nil and History.ShownName(kid.who) or "Director"
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Roll"), width, kid.who)
+            if kid.roll ~= nil and not kid.secretroll then
+                for _, line in ipairs(NumbersRows(kid, nil, width)) do
+                    rows[#rows + 1] = line
+                end
+            else
+                rows[#rows + 1] = ReceiptLine(width, {label = "Rolled in secret", value = ""})
+            end
+        end
+    end
     if roll ~= nil then
-        rows[#rows + 1] = SubHead("Power roll", width)
+        --a nested roll sits under its roller's heading already.
+        if entry.cause == nil or entry.family ~= "test" then
+            rows[#rows + 1] = SubHead("Power roll", width)
+        end
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
             --a monster's stat block gives its roll a flat number, not a characteristic, so its
@@ -1829,7 +2017,7 @@ local function NumbersRows(entry, kids, width)
                 rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
             end
         end
-        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources)
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources, entry.family == "test" and entry.cause ~= nil)
         --the tier of the roll itself: a target with edges or banes of its own got another.
         local tier = roll.tier
         for _, who in ipairs(targets) do
@@ -1838,7 +2026,50 @@ local function NumbersRows(entry, kids, width)
                 break
             end
         end
-        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = tier, value = tostring(roll.total), total = true})
+        --an opposed roll is compared with the other side's total: it has no tier.
+        --- @type number|nil
+        local badge = tier
+        if entry.family == "test" and entry.cause ~= nil then
+            badge = nil
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
+        --a test's card has no Why, so its numbers say who set the tier (L92).
+        if entry.family == "test" and roll.overridden ~= nil then
+            rows[#rows + 1] = ReceiptNote(width, OverrideWords(roll), "historyReceiptMore")
+        end
+    end
+
+    --a table the ability rolled on, under its roller's name, as the table line's own card has it.
+    for _, kid in ipairs(kids or {}) do
+        if kid.family == "table" then
+            local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or "Director"
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Table"), width, kid.who)
+            AddTableLines(rows, width, kid)
+        end
+    end
+
+    if entry.family == "table" then
+        rows[#rows + 1] = SubHead("Dice", width)
+        AddTableLines(rows, width, entry)
+    end
+
+    --a Dice panel roll: each die, its edges and banes, and what the total adds past them.
+    if entry.family == "dice" and entry.dice ~= nil then
+        rows[#rows + 1] = SubHead("Dice", width)
+        local lead = {}
+        local sum = 0
+        for _, face in ipairs(entry.dice) do
+            lead[#lead + 1] = Die(face)
+            sum = sum + face
+        end
+        rows[#rows + 1] = ReceiptLine(width, {lead = lead, value = tostring(sum)})
+        AddEdgeLines(rows, width, entry.edges, entry.banes, false, nil)
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(entry.edges or 0, entry.banes or 0)
+        local bonus = entry.total - sum - edgeBonus
+        if bonus ~= 0 then
+            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = entry.tier, value = tostring(entry.total), total = true})
     end
 
     local groups = {}
@@ -1866,12 +2097,12 @@ local function NumbersRows(entry, kids, width)
                 net = net - (who.taken or 0) + (who.healed or 0)
             end
             if net ~= 0 then
-                local face = History.Face(kid.actor, 18)
+                local face = History.Face(kid.actor, 20, true)
                 face.selfStyle.rmargin = 6
                 face.selfStyle.halign = "left"
                 triggered[#triggered + 1] = ReceiptLine(width, {
                     lead = {face},
-                    label = History.ShownName(kid.actor) .. History.DOT .. kid.ability.name,
+                    label = History.ShownName(kid.actor) .. (kid.ability ~= nil and (History.DOT .. kid.ability.name) or ""),
                     value = Signed(net),
                     valueClass = cond(net < 0, "historyHurt", "historyHealed"),
                 })
@@ -2661,7 +2892,10 @@ function History.Why(entry, kids)
     --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
     --of its own moved; targets whose lines read the same share one.
     local roll = entry.roll
-    if roll ~= nil then
+    if roll ~= nil and roll.overridden ~= nil then
+        --the dice did not decide the tier, so the parts that moved it explain nothing.
+        rows[#rows + 1] = {text = OverrideWords(roll)}
+    elseif roll ~= nil then
         local main, lines = TierLines(roll, targets)
         if main ~= nil then
             rows[#rows + 1] = {lead = string.format("Tier %d%s", main.tier, main.qualifier), text = main.text}
@@ -2794,7 +3028,7 @@ local function WhyRow(row, width)
     if row.lead ~= nil then
         local lead = {}
         if row.who ~= nil then
-            local face = History.Face(row.who, 18)
+            local face = History.Face(row.who, 20, true)
             face.selfStyle.rmargin = 6
             face.selfStyle.halign = "left"
             lead[1] = face
@@ -2998,18 +3232,23 @@ function History.CreateCard(args)
     local width = args.width
     local inner = width - 2 * CARD_PAD
 
-    local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
-    for _, row in ipairs(History.Story(entry, args.kids)) do
-        body[#body + 1] = StoryRow(row, inner, entry.map)
-    end
-    local why = History.Why(entry, args.kids)
-    if #why > 0 then
-        body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
-        for _, row in ipairs(why) do
-            body[#body + 1] = WhyRow(row, inner)
+    --a test or Dice panel line's card is only its numbers: the line already says what happened.
+    local rolled = entry.family == "test" or entry.family == "dice" or entry.family == "table"
+    local body = {}
+    if not rolled then
+        body[1] = SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)
+        for _, row in ipairs(History.Story(entry, args.kids)) do
+            body[#body + 1] = StoryRow(row, inner, entry.map)
+        end
+        local why = History.Why(entry, args.kids)
+        if #why > 0 then
+            body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
+            for _, row in ipairs(why) do
+                body[#body + 1] = WhyRow(row, inner)
+            end
         end
     end
-    if entry.kind == "action" then
+    if entry.kind == "action" or rolled then
         local numbers = NumbersRows(entry, args.kids, inner)
         if #numbers > 0 then
             body[#body + 1] = SectionHead("The numbers", THE_NUMBERS_WIDTH, inner)

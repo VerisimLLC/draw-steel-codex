@@ -448,7 +448,7 @@ local function HeroTokens()
             end
             local prev = token.properties:GetHeroTokens()
             --a shared party resource (a document), not a Hero property.
-            token.properties:SetHeroTokens(count, "Set manually")
+            GameSystem.HandEdit(function() token.properties:SetHeroTokens(count, "Set manually") end)
             if count ~= prev and dmhub.GetSettingValue("telemetry_enabled") ~= false then
                 --the sheet only ever shows Heroes.
                 local classInfo = (token.properties --[[@as character]]):GetClass()

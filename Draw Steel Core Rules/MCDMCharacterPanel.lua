@@ -3497,7 +3497,7 @@ function TacPanel.HeroTokenBox()
                     local n = tonum(element.text, -1)
                     if n >= 0 then
                         local prev = token.properties:GetHeroTokens()
-                        token.properties:SetHeroTokens(n, "Set manually")
+                        GameSystem.HandEdit(function() token.properties:SetHeroTokens(n, "Set manually") end)
                         if n ~= prev then
                             local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
                             track("hero_token_change", {
@@ -3890,7 +3890,7 @@ function TacPanel.HeroicResourcesBox()
                     end
                     local creature = token.properties
                     if not creature:IsHero() and not creature:IsCompanion() then
-                        CharacterResource.SetMalice(math.max(0, n), "Manually set")
+                        GameSystem.HandEdit(function() CharacterResource.SetMalice(math.max(0, n), "Manually set") end)
                         return
                     end
                     local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
@@ -3901,9 +3901,9 @@ function TacPanel.HeroicResourcesBox()
                             description = "Change Heroic Resource",
                             execute = function()
                                 if diff > 0 then
-                                    token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                    GameSystem.HandEdit(function() token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff) end)
                                 else
-                                    token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                    GameSystem.HandEdit(function() token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff) end)
                                 end
                             end,
                         }
@@ -4901,9 +4901,9 @@ function TacPanel.RecoveriesBox()
                                 description = "Set Recoveries",
                                 execute = function()
                                     if delta > 0 then
-                                        token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Set Recoveries")
+                                        GameSystem.HandEdit(function() token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Set Recoveries") end)
                                     else
-                                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Set Recoveries")
+                                        GameSystem.HandEdit(function() token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Set Recoveries") end)
                                     end
                                 end,
                             }
@@ -5185,7 +5185,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                     description = "Apply Damage",
                     execute = function()
                         --A string, not the number: TakeDamage takes a formula.
-                        token.properties:TakeDamage(text)
+                        GameSystem.HandEdit(function() token.properties:TakeDamage(text) end)
                     end,
                 }
             elseif mode == "heal" then
@@ -5193,7 +5193,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Apply Healing",
                     execute = function()
-                        token.properties:Heal(n)
+                        GameSystem.HandEdit(function() token.properties:Heal(n) end)
                     end,
                 }
             elseif mode == "temp" then
@@ -5203,7 +5203,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Apply Temp Stamina",
                     execute = function()
-                        token.properties:SetTemporaryHitpoints(text)
+                        GameSystem.HandEdit(function() token.properties:SetTemporaryHitpoints(text) end)
                         token.properties:DispatchEvent("gaintempstamina", {})
                     end,
                 }
@@ -5215,7 +5215,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetStaminaDirect(value)
+                        GameSystem.HandEdit(function() token.properties:SetStaminaDirect(value) end)
                     end,
                 }
             end
@@ -8590,9 +8590,9 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache, readOn
                         description = string.format("Change %s", displayName),
                         execute = function()
                             if diff > 0 then
-                                tok.properties:RefreshResource(resourceId, usageLimit, diff)
+                                GameSystem.HandEdit(function() tok.properties:RefreshResource(resourceId, usageLimit, diff) end)
                             else
-                                tok.properties:ConsumeResource(resourceId, usageLimit, -diff)
+                                GameSystem.HandEdit(function() tok.properties:ConsumeResource(resourceId, usageLimit, -diff) end)
                             end
                         end,
                     }
@@ -9347,7 +9347,7 @@ function TacPanel.MultiEdit()
                             tok:ModifyProperties{
                                 description = "Heal",
                                 execute = function()
-                                    tok.properties:Heal(element.text)
+                                    GameSystem.HandEdit(function() tok.properties:Heal(element.text) end)
                                 end,
                             }
                         end
@@ -9368,7 +9368,7 @@ function TacPanel.MultiEdit()
                             tok:ModifyProperties{
                                 description = "Damage",
                                 execute = function()
-                                    tok.properties:TakeDamage(element.text)
+                                    GameSystem.HandEdit(function() tok.properties:TakeDamage(element.text) end)
                                 end,
                             }
                         end
@@ -9568,7 +9568,7 @@ function TacPanel.EffectChip(args)
                 args.token:ModifyProperties{
                     description = args.removeDescription,
                     execute = function()
-                        args.onRemove(args.token)
+                        GameSystem.HandEdit(function() args.onRemove(args.token) end)
                     end,
                 }
             end,
@@ -10183,10 +10183,12 @@ function TacPanel.AddConditionMenu(args)
                         tok:ModifyProperties{
                             description = "Apply Condition",
                             execute = function()
-                                tok.properties:InflictCondition(k, {
-                                    riders = {riderid},
-                                    duration = (durationOverride or "eot"),
-                                })
+                                GameSystem.HandEdit(function()
+                                    tok.properties:InflictCondition(k, {
+                                        riders = {riderid},
+                                        duration = (durationOverride or "eot"),
+                                    })
+                                end)
                             end,
                         }
                     end
@@ -10231,7 +10233,7 @@ function TacPanel.AddConditionMenu(args)
                         combine = true,
                         execute = function()
                             if tok == nil or not tok.valid then return end
-                            tok.properties:ApplyOngoingEffect(k)
+                            GameSystem.HandEdit(function() tok.properties:ApplyOngoingEffect(k) end)
                         end,
                     }
                 end
@@ -11141,7 +11143,7 @@ function CharacterPanel.AddConditionMenu(args)
                     end
                     for _,tok in ipairs(m_tokens) do
                         tok:BeginChanges()
-                        tok.properties:InflictCondition(k, { riders = {riderid}, duration = (durationOverride or "eot") })
+                        GameSystem.HandEdit(function() tok.properties:InflictCondition(k, { riders = {riderid}, duration = (durationOverride or "eot") }) end)
                         tok:CompleteChanges("Apply Condition")
                     end
                     m_button.popup = nil
@@ -11185,7 +11187,7 @@ function CharacterPanel.AddConditionMenu(args)
                                 if tok == nil or not tok.valid then
                                     return
                                 end
-                                tok.properties:ApplyOngoingEffect(k)
+                                GameSystem.HandEdit(function() tok.properties:ApplyOngoingEffect(k) end)
                             end,
                         }
                     end
@@ -11415,7 +11417,7 @@ function TacPanel.HarmBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Damage",
                         execute = function()
-                            element.data.token.properties:TakeDamage(element.text)
+                            GameSystem.HandEdit(function() element.data.token.properties:TakeDamage(element.text) end)
                             element.text = ""
                         end,
                     }
@@ -11467,7 +11469,7 @@ function TacPanel.HealBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Healing",
                         execute = function()
-                            element.data.token.properties:Heal(n)
+                            GameSystem.HandEdit(function() element.data.token.properties:Heal(n) end)
                             element.text = ""
                         end,
                     }
@@ -11523,7 +11525,7 @@ function TacPanel.TempStamBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Temp Stamina",
                         execute = function()
-                            element.data.token.properties:SetTemporaryHitpoints(element.text)
+                            GameSystem.HandEdit(function() element.data.token.properties:SetTemporaryHitpoints(element.text) end)
                             element.data.token.properties:DispatchEvent("gaintempstamina", {})
                         end,
                     }
@@ -11607,7 +11609,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetStaminaDirect(n)
+                                    GameSystem.HandEdit(function() token.properties:SetStaminaDirect(n) end)
                                 end,
                             }
                         end
@@ -13779,9 +13781,9 @@ function CharacterPanel.DecorateHitpointsPanel()
 
 					m_token:BeginChanges()
 					if delta > 0 then
-						m_token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Used Recovery")
+						GameSystem.HandEdit(function() m_token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Used Recovery") end)
 					else
-						m_token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Used Recovery")
+						GameSystem.HandEdit(function() m_token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Used Recovery") end)
 					end
 					m_token:CompleteChanges("Set Recoveries")
 				end,
@@ -13983,7 +13985,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
                         if n ~= nil and round(n) == n then
                             n = math.max(0, n)
                             local prev = m_token.properties:GetHeroTokens()
-                            m_token.properties:SetHeroTokens(n, "Set manually")
+                            GameSystem.HandEdit(function() m_token.properties:SetHeroTokens(n, "Set manually") end)
                             if n ~= prev then
                                 local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
                                 track("hero_token_change", {
@@ -14080,7 +14082,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 
                         local creature = m_token.properties
                         if not creature:IsHero() and not creature:IsCompanion() then
-                            CharacterResource.SetMalice(math.max(0, amount), "Manually set")
+                            GameSystem.HandEdit(function() CharacterResource.SetMalice(math.max(0, amount), "Manually set") end)
                             return
                         end
 
@@ -14098,10 +14100,10 @@ function CharacterPanel.DecoratePortraitPanel(token)
                             execute = function()
                                 if diff > 0 then
                                     print("RESOURCE:: CALLING REFRESH...")
-                                    m_token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                    GameSystem.HandEdit(function() m_token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff) end)
                                 else
                                     print("RESOURCE:: CALLING CONSUME...")
-                                    m_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                    GameSystem.HandEdit(function() m_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff) end)
                                 end
                             end,
                         }

@@ -445,6 +445,68 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+--- Tells a record of play (History) that a test outside an ability finished, with what it
+--- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
+--- @param props creature The creature that rolled.
+--- @param testName string What the test is called, e.g. "Might test".
+--- @param rollInfo table The finished roll.
+--- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
+--- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
+    local value = nil
+    for id, info in pairs(creature.attributesInfo) do
+        if characteristic ~= nil and info.description == characteristic then
+            local attr = props:GetAttribute(id)
+            value = attr ~= nil and attr:Modifier() or nil
+        end
+    end
+    local dice = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            dice[#dice + 1] = roll.result
+        end
+    end
+    local overrideTier = rollInfo.properties ~= nil and rollInfo.properties:try_get("overrideTier") or nil
+    GameSystem.NotifyPlayObservers("tested", props, {
+        name = testName,
+        total = rollInfo.total,
+        tier = overrideTier or RollUtils.DiceResultToTier(rollInfo),
+        dice = dice,
+        natural = rollInfo.naturalRoll,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        characteristic = value ~= nil and {name = characteristic, value = value} or nil,
+        sources = details ~= nil and details.edgeSources or nil,
+        privacy = RollUtils.RollPrivacy(rollInfo, details),
+        cause = causeCastId,
+        --a tier someone chose after the dice landed: who, and what the dice gave.
+        overridden = overrideTier ~= nil and {
+            by = rollInfo.properties:try_get("overrideBy"),
+            dicetier = RollUtils.DiceResultToTier(rollInfo),
+        } or nil,
+    })
+end
+
+--- Who may see a finished roll, for a record of play (History): nil when everyone may.
+--- A GM-only roll reaches only its roller and the Director; a Dice Tower roll is seen
+--- by everyone but its result only by the Director.
+--- @param rollInfo table The finished roll (a chat roll message).
+--- @param details nil|{dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @return nil|{hidden: boolean, tower: nil|boolean, userid: nil|string, cause: nil|string} cause is filled in by History.
+function RollUtils.RollPrivacy(rollInfo, details)
+    local gmonly, userid = false, nil
+    pcall(function()
+        gmonly = rollInfo.gmonly == true
+        userid = rollInfo.userid
+    end)
+    local tower = details ~= nil and details.dicetower == true
+    if not gmonly and not tower then
+        return nil
+    end
+    return {hidden = true, tower = tower or nil, userid = userid}
+end
+
 --- One target's effective roll: the roll as rolled, plus that target's post-roll
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves
@@ -1020,6 +1082,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_tierFinished = i
                     rollProperties.overrideTier = i
                     rollProperties.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                    --who did it, for a record of play (History): the Director, or the player's name.
+                    rollProperties.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                     m_rollInfo:UploadProperties(rollProperties)
 
                     element.parent:FireEventTree("tier", i, true)
@@ -2295,6 +2359,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
+    --an overridden tier: who chose it and what the dice gave, for a record of play (History).
+    if rollProperties:try_get("overrideTier") ~= nil then
+        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+        options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -3842,6 +3911,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                                    self.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                                     message:UploadProperties(self)
 
                                     for j,row in ipairs(m_rows) do

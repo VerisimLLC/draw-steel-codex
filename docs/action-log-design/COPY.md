@@ -512,3 +512,141 @@ Only a cast records a renewal; one outside any cast (an aura's upkeep) stays qui
 |---|---|---|
 | L46 | Sidebar Preview, an action's header | {Actor} . {Ability} (the card title without brackets: nothing hovers) |
 | L47 | Sidebar Preview, under an action with more than 2 target sentences | and {n} more |
+
+## Round 21: play outside an action (5.1)
+
+**Signed during the build (2026-11-14 to 2026-11-15).**
+| ID | Where | Text |
+|---|---|---|
+| L48 | Section heading outside combat (replaces L43) | the game mode's name: Exploration / Respite |
+| L49 | A Recovery spend, joined to its heal row | {Creature} regained {n} Stamina / Used a Recovery |
+| L50 | Card title, a test | {Creature} · {Test name} (e.g. Gordon · Might test) |
+| L51 | Card title, a Dice panel roll | {Creature} · Dice |
+| L52 | A Dice panel Power Roll | L45, cause {dice} · Tier {n} |
+
+**Respite (signed off 2026-11-15, option A: one line per Hero).**
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L53 | The respite ends | {Hero} took a respite | only what changed: Stamina {b} to {n} · Recoveries {b} to {n} · XP {b} to {n}; joins the Respite heal row |
+| L54 | Nothing to regain | {Hero} took a respite | Respite |
+| L55 | Level up | {Hero} reached Level {n} | Respite |
+| L56 | Effects that end when it begins | L8 / L11: {Hero} {Effect} and {effect} + Ended tag | Respite began |
+
+No Undo on respite lines: a respite is not a turn.
+
+**Montages (signed off 2026-11-15).** A book montage test's success depends on its difficulty, which the
+journal montage does not record, and the journal montage stores no outcome: so no tags there.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L57 | A test in a journal montage | L44, no tag | {Characteristic} test · Tier {n} |
+| L58 | The Director changes a journal counter | {Montage} successes {b} to {n} of {limit} (or failures) | Montage |
+| L59 | A test in an EotW montage | {Hero} rolled {n} + Success tag (Tier 3+) / Failure tag (Tier 1) / none (Tier 2) | {Opportunity or Threat}: {Option} · Tier {n} |
+| L60 | An EotW threat not vanquished | {Threat} was not vanquished | what its consequence did |
+| L61 | An EotW montage ends | Montage ended | {n} successes · {n} failures · {n} threat(s) not vanquished |
+
+**Negotiation (signed off 2026-11-15).** Players see numbers only when the Director shows them on the
+stage (`live.showRaw`); otherwise interest shows as its band (Unmoved, Wary, Listening...) and patience
+not at all. The legacy negotiation dialog writes nothing. Offers accepted or declined, NPC speech and
+dismissed arguments write nothing.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L62 | It begins | Negotiation with {NPC} | Interest {n} · Patience {n} |
+| L63 | An argument | {Hero} rolled {n} | Argument · Tier {n} · Interest {b} to {n} · Patience {b} to {n}; card: the argument text and the stage's cue |
+| L64 | A pitfall | {Hero} hit a pitfall: {Pitfall} | Interest {b} to {n} · Patience {b} to {n} |
+| L65 | Reading the NPC | {Hero} rolled {n} | Read {NPC} · Tier {n} · Learned something / Learned nothing / Learned nothing · Patience {b} to {n} |
+| L66 | A trait revealed | {NPC} {Trait} revealed | Motivation / Pitfall |
+| L67 | Director meter correction (Director only) | {NPC} interest {b} to {n} | Director |
+| L68 | It ends | Negotiation with {NPC} ended | Final offer: {offer} / No deal |
+
+**Downtime projects (signed off 2026-11-15).** Project rolls have no tier (edges +2/+4, no tier change).
+An upcoming milestone is never shown: players see one only when it is reached, as the sheet does.
+Granted downtime rolls and fishing write nothing; project event rolls use the table line.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L69 | A project roll | {Hero} rolled {n} | {Project} · project points {b} to {n} of {goal} |
+| L70 | For another hero's project | {Hero} rolled {n} | {Owner}'s {Project} · project points {b} to {n} of {goal} |
+| L71 | A breakthrough | L69 + Breakthrough tag | the second roll writes its own L69 |
+| L72 | A follower's roll | {Follower} rolled {n} | {Project} · project points {b} to {n} of {goal} |
+| L73 | A milestone reached | {Project} reached a milestone | The Director rolls a project event |
+| L74 | Completed | {Project} completed | {Hero} · project points {n} of {goal} |
+| L75 | Director adjusts points | {Project} project points {b} to {n} | Director |
+
+**Withdrawn 2026-11-19 (James): L69-L72 and L75.** A project keeps its own rolls and adjustments, and the
+Respite shows what everyone rolled, so these lines only repeated them and crowded the respite out of
+History. Only what changes the table is written: L73 and L74. The hook still reports every change
+(`DTProject:_notePoints`), so the lines can come back without touching the project code. L73 does not
+depend on the Players Manage Downtime Projects setting: a player's project already says "Milestone
+reached" whatever that setting is, and only the milestone still to come is kept from them.
+
+**Tables and hidden rolls (signed off 2026-11-15).** Matches today's chat: a table card always shows its
+row (a table's own visibility only hides rows before rolling). GM only: the engine sends the message only
+to the roller and the Director, so other players get no line. Dice Tower: everyone sees the roll happen,
+only the Director sees the result (the roller too sees L79). Lines follow the Director's Reveal / Hide.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L76 | A table roll | {Who} rolled {n} | {Table} · {result} (cut short; full in the card) |
+| L77 | A project event roll | Director rolled {n} | {Project} event · {result} |
+| L78 | An overridden result | L76 | {Table} · {result} · Overridden; card: the dialog's override message |
+| L79 | A Dice Tower roll, non-Directors | {Who} rolled in secret | {Table} / {Characteristic} test / {Project}, no number or result |
+| L80 | A hidden roll, Director | the normal line + eye | tooltip: Hidden from players (L28) |
+
+**Macros (signed off 2026-11-15).** /awardmalice, /awardherotokens, the effect macros and /dorespite already
+write their lines. Only the macro writes these; the victory screen, shops, loot, trades and the stash are
+outside 5.1. Dev and debug macros write nothing.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L81 | /roll in chat | L45: {Who} rolled {n} | {dice}; hidden-roll rules L79/L80 apply |
+| L82 | /awardvp | {Hero} gained {n} Victories | Director |
+| L83 | /giveitem | {Hero} received {Item} [x{n}] | Director / {player} |
+| L84 | /granttitle | {Hero} earned the title {Title} | Director / {player} |
+| L85 | /awardrenown, /awardwealth | {Hero} Renown {b} to {n} / Wealth {b} to {n} | Director |
+
+## Round 22: Director actions (5.2)
+
+**Category 1, the Director's tools on rows (signed off 2026-11-19).** Director only; any line or action row,
+nested lines included. Hide from players hides the row and everything nested under it (the Director keeps
+it, with the eye-off icon, L28). Delete entry removes the row and what is nested under it at once, no
+confirmation. Clear History clears this map's History for everyone, after a confirmation.
+| ID | What | Wording |
+|---|---|---|
+| L86 | Clear History confirmation | Title: Clear History? / Body: This removes every entry on this map for everyone. It can't be undone. / Buttons: Clear History, Cancel |
+
+**Category 2, hand edits (signed off 2026-11-19).** Stamina (damage, heal, set, temporary), conditions added or
+removed, and the resources History follows (Heroic Resource, surges, Recoveries, Malice). The hand-edit controls
+mark their change; the line is the usual one with who made it under it. Players see it under the usual rules.
+A player's hand edit turns the Director's badge gold.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L87 | Any hand edit | the existing line | Director / {player} |
+| L88 | Stamina set by hand | {Creature} Stamina {b} to {n} | Director / {player} |
+
+**Category 3, reinforcements (signed off 2026-11-19).** One line per deployed wave, written by the client that
+deployed it (Director button or encounter script); dismissing a wave writes nothing. Names follow the usual name
+rules; if any arrival is hidden from players when it lands, the line is Director-only. It sits in the round and
+turn it happened.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L89 | A wave deployed | {Wave name} arrived | the arrivals: {Monster} x{n} · {Monster} (a minion squad counts its members) |
+
+**Category 4, villain actions (signed off 2026-11-19).** The action row and its card header carry a tag; no
+line for the per-round budget; players see it as any action.
+| ID | What | Wording |
+|---|---|---|
+| L90 | Tag on a villain action's row and card header | Villain Action (changed 2026-11-19, James: the slot number is dropped) |
+
+**Category 5, overrides (signed off 2026-11-19).** Anyone driving the roll dialog may override a tier (not under
+Strictly Enforce Rolls, never the Monster AI). The action row is tagged; the card shows the final tier and replaces
+the tier explanation with who overrode it and what the dice gave; a test line's cause ends "Overridden". Tables
+keep L78.
+| ID | What | Wording |
+|---|---|---|
+| L91 | An overridden action row | no tag (changed 2026-11-19, James): the tier badge is drawn in the warning colour; hover: Overridden |
+| L92 | The card's Why line in place of the tier explanation | {Who} overrode the result: Tier {n}. The dice gave Tier {m}. |
+| L93 | A test line overridden | cause: {Test} · Tier {n} · Overridden |
+
+**Category 6, reveals (signed off 2026-11-19).** One line when the Director reveals a spoilered modifier, written
+by the Director's client. It follows the eye: while hidden again, players get no line and the Director keeps it
+with the eye-off icon. Monster Info reveals write nothing.
+| ID | What | Line | Cause line |
+|---|---|---|---|
+| L94 | A hidden modifier revealed | {Creature} {Modifier} revealed ({Modifier} revealed with no creature) | the modifier's description, in full |

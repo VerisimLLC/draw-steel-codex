@@ -32,6 +32,17 @@ local g_playObservers = {}
 ---     info: source, cast.
 ---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
 ---   temporarystamina(creature, before, after, note): the pool grew.
+---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
+---     or healed (a sheet field, a Set Stamina step).
+---   wavedeployed(info): reinforcements arrived. info: name (the wave's), tokens (the
+---     tokens spawned). Only on the client that deployed them.
+---   spoilerrevealed(info): the Director revealed a spoilered roll modifier to players.
+---     info: key, name, description, tokenid (whose modifier, or nil).
+---   spoilervisibility(key, revealed): the Director's eye shows or hides such a modifier.
+---   turnreverted(info): Revert Turn or Turn Rewind restored the board, on the client that
+---     did it. info: since (server ms the checkpoint was taken), turnkey (Turn Rewind only:
+---     the turn, so stepping back and forward within it is one record), turn (Revert Turn
+---     only: {encounter, round, turn} of the turn undone).
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
 ---     it and this application only renewed it; instanceid = an ongoing effect's instance.
@@ -51,6 +62,28 @@ local g_playObservers = {}
 --- @param handlers table<string, function>
 function GameSystem.RegisterPlayObserver(id, handlers)
 	g_playObservers[id] = handlers
+end
+
+--How many GameSystem.HandEdit calls are running (they can nest).
+local g_handEditDepth = 0
+
+--- Runs a change a person made by hand (a sheet field, the Stamina bar, the condition
+--- menu) so play observers can tell it from one the rules made: while fn runs,
+--- GameSystem.IsHandEdit() is true. Wrap only the change itself; fn must not yield.
+--- @param fn function
+function GameSystem.HandEdit(fn)
+	g_handEditDepth = g_handEditDepth + 1
+	local ok, err = pcall(fn)
+	g_handEditDepth = g_handEditDepth - 1
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- True while a change made by hand (GameSystem.HandEdit) is running.
+--- @return boolean
+function GameSystem.IsHandEdit()
+	return g_handEditDepth > 0
 end
 
 --- Tells every observer that something happened. Safe in hot code: it costs a table
@@ -3103,6 +3136,7 @@ end
 --- @field multitargets? table[] Per-target state of a roll against several targets ({tokenid, boons, banes, surges, modifiersUsed, ...}); set by the roll dialog.
 --- @field castid? string Id of the ability cast this roll belongs to; set by the roll dialog.
 --- @field overrideMessage? string Why the result was overridden (e.g. "X overrode the result"); shown on the chat card.
+--- @field overrideBy? string Who overrode the result: "Director" or the player's name, for a record of play (History).
 --- @field overrideOutcome? table An outcome entry ({outcome = "Hit", value = 8, ...}) that GetOutcome returns instead of matching the roll.
 --- Properties attached to a dice roll result to control outcome display and resolution.
 RollProperties = RegisterGameType("RollProperties")
@@ -14076,15 +14110,18 @@ end
 --a respite begins, and also from Rest() for instant-respite flows.
 function creature:RemoveOngoingEffectsOnRest(restType)
 	if self:has_key("ongoingEffects") then
-		local newOngoingEffects = {}
-		for _,effectInstance in ipairs(self.ongoingEffects) do
-			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
-			if not remove then
-				newOngoingEffects[#newOngoingEffects+1] = effectInstance
+		--EndingEffects tells play observers (History) what this took off, with the cause "rest".
+		self:EndingEffects("rest", function()
+			local newOngoingEffects = {}
+			for _,effectInstance in ipairs(self.ongoingEffects) do
+				local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
+				if not remove then
+					newOngoingEffects[#newOngoingEffects+1] = effectInstance
+				end
 			end
-		end
 
-		self.ongoingEffects = newOngoingEffects
+			self.ongoingEffects = newOngoingEffects
+		end)
 	end
 end
 
@@ -14096,6 +14133,12 @@ end
 --the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
 function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
+
+	--Play observers (History) note what the creature has before a long rest, and what
+	--changed once it is over ("rested", at the end of this function).
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("resting", self)
+	end
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
@@ -14143,6 +14186,9 @@ function creature:Rest(restType, keepOngoingEffects, keepLevel)
 		self:RemoveOngoingEffectsOnRest(restType)
 	end
 
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("rested", self)
+	end
 end
 
 function creature:HasConcentration()

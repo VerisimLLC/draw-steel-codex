@@ -41,6 +41,7 @@ local mod = dmhub.GetModLoading()
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
+--- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
 --- Something besides the tier itself that made a target's damage (2.3b).
 --- @class HistoryDamagePart
@@ -82,12 +83,19 @@ function History.Creature(token)
     if name == nil or name == "" then
         name = token.description
     end
+    local img = token.portrait
     local rect = token.portraitRect
+    --a popout token's portrait is a cut-out figure whose token crop lands on empty space;
+    --its face is the off-token portrait, cropped square, as the character sheet draws it.
+    if token.popoutPortrait then
+        img = token.offTokenPortrait
+        rect = token:GetPortraitRectForAspect(1, img)
+    end
     local props = token.properties
     return {
         id = token.charid,
         name = name,
-        img = token.portrait,
+        img = img,
         rect = rect ~= nil and {rect.x1, rect.y1, rect.x2, rect.y2} or nil,
         hero = token.playerControlled or (props ~= nil and props:IsHero()),
         secret = token.namePrivate or nil,
@@ -116,11 +124,16 @@ local function TurnOwner(q)
     return owner
 end
 
---- Adds the encounter, round and turn to an entry. Does nothing out of combat.
+--- Adds the encounter, round and turn to an entry; out of combat, the game mode instead
+--- (Respite), left off for Exploration so older entries read the same.
 --- @param entry HistoryEntry
 function History.AddCombatFacts(entry)
     local q = dmhub.initiativeQueue
     if q == nil or q.hidden then
+        local mode = q ~= nil and q:GameModeId() or "exploration"
+        if mode ~= "exploration" and mode ~= "combat" then
+            entry.mode = mode
+        end
         return
     end
     entry.encounter = q.guid
@@ -274,6 +287,11 @@ local function CastBegan(ability, casterToken, targets, options)
     end
 
     local actor = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
+    --the stat block's slot, "Villain Action 1"; "none" or missing for any other ability.
+    local villainAction = ability:try_get("villainAction")
+    if villainAction == "none" or villainAction == "" then
+        villainAction = nil
+    end
     local state = BeginCastState({
         id = symbols ~= nil and symbols.castid or nil,
         t = dmhub.serverTimeMilliseconds,
@@ -285,6 +303,7 @@ local function CastBegan(ability, casterToken, targets, options)
             icon = ability:try_get("iconid"),
             action = ActionKind(ability),
             area = ability:IsTargetTypeAOE(ability.targetType) or nil,
+            villainaction = villainAction,
         },
         --whoever is rolling is on this client; nil means the Director.
         player = not dmhub.isDM and dmhub.GetDisplayName(dmhub.userid) or nil,
@@ -474,6 +493,11 @@ local function AddRoll(entry, cast, ability, caster)
         tier = cast.tier,
         hidden = cast:try_get("hiddenRoll"),
     }
+    --a tier chosen after the dice landed (5.2e): who chose it and what the dice gave.
+    local diceTier = cast:try_get("diceTier")
+    if diceTier ~= nil then
+        entry.roll.overridden = {by = cast:try_get("overrideBy"), dicetier = diceTier}
+    end
     --what the dice add up to and what is added to them, for the receipt (2.2). The rest of
     --the total past the dice, the characteristic and an edge or bane is a flat bonus.
     local natural = cast:try_get("naturalRoll")
@@ -644,6 +668,24 @@ local function Cause(note)
     return nil
 end
 
+--A change made by hand (GameSystem.HandEdit) says who made it under its line (L87), and
+--a player's marks the Director's badge gold (byplayer). Returns facts, for WriteLine.
+local function NoteHand(facts)
+    if GameSystem.IsHandEdit() then
+        facts.causetext = dmhub.isDM and "Director" or dmhub.userDisplayName
+        facts.byplayer = not dmhub.isDM or nil
+    end
+    return facts
+end
+
+--The cast a change belongs to, or nil. A hand edit belongs to none, even mid-cast.
+local function CastFor(cast)
+    if GameSystem.IsHandEdit() then
+        return nil
+    end
+    return OpenCast(cast)
+end
+
 --The target's place on a cast's row, added if the cast did not aim at it.
 local function RowTarget(state, token)
     AddTarget(state.entry, state.seen, token)
@@ -684,14 +726,14 @@ local function OnDamage(creature, info)
 
     local soaked = info.landed - info.lost
     local damagetype = TypeWord(info.damagetype)
-    local state = OpenCast(info.cast)
+    local state = CastFor(info.cast)
     if state == nil then
         if info.landed > 0 then
             local cause = Cause(info.source)
             if info.startofturn and cause ~= nil then
                 cause = "Start of turn: " .. cause
             end
-            WriteLine(token, "damage", {
+            WriteLine(token, "damage", NoteHand{
                 taken = info.landed,
                 soaked = soaked > 0 and soaked or nil,
                 damagetype = damagetype,
@@ -719,17 +761,83 @@ local function OnDamage(creature, info)
     end
 end
 
+--A Recovery heals first and spends second, both inside one click. The heal's line waits
+--here so the spend can join it as its cause, one row in place of two.
+local g_recoveryHeal = nil
+local RECOVERY_WINDOW_MS = 1000
+
+--Heroes in the middle of a respite, with what they had when it began (L53). Weak keys:
+--a creature that never finishes resting is forgotten with it.
+local g_resting = setmetatable({}, {__mode = "k"})
+
+--What a respite can change on a Hero.
+local function RespiteFacts(props)
+    local used = props:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+    local max = props:GetResources()[CharacterResource.recoveryResourceId] or 0
+    --A Level set by hand can leave the stored XP below what that Level implies; the rest
+    --counts from the Level's own XP then (creature:Rest), so the line does too.
+    local level = props:CharacterLevel()
+    local perLevel = toint(dmhub.GetSettingValue("xpperlevel") or 16)
+    if perLevel == 0 then
+        perLevel = 16
+    end
+    return {
+        stamina = props:CurrentHitpoints(),
+        recoveries = max - used,
+        xp = math.max(props:try_get("xp", 0), (level - 1) * perLevel),
+        level = level,
+    }
+end
+
+local function OnResting(creature)
+    if History.Enabled() and creature:IsHero() then
+        g_resting[creature] = RespiteFacts(creature)
+    end
+end
+
+--The respite is over: one line per Hero saying only what changed (L53, L54), and one more
+--when it raised their Level (L55).
+local function OnRested(creature)
+    local before = g_resting[creature]
+    g_resting[creature] = nil
+    local token = dmhub.LookupToken(creature)
+    if before == nil or token == nil or not History.Enabled() then
+        return
+    end
+    local after = RespiteFacts(creature)
+    local parts = {}
+    for _, fact in ipairs({{"stamina", "Stamina"}, {"recoveries", "Recoveries"}, {"xp", "XP"}}) do
+        local was, now = before[fact[1]], after[fact[1]]
+        if was ~= now then
+            parts[#parts + 1] = string.format("%s %d to %d", fact[2], was, now)
+        end
+    end
+    --stamped a millisecond apart, so the Level line always sorts after the respite's.
+    local now = dmhub.serverTimeMilliseconds
+    WriteLine(token, "respite", {t = now, causetext = #parts > 0 and table.concat(parts, History.DOT) or "Respite"})
+    if after.level > before.level then
+        WriteLine(token, "levelup", {t = now + 1, level = after.level, causetext = "Respite"})
+    end
+end
+
 local function OnHeal(creature, regained, note, recovered)
     if not History.Enabled() then
+        return
+    end
+    --a respite's healing is part of its own line (L53).
+    if g_resting[creature] ~= nil then
         return
     end
     local token = dmhub.LookupToken(creature)
     if token == nil then
         return
     end
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
-        WriteLine(token, "heal", {healed = regained, recovered = recovered, causetext = Cause(note)})
+        local entry = WriteLine(token, "heal", NoteHand{healed = regained, recovered = recovered, causetext = Cause(note)})
+        if note == "Use Recovery" then
+            g_recoveryHeal = {entry = entry, charid = token.charid, t = dmhub.serverTimeMilliseconds}
+        end
         return
     end
     local target = RowTarget(state, token)
@@ -787,6 +895,41 @@ local function OnForcedMove(creature, info)
 end
 
 --The landing: the only place the real distance is known, floors included.
+--An ability teleported a creature other than its user: the move goes on that target, as a
+--push would. A creature's own teleport writes nothing, like any move of its own.
+--info: {distance, cast}.
+local function OnTeleported(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    local state = OpenCast(info.cast)
+    if state == nil then
+        return
+    end
+    local actor = state.entry.actor
+    if actor ~= nil and actor.id == token.charid then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.moved = {kind = "teleport", distance = info.distance, fell = 0, collision = 0, walls = 0}
+    end
+end
+
+--An opposed power roll finished against this creature. info: {attacker, defender, cast}.
+local function OnOpposed(creature, info)
+    local token = dmhub.LookupToken(creature)
+    local state = OpenCast(info.cast)
+    if not History.Enabled() or token == nil or state == nil then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.opposed = {attacker = info.attacker, defender = info.defender}
+    end
+end
+
 local function OnFell(creature, info)
     local token = dmhub.LookupToken(creature)
     if not History.Enabled() or token == nil then
@@ -831,9 +974,9 @@ local function OnTemporaryStamina(creature, before, after, note)
     if token == nil then
         return
     end
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
-        WriteLine(token, "temporarystamina", {before = before, after = after, causetext = Cause(note)})
+        WriteLine(token, "temporarystamina", NoteHand{before = before, after = after, causetext = Cause(note)})
         return
     end
     local target = RowTarget(state, token)
@@ -884,13 +1027,13 @@ local function OnEffectStarted(creature, info)
     facts.renewed = info.renewed
     facts.ref = info.instanceid
 
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
     if state == nil then
         --a renewal outside any cast is upkeep (an aura re-applying what it gives every
         --move), not something anyone did, so only casts record one (L39).
         if not info.renewed then
             facts.causetext = Cause(info.source)
-            WriteLine(token, "condition", facts)
+            WriteLine(token, "condition", NoteHand(facts))
         end
         return
     end
@@ -931,7 +1074,8 @@ local function WriteEnded(token, names, causetext, hidden)
         end
         return
     end
-    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden})
+    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden,
+        byplayer = GameSystem.IsHandEdit() and not dmhub.isDM or nil})
 end
 
 --The closing line of each encounter, while its creatures report what ended (L17).
@@ -990,14 +1134,27 @@ local function OnResource(creature, key, before, after, refreshType, note)
     end
     local name, style = ResourceFacts(creature, key)
     local change = after - before
-    local state = OpenCast(nil)
+    local state = CastFor(nil)
+    --the Recovery behind the heal just written: it becomes that row's cause (L3).
+    local healed = g_recoveryHeal
+    g_recoveryHeal = nil
+    if state == nil and key == CharacterResource.recoveryResourceId and change < 0 and healed ~= nil
+        and healed.charid == token.charid and dmhub.serverTimeMilliseconds - healed.t < RECOVERY_WINDOW_MS then
+        local entry = healed.entry
+        entry.causetext = "Used a Recovery"
+        entry.amount = change
+        entry.resourceid = key
+        entry.refreshtype = refreshType
+        History.Rewrite(entry)
+        return
+    end
     if state ~= nil and not state.automatic and change < 0 then
         AddCost(state, name, -change, style)
         return
     end
     --gains are lines, with Undo. Inside an automatic trigger the line names the trigger
     --and its cause, so the tray can still nest it (T15).
-    WriteLine(token, "resource", {
+    WriteLine(token, "resource", NoteHand{
         name = name,
         amount = change,
         resourceid = key,
@@ -1034,7 +1191,8 @@ local function OnTypedMessage(text)
     entry.messages[#entry.messages + 1] = text
 end
 
---- Puts a resource line back the way it was. Whoever controls the creature can do this.
+--- Puts a resource line, or a heal with its Recovery, back the way it was. Whoever controls
+--- the creature can do this.
 --- @param entry HistoryEntry
 function History.UndoResource(entry)
     local token = entry.who ~= nil and dmhub.GetCharacterById(entry.who.id) or nil
@@ -1044,6 +1202,11 @@ function History.UndoResource(entry)
     token:ModifyProperties{
         description = "Undo Resource",
         execute = function()
+            --a heal with its Recovery: the Stamina goes back too, set straight so no damage line follows.
+            if entry.family == "heal" then
+                local props = token.properties
+                props:SetCurrentHitpoints(props:CurrentHitpoints() - entry.healed, "Undo")
+            end
             if entry.amount > 0 then
                 token.properties:ConsumeResource(entry.resourceid, entry.refreshtype, entry.amount, "Undo")
             else
@@ -1067,7 +1230,7 @@ local function OnMalice(before, after, note)
 
     local byHand = note == nil or note == "Manually set"
     local token = caster ~= nil and caster.valid and caster or nil
-    local entry = {
+    local entry = NoteHand{
         kind = "line",
         family = "malice",
         map = token ~= nil and token.mapid or game.currentMapId,
@@ -1094,7 +1257,7 @@ local function OnGlobalResource(resourceid, before, after, note)
     if info == nil or info.name ~= "Hero Tokens" then
         return
     end
-    local entry = {
+    local entry = NoteHand{
         kind = "line",
         family = "globalresource",
         map = game.currentMapId,
@@ -1103,6 +1266,196 @@ local function OnGlobalResource(resourceid, before, after, note)
         after = after,
         causetext = Cause(note),
     }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--The first line of a combat: who goes first, and the Draw Steel die if one was rolled (T10).
+--info: {queue, mapid, heroesFirst, rolled}, from the one client that starts the combat.
+local function OnCombatBegan(info)
+    local q = info.queue
+    if not History.Enabled() or q == nil or info.mapid == nil then
+        return
+    end
+    local entry = {
+        kind = "line",
+        family = "drawsteel",
+        map = info.mapid,
+        encounter = q.guid,
+        round = q.round,
+        turn = q.turnNumber,
+        heroesFirst = info.heroesFirst,
+        rolled = info.rolled,
+    }
+    History.Write(entry)
+end
+
+--Downtime projects (5.1g). info comes from DTProject:_notePoints, on every roll or hand
+--adjustment that changes a project's points. Only what changes the table is written: a
+--milestone reached (L73) and a project completed (L74). The rolls and adjustments stay
+--where they are already kept, on the project and in the Respite's record (James,
+--2026-11-19). A player's project says a milestone was reached, so this line may too; the
+--milestone still to come is never named.
+local function OnDowntime(info)
+    if not History.Enabled() or not (info.milestone or info.completed) then
+        return
+    end
+    local project = info.project ~= nil and info.project ~= "" and info.project or "A project"
+    local owner = info.ownerid ~= nil and dmhub.GetCharacterById(info.ownerid) or nil
+    local function Write(entry)
+        entry.kind = "line"
+        entry.family = "downtime"
+        entry.map = game.currentMapId
+        entry.name = project
+        History.AddCombatFacts(entry)
+        History.Write(entry)
+    end
+    if info.milestone then
+        Write{sub = "milestone", causetext = "The Director rolls a project event"}
+    end
+    if info.completed then
+        Write{
+            sub = "completed",
+            causetext = string.format("%s%sproject points %d of %d", owner ~= nil and owner.name or "A Hero", History.DOT, info.after, info.goal),
+        }
+    end
+end
+
+--"Interest 2 to 3", or nil when it did not move.
+local function MeterWords(label, meter)
+    if meter == nil or meter.before == meter.after then
+        return nil
+    end
+    return string.format("%s %d to %d", label, meter.before, meter.after)
+end
+
+--Negotiation (5.1f, L62-L68). info comes from NegotiationRun.Note. Each line keeps two
+--cause texts: the Director's, with the numbers, and the players', where interest reads as
+--its band and patience is left out unless the Director was showing the numbers (info.raw).
+local function OnNegotiation(info)
+    if not History.Enabled() then
+        return
+    end
+    local npc = info.npc or "the NPC"
+    local interest = MeterWords("Interest", info.interest)
+    local patience = MeterWords("Patience", info.patience)
+    local band = nil
+    if info.bands ~= nil and info.bands.before ~= info.bands.after then
+        band = string.format("%s to %s", info.bands.before, info.bands.after)
+    end
+    --what follows the lead on each cause line: full has the numbers, shown has the band.
+    local function Causes(lead, withPatience)
+        local full, shown = {lead}, {lead}
+        full[#full + 1] = interest
+        shown[#shown + 1] = band
+        if withPatience then
+            full[#full + 1] = patience
+        end
+        return table.concat(full, History.DOT), table.concat(shown, History.DOT)
+    end
+
+    local entry = {kind = "line", family = "negotiation", sub = info.kind, map = game.currentMapId, name = npc, raw = info.raw}
+    local token = info.heroid ~= nil and info.heroid ~= "" and dmhub.GetCharacterById(info.heroid) or nil
+    if token ~= nil then
+        entry.who = History.Creature(token)
+    end
+
+    if info.kind == "began" then
+        entry.causetext = string.format("Interest %d%sPatience %d", info.interest.after, History.DOT, info.patience.after)
+        entry.playercause = info.bands.after
+    elseif info.kind == "argument" then
+        entry.total = info.total
+        entry.text = info.text
+        entry.cue = info.cue
+        entry.causetext, entry.playercause = Causes(string.format("Argument%sTier %d", History.DOT, info.tier or 0), true)
+    elseif info.kind == "pitfall" then
+        entry.trait = info.trait
+        local full, shown = {}, {}
+        full[#full + 1] = interest
+        full[#full + 1] = patience
+        shown[#shown + 1] = band
+        entry.causetext = #full > 0 and table.concat(full, History.DOT) or nil
+        entry.playercause = #shown > 0 and table.concat(shown, History.DOT) or nil
+    elseif info.kind == "read" then
+        entry.total = info.total
+        local lead = string.format("Read %s%sTier %d%s%s", npc, History.DOT, info.tier or 0, History.DOT,
+            info.learned and "Learned something" or "Learned nothing")
+        entry.playercause = lead
+        entry.causetext = patience ~= nil and (lead .. History.DOT .. patience) or lead
+    elseif info.kind == "reveal" then
+        entry.trait = info.trait
+        entry.causetext = info.traitKind == "pitfall" and "Pitfall" or "Motivation"
+        entry.playercause = entry.causetext
+    elseif info.kind == "adjust" then
+        --the Director's own correction: players get no line (L67).
+        entry.directoronly = true
+        entry.causetext = "Director"
+        entry.which = info.which
+        entry.before = info.which == "interest" and info.interest.before or info.patience.before
+        entry.after = info.which == "interest" and info.interest.after or info.patience.after
+    elseif info.kind == "ended" then
+        entry.causetext = info.offer ~= nil and info.offer ~= "" and ("Final offer: " .. info.offer) or "No deal"
+        entry.playercause = entry.causetext
+    else
+        return
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+local function Count(n, one, many)
+    return string.format("%d %s", n, n == 1 and one or many)
+end
+
+--Montages (5.1e, L58-L61). info.kind: "test" (an Encounter of the Week test), "threat" (one
+--whose consequence landed), "ended", or "counter" (the Director moved a journal montage's
+--successes or failures). Written by the host, or the Director who moved the counter.
+local function OnMontage(info)
+    if not History.Enabled() then
+        return
+    end
+    local map = game.currentMapId
+    if info.kind == "test" then
+        local token = info.heroid ~= nil and dmhub.GetCharacterById(info.heroid) or nil
+        if token == nil then
+            return
+        end
+        --a roster Hero may stand on no map, or another: the line belongs to the map shown.
+        WriteLine(token, "montagetest", {
+            map = map,
+            total = info.total,
+            tier = info.tier,
+            causetext = string.format("%s: %s%sTier %d", info.entry or "", info.option or "", History.DOT, math.min(info.tier, 3)),
+        })
+        return
+    end
+    local entry = {kind = "line", map = map}
+    if info.kind == "threat" then
+        entry.family = "montagethreat"
+        entry.name = info.name
+        local applied = {}
+        for _, text in ipairs(info.applied or {}) do
+            applied[#applied + 1] = tostring(text)
+        end
+        entry.causetext = #applied > 0 and table.concat(applied, History.DOT) or nil
+    elseif info.kind == "ended" then
+        entry.family = "montageend"
+        entry.causetext = table.concat({
+            Count(info.successes or 0, "success", "successes"),
+            Count(info.failures or 0, "failure", "failures"),
+            Count(info.unvanquished or 0, "threat not vanquished", "threats not vanquished"),
+        }, History.DOT)
+    elseif info.kind == "counter" then
+        entry.family = "montagecounter"
+        entry.name = info.name
+        entry.counter = info.counter
+        entry.before = info.before
+        entry.after = info.after
+        entry.limit = info.limit
+        entry.causetext = "Montage"
+    else
+        return
+    end
     History.AddCombatFacts(entry)
     History.Write(entry)
 end
@@ -1157,8 +1510,13 @@ local function OnEffectsEnded(creature, ended, cause)
         causetext = "End of round"
     elseif cause == "dying" then
         causetext = History.Creature(token).name .. " is dying"
+    elseif cause == "rest" then
+        causetext = "Respite began"
     end
 
+    if causetext == nil and GameSystem.IsHandEdit() then
+        causetext = NoteHand({}).causetext
+    end
     if causetext == nil then
         local state = OpenCast(nil)
         if state ~= nil then
@@ -1265,6 +1623,296 @@ local function OnSaved(creature, info)
     })
 end
 
+--A test rolled outside an ability: the character panel, Hero sheet, a journal, or one the
+--Director requested (L44). It keeps its roll in an action's shape, so its card can show it.
+local function OnTested(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil or info.total == nil then
+        return
+    end
+    local roll = {
+        total = info.total,
+        edges = info.edges,
+        banes = info.banes,
+        tier = info.tier,
+        natural = info.natural,
+        characteristic = info.characteristic,
+        sources = info.sources ~= nil and EdgeSources(info.sources) or nil,
+        overridden = info.overridden,
+    }
+    if #info.dice == 2 then
+        roll.low = math.min(info.dice[1], info.dice[2])
+        roll.high = math.max(info.dice[1], info.dice[2])
+    end
+    if info.natural ~= nil then
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(info.edges or 0, info.banes or 0)
+        if info.cause ~= nil then
+            --an opposed power roll has no tiers: every edge or bane that counts is 2.
+            edgeBonus = 2 * math.min(info.edges or 0, 2) - 2 * math.min(info.banes or 0, 2)
+        end
+        local value = info.characteristic ~= nil and info.characteristic.value or 0
+        local bonus = info.total - info.natural - edgeBonus - value
+        roll.bonus = bonus ~= 0 and bonus or nil
+    end
+    local privacy = info.privacy
+    if privacy ~= nil then
+        --what a player who may not see the result reads under the line (L79).
+        privacy.cause = info.name
+    end
+    WriteLine(token, "test", {
+        name = info.name,
+        total = info.total,
+        roll = roll,
+        privacy = privacy,
+        --a roll an ability asked for (an opposed power roll) goes under that ability's row;
+        --its total is compared with the other side's, so it has no tier of its own.
+        cause = info.cause,
+        causetext = (info.cause ~= nil and info.name or string.format("%s%sTier %d", info.name, History.DOT, info.tier))
+            .. (info.overridden ~= nil and (History.DOT .. "Overridden") or ""),
+    })
+end
+
+--A Dice panel roll (L45). It is named for the character the roller is acting as (selected,
+--else their own); with none, the player, or "Director" for the Director.
+local function OnDiceRoll(rollInfo, kind)
+    if not History.Enabled() or rollInfo.total == nil then
+        return
+    end
+    local token = dmhub.currentToken
+    local text = type(rollInfo.rollStr) == "string" and trim(rollInfo.rollStr) or ""
+    local faces = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+    --the Power Roll tile is two d10s, so it has a tier; other dice don't.
+    local tier = kind == "power" and RollUtils.DiceResultToTier(rollInfo) or nil
+    local cause = text ~= "" and text or nil
+    if tier ~= nil then
+        cause = string.format("%s%sTier %d", cause or "2d10", History.DOT, tier)
+    end
+    local entry = {
+        kind = "line",
+        family = "dice",
+        map = (token ~= nil and token.mapid) or game.currentMapId,
+        total = rollInfo.total,
+        dice = faces,
+        tier = tier,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        causetext = cause,
+    }
+    --the Dice panel offers Visible or GM only, never the Dice Tower.
+    local privacy = RollUtils.RollPrivacy(rollInfo, nil)
+    if privacy ~= nil then
+        privacy.cause = text ~= "" and text or nil
+        entry.privacy = privacy
+    end
+    if token ~= nil then
+        entry.who = History.Creature(token)
+    else
+        entry.roller = dmhub.isDM and "Director" or rollInfo.playerName
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--A table's result is cut to this many characters under its line; the card has all of it.
+local TABLE_RESULT_SHOWN = 60
+
+--A roll on a table (L76-L78): a journal's table, a Director's request, an ability's (under
+--its row) or a project event the Director rolled (L77). info: see RollOnTableProperties.NotifyRolled.
+local function OnTableRolled(roller, info)
+    if not History.Enabled() then
+        return
+    end
+    local result = info.result
+    if result ~= nil and #result > TABLE_RESULT_SHOWN then
+        result = string.sub(result, 1, TABLE_RESULT_SHOWN - 3) .. "..."
+    end
+    local cause = info.project ~= nil and (info.project .. " event") or info.table
+    if result ~= nil then
+        cause = cause .. History.DOT .. result
+    end
+    if info.overridden ~= nil then
+        cause = cause .. History.DOT .. "Overridden"
+    end
+    local token = roller ~= nil and dmhub.LookupToken(roller) or nil
+    local entry = {
+        kind = "line",
+        family = "table",
+        map = (token ~= nil and token.mapid) or game.currentMapId,
+        name = info.table,
+        project = info.project,
+        total = info.rolled,
+        dice = info.dice,
+        result = info.result,
+        overridden = info.overridden,
+        cause = info.cause,
+        causetext = cause,
+    }
+    --the Director rolls a project's event for the Hero, so the line is the Director's.
+    if token ~= nil and info.project == nil then
+        entry.who = History.Creature(token)
+    else
+        entry.roller = dmhub.isDM and "Director" or dmhub.userDisplayName
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--A Director's or player's macro gave a Hero something (L82-L85). info: {kind, before, after}
+--for victories, renown and wealth; {kind, name, quantity} for an item; {kind, name} for a title.
+local function OnAwarded(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    WriteLine(token, "award", {
+        sub = info.kind,
+        name = info.name,
+        quantity = info.quantity,
+        before = info.before,
+        after = info.after,
+        causetext = dmhub.isDM and "Director" or dmhub.userDisplayName,
+    })
+end
+
+--Stamina set to a number rather than dealt or healed (L88): a sheet field, the Stamina
+--bar's number, or a Set Stamina step outside any action row.
+local function OnStaminaSet(creature, before, after, note)
+    if not History.Enabled() then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    WriteLine(token, "staminaset", NoteHand{before = before, after = after, causetext = Cause(note)})
+end
+
+--A wave of reinforcements arrived (L89): one line naming the wave, with who came under it,
+--counted by name. If any arrival was hidden from players as it landed, players get no line
+--until the Director reveals it.
+local function OnWaveDeployed(info)
+    if not History.Enabled() then
+        return
+    end
+    local arrivals = {}
+    local byName = {}
+    local hidden = false
+    local map = nil
+    for _, token in ipairs(info.tokens) do
+        if token.valid then
+            map = map or token.mapid
+            local who = History.Creature(token)
+            --tokens are numbered ("Goblin Sniper 2"), so arrivals count by stat block; a
+            --creature whose name players may not see counts apart from one they may.
+            local kind = token.properties:try_get("monster_type")
+            if type(kind) ~= "string" or kind == "" then
+                kind = who.name
+            end
+            local key = (who.secret and "?" or "") .. kind
+            local group = byName[key]
+            if group == nil then
+                group = {who = who, name = kind, count = 0}
+                byName[key] = group
+                arrivals[#arrivals + 1] = group
+            end
+            group.count = group.count + 1
+            if token.invisibleToPlayers or token.properties:IsHidden() then
+                hidden = true
+            end
+        end
+    end
+    if #arrivals == 0 then
+        return
+    end
+    local entry = {
+        kind = "line",
+        family = "reinforcements",
+        map = map or game.currentMapId,
+        name = info.name or "Reinforcements",
+        arrivals = arrivals,
+        hiddenfromplayers = hidden or nil,
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--The current map's reveal lines for one spoilered modifier (L94).
+local function RevealEntries(key)
+    local mapid = game.currentMapId
+    local found = {}
+    for _, k in ipairs(History.Keys(mapid)) do
+        local e = History.Entry(mapid, k)
+        if e ~= nil and e.family == "reveal" and e.spoilerkey == key then
+            found[#found + 1] = e
+        end
+    end
+    return found
+end
+
+--The Director revealed a spoilered modifier (L94): who it belongs to, its name and what it
+--does. Revealing it again after hiding it shows the same line again, not another one.
+--info: {key, name, description, tokenid}.
+local function OnSpoilerRevealed(info)
+    if not History.Enabled() or #RevealEntries(info.key) > 0 then
+        return
+    end
+    local token = (info.tokenid ~= nil and info.tokenid ~= "") and dmhub.GetCharacterById(info.tokenid) or nil
+    local description = PowerRollSpoilers.Strip(info.description or "")
+    local entry = {
+        kind = "line",
+        family = "reveal",
+        map = token ~= nil and token.mapid or game.currentMapId,
+        who = token ~= nil and History.Creature(token) or nil,
+        name = PowerRollSpoilers.Strip(info.name or ""),
+        causetext = description ~= "" and description or nil,
+        spoilerkey = info.key,
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--The Director's eye on a revealed modifier: its line follows it, so hiding the modifier
+--again hides the line from players (the Director keeps it, with the eye-off icon).
+local function OnSpoilerVisibility(key, revealed)
+    if not History.Enabled() then
+        return
+    end
+    local change = {}
+    for _, e in ipairs(RevealEntries(key)) do
+        if (e.hiddenfromplayers == true) == revealed then
+            change[#change + 1] = e
+        end
+    end
+    if #change > 0 then
+        History.SetHiddenFromPlayers(change, not revealed)
+    end
+end
+
+--Revert Turn or Turn Rewind restored the board (L39, L40). History is not part of the
+--checkpoint, so nothing is erased: what came after it is marked Reverted, under one
+--"Turn reverted" line. info: {since, turnkey, turn}: turnkey for Turn Rewind, turn (the
+--encounter, round and turn undone) for Revert Turn.
+local function OnTurnReverted(info)
+    if not History.Enabled() or info.since == nil then
+        return
+    end
+    local mapid = game.currentMapId
+    local line = {
+        kind = "line",
+        family = "reverted",
+        map = mapid,
+        causetext = dmhub.isDM and "By the Director" or ("By " .. dmhub.userDisplayName),
+        wholeturn = info.turn ~= nil or nil,
+    }
+    History.AddCombatFacts(line)
+    History.SetReverted(mapid, info.since, info.turnkey or dmhub.GenerateGuid(), line, info.turn)
+end
+
 local PERSISTENCE_WORDS = {
     chose = "Chose to stop",
     targetsgone = "All its targets are dead",
@@ -1318,9 +1966,16 @@ GameSystem.RegisterPlayObserver("history", {
     heal = OnHeal,
     threshold = OnThreshold,
     forcedmove = OnForcedMove,
+    teleported = OnTeleported,
+    opposed = OnOpposed,
     fell = OnFell,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
+    staminaset = OnStaminaSet,
+    wavedeployed = OnWaveDeployed,
+    spoilerrevealed = OnSpoilerRevealed,
+    spoilervisibility = OnSpoilerVisibility,
+    turnreverted = OnTurnReverted,
     resource = OnResource,
     globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,
@@ -1328,7 +1983,17 @@ GameSystem.RegisterPlayObserver("history", {
     conditionimmune = OnConditionImmune,
     resisted = OnResisted,
     saved = OnSaved,
+    tested = OnTested,
+    diceroll = OnDiceRoll,
+    tablerolled = OnTableRolled,
+    awarded = OnAwarded,
     persistenceended = OnPersistenceEnded,
+    combatbegan = OnCombatBegan,
+    montage = OnMontage,
+    negotiation = OnNegotiation,
+    downtime = OnDowntime,
+    resting = OnResting,
+    rested = OnRested,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
     typedmessage = OnTypedMessage,

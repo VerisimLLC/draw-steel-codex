@@ -338,6 +338,43 @@ end
 --One montage's totals, from its log: successes (tier 3, or the critical
 --tier 4), failures (tier 1) and threats whose consequence landed. Delve
 --turns carry no tier and count for nothing; a passed turn neither.
+--Host: tells play observers (History) what the montage's log gained since last time: a
+--line per test, per threat whose consequence landed, and one when the montage ends.
+--historyLogged counts the log entries already told, and lives on the montage so a new
+--host does not tell them again.
+function EncounterMontage.NoteHistory(m)
+    if type(m) ~= "table" then
+        return
+    end
+    local log = m.log or {}
+    for i = (tonumber(m.historyLogged) or 0) + 1, #log do
+        local e = log[i]
+        if e.consequence then
+            GameSystem.NotifyPlayObservers("montage", {kind = "threat", name = e.entryName, applied = e.applied})
+        elseif not e.delve and not e.passed and not e.interrupted and type(e.tier) == "number" and e.tier > 0 and e.total ~= nil then
+            GameSystem.NotifyPlayObservers("montage", {
+                kind = "test",
+                heroid = e.heroid,
+                total = e.total,
+                tier = e.tier,
+                entry = e.entryName,
+                option = e.optionName,
+            })
+        end
+    end
+    m.historyLogged = #log
+    if m.phase == "done" and not m.historyEnded then
+        m.historyEnded = true
+        local totals = EncounterMontage.TotalsFromLog(m)
+        GameSystem.NotifyPlayObservers("montage", {
+            kind = "ended",
+            successes = totals.successes,
+            failures = totals.failures,
+            unvanquished = totals.unvanquished,
+        })
+    end
+end
+
 function EncounterMontage.TotalsFromLog(m)
     local totals = { successes = 0, failures = 0, unvanquished = 0 }
     for _, e in ipairs((type(m) == "table" and m.log) or {}) do
@@ -7268,6 +7305,12 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
     local upkeepOk, upkeepErr = pcall(MaintainMontageUses, m, doc, heroes)
     if not upkeepOk then
         printf("EotW montage: item upkeep failed: %s", tostring(upkeepErr))
+    end
+
+    --History reads the montage's own log; a failure there must not stop the montage.
+    local historyOk, historyErr = pcall(EncounterMontage.NoteHistory, m)
+    if not historyOk then
+        printf("EotW montage: History note failed: %s", tostring(historyErr))
     end
 
     --a finished montage's totals go into the part's score (a series'

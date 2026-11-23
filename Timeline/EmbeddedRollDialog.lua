@@ -495,6 +495,8 @@ function PowerRollSpoilers.SetRevealed(key, value)
     revealed[key] = value
     doc.data.revealed = revealed
     doc:CompleteChange("Reveal spoiler to players", {undoable = false})
+    --a record of play (History) keeps its reveal line shown or hidden with the eye.
+    GameSystem.NotifyPlayObservers("spoilervisibility", key, value == true)
 end
 
 --- Format text containing spoiler markup for display. Unrevealed spoilers
@@ -514,6 +516,8 @@ end
 --- info: { key, name, description, tokenid }
 function PowerRollSpoilers.Reveal(info)
     PowerRollSpoilers.SetRevealed(info.key, true)
+    --a record of play (History) notes the reveal, on the Director's client that made it.
+    GameSystem.NotifyPlayObservers("spoilerrevealed", info)
     chat.SendCustom(SpoilerRevealChatMessage.new{
         spoilerKey = info.key,
         spoilerName = info.name or "",
@@ -6686,12 +6690,17 @@ function GameHud.CreateEmbeddedRollDialog()
         --the rest so callers reading rolls/boons/banes still see natural dice.
         --Built field-by-field because the real rollInfo is a C++ wrapper that
         --pairs() can't iterate.
+        local overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+        --rolledTotal and overrideMessage are for a record of play (History): what the
+        --dice said, and who changed it.
         local synthetic = {
             total = range.min,
             boons = last.boons,
             banes = last.banes,
             rolls = last.rolls,
             properties = last.properties,
+            rolledTotal = last.total,
+            overrideMessage = overrideMessage,
         }
 
         --Push override to chat so the action log re-renders with the new row.
@@ -6699,8 +6708,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --overrideRollTotal.
         if m_tableRoll_state.lastRollProperties ~= nil then
             m_tableRoll_state.lastRollProperties.overrideRollTotal = range.min
-            m_tableRoll_state.lastRollProperties.overrideMessage =
-                string.format("%s overrode the result", dmhub.userDisplayName)
+            m_tableRoll_state.lastRollProperties.overrideMessage = overrideMessage
 
             if type(last) == "userdata" then
                 last:UploadProperties(m_tableRoll_state.lastRollProperties)
@@ -8049,8 +8057,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 OnHide()
 
                 local rollVisibility = GetRollVisibility()
-                local dmonly = rollVisibility == "dm"
-                local dicetower = rollVisibility == "dicetower"
+                --a roll that demands the Dice Tower (options.dicetower, e.g. a requested
+                --roll with Dice Tower ticked) goes there whatever the roller's own setting.
+                local dicetower = rollVisibility == "dicetower" or (m_options ~= nil and m_options.dicetower == true)
+                local dmonly = rollVisibility == "dm" and not dicetower
                 local instant = false
 
                 NotifyRollAllPrompts()
@@ -8365,7 +8375,10 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
 
                     if completeRollFn ~= nil then
-                        completeRollFn(rollInfo)
+                        --the second argument says what gave the roll its edges, banes and
+                        --bonuses, and whether it went in the Dice Tower, for a record of play
+                        --(History); callers may ignore it.
+                        completeRollFn(rollInfo, {edgeSources = m_edgeSources, dicetower = dicetower})
                     end
                 end
 

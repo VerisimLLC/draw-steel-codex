@@ -451,8 +451,28 @@ Goal: why it happened, one click from the row.
 James, 2026-11-10: replace the "Out of combat" section with the game mode the Initiative bar shows
 (`InitiativeQueue.gameMode`: Exploration, Respite; combat keeps its rounds). Each entry records the
 mode it was written in; a mode change starts a new section. Headings to sign off with 5.1.
+
+5.1a f7fa100a (2026-11-14): headings signed and checked live. Respite entries record `mode`; Exploration records none, so older entries go under Exploration.
+
+5.1b a04aec42 (2026-11-15), checked live by James: tests (character panel, roll dialog, Director Request Rolls) and Dice panel rolls write `test` / `dice` lines; each opens a numbers-only card (dice, characteristic, edges and sources, bonus, total, tier). The roll dialog passes `{edgeSources}` as completeRoll's second argument; requests carry `director = true`. Card titles "Gordon · Might test" / "Gordon · Dice" signed. A Recovery spend joins its heal row (bcb6e00d). Left in 5.1: tables, macros, montages, negotiation, respite, downtime.
+
+5.1 copy signed 2026-11-15: COPY.md Round 21 (L48-L85). Build order, one commit each: 5.1c hidden rolls (GM only = no line for other players; Dice Tower = rolled in secret; follow Reveal/Hide; fixes the 5.1b test and dice lines), 5.1d respite, 5.1e montages, 5.1f negotiation, 5.1g downtime, 5.1h tables and macros.
+5.1d (2026-11-19): a long rest fires `resting` and `rested` play-observer moments from `creature:Rest`; History writes L53-L55 from the difference, and `RemoveOngoingEffectsOnRest` reports L56 through `EndingEffects("rest")`. Checked with a fed no-change respite and the real Rest on a copy; a real respite with healing, XP and a Level is James's to run.
+
+Also 2026-11-19, from the review: the Draw Steel banner (T10, `combatbegan`), a teleport of another creature (`teleported`), opposed power rolls (nested test lines, `opposed` outcome, dice on the card), and the cull guard (`History.minEncounterEntries`). Fed History tests must use a scratch map id: a fed encounter counts towards the cull.
+
+5.1h (2026-11-19): tables and macros. `RollOnTableProperties.NotifyRolled` (DMHub Game Hud, system-neutral) fires `tablerolled` from the roller's completion callback: Request Rolls (Director requests, and an ability's table roll, which carries the cast id and nests under the action's row: James 2026-11-19), a player's journal table link, and the two Director project-event rolls (L77). After an override the roll dialog's synthetic rollInfo carries `rolledTotal` and `overrideMessage`, so the line is written once with the final row (L78). Card: "{Who} · {Table}" / "Director · {Project} event", then Dice, Bonus, Total (no tier), a `Result` subheading with the row's full text, and the override message (signed 2026-11-19). Macros fire `awarded` (L82-L85); `/roll`, `/r` and `/dmroll` are codex copies of the engine's commands with a complete callback into `diceroll` (L81). Not covered: the legacy `RollOnTableDialog` and `RequireDCDialog` (5e-era), and Dice Tower or GM-only table rolls, which the table dialog cannot make. A Director's table roll with no character leaves `{...}` formulas unfilled, as the chat card does. "1 Victories" reads "1 Victory". Checked with the handlers run over the bridge with writes captured, and the cards built; no real roll or macro run.
+
+After James tested 5.1h (2026-11-19): a choice table (Conduit Prayer Choice) names the table its dice landed on, read from the roll's own properties (427d3da4); the History preview bubble builds only the newest four rows (b36615ac). Sections (cd0aed5a, James): a combat's rounds sit under one "Combat" heading, rounds one step in; an older combat folds to "Combat · Rounds 1–3"; when a combat begins, everything before it counts as seen (`CombatStart` in HistoryTray's Unseen). Doubled resource lines written between the two reloads that day are a reload artifact (MCDMCreature's resource wrappers wrapped twice), not a code fault; they stay in that game's History.
 | 5.2 | F9 Director actions: reinforcements, villain actions, overrides, hand edits, reveals; right-click Hide/Reveal, Delete entry, Clear History | M |
 | 5.3 | Revert Turn and Turn Rewind: Reverted rows, the Turn reverted line, out of the totals | M |
+
+5.2 decided 2026-11-19 (COPY Round 22, L86-L94). Build order, one commit each: 5.2a right-click tools (Hide/Reveal, Delete entry, Clear History with its confirmation); 5.2b hand edits (who made them, Stamina set by hand, the Director's gold for players' edits); 5.2c reinforcements; 5.2d villain action tag; 5.2e overrides; 5.2f reveals.
+
+5.2 done 2026-11-19, all six tested by James: 5.2a 04666850 + 5a6a9bb8, 5.2b 72f0354d, 5.2c ed86472b, 5.2d bae93fc3 + 188b93a6 (popout face 7ba06541), 5.2e bb3fb0f0 + 4a4594ab, 5.2f b114104f (reveals; tested on Devil Jurist 1 with a hand-added {#Soft Underbelly} trait, no compendium monster has one).
+
+5.3 done 2026-11-19, tested by James: 03127a9d (Reverted rows, the Turn reverted line, out of the totals; Turn Rewind's steps in a turn share one line and rolling forward clears the mark, as James agreed) + 13955649 (struck through as well as faded, James's ask) + f643ca0e (Revert Turn marks the whole turn by encounter, round and turn, since a player's client stamps with a server time that can run behind the Director's checkpoint; a fully reverted turn's heading is tagged and struck; the replayed turn gets its own heading). Stage 5 complete. Next: 6.1.
+
 
 ## Stage 6: finish and switch over
 
@@ -462,6 +482,11 @@ mode it was written in; a mode change starts a new section. Headings to sign off
 | 6.2 | Scale: "+N", grouped results, details built when opened; a long-fight test at the hard cap | M |
 | 6.3 | Font Size and narrow windows (the responsive-panel checks); full performance pass | S |
 | 6.4 | Switch-over: History on for everyone; old log off the rail; the built-in Views give History its own button; stored rail layouts repaired (`g_railRenamedPanels`); tooltip "History (was Action Log)"; old messages keep posting, because other code reads them | M |
+
+### Stage 6 notes
+
+- **6.4 checklist, Encounter of the Week:** its interface replaces the rail and keeps a corner strip of buttons named in `EncounterOfTheWeek/EncounterOfTheWeekHud.lua` (`CreateCornerButtonsPanel`): Journal, Chat, Action Log. History was added beside the Action Log on 2026-11-19, shown while `historyenabled` is on. At the switch-over, take "Action Log" out of that list and drop the `History.Enabled` check. Not yet seen running: the button is built with the strip, so turning History on mid-game needs the interface rebuilt.
+- **5.1e left out (James, 2026-11-19):** delve turns and chest rolls write nothing.
 
 ## Risks
 

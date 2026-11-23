@@ -1525,17 +1525,26 @@ function AnimalCompanion:GetActivatedAbilities(options)
 
     local numDerivedAbilities = #result
 
+    --On a name clash the companion's own ability replaces the summoner's copy.
+    --Abilities granted through modcompanion are written from the companion's side
+    --(e.g. Heart of the Beast targets caster_summoner); the hero's copy targets
+    --caster_companion, which is empty when the companion casts it (QXRKJTP6).
+    --Each derived entry is replaced at most once, keeping the hero's list order.
+    local replaced = {}
     local ourAbilities = monster.GetActivatedAbilities(self, options)
     for i,ability in ipairs(ourAbilities) do
-        local alreadyExists = false
+        local matchIndex = nil
         for j=1,numDerivedAbilities do
-            if result[j].name == ability.name then
-                alreadyExists = true
+            if not replaced[j] and result[j].name == ability.name then
+                matchIndex = j
                 break
             end
         end
 
-        if not alreadyExists then
+        if matchIndex ~= nil then
+            result[matchIndex] = ability
+            replaced[matchIndex] = true
+        else
             result[#result+1] = ability
         end
     end

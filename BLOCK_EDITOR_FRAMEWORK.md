@@ -382,7 +382,7 @@ feature's text.
   Columns: label, hover text, block sentence, book prose, group, status, engine name, the new
   editor's own description, and notes. 28 engine types already have blocks (15 behaviours, 13
   modifiers); 125 still need wording (78 behaviours, 47 modifiers).
-- **Q2 (new): one type, several blocks.** Some types already appear as more than one block:
+- ~~**Q2: one type, several blocks**~~ **Decided** (see the ledger). Some types already appear as more than one block:
   - `attribute` is Change a stat, Movement type, You ignore / can't... and Raise a
     characteristic;
   - `power` is Edge or bane on rolls, Rolls against you, Extra damage, Change the outcome and

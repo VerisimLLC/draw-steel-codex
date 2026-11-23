@@ -3833,7 +3833,8 @@ end
 -- Buttons with a malice cost (button.malice > 0) show the action bar's malice
 -- cost diamond overlapping the drawer's top edge; the strip's refresh hides
 -- them entirely while the Director cannot afford the cost, and clicking spends
--- the malice (before running the command).
+-- the malice (before running the command). Buttons with `confirm` set ask
+-- Confirm / Cancel in a dialog before doing any of that.
 local function CreateEncounterActionButton(info, button)
     local function RemoveAndRefresh(element)
         local q = info.initiativeQueue
@@ -3847,6 +3848,48 @@ local function CreateEncounterActionButton(info, button)
         local strip = element:FindParentWithClass("encounterActionsStrip")
         if strip ~= nil then
             strip:FireEvent("refresh")
+        end
+    end
+
+    --Runs the button. It is looked up again here, so a confirmation answered
+    --late still runs the current version, or nothing if the button is gone.
+    local function Activate(element)
+        local q = info.initiativeQueue
+        if q == nil then return end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then return end
+
+        local current = liveEncounter:GetCustomButton(button.id)
+        if current == nil then return end
+
+        --re-check affordability at click time (the strip hides
+        --unaffordable malice buttons, but malice can change between
+        --refreshes).
+        local cost = tonumber(current.malice) or 0
+        if cost > 0 and not CharacterResource.CanSpendMalice(cost) then
+            return
+        end
+
+        if not current.sticky then
+            liveEncounter:RemoveCustomButton(current.id)
+            info.UploadInitiative()
+        end
+
+        if cost > 0 then
+            CharacterResource.SpendMalice(cost, current.name or "Encounter action")
+        end
+
+        if current.command ~= nil and current.command ~= "" then
+            dmhub.Execute(current.command)
+        end
+
+        --the strip may have rebuilt (and destroyed this button) while a
+        --confirmation was open.
+        if element.valid then
+            local strip = element:FindParentWithClass("encounterActionsStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
         end
     end
 
@@ -3927,37 +3970,30 @@ local function CreateEncounterActionButton(info, button)
             if q == nil then return end
             local liveEncounter = q:try_get("liveEncounter")
             if type(liveEncounter) ~= "table" then return end
-
-            --re-resolve the button so we execute the current version, not the
-            --one captured when the strip was last rebuilt.
             local current = liveEncounter:GetCustomButton(button.id)
             if current == nil then return end
 
-            --re-check affordability at click time (the strip hides
-            --unaffordable malice buttons, but malice can change between
-            --refreshes).
-            local cost = tonumber(current.malice) or 0
-            if cost > 0 and not CharacterResource.CanSpendMalice(cost) then
+            --Opt-in (off by default): a button with `confirm` set asks first.
+            --confirm = true asks "Are you sure?"; a string asks that instead.
+            local question = current.confirm
+            if question == true then
+                question = "Are you sure?"
+            end
+            if type(question) ~= "string" or question == "" then
+                Activate(element)
                 return
             end
-
-            if not current.sticky then
-                liveEncounter:RemoveCustomButton(current.id)
-                info.UploadInitiative()
-            end
-
-            if cost > 0 then
-                CharacterResource.SpendMalice(cost, current.name or "Encounter action")
-            end
-
-            if current.command ~= nil and current.command ~= "" then
-                dmhub.Execute(current.command)
-            end
-
-            local strip = element:FindParentWithClass("encounterActionsStrip")
-            if strip ~= nil then
-                strip:FireEvent("refresh")
-            end
+            GameHud.instance:ModalMessage{
+                title = current.name or "Encounter Action",
+                message = question,
+                owner = element,
+                width = 520,
+                height = "auto",
+                options = {
+                    { text = "Confirm", execute = function() Activate(element) end },
+                    { text = "Cancel" },
+                },
+            }
         end,
 
         rightClick = function(element)

@@ -1482,3 +1482,21 @@ These tests are common in the compendium's formulas, but authors used to have to
   - Remember: 23/23
 - **Left out on purpose:** tests for one class or monster (Rampaging, Summoner level, who
   gave you a condition, monster mode). The formula box covers those.
+
+**Update (same day):** the reference page is now built from a user-facing rewrite,
+`ui-mockup/goblinscript-doc/GoblinScript_User_Guide.md`. `GoblinScript_Guide.md` stays as the
+technical reference. The rewrite has the following sections:
+- what a formula is and where you type one
+- copy-paste examples
+- "who is who" (Self, Caster, Target...)
+- how-to sections
+- common mistakes
+- lookup tables at the end
+
+Where the old guide and the code disagreed, the rewrite follows the code:
+- Heroic Resources This Turn is the turn's highest total, not what was gained.
+- `Target.PassesPotency` takes two values.
+- `Cast.HasTarget` and `Cast.TierForTarget` take a creature.
+- Complications is a list you check with `has`.
+
+Code samples turn off font ligatures, so `>=` shows as typed.

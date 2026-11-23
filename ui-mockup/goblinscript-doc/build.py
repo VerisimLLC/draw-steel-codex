@@ -1,9 +1,11 @@
-"""Builds ui-mockup/goblinscript.html from the repo's GoblinScript_Guide.md, so the block editors'
+"""Builds ui-mockup/goblinscript.html from GoblinScript_User_Guide.md (beside this script), so the block editors'
 "Type a formula instead" box can open a GoblinScript reference with no outside site.
 Run from the repo root:  python ui-mockup/goblinscript-doc/build.py"""
 import html, re, os
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-src = open(os.path.join(ROOT, "GoblinScript_Guide.md"), encoding="utf-8").read()
+# The user-facing guide (written for designers) is preferred; the AI-facing one is the fallback.
+USER = os.path.join(ROOT, "ui-mockup", "goblinscript-doc", "GoblinScript_User_Guide.md")
+src = open(USER if os.path.exists(USER) else os.path.join(ROOT, "GoblinScript_Guide.md"), encoding="utf-8").read()
 # The guide opens with a note that it is written for AI tools; readers of this page don't need it.
 src = re.sub(r'^> \*\*Note:\*\*.*?(?:\n>.*)*\n', '', src, flags=re.M)
 
@@ -66,7 +68,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 "Inter
 main { max-width: 900px; margin: 0 auto; padding: 16px 16px 48px; }
 h1 { font-size: 22px; margin: 8px 0 12px; } h2 { font-size: 17px; margin: 28px 0 8px; color: var(--gold); } h3 { font-size: 14.5px; margin: 20px 0 6px; } h4 { font-size: 13.5px; margin: 16px 0 6px; }
 a { color: var(--gold); }
-code { font: 12.5px "JetBrains Mono", ui-monospace, monospace; background: var(--panel); border-radius: 3px; padding: 0 3px; }
+code { font: 12.5px "JetBrains Mono", ui-monospace, monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; background: var(--panel); border-radius: 3px; padding: 0 3px; }
 pre { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; overflow-x: auto; } pre code { padding: 0; background: none; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; display: block; overflow-x: auto; }
 th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; } th { background: var(--panel); }

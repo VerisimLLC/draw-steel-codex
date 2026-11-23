@@ -50,6 +50,7 @@ local mod = dmhub.GetModLoading()
 --- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
 --- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
 --- @field usableWhileSurprised? boolean "powertabletrigger": still offered while its owner is Surprised (Dazed still blocks it).
+--- @field autoActivate? boolean "powertabletrigger" (passive, changeTarget): redirects the strike by itself before the roll; the attacker picks the new target and the owner is never asked.
 --- @field removeModifiers? string[] "power" (a powertabletrigger's powerRollModifier): guids of modifiers it takes off the roll when triggered.
 --- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
 --- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement", "castingorigin": GoblinScript ability filter.

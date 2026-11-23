@@ -1388,6 +1388,12 @@ function GameHud.CreateRollDialog(self)
                     -- target keeps talking to the same trigger record.
                     local key = ActiveTrigger.PowerRollRecordKey(trigger, target.originalid or target.token.charid)
 
+                    -- Applied by itself before the roll (an "Apply Automatically"
+                    -- redirect): there is nothing to ask its owner.
+                    if trigger.autoActivated then
+                        goto continueTriggerThink
+                    end
+
                     -- Skip triggers that fail roll requirements. A shared prompt
                     -- only drops out once none of its candidates pass.
                     if trigger.failsRequirement then

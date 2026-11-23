@@ -1361,6 +1361,126 @@ end
 local g_activeRoll = nil --the active roll object of the roll we are currently doing.
 local g_activeRollPanel = nil --the panel showing the roll that is currently active.
 
+--- Applies power-table triggers set to "Apply Automatically" (autoActivate), such as
+--- I Don't Know These People, before the roll card opens. For each such redirect the
+--- attacker picks the new target: no picker when only one creature qualifies, and the
+--- Monster AI picks for creatures it runs. With nobody in range nothing happens, and
+--- the trigger's owner is never asked. An "All Effects" redirect is recorded on the
+--- cast straight away; the other Retarget Effect settings (Split Damage, Forced
+--- Movement, No Effects) are recorded when the roll is accepted, like a manual
+--- redirect. Returns true if any target moved to a new creature, so the caller
+--- rebuilds its target rows.
+--- @param casterToken CharacterToken
+--- @param multitargets table[] the roll's target rows, each with its .triggers
+--- @param options table the cast options; options.symbols.cast records the redirect
+--- @return boolean
+function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multitargets, options)
+    local cast = options.symbols ~= nil and options.symbols.cast or nil
+    if cast == nil or GameHud.instance == nil or GameHud.instance.actionBarPanel == nil then
+        return false
+    end
+
+    --A strike can't be redirected onto a creature it already hits.
+    local strikeTargets = {}
+    for _, target in ipairs(multitargets) do
+        if target.token ~= nil then
+            strikeTargets[target.token.charid] = true
+        end
+    end
+
+    local redirected = false
+    for _, target in ipairs(multitargets) do
+        for _, row in ipairs(target.triggers or {}) do
+            local powerMod = row.modifier:try_get("powerRollModifier")
+            local ownerToken = dmhub.GetTokenById(row.charid)
+            if ownerToken == nil or powerMod == nil or target.token == nil or row.triggered
+                or not row.modifier:try_get("autoActivate", false) or row.modifier:try_get("type") ~= "passive"
+                or not powerMod:try_get("changeTarget", false) then
+                goto continueRow
+            end
+
+            local symbols = {
+                current = target.token.properties:LookupSymbol{},
+                triggerer = ownerToken.properties:LookupSymbol{},
+                caster = casterToken.properties:LookupSymbol{},
+            }
+            local candidates, reasons = RuleUtils.BuildRetargetCandidates(powerMod, symbols)
+            for i = #candidates, 1, -1 do
+                if strikeTargets[candidates[i].charid] then
+                    table.remove(candidates, i)
+                end
+            end
+
+            local sourceToken, range, rangeType = RuleUtils.RetargetRange(row.modifier, ownerToken, casterToken, row.originalAbilityRange, symbols)
+            --The new target must be one the attacker could actually hit.
+            if rangeType == "ability" then
+                RuleUtils.AddRetargetRangeReasons(candidates, reasons, sourceToken, range)
+            end
+
+            --With no creature the attacker could legally pick, the redirect doesn't happen and the strike keeps its target.
+            local anyLegal = false
+            for _, tok in ipairs(candidates) do
+                if reasons[tok.charid] == nil then
+                    anyLegal = true
+                    break
+                end
+            end
+            if not anyLegal then
+                goto continueRow
+            end
+
+            local answered = false
+            local picked = nil
+            --No radius ring: it is drawn around the action bar's selected token,
+            --and an AI or scripted cast may have none. The greyed-out choices
+            --and the prompt text show the range instead.
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = sourceToken,
+                chooserToken = casterToken,
+                targets = candidates,
+                reasons = reasons,
+                prompt = string.format("%s: %s", row.modifier.name, RuleUtils.RetargetPromptText(sourceToken, range, rangeType, false)),
+                autoPickSole = true,
+                choose = function(tok)
+                    picked = tok
+                    answered = true
+                end,
+                --Cancelling keeps the original target.
+                cancel = function()
+                    answered = true
+                end,
+            })
+            while not answered do
+                coroutine.yield(0.1)
+                if mod.unloaded or not casterToken.valid or casterToken.properties == nil then
+                    answered = true
+                end
+            end
+
+            if picked ~= nil then
+                --notakeback: the roll card's trigger chip can't undo it.
+                --autoActivated: the card doesn't publish it to its owner.
+                row.triggered = true
+                row.retargetid = picked.charid
+                row.dismissed = true
+                row.notakeback = true
+                row.autoActivated = true
+                --An "All Effects" redirect moves the whole strike before the roll. For the other
+                --settings the original target is still hit, and accepting the roll records it.
+                if powerMod:try_get("changeTargetEffect", "all") == "all" then
+                    cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
+                    redirected = true
+                end
+                --Taken now, so a second automatic trigger on this strike can't pick the same creature.
+                strikeTargets[picked.charid] = true
+            end
+
+            ::continueRow::
+        end
+    end
+    return redirected
+end
+
 function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, options)
 
 
@@ -1914,6 +2034,12 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     for _,target in ipairs(multitargets) do
         table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
+    end
+
+    --Redirects that apply themselves happen now: the Monster AI rolls the moment
+    --the roll card opens, which is too soon to offer a picker.
+    if ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multitargets, options) then
+        CalculateMultitargets()
     end
 
     --Test hook: "/testai <ability> tier2" forces the result. Stamped on

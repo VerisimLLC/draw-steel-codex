@@ -2507,7 +2507,8 @@ local function GetEnemyCreaturesAtLoc(token, loc, result)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
             --GetLineOfSight returns nil when a token stands on a floor whose data has not loaded (RD3WUFCR).
-            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
+            --A creature under Guise can't be flanked by anyone who isn't its ally.
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and (not IsShieldedFromEnmity(otherTok, token)) and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
                 AddTokenOnce(result, otherTok)
             end
         end

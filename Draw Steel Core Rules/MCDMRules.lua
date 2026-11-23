@@ -698,7 +698,8 @@ GameSystem.RegisterGoblinScriptField{
 
 			local nearbyTokens = targetToken:GetNearbyTokens(1)
 			for i,nearby in ipairs(nearbyTokens) do
-				if nearby.charid ~= ourToken.charid and (not nearby:IsFriend(targetToken)) then
+				--A creature under Guise isn't an enemy to anyone who isn't its ally.
+				if nearby.charid ~= ourToken.charid and IsEnemyOf(targetToken, nearby) then
                     return true
 				end
 			end

@@ -696,6 +696,8 @@ local HOVER_DELAY = 0.4
 --- @param args table Arguments for gui.Label.
 --- @return table args
 local function Linked(args)
+    --while searching, what matched is marked here too (3.1).
+    args.text = History.SearchMark(args.text)
     local text = args.text
     if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
         return args
@@ -869,11 +871,14 @@ local function StoryRow(row, width)
         left[1] = face
         textWidth = textWidth - STORY_FACE - STORY_GAP
     end
+    --what is still on gets Active, always (B8), so "slowed" answers why you are slowed now.
+    local active = not row.ended and row.who[1] ~= nil and History.ActiveStart(row.who[1]) or nil
+    local tagged = row.ended or active ~= nil
     left[#left + 1] = gui.Label{
         classes = {"historyStory"},
-        text = History.StoryText(row),
-        width = row.ended and "auto" or textWidth,
-        maxWidth = row.ended and (textWidth - ENDED_TAG_WIDTH) or nil,
+        text = History.SearchMark(History.StoryText(row)),
+        width = tagged and "auto" or textWidth,
+        maxWidth = tagged and (textWidth - ENDED_TAG_WIDTH) or nil,
         height = "auto",
         lmargin = #left > 0 and STORY_GAP or 0,
         halign = "left",
@@ -882,6 +887,11 @@ local function StoryRow(row, width)
     }
     if row.ended then
         left[#left + 1] = History.Tag("historyEndedTag", "Ended")
+    elseif active ~= nil then
+        local tag = History.ActiveTag(active.icon)
+        tag.selfStyle.valign = "top"
+        tag.selfStyle.tmargin = 3
+        left[#left + 1] = tag
     end
 
     local children = {
@@ -2674,6 +2684,150 @@ local function WhyRow(row, width)
         borderBox = true,
         halign = "left",
         children = children,
+    }
+end
+
+--- One row of the Sidebar Preview (3.4): what an action or line did, for the chat bubble
+--- beside the History button. An action has a header (L46) over up to two of its sentences
+--- and "and {n} more" (L47); a line is its sentence alone. Your creatures' sentences carry
+--- the gold edge, as in the hover card.
+--- @param args {title: string|nil, rows: {row: table, mine: boolean}[], width: number}
+--- @return Panel[]
+function History.CreateBubbleContents(args)
+    local shown = math.min(#args.rows, 2)
+    local body = {}
+    if args.title ~= nil then
+        --the chat bubble's name style, so it reads like a message's sender.
+        body[#body + 1] = gui.Label{
+            classes = {"chatBubbleNick"},
+            text = args.title,
+            interactable = false,
+        }
+    end
+    for i = 1, shown do
+        local item = args.rows[i]
+        body[#body + 1] = gui.Panel{
+            flow = "horizontal",
+            width = args.width,
+            height = "auto",
+            tmargin = 2,
+            gui.Panel{
+                classes = {cond(item.mine, "historyActiveFrame", nil)},
+                bgimage = "panels/square.png",
+                bgcolor = cond(item.mine, nil, "#00000000"),
+                width = 3,
+                height = STORY_FACE,
+                valign = "top",
+                tmargin = 3,
+                rmargin = 6,
+            },
+            StoryRow(item.row, args.width - 9),
+        }
+    end
+    if #args.rows > shown then
+        body[#body + 1] = gui.Label{
+            classes = {"historyCardMeta"},
+            text = string.format("and %d more", #args.rows - shown),
+            width = args.width,
+            height = "auto",
+            tmargin = 2,
+            textAlignment = "left",
+        }
+    end
+    --History's own styles for the story rows; the bubble's (chatBubbleNick) still reach in.
+    return {
+        gui.Panel{
+            styles = ThemeEngine.MergeStyles(History.Styles()),
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            interactable = false,
+            children = body,
+        },
+    }
+end
+
+--- The rail button's hover card (3.3a, M1-M5): what happened since you last looked, in the
+--- detail card's frame and rows. Rows about your own creatures carry a gold edge.
+--- @param args {rows: {row: table, mine: boolean}[], more: integer, width: number}
+--- @return Panel
+function History.CreateSinceCard(args)
+    local inner = args.width - 2 * CARD_PAD
+    local body = {}
+    for _, item in ipairs(args.rows) do
+        --the edge is a fixed height: "100%" of an auto-height row grows to fill the screen.
+        body[#body + 1] = gui.Panel{
+            flow = "horizontal",
+            width = inner,
+            height = "auto",
+            gui.Panel{
+                classes = {cond(item.mine, "historyActiveFrame", nil)},
+                bgimage = "panels/square.png",
+                bgcolor = cond(item.mine, nil, "#00000000"),
+                width = 3,
+                height = STORY_FACE,
+                valign = "top",
+                tmargin = 3,
+                rmargin = 6,
+            },
+            StoryRow(item.row, inner - 9),
+        }
+    end
+    if args.more > 0 then
+        body[#body + 1] = gui.Label{
+            classes = {"historyCardMeta"},
+            text = args.more == 1 and "and 1 more turn" or string.format("and %d more turns", args.more),
+            width = inner,
+            height = "auto",
+            tmargin = 6,
+            textAlignment = "left",
+        }
+    end
+    body[#body + 1] = gui.Label{
+        classes = {"historyCardMeta"},
+        text = "Click to open",
+        width = inner,
+        height = "auto",
+        tmargin = 8,
+        textAlignment = "left",
+    }
+
+    return gui.Panel{
+        classes = {"historyCardFrame"},
+        styles = ThemeEngine.MergeStyles(History.Styles()),
+        bgimage = true,
+        blurBackground = true,
+        flow = "vertical",
+        width = args.width,
+        height = "auto",
+        interactable = false,
+        gui.Label{
+            classes = {"historyCardTitle"},
+            text = "Since you last looked",
+            width = "100%",
+            height = "auto",
+            lpad = CARD_PAD,
+            tpad = 10,
+            bpad = 9,
+            borderBox = true,
+            textAlignment = "left",
+        },
+        gui.Panel{
+            classes = {"historySeam"},
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+        },
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            hpad = CARD_PAD,
+            tpad = 8,
+            bpad = 12,
+            borderBox = true,
+            children = body,
+        },
     }
 end
 

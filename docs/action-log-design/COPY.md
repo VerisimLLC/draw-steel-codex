@@ -111,7 +111,7 @@ Only what moved the result away from the plain roll.
 | M2 | Hover lines | the "What happened" sentences (N2) |
 | M3 | Hover overflow | and {n} more turns / and 1 more turn |
 | M4 | Hover footer | Click to open |
-| M5 | Hover, nothing new | Nothing new since you last looked. |
+| M5 | Hover, nothing new | (retired 2026-11-12, James: with nothing new the button shows only its name label) |
 | M6 | Screen reader | History, {n} new turns |
 | M7 | Setting | History notifications: On / Off |
 
@@ -261,7 +261,7 @@ because "Dying Ended" could read as the creature died.
 | L35 | Side-view button tooltip | Side view |
 | L36 | Side-view button, screen readers | Side view and path on the map |
 | L37 | David's preview, setting name | History Sidebar Preview: On / Off |
-| L38 | David's preview, setting tooltip | Briefly shows each action beside the History button while History is closed or minimised. |
+| L38 | David's preview, setting tooltip | Briefly shows actions from other turns beside the History button while History is closed. (Revised 2026-11-13: History does not minimise; only other turns show.) |
 
 **Decision 4 wording (signed off 2026-11-06).**
 | ID | What | Wording |
@@ -505,3 +505,10 @@ Effects hidden from enemies, on a creature off the heroes' side, don't reach pla
 | L39 | What happened, and a lone trigger's line: an effect or condition applied by a cast while the creature still had it (the game renews it) | {Creature}'s {effect} was renewed. |
 
 Only a cast records a renewal; one outside any cast (an aura's upkeep) stays quiet. Stacking effects use the same line for now.
+
+## Round 20: the Sidebar Preview (signed off 2026-11-13)
+
+| ID | Where | Text |
+|---|---|---|
+| L46 | Sidebar Preview, an action's header | {Actor} . {Ability} (the card title without brackets: nothing hovers) |
+| L47 | Sidebar Preview, under an action with more than 2 target sentences | and {n} more |

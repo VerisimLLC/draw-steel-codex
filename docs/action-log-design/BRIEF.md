@@ -70,6 +70,7 @@ Status: Phase 1 framing signed; Phase 3 decision map next. Started 2026-10-23.
 | 2026-11-06 | First-build scope: all ten families (F1-F10) before release, because History replaces the log and nothing may be lost. Built in stages, combat first, then out of combat and Director actions; History runs beside the old log, off by default, until the last stage; the old log goes in the same step that turns History on for everyone | James, REVIEW.md decision 1 |
 | 2026-11-06 | Build plan signed off (BUILD-PLAN.md, 27 chunks). Retention gets a hard cap, performance first: try this encounter and the last, cull the oldest, build the newest 30-40 rows and more on scroll, as today's log does. Engine PR agreed in principle | James |
 | 2026-11-07 | History is a rail panel window like Chat, not a table item: the rail windows' frame and transparency, pin and pop out. Its height is the user's; Show all only unfolds every turn. Popped out, the card opens inside the window | James, after the 2.1 feedback |
+| 2026-11-13 | Sidebar Preview (3.4): the chat speech bubble is made generic and History reuses it; a row per new entry from someone else's turn (the badge's rule); an action is a header (actor . ability) over up to 2 target sentences and "and {n} more"; clicking a row opens History on that action with its card, elsewhere opens it at the marker; the bubble holds under the pointer (Chat's too); hovering the button or opening History fades it; it marks nothing seen | James, 3.4 rounds 1-5 |
 
 ## 3. Open questions
 

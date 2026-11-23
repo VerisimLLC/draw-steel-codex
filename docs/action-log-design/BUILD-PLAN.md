@@ -381,6 +381,47 @@ Goal: why it happened, one click from the row.
 | 3.3 | Minimised block, badges on block and rail, hover preview, History notifications, new-rows markers, nothing moves under the reader | M |
 | 3.4 | History Sidebar Preview and its setting, reusing the chat speech bubble's placement (`DocumentSystem.lua:16400`) | S |
 
+### Stage 3 notes
+
+- **3.1 (built 2026-11-12):**
+  - **Bar:** the search field, with chips and the count on a row under it. Suggestions are grouped Creatures, Abilities, Conditions, Other; arrows/Enter/Escape work as in the global search.
+  - **Matching:** typed words match the card's own sentences. Rows filter in place. Marks use the `@warning` colour at 55 alpha.
+  - **Active:** effects are matched exactly by their instance id (`instanceid` on `effectstarted`); bare conditions by the newest row that started them.
+  - **Show all replaced by Latest** (James): it shows only when you are away from the default view (scrolled up, older rows loaded, a fold changed by hand). It resets the folds and jumps to the newest row.
+  - **Type search** (James, option A): creature suggestions also match a hero's class for everyone, and a monster's organisation, role, keywords and monster name for the Director only. Types are read from the live token. When two or more creatures share a type there is an `All {type}` row and chip. Name matches rank above type matches.
+- **3.2 (built 2026-11-12):**
+  - **Entry points:** a History slot at the top of every token's radial (angle 0), and a History chip just left of the hero card's centred flip button. Both use the rail's History icon in the house look, with no gold (James); the card chip turns gold on hover like the flip button.
+  - **What they do:** `History.OpenFor(token)` replaces the search with that creature's chip and opens or raises the window.
+  - **Placement:** the card chip stays out of the top-left corner, which belongs to the trigger and downtime badges.
+  - **Closing:** closing History clears the search and hand-made folds (James); minimising (3.3) will keep them.
+  - **Card chip availability:** it is added when the card is built, so turning History on mid-game needs the cards rebuilt.
+- **3.3 split** (James): 3.3a is the closed state (badge, hover card, opening at the marker, setting); 3.3b is the open state (B3, "{n} new below").
+- **3.3a (built 2026-11-12):**
+  - **Rail button as the block:** History is a rail window with no minimise, so the rail button carries Appendix V's signal (James, option A). Grey count of unseen turns, your own excluded; a gold diamond when one of them did something to a creature a player controls.
+  - **Director:** the monsters are theirs, so only the heroes' turns count; their gold waits for hand edits (5.2).
+  - **Hover card:** "Since you last looked" in the detail card's frame and rows, your creatures first with a gold edge, then "and N more turns" and "Click to open".
+    - It waits 0.4 s, shows nothing when nothing is new (M5 retired, James), and closes on press.
+    - It works on a group strip, where it sits below the member.
+  - **Opening:** lands on "New since you last looked", with new turns unfolded and the turns before them folded. When the new rows don't fit, the marker is scrolled to the top.
+  - **Storage:** "last looked" is a per-user preference (`history:lastlooked`). The first sight of a map sets a baseline, so old rows aren't news.
+  - **Rail hooks** (generic, `DocumentSystem.lua`): `newContentStyle()` gives a colour or diamond badge, and `railHover(element, placement)` gives a panel its own hover card. History's hooks look up `History.Notify` when called, so a reload reaches them.
+  - **Race fixed:** the rail marks History seen before the window is built, so the window uses the mark kept from before (`g_sinceAtOpen`).
+  - **Not built:** the M6 screen-reader label; the rail has no accessible names.
+- **3.3b (built 2026-11-13):**
+  - **B3, nothing moves under the reader:** when new rows arrive while the pointer is on History or a card is open, every turn and round stays as open as it was, and no turn on show joins the "Turns 1-4" fold. `panel.mousePoint` is 0..1 inside the panel and out of range outside, not (0,0) as the stub says.
+  - **Anchor hold:** when you are scrolled up, the row at the top of the view stays put through a rebuild. It takes a few frames of retries while layout settles.
+  - **H2 "{n} new below":** a floating button at the foot of the list counts the rows that came in since you were last at the bottom. Clicking it, or scrolling to the bottom, clears it.
+  - **Divider clears once caught up:** "New since you last looked" goes when a newer entry arrives while you sit at the bottom. A plain game refresh doesn't count.
+  - **Reload:** the window builder is looked up through `History.Notify` too. Otherwise, after a hot reload, the rail's seen-mark and the window come from different copies of the file and the divider is lost.
+- **3.4 (built 2026-11-13):**
+  - **One bubble for any panel** (James, option A): the chat speech bubble in `DocumentSystem.lua` now takes a panel key and name. `PanelDocument.ShowRailBubble{key, panelName, rows}` shows rows beside a panel's own rail button, `FadeRailBubble(key)` fades it, and `PanelInFront` and `FindRailButton` generalise the chat versions, which still exist. Bubbles avoid each other as well as windows.
+  - **Held under the pointer:** a bubble waits while the pointer is on it, then lingers 5 s after the pointer leaves. Chat's bubble gets this too.
+  - **What shows:** new entries from someone else's turn (the badge's rule), checked every 0.5 s. A batch waits one quiet tick so an action's triggers land in its row. An action is "Actor . Ability" (L46) over up to 2 sentences and "and {n} more" (L47); a line is its sentence.
+  - **Click:** a row opens History scrolled to that action with its card (`History.ShowEntry`); elsewhere opens History as the button does. Hovering the button fades the bubble for the hover card.
+  - **Setting:** `history:sidebarpreview`, on by default, General (L37, L38 revised).
+  - **Not built:** a trigger landing in a later tick than its action is left out; a lone trigger with no action gets no row; there's no bubble while History is grouped away in a strip (as Chat).
+- **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
+
 ## Stage 4: movement views
 
 | Chunk | What | Size |

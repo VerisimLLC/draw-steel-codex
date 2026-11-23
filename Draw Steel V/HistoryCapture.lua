@@ -30,7 +30,7 @@ local mod = dmhub.GetModLoading()
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil, ref: string|nil, cid: string|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players. ref is an ongoing effect's instance id and cid a condition's id, so History can tell whether it is still on (Active).
 --- @field ended? string[] On a target: names of what it ended.
 --- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
 --- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
@@ -861,7 +861,7 @@ local function EffectFacts(item, token)
         if info == nil then
             return nil
         end
-        return {name = info.name, icon = info.iconid, iscondition = true}
+        return {name = info.name, icon = info.iconid, iscondition = true, cid = item.conditionid}
     end
     local info = GetTableCached(CharacterOngoingEffect.tableName)[item.ongoingeffectid]
     if info == nil or not info.statusEffect or info.hiddenFromHistory then
@@ -882,6 +882,7 @@ local function OnEffectStarted(creature, info)
     end
     facts.duration = DURATION_WORDS[info.duration]
     facts.renewed = info.renewed
+    facts.ref = info.instanceid
 
     local state = OpenCast(nil)
     if state == nil then
@@ -1196,21 +1197,44 @@ local function OnConditionImmune(creature, conditionid)
 end
 
 --The condition a potency's rule text was about to apply, if it names one.
-local function ConditionIn(text)
+--- The conditions a rule text names, in the order it names them, as "weakened and slowed";
+--- nil when it names none.
+--- @param text string|nil
+--- @return string|nil
+local function ConditionsIn(text)
     if text == nil then
         return nil
     end
     text = string.lower(text)
+    local found = {}
     for _, info in unhidden_pairs(GetTableCached(CharacterCondition.tableName)) do
         local name = string.lower(info.name)
-        if string.find(text, name, 1, true) ~= nil then
-            return name
+        local at = string.find(text, name, 1, true)
+        if at ~= nil then
+            found[#found + 1] = {name = name, at = at}
         end
     end
-    return nil
+    if #found == 0 then
+        return nil
+    end
+    table.sort(found, function(a, b)
+        return a.at < b.at
+    end)
+    local names = {}
+    for i, item in ipairs(found) do
+        names[i] = item.name
+    end
+    if #names == 1 then
+        return names[1]
+    end
+    return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
 end
 
-local function OnResisted(creature, ruleText)
+--- @param creature creature
+--- @param ruleText string|nil What the potency gates, as written after it.
+--- @param stoppedText string|nil Text after a "#" stop marker: when the gated part is
+--- applied by another behavior, the condition is named here instead.
+local function OnResisted(creature, ruleText, stoppedText)
     local state = History.Enabled() and OpenCast(nil) or nil
     local token = dmhub.LookupToken(creature)
     if state == nil or token == nil then
@@ -1218,7 +1242,7 @@ local function OnResisted(creature, ruleText)
     end
     local target = RowTarget(state, token)
     if target ~= nil then
-        target.resisted = ConditionIn(ruleText) or true
+        target.resisted = ConditionsIn(ruleText) or ConditionsIn(stoppedText) or true
     end
 end
 

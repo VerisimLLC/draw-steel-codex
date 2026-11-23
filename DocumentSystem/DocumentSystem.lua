@@ -16436,6 +16436,9 @@ end
 -- Lua's 200-local ceiling, so no new file-scope locals.
 
 PanelDocument.chatBubbleState = { seen = {}, seenCount = 0, panel = nil }
+--The bubble on screen for each panel key ("chat", "history"): one per panel. Any panel
+--can show one beside its rail button through PanelDocument.ShowRailBubble.
+PanelDocument.railBubbles = {}
 PanelDocument.CHAT_BUBBLE_WIDTH = 300
 PanelDocument.CHAT_BUBBLE_LINGER = 5
 PanelDocument.CHAT_BUBBLE_MAX_ROWS = 4
@@ -16676,7 +16679,15 @@ end
 --invisible as a closed window, and a message arriving then deserves the
 --bubble just the same.
 function PanelDocument.ChatInFront()
-    if PanelDocument.IsPoppedOut("chat") then
+    return PanelDocument.PanelInFront("chat", "Chat")
+end
+
+--- Whether a panel is already in front of the player (ChatInFront, for any panel).
+--- @param key string The panel's rail key, lowercase ("chat").
+--- @param panelName string Its DockablePanel registration name ("Chat").
+--- @return boolean
+function PanelDocument.PanelInFront(key, panelName)
+    if PanelDocument.IsPoppedOut(key) then
         return true
     end
     local stage, stageDepth = PanelDocument.FullscreenStage()
@@ -16687,13 +16698,13 @@ function PanelDocument.ChatInFront()
         local depth = PanelDocument.LayerDepth(panel)
         return depth ~= nil and depth > stageDepth
     end
-    if PanelDocument.IsPanelActive("chat") then
-        local dialog = PanelDocument.FindHostDialog("chat")
+    if PanelDocument.IsPanelActive(key) then
+        local dialog = PanelDocument.FindHostDialog(key)
         if dialog == nil or inFront(dialog) then
             return true
         end
     end
-    local reg = DockablePanel.GetRegistration("Chat")
+    local reg = DockablePanel.GetRegistration(panelName)
     if reg ~= nil and reg.identifier ~= nil then
         local instance = DockablePanel.FindInstance(reg.identifier)
         if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil and inFront(instance) then
@@ -16735,8 +16746,15 @@ function PanelDocument.RailPlaceBelow(key, belowKey)
 end
 
 function PanelDocument.FindChatRailButton()
-    local function railSideOf(key)
-        return cond(string.sub(key, 1, 4) == "left", "left", "right")
+    return PanelDocument.FindRailButton("chat")
+end
+
+--- The rail button a panel's bubble hangs off (FindChatRailButton, for any panel).
+--- @param key string The panel's rail key, lowercase.
+--- @return string|nil side, integer|nil slot, Panel|nil button
+function PanelDocument.FindRailButton(key)
+    local function railSideOf(railKey)
+        return cond(string.sub(railKey, 1, 4) == "left", "left", "right")
     end
 
     for railSide, rail in pairs(g_iconRails) do
@@ -16744,7 +16762,7 @@ function PanelDocument.FindChatRailButton()
             for _, child in ipairs(rail.children) do
                 if child.valid and child:HasClass("iconRailButton") and child.enabled then
                     local d = child.data
-                    if type(d) == "table" and d.key == "chat" and d.slot ~= nil then
+                    if type(d) == "table" and d.key == key and d.slot ~= nil then
                         return railSideOf(railSide), d.slot, child
                     end
                 end
@@ -16768,7 +16786,7 @@ function PanelDocument.FindChatRailButton()
             if child.valid and child.enabled ~= false then
                 if child:HasClass("iconRailButton") then
                     local d = child.data
-                    if type(d) == "table" and d.key == "chat" then
+                    if type(d) == "table" and d.key == key then
                         return child
                     end
                 end
@@ -16865,6 +16883,16 @@ end
 --registers it in chatBubbleState. Returns nil when the documents layer
 --is not available.
 function PanelDocument.CreateChatBubble(side, slot, rect)
+    return PanelDocument.CreateRailBubble({key = "chat", panelName = "Chat"}, side, slot, rect)
+end
+
+--- Builds a panel's bubble beside its rail button (CreateChatBubble, for any panel).
+--- @param opts {key: string, panelName: string}
+--- @param side string
+--- @param slot integer|nil
+--- @param rect table|nil
+--- @return Panel|nil
+function PanelDocument.CreateRailBubble(opts, side, slot, rect)
     local layer = DocumentsLayer()
     if layer == nil or rect == nil then
         return nil
@@ -16922,6 +16950,11 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             if ww > 0 and wh > 0 then
                 obstacles[#obstacles + 1] = { x1 = wx, y1 = wy, x2 = wx + ww, y2 = wy + wh }
             end
+        end
+    end
+    for otherKey, other in pairs(PanelDocument.railBubbles) do
+        if otherKey ~= opts.key and other.valid and type(other.data.footprint) == "table" then
+            obstacles[#obstacles + 1] = other.data.footprint
         end
     end
     local estH = 110 * scale
@@ -17027,10 +17060,16 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         borderBox = true,
         swallowPress = true,
         data = {
+            key = opts.key,
+            panelName = opts.panelName,
             side = side,
             slot = slot,
             lastMessage = dmhub.Time(),
             rows = {},
+            --where it sits at full width, for the next bubble to avoid.
+            footprint = { x1 = sx, y1 = y, x2 = sx + effW, y2 = y + estH },
+            --the pointer is on it: it stays until the pointer leaves.
+            held = false,
         },
 
         create = function(element)
@@ -17040,19 +17079,31 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             element:SetClass("entering", false)
         end,
 
-        --a press on the bubble is "show me": open the chat window
-        --exactly as its rail button would, and let the bubble go.
+        --a press on the bubble is "show me": open the panel's window
+        --exactly as its rail button would, and let the bubble go. A row
+        --with its own click (History: show that action) runs it once open.
         click = function(element)
             local data = element.data
             element:FireEvent("bubbleFade")
-            RailSweepTransient("chat")
+            local rowClick = nil
+            for _, row in ipairs(data.rows) do
+                local point = row.valid and row.mousePoint or nil
+                if point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
+                    and type(row.data) == "table" and row.data.bubbleClick ~= nil then
+                    rowClick = row.data.bubbleClick
+                end
+            end
+            RailSweepTransient(data.key)
             if data.slot == nil then
-                --a custom interface's chat button has no rail slot to
-                --anchor a window to, so open it the way that button does.
-                DockablePanel.LaunchPanelByName("Chat", "show")
+                --a custom interface's button has no rail slot to anchor a
+                --window to, so open it the way that button does.
+                DockablePanel.LaunchPanelByName(data.panelName, "show")
             else
                 local anchorX, anchorY = RailAnchor(data.side, data.slot)
-                OpenIconRailWindow("Chat", { x = anchorX, y = anchorY, anchor = true })
+                OpenIconRailWindow(data.panelName, { x = anchorX, y = anchorY, anchor = true })
+            end
+            if rowClick ~= nil then
+                rowClick()
             end
             --clicked while riding over a full-screen stage, the window
             --would open BEHIND the stage; bring it forward so the click
@@ -17063,7 +17114,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                     if mod.unloaded then
                         return
                     end
-                    local dialog = PanelDocument.FindHostDialog("chat")
+                    local dialog = PanelDocument.FindHostDialog(data.key)
                     if dialog ~= nil and dialog.valid then
                         PanelDocument.RaiseOnLayer(dialog)
                     end
@@ -17073,48 +17124,19 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         end,
 
         addChatMessage = function(element, message)
+            element:FireEvent("addBubbleRow", PanelDocument.ChatBubbleRowContent(message))
+        end,
+
+        --one row: contents is a list of panels stacked in it; click, when
+        --given, is what a press on this row does instead of opening the panel.
+        addBubbleRow = function(element, contents, click)
             local data = element.data
             data.lastMessage = dmhub.Time()
-            --a message landing mid-fade rescues the bubble; the pending
+            --a row landing mid-fade rescues the bubble; the pending
             --bubbleDie checks the class and stands down.
             if element:HasClass("fadeout") then
                 element:SetClass("fadeout", false)
                 element.blurBackground = true
-            end
-
-            local text = ""
-            pcall(function() text = tostring(message.message or "") end)
-            local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
-            if #text > limit then
-                --byte cap, backed off past any UTF-8 continuation bytes
-                --so the cut never splits a codepoint.
-                local cut = limit
-                while cut > 1 do
-                    local b = string.byte(text, cut)
-                    if b ~= nil and b >= 0x80 and b < 0xc0 then
-                        cut = cut - 1
-                    else
-                        break
-                    end
-                end
-                text = string.sub(text, 1, cut - 1) .. "..."
-            end
-
-            local nick = nil
-            pcall(function() nick = message.nick end)
-            if nick == nil or nick == "" then
-                nick = "Player"
-            end
-            local nickColor = nil
-            pcall(function() nickColor = message.nickColor end)
-
-            local nickLabel = gui.Label{
-                classes = {"chatBubbleNick"},
-                text = nick,
-                interactable = false,
-            }
-            if nickColor ~= nil then
-                pcall(function() nickLabel.selfStyle.color = nickColor end)
             end
 
             local row = gui.Panel{
@@ -17126,6 +17148,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                 --older rows glide up when one above them sheds.
                 moveTime = 0.2,
                 interactable = false,
+                data = { bubbleClick = click },
                 create = function(r)
                     r:ScheduleEvent("settleRow", 0.02)
                 end,
@@ -17139,13 +17162,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                 rowDie = function(r)
                     r:DestroySelf()
                 end,
-
-                nickLabel,
-                gui.Label{
-                    classes = {"chatBubbleText"},
-                    text = text,
-                    interactable = false,
-                },
+                children = contents,
             }
             element:AddChild(row)
 
@@ -17170,8 +17187,12 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         end,
 
         --one of these fires per message; only the one scheduled by the
-        --LAST message finds the linger actually elapsed.
+        --LAST message finds the linger actually elapsed. Under the pointer
+        --it waits: leaving restarts the linger (think, below).
         bubbleMaybeExpire = function(element)
+            if element.data.held then
+                return
+            end
             if dmhub.Time() - element.data.lastMessage < PanelDocument.CHAT_BUBBLE_LINGER - 0.1 then
                 return
             end
@@ -17197,6 +17218,9 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             if PanelDocument.chatBubbleState.panel == element then
                 PanelDocument.chatBubbleState.panel = nil
             end
+            if PanelDocument.railBubbles[element.data.key] == element then
+                PanelDocument.railBubbles[element.data.key] = nil
+            end
         end,
 
         thinkTime = 0.5,
@@ -17207,11 +17231,21 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             end
             --a stage can go up (or come down) under a live bubble.
             PanelDocument.ChatBubbleRestack(element)
-            --chat brought in front by any path while the bubble is up:
-            --the preview has done its job.
-            if PanelDocument.ChatInFront() then
+            --the panel brought in front by any path while the bubble is
+            --up: the preview has done its job.
+            local data = element.data
+            if PanelDocument.PanelInFront(data.key, data.panelName) then
                 element:FireEvent("bubbleFade")
             end
+            --the pointer on the bubble holds it; leaving starts the linger again.
+            local point = element.mousePoint
+            local held = point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
+                and not element:HasClass("fadeout")
+            if data.held and not held then
+                data.lastMessage = dmhub.Time()
+                element:ScheduleEvent("bubbleMaybeExpire", PanelDocument.CHAT_BUBBLE_LINGER)
+            end
+            data.held = held
         end,
 
         gui.Panel{
@@ -17238,8 +17272,102 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
     --the layer, so any window it could not avoid draws over it -- unless
     --a full-screen stage is up, which it would be under too.
     PanelDocument.ChatBubbleRestack(bubble)
-    PanelDocument.chatBubbleState.panel = bubble
+    if opts.key == "chat" then
+        PanelDocument.chatBubbleState.panel = bubble
+    end
+    PanelDocument.railBubbles[opts.key] = bubble
     return bubble
+end
+
+--- A chat message's row in the bubble: the sender's name over the text, cut short.
+--- @param message table The engine's chat message.
+--- @return Panel[]
+function PanelDocument.ChatBubbleRowContent(message)
+    local text = ""
+    pcall(function() text = tostring(message.message or "") end)
+    local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
+    if #text > limit then
+        --byte cap, backed off past any UTF-8 continuation bytes
+        --so the cut never splits a codepoint.
+        local cut = limit
+        while cut > 1 do
+            local b = string.byte(text, cut)
+            if b ~= nil and b >= 0x80 and b < 0xc0 then
+                cut = cut - 1
+            else
+                break
+            end
+        end
+        text = string.sub(text, 1, cut - 1) .. "..."
+    end
+
+    local nick = nil
+    pcall(function() nick = message.nick end)
+    if nick == nil or nick == "" then
+        nick = "Player"
+    end
+    local nickColor = nil
+    pcall(function() nickColor = message.nickColor end)
+
+    local nickLabel = gui.Label{
+        classes = {"chatBubbleNick"},
+        text = nick,
+        interactable = false,
+    }
+    if nickColor ~= nil then
+        pcall(function() nickLabel.selfStyle.color = nickColor end)
+    end
+
+    return {
+        nickLabel,
+        gui.Label{
+            classes = {"chatBubbleText"},
+            text = text,
+            interactable = false,
+        },
+    }
+end
+
+--- Shows rows in a panel's bubble beside its rail button, building the bubble if needed.
+--- Nothing shows when the panel is already in front or has no rail button of its own
+--- (grouped away, or parked in the overflow).
+--- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[]}
+--- @return boolean shown
+function PanelDocument.ShowRailBubble(args)
+    if #args.rows == 0 or PanelDocument.PanelInFront(args.key, args.panelName) then
+        return false
+    end
+    local side, slot, button = PanelDocument.FindRailButton(args.key)
+    if side == nil then
+        return false
+    end
+    local rect = PanelDocument.ChatButtonRect(side, slot, button)
+    if rect == nil then
+        return false
+    end
+    local bubble = PanelDocument.railBubbles[args.key]
+    if bubble ~= nil and not bubble.valid then
+        bubble = nil
+    end
+    if bubble == nil then
+        bubble = PanelDocument.CreateRailBubble({key = args.key, panelName = args.panelName}, side, slot, rect)
+    end
+    if bubble == nil then
+        return false
+    end
+    for _, row in ipairs(args.rows) do
+        bubble:FireEvent("addBubbleRow", row.contents, row.click)
+    end
+    return true
+end
+
+--- Fades a panel's bubble now, if it has one (History: hovering its button).
+--- @param key string
+function PanelDocument.FadeRailBubble(key)
+    local bubble = PanelDocument.railBubbles[key]
+    if bubble ~= nil and bubble.valid then
+        bubble:FireEvent("bubbleFade")
+    end
 end
 
 --Fired on the rail root (the chat listener, see BuildIconRails) with
@@ -22916,6 +23044,11 @@ local function CreateIconRail(side, entries, opts)
                         if UpdateStripCard ~= nil then
                             UpdateStripCard(memberLabel)
                         end
+                        --a member panel's own hover card (railHover), as on the rail
+                        --itself; below the strip, so it covers neither strip nor rail.
+                        if memberReg ~= nil and memberReg.railHover ~= nil and not g_railRearranging then
+                            pcall(memberReg.railHover, element, {halign = "center", valign = "bottom", inStrip = true})
+                        end
                     end,
 
                     --leaving a member re-arms the close; the handler
@@ -23065,6 +23198,7 @@ local function CreateIconRail(side, entries, opts)
                         if g_railRearranging then
                             return
                         end
+                        element.tooltip = nil
                         ToggleGroupMember(memberKey)
                     end,
 
@@ -23581,7 +23715,9 @@ local function CreateIconRail(side, entries, opts)
         --NOT retire by being looked at (novel module content clears only
         --per item, and only from the handful of rows wired to do it).
         --Everything re-checks on the rail's refreshRail cadence, and the
-        --marker hides while the panel itself is shown.
+        --marker hides while the panel itself is shown. newContentStyle()
+        --may return {color = "#rrggbb", shape = "diamond"} to recolour the
+        --marker or make it a diamond (History: grey count, gold diamond).
         local novelMarker = nil
         --a registered entry type's alert(id) drives the same marker: true
         --or a count while it needs attention (a map button's alert).
@@ -23610,7 +23746,9 @@ local function CreateIconRail(side, entries, opts)
             local hasNewContent = alertSource.hasNewContent
             local newContentCount = alertSource.newContentCount
             local markContentSeen = alertSource.markContentSeen
+            local newContentStyle = alertSource.newContentStyle
             local m_shownCount = nil --count the marker currently displays; nil = hidden.
+            local m_shownStyle = nil --"color|shape" of the marker on show.
             --the container is a 1x1 anchor sitting ON the button's
             --top-right corner; the badge centers on it, so it pops out
             --of the button bounds like an iOS app badge. Anchored from
@@ -23651,17 +23789,61 @@ local function CreateIconRail(side, entries, opts)
                             count = 1
                         end
                     end
-                    if count == m_shownCount then
+                    local style = nil
+                    if count ~= nil and newContentStyle ~= nil then
+                        pcall(function() style = newContentStyle() end)
+                    end
+                    local styleKey = style ~= nil and string.format("%s|%s", tostring(style.color), tostring(style.shape)) or ""
+                    if count == m_shownCount and styleKey == m_shownStyle then
                         return
                     end
                     m_shownCount = count
+                    m_shownStyle = styleKey
                     if count == nil then
                         element.children = {}
+                    elseif style ~= nil and style.shape == "diamond" then
+                        --a square turned 45 degrees behind an upright number, so the
+                        --signal has a shape as well as a colour.
+                        element.children = {
+                            gui.Panel{
+                                width = 16,
+                                height = 16,
+                                halign = "center",
+                                valign = "center",
+                                flow = "none",
+                                interactable = false,
+                                gui.Panel{
+                                    bgimage = "panels/square.png",
+                                    bgcolor = style.color or "#ee4444",
+                                    width = 13,
+                                    height = 13,
+                                    cornerRadius = 2,
+                                    rotate = 45,
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                },
+                                count > 1 and gui.Label{
+                                    text = tostring(math.min(count, 9)),
+                                    fontSize = 14,
+                                    fontWeight = "black",
+                                    color = "black",
+                                    width = "100%",
+                                    height = "auto",
+                                    textAlignment = "center",
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                    textWrap = false,
+                                } or nil,
+                            },
+                        }
                     else
                         element.children = {
                             gui.NewContentAlert{
                                 count = count,
                                 size = 16,
+                                bgcolor = style ~= nil and style.color or nil,
                                 halign = "center",
                                 valign = "center",
                                 x = 0,
@@ -23949,6 +24131,10 @@ local function CreateIconRail(side, entries, opts)
                     end)
                 elseif docid ~= nil and not missing then
                     CustomDocument.ShowJournalPreview(element, docid, CustomDocument.RailPreviewPlacement(element))
+                elseif reg ~= nil and reg.railHover ~= nil then
+                    --a registered panel may show its own preview card (History:
+                    --what happened since you last looked).
+                    pcall(reg.railHover, element, CustomDocument.RailPreviewPlacement(element))
                 end
                 --A popped-out panel's OS window can be buried under other
                 --windows; arriving on its rail button surfaces it: bring
@@ -24624,6 +24810,8 @@ local function CreateIconRail(side, entries, opts)
                 end
 
                 RailButtonSound("press")
+                --a panel's own hover card (railHover) goes as the press opens it.
+                element.tooltip = nil
 
                 --in rearrange mode presses begin drags, never open.
                 if g_railRearranging then

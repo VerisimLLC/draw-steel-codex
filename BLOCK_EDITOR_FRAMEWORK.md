@@ -1,6 +1,6 @@
 # Block editors across the codex: framework design brief
 
-Status: **DRAFT, decisions open.** This is the single source of truth for taking the block
+Status: **DRAFT.** D1 decided; D2 and D3 explained below and awaiting sign-off. This is the single source of truth for taking the block
 design (the ability editor and class builder prototypes in `ui-mockup/`) to every content
 editor, and for how a block is registered. Decisions are recorded in the ledger at the end as
 they are made.
@@ -172,6 +172,181 @@ BlockEditor.RegisterHost{
 **Read-back is free for declared fields.** Opening a saved record fills each slot from its
 `field`. Anything unclaimed is shown as "More settings (N)" and saved back unchanged (D4).
 
+## 4a. Slot mapping, worked through (D2)
+
+A slot is one underlined word or chip in a block. **Mapping** says where its value lives in
+the saved record. There are three levels. Most types only need the first.
+
+### Level 1: a slot names a field
+
+```lua
+value = Block.Formula{ field = "value" }
+```
+
+- **Reading:** opening a saved record puts `record.value` in the slot.
+- **Saving:** writes the slot back to `record.value`.
+
+That is all. The attribute modifier, and most behaviours (`applyto`, `stopFlying`,
+`damageType`...), need nothing else. A `field` can be a path into a nested table, such as
+`field = "momentaryEffect.name"`.
+
+### Level 2: a slot converts its value
+
+The record stores the value in a different shape from the one the slot shows. A slot can name
+a built-in **form**, or give `get`/`set`:
+
+```lua
+-- Keywords are stored as a set ({ Weapon = true }); the slot shows a list ("Weapon").
+keywords = Block.Many{ field = "keywords", from = "abilityKeywords", form = "set" },
+
+-- A small custom conversion: the slot shows a whole number, the record stores text.
+radius = Block.Number{ field = "radius",
+    get = function(stored) return tonumber(stored) or 1 end,
+    set = function(value) return tostring(value) end },
+```
+
+- **Built-in forms:**
+  - `set`: a table of `true` values.
+  - `list`: an array.
+  - `csv`: comma-separated text.
+  - `bool01`: `1`/`0`.
+- **When to use get/set:** when one slot maps to one field, but needs converting.
+
+### Level 3: the block reads and writes the record itself
+
+Some blocks don't map slot-for-field: one slot sets several fields, or several fields make one
+slot. For these the block gives `read(record)`, which returns the slot values, and
+`write(values, record)`. The roll modifier's **Automatically selected** line is the real
+example:
+
+```lua
+-- "Automatically selected" is one slot, but the engine stores it across three fields.
+read = function(rec)
+    local v = { offer = rec.displayCondition }
+    if rec.resourceCostType and rec.resourceCostType ~= "none" then
+        v.selected = "cost"; v.costN = rec.resourceCostAmount; v.costRes = rec.resourceCostType
+    elseif rec.activationCondition == true or rec.activationCondition == "1" then
+        v.selected = "always"
+    elseif rec.activationCondition == false or rec.activationCondition == "" then
+        v.selected = "never"
+    elseif rec.activationCondition == rec.displayCondition then
+        v.selected = "always"          -- the same test written twice: offered already decides it
+    else
+        v.selected = "when"; v.tick = rec.activationCondition
+    end
+    if type(rec.activationAfterRoll) == "string" then
+        return nil                     -- after-the-roll options: the block can't show these
+    end
+    return v
+end,
+write = function(v, rec)
+    rec.displayCondition    = v.offer or ""
+    rec.activationCondition = (v.selected == "when" and v.tick)
+                           or (v.selected == "never" and false) or "1"
+    if v.selected == "cost" then rec.resourceCostType = v.costRes; rec.resourceCostAmount = v.costN end
+end,
+```
+
+### Rules every level follows
+
+1. **Unclaimed fields are kept.** Any field no slot (or `read`) claims is copied through
+   unchanged on save and counted in "More settings (N)", which opens today's form.
+2. **`read` may refuse.** If `read` returns `nil` (as above, for after-the-roll options), the
+   record opens as the grey generic block with today's form. Nothing is lost or guessed.
+3. **Round trip is tested, not trusted.** Saving a block you didn't touch must give back the
+   same record. A registry check runs every compendium record of each type through
+   `read`→`write` and lists any that change, the same way the prototype polls did (45/45,
+   60/60, 1,148/1,148).
+   - This is how a type earns its block.
+   - It also caught a real case: Berserker's *Primordial Strength* stores the same test in
+     both `displayCondition` and `activationCondition`. That reads as "Offered when [the
+     target is an object] / Automatically selected always". Saving it unchanged must keep
+     both fields as they were, so the check compares field by field, not by meaning.
+
+## 4b. Writing prose (D3)
+
+Prose is the book wording, shown on the card and in the preview. There are three levels, and
+again most types only need the first.
+
+### Level 1: the sentence is the prose
+
+The block's `sentence` is filled in with each slot's words:
+- a Choice uses its option label;
+- a Formula is turned into English by the existing GoblinScript renderer, so `Might*2` reads
+  "twice your Might";
+- a Ref uses the compendium name;
+- a Test uses its book wording;
+- a Who uses the host's point of view.
+
+`{take|takes}` picks the verb that agrees with the subject: "you take", "the target takes".
+
+```lua
+sentence = "{applyto} {take|takes} {amount} {damageType} damage",
+-- ability host:  "The target takes 2d6 + Might fire damage."
+-- effect host:   "The creature takes 5 fire damage."
+```
+
+### Level 2: separate book wording
+
+When the block's words are fine for editing but the book says it differently, give a `prose`
+template next to the `sentence`:
+
+```lua
+sentence = "Your {attribute} {operation} {value}",                  -- in the editor
+prose    = "Your {attribute} maximum {operation} {value}",          -- on the card, for Stamina
+```
+
+### Level 3: a prose function
+
+For wording that depends on the values (a sign, a count, a list), the block gives
+`prose(record, w)`. `w` is a small helper so the function never builds English by hand:
+
+| Helper | Gives |
+|---|---|
+| `w.slot("amount")` | the slot's words, the same as the template would use |
+| `w.subject()` / `w.verb("gain", "gains")` | "you" / "the creature"; the agreeing verb |
+| `w.formula(text)` | a formula in English ("twice your Might") |
+| `w.count(n, "square", "squares")` | "1 square", "3 squares" |
+| `w.list({...}, "and")` | "acid, cold and fire" |
+| `w.test(node)` | a test's book wording ("the target is winded") |
+
+Return a string, or `nil` to fall back to the template.
+
+Real example, the resistance modifier: one record holds a list of entries, and each entry is
+immunity, or weakness when its number is negative. Berserker's *Chaos Incarnate* stores 7
+entries, all with `dr = "Might*2"`.
+
+```lua
+prose = function(rec, w)
+    local immune, weak = {}, {}
+    for _, e in ipairs(rec.resistances or {}) do
+        local n = tonumber(e.dr)
+        if n and n < 0 then weak[#weak+1] = { e.damageType, w.formula(-n) }
+        else immune[#immune+1] = { e.damageType, w.formula(e.dr) } end
+    end
+    local parts = {}
+    -- Entries with the same amount share one phrase: "acid, cold and fire immunity equal to twice your Might".
+    for amount, types in pairs(w.groupBy(immune, 2, 1)) do
+        parts[#parts+1] = w.list(types, "and") .. " immunity " .. amount
+    end
+    for amount, types in pairs(w.groupBy(weak, 2, 1)) do
+        parts[#parts+1] = w.list(types, "and") .. " weakness " .. amount
+    end
+    return w.subject() .. " " .. w.verb("have", "has") .. " " .. w.list(parts, "and") .. "."
+end,
+```
+
+This reads, for Chaos Incarnate: "You have acid, cold, corruption, fire, lightning, poison and
+sonic immunity equal to twice your Might."
+
+### Where today's prose goes
+
+- **`GoblinScriptProse.behaviourProse`:** the 41 templates (keyed by typeName) move onto their
+  behaviours' `block.prose`. `RenderBehaviour` keeps its fallback chain, so anything not yet
+  moved still reads the same.
+- **`autoDescribe`:** the 8 modifier types that have it become `block.prose`. The old hook
+  calls the new one until it is removed.
+
 ## 5. Phasing (proposal)
 
 1. **Registry and host framework, plus the modifier blocks the class builder already has.**
@@ -201,4 +376,4 @@ BlockEditor.RegisterHost{
 
 | Date | Decision | Why |
 |---|---|---|
-| (none yet) | | |
+| 2026-11-23 | **D1: a block is declared with a `block = {...}` key on the type's existing registration** (`ActivatedAbility.RegisterType`, `CharacterModifier.RegisterType`/`TypeInfo`, `CharacterChoice.RegisterChoice`) | Use what already exists: one place per type, beside the code that runs it. Separate tables would repeat today's split metadata. |

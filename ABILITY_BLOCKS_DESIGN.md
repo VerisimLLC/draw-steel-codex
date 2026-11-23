@@ -1319,6 +1319,21 @@ Remember a value).
   describes Draw Steel Save as "Force a target to make a resistance roll". It actually makes
   saving throws against save-ends effects. (Recorded only; the codebase is not changed.)
 
+**Revision (same day):** the hover text is now only what the block does. "Used by..." examples
+and the notes stay in the table below for developers, but are not shown on the shelf. One-off
+blocks moved to a new **Unique** group at the end of the shelf (`UNIQUE_BEHAVIORS`):
+- Loyalty Collar Explosion
+- Patron
+- Shift Wall Voxel
+- Create Lane Object
+- Persistence Control
+- Routine Control
+- Apply Flagged Power Modifiers (Free Strike)
+- Swing Object
+- Recovery Selection
+
+The shelf groups in the table are from before this move.
+
 | Shelf group | Block | Hover text | Note |
 |---|---|---|---|
 | roll | Apply Flagged Power Modifiers (Free Strike) | Applies any of the striker's power roll bonuses that are marked "apply to free strikes" to a free strike's targets, since free strikes don't go through the normal power roll. | Codex-internal: added to free strikes automatically and hidden from the normal block picker. Designers shouldn't add it by hand. |

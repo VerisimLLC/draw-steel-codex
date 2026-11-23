@@ -172,6 +172,9 @@ BlockEditor.RegisterHost{
 **Read-back is free for declared fields.** Opening a saved record fills each slot from its
 `field`. Anything unclaimed is shown as "Advanced editor (N)" and saved back unchanged (D4).
 
+**Worked examples from the Block Copy sheet** (each kind of row as a declaration, using the real
+field names): `ui-mockup/block-copy/REGISTRY_EXAMPLES.md`.
+
 ## 4a. Slot mapping, worked through (D2)
 
 A slot is one underlined word or chip in a block. **Mapping** says where its value lives in

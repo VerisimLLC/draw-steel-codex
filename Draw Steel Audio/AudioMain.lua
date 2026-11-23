@@ -893,6 +893,15 @@ audio.SoundEvent{
 }
 
 audio.SoundEvent{
+    name = "Attack.Hit_Ranged",
+    mixgroup = "damage",
+    sounds = {"Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_01.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_02.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_03.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_04.wav"},
+    volume = 0.7,
+    ignoreDuplicates = 0.2,
+    pitchRand = 0.2,
+}
+
+audio.SoundEvent{
     name = "Attack.Hit_acid",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Acid_v1_01.wav","Atk_Hit/Atk_Hit_Acid_v1_02.wav","Atk_Hit/Atk_Hit_Acid_v1_03.wav","Atk_Hit/Atk_Hit_Acid_v1_04.wav"},

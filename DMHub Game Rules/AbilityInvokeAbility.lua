@@ -880,7 +880,34 @@ local function InvokeIsWholeAbility(behavior, ability)
     return true
 end
 
+--- Runs the invoke, then gives the invoking cast back the power roll tier it had.
+--- An invoked ability shares its parent's cast, so a power roll inside it (an ally's
+--- granted signature strike) used to overwrite the parent's tier, and the parent's
+--- later tier-gated behaviors then ran for the ally's tier: Hammer and Anvil granted
+--- extra strikes (X8QSSTAJ). Only a tier the parent already rolled is put back; when
+--- the invoked ability makes the parent's roll (no tier yet), its tier stands.
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
+    local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
+    --A cast relayed from another client can arrive as a plain table with no methods.
+    if cast == nil or cast.try_get == nil or cast.tier == 0 then
+        self:CastInvoke(ability, casterToken, targets, options)
+        return
+    end
+
+    local savedTier = cast.tier
+    local savedTokenToTier = cast:try_get("tokenToTier")
+    if savedTokenToTier ~= nil then
+        savedTokenToTier = table.shallow_copy(savedTokenToTier)
+    end
+
+    self:CastInvoke(ability, casterToken, targets, options)
+
+    cast.tier = savedTier
+    cast.tokenToTier = savedTokenToTier
+end
+
+--The invoke itself; see Cast above for the tier it keeps.
+function ActivatedAbilityInvokeAbilityBehavior:CastInvoke(ability, casterToken, targets, options)
 
     --Resolve a "choose an ability off your class list" pick up front, before any
     --targeting and before CommitToPaying: backing out of the picker must not spend

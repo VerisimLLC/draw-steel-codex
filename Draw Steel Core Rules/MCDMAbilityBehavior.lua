@@ -383,10 +383,23 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
 
     if damage == nil then
         local complete = false
-        local rollid
-        rollid = GameHud.instance.rollDialog.data.ShowDialog{
+        --Roll the dice on the ability's card in the sidebar. The old pop-up is only
+        --used when there is no card to roll on.
+        local dialog = nil
+        if ability ~= nil then
+            dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+        end
+        if dialog == nil or (not dialog.valid) or dialog.data == nil then
+            dialog = GameHud.instance.rollDialog
+        end
+        dialog.data.ShowDialog{
             title = "Damage Roll",
             roll = match.damage,
+            type = "damage",
+            creature = casterToken.properties,
+            --Roll the damage dice straight away: after a power roll the player has
+            --already rolled once, and nothing here needs a choice from them.
+            autoroll = true,
             completeRoll = function(rollInfo)
                 complete = true
                 damage = rollInfo.total
@@ -677,19 +690,23 @@ local g_rulePatterns = {
 
             local adjustments = {}
 
-            local sizeDifferenceBonus = 0
-            if ability.keywords["Weapon"] and ability.keywords["Melee"] then
-                --When a sub-ability's casterid has been remapped (e.g. Behold the Face of Justice), opt in via "forcemovefrominvoker" to use the original invoker as the pusher for the size check.
-                local pusherToken = casterToken
-                if ability:HasProperty("forcemovefrominvoker") then
-                    local invoker = ability:try_get("invoker")
-                    if invoker ~= nil then
-                        local invokerToken = dmhub.LookupToken(invoker)
-                        if invokerToken ~= nil and invokerToken.valid then
-                            pusherToken = invokerToken
-                        end
+            --Some abilities push as another creature: Behold the Face of Justice! pushes from the
+            --struck foe. "forcemovefrominvoker" makes the hero who used it the pusher instead:
+            --their size counts, and their player picks where the target lands.
+            local originalInvokerToken = nil
+            if ability:HasProperty("forcemovefrominvoker") then
+                local invoker = ability:try_get("invoker")
+                if invoker ~= nil then
+                    local invokerToken = dmhub.LookupToken(invoker)
+                    if invokerToken ~= nil and invokerToken.valid then
+                        originalInvokerToken = invokerToken
                     end
                 end
+            end
+
+            local sizeDifferenceBonus = 0
+            if ability.keywords["Weapon"] and ability.keywords["Melee"] then
+                local pusherToken = originalInvokerToken or casterToken
                 local isKnockback = ability:IsKnockbackManeuver()
                 local casterSize = pusherToken.properties:CreatureSizeWhenForceMoving(isKnockback)
                 local targetSize = targetToken.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
@@ -825,6 +842,11 @@ local g_rulePatterns = {
                 --squad-coordinated action, so opt out explicitly.
                 disableSquadCoordination = true,
             }
+            --A redirected push belongs to its new mover's controller, so only name the hero
+            --when the push was not redirected.
+            if originalInvokerToken ~= nil and not executeOnRemote then
+                abilityAttr.promptDeciderId = originalInvokerToken.charid
+            end
 
             --The behavior can swap the generic "You may slide..." line for its own
             --guidance, e.g. which way to move each target.

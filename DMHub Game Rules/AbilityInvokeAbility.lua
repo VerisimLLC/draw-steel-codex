@@ -1894,8 +1894,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
         end
 
-        --false unless the Monster AI controls the invoker.
-        local aiPromptCallback = creature.GetTokenAIPromptCallback(invokerToken.charid)
+        --Who picks the answer. Usually the invoker, but an ability can name someone else:
+        --Behold the Face of Justice! pushes as the struck monster, yet the Censor's player picks.
+        local deciderToken = invokerToken
+        local deciderId = abilityClone:try_get("promptDeciderId")
+        if deciderId ~= nil then
+            local token = dmhub.GetTokenById(deciderId)
+            if token ~= nil and token.valid then
+                deciderToken = token
+            end
+        end
+        --false unless the Monster AI controls the decider.
+        local aiPromptCallback = creature.GetTokenAIPromptCallback(deciderToken.charid)
         --A Director-run creature the AI is not driving right now (a dying minion's
         --death strike on a hero's turn) still has its prompts answered while the AI
         --runs, as its rolls already are. rawget: Monster AI may not be loaded.
@@ -1903,11 +1913,12 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local monsterAI = rawget(_G, "MonsterAI")
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
-                aiPromptCallback = fallback(invokerToken) or false
-                --When a hero's ability acts on a monster, the monster is the caster here, but
-                --the hero's player still chooses (where to push it). Only prompts marked
-                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                aiPromptCallback = fallback(deciderToken) or false
+                --When a hero's ability acts on a monster, the hero's player still chooses (where
+                --to push it). Only answersForCaster prompts, like a free strike the monster makes
+                --itself, go to the AI, and never one that already names who picks.
                 if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and deciderToken == invokerToken
                     and monsterAI.PromptAnswersForCaster(abilityClone) then
                     aiPromptCallback = fallback(casterToken) or false
                 end

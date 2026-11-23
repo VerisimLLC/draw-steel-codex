@@ -78,3 +78,18 @@ hr { border: none; border-top: 1px solid var(--line); margin: 20px 0; }
 ''' + '\n'.join(out) + '\n</main></body></html>\n'
 open(os.path.join(ROOT, "ui-mockup", "goblinscript.html"), "w", encoding="utf-8").write(page)
 print("wrote ui-mockup/goblinscript.html", len(page))
+
+# The same guide as a Word document (needs pandoc). reference.docx holds the styles: headings,
+# shaded code, gridded tables. The first "# " heading becomes the document title.
+import shutil, subprocess, tempfile
+if shutil.which("pandoc") and os.path.exists(USER):
+    here = os.path.dirname(os.path.abspath(__file__))
+    text = open(USER, encoding="utf-8").read().split("\n")
+    title = text[0][2:].strip() if text[0].startswith("# ") else "GoblinScript"
+    body = re.sub(r'^(#{2,6}) ', lambda m: m.group(1)[1:] + ' ', "\n".join(text[1:] if text[0].startswith("# ") else text), flags=re.M)
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as t:
+        t.write('---\ntitle: "%s"\n---\n' % title.replace('"', '\\"') + body)
+    out = os.path.join(here, "GoblinScript_User_Guide.docx")
+    subprocess.run(["pandoc", t.name, "-f", "gfm+yaml_metadata_block", "-t", "docx", "--reference-doc", os.path.join(here, "reference.docx"), "-o", out], check=True)
+    os.remove(t.name)
+    print("wrote", os.path.relpath(out, ROOT))

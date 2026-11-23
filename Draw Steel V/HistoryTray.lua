@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The tray's words are in HistoryText.lua.
+local T = UIText.T
+
+local Int = History.Int
+
 --The History tray: a rail panel window that shows a map's History as rounds and turns,
 --newest at the bottom. Older rounds and turns fold away, so opening it builds a few
 --rows even after a long fight.
@@ -49,10 +54,10 @@ local LINE_NUMBER_WIDTH = 70
 local UNDO_WIDTH = 50
 
 local ACTION_WORDS = {
-    main = "Main action",
-    maneuver = "Maneuver",
-    freestrike = "Free strike",
-    triggered = "Triggered action",
+    main = T("history.action.main"),
+    maneuver = T("history.action.maneuver"),
+    freestrike = T("history.action.freestrike"),
+    triggered = T("history.action.triggered"),
 }
 
 --Where the detail card goes. It sits beside the window, so it moves and zooms with it.
@@ -223,18 +228,6 @@ local function Styles()
             selectors = {"label", "historyChip", "historyChipMalice"},
             color = "@danger",
             borderColor = "@danger",
-        },
-        --a row the fold animation's stand-in is flying to, hidden until it lands.
-        {
-            selectors = {"historyFoldHidden"},
-            opacity = 0,
-        },
-        --and fades in under the stand-in as it fades out (the fold's last quarter).
-        {
-            selectors = {"historyFoldReveal"},
-            opacity = 1,
-            transitionTime = 0.22,
-            easing = "easeInOutSine",
         },
         --a spend on an action's row: the resource's icon and the number, in its chip's colour.
         {
@@ -681,7 +674,7 @@ end
 
 local function ShownName(who)
     if who.secret and not dmhub.isDM then
-        return "Unknown creature"
+        return T("history.unknown_creature")
     end
     return who.name
 end
@@ -838,7 +831,7 @@ end
 --- @return Panel
 local function ActiveTag(icon)
     if icon == nil then
-        return Tag("historyActiveTag", "Active")
+        return Tag("historyActiveTag", T("history.tag.active"))
     end
     return gui.Panel{
         classes = {"historyActiveFrame"},
@@ -872,7 +865,7 @@ local function ActiveTag(icon)
         },
         gui.Label{
             classes = {"historyActiveTag"},
-            text = "Active",
+            text = T("history.tag.active"),
             width = "auto",
             height = "auto",
             valign = "center",
@@ -932,7 +925,7 @@ local function TierBadge(tier, overridden)
         --like a face, it holds back the row's own "Open the detail" while it shows its word.
         hover = overridden and function(element)
             g_faceHovered = element
-            gui.Tooltip{text = "Overridden", fontSize = 13}(element)
+            gui.Tooltip{text = T("history.overridden"), fontSize = 13}(element)
         end or nil,
         dehover = overridden and function(element)
             if g_faceHovered == element then
@@ -940,7 +933,7 @@ local function TierBadge(tier, overridden)
             end
         end or nil,
         bgimage = "panels/square.png",
-        text = string.format("Tier %d", tier),
+        text = T("history.tier", {tier = Int(tier)}),
         width = "auto",
         height = 16,
         hpad = 6,
@@ -1163,20 +1156,21 @@ end
 
 --The caption a state shows as, with the style that marks it.
 local STATE_CAPTIONS = {
-    winded = {text = "Winded", style = "historyWinded"},
-    dying = {text = "Dying", style = "historyDying"},
-    killed = {text = "Killed", style = "historyDead"},
+    winded = {text = T("history.caption.winded"), style = "historyWinded"},
+    dying = {text = T("history.caption.dying"), style = "historyDying"},
+    killed = {text = T("history.caption.killed"), style = "historyDead"},
 }
 
 --What minion deaths read as. The whole squad gone says so.
 local function MinionWords(entry)
     if entry.left <= 0 then
-        return "Squad destroyed"
+        return T("history.caption.squad_destroyed")
     end
-    return string.format("%d of %d killed", entry.killed, entry.killed + entry.left)
+    return T("history.caption.minions_killed", {killed = Int(entry.killed), total = Int(entry.killed + entry.left)})
 end
 
-local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid", teleport = "teleported"}
+local MOVED_VERBS = {push = T("history.moved_verb.push"), pull = T("history.moved_verb.pull"), slide = T("history.moved_verb.slide"),
+    teleport = T("history.moved_verb.teleport")}
 History.MOVED_VERBS = MOVED_VERBS
 
 --"Push 3", then after dots what stability took off, walls broken and a fall:
@@ -1186,27 +1180,27 @@ local function MovedWords(moved)
     local words
     --immune sets stopped too, but stability did not stop it: say what did, as the card does.
     if moved.immune then
-        return "Immune to forced movement"
+        return T("history.caption.moved.immune")
     end
     if moved.stopped then
-        words = string.format("%s stopped", kind)
+        words = T("history.caption.moved.stopped", {kind = kind})
     elseif moved.distance <= 0 and moved.fell <= 0 then
         --blocked before it moved a square.
-        words = string.format("%s blocked", kind)
+        words = T("history.caption.moved.blocked", {kind = kind})
     elseif moved.distance <= 0 then
-        return string.format("Fell %d", moved.fell)
+        return T("history.caption.moved.fell_only", {distance = Int(moved.fell)})
     else
-        words = string.format("%s %d", kind, moved.distance)
+        words = T("history.caption.moved.distance", {kind = kind, distance = Int(moved.distance)})
     end
     if (moved.stability or 0) > 0 then
-        words = words .. DOT .. string.format("Stability %d", moved.stability)
+        words = words .. DOT .. T("history.caption.moved.stability", {stability = Int(moved.stability)})
     end
     local walls = moved.walls or 0
     if walls > 0 then
-        words = words .. DOT .. string.format("Broke %d %s", walls, walls == 1 and "wall" or "walls")
+        words = words .. DOT .. UIText.Plural("history.caption.moved.walls", walls, {count = Int(walls)})
     end
     if moved.fell > 0 then
-        words = words .. DOT .. string.format("fell %d", moved.fell)
+        words = words .. DOT .. T("history.caption.moved.fell", {distance = Int(moved.fell)})
     end
     return words
 end
@@ -1220,11 +1214,11 @@ local function Captions(who, minions, allyHit)
         list[#list + 1] = {text = text, ended = ended, style = style}
     end
     if allyHit then
-        Add("Ally hit")
+        Add(T("history.caption.ally_hit"))
     end
     --struck by a squad: how many of its minions hit this target.
     if (who.byminions or 0) > 0 and (who.taken or 0) > 0 then
-        Add(string.format("%d %s", who.byminions, who.byminions == 1 and "minion" or "minions"))
+        Add(UIText.Plural("history.story.minions", who.byminions, {count = Int(who.byminions)}))
     end
     if who.state ~= nil then
         Add(STATE_CAPTIONS[who.state].text, nil, STATE_CAPTIONS[who.state].style)
@@ -1236,10 +1230,10 @@ local function Captions(who, minions, allyHit)
         Add(MovedWords(who.moved))
     end
     if who.landedon then
-        Add("Landed on")
+        Add(T("history.caption.landed_on"))
     end
     if who.recovered ~= nil then
-        Add(string.format("No longer %s", who.recovered), nil, "historyGood")
+        Add(T("history.caption.no_longer", {state = who.recovered}), nil, "historyGood")
     end
     if who.types ~= nil then
         local names = {}
@@ -1252,22 +1246,22 @@ local function Captions(who, minions, allyHit)
         else
             local parts = {}
             for i, name in ipairs(names) do
-                parts[i] = string.format("%d %s", who.types[name], name)
+                parts[i] = T("history.story.damage_part", {amount = Int(who.types[name]), type = name})
             end
             Add(table.concat(parts, ", "))
         end
     end
     local immunity = who.immunity
     if immunity ~= nil and immunity.amount > 0 then
-        Add(string.format("%s immunity -%d", string.upper_first(immunity.damagetype), immunity.amount))
+        Add(T("history.caption.immunity", {type = string.upper_first(immunity.damagetype), amount = Int(immunity.amount)}))
     elseif immunity ~= nil and immunity.amount < 0 then
-        Add(string.format("%s weakness +%d", string.upper_first(immunity.damagetype), -immunity.amount))
+        Add(T("history.caption.weakness", {type = string.upper_first(immunity.damagetype), amount = Int(-immunity.amount)}))
     end
     if who.soaked ~= nil then
-        Add(string.format("%d soaked by temporary Stamina", who.soaked))
+        Add(T("history.caption.soaked", {amount = Int(who.soaked)}))
     end
     if who.pool ~= nil then
-        Add(string.format("temporary Stamina %d to %d", who.pool.before, who.pool.after))
+        Add(T("history.caption.temporary_stamina", {before = Int(who.pool.before), after = Int(who.pool.after)}))
     end
     for _, condition in ipairs(who.conds or {}) do
         if condition.icon == nil then
@@ -1275,10 +1269,10 @@ local function Captions(who, minions, allyHit)
         end
     end
     if who.resisted then
-        Add("Resisted")
+        Add(T("history.caption.resisted"))
     end
     for _, name in ipairs(who.immune or {}) do
-        Add(string.format("Immune to %s", name))
+        Add(T("history.why.lead.immune_to", {condition = name}))
     end
     for _, name in ipairs(who.ended or {}) do
         Add(name, true)
@@ -1316,7 +1310,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
         below[1] = gui.Label{
             classes = {"historyTier"},
             bgimage = "panels/square.png",
-            text = string.format("Tier %d", who.tier),
+            text = T("history.tier", {tier = Int(who.tier)}),
             width = "auto",
             height = 15,
             hpad = 4,
@@ -1346,7 +1340,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
             textAlignment = "left",
         }
         if caption.ended then
-            local tag = Tag("historyEndedTag", "Ended")
+            local tag = Tag("historyEndedTag", T("history.tag.ended"))
             tag.selfStyle.rmargin = 8
             below[#below + 1] = tag
         end
@@ -1434,7 +1428,7 @@ end
 --"2 surges", but "1 surge". Every other resource name reads the same at any amount.
 local function ResourceWords(amount, name)
     if amount == 1 and name == "surges" then
-        return "1 surge"
+        return T("history.resource.one_surge")
     end
     return string.format("%d %s", amount, name)
 end
@@ -1449,7 +1443,7 @@ local function OpensCard(item)
             if (g_faceHovered ~= nil and g_faceHovered.valid) or element.popup ~= nil then
                 return
             end
-            gui.Tooltip{text = "Open the detail", fontSize = 13}(element)
+            gui.Tooltip{text = T("history.tray.open_detail_tooltip"), fontSize = 13}(element)
         end,
         click = function(element)
             element.tooltip = nil
@@ -1480,7 +1474,7 @@ local function DirectorMenu(sources)
         element.popup = gui.ContextMenu{
             entries = {
                 {
-                    text = hidden and "Reveal to players" or "Hide from players",
+                    text = hidden and T("history.menu.reveal") or T("history.menu.hide"),
                     click = function()
                         g_menuChosenAt = dmhub.Time()
                         element.popup = nil
@@ -1488,7 +1482,7 @@ local function DirectorMenu(sources)
                     end,
                 },
                 {
-                    text = "Delete entry",
+                    text = T("history.menu.delete"),
                     click = function()
                         g_menuChosenAt = dmhub.Time()
                         element.popup = nil
@@ -1496,13 +1490,13 @@ local function DirectorMenu(sources)
                     end,
                 },
                 {
-                    text = "Clear History",
+                    text = T("history.menu.clear"),
                     click = function()
                         g_menuChosenAt = dmhub.Time()
                         element.popup = nil
-                        DTConfirmationDialog.ShowModal("Clear History?",
-                            "This removes every entry on this map for everyone. It can't be undone.",
-                            "Clear History", "Cancel", function() History.Clear(mapid) end)
+                        DTConfirmationDialog.ShowModal(T("history.menu.clear_confirm.title"),
+                            T("history.menu.clear_confirm.body"),
+                            T("history.menu.clear_confirm.confirm"), T("history.menu.clear_confirm.cancel"), function() History.Clear(mapid) end)
                     end,
                 },
             },
@@ -1519,7 +1513,7 @@ local function HiddenEye()
         lmargin = 5,
         halign = "left",
         valign = "center",
-        linger = gui.Tooltip("Hidden from players"),
+        linger = gui.Tooltip(T("history.hidden_from_players")),
     }
 end
 
@@ -1564,9 +1558,9 @@ local function RollRow(entry)
         name = string.format("<b>%s</b> ", ShownName(entry.who))
     end
     --a Dice Tower roll: players saw it happen, not what it came to.
-    local words = "rolled in secret"
+    local words = T("history.tray.roll.secret")
     if not entry.secretroll and entry.total ~= nil then
-        words = string.format("rolled %d", entry.total)
+        words = T("history.tray.roll.rolled", {total = Int(entry.total)})
     end
     children[#children + 1] = gui.Label{
         classes = {"historyTriggerResult"},
@@ -1604,15 +1598,15 @@ end
 --showTotals: this viewer may read the totals. named: several targets, so say which.
 local function OpposedRow(who, showTotals, named)
     local opposed = who.opposed
-    local words = "Tied"
+    local words = T("history.tray.opposed.tied")
     local class = "historyTriggerResult"
     if opposed.attacker > opposed.defender then
-        words = "Succeeded"
+        words = T("history.tray.opposed.succeeded")
     elseif opposed.attacker < opposed.defender then
-        words = "Failed"
+        words = T("history.tray.opposed.failed")
     end
     if showTotals then
-        words = words .. DOT .. string.format("%d against %d", opposed.attacker, opposed.defender)
+        words = words .. DOT .. T("history.tray.opposed.totals", {total = Int(opposed.attacker), against = Int(opposed.defender)})
     end
     --- @type Panel[]
     local children = {}
@@ -1646,17 +1640,17 @@ end
 local function TriggerRow(index, entry, rowActor)
     --free first, then where it fell against the action's roll. An ability used as part
     --of the action says what kind of action it is, if it is one.
-    local tagText = "Triggered"
+    local tagText = T("history.tray.trigger.triggered")
     if entry.kind == "action" then
         tagText = ACTION_WORDS[entry.ability.action or ""] or ""
     elseif entry.ability.free then
-        tagText = "Free"
+        tagText = T("history.tray.trigger.free")
     elseif entry.when == "before" then
-        tagText = "Before the roll"
+        tagText = T("history.tray.trigger.before")
     elseif entry.when == "during" then
-        tagText = "During the roll"
+        tagText = T("history.tray.trigger.during")
     elseif entry.when == "after" then
-        tagText = "After the roll"
+        tagText = T("history.tray.trigger.after")
     end
     local used = 15 + 6 + (tagText ~= "" and (TextWidth(tagText, 7.5) + 5) or 0)
     --- @type Panel[]
@@ -1735,7 +1729,7 @@ local function TriggerRow(index, entry, rowActor)
             effects[#effects + 1] = condition.name
         end
         for _, name in ipairs(who.ended or {}) do
-            effects[#effects + 1] = name .. " ended"
+            effects[#effects + 1] = T("history.story.effect_ended", {name = name})
         end
         if who.state ~= nil then
             effects[#effects + 1] = STATE_CAPTIONS[who.state].text
@@ -1749,7 +1743,7 @@ local function TriggerRow(index, entry, rowActor)
             effects[#effects + 1] = net.label
         end
         if (who.tiers or 0) ~= 0 then
-            effects[#effects + 1] = string.format("%+d %s", who.tiers, math.abs(who.tiers) == 1 and "tier" or "tiers")
+            effects[#effects + 1] = UIText.Plural("history.tray.trigger.tiers", math.abs(who.tiers), {amount = string.format("%+d", who.tiers)})
         end
         if (who.delta or 0) ~= 0 then
             effects[#effects + 1] = string.format("%+d", who.delta)
@@ -1895,7 +1889,7 @@ local function GlanceChips(roll)
         chips[#chips + 1] = chevrons
     end
     if (roll.natural or 0) >= 19 then
-        chips[#chips + 1] = Chip("Critical")
+        chips[#chips + 1] = Chip(T("history.tray.critical"))
     end
     return chips
 end
@@ -1931,7 +1925,7 @@ local function BuildAction(item)
         valign = "center",
     }
     if entry.ability.villainaction ~= nil then
-        titleChildren[#titleChildren + 1] = Tag("historyVillainTag", "Villain Action")
+        titleChildren[#titleChildren + 1] = Tag("historyVillainTag", T("history.tag.villain_action"))
     end
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier, entry.roll ~= nil and entry.roll.overridden ~= nil)
@@ -1940,7 +1934,7 @@ local function BuildAction(item)
         titleChildren[#titleChildren + 1] = chip
     end
     if entry.reverted ~= nil then
-        titleChildren[#titleChildren + 1] = Tag("historyRevertedTag", "Reverted")
+        titleChildren[#titleChildren + 1] = Tag("historyRevertedTag", T("history.tag.reverted"))
     end
     if dmhub.isDM and entry.hiddenfromplayers then
         titleChildren[#titleChildren + 1] = HiddenEye()
@@ -2145,159 +2139,172 @@ local function LineWords(entry)
     local name = entry.who ~= nil and string.format("<b>%s</b>", ShownName(entry.who)) or ""
     local family = entry.family
     if family == "damage" then
-        local kind = entry.damagetype ~= nil and (entry.damagetype .. " ") or ""
-        return string.format("%s took %d %sdamage", name, entry.taken, kind)
-    elseif family == "heal" then
-        return string.format("%s regained %d Stamina", name, entry.healed)
-    elseif family == "condition" then
-        local duration = entry.duration ~= nil and string.format(" (%s)", entry.duration) or ""
-        if entry.renewed then
-            return string.format("%s's %s was renewed", name, entry.name)
-        elseif entry.iscondition then
-            return string.format("%s is %s%s", name, string.lower(entry.name), duration)
+        if entry.damagetype ~= nil then
+            return T("history.line.damage_typed", {name = name, amount = Int(entry.taken), type = entry.damagetype})
         end
-        return string.format("%s %s%s", name, entry.name, duration)
+        return T("history.line.damage", {name = name, amount = Int(entry.taken)})
+    elseif family == "heal" then
+        return T("history.line.heal", {name = name, amount = Int(entry.healed)})
+    elseif family == "condition" then
+        local duration = entry.duration ~= nil and T("history.line.duration", {duration = entry.duration}) or ""
+        if entry.renewed then
+            return T("history.line.renewed", {name = name, effect = entry.name})
+        elseif entry.iscondition then
+            return T("history.line.condition", {name = name, condition = string.lower(entry.name), duration = duration})
+        end
+        return T("history.line.effect", {name = name, effect = entry.name, duration = duration})
     elseif family == "ended" then
         local names = entry.names
         if #names == 1 then
-            return string.format("%s %s", name, names[1])
+            return T("history.line.ended", {name = name, names = names[1]})
         end
         local most = {}
         for i = 1, #names - 1 do
             most[i] = names[i]
         end
-        return string.format("%s %s and %s", name, table.concat(most, ", "), names[#names])
+        return T("history.line.ended", {name = name, names = T("history.list.and", {most = table.concat(most, ", "), last = names[#names]})})
     elseif family == "test" or family == "dice" or family == "table" then
         if entry.who == nil and entry.roller ~= nil then
             name = string.format("<b>%s</b>", entry.roller)
         end
         --a Dice Tower roll: players saw it happen, not what it came to.
         if entry.secretroll then
-            return string.format("%s rolled in secret", name)
+            return T("history.line.rolled_in_secret", {name = name})
         end
-        return string.format("%s rolled %d", name, entry.total)
+        return T("history.line.rolled", {name = name, total = Int(entry.total)})
     elseif family == "save" then
-        return string.format("%s %s %s", name, cond(entry.passed, "saved against", "failed a save against"), entry.name)
+        return entry.passed and T("history.line.save_passed", {name = name, effect = entry.name})
+            or T("history.line.save_failed", {name = name, effect = entry.name})
     elseif family == "persistence" then
-        return string.format("%s stopped maintaining %s", name, entry.name)
+        return T("history.line.persistence", {name = name, ability = entry.name})
     elseif family == "strained" then
         --a Talent's heroic resource went below 0, or back.
-        return string.format(entry.strained and "%s is strained" or "%s is no longer strained", name)
+        return entry.strained and T("history.line.strained", {name = name}) or T("history.line.not_strained", {name = name})
     elseif family == "note" then
         --a note card posted outside any action: "{Creature} {title}", the detail under it.
-        return string.format("%s %s", name, entry.name or "")
+        return T("history.line.note", {name = name, title = entry.name or ""})
     elseif family == "captain" then
         --the Director gave a squad its captain.
-        return string.format("%s is now %s's captain", name, entry.squad or "the squad")
+        return T("history.line.captain", {name = name, squad = entry.squad or T("history.line.captain.the_squad")})
     elseif family == "encounterend" then
-        return "<b>Encounter ended</b>"
+        return T("history.line.encounter_ended")
     elseif family == "downtime" then
-        local project = string.format("<b>%s</b>", entry.name or "A project")
+        local project = string.format("<b>%s</b>", entry.name or T("history.a_project"))
         if entry.sub == "completed" then
-            return project .. " completed"
+            return T("history.line.project_completed", {project = project})
         end
-        return project .. " reached a milestone"
+        return T("history.line.project_milestone", {project = project})
     elseif family == "negotiation" then
-        local npc = string.format("<b>%s</b>", entry.name or "the NPC")
+        local npc = string.format("<b>%s</b>", entry.name or T("history.the_npc"))
         if entry.sub == "began" then
-            return "Negotiation with " .. npc
+            return T("history.line.negotiation.began", {npc = npc})
         elseif entry.sub == "ended" then
-            return string.format("Negotiation with %s ended", npc)
+            return T("history.line.negotiation.ended", {npc = npc})
         elseif entry.sub == "pitfall" then
-            return string.format("%s hit a pitfall: %s", name, entry.trait or "")
+            return T("history.line.negotiation.pitfall", {name = name, trait = entry.trait or ""})
         elseif entry.sub == "reveal" then
-            return string.format("%s %s revealed", npc, entry.trait or "")
+            return T("history.line.negotiation.reveal", {npc = npc, trait = entry.trait or ""})
         elseif entry.sub == "adjust" then
-            return string.format("%s %s %d to %d", npc, entry.which or "interest", entry.before or 0, entry.after or 0)
+            --which is the stored meter key, "interest" or "patience", shown as it is.
+            return T("history.line.negotiation.adjust", {npc = npc, which = entry.which or "interest", before = Int(entry.before or 0), after = Int(entry.after or 0)})
         end
-        return string.format("%s rolled %d", name, entry.total or 0)
+        return T("history.line.rolled", {name = name, total = Int(entry.total or 0)})
     elseif family == "montagetest" then
-        return string.format("%s rolled %d", name, entry.total)
+        return T("history.line.rolled", {name = name, total = Int(entry.total)})
     elseif family == "montagethreat" then
-        return string.format("<b>%s</b> was not vanquished", entry.name or "A threat")
+        return T("history.line.montage.threat", {threat = entry.name or T("history.line.montage.a_threat")})
     elseif family == "montageend" then
-        return "<b>Montage ended</b>"
+        return T("history.line.montage.ended")
     elseif family == "montagecounter" then
-        return string.format("<b>%s</b> %s %d to %d of %d", entry.name or "Montage", entry.counter, entry.before, entry.after, entry.limit)
+        --counter is the stored key, "successes" or "failures", shown as it is.
+        return T("history.line.montage.counter", {montage = entry.name or T("history.line.montage.montage"), counter = entry.counter,
+            before = Int(entry.before), after = Int(entry.after), limit = Int(entry.limit)})
     elseif family == "reveal" then
         --"Basilisk Soft Underbelly revealed"; a modifier with no creature behind it names itself.
         if entry.who == nil then
-            return string.format("<b>%s</b> revealed", entry.name or "")
+            return T("history.line.reveal_alone", {modifier = entry.name or ""})
         end
-        return string.format("%s %s revealed", name, entry.name or "")
+        return T("history.line.reveal", {name = name, modifier = entry.name or ""})
     elseif family == "reverted" then
-        return "<b>Turn reverted</b>"
+        return T("history.line.turn_reverted")
     elseif family == "reinforcements" then
-        return string.format("<b>%s</b> arrived", entry.name or "Reinforcements")
+        return T("history.line.reinforcements", {wave = entry.name or T("history.reinforcements")})
     elseif family == "staminaset" then
-        return string.format("%s Stamina %d to %d", name, entry.before, entry.after)
+        return T("history.line.stamina_set", {name = name, before = Int(entry.before), after = Int(entry.after)})
     elseif family == "award" then
         local sub = entry.sub
         if sub == "victories" then
             local gained = entry.after - entry.before
-            return string.format("%s gained %d %s", name, gained, cond(gained == 1, "Victory", "Victories"))
+            return UIText.Plural("history.line.award.victories", gained, {name = name, count = Int(gained)})
         elseif sub == "item" then
-            local count = (entry.quantity or 1) > 1 and string.format(" x%d", entry.quantity) or ""
-            return string.format("%s received %s%s", name, entry.name or "an item", count)
+            local count = (entry.quantity or 1) > 1 and T("history.line.award.quantity", {quantity = Int(entry.quantity)}) or ""
+            return T("history.line.award.item", {name = name, item = entry.name or T("history.line.award.an_item"), quantity = count})
         elseif sub == "title" then
-            return string.format("%s earned the title %s", name, entry.name or "")
+            return T("history.line.award.title", {name = name, title = entry.name or ""})
         end
-        return string.format("%s %s %d to %d", name, cond(sub == "renown", "Renown", "Wealth"), entry.before, entry.after)
+        return sub == "renown" and T("history.line.award.renown", {name = name, before = Int(entry.before), after = Int(entry.after)})
+            or T("history.line.award.wealth", {name = name, before = Int(entry.before), after = Int(entry.after)})
     elseif family == "respite" then
-        return name .. " took a respite"
+        return T("history.line.respite", {name = name})
     elseif family == "levelup" then
-        return string.format("%s reached Level %d", name, entry.level)
+        return T("history.line.level_up", {name = name, level = Int(entry.level)})
     elseif family == "drawsteel" then
-        local words = "<b>Draw Steel!</b>" .. DOT .. cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
+        local words = T("history.line.draw_steel") .. DOT .. cond(entry.heroesFirst, T("history.draw_steel.heroes_first"), T("history.draw_steel.enemies_first"))
         if entry.rolled ~= nil then
-            words = words .. string.format(" (rolled %d)", entry.rolled)
+            words = words .. T("history.draw_steel.rolled", {rolled = Int(entry.rolled)})
         end
         return words
     elseif family == "threshold" then
         if entry.state == "killed" then
-            return name .. " was killed"
+            return T("history.line.killed", {name = name})
         end
-        return string.format("%s is %s", name, entry.state)
+        --state is the stored key, "winded" or "dying", shown as it is.
+        return T("history.line.threshold", {name = name, state = entry.state})
     elseif family == "minions" then
-        return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
+        return T("history.line.minions", {squad = entry.name, killed = Int(entry.killed), total = Int(entry.killed + entry.left)})
     elseif family == "moved" then
         local moved = entry.moved
         if moved.immune then
-            return string.format("%s is immune to forced movement", name)
+            return T("history.line.moved.immune", {name = name})
         end
         if moved.stopped then
-            return string.format("%s held its ground: stability %d stopped the %s", name, moved.stability,
-                (string.gsub(moved.kind, "vertical_", "")))
+            return T("history.line.moved.held_ground", {name = name, stability = Int(moved.stability),
+                kind = (string.gsub(moved.kind, "vertical_", ""))})
         end
-        local verb = MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or "moved"
-        local words = string.format("%s was %s %d %s", name, verb, moved.distance, cond(moved.distance == 1, "square", "squares"))
+        local verb = MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or T("history.moved_verb.moved")
+        local words = T("history.line.moved.distance", {name = name, verb = verb,
+            squares = UIText.Plural("history.story.squares", moved.distance, {count = Int(moved.distance)})})
         if moved.distance <= 0 and moved.fell <= 0 then
-            words = string.format("%s was blocked and didn't move", name)
+            words = T("history.line.moved.blocked", {name = name})
             if (moved.stability or 0) > 0 then
-                words = words .. string.format(" (stability %d)", moved.stability)
+                words = T("history.story.moved.with_stability", {words = words, stability = Int(moved.stability)})
             end
         elseif (moved.stability or 0) > 0 and (moved.requested or 0) > moved.distance then
-            words = string.format("%s was %s %d of %d squares (stability %d)", name, verb, moved.distance, moved.requested, moved.stability)
+            words = T("history.line.moved.distance_of", {name = name, verb = verb, distance = Int(moved.distance),
+                requested = Int(moved.requested), stability = Int(moved.stability)})
         end
         local walls = moved.walls or 0
         if walls > 0 then
-            words = words .. string.format(", breaking through %s", walls == 1 and "a wall" or string.format("%d walls", walls))
+            words = T("history.story.moved.breaking", {words = words, walls = UIText.Plural("history.story.moved.walls", walls, {count = Int(walls)})})
         end
         if moved.fell > 0 then
-            words = words .. string.format(", it fell %d %s", moved.fell, cond(moved.fell == 1, "square", "squares"))
+            words = T("history.story.moved.then_fell", {words = words,
+                squares = UIText.Plural("history.story.squares", moved.fell, {count = Int(moved.fell)})})
         end
         return words
     elseif family == "resource" then
-        return string.format("%s %s %s", name, cond(entry.amount > 0, "gained", "spent"), ResourceWords(math.abs(entry.amount), entry.name))
+        return T("history.line.resource", {name = name,
+            verb = cond(entry.amount > 0, T("history.story.resource.gained"), T("history.story.resource.spent")),
+            resource = ResourceWords(math.abs(entry.amount), entry.name)})
     elseif family == "malice" then
         if entry.who == nil then
-            return "<b>Director</b> Malice"
+            return T("history.line.malice_director")
         end
-        return name .. " Malice"
+        return T("history.line.malice", {name = name})
     elseif family == "globalresource" then
         return string.format("<b>%s</b>", entry.name)
     end
-    return name .. " temporary Stamina"
+    return T("history.line.temporary_stamina", {name = name})
 end
 
 --The number at the end of a line. Nil for lines about something else.
@@ -2314,7 +2321,7 @@ local function LineNumber(entry)
     elseif entry.family == "temporarystamina" or entry.family == "malice" or entry.family == "globalresource" then
         return gui.Label{
             classes = {"historyPlainNumber"},
-            text = string.format("%d to %d", entry.before, entry.after),
+            text = T("history.line.number_change", {before = Int(entry.before), after = Int(entry.after)}),
             fontSize = 14,
             width = "auto",
             height = "auto",
@@ -2336,9 +2343,9 @@ end
 --The start of a combat: the old log's swords and lettering as a landmark to scroll
 --back to, with who goes first under them. LineWords has the same facts as one sentence.
 local function BuildDrawSteel(entry)
-    local words = cond(entry.heroesFirst, "Heroes go first", "Enemies go first")
+    local words = cond(entry.heroesFirst, T("history.draw_steel.heroes_first"), T("history.draw_steel.enemies_first"))
     if entry.rolled ~= nil then
-        words = words .. string.format(" (rolled %d)", entry.rolled)
+        words = words .. T("history.draw_steel.rolled", {rolled = Int(entry.rolled)})
     end
     local function Sword(flipped)
         return gui.Panel{
@@ -2395,16 +2402,16 @@ local function BuildLine(item)
         local parts = {}
         for _, group in ipairs(entry.arrivals or {}) do
             local shown = ShownName({name = group.name or group.who.name, secret = group.who.secret})
-            parts[#parts + 1] = shown .. (group.count > 1 and string.format(" x%d", group.count) or "")
+            parts[#parts + 1] = shown .. (group.count > 1 and T("history.line.award.quantity", {quantity = Int(group.count)}) or "")
         end
         cause = table.concat(parts, DOT)
     end
     if entry.recovered ~= nil then
-        local recovered = string.format("No longer %s", entry.recovered)
+        local recovered = T("history.caption.no_longer", {state = entry.recovered})
         cause = cause ~= nil and (cause .. DOT .. recovered) or recovered
     end
     if entry.soaked ~= nil then
-        local soaked = string.format("%d soaked by temporary Stamina", entry.soaked)
+        local soaked = T("history.caption.soaked", {amount = Int(entry.soaked)})
         cause = cause ~= nil and (cause .. DOT .. soaked) or soaked
     end
 
@@ -2417,13 +2424,13 @@ local function BuildLine(item)
     local textWidth = rowWidth - 28
     local tag = nil
     if entry.family == "ended" then
-        tag = Tag("historyEndedTag", "Ended")
+        tag = Tag("historyEndedTag", T("history.tag.ended"))
     elseif entry.family == "save" and not entry.passed then
-        tag = Tag("historyActiveTag", "Active")
+        tag = Tag("historyActiveTag", T("history.tag.active"))
     elseif entry.family == "montagetest" and entry.tier ~= nil and entry.tier >= 3 then
-        tag = Tag("historySuccessTag", "Success")
+        tag = Tag("historySuccessTag", T("history.tag.success"))
     elseif entry.family == "montagetest" and entry.tier == 1 then
-        tag = Tag("historyFailureTag", "Failure")
+        tag = Tag("historyFailureTag", T("history.tag.failure"))
     elseif entry.family == "condition" and entry.who ~= nil then
         --a lone trigger's line carries the target's own start (AddLoneTrigger).
         local start = entry.start or entry
@@ -2448,7 +2455,7 @@ local function BuildLine(item)
     }
     top[2] = tag
     if entry.reverted ~= nil then
-        top[#top + 1] = Tag("historyRevertedTag", "Reverted")
+        top[#top + 1] = Tag("historyRevertedTag", T("history.tag.reverted"))
     end
     --an effect hidden from enemies: players don't get this line, or these names.
     if dmhub.isDM and (entry.secret or entry.hiddenfromplayers or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
@@ -2515,7 +2522,7 @@ local function BuildLine(item)
         children[#children + 1] = gui.Label{
             classes = {"historyLineButton"},
             bgimage = "panels/square.png",
-            text = "Undo",
+            text = T("history.tray.undo"),
             width = "auto",
             height = 18,
             hpad = 6,
@@ -2688,7 +2695,7 @@ local function BuildTurnFold(item)
         width = "100%",
         height = "auto",
         click = item.toggle,
-        linger = FoldHover(string.format("Turn %d", item.number), item.tally),
+        linger = FoldHover(T("history.tray.turn", {turn = Int(item.number)}), item.tally),
         Rule(),
         gui.Panel{
             flow = "horizontal",
@@ -2710,16 +2717,16 @@ local function BuildTurnFold(item)
             Face(item.owner, 26),
             --the turn number's column (33), the owner's face, and room for a Reverted tag.
             MiniFaces(item.tally, g_trayWidth - 24 - 17 - 33 - 26 - (item.reverted and 70 or 0)),
-            item.reverted and Tag("historyRevertedTag", "Reverted") or nil,
+            item.reverted and Tag("historyRevertedTag", T("history.tag.reverted")) or nil,
         },
     }
 end
 
 local function TurnSideText(item)
     local owner = item.owner
-    local text = string.format("Turn %d%s%s", item.number, DOT, cond(owner.hero, "Hero turn", "Enemy turn"))
+    local text = T("history.tray.turn", {turn = Int(item.number)}) .. DOT .. cond(owner.hero, T("history.tray.turn.hero"), T("history.tray.turn.enemy"))
     if owner.minions and owner.group ~= nil then
-        text = text .. DOT .. string.format("%d minions", owner.group)
+        text = text .. DOT .. T("history.tray.turn.minions", {count = Int(owner.group)})
     end
     return text
 end
@@ -2728,9 +2735,9 @@ end
 --used, as the action bar shows them. Read from the creature live, twice a second; hidden
 --once the turn has passed.
 local PIPS = {
-    {text = "Main", used = function(props) return (props:GetResourceUsage(CharacterResource.actionResourceId, "turn") or 0) >= 1 end},
-    {text = "Maneuver", used = function(props) return (props:GetResourceUsage(CharacterResource.maneuverResourceId, "turn") or 0) >= 1 end},
-    {text = "Move", used = function(props) return props:DistanceMovedThisTurn() > 0 end},
+    {text = T("history.tray.pip.main"), used = function(props) return (props:GetResourceUsage(CharacterResource.actionResourceId, "turn") or 0) >= 1 end},
+    {text = T("history.tray.pip.maneuver"), used = function(props) return (props:GetResourceUsage(CharacterResource.maneuverResourceId, "turn") or 0) >= 1 end},
+    {text = T("history.tray.pip.move"), used = function(props) return props:DistanceMovedThisTurn() > 0 end},
 }
 
 local function TurnPips(item)
@@ -2819,7 +2826,7 @@ local function BuildTurnHead(item)
                         halign = "left",
                         valign = "center",
                     },
-                    item.reverted and Tag("historyRevertedTag", "Reverted") or nil,
+                    item.reverted and Tag("historyRevertedTag", T("history.tag.reverted")) or nil,
                 },
             },
             gui.Label{
@@ -2854,7 +2861,7 @@ local function BuildNewMarker(item)
         Rule(),
         gui.Label{
             classes = {"historyNewText"},
-            text = "New since you last looked",
+            text = T("history.tray.new_marker"),
             width = "auto",
             height = "auto",
             hmargin = 8,
@@ -2992,17 +2999,19 @@ end
 --- @field type? string The type a creature suggestion was found by, shown after its name.
 
 --The outcome words and the stems that find them.
+--The name is the chip's word and also its key (OTHER_STEMS); the stem is matched against
+--the rows' English text, so it stays in code.
 local OTHER_WORDS = {
-    {name = "Killed", stem = "kill"},
-    {name = "Winded", stem = "winded"},
-    {name = "Triggered", stem = "trigger"},
-    {name = "Surges", stem = "surge"},
-    {name = "Malice", stem = "malice"},
-    {name = "Pushed", stem = "push"},
-    {name = "Fell", stem = "fell"},
-    {name = "Immunity", stem = "immun"},
-    {name = "Resisted", stem = "resist"},
-    {name = "Critical", stem = "critical"},
+    {name = T("history.search.other.killed"), stem = "kill"},
+    {name = T("history.search.other.winded"), stem = "winded"},
+    {name = T("history.search.other.triggered"), stem = "trigger"},
+    {name = T("history.search.other.surges"), stem = "surge"},
+    {name = T("history.search.other.malice"), stem = "malice"},
+    {name = T("history.search.other.pushed"), stem = "push"},
+    {name = T("history.search.other.fell"), stem = "fell"},
+    {name = T("history.search.other.immunity"), stem = "immun"},
+    {name = T("history.search.other.resisted"), stem = "resist"},
+    {name = T("history.search.other.critical"), stem = "critical"},
 }
 local OTHER_STEMS = {}
 for _, other in ipairs(OTHER_WORDS) do
@@ -3540,9 +3549,9 @@ end
 local function SectionTitle(section)
     if section.round == nil then
         local info = InitiativeQueue.GameModesById[section.mode or "exploration"] or InitiativeQueue.GameModesById["exploration"]
-        return info ~= nil and info.text or "Exploration"
+        return info ~= nil and info.text or T("history.tray.exploration")
     end
-    return string.format("Round %d", section.round)
+    return T("history.round", {round = Int(section.round)})
 end
 
 --The damage type of a target hit by one type only, else nil.
@@ -3559,7 +3568,7 @@ end
 local function AddLoneTrigger(items, entry, key, kids)
     local causetext = entry.ability.name
     if entry.landedby ~= nil then
-        causetext = string.format("Landed on by %s", ShownName(entry.landedby))
+        causetext = T("history.tray.landed_on_by", {name = ShownName(entry.landedby)})
     end
     --each line the trigger becomes stands for the trigger and what is nested under it.
     local sources = {entry}
@@ -3810,7 +3819,7 @@ local function AddSectionRows(items, section, isNewest, nested, sub, open)
 
     local right = nil
     if section.maliceAfter ~= nil then
-        right = string.format("Malice %d to %d", section.maliceBefore, section.maliceAfter)
+        right = T("history.tray.round_malice", {before = Int(section.maliceBefore), after = Int(section.maliceAfter)})
     end
 
     --the newest section stays open, so it has nothing to fold to.
@@ -3859,7 +3868,7 @@ local function AddSectionRows(items, section, isNewest, nested, sub, open)
             kind = "groupfold",
             key = groupid,
             sig = string.format("%d-%d", firstNumber, lastNumber) .. TallySignature(tally),
-            text = string.format("Turns %d%s%d", firstNumber, EN_DASH, lastNumber),
+            text = T("history.tray.turns", {first = Int(firstNumber), dash = EN_DASH, last = Int(lastNumber)}),
             tally = tally,
             toggle = Toggle(groupid, false),
         }
@@ -3925,7 +3934,8 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
             end
         end
         local firstRound, lastRound = sections[first].round, sections[last].round
-        local text = "Combat" .. DOT .. (firstRound == lastRound and string.format("Round %d", firstRound) or string.format("Rounds %d%s%d", firstRound, EN_DASH, lastRound))
+        local text = T("history.tray.combat") .. DOT .. (firstRound == lastRound and T("history.round", {round = Int(firstRound)})
+            or T("history.tray.rounds", {first = Int(firstRound), dash = EN_DASH, last = Int(lastRound)}))
         local tally = Tally(entries, nested)
         items[#items + 1] = {
             kind = "roundfold",
@@ -3942,7 +3952,7 @@ local function AddCombatRows(items, sections, first, last, isNewest, nested)
         kind = "roundhead",
         key = "head-" .. id,
         sig = "Combat",
-        text = "Combat",
+        text = T("history.tray.combat"),
         toggle = (not g_searchOpen and (not isNewest or g_open[id] == false)) and Toggle(id, isOpen) or nil,
     }
     for i, round in ipairs(rounds) do
@@ -4091,7 +4101,7 @@ end
 --A map's name in the switcher; the game-wide record is the Table.
 local function MapLabel(mapid)
     if mapid == History.NO_MAP then
-        return "Table"
+        return T("history.table")
     end
     return Tabletop.MapName(mapid)
 end
@@ -4116,7 +4126,7 @@ end
 local function SearchEmpty(text)
     return gui.Label{
         classes = {"historyMuted"},
-        text = text or string.format("Nothing matches \"%s\".", SearchLabel()),
+        text = text or T("history.search.nothing_matches", {search = SearchLabel()}),
         width = "100%-24",
         height = "auto",
         halign = "left",
@@ -4246,7 +4256,8 @@ local function SuggestionsUncached(mapid, typed)
 
     local _, turn = SearchWords()
     local groups = {}
-    local order = {{"creature", "Creatures"}, {"ability", "Abilities"}, {"condition", "Conditions"}, {"other", "Other"}}
+    local order = {{"creature", T("history.search.group.creatures")}, {"ability", T("history.search.group.abilities")},
+        {"condition", T("history.search.group.conditions")}, {"other", T("history.search.group.other")}}
     for index, kind in ipairs(order) do
         --ranked first, so rows are counted only for the best few: counting every candidate
         --against every row on each keystroke was the cost.
@@ -4438,9 +4449,9 @@ local function CreateFace()
         end
         newBelowButton:SetClass("hidden", newBelow == 0 and not away)
         if newBelow > 0 then
-            newBelowButton.text = string.format("%d new below", newBelow)
+            newBelowButton.text = T("history.tray.new_below", {count = Int(newBelow)})
         elseif away then
-            newBelowButton.text = "Latest"
+            newBelowButton.text = T("history.tray.latest")
         end
     end
 
@@ -4834,7 +4845,7 @@ local function CreateFace()
         if matches == 0 then
             children = {SearchEmpty()}
         elseif #items == 0 then
-            children = {SearchEmpty("Nothing has happened on this map yet.")}
+            children = {SearchEmpty(T("history.tray.empty_map"))}
         end
         rowsPanel.children = children
         if stick and not loadingOlder then
@@ -5182,7 +5193,7 @@ local function CreateFace()
                     picture,
                     gui.Label{
                         classes = {"historySuggestText"},
-                        text = chip.kind == "type" and string.format("All %s", chip.name) or chip.name,
+                        text = chip.kind == "type" and T("history.search.all_of_type", {type = chip.name}) or chip.name,
                         width = "auto",
                         height = "auto",
                         lmargin = picture ~= nil and 8 or 0,
@@ -5236,7 +5247,7 @@ local function CreateFace()
     end
 
     searchInput = gui.SearchInput{
-        placeholderText = "Search creatures, abilities, conditions",
+        placeholderText = T("history.search.placeholder"),
         text = g_search.text,
         width = g_trayWidth - 12 - 12,
         --the theme's hpad 24 must sit inside the width, not on top of it.
@@ -5320,7 +5331,7 @@ local function CreateFace()
                         lmargin = picture ~= nil and 4 or 2,
                         valign = "center",
                     },
-                    SearchX(string.format("Remove %s", chip.name), 9, function()
+                    SearchX(T("history.search.remove_chip", {name = chip.name}), 9, function()
                         table.remove(g_search.chips, i)
                         ApplySearch()
                     end),
@@ -5334,14 +5345,14 @@ local function CreateFace()
                 valign = "center",
                 searchResults = function(label, matches)
                     if matches ~= nil and matches > 0 then
-                        label.text = matches == 1 and "1 match" or string.format("%d matches", matches)
+                        label.text = UIText.Plural("history.search.matches", matches, {count = Int(matches)})
                     else
                         label.text = ""
                     end
                 end,
             }
             if #g_search.chips > 0 then
-                children[#children + 1] = SearchX("Clear the search", 10, function()
+                children[#children + 1] = SearchX(T("history.search.clear"), 10, function()
                     g_search.chips = {}
                     g_search.text = ""
                     searchInput.textNoNotify = ""
@@ -5406,9 +5417,9 @@ local function CreateFace()
                 local heroFace = Face(who, MY_HERO_SIZE, false, {
                     tip = function()
                         if HeroFilterOn(who) then
-                            return "Show everything"
+                            return T("history.search.hero.show_everything")
                         end
-                        return string.format("Show only %s", ShownName(who))
+                        return T("history.search.hero.show_only", {name = ShownName(who)})
                     end,
                     click = function()
                         if HeroFilterOn(who) then
@@ -5600,13 +5611,7 @@ local function CreateFace()
     end
 
     g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry, ShowMap = ShowMap,
-        MapId = function() return mapid end,
-        --the row built for an entry key, once the list has it (the fold's landing spot).
-        RowPanel = function(key)
-            local row = rows[key]
-            return row ~= nil and row.panel.valid and row.panel or nil
-        end,
-        List = function() return list end}
+        MapId = function() return mapid end}
     list.vscrollPosition = 0
     Refresh()
     if g_showOnOpen ~= nil then
@@ -5628,179 +5633,6 @@ function History.ShowEntry(mapid, key)
         g_showMapOnOpen = mapid
         g_showOnOpen = key
     end
-end
-
---The fold: when your own action ends, a small stand-in for its row (your face, the first
---target's, what they took) flies from the ability card to the new row, or to the rail
---button while History is closed. Nothing is built while idle.
---How long the flight takes: long enough to follow by eye.
-local FOLD_SECONDS = 0.9
-
---From this far through the flight the copy fades out over the real row.
-local FOLD_FADE_FROM = 0.75
-
---Opacity is not inherited by children, so fading a panel means fading every panel in it.
---- @param panel Panel
---- @param opacity number
-local function SetTreeOpacity(panel, opacity)
-    panel.selfStyle.opacity = opacity
-    for _, child in ipairs(panel.children) do
-        SetTreeOpacity(child, opacity)
-    end
-end
-
---Ease in-out cubic, the same curve as the map windows' minimise.
-local function EaseInOut(progress)
-    if progress < 0.5 then
-        return 4 * progress * progress * progress
-    end
-    return 1 - ((-2 * progress + 2) ^ 3) / 2
-end
-
---- Flies the stand-in for a row this client just wrote. Does nothing without an ability card
---- on screen, with Reduce Motion on, or for a row on a map History isn't showing.
---- @param entry HistoryEntry
-function History.FoldIn(entry)
-    --a player's copy is cut the way their row will be.
-    local shown = History.ForViewer(entry)
-    if shown == nil or shown.kind ~= "action" or shown.actor == nil or ThemeEngine.GetAccessibility().reduceMotion then
-        return
-    end
-    entry = shown
-    local hud = GameHud.instance
-    local card = hud ~= nil and rawget(hud, "abilityDisplayPanel") or nil
-    local layer = Tabletop.ButtonLayer()
-    if card == nil or not card.valid or (card.renderedWidth or 0) <= 0 or layer == nil or not layer.valid then
-        return
-    end
-    local cardRect = Tabletop.PanelRect(card)
-    if cardRect == nil then
-        return
-    end
-    local tray = g_tray
-    local open = tray ~= nil and tray.face.valid
-    if tray ~= nil and open and tray.MapId() ~= entry.map then
-        return
-    end
-    local railButton = nil
-    if not open then
-        local _, _, button = PanelDocument.FindRailButton("history")
-        railButton = button
-        if railButton == nil or not railButton.valid then
-            return
-        end
-    end
-    local key = History.KeyOf(entry)
-
-    --a copy of the row it becomes, built by the list's own row builder.
-    local width = g_trayWidth
-    local row = BuildAction({kind = "action", key = key, entry = entry, sources = {entry}, triggers = {}, showActor = true})
-
-    local start = dmhub.Time()
-    local from = {x = cardRect.x + (cardRect.w - width) / 2, y = cardRect.y + cardRect.h / 3}
-    --the card frame's themed fill needs the theme's tokens, which the table layer lacks.
-    --- @type Panel|nil
-    local hiddenRow = nil
-    local revealed = false
-    local ghost
-    ghost = gui.Panel{
-        --the solid frame History's cards use over the list: square, no shadow below it.
-        classes = {"historyCardFrame", "historyCardSolid"},
-        styles = ThemeEngine.MergeStyles(Styles()),
-        bgimage = true,
-        floating = true,
-        interactable = false,
-        flow = "vertical",
-        width = width,
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        x = from.x,
-        y = from.y,
-        thinkTime = 0.01,
-        children = {row},
-        --however it goes (a reload, the table torn down), the real row must not stay hidden.
-        destroy = function()
-            if hiddenRow ~= nil and hiddenRow.valid then
-                hiddenRow:SetClassTree("historyFoldHidden", false)
-            end
-        end,
-        think = function(element)
-            local progress = math.min(1, (dmhub.Time() - start) / FOLD_SECONDS)
-            --aim where the row is now: the list adds it a frame or two after the write.
-            local target = nil
-            if open then
-                if g_tray ~= nil and g_tray.face.valid then
-                    local list = g_tray.List()
-                    local rect = list.valid and Tabletop.PanelRect(list) or nil
-                    local row = g_tray.RowPanel(key)
-                    target = row ~= nil and Tabletop.PanelRect(row) or nil
-                    --the real row stays hidden until the stand-in lands on it, so one row settles in.
-                    --opacity is not inherited, so the whole row tree takes the class.
-                    if row ~= nil and row ~= hiddenRow and not revealed then
-                        if hiddenRow ~= nil and hiddenRow.valid then
-                            hiddenRow:SetClassTree("historyFoldHidden", false)
-                        end
-                        hiddenRow = row
-                        row:SetClassTree("historyFoldHidden", true)
-                    end
-                    --a row scrolled out of view (or not built yet): the list's bottom edge.
-                    if rect ~= nil and (target == nil or target.y + 20 > rect.y + rect.h or target.y < rect.y) then
-                        target = {x = rect.x, y = rect.y + rect.h - 30, w = rect.w, h = 30}
-                    end
-                end
-            elseif railButton ~= nil and railButton.valid then
-                target = Tabletop.PanelRect(railButton)
-            end
-            if target == nil or progress >= 1 then
-                element:DestroySelf()
-                return
-            end
-            --the last stretch cross-fades: the real row shows and the copy fades over it.
-            local fade = math.max(0, (progress - FOLD_FADE_FROM) / (1 - FOLD_FADE_FROM))
-            if fade > 0 and hiddenRow ~= nil and hiddenRow.valid then
-                local shown = hiddenRow
-                shown:SetClassTree("historyFoldReveal", true)
-                shown:SetClassTree("historyFoldHidden", false)
-                hiddenRow = nil
-                --once faded in, the row goes back to its own styles (a used pip is dimmer).
-                dmhub.Schedule(0.4, function()
-                    if shown.valid then
-                        shown:SetClassTree("historyFoldReveal", false)
-                    end
-                end)
-            end
-            revealed = revealed or fade > 0
-            if fade > 0 then
-                SetTreeOpacity(element, 1 - fade)
-            end
-            --it arrives by FOLD_FADE_FROM and fades in place, lined up with the row.
-            local eased = EaseInOut(math.min(1, progress / FOLD_FADE_FROM))
-            local ghostWidth, ghostHeight = element.renderedWidth or 0, element.renderedHeight or 0
-            if ghostWidth <= 0 or ghostHeight <= 0 then
-                return
-            end
-            --it shrinks to what it lands on: the row's width, from the row's top-left, when
-            --History is open; a third of itself, centred, into the rail button.
-            local endScale = open and math.min(1, target.w / ghostWidth) or 0.35
-            local scale = 1 + (endScale - 1) * eased
-            local toX, toY = target.x, target.y
-            if not open then
-                toX = target.x + target.w / 2 - ghostWidth * endScale / 2
-                toY = target.y + target.h / 2 - ghostHeight * endScale / 2
-            end
-            local drawnX = from.x + (toX - from.x) * eased
-            local drawnY = from.y + (toY - from.y) * eased
-            --scale works from the panel's centre, so move the panel to keep that top-left.
-            element.selfStyle.scale = scale
-            element.x = drawnX - ghostWidth * (1 - scale) / 2
-            element.y = drawnY - ghostHeight * (1 - scale) / 2
-        end,
-    }
-    layer:AddChild(ghost)
-    --interactable = false covers the frame only: the row inside would still take clicks
-    --meant for the map under its flight.
-    ghost:MakeNonInteractiveRecursive()
 end
 
 --The map switcher's width in the title row, when it shows.
@@ -5851,7 +5683,7 @@ function History.MapSwitcher()
         cornerRadius = 4,
         valign = "center",
         hover = function(element)
-            gui.Tooltip{text = "Display history for another map", fontSize = 13}(element)
+            gui.Tooltip{text = T("history.tray.map_switcher_tooltip"), fontSize = 13}(element)
         end,
         click = function(element)
             local ids, shown = Maps()
@@ -5950,7 +5782,7 @@ end
 --Notifications on or off, per user.
 setting{
     id = "history:notifications",
-    description = "History notifications",
+    description = T("history.settings.notifications_name"),
     editor = "check",
     default = true,
     storage = "preference",
@@ -6320,8 +6152,8 @@ History.Notify = {
 --Sidebar Preview on or off, per user.
 setting{
     id = "history:sidebarpreview",
-    description = "History Sidebar Preview",
-    help = "Briefly shows actions from other turns beside the History button while History is closed.",
+    description = T("history.settings.sidebar_preview_name"),
+    help = T("history.settings.sidebar_preview_help"),
     editor = "check",
     default = true,
     storage = "preference",

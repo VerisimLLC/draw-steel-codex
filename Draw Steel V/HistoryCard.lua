@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The card's words are in HistoryText.lua.
+local T = UIText.T
+
+local Int = History.Int
+
 --The detail card: what a row in the History tray did, one click from that row. This file
 --holds what the card says and draws it; the tray decides where it sits. The sentences
 --are worked out from the entry when the card opens, so none of this runs during play.
@@ -31,7 +36,7 @@ local ENDED_TAG_WIDTH = 60
 
 --The single guillemet is in the Codex's fonts; Lua source must stay ASCII, so it is
 --written as its UTF-8 bytes.
-local BACK_TEXT = "\226\128\185 Back"
+local BACK_TEXT = "\226\128\185 " .. T("history.card.back")
 
 --The section heading's words, for the rule that runs on from them.
 local WHAT_HAPPENED_WIDTH = 104
@@ -47,8 +52,8 @@ local VALUE_WIDTH = 56
 --No phrase for EoE: the Codex also stores "no timer" as EoE, so a fall's Prone would read
 --as lasting the whole encounter when it ends on standing up.
 local DURATION_PHRASES = {
-    ["save ends"] = " (save ends)",
-    EoT = " until the end of its turn",
+    ["save ends"] = T("history.story.duration.save_ends"),
+    EoT = T("history.story.duration.eot"),
 }
 
 --"a", "a and b", "a, b and c".
@@ -60,11 +65,11 @@ local function JoinWords(words, last)
     for i = 1, #words - 1 do
         most[i] = words[i]
     end
-    return string.format("%s %s %s", table.concat(most, ", "), last or "and", words[#words])
+    return string.format("%s %s %s", table.concat(most, ", "), last or T("history.join.and"), words[#words])
 end
 
 local function Squares(count)
-    return string.format("%d %s", count, cond(count == 1, "square", "squares"))
+    return UIText.Plural("history.story.squares", count, {count = Int(count)})
 end
 
 --The type of damage that is all one type, else nil.
@@ -81,10 +86,10 @@ end
 local function DamageWords(who)
     local only = SingleType(who)
     if only ~= nil then
-        return string.format("took %d %s damage", who.taken, only), false
+        return T("history.story.took_typed_damage", {amount = Int(who.taken), type = only}), false
     end
     if who.types == nil or next(who.types) == nil then
-        return string.format("took %d damage", who.taken), false
+        return T("history.story.took_damage", {amount = Int(who.taken)}), false
     end
 
     local names = {}
@@ -96,12 +101,12 @@ local function DamageWords(who)
     table.sort(names)
     local parts = {}
     for i, name in ipairs(names) do
-        parts[i] = string.format("%d %s", who.types[name], name)
+        parts[i] = T("history.story.damage_part", {amount = Int(who.types[name]), type = name})
     end
     if typed < who.taken then
-        parts[#parts + 1] = string.format("%d untyped", who.taken - typed)
+        parts[#parts + 1] = T("history.story.damage_part_untyped", {amount = Int(who.taken - typed)})
     end
-    return string.format("took %d damage: %s", who.taken, JoinWords(parts)), true
+    return T("history.story.took_damage_parts", {amount = Int(who.taken), parts = JoinWords(parts)}), true
 end
 
 --- True when an area ability hit a creature on its user's side.
@@ -120,35 +125,35 @@ end
 local function MovedWords(moved, afterDamage)
     local kind = string.gsub(moved.kind, "vertical_", "")
     if moved.immune then
-        return "is immune to forced movement"
+        return T("history.story.moved.immune")
     end
     if moved.stopped then
-        return string.format("held its ground: stability %d stopped the %s", moved.stability, kind)
+        return T("history.story.moved.held_ground", {stability = Int(moved.stability), kind = kind})
     end
-    local verb = History.MOVED_VERBS[kind] or "moved"
+    local verb = History.MOVED_VERBS[kind] or T("history.moved_verb.moved")
     if moved.distance <= 0 and moved.fell <= 0 then
         --blocked before it moved a square.
-        local words = "was blocked and didn't move"
+        local words = T("history.story.moved.blocked")
         if (moved.stability or 0) > 0 then
-            words = string.format("%s (stability %d)", words, moved.stability)
+            words = T("history.story.moved.with_stability", {words = words, stability = Int(moved.stability)})
         end
         return words
     end
     if moved.distance <= 0 then
-        return string.format("fell %s", Squares(moved.fell))
+        return T("history.story.moved.fell", {squares = Squares(moved.fell)})
     end
-    local words = string.format("%s %s", verb, Squares(moved.distance))
+    local words = T("history.story.moved.distance", {verb = verb, squares = Squares(moved.distance)})
     if (moved.stability or 0) > 0 and (moved.requested or 0) > moved.distance then
-        words = string.format("%s %d of %d squares (stability %d)", verb, moved.distance, moved.requested, moved.stability)
+        words = T("history.story.moved.distance_of", {verb = verb, distance = Int(moved.distance), requested = Int(moved.requested), stability = Int(moved.stability)})
     end
     local walls = moved.walls or 0
     if walls > 0 then
-        words = string.format("%s, breaking through %s", words, walls == 1 and "a wall" or string.format("%d walls", walls))
+        words = T("history.story.moved.breaking", {words = words, walls = UIText.Plural("history.story.moved.walls", walls, {count = Int(walls)})})
     end
     if moved.fell > 0 then
-        words = string.format("%s, it fell %s", words, Squares(moved.fell))
+        words = T("history.story.moved.then_fell", {words = words, squares = Squares(moved.fell)})
     end
-    return afterDamage and words or ("was " .. words)
+    return afterDamage and words or T("history.story.moved.was", {words = words})
 end
 
 --Everything that happened to one creature, as what follows its name. Nil if nothing did.
@@ -168,62 +173,62 @@ local function Predicate(who, isAlly)
         local words, split = DamageWords(who)
         --struck by a squad: "took 6 damage from 2 minions".
         if (who.byminions or 0) > 0 and not split then
-            words = string.format("%s from %d %s", words, who.byminions, who.byminions == 1 and "minion" or "minions")
+            words = T("history.story.from_minions", {words = words, minions = UIText.Plural("history.story.minions", who.byminions, {count = Int(who.byminions)})})
         end
         splitLead = split
         if who.soaked ~= nil then
-            words = string.format("%s, %d of it to temporary Stamina", words, who.soaked)
+            words = T("history.story.soaked", {words = words, soaked = Int(who.soaked)})
         end
         if isAlly then
-            words = "was caught in the area and " .. words
+            words = T("history.story.caught_in_area", {words = words})
         end
         verbs[1] = words
     end
     if (who.healed or 0) > 0 then
-        verbs[#verbs + 1] = string.format("regained %d Stamina", who.healed)
+        verbs[#verbs + 1] = T("history.story.regained", {amount = Int(who.healed)})
     end
 
     local moved = who.moved
     if moved ~= nil then
         if moved.distance > 0 and moved.fell > 0 and #verbs == 1 and (who.taken or 0) > 0 and not splitLead then
-            verbs[1] = string.format("%s: %s", verbs[1], MovedWords(moved, true))
+            verbs[1] = T("history.story.damage_then_moved", {damage = verbs[1], moved = MovedWords(moved, true)})
             splitLead = true
         else
             verbs[#verbs + 1] = MovedWords(moved, false)
         end
     end
     if who.landedon then
-        verbs[#verbs + 1] = "was landed on"
+        verbs[#verbs + 1] = T("history.story.landed_on")
     end
 
     local adjectives = {}
     if who.state == "winded" or who.state == "dying" then
-        adjectives[1] = "now " .. who.state
+        adjectives[1] = T("history.story.now_state", {state = who.state})
     end
     for _, condition in ipairs(who.conds or {}) do
         local duration = DURATION_PHRASES[condition.duration] or ""
         if condition.renewed then
             --it still had it, so the ability only renewed it.
-            notes[#notes + 1] = condition.name .. " was renewed"
+            notes[#notes + 1] = T("history.story.renewed", {name = condition.name})
         elseif condition.iscondition then
             adjectives[#adjectives + 1] = string.lower(condition.name) .. duration
         else
-            verbs[#verbs + 1] = string.format("gained %s%s", condition.name, duration)
+            verbs[#verbs + 1] = T("history.story.gained_effect", {name = condition.name, duration = duration})
         end
     end
     if #adjectives > 0 then
-        verbs[#verbs + 1] = "is " .. JoinWords(adjectives)
+        verbs[#verbs + 1] = T("history.story.is", {conditions = JoinWords(adjectives)})
     end
     if who.state == "killed" then
-        verbs[#verbs + 1] = "was killed"
+        verbs[#verbs + 1] = T("history.story.killed")
     end
     if type(who.resisted) == "string" then
-        verbs[#verbs + 1] = string.format("resisted being %s", who.resisted)
+        verbs[#verbs + 1] = T("history.story.resisted_being", {conditions = who.resisted})
     elseif who.resisted and who.resistedeffect ~= nil then
         --an ongoing effect, not a condition: "resisted Can't Hide".
-        verbs[#verbs + 1] = string.format("resisted %s", who.resistedeffect)
+        verbs[#verbs + 1] = T("history.story.resisted_effect", {effect = who.resistedeffect})
     elseif who.resisted then
-        verbs[#verbs + 1] = "resisted"
+        verbs[#verbs + 1] = T("history.story.resisted")
     end
 
     local noLonger = {}
@@ -235,46 +240,46 @@ local function Predicate(who, isAlly)
         if endedConditions[name] then
             noLonger[#noLonger + 1] = string.lower(name)
         else
-            notes[#notes + 1] = name .. " ended"
+            notes[#notes + 1] = T("history.story.effect_ended", {name = name})
         end
     end
     if #noLonger > 0 then
-        verbs[#verbs + 1] = "is no longer " .. JoinWords(noLonger, "or")
+        verbs[#verbs + 1] = T("history.story.no_longer", {states = JoinWords(noLonger, T("history.join.or"))})
     end
     if who.pool ~= nil then
-        notes[#notes + 1] = string.format("temporary Stamina went from %d to %d", who.pool.before, who.pool.after)
+        notes[#notes + 1] = T("history.story.temporary_stamina", {before = Int(who.pool.before), after = Int(who.pool.after)})
     end
 
     local words = nil
     if #verbs == 0 then
         if #notes > 0 then
-            words = string.format("'s %s.", JoinWords(notes))
+            words = T("history.story.predicate.notes_only", {notes = JoinWords(notes)})
         end
     elseif splitLead then
-        words = string.format(" %s.", table.remove(verbs, 1))
+        words = T("history.story.predicate.verbs", {verbs = table.remove(verbs, 1)})
         if #verbs > 0 then
-            words = string.format("%s It %s.", words, JoinWords(verbs))
+            words = T("history.story.predicate.then_it", {words = words, verbs = JoinWords(verbs)})
         end
         if #notes > 0 then
-            words = string.format("%s %s.", words, string.upper_first(JoinWords(notes)))
+            words = T("history.story.predicate.then_notes", {words = words, notes = string.upper_first(JoinWords(notes))})
         end
     else
         for _, note in ipairs(notes) do
             verbs[#verbs + 1] = note
         end
-        words = string.format(" %s.", JoinWords(verbs))
+        words = T("history.story.predicate.verbs", {verbs = JoinWords(verbs)})
     end
 
     if who.immune ~= nil then
-        local immune = JoinWords(who.immune, "or")
+        local immune = JoinWords(who.immune, T("history.join.or"))
         if words == nil then
-            words = string.format(" was not %s.", immune)
+            words = T("history.story.predicate.immune", {conditions = immune})
         else
-            words = string.format("%s It was not %s.", words, immune)
+            words = T("history.story.predicate.then_immune", {words = words, conditions = immune})
         end
     end
     if words ~= nil and isAlly then
-        words = ", an ally," .. words
+        words = T("history.story.predicate.ally", {words = words})
     end
     return words
 end
@@ -321,7 +326,7 @@ function History.StoryText(row)
     if #row.who == 1 then
         return History.ShownName(row.who[1]) .. row.words
     end
-    return GroupNames(row.who) .. " each" .. row.words
+    return T("history.story.each", {names = GroupNames(row.who), words = row.words})
 end
 
 --The amount a row's number shows.
@@ -377,9 +382,9 @@ end
 --"1 of 4 minions killed" or "the squad is destroyed".
 local function DeathWords(death)
     if death.left <= 0 then
-        return "the squad is destroyed"
+        return T("history.story.squad_destroyed")
     end
-    return string.format("%d of %d minions killed", death.killed, death.total)
+    return T("history.story.minions_killed", {killed = Int(death.killed), total = Int(death.total)})
 end
 
 --A squad reads as one creature: what it took together, then who that killed. What
@@ -414,27 +419,27 @@ local function AddSquad(rows, sameResult, name, members, death)
     end
 
     if members[1].secret and not dmhub.isDM then
-        name = "Unknown creature"
+        name = T("history.unknown_creature")
     end
     local text = nil
     if whole.taken > 0 then
         local words, split = DamageWords(whole)
-        text = string.format("%s %s", name, words)
+        text = T("history.story.squad.took", {name = name, words = words})
         if death ~= nil and split then
-            text = string.format("%s. %s", text, string.upper_first(DeathWords(death)))
+            text = T("history.story.squad.then_deaths", {words = text, deaths = string.upper_first(DeathWords(death))})
         elseif death ~= nil then
-            text = string.format("%s: %s", text, DeathWords(death))
+            text = T("history.story.squad.deaths", {words = text, deaths = DeathWords(death)})
         end
-        text = text .. "."
+        text = T("history.story.squad.end", {words = text})
     elseif death ~= nil then
-        text = string.format("%s %s.", name, DeathWords(death))
+        text = T("history.story.squad.only_deaths", {name = name, deaths = DeathWords(death)})
     end
 
     if isShared and shared ~= nil and string.sub(shared, 1, 1) == " " then
         if text ~= nil then
-            text = string.format("%s The squad%s", text, shared)
+            text = T("history.story.squad.then_shared", {words = text, shared = shared})
         else
-            text = string.format("The squad%s", shared)
+            text = T("history.story.squad.shared", {shared = shared})
         end
     end
     if text ~= nil then
@@ -462,11 +467,11 @@ end
 local function AddKid(rows, kid)
     if kid.family == "resource" then
         local amount = kid.amount or 0
-        local verb = cond(amount > 0, "gained", "spent")
+        local verb = cond(amount > 0, T("history.story.resource.gained"), T("history.story.resource.spent"))
         rows[#rows + 1] = {
             who = {kid.who},
-            text = string.format("%s %s %s.", History.ShownName(kid.who), verb,
-                History.ResourceWords(math.abs(amount), kid.name)),
+            text = T("history.story.resource", {name = History.ShownName(kid.who), verb = verb,
+                resource = History.ResourceWords(math.abs(amount), kid.name)}),
         }
         return
     end
@@ -477,7 +482,7 @@ local function AddKid(rows, kid)
 
     local owner = kid.ability.name
     if kid.actor ~= nil then
-        owner = string.format("%s's %s", History.ShownName(kid.actor), kid.ability.name)
+        owner = T("history.possessive", {owner = History.ShownName(kid.actor), name = kid.ability.name})
     end
     for _, who in ipairs(kid.targets or {}) do
         local name = History.ShownName(who)
@@ -485,8 +490,8 @@ local function AddKid(rows, kid)
             local damagetype = SingleType(who)
             rows[#rows + 1] = {
                 who = {who},
-                text = string.format("%s then hit %s for %d %sdamage.", owner, name, who.taken,
-                    damagetype ~= nil and (damagetype .. " ") or ""),
+                text = damagetype ~= nil and T("history.story.trigger_hit_typed", {ability = owner, name = name, amount = Int(who.taken), type = damagetype})
+                    or T("history.story.trigger_hit", {ability = owner, name = name, amount = Int(who.taken)}),
                 amount = -who.taken,
             }
         else
@@ -494,7 +499,7 @@ local function AddKid(rows, kid)
             if words ~= nil then
                 rows[#rows + 1] = {
                     who = {who},
-                    text = string.format("%s: %s%s", owner, name, words),
+                    text = T("history.story.trigger_did", {ability = owner, name = name, words = words}),
                     amount = LandedAmount(who),
                 }
             end
@@ -538,7 +543,7 @@ function History.Story(entry, kids)
     --a negotiation argument: what the Hero said, then the stage's cue for how it landed.
     if entry.family == "negotiation" then
         if (entry.text or "") ~= "" then
-            rows[#rows + 1] = {who = entry.who ~= nil and {entry.who} or {}, text = string.format("\"%s\"", entry.text)}
+            rows[#rows + 1] = {who = entry.who ~= nil and {entry.who} or {}, text = T("history.story.argument_said", {text = entry.text})}
         end
         if (entry.cue or "") ~= "" then
             rows[#rows + 1] = {who = {}, text = entry.cue}
@@ -549,7 +554,7 @@ function History.Story(entry, kids)
         for _, item in ipairs(entry.ended or {}) do
             rows[#rows + 1] = {
                 who = {item.who},
-                text = string.format("%s %s", History.ShownName(item.who), JoinWords(item.names)),
+                text = T("history.story.encounter_ended", {name = History.ShownName(item.who), names = JoinWords(item.names)}),
                 ended = true,
             }
         end
@@ -588,11 +593,11 @@ function History.Story(entry, kids)
         local name, death = squadName, deaths[squadName]
         --a squad whose name players may not see, as AddSquad shows it.
         if death.who ~= nil and death.who.secret and not dmhub.isDM then
-            name = "Unknown creature"
+            name = T("history.unknown_creature")
         end
         rows[#rows + 1] = {
             who = death.who ~= nil and {death.who} or {},
-            text = string.format("%s %s.", name, DeathWords(death)),
+            text = T("history.story.squad.only_deaths", {name = name, deaths = DeathWords(death)}),
         }
     end
     --what the action gave its user: "Baiqadrazaar gained 6 surges."
@@ -603,8 +608,8 @@ function History.Story(entry, kids)
         end
         table.sort(names)
         for _, name in ipairs(names) do
-            rows[#rows + 1] = {who = {entry.actor}, text = string.format("%s gained %s.",
-                History.ShownName(entry.actor), History.ResourceWords(entry.gains[name].amount, name))}
+            rows[#rows + 1] = {who = {entry.actor}, text = T("history.story.resource", {name = History.ShownName(entry.actor),
+                verb = T("history.story.resource.gained"), resource = History.ResourceWords(entry.gains[name].amount, name)})}
         end
     end
     for _, kid in ipairs(kids) do
@@ -619,12 +624,12 @@ function History.Story(entry, kids)
             local user, target = History.ShownName(entry.actor), History.ShownName(who)
             local text
             if opposed.attacker == opposed.defender then
-                text = showTotals and string.format("%s and %s both rolled %d. A tie changes nothing.", user, target, opposed.attacker)
-                    or string.format("%s and %s tied. A tie changes nothing.", user, target)
+                text = showTotals and T("history.story.opposed.tie_totals", {user = user, target = target, total = Int(opposed.attacker)})
+                    or T("history.story.opposed.tie", {user = user, target = target})
             else
-                local outcome = opposed.attacker > opposed.defender and "succeeded" or "failed"
-                text = showTotals and string.format("%s rolled %d against %s's %d and %s.", user, opposed.attacker, target, opposed.defender, outcome)
-                    or string.format("%s %s against %s.", user, outcome, target)
+                local outcome = opposed.attacker > opposed.defender and T("history.story.opposed.succeeded") or T("history.story.opposed.failed")
+                text = showTotals and T("history.story.opposed.result_totals", {user = user, total = Int(opposed.attacker), target = target, against = Int(opposed.defender), outcome = outcome})
+                    or T("history.story.opposed.result", {user = user, outcome = outcome, target = target})
             end
             rows[#rows + 1] = {who = {entry.actor}, text = text}
         end
@@ -633,7 +638,7 @@ function History.Story(entry, kids)
     if #rows == 0 and entry.actor ~= nil then
         rows[1] = {
             who = {entry.actor},
-            text = string.format("%s used %s.", History.ShownName(entry.actor), entry.ability.name),
+            text = T("history.story.used", {name = History.ShownName(entry.actor), ability = entry.ability.name}),
         }
     end
     return rows
@@ -647,9 +652,9 @@ local function MetaWords(entry)
         parts[1] = action
     end
     if entry.round ~= nil and entry.turn ~= nil then
-        parts[#parts + 1] = string.format("Round %d, turn %d", entry.round, entry.turn)
+        parts[#parts + 1] = T("history.card.round_turn", {round = Int(entry.round), turn = Int(entry.turn)})
     elseif entry.round ~= nil then
-        parts[#parts + 1] = string.format("Round %d", entry.round)
+        parts[#parts + 1] = T("history.round", {round = Int(entry.round)})
     end
     return table.concat(parts, History.DOT)
 end
@@ -661,10 +666,10 @@ local function FooterWords(entry)
     end
     local time = string.lower(dmhub.FormatTimestamp(entry.t, "h:mm tt"))
     if entry.player == nil then
-        return "Director" .. History.DOT .. time
+        return T("history.director") .. History.DOT .. time
     end
     if entry.roll ~= nil then
-        return string.format("Rolled by %s%s%s", entry.player, History.DOT, time)
+        return T("history.card.rolled_by", {player = entry.player}) .. History.DOT .. time
     end
     return entry.player .. History.DOT .. time
 end
@@ -900,15 +905,15 @@ local function Header(entry, width, inTray, close)
         titleWidth = titleWidth - 66
     end
 
-    local title = "Encounter ended"
+    local title = T("history.card.title.encounter_ended")
     --a test or Dice panel line: who rolled, and what ("Gordon - Might test", "Gordon - Dice").
     local roller = entry.who
     if entry.family == "test" or entry.family == "dice" or entry.family == "table" then
-        local name = roller ~= nil and History.ShownName(roller) or entry.roller or "Director"
-        local what = entry.family == "test" and entry.name or "Dice"
+        local name = roller ~= nil and History.ShownName(roller) or entry.roller or T("history.director")
+        local what = entry.family == "test" and entry.name or T("history.card.title.dice")
         if entry.family == "table" then
             --"Gordon - Prayer Table"; a project event the Director rolled, "Director - Seek the Lost Sword event".
-            what = entry.project ~= nil and (entry.project .. " event") or entry.name or "Table"
+            what = entry.project ~= nil and T("history.project_event", {project = entry.project}) or entry.name or T("history.table")
         end
         title = name .. History.DOT .. what
         if roller ~= nil then
@@ -916,7 +921,7 @@ local function Header(entry, width, inTray, close)
             titleWidth = titleWidth - 39
         end
     elseif entry.family == "negotiation" then
-        title = (roller ~= nil and History.ShownName(roller) or "A Hero") .. History.DOT .. "Argument"
+        title = (roller ~= nil and History.ShownName(roller) or T("history.a_hero")) .. History.DOT .. T("history.card.title.argument")
         if roller ~= nil then
             children[#children + 1] = History.Face(roller, 30, true)
             titleWidth = titleWidth - 39
@@ -949,10 +954,10 @@ local function Header(entry, width, inTray, close)
         meta.selfStyle.halign = "left"
         local parts = {meta}
         if villainAction ~= nil then
-            parts[#parts + 1] = History.Tag("historyVillainTag", "Villain Action")
+            parts[#parts + 1] = History.Tag("historyVillainTag", T("history.tag.villain_action"))
         end
         if entry.reverted ~= nil then
-            parts[#parts + 1] = History.Tag("historyRevertedTag", "Reverted")
+            parts[#parts + 1] = History.Tag("historyRevertedTag", T("history.tag.reverted"))
         end
         meta = gui.Panel{
             flow = "horizontal",
@@ -986,7 +991,7 @@ local function Header(entry, width, inTray, close)
         hmargin = 5,
         halign = "right",
         valign = "center",
-        linger = gui.Tooltip{text = "Close the detail", fontSize = 13},
+        linger = gui.Tooltip{text = T("history.card.close_tooltip"), fontSize = 13},
         click = close,
     }
 
@@ -1177,7 +1182,7 @@ local function SideViewButton(row, mapid)
                 }
             else
                 contents = gui.Label{
-                    text = "Side view",
+                    text = T("history.card.side_view"),
                     fontSize = 14,
                     width = "auto",
                     height = "auto",
@@ -1236,7 +1241,7 @@ local function StoryRow(row, width, mapid)
         textAlignment = "left",
     }
     if row.ended then
-        left[#left + 1] = History.Tag("historyEndedTag", "Ended")
+        left[#left + 1] = History.Tag("historyEndedTag", T("history.tag.ended"))
     elseif active ~= nil then
         local tag = History.ActiveTag(active.icon)
         tag.selfStyle.valign = "top"
@@ -1296,39 +1301,39 @@ local function NetEdges(edges, banes)
     local countedEdges, countedBanes = math.min(edges, 2), math.min(banes, 2)
     local net
     if countedBanes == 0 then
-        net = countedEdges == 1 and {label = "Edge", value = "+2", side = "edge", count = 1}
-            or {label = "Double edge", value = "+1 tier", side = "edge", count = 2}
+        net = countedEdges == 1 and {label = T("history.numbers.edge"), value = "+2", side = "edge", count = 1}
+            or {label = T("history.numbers.double_edge"), value = T("history.numbers.plus_tier"), side = "edge", count = 2}
     elseif countedEdges == 0 then
-        net = countedBanes == 1 and {label = "Bane", value = "-2", side = "bane", count = 1}
-            or {label = "Double bane", value = "-1 tier", side = "bane", count = 2}
+        net = countedBanes == 1 and {label = T("history.numbers.bane"), value = "-2", side = "bane", count = 1}
+            or {label = T("history.numbers.double_bane"), value = T("history.numbers.minus_tier"), side = "bane", count = 2}
     elseif countedEdges > countedBanes then
-        net = {label = "Edge", value = "+2", side = "edge", count = 1}
+        net = {label = T("history.numbers.edge"), value = "+2", side = "edge", count = 1}
     elseif countedEdges < countedBanes then
-        net = {label = "Bane", value = "-2", side = "bane", count = 1}
+        net = {label = T("history.numbers.bane"), value = "-2", side = "bane", count = 1}
     else
-        net = {label = "Cancelled out", value = "0", count = 0}
+        net = {label = T("history.numbers.cancelled_out"), value = "0", count = 0}
     end
 
     if countedEdges == 2 and countedBanes == 1 then
-        net.note = "A maximum of two edges count (a double edge); with one bane, the roll is made with one edge."
+        net.note = T("history.numbers.note.two_edges_one_bane")
     elseif countedBanes == 2 and countedEdges == 1 then
-        net.note = "A maximum of two banes count (a double bane); with one edge, the roll is made with one bane."
+        net.note = T("history.numbers.note.two_banes_one_edge")
     elseif countedEdges > 0 and countedEdges == countedBanes then
 
-        net.note = "Edges and banes cancel out: the roll is made without either."
+        net.note = T("history.numbers.note.cancel_out")
     elseif edges > 2 then
-        net.note = "A maximum of two edges count (a double edge)."
+        net.note = T("history.numbers.note.max_edges")
     elseif banes > 2 then
-        net.note = "A maximum of two banes count (a double bane)."
+        net.note = T("history.numbers.note.max_banes")
     end
 
     if edges + banes > 1 then
         local parts = {}
         if edges > 0 then
-            parts[#parts + 1] = string.format("%d %s", edges, edges == 1 and "edge" or "edges")
+            parts[#parts + 1] = UIText.Plural("history.numbers.edges", edges, {count = Int(edges)})
         end
         if banes > 0 then
-            parts[#parts + 1] = string.format("%d %s", banes, banes == 1 and "bane" or "banes")
+            parts[#parts + 1] = UIText.Plural("history.numbers.banes", banes, {count = Int(banes)})
         end
         net.aside = "(" .. table.concat(parts, ", ") .. ")"
     end
@@ -1531,16 +1536,17 @@ local SOURCE_INDENT = 16
 --- @return string|nil
 local function TierValue(source)
     if source.autosuccess then
-        return "Tier 3"
+        return T("history.tier", {tier = 3})
     elseif source.autofailure then
-        return "Tier 1"
+        return T("history.tier", {tier = 1})
     elseif (source.tiers or 0) ~= 0 then
-        local count = math.abs(source.tiers)
-        return string.format("%s%d %s", source.tiers > 0 and "+" or "-", count, count == 1 and "tier" or "tiers")
+        --"or 0" only tells the type checker tiers is set: the test above already proved it.
+        local count = math.abs(source.tiers or 0)
+        return UIText.Plural("history.numbers.tiers", count, {sign = source.tiers > 0 and "+" or "-", count = Int(count)})
     elseif source.nottierthree then
-        return "not Tier 3"
+        return T("history.numbers.not_tier", {tier = 3})
     elseif source.nottierone then
-        return "not Tier 1"
+        return T("history.numbers.not_tier", {tier = 1})
     end
     return nil
 end
@@ -1560,7 +1566,7 @@ end
 --- @return string
 local function SourceText(source, why)
     if source.hand then
-        return "Set by hand"
+        return T("history.set_by_hand")
     end
     local sourceName = source.name or ""
     local text = SpoilerName(sourceName)
@@ -1569,7 +1575,7 @@ local function SourceText(source, why)
     end
     text = ModifierLink(text, sourceName, source.hover)
     if source.who ~= nil then
-        text = string.format("%s's %s", History.ShownName(source.who), text)
+        text = T("history.possessive", {owner = History.ShownName(source.who), name = text})
     end
     return text
 end
@@ -1584,7 +1590,8 @@ local function RemovedReason(sources, side)
     local parts = {}
     for _, source in ipairs(sources) do
         if (source[field] or 0) > 0 then
-            parts[#parts + 1] = string.format(source.ignore and "ignored by %s" or "removed by %s", SourceText(source))
+            parts[#parts + 1] = source.ignore and T("history.numbers.ignored_by", {source = SourceText(source)})
+                or T("history.numbers.removed_by", {source = SourceText(source)})
         end
     end
     if #parts == 0 then
@@ -1612,7 +1619,7 @@ local function SpoilerEye(name)
         lmargin = 5,
         halign = "left",
         valign = "center",
-        linger = gui.Tooltip("Hidden from players"),
+        linger = gui.Tooltip(T("history.hidden_from_players")),
     }
 end
 
@@ -1638,7 +1645,7 @@ local function SourceLine(width, source, side, struck, remover)
     end
     local text = SourceText(source)
     if remover then
-        text = string.format(source.ignore and "Ignored by %s" or "Removed by %s", text)
+        text = source.ignore and T("history.numbers.ignored_by_line", {source = text}) or T("history.numbers.removed_by_line", {source = text})
     end
     children[#children + 1] = gui.Label(Linked{
         classes = {remover and "historyReceiptAside" or "historyReceiptSource", struck and "historyStruck" or nil},
@@ -1700,7 +1707,7 @@ local function AddStruckLine(rows, width, side, removed, forTarget, sources)
     end
     local label = lost.label
     if forTarget then
-        label = label .. " for this target"
+        label = T("history.numbers.for_this_target", {label = label})
     end
     rows[#rows + 1] = ReceiptLine(width, {
         lead = {Chevrons(side, lost.count)},
@@ -1759,7 +1766,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources, flat)
     if net ~= nil then
         local label = net.label
         if forTarget and net.side ~= nil then
-            label = label .. " for this target"
+            label = T("history.numbers.for_this_target", {label = label})
         end
         rows[#rows + 1] = ReceiptLine(width, {
             lead = net.side ~= nil and {Chevrons(net.side, net.count)} or nil,
@@ -1787,12 +1794,12 @@ end
 
 --"Damage immunity 2", "Fire immunity 3", "Fire weakness 3".
 local function ResistWords(immunity)
-    local typeWord = immunity.damagetype == "damage" and "Damage"
+    local typeWord = immunity.damagetype == "damage" and T("history.numbers.damage_word")
         or (string.upper(string.sub(immunity.damagetype, 1, 1)) .. string.sub(immunity.damagetype, 2))
     if immunity.amount > 0 then
-        return string.format("%s immunity %d", typeWord, immunity.amount)
+        return T("history.numbers.immunity", {type = typeWord, amount = Int(immunity.amount)})
     end
-    return string.format("%s weakness %d", typeWord, -immunity.amount)
+    return T("history.numbers.weakness", {type = typeWord, amount = Int(-immunity.amount)})
 end
 
 --One thing besides the tier that made a target's damage: a kit, a roll dialog modifier
@@ -1801,13 +1808,14 @@ end
 --- @param part HistoryDamagePart
 local function DamagePartLine(width, part)
     if part.kind == "kit" then
-        return ReceiptLine(width, {label = string.format("%s kit", part.name or ""), value = Signed(part.amount)})
+        return ReceiptLine(width, {label = T("history.numbers.kit", {name = part.name or ""}), value = Signed(part.amount)})
     end
     if part.kind == "surge" then
         local count = part.count or 0
         local aside = nil
         if part.characteristic ~= nil then
-            aside = string.format(count == 1 and "(%s %d)" or "(%s %d each)", part.characteristic, part.each or 0)
+            local values = {characteristic = part.characteristic, amount = Int(part.each or 0)}
+            aside = count == 1 and T("history.numbers.surge_characteristic", values) or T("history.numbers.surge_characteristic_each", values)
         end
         return ReceiptLine(width, {
             lead = {gui.Panel{
@@ -1820,7 +1828,7 @@ local function DamagePartLine(width, part)
                 valign = "center",
                 interactable = false,
             }},
-            label = count == 1 and "Spent 1 surge" or string.format("Spent %d surges", count),
+            label = UIText.Plural("history.numbers.spent_surges", count, {count = Int(count)}),
             aside = aside,
             value = Signed(part.amount),
         })
@@ -1832,7 +1840,7 @@ local function DamagePartLine(width, part)
         face.selfStyle.rmargin = 6
         face.selfStyle.halign = "left"
         lead = {face}
-        text = string.format("%s's %s", History.ShownName(part.who), text)
+        text = T("history.possessive", {owner = History.ShownName(part.who), name = text})
     end
     return ReceiptLine(width, {lead = lead, label = text, eye = SpoilerEye(part.name or ""), value = Signed(part.amount)})
 end
@@ -1898,7 +1906,7 @@ local function AddOwnSources(rows, width, sources)
         if any then
             rows[#rows + 1] = ReceiptLine(width, {
                 lead = {Chevrons(side, 1)},
-                label = side == "edge" and "Edge for this target" or "Bane for this target",
+                label = T("history.numbers.for_this_target", {label = side == "edge" and T("history.numbers.edge") or T("history.numbers.bane")}),
                 labelClass = side == "edge" and "historyEdgeText" or "historyBaneText",
                 value = "",
             })
@@ -1914,12 +1922,12 @@ end
 local function AddTargetLines(rows, width, entry, who, count, own)
     if who.roll ~= nil then
         AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true, who.roll.sources)
-        rows[#rows + 1] = ReceiptLine(width, {label = "Their roll", badge = who.tier, value = tostring(who.roll.total), total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.their_roll"), badge = who.tier, value = tostring(who.roll.total), total = true})
     elseif own ~= nil and #own > 0 then
         AddOwnSources(rows, width, own)
     end
     --what dealt it: the tier against this target, or the ability when nothing was rolled.
-    local source = (who.tier ~= nil and who.tier > 0) and string.format("Tier %d", who.tier) or entry.ability.name
+    local source = (who.tier ~= nil and who.tier > 0) and T("history.tier", {tier = Int(who.tier)}) or entry.ability.name
 
     local taken = who.taken or 0
     if taken > 0 then
@@ -1978,7 +1986,7 @@ local function AddTargetLines(rows, width, entry, who, count, own)
         --"Tier 3: lightning 0" line; the modifier's own line below carries it.
         local lines = {}
         for _, name in ipairs(typeNames) do
-            lines[#lines + 1] = {label = string.format("%s: %s", source, name), amount = base[name]}
+            lines[#lines + 1] = {label = T("history.numbers.dealt_type", {source = source, type = name}), amount = base[name]}
         end
         if base.untyped ~= nil then
             lines[#lines + 1] = {label = source, amount = base.untyped}
@@ -2000,7 +2008,7 @@ local function AddTargetLines(rows, width, entry, who, count, own)
             rows[#rows + 1] = ReceiptLine(width, {label = ResistWords(immunity), value = Signed(-changed)})
         end
         rows[#rows + 1] = ReceiptLine(width, {
-            label = count > 1 and "Taken, each" or "Taken",
+            label = count > 1 and T("history.numbers.taken_each") or T("history.numbers.taken"),
             value = tostring(taken),
             valueClass = "historyHurt",
             total = true,
@@ -2010,7 +2018,7 @@ local function AddTargetLines(rows, width, entry, who, count, own)
     local healed = who.healed or 0
     if healed > 0 then
         rows[#rows + 1] = ReceiptLine(width, {label = source, value = tostring(healed)})
-        rows[#rows + 1] = ReceiptLine(width, {label = "Regained", value = tostring(healed), valueClass = "historyHealed", total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.regained"), value = tostring(healed), valueClass = "historyHealed", total = true})
     end
 
     --a push that stability shortened or stopped, or that ignored it.
@@ -2019,11 +2027,11 @@ local function AddTargetLines(rows, width, entry, who, count, own)
         local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
         rows[#rows + 1] = ReceiptLine(width, {label = kind, value = tostring(moved.requested)})
         if moved.ignored then
-            rows[#rows + 1] = ReceiptLine(width, {label = "Stability ignored", value = ""})
+            rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.stability_ignored"), value = ""})
         else
-            rows[#rows + 1] = ReceiptLine(width, {label = "Stability", value = Signed(-moved.stability)})
+            rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.stability"), value = Signed(-moved.stability)})
         end
-        rows[#rows + 1] = ReceiptLine(width, {label = "Moved", value = tostring(moved.distance), total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.moved"), value = tostring(moved.distance), total = true})
     end
 end
 
@@ -2104,13 +2112,13 @@ local function SecretRollRow(entry, width)
                 element:FireEvent("visible", roll.revealed == true)
             end,
             linger = function(element)
-                gui.Tooltip(roll.revealed and "Visible to everyone" or "Hidden from players")(element)
+                gui.Tooltip(roll.revealed and T("history.visible_to_everyone") or T("history.hidden_from_players"))(element)
             end,
         }
     end
     children[#children + 1] = gui.Label{
         classes = {"historyReceiptAside"},
-        text = "Rolled in secret.",
+        text = T("history.numbers.rolled_in_secret_note"),
         width = "auto",
         height = "auto",
         halign = "left",
@@ -2131,8 +2139,8 @@ end
 --- @param roll table A roll with overridden = {by, dicetier}.
 --- @return string
 local function OverrideWords(roll)
-    return string.format("%s overrode the result: Tier %d. The dice gave Tier %d.",
-        roll.overridden.by or "Director", roll.tier, roll.overridden.dicetier)
+    return T("history.numbers.overridden", {name = roll.overridden.by or T("history.director"), tier = Int(roll.tier),
+        dicetier = Int(roll.overridden.dicetier)})
 end
 
 --A roll on a table: its dice, any bonus, the total, then the row it landed on in full and,
@@ -2147,14 +2155,14 @@ local function AddTableLines(rows, width, entry)
         end
         rows[#rows + 1] = ReceiptLine(width, {lead = lead, value = tostring(sum)})
         if entry.total ~= nil and entry.total ~= sum then
-            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(entry.total - sum)})
+            rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.bonus"), value = Signed(entry.total - sum)})
         end
     end
     if entry.total ~= nil then
-        rows[#rows + 1] = ReceiptLine(width, {label = "Total", value = tostring(entry.total), total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.total"), value = tostring(entry.total), total = true})
     end
     if entry.result ~= nil then
-        rows[#rows + 1] = SubHead("Result", width)
+        rows[#rows + 1] = SubHead(T("history.numbers.result"), width)
         rows[#rows + 1] = ReceiptNote(width, entry.result)
     end
     if entry.overridden ~= nil then
@@ -2204,21 +2212,21 @@ local function NumbersRows(entry, kids, width)
     --line's own card shows. A roll players may not see keeps only its heading.
     for _, kid in ipairs(kids or {}) do
         if kid.family == "test" and kid.cause ~= nil then
-            local name = kid.who ~= nil and History.ShownName(kid.who) or "Director"
-            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Roll"), width, kid.who)
+            local name = kid.who ~= nil and History.ShownName(kid.who) or T("history.director")
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.numbers.roll")), width, kid.who)
             if kid.roll ~= nil and not kid.secretroll then
                 for _, line in ipairs(NumbersRows(kid, nil, width)) do
                     rows[#rows + 1] = line
                 end
             else
-                rows[#rows + 1] = ReceiptLine(width, {label = "Rolled in secret", value = ""})
+                rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.rolled_in_secret"), value = ""})
             end
         end
     end
     if roll ~= nil then
         --a nested roll sits under its roller's heading already.
         if entry.cause == nil or entry.family ~= "test" then
-            rows[#rows + 1] = SubHead("Power roll", width)
+            rows[#rows + 1] = SubHead(T("history.numbers.power_roll"), width)
         end
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
@@ -2241,7 +2249,7 @@ local function NumbersRows(entry, kids, width)
                 bonus = bonus - (source.bonus or 0)
             end
             if bonus ~= 0 then
-                rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
+                rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.bonus"), value = Signed(bonus)})
             end
         end
         AddEdgeLines(rows, width, roll.edges, roll.banes, false, rollSources, entry.family == "test" and entry.cause ~= nil)
@@ -2259,7 +2267,7 @@ local function NumbersRows(entry, kids, width)
         if entry.family == "test" and entry.cause ~= nil then
             badge = nil
         end
-        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = badge, value = tostring(roll.total), total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.total"), badge = badge, value = tostring(roll.total), total = true})
         --a test's card has no Why, so its numbers say who set the tier.
         if entry.family == "test" and roll.overridden ~= nil then
             rows[#rows + 1] = ReceiptNote(width, OverrideWords(roll), "historyReceiptMore")
@@ -2269,20 +2277,20 @@ local function NumbersRows(entry, kids, width)
     --a table the ability rolled on, under its roller's name, as the table line's own card has it.
     for _, kid in ipairs(kids or {}) do
         if kid.family == "table" then
-            local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or "Director"
-            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or "Table"), width, kid.who)
+            local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or T("history.director")
+            rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.table")), width, kid.who)
             AddTableLines(rows, width, kid)
         end
     end
 
     if entry.family == "table" then
-        rows[#rows + 1] = SubHead("Dice", width)
+        rows[#rows + 1] = SubHead(T("history.numbers.dice"), width)
         AddTableLines(rows, width, entry)
     end
 
     --a Dice panel roll: each die, its edges and banes, and what the total adds past them.
     if entry.family == "dice" and entry.dice ~= nil then
-        rows[#rows + 1] = SubHead("Dice", width)
+        rows[#rows + 1] = SubHead(T("history.numbers.dice"), width)
         local lead = {}
         local sum = 0
         for _, face in ipairs(entry.dice) do
@@ -2294,9 +2302,9 @@ local function NumbersRows(entry, kids, width)
         local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(entry.edges or 0, entry.banes or 0)
         local bonus = entry.total - sum - edgeBonus
         if bonus ~= 0 then
-            rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(bonus)})
+            rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.bonus"), value = Signed(bonus)})
         end
-        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = entry.tier, value = tostring(entry.total), total = true})
+        rows[#rows + 1] = ReceiptLine(width, {label = T("history.numbers.total"), badge = entry.tier, value = tostring(entry.total), total = true})
     end
 
     local groups = {}
@@ -2337,7 +2345,7 @@ local function NumbersRows(entry, kids, width)
         end
     end
     if #triggered > 0 then
-        rows[#rows + 1] = SubHead("Triggered", width)
+        rows[#rows + 1] = SubHead(T("history.numbers.triggered"), width)
         for _, row in ipairs(triggered) do
             rows[#rows + 1] = row
         end
@@ -2350,7 +2358,7 @@ local function NumbersRows(entry, kids, width)
         end
         table.sort(names)
         for _, name in ipairs(names) do
-            rows[#rows + 1] = ReceiptNote(width, "Cost: " .. History.ResourceWords(entry.costs[name].amount, name), "historyReceiptMore")
+            rows[#rows + 1] = ReceiptNote(width, T("history.numbers.cost", {cost = History.ResourceWords(entry.costs[name].amount, name)}), "historyReceiptMore")
         end
     end
     return rows
@@ -2365,13 +2373,17 @@ end
 --- @field movers HistoryCreature[]|nil Whose recorded move the lead's side view button shows.
 
 --Conditions whose name doesn't follow "cannot be".
-local CONDITION_PHRASES = {prone = "knocked prone"}
+local CONDITION_PHRASES = {prone = T("history.why.condition_phrase.prone")}
 
 --How many surges came from one place, starting a sentence: "Two were gained from...".
-local SURGE_NUMBERS = {"One", "Two", "Three", "Four", "Five"}
+local SURGE_NUMBERS = {T("history.why.surge_number.1"), T("history.why.surge_number.2"), T("history.why.surge_number.3"),
+    T("history.why.surge_number.4"), T("history.why.surge_number.5")}
 
 --How many minions died, in words: "killed two".
-local MINION_WORDS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+local MINION_WORDS = {T("history.why.minion_number.1"), T("history.why.minion_number.2"), T("history.why.minion_number.3"),
+    T("history.why.minion_number.4"), T("history.why.minion_number.5"), T("history.why.minion_number.6"),
+    T("history.why.minion_number.7"), T("history.why.minion_number.8"), T("history.why.minion_number.9"),
+    T("history.why.minion_number.10")}
 
 --A trigger name longer than this is taken for its rule text, not a name.
 
@@ -2383,8 +2395,9 @@ local TRIGGER_NAME_MAX = 40
 --- @return string|nil
 local function TriggerEffect(kid)
     if kid.family == "resource" then
-        return string.format("%s %s %s.", History.ShownName(kid.who), (kid.amount or 0) > 0 and "gained" or "spent",
-            History.ResourceWords(math.abs(kid.amount or 0), kid.name))
+        return T("history.story.resource", {name = History.ShownName(kid.who),
+            verb = (kid.amount or 0) > 0 and T("history.story.resource.gained") or T("history.story.resource.spent"),
+            resource = History.ResourceWords(math.abs(kid.amount or 0), kid.name)})
     end
     local sentences = {}
     for _, who in ipairs(kid.targets or {}) do
@@ -2415,9 +2428,9 @@ end
 --"an edge", "a double edge", "a bane", "a double bane".
 local function EdgeNoun(side, count)
     if count >= 2 then
-        return "a double " .. side
+        return side == "edge" and T("history.why.a_double_edge") or T("history.why.a_double_bane")
     end
-    return side == "edge" and "an edge" or "a bane"
+    return side == "edge" and T("history.why.an_edge") or T("history.why.a_bane")
 end
 
 --- One thing that can move a power roll's tier. Everything that gave
@@ -2559,10 +2572,10 @@ local function PartClauses(part, parts, mentioned, earlier)
         end
         local clauses = {}
         if #names > 0 then
-            clauses[1] = string.format("%s gave %s", JoinWords(names), EdgeNoun(side, named))
+            clauses[1] = T("history.why.gave", {names = JoinWords(names), what = EdgeNoun(side, named)})
         end
         if hand > 0 then
-            clauses[#clauses + 1] = string.format("%s was set by hand", (#names > 0 and hand == 1) and "another" or EdgeNoun(side, hand))
+            clauses[#clauses + 1] = T("history.why.set_by_hand", {what = (#names > 0 and hand == 1) and T("history.why.another") or EdgeNoun(side, hand)})
         end
         return clauses
     end
@@ -2585,38 +2598,49 @@ local function PartClauses(part, parts, mentioned, earlier)
                     end
                 end
             end
-            what = removed >= given and "it" or removed == 1 and "one" or "two"
+            what = removed >= given and T("history.why.removed.it") or removed == 1 and T("history.why.removed.one") or T("history.why.removed.two")
         elseif earlier ~= nil and earlier[side] > 0 then
             local had = earlier[side]
             if removed >= had then
-                what = string.format("the %s%s", had >= 2 and "double " or "", side)
+                if side == "edge" then
+                    what = had >= 2 and T("history.why.the_double_edge") or T("history.why.the_edge")
+                else
+                    what = had >= 2 and T("history.why.the_double_bane") or T("history.why.the_bane")
+                end
+            elseif side == "edge" then
+                what = removed == 1 and T("history.why.one_edge") or T("history.why.two_edges")
             else
-                what = removed == 1 and ("one " .. side) or ("two " .. side .. "s")
+                what = removed == 1 and T("history.why.one_bane") or T("history.why.two_banes")
             end
         end
-        return {string.format("%s %s %s", JoinWords(names), ignored and "ignored" or "removed", what)}
+        return {T("history.why.removed", {names = JoinWords(names),
+            verb = ignored and T("history.why.removed.verb_ignored") or T("history.why.removed.verb_removed"), what = what})}
     end
 
     local source = part.sources[1]
     if part.kind == "tier" then
-        local did = "kept it off Tier 1"
+        local did = T("history.why.tier.kept_off_1")
         if source.autosuccess then
-            did = "made it Tier 3"
+            did = T("history.why.tier.made_3")
         elseif source.autofailure then
-            did = "made it Tier 1"
+            did = T("history.why.tier.made_1")
         elseif (source.tiers or 0) ~= 0 then
-            local count = math.abs(source.tiers)
-            did = string.format("%s it %s", source.tiers > 0 and "raised" or "lowered", count == 1 and "a tier" or (count .. " tiers"))
+            --"or 0" only tells the type checker tiers is set. The count is passed as it is:
+            --the old count .. " tiers" wrote it as tostring does.
+            local count = math.abs(source.tiers or 0)
+            local tiers = UIText.Plural("history.why.tier.tiers", count, {count = count})
+            did = source.tiers > 0 and T("history.why.tier.raised", {tiers = tiers}) or T("history.why.tier.lowered", {tiers = tiers})
         elseif source.nottierthree then
-            did = "kept it from Tier 3"
+            did = T("history.why.tier.kept_from_3")
         end
-        return {SourceText(source, true) .. " " .. did}
+        return {T("history.why.tier", {source = SourceText(source, true), did = did})}
     end
     if part.kind == "bonus" then
         local bonus = source.bonus or 0
-        return {string.format(bonus > 0 and "%s added %d to the roll" or "%s took %d off the roll", SourceText(source, true), math.abs(bonus))}
+        local values = {source = SourceText(source, true), amount = Int(math.abs(bonus))}
+        return {bonus > 0 and T("history.why.bonus_added", values) or T("history.why.bonus_took", values)}
     end
-    return {"a natural 19 or 20 is always Tier 3"}
+    return {T("history.why.natural")}
 end
 
 --A Why sentence starts with a capital; one that opens on a [Name] capitalises inside it.
@@ -2638,7 +2662,7 @@ local function JoinClauses(clauses)
     for i = 1, #clauses - 1 do
         most[i] = clauses[i]
     end
-    return table.concat(most, ", ") .. ", and " .. clauses[#clauses]
+    return T("history.why.join_clauses", {most = table.concat(most, ", "), last = clauses[#clauses]})
 end
 
 --- Which of a roll's parts a tier line may name (TierStory).
@@ -2708,7 +2732,8 @@ local function TierStory(roll, tier, natural, opts)
     if tier ~= plain then
         toward = tier > plain and Up or Down
         against = tier > plain and Down or Up
-        qualifier = string.format(", %s from Tier %d", tier > plain and "up" or "down", plain)
+        qualifier = tier > plain and T("history.why.qualifier.up_from_tier", {tier = Int(plain)})
+            or T("history.why.qualifier.down_from_tier", {tier = Int(plain)})
         held = With(toward) ~= tier
     else
         --nothing moved it, but one side would have alone: say what held it.
@@ -2719,10 +2744,10 @@ local function TierStory(roll, tier, natural, opts)
         held = true
         if up ~= tier then
             toward, against = Up, Down
-            qualifier = down == tier and string.format(", not Tier %d", up) or ""
+            qualifier = down == tier and T("history.why.qualifier.not_tier", {tier = Int(up)}) or ""
         else
             toward, against = Down, Up
-            qualifier = string.format(", not Tier %d", down)
+            qualifier = T("history.why.qualifier.not_tier", {tier = Int(down)})
         end
     end
 
@@ -2793,10 +2818,10 @@ local function TierStory(roll, tier, natural, opts)
             end
         end
         if #but > 0 then
-            text = text .. ", but " .. JoinClauses(but)
+            text = T("history.why.but", {words = text, but = JoinClauses(but)})
         end
     end
-    return {tier = tier, qualifier = qualifier, text = text .. "."}
+    return {tier = tier, qualifier = qualifier, text = T("history.why.sentence_end", {words = text})}
 end
 
 --- An action's tier lines. The roll's line names only what applied
@@ -2906,14 +2931,15 @@ local function SurgeOrigin(fromThese, count, names, tail)
         end
         from[#from + 1] = ModifierLink(WhyName(SpoilerName(name)), name, hover)
     end
-    local source = #from > 0 and JoinClauses(from) or "a modifier"
+    local source = #from > 0 and JoinClauses(from) or T("history.why.surges.a_modifier")
     local subject
     if fromThese == count then
-        subject = count == 1 and "It was" or "They were"
+        subject = count == 1 and T("history.why.surges.it_was") or T("history.why.surges.they_were")
     else
-        subject = string.format("%s %s", SURGE_NUMBERS[fromThese] or tostring(fromThese), fromThese == 1 and "was" or "were")
+        local number = SURGE_NUMBERS[fromThese] or tostring(fromThese)
+        subject = fromThese == 1 and T("history.why.surges.number_was", {number = number}) or T("history.why.surges.number_were", {number = number})
     end
-    return string.format("%s gained from %s%s.", subject, source, tail)
+    return T("history.why.surges.gained_from", {subject = subject, source = source, tail = tail})
 end
 
 --- What changed one target's damage besides its tier and kit. A kit is the hero's normal
@@ -2929,25 +2955,26 @@ local function DamageBits(who, actor)
         if part.kind == "modifier" and amount ~= 0 then
             local name = ModifierLink(WhyName(SpoilerName(part.name or "")), part.name or "", part.hover)
             if part.who ~= nil then
-                name = string.format("%s's %s", History.ShownName(part.who), name)
+                name = T("history.possessive", {owner = History.ShownName(part.who), name = name})
             end
             bits[#bits + 1] = {
                 key = string.format("modifier|%s|%s|%d|%s", part.name or "", part.who ~= nil and part.who.id or "", amount, part.damagetype or ""),
                 amount = amount,
                 order = 1,
-                clause = amount > 0 and string.format("%s added %d%s", name, amount, typed) or string.format("%s took %d off", name, -amount),
+                clause = amount > 0 and T("history.why.damage.added", {name = name, amount = Int(amount), type = typed})
+                    or T("history.why.damage.took_off", {name = name, amount = Int(-amount)}),
             }
         elseif part.kind == "surge" and amount ~= 0 then
             local count = part.count or 0
-            local clause = count == 1 and string.format("1 surge added %d%s", part.each or 0, typed)
-                or string.format("%d surges added %d%s each", count, part.each or 0, typed)
+            local clause = count == 1 and T("history.why.damage.surge_added", {amount = Int(part.each or 0), type = typed})
+                or T("history.why.damage.surges_added", {count = Int(count), amount = Int(part.each or 0), type = typed})
             if part.characteristic ~= nil and actor ~= nil then
-                clause = string.format("%s (%s's highest characteristic, %s %d)", clause, History.ShownName(actor),
-                    part.characteristic, part.each or 0)
+                clause = T("history.why.damage.surge_characteristic", {words = clause, name = History.ShownName(actor),
+                    characteristic = part.characteristic, amount = Int(part.each or 0)})
             end
             --where some of the surges came from.
             local free = part.free or 0
-            local after = SurgeOrigin(free, count, part.freefrom, " and could only be spent on this strike")
+            local after = SurgeOrigin(free, count, part.freefrom, T("history.why.surges.free_tail"))
             local gained = SurgeOrigin(math.min(part.gained or 0, count - free), count, part.gainedfrom, "")
             if gained ~= nil then
                 after = after ~= nil and (after .. " " .. gained) or gained
@@ -2970,8 +2997,8 @@ local function DamageBits(who, actor)
             key = string.format("immunity|%s|%d", immunity.damagetype, immunity.amount),
             amount = -immunity.amount,
             order = 3,
-            clause = immunity.amount > 0 and string.format("%s took %d off", words, immunity.amount)
-                or string.format("%s added %d", words, -immunity.amount),
+            clause = immunity.amount > 0 and T("history.why.damage.took_off", {name = words, amount = Int(immunity.amount)})
+                or T("history.why.damage.added", {name = words, amount = Int(-immunity.amount), type = ""}),
         }
     end
     return bits
@@ -2999,9 +3026,9 @@ local function DamageText(bits)
     end
     local text = #up > 0 and JoinClauses(up) or JoinClauses(down)
     if #up > 0 and #down > 0 then
-        text = text .. ", but " .. JoinClauses(down)
+        text = T("history.why.but", {words = text, but = JoinClauses(down)})
     end
-    text = Capitalise(text) .. "."
+    text = T("history.why.sentence_end", {words = Capitalise(text)})
     for _, item in ipairs(sorted) do
         if item.bit.after ~= nil then
             text = text .. " " .. item.bit.after
@@ -3016,9 +3043,9 @@ end
 --- @return string
 local function DamageQualifier(total, from)
     if total > from then
-        return string.format(", up from %d", from)
+        return T("history.why.qualifier.up_from", {amount = Int(from)})
     elseif total < from then
-        return string.format(", down from %d", from)
+        return T("history.why.qualifier.down_from", {amount = Int(from)})
     end
     return ""
 end
@@ -3098,9 +3125,9 @@ local function DamageLines(targets, actor)
     if #sharedBits > 0 then
         if sameBase then
             local total = dealt[1].base + sharedSum
-            shared = {lead = string.format("%d damage%s", total, DamageQualifier(total, dealt[1].base)), text = DamageText(sharedBits)}
+            shared = {lead = T("history.why.lead.damage", {amount = Int(total), qualifier = DamageQualifier(total, dealt[1].base)}), text = DamageText(sharedBits)}
         elseif sharedSum > 0 then
-            shared = {lead = string.format("%d extra damage", sharedSum), text = DamageText(sharedBits)}
+            shared = {lead = T("history.why.lead.extra_damage", {amount = Int(sharedSum)}), text = DamageText(sharedBits)}
         else
             for _, item in ipairs(dealt) do
                 for _, bit in ipairs(item.shared) do
@@ -3158,13 +3185,12 @@ function History.Why(entry, kids)
     if entry.provoker ~= nil and entry.actor ~= nil then
         --a free strike for moving away says so in the rules' words instead.
         rows[#rows + 1] = {
-            lead = "Moved away without shifting",
-            text = string.format("%s moved away from %s, who made a free strike against it.",
-                History.ShownName(entry.provoker), History.ShownName(entry.actor)),
+            lead = T("history.why.lead.moved_away"),
+            text = T("history.why.moved_away", {name = History.ShownName(entry.provoker), striker = History.ShownName(entry.actor)}),
         }
     elseif triggerText ~= nil and (dmhub.isDM or (entry.actor ~= nil and entry.actor.hero)) then
         local name = entry.ability.name
-        rows[#rows + 1] = {lead = TriggerLink(WhyName(name), entry.actor, name), text = "Trigger: " .. triggerText}
+        rows[#rows + 1] = {lead = TriggerLink(WhyName(name), entry.actor, name), text = T("history.why.trigger_text", {text = triggerText})}
     end
 
     --The tier lines first: the roll's, then each target that something
@@ -3176,12 +3202,12 @@ function History.Why(entry, kids)
     elseif roll ~= nil then
         local main, lines = TierLines(roll, targets)
         if main ~= nil then
-            rows[#rows + 1] = {lead = string.format("Tier %d%s", main.tier, main.qualifier), text = main.text}
+            rows[#rows + 1] = {lead = T("history.why.lead.tier", {tier = Int(main.tier), qualifier = main.qualifier}), text = main.text}
         end
         for _, line in ipairs(lines) do
             local story = line.story
             Add(string.format("tier|%d|%s|%s", story.tier, story.qualifier, story.text), function(group)
-                return {lead = string.format("Tier %d against %s%s", story.tier, GroupNames(group), story.qualifier), text = story.text}
+                return {lead = T("history.why.lead.tier_against", {tier = Int(story.tier), names = GroupNames(group), qualifier = story.qualifier}), text = story.text}
             end, line.who)
         end
     end
@@ -3190,7 +3216,7 @@ function History.Why(entry, kids)
     for _, who in ipairs(targets) do
         if History.IsAllyHit(entry, who) then
             Add("area", function()
-                return {lead = "Area ability", text = "It hits every creature in the area, allies included."}
+                return {lead = T("history.why.lead.area"), text = T("history.why.area")}
             end, who)
             break
         end
@@ -3206,7 +3232,7 @@ function History.Why(entry, kids)
     end
     for _, line in ipairs(damageLines) do
         Add(string.format("damage|%d|%s|%s", line.total, line.qualifier, line.text), function(group)
-            return {lead = string.format("%d damage to %s%s", line.total, GroupNames(group), line.qualifier), text = line.text}
+            return {lead = T("history.why.lead.damage_to", {amount = Int(line.total), names = GroupNames(group), qualifier = line.qualifier}), text = line.text}
         end, line.who)
     end
 
@@ -3223,12 +3249,13 @@ function History.Why(entry, kids)
                 if source ~= nil then
                     return {
                         lead = WhyName(source),
-                        text = string.format("%s %s immune to %s.", GroupNames(group), #group > 1 and "are" or "is", condition),
+                        text = #group > 1 and T("history.why.immune_from.other", {names = GroupNames(group), condition = condition})
+                            or T("history.why.immune_from.one", {names = GroupNames(group), condition = condition}),
                     }
                 end
                 return {
-                    lead = "Immune to " .. condition,
-                    text = string.format("%s cannot be %s.", GroupNames(group), CONDITION_PHRASES[condition] or condition),
+                    lead = T("history.why.lead.immune_to", {condition = condition}),
+                    text = T("history.why.cannot_be", {names = GroupNames(group), condition = CONDITION_PHRASES[condition] or condition}),
                 }
             end, who)
         end
@@ -3247,14 +3274,14 @@ function History.Why(entry, kids)
                     total, without = taken + fall, taken
                 end
                 local squares = moved.fell or 0
-                local text = string.format("The fall dealt %d damage, for %d instead of %d.", fall, total, without)
+                local text = T("history.why.fall", {amount = Int(fall), total = Int(total), without = Int(without)})
                 local canShow = g_canDrawPaths and MovedSteps(moved) ~= nil
                 if canShow then
-                    text = text .. " Hover here for the side view."
+                    text = T("history.why.fall_side_view", {words = text})
                 end
                 Add("fall|" .. who.id, function()
                     return {
-                        lead = string.format("Fell %d %s", squares, squares == 1 and "square" or "squares"),
+                        lead = UIText.Plural("history.why.lead.fell", squares, {count = Int(squares)}),
                         text = text,
                         movers = canShow and {who} or nil,
                     }
@@ -3263,18 +3290,18 @@ function History.Why(entry, kids)
             local left = moved.collision or 0
             if left > 0 and (moved.collidedobject or moved.collidedwith ~= nil) then
                 local kind = string.lower(string.gsub(moved.kind or "push", "_", " "))
-                local squares = string.format("%d %s", left, left == 1 and "square" or "squares")
+                local squares = UIText.Plural("history.story.squares", left, {count = Int(left)})
                 Add("collision|" .. who.id, function()
                     if moved.collidedobject or moved.collidedwith == nil then
                         return {
-                            lead = "Hit an object",
-                            text = string.format("%s had %s of the %s left: %d damage, plus 2 for hitting an object.", name, squares, kind, left),
+                            lead = T("history.why.lead.hit_object"),
+                            text = T("history.why.hit_object", {name = name, squares = squares, kind = kind, amount = Int(left)}),
                         }
                     end
                     local other = History.ShownName(moved.collidedwith)
                     return {
-                        lead = "Hit " .. other,
-                        text = string.format("%s had %s of the %s left, so it and %s each took %d damage.", name, squares, kind, other, left),
+                        lead = T("history.why.lead.hit_creature", {other = other}),
+                        text = T("history.why.hit_creature", {name = name, squares = squares, kind = kind, other = other, amount = Int(left)}),
                     }
                 end, who)
             end
@@ -3285,7 +3312,7 @@ function History.Why(entry, kids)
     for _, kid in ipairs(kids or {}) do
         if kid.family == "minions" and (kid.killed or 0) > 0 and kid.each ~= nil and (kid.damage or 0) > 0 then
             local killed = kid.killed
-            local count = killed == 1 and "one" or (MINION_WORDS[killed] or tostring(killed))
+            local count = killed == 1 and T("history.why.minion_number.1") or (MINION_WORDS[killed] or tostring(killed))
             local known = dmhub.isDM
             if not known and kid.mk ~= nil then
                 local knowledge = MonsterKnowledge.StaminaKnowledge(kid.mk, nil)
@@ -3293,12 +3320,13 @@ function History.Why(entry, kids)
             end
             local text
             if known then
-                text = string.format("Each minion in this squad has %d Stamina, so %d damage killed %s.", kid.each, kid.damage, count)
+                text = T("history.why.minions_known", {stamina = Int(kid.each), amount = Int(kid.damage), count = count})
             else
-                text = string.format("%d damage was enough to kill %s %s.", kid.damage, count, killed == 1 and "minion" or "minions")
+                text = killed == 1 and T("history.why.minions_unknown.one", {amount = Int(kid.damage), number = count})
+                    or T("history.why.minions_unknown.other", {amount = Int(kid.damage), number = count})
             end
             Add("minions|" .. tostring(kid.id), function()
-                return {lead = "Minions", text = text}
+                return {lead = T("history.why.lead.minions"), text = text}
             end, nil)
         end
     end
@@ -3316,11 +3344,14 @@ function History.Why(entry, kids)
             if test.what ~= nil and immuneTo[test.what] then
                 goto nextTest
             end
-            local phrase = nil
+            --bare: the phrase without its "being", for the lead players see.
+            local phrase, bare = nil, nil
             if test.what ~= nil then
-                phrase = "being " .. (CONDITION_PHRASES[test.what] or test.what)
+                bare = CONDITION_PHRASES[test.what] or test.what
+                phrase = T("history.why.potency.being", {condition = bare})
             elseif test.effect ~= nil then
                 phrase = test.effect
+                bare = (string.gsub(test.effect, "^being ", ""))
             end
             local hidden = test.mk ~= nil and not dmhub.isDM
                 and not MonsterKnowledge.IsRevealed(test.mk, MonsterKnowledge.EntryKey("attr", test.attrid))
@@ -3331,32 +3362,33 @@ function History.Why(entry, kids)
                 local potency = string.format("%s<%d", test.letter, test.gate)
                 if hidden then
                     --players don't know the monster's characteristic, only how it went.
-                    local lead = phrase ~= nil and string.gsub(phrase, "^being ", "") or "Potency"
+                    local lead = bare ~= nil and bare or T("history.why.lead.potency")
                     lead = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
                     --the sentence still names who resisted, as the rest of the card does.
-                    return {lead = lead, text = string.format(test.resisted and "%s resisted." or "%s did not resist.", names)}
+                    return {lead = lead, text = test.resisted and T("history.why.potency.hidden_resisted", {names = names})
+                        or T("history.why.potency.hidden_not_resisted", {names = names})}
                 end
                 if test.surges ~= nil and (test.raised or 0) > 0 then
                     --surges raised the potency.
                     local from = string.format("%s<%d", test.letter, test.gate - test.raised)
                     local text
                     if test.resisted then
-                        text = string.format("%s became %s, but %s resisted.", from, potency, names)
+                        text = T("history.why.potency.raised_resisted", {from = from, potency = potency, names = names})
                     elseif phrase ~= nil then
-                        text = string.format("%s became %s, so %s could not resist %s.", from, potency, names, phrase)
+                        text = T("history.why.potency.raised_not_resisted_what", {from = from, potency = potency, names = names, what = phrase})
                     else
-                        text = string.format("%s became %s, so %s could not resist.", from, potency, names)
+                        text = T("history.why.potency.raised_not_resisted", {from = from, potency = potency, names = names})
                     end
-                    return {lead = string.format("Potency raised with %d %s", test.surges, cond(test.surges == 1, "surge", "surges")), text = text}
+                    return {lead = UIText.Plural("history.why.lead.potency_raised", test.surges, {count = Int(test.surges)}), text = text}
                 end
                 --the target's characteristic against the potency.
                 local text
                 if test.resisted then
-                    text = string.format("%s: %s resisted.", potency, names)
+                    text = T("history.why.potency.resisted", {potency = potency, names = names})
                 elseif phrase ~= nil then
-                    text = string.format("%s: %s could not resist %s.", potency, names, phrase)
+                    text = T("history.why.potency.not_resisted_what", {potency = potency, names = names, what = phrase})
                 else
-                    text = string.format("%s: %s could not resist.", potency, names)
+                    text = T("history.why.potency.not_resisted", {potency = potency, names = names})
                 end
                 return {lead = string.format("%s %d", test.attr, test.value), text = text}
             end, who)
@@ -3389,15 +3421,15 @@ function History.Why(entry, kids)
             local triggerName = name
             local lead = TriggerLink(WhyName(name), owner, triggerName)
             if string.find(name, "[%.!?]%s*$") ~= nil or #name > TRIGGER_NAME_MAX then
-                lead = TriggerLink("Trigger", owner, triggerName)
-                name = TriggerLink("trigger", owner, triggerName)
+                lead = TriggerLink(T("history.why.trigger_word_lead"), owner, triggerName)
+                name = TriggerLink(T("history.why.trigger_word"), owner, triggerName)
             else
                 name = lead
             end
             rows[#rows + 1] = {
-                lead = owner ~= nil and string.format("%s's %s", History.ShownName(owner), name) or lead,
+                lead = owner ~= nil and T("history.possessive", {owner = History.ShownName(owner), name = name}) or lead,
                 who = owner,
-                text = "Triggered by this action: " .. effect,
+                text = T("history.why.triggered_by", {effect = effect}),
             }
         end
         for _, message in ipairs(kid.messages or {}) do
@@ -3434,7 +3466,7 @@ function History.Why(entry, kids)
         end
     end
     if acted and not changed then
-        rows[1] = {plain = true, text = "Nothing changed the roll or the damage."}
+        rows[1] = {plain = true, text = T("history.why.nothing_changed")}
     end
     return rows
 end
@@ -3540,7 +3572,7 @@ function History.CreateBubbleContents(args)
     if #args.rows > shown then
         body[#body + 1] = gui.Label{
             classes = {"historyCardMeta"},
-            text = string.format("and %d more", #args.rows - shown),
+            text = T("history.bubble.and_more", {count = Int(#args.rows - shown)}),
             width = args.width,
             height = "auto",
             tmargin = 2,
@@ -3590,7 +3622,7 @@ function History.CreateSinceCard(args)
     if args.more > 0 then
         body[#body + 1] = gui.Label{
             classes = {"historyCardMeta"},
-            text = args.more == 1 and "and 1 more turn" or string.format("and %d more turns", args.more),
+            text = UIText.Plural("history.since.more_turns", args.more, {count = Int(args.more)}),
             width = inner,
             height = "auto",
             tmargin = 6,
@@ -3599,7 +3631,7 @@ function History.CreateSinceCard(args)
     end
     body[#body + 1] = gui.Label{
         classes = {"historyCardMeta"},
-        text = "Click to open",
+        text = T("history.since.click_to_open"),
         width = inner,
         height = "auto",
         tmargin = 8,
@@ -3617,7 +3649,7 @@ function History.CreateSinceCard(args)
         interactable = false,
         gui.Label{
             classes = {"historyCardTitle"},
-            text = "Since you last looked",
+            text = T("history.since.title"),
             width = "100%",
             height = "auto",
             lpad = CARD_PAD,
@@ -3662,13 +3694,13 @@ function History.CreateCard(args)
     local rolled = entry.family == "test" or entry.family == "dice" or entry.family == "table"
     local body = {}
     if not rolled then
-        body[1] = SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)
+        body[1] = SectionHead(T("history.card.section.what_happened"), WHAT_HAPPENED_WIDTH, inner)
         for _, row in ipairs(History.Story(entry, args.kids)) do
             body[#body + 1] = StoryRow(row, inner, entry.map)
         end
         local why = History.Why(entry, args.kids)
         if #why > 0 then
-            body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
+            body[#body + 1] = SectionHead(T("history.card.section.why"), WHY_WIDTH, inner)
             for _, row in ipairs(why) do
                 body[#body + 1] = WhyRow(row, inner)
             end
@@ -3677,7 +3709,7 @@ function History.CreateCard(args)
     if entry.kind == "action" or rolled then
         local numbers = NumbersRows(entry, args.kids, inner)
         if #numbers > 0 then
-            body[#body + 1] = SectionHead("The numbers", THE_NUMBERS_WIDTH, inner)
+            body[#body + 1] = SectionHead(T("history.card.section.the_numbers"), THE_NUMBERS_WIDTH, inner)
             for _, row in ipairs(numbers) do
                 body[#body + 1] = row
             end

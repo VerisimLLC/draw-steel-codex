@@ -1,5 +1,8 @@
 local mod = dmhub.GetModLoading()
 
+--History's words are in HistoryText.lua, which loads before this file.
+local T = UIText.T
+
 --History: the record of what changed the table, which replaces the Action Log.
 --This file is the store: one shared document per map, written at the source of
 --each event and read by the tray. It never reads chat. The design behind these
@@ -140,8 +143,8 @@ History = {
 --it back on loses nothing.
 local g_oldLogSetting = setting{
     id = "history:useoldlog",
-    description = "Use Old Action Log",
-    help = "Show the old Action Log instead of History",
+    description = T("history.settings.use_old_log_name"),
+    help = T("history.settings.use_old_log_help"),
     editor = "check",
     default = false,
     storage = "preference",
@@ -157,8 +160,8 @@ local g_oldLogSetting = setting{
 --Log, so a problem in a live game can be stopped without a code change.
 local g_recordSetting = setting{
     id = "history:record",
-    description = "Record History",
-    help = "Record play in History. When off, nothing is recorded and everyone sees the old Action Log.",
+    description = T("history.settings.record_name"),
+    help = T("history.settings.record_help"),
     editor = "check",
     default = true,
     storage = "game",
@@ -170,6 +173,14 @@ local g_recordSetting = setting{
         end
     end,
 }
+
+--- A whole number as %d writes it, for a number in History's words: an entry read back
+--- from JSON can hold 3.0, which tostring (and so UIText.T) would show as "3.0".
+--- @param n number
+--- @return string
+function History.Int(n)
+    return string.format("%d", n)
+end
 
 --- True if a game system layered on these rules says History can't describe its play
 --- (Crows: no winded, Armor Defense, Wounds). Its module sets

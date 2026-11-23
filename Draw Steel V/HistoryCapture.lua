@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--The words written into entries (the small text under a line) are in HistoryText.lua.
+local T = UIText.T
+
+local Int = History.Int
+
 --Fills History at the source. Each ability cast that posts a card to the log gets an
 --entry, prompted triggers included. A cast that shares its parent's card joins the
 --parent's entry. An automatic trigger gets an entry only if it changed something, and
@@ -939,8 +944,6 @@ local function CastFinished(ability, casterToken, options)
         end
     end
     History.Write(entry)
-    --the user's own card folds into the row it became.
-    History.FoldIn(entry)
 end
 
 --The row a result belongs to: the running cast's own, else one it shares through its
@@ -980,7 +983,7 @@ end
 --a player's marks the Director's badge gold (byplayer). Returns facts, for WriteLine.
 local function NoteHand(facts)
     if GameSystem.IsHandEdit() then
-        facts.causetext = dmhub.isDM and "Director" or dmhub.userDisplayName
+        facts.causetext = dmhub.isDM and T("history.director") or dmhub.userDisplayName
         facts.byplayer = not dmhub.isDM or nil
     end
     return facts
@@ -1064,7 +1067,7 @@ local function OnDamage(creature, info)
         if info.landed > 0 then
             local cause = Cause(info.source)
             if info.startofturn and cause ~= nil then
-                cause = "Start of turn: " .. cause
+                cause = T("history.cause.start_of_turn", {cause = cause})
             end
             WriteLine(token, "damage", NoteHand{
                 taken = info.landed,
@@ -1146,17 +1149,17 @@ local function OnRested(creature)
     end
     local after = RespiteFacts(creature)
     local parts = {}
-    for _, fact in ipairs({{"stamina", "Stamina"}, {"recoveries", "Recoveries"}, {"xp", "XP"}}) do
+    for _, fact in ipairs({{"stamina", T("history.cause.respite.stamina")}, {"recoveries", T("history.cause.respite.recoveries")}, {"xp", T("history.cause.respite.xp")}}) do
         local was, now = before[fact[1]], after[fact[1]]
         if was ~= now then
-            parts[#parts + 1] = string.format("%s %d to %d", fact[2], was, now)
+            parts[#parts + 1] = T("history.cause.change", {label = fact[2], before = Int(was), after = Int(now)})
         end
     end
     --stamped a millisecond apart, so the Level line always sorts after the respite's.
     local now = dmhub.serverTimeMilliseconds
-    WriteLine(token, "respite", {t = now, causetext = #parts > 0 and table.concat(parts, History.DOT) or "Respite"})
+    WriteLine(token, "respite", {t = now, causetext = #parts > 0 and table.concat(parts, History.DOT) or T("history.cause.respite")})
     if after.level > before.level then
-        WriteLine(token, "levelup", {t = now + 1, level = after.level, causetext = "Respite"})
+        WriteLine(token, "levelup", {t = now + 1, level = after.level, causetext = T("history.cause.respite")})
     end
 end
 
@@ -1465,7 +1468,7 @@ local function ClosingEntry(token)
             encounter = queue.guid,
             round = queue.round,
             turn = queue.turnNumber,
-            causetext = string.format("Round %d", queue.round),
+            causetext = T("history.round", {round = Int(queue.round)}),
             ended = {},
         }
         History.Write(g_closing[key])
@@ -1554,7 +1557,7 @@ local function OnResource(creature, key, before, after, refreshType, note)
     if state == nil and key == CharacterResource.recoveryResourceId and change < 0 and healed ~= nil
         and healed.charid == token.charid and dmhub.serverTimeMilliseconds - healed.t < RECOVERY_WINDOW_MS then
         local entry = healed.entry
-        entry.causetext = "Used a Recovery"
+        entry.causetext = T("history.cause.used_recovery")
         entry.amount = change
         entry.resourceid = key
         entry.refreshtype = refreshType
@@ -1736,7 +1739,7 @@ local function OnMalice(before, after, note)
         who = token ~= nil and History.Creature(token) or nil,
         before = before,
         after = after,
-        causetext = byHand and "Set by hand" or note,
+        causetext = byHand and T("history.set_by_hand") or note,
         --the round heading shows these; only a trait or a hand edit earns a line.
         quiet = spentOnRow or (token == nil and not byHand) or nil,
     }
@@ -1798,7 +1801,7 @@ local function OnDowntime(info)
     if not History.Enabled() or not (info.milestone or info.completed) then
         return
     end
-    local project = info.project ~= nil and info.project ~= "" and info.project or "A project"
+    local project = info.project ~= nil and info.project ~= "" and info.project or T("history.a_project")
     local owner = info.ownerid ~= nil and dmhub.GetCharacterById(info.ownerid) or nil
     local function Write(entry)
         entry.kind = "line"
@@ -1809,12 +1812,13 @@ local function OnDowntime(info)
         History.Write(entry)
     end
     if info.milestone then
-        Write{sub = "milestone", causetext = "The Director rolls a project event"}
+        Write{sub = "milestone", causetext = T("history.cause.downtime.milestone")}
     end
     if info.completed then
         Write{
             sub = "completed",
-            causetext = string.format("%s%sproject points %d of %d", owner ~= nil and owner.name or "A Hero", History.DOT, info.after, info.goal),
+            causetext = (owner ~= nil and owner.name or T("history.a_hero")) .. History.DOT
+                .. T("history.cause.downtime.points", {points = Int(info.after), goal = Int(info.goal)}),
         }
     end
 end
@@ -1824,7 +1828,7 @@ local function MeterWords(label, meter)
     if meter == nil or meter.before == meter.after then
         return nil
     end
-    return string.format("%s %d to %d", label, meter.before, meter.after)
+    return T("history.cause.change", {label = label, before = Int(meter.before), after = Int(meter.after)})
 end
 
 --Negotiation. info comes from NegotiationRun.Note. Each line keeps two
@@ -1834,12 +1838,12 @@ local function OnNegotiation(info)
     if not History.Enabled() then
         return
     end
-    local npc = info.npc or "the NPC"
-    local interest = MeterWords("Interest", info.interest)
-    local patience = MeterWords("Patience", info.patience)
+    local npc = info.npc or T("history.the_npc")
+    local interest = MeterWords(T("history.cause.negotiation.interest"), info.interest)
+    local patience = MeterWords(T("history.cause.negotiation.patience"), info.patience)
     local band = nil
     if info.bands ~= nil and info.bands.before ~= info.bands.after then
-        band = string.format("%s to %s", info.bands.before, info.bands.after)
+        band = T("history.cause.negotiation.band", {before = info.bands.before, after = info.bands.after})
     end
     --what follows the lead on each cause line: full has the numbers, shown has the band.
     local function Causes(lead, withPatience)
@@ -1859,13 +1863,15 @@ local function OnNegotiation(info)
     end
 
     if info.kind == "began" then
-        entry.causetext = string.format("Interest %d%sPatience %d", info.interest.after, History.DOT, info.patience.after)
+        entry.causetext = T("history.cause.negotiation.interest_now", {interest = Int(info.interest.after)}) .. History.DOT
+            .. T("history.cause.negotiation.patience_now", {patience = Int(info.patience.after)})
         entry.playercause = info.bands.after
     elseif info.kind == "argument" then
         entry.total = info.total
         entry.text = info.text
         entry.cue = info.cue
-        entry.causetext, entry.playercause = Causes(string.format("Argument%sTier %d", History.DOT, info.tier or 0), true)
+        entry.causetext, entry.playercause = Causes(T("history.cause.negotiation.argument") .. History.DOT
+            .. T("history.tier", {tier = Int(info.tier or 0)}), true)
     elseif info.kind == "pitfall" then
         entry.trait = info.trait
         local full, shown = {}, {}
@@ -1876,23 +1882,24 @@ local function OnNegotiation(info)
         entry.playercause = #shown > 0 and table.concat(shown, History.DOT) or nil
     elseif info.kind == "read" then
         entry.total = info.total
-        local lead = string.format("Read %s%sTier %d%s%s", npc, History.DOT, info.tier or 0, History.DOT,
-            info.learned and "Learned something" or "Learned nothing")
+        local lead = T("history.cause.negotiation.read", {npc = npc}) .. History.DOT .. T("history.tier", {tier = Int(info.tier or 0)})
+            .. History.DOT .. (info.learned and T("history.cause.negotiation.learned_something") or T("history.cause.negotiation.learned_nothing"))
         entry.playercause = lead
         entry.causetext = patience ~= nil and (lead .. History.DOT .. patience) or lead
     elseif info.kind == "reveal" then
         entry.trait = info.trait
-        entry.causetext = info.traitKind == "pitfall" and "Pitfall" or "Motivation"
+        entry.causetext = info.traitKind == "pitfall" and T("history.cause.negotiation.pitfall") or T("history.cause.negotiation.motivation")
         entry.playercause = entry.causetext
     elseif info.kind == "adjust" then
         --the Director's own correction: players get no line.
         entry.directoronly = true
-        entry.causetext = "Director"
+        entry.causetext = T("history.director")
         entry.which = info.which
         entry.before = info.which == "interest" and info.interest.before or info.patience.before
         entry.after = info.which == "interest" and info.interest.after or info.patience.after
     elseif info.kind == "ended" then
-        entry.causetext = info.offer ~= nil and info.offer ~= "" and ("Final offer: " .. info.offer) or "No deal"
+        entry.causetext = info.offer ~= nil and info.offer ~= "" and T("history.cause.negotiation.final_offer", {offer = info.offer})
+            or T("history.cause.negotiation.no_deal")
         entry.playercause = entry.causetext
     else
         return
@@ -1901,9 +1908,6 @@ local function OnNegotiation(info)
     History.Write(entry)
 end
 
-local function Count(count, one, many)
-    return string.format("%d %s", count, count == 1 and one or many)
-end
 
 --Montages. info.kind: "test" (an Encounter of the Week test), "threat" (one
 --whose consequence landed), "ended", or "counter" (the Director moved a journal montage's
@@ -1923,7 +1927,8 @@ local function OnMontage(info)
             map = map,
             total = info.total,
             tier = info.tier,
-            causetext = string.format("%s: %s%sTier %d", info.entry or "", info.option or "", History.DOT, math.min(info.tier, 3)),
+            causetext = T("history.cause.montage.test", {test = info.entry or "", option = info.option or ""}) .. History.DOT
+                .. T("history.tier", {tier = Int(math.min(info.tier, 3))}),
         })
         return
     end
@@ -1942,9 +1947,9 @@ local function OnMontage(info)
     elseif info.kind == "ended" then
         entry.family = "montageend"
         entry.causetext = table.concat({
-            Count(info.successes or 0, "success", "successes"),
-            Count(info.failures or 0, "failure", "failures"),
-            Count(info.unvanquished or 0, "threat not vanquished", "threats not vanquished"),
+            UIText.Plural("history.cause.montage.successes", info.successes or 0, {count = Int(info.successes or 0)}),
+            UIText.Plural("history.cause.montage.failures", info.failures or 0, {count = Int(info.failures or 0)}),
+            UIText.Plural("history.cause.montage.unvanquished", info.unvanquished or 0, {count = Int(info.unvanquished or 0)}),
         }, History.DOT)
     elseif info.kind == "counter" then
         entry.family = "montagecounter"
@@ -1953,7 +1958,7 @@ local function OnMontage(info)
         entry.before = info.before
         entry.after = info.after
         entry.limit = info.limit
-        entry.causetext = "Montage"
+        entry.causetext = T("history.cause.montage")
     else
         return
     end
@@ -2006,13 +2011,13 @@ local function OnEffectsEnded(creature, ended, cause)
 
     local causetext = cause
     if cause == "endturn" then
-        causetext = "End of turn"
+        causetext = T("history.cause.end_of_turn")
     elseif cause == "endround" then
-        causetext = "End of round"
+        causetext = T("history.cause.end_of_round")
     elseif cause == "dying" then
-        causetext = History.Creature(token).name .. " is dying"
+        causetext = T("history.cause.is_dying", {name = History.Creature(token).name})
     elseif cause == "rest" then
-        causetext = "Respite began"
+        causetext = T("history.cause.respite_began")
     end
 
     if causetext == nil and GameSystem.IsHandEdit() then
@@ -2090,7 +2095,7 @@ local function ConditionsIn(text)
     if #names == 1 then
         return names[1]
     end
-    return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+    return T("history.list.and", {most = table.concat(names, ", ", 1, #names - 1), last = names[#names]})
 end
 
 --- The ongoing effect a rule text names, as the effect is named ("Can't Hide"); nil when it
@@ -2214,7 +2219,7 @@ local function OnCaptain(creature, info)
     if not History.Enabled() or token == nil then
         return
     end
-    WriteLine(token, "captain", {squad = info.squad, causetext = dmhub.isDM and "Director" or dmhub.userDisplayName})
+    WriteLine(token, "captain", {squad = info.squad, causetext = dmhub.isDM and T("history.director") or dmhub.userDisplayName})
 end
 
 --A save is a roll the table watched, so it earns a line whether it passed or not. The
@@ -2228,17 +2233,17 @@ local function OnSaved(creature, info)
     if state ~= nil then
         state.noRow = true
     end
-    local rolled = string.format("rolled %d (%d or more ends it)", info.total, info.target)
+    local rolled = T("history.cause.save_rolled", {total = Int(info.total), target = Int(info.target)})
     --a save rolled out of players' sight keeps its outcome, which they saw, but not its number.
     local privacy = RollUtils.RollPrivacy(info.rollInfo, info.details)
     if privacy ~= nil and info.atturnend then
-        privacy.cause = "End of turn"
+        privacy.cause = T("history.cause.end_of_turn")
     end
     WriteLine(token, "save", {
         name = info.name,
         passed = info.passed,
         privacy = privacy,
-        causetext = info.atturnend and ("End of turn: " .. rolled) or string.upper_first(rolled),
+        causetext = info.atturnend and T("history.cause.end_of_turn_save", {rolled = rolled}) or string.upper_first(rolled),
     })
 end
 
@@ -2286,8 +2291,8 @@ local function OnTested(creature, info)
         --a roll an ability asked for (an opposed power roll) goes under that ability's row;
         --its total is compared with the other side's, so it has no tier of its own.
         cause = info.cause,
-        causetext = (info.cause ~= nil and info.name or string.format("%s%sTier %d", info.name, History.DOT, info.tier))
-            .. (info.overridden ~= nil and (History.DOT .. "Overridden") or ""),
+        causetext = (info.cause ~= nil and info.name or string.format("%s%s%s", info.name, History.DOT, T("history.tier", {tier = Int(info.tier)})))
+            .. (info.overridden ~= nil and (History.DOT .. T("history.overridden")) or ""),
     })
 end
 
@@ -2309,7 +2314,7 @@ local function OnDiceRoll(rollInfo, kind)
     local tier = kind == "power" and RollUtils.DiceResultToTier(rollInfo) or nil
     local cause = text ~= "" and text or nil
     if tier ~= nil then
-        cause = string.format("%s%sTier %d", cause or "2d10", History.DOT, tier)
+        cause = (cause or "2d10") .. History.DOT .. T("history.tier", {tier = Int(tier)})
     end
     local entry = {
         kind = "line",
@@ -2331,7 +2336,7 @@ local function OnDiceRoll(rollInfo, kind)
     if token ~= nil then
         entry.who = History.Creature(token)
     else
-        entry.roller = dmhub.isDM and "Director" or rollInfo.playerName
+        entry.roller = dmhub.isDM and T("history.director") or rollInfo.playerName
     end
     History.AddCombatFacts(entry)
     History.Write(entry)
@@ -2350,12 +2355,12 @@ local function OnTableRolled(roller, info)
     if result ~= nil and #result > TABLE_RESULT_SHOWN then
         result = string.sub(result, 1, TABLE_RESULT_SHOWN - 3) .. "..."
     end
-    local cause = info.project ~= nil and (info.project .. " event") or info.table
+    local cause = info.project ~= nil and T("history.project_event", {project = info.project}) or info.table
     if result ~= nil then
         cause = cause .. History.DOT .. result
     end
     if info.overridden ~= nil then
-        cause = cause .. History.DOT .. "Overridden"
+        cause = cause .. History.DOT .. T("history.overridden")
     end
     local token = roller ~= nil and dmhub.LookupToken(roller) or nil
     local entry = {
@@ -2374,14 +2379,14 @@ local function OnTableRolled(roller, info)
     --a roll out of players' sight: they may read which table it was, not what it gave.
     local privacy = RollUtils.RollPrivacy(info.rollInfo, info.details)
     if privacy ~= nil then
-        privacy.cause = info.project ~= nil and (info.project .. " event") or info.table
+        privacy.cause = info.project ~= nil and T("history.project_event", {project = info.project}) or info.table
         entry.privacy = privacy
     end
     --the Director rolls a project's event for the Hero, so the line is the Director's.
     if token ~= nil and info.project == nil then
         entry.who = History.Creature(token)
     else
-        entry.roller = dmhub.isDM and "Director" or dmhub.userDisplayName
+        entry.roller = dmhub.isDM and T("history.director") or dmhub.userDisplayName
     end
     History.AddCombatFacts(entry)
     History.Write(entry)
@@ -2400,7 +2405,7 @@ local function OnAwarded(creature, info)
         quantity = info.quantity,
         before = info.before,
         after = info.after,
-        causetext = dmhub.isDM and "Director" or dmhub.userDisplayName,
+        causetext = dmhub.isDM and T("history.director") or dmhub.userDisplayName,
     })
 end
 
@@ -2459,7 +2464,7 @@ local function OnWaveDeployed(info)
         kind = "line",
         family = "reinforcements",
         map = map or game.currentMapId,
-        name = info.name or "Reinforcements",
+        name = info.name or T("history.reinforcements"),
         arrivals = arrivals,
         hiddenfromplayers = hidden or nil,
     }
@@ -2554,7 +2559,7 @@ local function OnTurnReverted(info)
         kind = "line",
         family = "reverted",
         map = mapid,
-        causetext = dmhub.isDM and "By the Director" or ("By " .. dmhub.userDisplayName),
+        causetext = dmhub.isDM and T("history.cause.reverted_by_director") or T("history.cause.reverted_by", {name = dmhub.userDisplayName}),
         wholeturn = info.turn ~= nil or nil,
     }
     History.AddCombatFacts(line)
@@ -2562,8 +2567,8 @@ local function OnTurnReverted(info)
 end
 
 local PERSISTENCE_WORDS = {
-    chose = "Chose to stop",
-    targetsgone = "All its targets are dead",
+    chose = T("history.cause.persistence.chose"),
+    targetsgone = T("history.cause.persistence.targets_gone"),
 }
 
 local function OnPersistenceEnded(creature, abilityName, reason)
@@ -2573,8 +2578,8 @@ local function OnPersistenceEnded(creature, abilityName, reason)
         --Persistent Magic stops it at 5 times Reason damage in one turn.
         if reason == "damage" then
             local reasonScore = creature:AttributeMod("rea")
-            causetext = string.format("Took %d damage in one turn, 5 times Reason %d",
-                creature:try_get("damageTakenThisTurn", 0), reasonScore)
+            causetext = T("history.cause.persistence.damage", {damage = Int(creature:try_get("damageTakenThisTurn", 0)),
+                reason = Int(reasonScore)})
         end
         WriteLine(token, "persistence", {
             name = abilityName,

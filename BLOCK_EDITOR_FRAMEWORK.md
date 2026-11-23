@@ -312,9 +312,8 @@ For wording that depends on the values (a sign, a count, a list), the block give
 
 Return a string, or `nil` to fall back to the template.
 
-Real example, the resistance modifier: one record holds a list of entries, and each entry is
-immunity, or weakness when its number is negative. Berserker's *Chaos Incarnate* stores 7
-entries, all with `dr = "Might*2"`.
+Real example, the resistance modifier: one record can hold a list of entries, and each entry is
+immunity, or weakness when its number is negative.
 
 ```lua
 prose = function(rec, w)
@@ -336,8 +335,14 @@ prose = function(rec, w)
 end,
 ```
 
-This reads, for Chaos Incarnate: "You have acid, cold, corruption, fire, lightning, poison and
-sonic immunity equal to twice your Might."
+A record with acid and fire entries at `Might*2` reads: "You have acid and fire immunity equal to
+twice your Might."
+
+Berserker's *Chaos Incarnate* is stored differently: 7 separate resistance modifiers, one damage
+type each, all `Might*2`. Each one alone reads "You have acid immunity equal to twice your
+Might." Joining them into the book's single sentence would be a feature-level step that merges
+neighbouring blocks with the same wording. That is not decided yet; it is listed as open
+question Q1.
 
 ### Where today's prose goes
 
@@ -358,6 +363,10 @@ sonic immunity equal to twice your Might."
 4. **Shared stack inside bespoke editors:** kits, treasures, monsters.
 
 ## 6. Still to decide (after D1-D3)
+
+- **Q1:** should a feature's prose merge neighbouring blocks that read alike? For example,
+  seven one-type immunities would become "acid, cold, ... immunity". Or should authors keep
+  writing that sentence by hand in the feature text?
 
 - **States:** an empty stack, a record that fails to read back, two authors editing at
   once.

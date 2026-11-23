@@ -5949,7 +5949,9 @@ they belong in Blackbottom (the town), not here.
   `ca322ca9-4729-46b2-81bc-d3ac4098fc47` (global rule mod) and Null Field
   `8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6` (Null class feature; Null Field -
   Effect is NOT included). Everything else reads
-  `encounter.arrange.cast_blocked`. Outside the arrangement nothing changed.
+  `encounter.arrange.cast_blocked`. Since 2026-11-23 the gate covers the
+  whole pre-combat stretch, not just the arrangement (see "The whole
+  pre-combat stretch is gated" below).
   Catch Breath is unlimited (only Recoveries limit it), because with no
   queue a `"turn"` refresh id is a fresh guid on every call
   (`creature:GetResourceRefreshId`, `Resource.lua`), so a maneuver is never
@@ -5984,10 +5986,24 @@ NOT seen: a won initiative (same code path), multi-client (a second
 player's cast holding combat through its `abilityBusy` stamp), the 30s
 overtime cap.
 
-Known gap, not fixed (outside the ask): before the arrangement (arrival,
-waiting for players, after a montage) nothing gates casting. With no queue
-every action and maneuver is affordable, so a hero in range could strike a
-monster. A surprised party never arranges, so it gets no preparation.
+**The whole pre-combat stretch is gated (BUILT 2026-11-23, reported working,
+UNCOMMITTED; reports 4MX3CSDV, A64QQXVS).** Before this, nothing gated
+casting before the arrangement (arrival, waiting for players, after a
+montage). With no queue every action is affordable, so a Conduit chained
+Lightfall (burst 2, teleport plus damage) across the map and cleared an
+encounter before initiative. The `eotw-arrange` gate now applies whenever
+`IsEotwGame()` (which includes an authoring test player) and not
+`EncounterOfTheWeekGame.CombatStarted()`; the bare `/eotwencounter` dev
+command, where `IsEotwGame()` is false, keeps the old arrangement-only rule.
+A live queue always lets everything through. `cast_blocked` now reads "Until
+combat starts you can only use Catch Breath and Null Field." A surprised
+party never arranges, but it can now Catch Breath and raise Null Field during
+the earlier stretch.
+
+The start-zone outline is now one `dmhub.MarkLocs` per floor
+(`m_zoneMarker` is a list). The engine's `HighlightPerimeterAroundLocs`
+draws every segment on the floor of the last tile it read, so a start zone
+on another floor was outlined on the wrong floor.
 
 Respite activities, for when Blackbottom takes them up: abilities whose
 `actionResourceId` is `CharacterResource.respiteActivityId`. The Actions

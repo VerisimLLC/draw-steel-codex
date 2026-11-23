@@ -1709,6 +1709,7 @@ local START_ZONE_COLOR = "#79d2a0"
 local EXIT_DELAY = 4
 
 local m_restrictionInstalled = false
+--- @type LuaMultiObjectReference[]|nil
 local m_zoneMarker = nil
 --defined with the beat machine below; see there.
 local MontageStageExpected
@@ -1733,10 +1734,10 @@ local function ClearStartZoneConfinement()
     end
     m_restrictionMapId = nil
     m_restrictionZonesSeq = nil
-    if m_zoneMarker ~= nil then
-        pcall(function() m_zoneMarker:Destroy() end)
-        m_zoneMarker = nil
+    for _, marker in ipairs(m_zoneMarker or {}) do
+        pcall(function() marker:Destroy() end)
     end
+    m_zoneMarker = nil
     GameHud.SetTooltipsSuppressed("eotw", false)
 end
 
@@ -1814,11 +1815,25 @@ local function UpdateStartZoneConfinement()
     --teleportBetweenAreas: when the start zones are separate areas, a hero
     --dragged onto another one hops there (older engines ignore the flag).
     pcall(function() dmhub.SetMovementRestriction{ locs = locs, teleportBetweenAreas = true } end)
-    m_zoneMarker = dmhub.MarkLocs{
-        locs = locs,
-        color = START_ZONE_COLOR,
-        style = "dashed",
-    }
+    --One outline per floor: the engine draws a whole MarkLocs call on one
+    --floor, so a start zone on another floor would appear on the wrong one.
+    local byFloor = {}
+    for _, loc in ipairs(locs) do
+        local floorLocs = byFloor[loc.floorIndex]
+        if floorLocs == nil then
+            floorLocs = {}
+            byFloor[loc.floorIndex] = floorLocs
+        end
+        floorLocs[#floorLocs + 1] = loc
+    end
+    m_zoneMarker = {}
+    for _, floorLocs in pairs(byFloor) do
+        m_zoneMarker[#m_zoneMarker + 1] = dmhub.MarkLocs{
+            locs = floorLocs,
+            color = START_ZONE_COLOR,
+            style = "dashed",
+        }
+    end
 end
 
 --- coming home ---------------------------------------------------------
@@ -3769,19 +3784,26 @@ EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS = {
     ["8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6"] = true, --Null Field (Null class feature)
 }
 
---While the heroes arrange, a player's hero may prepare but not fight: every
---other ability is greyed with the reason below (core cast gate; binds only
---players under strict rules, which EotW forces). Catch Breath is limited only
---by Recoveries: with no initiative queue a maneuver is never used up.
+--Until combat starts (arrival, waiting for players, montages, the arrangement),
+--a player's hero may prepare but not fight: every other ability is greyed with
+--the reason below (core cast gate; binds only players under strict rules,
+--which EotW forces). Without this a hero could teleport-strike the monsters
+--before initiative. Catch Breath is limited only by Recoveries:
+--with no initiative queue a maneuver is never used up.
 ActivatedAbility.RegisterCastGate("eotw-arrange", function(ability, casterCreature, casterToken)
-    local state = ArrangeState()
-    if state == nil or state.phase ~= "arranging" then
-        return nil
-    end
-    --an "arranging" doc with a live queue is stale (see UpdateArrangePanel).
+    --any live queue means combat is on (an "arranging" doc with one is stale).
     local queue = dmhub.initiativeQueue
     if queue ~= nil and not queue.hidden then
         return nil
+    end
+    --Real games and authoring tests are gated until combat starts; the
+    --/eotwencounter dev command only while the heroes arrange.
+    local preCombat = EncounterOfTheWeekGame.IsEotwGame() and not EncounterOfTheWeekGame.CombatStarted()
+    if not preCombat then
+        local state = ArrangeState()
+        if state == nil or state.phase ~= "arranging" then
+            return nil
+        end
     end
     local guid = ability:try_get("guid")
     if guid ~= nil and EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS[guid] then

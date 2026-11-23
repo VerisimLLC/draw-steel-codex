@@ -399,6 +399,57 @@ feature's text.
 - **Regression surface:** list every capability of today's forms and where it lands. "More
   settings" is the catch-all.
 
+## 6b. Power roll modifiers: what the blocks cover (Q3, open)
+
+The `power` modifier ("Modify Power Rolls", `Draw Steel Core Rules/MCDModifyPowerRolls.lua`)
+can do far more than the five roll blocks show. The compendium has 1,394 power modifiers.
+**727 (52%) can be shown fully by today's five blocks.** The rest would open in the advanced
+editor.
+
+| What the modifier does | Records | A block today? |
+|---|---:|---|
+| edge, bane, double edge, double bane | 623 | yes: Edge or bane on rolls; Rolls against you |
+| extra damage, with a damage type | 200 | yes: Extra damage |
+| fires a trigger when chosen ("Edit Trigger") | 136 | **no** |
+| halve, double or remove the damage (multiplier) | 87 | **no** |
+| add text to a tier | 77 | **no** |
+| a characteristic, for tests ("tests using Might") | 73 | **no** |
+| change the damage type | 62 | **no** |
+| change potency | 58 | yes: Change potency |
+| fixed outcome (tier 3, not tier 1, tier up or down...) | 67 | yes: Change the outcome |
+| change the target | 41 | **no** |
+| remove or ignore edges and banes, edge to bane | 47 | **no** (the modtypes exist; the block doesn't offer them) |
+| replace text in a tier | 37 | **no** |
+| only when the roll has an edge or bane, or has surges (`rollRequirement`) | 32 | **no** |
+| characteristic adjustments | 32 | **no** |
+| gain surges (can be kept; surge damage type) | 29 | **no** |
+| a trigger that runs before the ability | 28 | **no** |
+| also applies to free strikes | 27 | **no** |
+| +1 / +2 / +3 / -1... to the roll | 18 | **no** |
+| append to or replace the roll | 26 | **no** |
+| other rolls: all rolls, project, opposed, resistance, fishing | 97 | **no** (only ability rolls, tests and rolls against you) |
+| arm an effect; roll twice; suppress effects; shields; after-the-roll | about 40 | **no** |
+
+Proposal (to decide): add these to the `power` type's block list.
+1. **Gain surges:** "You gain [2] surges [that can be kept]".
+2. **Change the damage:** "The damage is [halved / doubled / removed]", and "[fire] damage
+   becomes [cold]".
+3. **Change a tier's text:** "Tier [3] also [adds: ...] / [replaces '...' with '...']".
+4. **Also trigger:** "When chosen, also [a triggered ability]", using the Ability slot.
+5. **Wider existing blocks:**
+   - Edge or bane adds remove, ignore and conversion options, and +1/+2/+3 to the roll.
+   - Its roll choice adds all rolls, opposed tests, resistance rolls and project rolls.
+   - Tests can name a characteristic.
+6. **Two more Offered when tests and a toggle:** "The roll has an edge / a bane / surges", which
+   is `rollRequirement`; and "also on free strikes".
+
+With these, **about 1,215 (87%)** are shown fully. These stay in the advanced editor:
+- change target (41);
+- adjustments (32);
+- trigger-before (28);
+- arm effect (20);
+- the after-roll and other rare fields.
+
 ## 6a. States (decided)
 
 | State | What the author sees | Copy |

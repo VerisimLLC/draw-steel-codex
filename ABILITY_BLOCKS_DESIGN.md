@@ -1442,3 +1442,15 @@ These changes come from reviewer feedback, and apply in both editors:
   has a condition".
 - **Combine tests** (All of these are true, Any of these is true, Not) now lead every test
   picker.
+
+## 4aa. GoblinScript reference from "Type a formula instead" (2026-11-23)
+
+"Type a formula instead" now opens with a **GoblinScript reference ↗** link, in both the
+ability editor and the class builder. The reference opens in a panel over the editor, so the
+formula menu and everything being edited stay put. Escape or Close shuts it.
+
+- **Source:** the page is `ui-mockup/goblinscript.html`, built from the repo's
+  `GoblinScript_Guide.md` by `ui-mockup/goblinscript-doc/build.py`. Re-run the build when the
+  guide changes. The guide's opening "written for AI tools" note is left out of the page.
+- **No outside site:** the page ships with the artifacts. `class-builder/goblinscript.html`
+  links to the same file.

@@ -582,10 +582,33 @@ function openTestPicker(anchor, parent, key, ctx) {
     };
     search.addEventListener("input", draw); draw();
     const tb = E("details", "typebox"); tb.appendChild(E("summary", null, "Type a formula instead"));
+    tb.appendChild(gsDocLink());
     const ta = E("textarea"); ta.spellcheck = false; ta.setAttribute("aria-label", "GoblinScript formula"); ta.placeholder = "e.g. Victories >= 3 and not Strained"; tb.appendChild(ta);
     const use = E("button", "btn small", "Use this formula"); use.type = "button"; use.addEventListener("click", () => { const src = ta.value.trim(); if (src) set(() => ({ t: "raw", src })); }); tb.appendChild(use);
     m.appendChild(tb);
   });
+}
+/* GoblinScript reference: opens goblinscript.html (built from GoblinScript_Guide.md) in a panel over
+   the editor, so nothing being edited is lost. Escape or Close shuts it. */
+let gsDocEl = null;
+function openGsDoc() {
+  if (gsDocEl) return;
+  gsDocEl = document.createElement("div"); gsDocEl.className = "gsdoc"; gsDocEl.setAttribute("role", "dialog"); gsDocEl.setAttribute("aria-label", "GoblinScript reference");
+  // Clicks in the panel must not close the formula menu underneath it.
+  ["click", "pointerdown", "mousedown"].forEach(t => gsDocEl.addEventListener(t, ev => ev.stopPropagation()));
+  const bar = document.createElement("div"); bar.className = "gsdoc-bar"; bar.textContent = "GoblinScript reference";
+  const x = document.createElement("button"); x.type = "button"; x.className = "btn"; x.textContent = "Close"; x.addEventListener("click", closeGsDoc); bar.appendChild(x);
+  const f = document.createElement("iframe"); f.src = "goblinscript.html"; f.title = "GoblinScript reference";
+  gsDocEl.appendChild(bar); gsDocEl.appendChild(f); document.body.appendChild(gsDocEl); x.focus();
+}
+function closeGsDoc() { if (gsDocEl) { gsDocEl.remove(); gsDocEl = null; } }
+window.addEventListener("keydown", ev => { if (ev.key === "Escape" && gsDocEl) { ev.stopImmediatePropagation(); ev.preventDefault(); closeGsDoc(); } }, true);
+/* The link under "Type a formula instead". */
+function gsDocLink() {
+  const a = document.createElement("button"); a.type = "button"; a.className = "doclink"; a.textContent = "GoblinScript reference \u2197";
+  a.title = "What you can write in a formula: fields, functions, operators";
+  a.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); openGsDoc(); });
+  return a;
 }
 /* Older saves picked one of six fixed tests; turn them into test blocks. */
 function migrateOnlyIf(f) {

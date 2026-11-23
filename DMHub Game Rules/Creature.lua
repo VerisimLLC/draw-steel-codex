@@ -9201,11 +9201,8 @@ function creature:GetCustomAttribute(attrInfo)
 	return result
 end
 
---- True when viewerToken may not treat targetToken as an enemy: targetToken has a positive
---- "Not Treated As Enemy" custom attribute (the Voiceless Talker Archivist's Guise) and
---- viewerToken is not already its ally. To such a viewer it is neither friend nor enemy:
---- enemy-only and ally-only abilities refuse it, and enemy-only triggers, free strikes,
---- flanking and "Enemies" auras pass it by. Its own allies are unaffected.
+--- True when targetToken has a positive "Not Treated As Enemy" attribute (Guise) and
+--- viewerToken is not already its ally: to that viewer it is neither friend nor enemy.
 --- @param viewerToken CharacterToken|nil
 --- @param targetToken CharacterToken|nil
 --- @return boolean

@@ -399,7 +399,7 @@ feature's text.
 - **Regression surface:** list every capability of today's forms and where it lands. "More
   settings" is the catch-all.
 
-## 6b. Power roll modifiers: what the blocks cover (Q3, open)
+## 6b. Power roll modifiers: what the blocks cover (Q3, decided)
 
 The `power` modifier ("Modify Power Rolls", `Draw Steel Core Rules/MCDModifyPowerRolls.lua`)
 can do far more than the five roll blocks show. The compendium has 1,394 power modifiers.
@@ -430,7 +430,7 @@ editor.
 | other rolls: all rolls, project, opposed, resistance, fishing | 97 | **no** (only ability rolls, tests and rolls against you) |
 | arm an effect; roll twice; suppress effects; shields; after-the-roll | about 40 | **no** |
 
-Proposal (to decide): add these to the `power` type's block list.
+Decided: add these to the `power` type's block list (rows marked Proposed in the Block Copy sheet).
 1. **Gain surges:** "You gain [2] surges [that can be kept]".
 2. **Change the damage:** "The damage is [halved / doubled / removed]", and "[fire] damage
    becomes [cold]".
@@ -480,3 +480,4 @@ today. "Advanced editor" is the name for today's form everywhere (it replaces "M
 | 2026-11-23 | **Q1: similar statements are not merged.** Each block is its own sentence; an author writes a combined sentence in the feature text. | Keeps prose predictable, with no hidden rewriting. The author stays in control. |
 | 2026-11-23 | **States** (section 6a): an empty stack shows only "+ add a feature"; a record blocks can't show says "Make changes in the advanced editor"; on a conflicting save, last save wins with "Reload theirs / Keep mine"; a removed type shows "Unknown block (id)" and keeps its data. | No directions or justifications in the UI. The author gets the action, not an explanation. Nothing is silently changed or lost. |
 | 2026-11-23 | **Q2: one type, several blocks.** A registration may give `blocks = { ... }`, a list; each block has a `match(record)`, and the first that matches opens a saved record (specific blocks first, a catch-all last). A record no block matches opens in the advanced editor. | `attribute` is 4 blocks and `power` is 5 today. Shared lines (Offered when / Automatically selected) are one included group. See `ui-mockup/block-copy/REGISTRY_EXAMPLES.md` sections 4-5. |
+| 2026-11-23 | **Q3: power roll blocks widened.** New blocks: Gain surges, Change the damage, Change a tier's text, Also trigger. Edge or bane on rolls gains remove, ignore and convert options, +1/+2/+3, more roll types and tests by characteristic. The shared lines gain "the roll has an edge / a bane / surges" and "also on free strikes". | Raises fully shown power modifiers from 727 to about 1,215 of 1,394. Change target, adjustments, trigger-before and arm effect stay in the advanced editor for now. |

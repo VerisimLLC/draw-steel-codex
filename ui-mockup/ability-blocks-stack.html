@@ -508,6 +508,9 @@ const DOCS = {
   stepIf: { who: "Checked once for each target. \u201cThe target\u201d is the creature being checked; \u201cyou\u201d is the creature using the ability.", defaultRole: "Target", title: "Only if", output: "boolean", help: "The steps inside only happen to targets for which this is true. Checked once per target.",
     subject: "Target", roles: [STEP_TARGET, YOU_CASTER], symbols: [{ name: "Enemy", type: "boolean", desc: "The target is an enemy of yours.", prose: "the target is an enemy" }],
     examples: [['Target.Conditions has "Prone"', "Only targets that are prone."], ["Target.Stamina <= Target.MaximumStamina / 2", "Only winded targets."]] },
+  remember: { who: "Worked out for each target and added up (for you, if there are no targets). \u201cYou\u201d is the creature using the ability.", defaultRole: "You", title: "Value to remember", output: "number",
+    help: "A number to note now and use in a later step of this ability, such as the damage dealt so far.", roles: [YOU_CASTER, STEP_TARGET], symbols: [],
+    examples: [["Cast.DamageDealt", "The damage dealt so far."], ["Target.Stamina", "The target's Stamina right now."]] },
   damage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Damage", output: "roll", help: "How much damage is dealt. Can use dice.",
     roles: [YOU, TARGET_SYM], symbols: [], examples: [["2d6 + Might", "2d6 plus your Might."], ["Might * 2", "Twice your Might."]] },
   tierDamage: { who: "Worked out for you, the creature using the ability.", defaultRole: "You", title: "Tier damage", output: "roll", help: "Damage for this tier of the power roll. Usually a flat number, or a number plus a characteristic.",
@@ -574,6 +577,17 @@ function trigCondDoc() {
   });
   return Object.assign({}, base, { roles, symbols, eventSyms: list });
 }
+/* "Remember a value": what the ability has done so far, as Cast fields: [field, wording, description]. */
+const CAST_VALUES = [["DamageDealt", "the damage dealt so far", "By this use of the ability, up to this step."], ["SpacesMoved", "the squares moved so far", "How far this ability has moved its targets."],
+  ["TargetCount", "the number of targets", "How many creatures this ability is targeting."]];
+/* The names every Remember step in the ability uses (in order). */
+function memoryNames() {
+  const out = []; if (typeof ab === "undefined" || !ab) return out;
+  const walk = l => (l || []).forEach(st => { if (st.type === "remember" && String(st.f.name || "").trim()) out.push(String(st.f.name).trim()); for (const k in st.branches || {}) walk(st.branches[k]); });
+  walk(ab.steps); return out;
+}
+/* A fresh name for a new Remember step: "value", then "value 2"... */
+function nextMemoryName() { const have = new Set(memoryNames().map(norm)); let n = 1; while (have.has(norm("value" + (n > 1 ? " " + n : "")))) n++; return "value" + (n > 1 ? " " + n : ""); }
 function docOf(key) {
   if (key === "trigCond") return trigCondDoc();
   if (DOCS[key]) return DOCS[key];
@@ -747,6 +761,8 @@ const STEPS = {
   surges: { label: "Gain surges", cat: "help", ctx: ["tier"], desc: "The target gains surges.",
     make: () => S("surges", { n: "1" }) },
   // Words that float over a creature on the map ("TAUNTED!"). Display only; changes nothing.
+  remember: { label: "Remember a value", cat: "ctrl", ctx: ["main"], desc: "Note a number now, such as the damage dealt so far or the target's Stamina, and use it in a later step: it shows up as \u201cremembered ...\u201d in every formula and test after it.",
+    make: () => S("remember", { name: nextMemoryName(), who: "targets" }, { value: H("number", "remember", "0") }) },
   floatText: { label: "Float text", cat: "show", ctx: ["main"], desc: "Words that appear over a creature on the map, such as TAUNTED!",
     make: () => S("floatText", { text: "", who: "targets", color: "#ffffffff" }) },
   // Words on the card only. In a tier it saves as "#text" (the engine's do-not-parse marker).
@@ -912,6 +928,8 @@ function astToX(n, wantBool, docs) {
     case "dice": { const [a, b] = n.v.toLowerCase().split("d"); return wantBool ? raw() : X("dice", { n: a, s: b }); }
     case "id": {
       const p = n.path;
+      // Cast.DamageDealt, Cast.SpacesMoved...: what this use of the ability has done so far.
+      if (!wantBool && p.length === 2 && norm(p[0]) === "cast" && !d.inFollowUp) { const cv = CAST_VALUES.find(c => norm(c[0]) === norm(p[1])); if (cv) return X("castVal", { field: cv[0] }); }
       let role = null, field = null;
       if (p.length === 1) { role = subjectRole(d); field = p[0]; }
       else if (p.length === 2) { role = roleFor(d, p[0]); field = p[1]; }
@@ -975,6 +993,8 @@ function astToX(n, wantBool, docs) {
       return X("not", {}, { a: inner });
     }
     case "call": {
+      // Cast.Memory("damage before"): a value a Remember step noted earlier in this ability.
+      if (!wantBool && n.path.length === 2 && norm(n.path[0]) === "cast" && norm(n.path[1]) === "memory" && n.args.length === 1 && n.args[0].k === "str") return X("memory", { name: n.args[0].v });
       const pot = wantBool && potencyFromAst(n, d, "resists", numKid);
       if (pot) return pot;
       // "Friends(Self, Attacker)": the two creatures are allies.
@@ -1102,6 +1122,10 @@ function cX(x, h) {
   const kidBool = (k, minP) => { const r = cHolder(x.kids[k], minP); if (r.empty) { bad(x.kids[k].id, "A test is missing."); return { s: "false", p: 10, prose: "(missing test)" }; } return r; };
   switch (x.type) {
     case "num": return { s: String(+f.v || 0), p: 10, prose: String(+f.v || 0) };
+    case "memory": {
+      if (!memoryNames().some(n => norm(n) === norm(f.name)) && h.orig == null) bad(x.id, "Nothing in this ability remembers \u201c" + f.name + "\u201d. Add a \u201cRemember a value\u201d step before this one.");
+      return { s: "Cast.Memory(\"" + f.name + "\")", p: 10, prose: "the remembered " + f.name }; }
+    case "castVal": { const cv = CAST_VALUES.find(c => c[0] === f.field) || [f.field, f.field]; return { s: "Cast." + f.field, p: 10, prose: cv[1] }; }
     case "dice": if (h.kind !== "roll" && h.orig == null && !h.fromSaved) bad(x.id, "Dice only work in damage and healing."); return { s: f.n + "d" + f.s, p: 10, prose: f.n + "d" + f.s };
     case "stat": { const r = role();
       if (f.field === "Combat Round") return { s: r.prefix + "CombatRound", p: 10, prose: "the round number" };
@@ -1247,6 +1271,10 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
         prose.push({ kind: "text", text: f.who === "caster" ? cap("you take " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) : cap("the target takes " + a.prose + " " + dt(f.dtype) + "damage" + tail + fp) }); break; }
       case "condition": out.push(Object.assign({ __typeName: "ActivatedAbilityDrawSteelCommandBehavior", rule: conditionText(f) }, f.who === "caster" ? { applyto: "caster" } : {}, base));
         prose.push({ kind: "text", text: cap((f.who === "caster" ? "you are " : "the target is ") + conditionText(f) + fp) }); break;
+      case "remember": { const v = cHolder(st.slots.value); const nm = String(f.name || "").trim();
+        if (!nm) bad(st.id, "Give the remembered value a name, so later steps can use it.");
+        else if (memoryNames().filter(n => norm(n) === norm(nm)).length > 1) check(st.id, "Two steps remember \u201c" + nm + "\u201d. Later steps get whichever ran last.");
+        out.push(Object.assign({ __typeName: "ActivatedAbilityRememberBehavior", applyto: f.who, memoryName: nm, calculation: v.s }, base)); break; }   // nothing on the card
       case "floatText": out.push(Object.assign({ __typeName: "ActivatedAbilityFloatTextBehavior", applyto: f.who, text: f.text, color: f.color }, base)); break;   // display only: nothing on the card
       case "note": if (!f.text) bad(st.id, "Write the card text."); prose.push({ kind: "text", text: f.text.replace(/\.$/, "") }); break;
       case "riders": {
@@ -1778,6 +1806,8 @@ function renderX(x, h) {
   const add = n => e.appendChild(n);
   switch (x.type) {
     case "num": add(inp(f, "v", "num", "number")); break;
+    case "memory": { const names = memoryNames(); if (!names.some(n => n === f.name)) names.push(f.name); add(lbl("remembered")); add(sel(f, "name", names, null, "remembered value")); break; }
+    case "castVal": add(lbl((CAST_VALUES.find(c => c[0] === f.field) || [0, f.field])[1])); break;
     case "dice": add(inp(f, "n", "num", "dice count")); add(lbl("d")); add(inp(f, "s", "num", "dice sides")); break;
     case "stat": add(sel(f, "role", possOpts, null, "creature")); add(sel(f, "field", NUM_FIELDS, null, "stat")); break;
     case "is": add(sel(f, "role", roles, null, "creature")); add(lbl(verb())); add(sel(f, "field", Object.entries(BOOL_FIELDS).map(([k, v]) => [k, v]), null, "state")); break;
@@ -1920,6 +1950,8 @@ function renderStep(st, list, ctx, scope) {
       add(lbl("while this ability resolves:")); const ti = inp(f, "text", "name", "what it does, for the card"); ti.placeholder = "what it does, for the card"; ti.style.minWidth = "260px"; add(ti);
       add(effectRules(f, st.id)); break;
     }
+    case "remember": { add(lbl("Remember")); add(renderHolder(st.slots.value)); add(lbl("as")); const ni = inp(f, "name", "name", "name of the remembered value"); ni.placeholder = "damage before"; add(ni);
+      add(sel(f, "who", [["targets", "for each target, added up"], ["caster", "for you"]], null, "worked out for")); gsHolder = st.slots.value; break; }
     case "floatText": { add(lbl("Show")); const ti = inp(f, "text", "name", "words"); ti.placeholder = "TAUNTED!"; add(ti); add(lbl("over"));
       const whoOpts = [["targets", "the target"], ["caster", "you"], ["subject", "the triggering creature"]]; if (!whoOpts.some(o => o[0] === f.who)) whoOpts.push([f.who, f.who]);
       add(sel(f, "who", whoOpts, null, "over whom")); break; }
@@ -3296,6 +3328,17 @@ function pickerOptions(h) {
     ]]);
     if (h.kind === "roll") groups.push(["Roll dice", "Only damage and healing can roll.", [item("1d6", "Change the count and sides after.", () => X("dice", { n: "1", s: "6" }), "random d6 d10")]]);
   }
+  // Values a Remember step noted come first: the point of remembering is to use them here.
+  const mems = memoryNames().filter((n, i, a) => a.findIndex(m => norm(m) === norm(n)) === i);
+  const memItems = wantBool
+    ? mems.map(n => item("The remembered " + n + " is at least [ ]", "", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("memory", { name: n }) }), b: numH("1") }), "memory remember stored", true))
+    : mems.map(n => item("remembered " + n, "", () => X("memory", { name: n }), "memory remember stored"));
+  if (h.docs !== "remember") groups.unshift(["Remembered values", mems.length ? "Numbers a \u201cRemember a value\u201d step noted earlier in this ability." : "Add a \u201cRemember a value\u201d step to note a number (the damage dealt so far, a Stamina...) and use it here.",
+    memItems.length ? memItems : [item("Nothing remembered yet", "Add a \u201cRemember a value\u201d step first.", null, "memory remember stored")]]);
+  if (h.docs === "remember") groups.unshift(["Common things to remember", "What has happened so far, or a creature's numbers right now.",
+    CAST_VALUES.map(c => item(cap(c[1]), c[2], () => X("castVal", { field: c[0] }), "cast so far"))
+      .concat([item("The target's Stamina", "Right now, before later steps change it.", () => X("stat", { role: "Target", field: "Stamina" }), "hp health"),
+        item("Your Stamina", "", () => X("stat", { role: "You", field: "Stamina" }), "hp health")])]);
   // Inside a follow-up ability, facts about the ability that used it come first.
   if (d.inFollowUp) {
     const pn = d.parentName();
@@ -3457,7 +3500,7 @@ const GENERIC_BEHAVIORS = [["aura","Create Aura","ActivatedAbilityAuraBehavior",
 const STEP_USE = {"powerRoll": 1627, "potency": 1783, "damage": 4990, "condition": 2341, "forced": 922, "useNew": 1738, "invoke": 120, "applyEffect": 1681, "endEffects": 571, "resource": 355, "move": 166, "heal": 109, "tempStamina": 81, "ifStep": 860};
 // Create Aura now has its own sentence block (below), so it leaves the generic list.
 for (let i = GENERIC_BEHAVIORS.length - 1; i >= 0; i--) {
-  const real = { aura: "aura", temporary_effect: "durEffect", conditionriders: "riders", floattext: "floatText" }[GENERIC_BEHAVIORS[i][0]];
+  const real = { aura: "aura", temporary_effect: "durEffect", conditionriders: "riders", floattext: "floatText", remember: "remember" }[GENERIC_BEHAVIORS[i][0]];
   if (real) { STEP_USE[real] = GENERIC_BEHAVIORS[i][3]; GENERIC_BEHAVIORS.splice(i, 1); }
 }
 STEP_USE.modes = 288; STEP_USE.surges = 40; STEP_USE.note = 30;
@@ -3503,7 +3546,7 @@ const PALETTE_BASE = [
   ["hinder", "Hinder", ["condition", "forced", "riders"]],
   ["ctrl2", "Abilities", ["useNew", "invoke"]],
   ["effect", "Effects", ["applyEffect", "durEffect"]],
-  ["ctrl", "Logic", ["ifStep", "modes"]],
+  ["ctrl", "Logic", ["ifStep", "modes", "remember"]],
   ["help", "Help", ["endEffects", "heal", "tempStamina", "surges"]],
   ["res", "Resources", ["resource"]],
   ["create", "Create", ["aura"]],
@@ -3545,7 +3588,7 @@ const SYNONYMS = {
   condition: "slowed prone dazed restrained weakened frightened grabbed bleeding taunted", applyEffect: "buff debuff ongoing burning hexed",
   endEffects: "remove cure purge cleanse end save", heal: "stamina recover recovery", tempStamina: "temporary shield temp",
   resource: "malice heroic surge spend gain", useNew: "follow-up follow up invoke", invoke: "free strike invoke named",
-  ifStep: "if filter only condition", powerRoll: "roll tiers 2d10 test", potency: "potency resist characteristic",
+  ifStep: "if filter only condition", remember: "memory store remember note save value later", powerRoll: "roll tiers 2d10 test", potency: "potency resist characteristic",
   "g_delay": "wait later", aura: "zone field cloud trail burning", "g_summon": "minion call", "g_teleport_to_line_end": "teleport line",
   "g_floattext": "text message", "g_lua": "code script", "g_remember": "memory store", "g_destroy": "break object",
 };
@@ -4253,6 +4296,9 @@ function openBehaviour(b, hidden) {
     } else if (t === "ActivatedAbilityGrantTemporaryStaminaBehavior") { st = STEPS.tempStamina.make(); st.f.who = b.applyto === "targets" ? "targets" : "caster"; st.slots.amount = holderFromText("number", "tempStamina", String(b.stamina || "")); }
     else if (t === "ActivatedAbilityReplenishBehavior") { st = STEPS.resource.make(); st.f.who = b.applyto === "caster" ? "caster" : "targets"; st.f.mode = b.mode || "replenish"; st.f.res = b.resourceid || st.f.res; st.slots.qty = holderFromText("number", "quantity", String(b.quantity == null ? 1 : b.quantity)); }
     else if (t === "ActivatedAbilityPurgeEffectsBehavior") { st = STEPS.endEffects.make(); st.f.who = b.applyto === "caster" ? "caster" : "targets"; st.f.what = b.mode || st.f.what; st.f.how = b.purgeType || st.f.how; }
+    else if (t === "ActivatedAbilityRememberBehavior") { st = STEPS.remember.make(); st.f.name = b.memoryName == null ? "value" : String(b.memoryName); st.f.who = b.applyto || "targets";
+      if (!["targets", "caster"].includes(st.f.who)) hidden.push("Remember is worked out for " + st.f.who);
+      st.slots.value = holderFromText("number", "remember", String(b.calculation ?? "0")); }
     else if (t === "ActivatedAbilityFloatTextBehavior") { st = STEPS.floatText.make(); Object.assign(st.f, { text: b.text || "", who: b.applyto || "targets", color: b.color || "#ffffffff" }); }
     else if (t === "ActivatedAbilityApplyRidersBehavior") { st = STEPS.riders.make(); const c = TABLES.conditions.find(r => r[0] === b.conditionid); st.f.cond = c ? c[1] : "Prone"; st.f.rider = b.riderid || ""; }
     else if (t === "ActivatedAbilityApplyAbilityDurationEffect") { const me = b.momentaryEffect || {}; st = STEPS.durEffect.make(); st.f.who = b.applyto === "targets" ? "targets" : "caster"; st.f.name = me.name || "Effect"; st.f.text = me.description || ""; st.f.modifiers = JSON.parse(JSON.stringify(me.modifiers || [])); if (b.lingerTime) hidden.push("duration effect lingers " + b.lingerTime); }

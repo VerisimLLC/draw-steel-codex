@@ -1256,3 +1256,34 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
   treatment of `has`/`is`/`not` inside spaced names.
 - Potency blocks compile to the `M<N` tier prefix. Used outside a tier they emit an
   illustrative `PotencyWeak/Average/Strong` symbol and a warning; that symbol is not real.
+
+## 4w. Remember a value (2026-11-23)
+
+A reviewer asked for an easy way to use the engine's **Remember** behaviour. Remember notes a number
+partway through an ability, and a later formula reads it back with `Cast.Memory("name")`. Before
+this change it was a generic block with raw fields, and reading the value back meant typing the
+formula by hand.
+
+- **The step:** "Remember a value" is in the Logic group. It reads **Remember [value] as [name]
+  [for each target, added up | for you]**. Its value picker starts with "Common things to
+  remember":
+  - the damage dealt so far (`Cast.DamageDealt`)
+  - the squares moved so far (`Cast.SpacesMoved`)
+  - the number of targets (`Cast.TargetCount`)
+  - the target's Stamina, or your own
+- **Reading it back:** every formula and test picker in the ability now starts with
+  **Remembered values**. It lists each name a Remember step uses: a number shows as a
+  "remembered damage before" chip, and a test as "The remembered [name] is at least [ ]". When
+  nothing is remembered yet, the group says how to add one. On a card the chip reads "the
+  remembered damage before"; it saves as `Cast.Memory("damage before")`.
+- **Checks:**
+  - a Remember step with no name;
+  - two steps remembering the same name (soft, because the later one wins);
+  - a chip naming something no step remembers.
+- **Round trip:** all 23 abilities in draw-steel-data that use Remember (monsters, Fury, Shadow,
+  Beastheart, Summoner, Duelist, Vanguard, Caustic Alchemy, the standard Slide) open with a real
+  Remember step and save back identical. 13 of them show their memory reads and Cast values as
+  chips; the rest read them inside rule text or a follow-up's parameters. Poll 1 (45/45) and
+  poll 2 (60/60) are unchanged.
+- **Limit:** a memory belongs to one use of one ability. A follow-up made with "Use a new ability"
+  has its own memory, so to hand it a value, pass it from the parent as before.

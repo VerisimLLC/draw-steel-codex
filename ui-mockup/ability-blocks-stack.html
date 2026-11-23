@@ -3717,7 +3717,7 @@ function shelfBlock(t, act, faded) {
   const ok = allowed(t, act.ctx, act.scope);
   b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, and only in the main list.)" : " (It can't go in this list. Drag it into a different one.)");
   if (!ok) b.setAttribute("aria-disabled", "true");
-  if (d.generic) { b.appendChild(E("span", "uses", d.uses.toLocaleString())); b.title += "\nYou set it up in its own settings."; }
+  if (d.generic) b.title += "\nYou set it up in its own settings.";
   b.addEventListener("click", ev => { ev.stopPropagation(); if (b.dataset.dragged) { delete b.dataset.dragged; return; } if (ok) { shelfQuery = ""; addStepTo(t, act, act.idx); } });
   return b;
 }

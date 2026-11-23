@@ -1020,6 +1020,8 @@ function astToX(n, wantBool, docs) {
     case "has": {
       const l = n.l;
       if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && l.path.length === 1 && norm(l.path[0]) === "damagetype") { const ev = eventTest({ k: "cmp", op: "=", l, r: n.r }, d, numKid); if (ev) return ev; }
+      // "Target.Keywords has "Undead"": a creature's keyword (a role in front, not an ability).
+      if (wantBool && n.r.k === "str" && l.k === "id" && l.path.length === 2 && norm(l.path[1]) === "keywords") { const cr = roleFor(d, l.path[0]); if (cr) return X("creatureKw", { role: cr.label, kw: n.r.v, neg: !!n.neg }); }
       // "UsedAbility.Keywords has "Melee"", "Keywords has "Strike"": a keyword on the ability or the damage.
       if (wantBool && !n.neg && n.r.k === "str" && l.k === "id" && norm(l.path[l.path.length - 1]) === "keywords") {
         const owner = l.path.length === 1 ? "" : l.path.slice(0, -1).join(".");
@@ -1208,12 +1210,21 @@ function cX(x, h) {
     case "textIs": return { s: f.path + (f.neg ? " ~= " : " = ") + JSON.stringify(f.value), p: 6, prose: f.label + (f.neg ? " is not " : " is ") + f.value };
     case "textIn": return { s: "(" + f.values.map(v => f.path + (f.neg ? " ~= " : " = ") + JSON.stringify(v)).join(f.neg ? " and " : " or ") + ")", p: 10, prose: f.label + (f.neg ? " is not " : " is ") + listWords(f.values, "or") };
     case "kwHas": { const t = (f.owner ? f.owner + "." : "") + "Keywords has " + JSON.stringify(f.kw); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: (f.owner ? "the ability used" : "the damage") + (f.neg ? " doesn't have" : " has") + " the " + f.kw + " keyword" }; }
-    case "hasEffect": { const r = role(), t = f.path + " has " + JSON.stringify(f.name); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: r.prose + (r.prose === "you" ? (f.neg ? " don't have " : " have ") : (f.neg ? " doesn't have " : " has ")) + "the " + f.name + " effect" }; }
+    case "nearby": { const r = role(); let w = { Enemies: "enemies", Friends: "allies", Creatures: "creatures" }[f.kind] || "creatures";
+      const opw = { ">=": "at least", "<=": "at most", "=": "exactly" }[f.op] || f.op;
+      if (+f.n === 1) w = w === "allies" ? "ally" : w.replace(/ies$/, "y").replace(/s$/, "");
+      return { s: r.prefix + "Count Nearby " + f.kind + "(" + (f.r || "1") + ") " + f.op + " " + (f.n || "1"), p: 5, prose: "there " + (+f.n === 1 ? "is " : "are ") + opw + " " + (f.n || "1") + " " + w + " within " + (f.r || "1") + " square" + (f.r === "1" ? "" : "s") + " of " + (r.prose === "you" ? "you" : r.prose) }; }
+    case "adjFeature": { const r = role(); if (!f.name && h.orig == null) bad(x.id, "Name the feature the adjacent ally has.");
+      return { s: r.prefix + "AdjacentAlliesWithFeature(" + JSON.stringify(f.name || "") + ")", p: 10, prose: "an ally adjacent to " + (r.prose === "you" ? "you" : r.prose) + " has the " + (f.name || "(no feature named)") + " feature" }; }
+    case "creatureKw": { if (!f.kw && h.orig == null) bad(x.id, "Name the creature keyword.");
+      const r = role(), t = r.prefix + "Keywords has " + JSON.stringify(f.kw || ""); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: r.prose + (r.prose === "you" ? (f.neg ? " don't have" : " have") : (f.neg ? " doesn't have" : " has")) + " the " + (f.kw || "(none)") + " keyword" }; }
+    case "hasEffect": { if (!f.name && h.orig == null && !h.fromSaved) bad(x.id, "Name the effect to check for.");
+      const r = role(), t = f.path + " has " + JSON.stringify(f.name); return { s: f.neg ? "not (" + t + ")" : t, p: f.neg ? 10 : 7, prose: r.prose + (r.prose === "you" ? (f.neg ? " don't have " : " have ") : (f.neg ? " doesn't have " : " has ")) + "the " + f.name + " effect" }; }
     case "within": { const a = d.roles.find(r => r.label === f.from) || { prose: "you" }, b = d.roles.find(r => r.label === f.to) || { prose: f.to };
       const words = { "<=": "within " + f.n, "<": "closer than " + f.n, ">=": "at least " + f.n, ">": "more than " + f.n }[f.op];
       return { s: f.path + "(" + (b.prefix ? b.prefix.replace(/\.$/, "") : "Self") + ") " + f.op + " " + f.n, p: 6, prose: b.prose + (b.prose === "you" ? " are " : " is ") + words + (f.n === "1" ? " square" : " squares") + " of " + (a.prose === "you" ? "you" : a.prose) }; }
     case "friends": { const a = d.roles.find(r => r.label === f.a) || { prose: f.a }, b = d.roles.find(r => r.label === f.b) || { prose: f.b };
-      const side = x => x.prose === "you" ? "Self" : x.prefix.replace(/\.$/, "");
+      const side = x => x.prefix ? x.prefix.replace(/\.$/, "") : "Self";
       const t = "Friends(" + side(a) + ", " + side(b) + ")", rel = f.neg ? "not your ally" : "your ally";
       return { s: f.neg ? "not " + t : t, p: 10, prose: a.prose === "you" ? b.prose + " is " + rel : b.prose === "you" ? a.prose + " is " + rel : a.prose + " and " + b.prose + (f.neg ? " are not allies" : " are allies") }; }
     case "hasCond": { const r = role(); return { s: r.prefix + "Conditions has \"" + f.cond + "\"", p: 7, prose: r.prose + (r.prose === "you" ? " are " : " is ") + f.cond.toLowerCase() }; }
@@ -1802,7 +1813,7 @@ function renderHolder(h, opts) {
 }
 function renderX(x, h) {
   const f = x.f, d = docOf(h.docs);
-  const isTest = ["potencyTest", "is", "isParent", "winded", "compare", "not", "hasCond", "all", "any", "sameAs", "textIs", "textIn", "kwHas", "hasEffect", "within", "friends"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
+  const isTest = ["nearby", "adjFeature", "creatureKw", "potencyTest", "is", "isParent", "winded", "compare", "not", "hasCond", "all", "any", "sameAs", "textIs", "textIn", "kwHas", "hasEffect", "within", "friends"].includes(x.type) || (x.type === "sym" && (d.symbols.find(s => s.name === f.name) || {}).type === "boolean") || (x.type === "raw" && f.bool);
   const e = E("span", "x " + (x.type === "raw" ? "raw " : "") + (isTest ? "test" : "num") + (x.type === "all" || x.type === "any" ? " list" : ""));
   e.dataset.x = x.id; e.dataset.holderOf = h.id;
   const roles = d.roles.map(r => r.label);
@@ -1839,6 +1850,10 @@ function renderX(x, h) {
     case "textIs": add(lbl(cap(f.label))); add(lbl(f.neg ? "is not" : "is")); add(textValueInput(f, d)); break;
     case "textIn": add(lbl(cap(f.label))); add(lbl(f.neg ? "is not" : "is")); { const ti = inp({ v: f.values.join(", ") }, "v", "name", "values"); ti.addEventListener("change", () => { f.values = ti.value.split(/\s*,\s*/).filter(Boolean); refresh(); }); add(ti); } break;
     case "kwHas": add(lbl(f.owner ? "The ability used" : "The damage")); add(lbl(f.neg ? "doesn't have the" : "has the")); add(sel(f, "kw", ABILITY_KEYWORDS.includes(f.kw) ? ABILITY_KEYWORDS : ABILITY_KEYWORDS.concat([f.kw]), null, "keyword")); add(lbl("keyword")); break;
+    case "nearby": add(lbl("There are")); add(sel(f, "op", [[">=", "at least"], ["<=", "at most"], ["=", "exactly"]], null, "comparison")); add(inp(f, "n", "num", "how many"));
+      add(sel(f, "kind", [["Enemies", "enemies"], ["Friends", "allies"], ["Creatures", "creatures"]], null, "which creatures")); add(lbl("within")); add(inp(f, "r", "num", "squares")); add(lbl("squares of")); add(sel(f, "role", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
+    case "adjFeature": add(lbl("An ally adjacent to")); add(sel(f, "role", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); add(lbl("has the")); add(inp(f, "name", "name", "feature name")); add(lbl("feature")); break;
+    case "creatureKw": add(sel(f, "role", roles, null, "creature")); add(lbl(f.role === "You" ? (f.neg ? "don't have the" : "have the") : (f.neg ? "doesn't have the" : "has the"))); add(inp(f, "kw", "name", "creature keyword")); add(lbl("keyword")); break;
     case "hasEffect": add(sel(f, "role", roles, null, "creature")); add(lbl(f.role === "You" ? (f.neg ? "don't have the" : "have the") : (f.neg ? "doesn't have the" : "has the"))); add(inp(f, "name", "name", "effect name")); add(lbl("effect")); break;
     case "within": add(sel(f, "to", roles, null, "creature")); add(lbl(f.to === "You" ? "are" : "is")); add(sel(f, "op", [["<=", "within"], ["<", "closer than"], [">=", "at least"], [">", "more than"]], null, "distance")); add(inp(f, "n", "num", "squares")); add(lbl("squares of")); add(sel(f, "from", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
     case "friends": add(sel(f, "b", roles, null, "creature")); add(lbl(f.neg ? "is not an ally of" : "is an ally of")); add(sel(f, "a", roles.map(r => [r, r === "You" ? "you" : "the " + r.toLowerCase()]), null, "creature")); break;
@@ -3309,7 +3324,25 @@ function pickerOptions(h) {
       ...d.symbols.filter(y => y.type === "boolean").map(y => item(cap(y.prose), y.desc, () => X("sym", { name: y.name }), "ally foe hostile side", true)),
       ...["Minion", "Hero"].map(k => item(Who + " " + is + " " + BOOL_FIELDS[k], "", () => X("is", { role: who, field: k }), "type kind", true)),
     ];
-    groups.push(["Check what kind of creature", "Enemy, minion, hero.", kind]);
+    // Shared tests any box can use (2026-11-23): keywords, size, ongoing and save-ends effects, other creatures nearby.
+    const youR = d.roles.find(r => r.label === "You"), rp = r0.prefix || "";
+    kind.push(item(Who + " " + (r0.label === "You" ? "have" : "has") + " the [Undead] keyword", "A creature keyword, such as Undead or Demon.", () => X("creatureKw", { role: who, kw: "Undead" }), "keyword creature undead demon type", true));
+    if (youR && who !== "You") {
+      // Boxes that already offer the "Enemy" fact keep it; the rest get "is an enemy" from Friends().
+      const hasEnemy = d.symbols.some(y => norm(y.name) === "enemy");
+      const ally = item(Who + " is an ally", "", () => X("friends", { a: "You", b: who, neg: false }), "ally friend", true);
+      if (hasEnemy) kind.splice(1, 0, ally);
+      else kind.unshift(item(Who + " is an enemy", "Not one of your allies.", () => X("friends", { a: "You", b: who, neg: true }), "enemy foe hostile", true), ally);
+      kind.push(item(Who + " is no bigger than you", "Size is at most yours.", () => X("compare", { op: "<=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Size" }) }), b: Object.assign(numH(), { expr: X("stat", { role: "You", field: "Size" }) }) }), "size small large", true));
+    }
+    groups.push(["Check what kind of creature", "Enemy, minion, hero, keywords, size.", kind]);
+    groups.push(["Check effects", "Ongoing effects and effects a saving throw can end.", [
+      item(Who + " " + (r0.label === "You" ? "have" : "has") + " the [ ] effect", "An ongoing effect, by name.", () => X("hasEffect", { role: who, name: "", path: rp + "Ongoing Effects" }), "ongoing effect buff marker", true),
+      item(Who + " " + is + " affected by a save-ends effect", "", () => X("is", { role: who, field: "Save Ends Effects" }), "save ends saving throw", true)]]);
+    const near = [item("There are at least [1] enemies within [1] squares of " + (who === "You" ? "you" : r0.prose), "Also allies or any creatures.", () => X("nearby", { role: who, kind: "Enemies", op: ">=", n: "1", r: "1" }), "nearby adjacent count enemies allies", true),
+      item("An ally adjacent to " + (who === "You" ? "you" : r0.prose) + " has the [ ] feature", "Such as Shield? Shield!", () => X("adjFeature", { role: who, name: "" }), "adjacent ally feature", true)];
+    if (youR && who !== "You") near.unshift(item(Who + " is within [1] square of you", "", () => X("within", { from: "You", to: who, op: "<=", n: "1", path: (youR.prefix || "") + "Distance" }), "distance range adjacent near", true));
+    groups.push(["Check what's nearby", "Distance, and creatures close by.", near]);
     groups.push(["Compare a number", "Level, characteristics, speed, round number...", [
       item(Whose + " Level is at least [ ]", "", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }), "level echelon", true),
       item(Whose + " Might is at least [ ]", "Any characteristic.", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Might" }) }), b: numH("2") }), "agility reason intuition presence characteristic", true),
@@ -3360,7 +3393,7 @@ function pickerOptions(h) {
   if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
   // Combining tests (all of, any of, not) leads; then what this box alone offers (the event, the parent
   // ability, remembered values); then the rest by how often compendium formulas use them (2026-11-23 count).
-  const BY_USE = ["Compare a number", "Check what kind of creature", "Check a condition", "Check potency", "Check health", "Strained (Talent)"];
+  const BY_USE = ["Check what kind of creature", "Compare a number", "Check a condition", "Check potency", "Check health", "Check effects", "Check what's nearby", "Strained (Talent)"];
   const rank = g => g[0] === "Combine tests" ? 0 : g[0] === "Remembered values" ? (mems.length ? 1 : 50) : BY_USE.includes(g[0]) ? 10 + BY_USE.indexOf(g[0]) : /^Examples/.test(g[0]) ? 60 : 1;
   groups.sort((x, y) => rank(x) - rank(y));
   return groups.filter(g => g[2].length);

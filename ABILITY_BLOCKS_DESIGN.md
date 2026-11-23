@@ -1454,3 +1454,31 @@ formula menu and everything being edited stay put. Escape or Close shuts it.
   guide changes. The guide's opening "written for AI tools" note is left out of the page.
 - **No outside site:** the page ships with the artifacts. `class-builder/goblinscript.html`
   links to the same file.
+
+## 4ab. Shared tests added to both pickers (2026-11-23)
+
+These tests are common in the compendium's formulas, but authors used to have to type them:
+
+| Test | Saves as | Ability editor | Class builder |
+|---|---|---|---|
+| is an enemy / an ally | `not Friends(Caster, Target)` / `Friends(...)` | Kind of creature, in boxes without the "Enemy" fact | The target |
+| has the [ ] effect | `Target.Ongoing Effects has "..."` | Check effects | Check effects (you), The target |
+| has a save-ends effect | `Save Ends Effects` | Check effects | Check effects, The target |
+| has the [Undead] keyword | `Target.Keywords has "..."` | Kind of creature | The target |
+| is within [N] squares of you | `Caster.Distance(Target) <= N` / `Distance(Target) <= N` | Check what's nearby | The target |
+| is no bigger than you; size is at most N | `Target.Size <= Caster.Size` | Kind of creature | The target; Compare a number |
+| there are at least N enemies, allies or creatures within R squares | `Count Nearby Enemies(R) >= N` | Check what's nearby | Check what's nearby |
+| an adjacent ally has the [ ] feature | `AdjacentAlliesWithFeature("...")` | Check what's nearby | Check what's nearby |
+| it's a free strike | `Ability.Free Strike` | (not a roll box) | The ability |
+| the target's [characteristic] | `Target.Might >= N` | already there | The target; Compare a number |
+
+- **Empty names are flagged:** an effect, keyword or feature name left empty is listed in Status.
+- **Bug fix (ability editor):** "an ally of" now names you by your role's own prefix. In "Only
+  if" that is `Caster`; before the fix it was `Self`, which there means the target.
+- **Round trips are unchanged:**
+  - poll 1: 45/45
+  - poll 2: 60/60
+  - poll 3 (triggers): 1,148/1,148
+  - Remember: 23/23
+- **Left out on purpose:** tests for one class or monster (Rampaging, Summoner level, who
+  gave you a condition, monster mode). The formula box covers those.

@@ -422,7 +422,9 @@ function testStats(ctx) {
   const r = resWord();
   // The engine only tells "Offered when" about the cast (how many targets), not "Automatically selected when".
   const castStats = ctx === "offer" ? [["Cast.Target Count", "the number of targets", q => "there are " + q + " targets"]] : [];
-  return castStats.concat([["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
+  // On a roll, the target's characteristics too ("Target.Intuition < 3" is common in potency-style options).
+  const targetStats = ctx === "offer" || ctx === "tick" ? CHARS.map(c => ["Target." + c[1], "the target's " + c[1], q => "the target's " + c[1] + " is " + q]) : [];
+  return castStats.concat(targetStats, [["Size", "your size", q => "your size is " + q]], [["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
     ...CHARS.map(c => [c[1], "your " + c[1], q => "your " + c[1] + " is " + q]),
     ["Stamina", "your Stamina", q => "your Stamina is " + q],
     ["Recoveries Available to Spend", "your Recoveries left", q => "you have " + q + " Recoveries left"],
@@ -435,7 +437,8 @@ const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strain
   ["winded", "You are winded", "Stamina <= Maximum Stamina / 2", "you are winded", "you are not winded", "You are not winded"],
   ["dying", "You are dying", "Dying", "you are dying", "you are not dying", "You are not dying"],
   ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn", "It is not your turn"],
-  ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat", "You are not in combat"]];
+  ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat", "You are not in combat"],
+  ["saveends", "You have a save-ends effect", "Save Ends Effects", "you have a save-ends effect", "you don't have a save-ends effect", "You don't have a save-ends effect"]];
 const fact = t => TEST_FACTS.find(x => x[0] === t);
 /* Roll tests ("Offered when", "Automatically selected when" on a roll block) can also look at the
    ability being rolled and its target: [key, block text, GoblinScript, book wording, negated]. */
@@ -444,8 +447,12 @@ const ABILITY_FACTS = [["damage", "The ability deals damage", "Ability.DoesDamag
   ["heroic", "It's a heroic ability", "Ability.Categorization = \"Heroic Ability\"", "it's a heroic ability", "it isn't a heroic ability"],
   ["main", "It uses a main action", "Ability.Main Action", "it uses a main action", "it doesn't use a main action"],
   ["maneuver", "It's a maneuver", "Ability.Maneuver", "it's a maneuver", "it isn't a maneuver"],
-  ["forced", "It force moves a creature", "Ability.HasForcedMovement", "it force moves a creature", "it doesn't force move a creature"]];
-const TARGET_FACTS = [["winded", "The target is winded", "Target.Winded", "the target is winded", "the target isn't winded"],
+  ["forced", "It force moves a creature", "Ability.HasForcedMovement", "it force moves a creature", "it doesn't force move a creature"],
+  ["freestrike", "It's a free strike", "Ability.Free Strike", "it's a free strike", "it isn't a free strike"]];
+const TARGET_FACTS = [["enemy", "The target is an enemy", "not Friends(Self, Target)", "the target is an enemy", "the target isn't an enemy"],
+  ["ally", "The target is an ally", "Friends(Self, Target)", "the target is an ally", "the target isn't an ally"],
+  ["smaller", "The target is no bigger than you", "Target.Size <= Size", "the target is no bigger than you", "the target is bigger than you"],
+  ["saveends", "The target has a save-ends effect", "Target.Save Ends Effects", "the target has a save-ends effect", "the target doesn't have a save-ends effect"],["winded", "The target is winded", "Target.Winded", "the target is winded", "the target isn't winded"],
   ["concealed", "The target is concealed", "Target.Concealed or (Target.Conditions has \"concealment\")", "the target is concealed", "the target isn't concealed"],
   ["cover", "The target has cover", "Target.HasCover", "the target has cover", "the target doesn't have cover"],
   ["minion", "The target is a minion", "Target.Minion", "the target is a minion", "the target isn't a minion"]];
@@ -454,7 +461,7 @@ const isNum = v => /^-?\d+(\.\d+)?$/.test(String(v).trim());
 /* The engine formula for a test (an empty test counts as true, but the status column flags it). */
 function testGs(x) {
   if (!x) return "1";
-  const wrap = y => (y && (y.t === "all" || y.t === "any" || y.t === "raw" || y.t === "winded" || (y.t === "tg" && / or /.test(testGs(y))))) ? "(" + testGs(y) + ")" : testGs(y);
+  const wrap = y => (y && (y.t === "all" || y.t === "any" || y.t === "raw" || y.t === "winded" || y.t === "cmp" || y.t === "nearby" || y.t === "tgDist" || (y.t === "tg" && / or |<=/.test(testGs(y))))) ? "(" + testGs(y) + ")" : testGs(y);
   switch (x.t) {
     case "cond": return "Conditions has \"" + x.c + "\"";
     case "ab": return (abFact(x.k) || [0, 0, "1"])[2];
@@ -462,6 +469,12 @@ function testGs(x) {
     case "abName": return "Ability.Name = \"" + (x.name || "") + "\"";
     case "tg": return (tgFact(x.k) || [0, 0, "1"])[2];
     case "tgCond": return "Target.Conditions has \"" + x.c + "\"";
+    case "effect": return "Ongoing Effects has \"" + (x.name || "") + "\"";
+    case "tgEffect": return "Target.Ongoing Effects has \"" + (x.name || "") + "\"";
+    case "tgKw": return "Target.Keywords has \"" + (x.kw || "") + "\"";
+    case "tgDist": return "Distance(Target) <= " + (isNum(x.n) ? String(x.n).trim() : "(" + (x.n || "1") + ")");
+    case "nearby": return "Count Nearby " + x.kind + "(" + (x.r || "1") + ") " + x.op + " " + (x.n || "1");
+    case "adjFeature": return "AdjacentAlliesWithFeature(\"" + (x.name || "") + "\")";
     case "cmp": return x.a + " " + x.op + " " + (isNum(x.n) ? String(x.n).trim() : "(" + (x.n || "0") + ")");
     case "not": return "not " + wrap(x.a);
     case "all": case "any": return x.items.map(wrap).join(x.t === "all" ? " and " : " or ");
@@ -479,8 +492,15 @@ function testProse(x, neg) {
     case "abName": return "the ability is " + (neg ? "not " : "") + (x.name || "(no ability picked)");
     case "tg": return (tgFact(x.k) || [])[neg ? 4 : 3] || "";
     case "tgCond": return "the target is " + (neg ? "not " : "") + String(x.c).toLowerCase();
+    case "effect": return "you " + (neg ? "don't have" : "have") + " the " + (x.name || "(no effect named)") + " effect";
+    case "tgEffect": return "the target " + (neg ? "doesn't have" : "has") + " the " + (x.name || "(no effect named)") + " effect";
+    case "tgKw": return "the target " + (neg ? "doesn't have" : "has") + " the " + (x.kw || "(no keyword)") + " keyword";
+    case "tgDist": return "the target is " + (neg ? "more than " : "within ") + (x.n || "1") + (+x.n === 1 ? " square" : " squares") + (neg ? " from you" : " of you");
+    case "nearby": { const one = +x.n === 1, w = { Enemies: one ? "enemy" : "enemies", Friends: one ? "ally" : "allies", Creatures: one ? "creature" : "creatures" }[x.kind];
+      const q = (TEST_OP_PROSE[neg ? TEST_OP_FLIP[x.op] : x.op] || (n => n))(x.n || "1"); return "there " + (one ? "is " : "are ") + q + " " + w + " within " + (x.r || "1") + (+x.r === 1 ? " square" : " squares") + " of you"; }
+    case "adjFeature": return (neg ? "no ally adjacent to you has" : "an ally adjacent to you has") + " the " + (x.name || "(no feature named)") + " feature";
     case "cmp": { const s = testStats("offer").find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
-      const q = (TEST_OP_PROSE[op] || (n => (op === "<" ? "fewer than " : "more than ") + n))(x.n || "0");
+      const q = (TEST_OP_PROSE[op] || (n => (op === "<" ? "less than " : "more than ") + n))(x.n || "0");
       return s ? s[2](q) : x.a + " is " + q; }
     case "not": return testProse(x.a, !neg);
     case "all": case "any": { const parts = x.items.map(y => testProse(y)); const j = listWords(parts, x.t === "all" ? "and" : "or");
@@ -490,7 +510,7 @@ function testProse(x, neg) {
   }
 }
 /* True when the test, or any test inside it, still needs picking. */
-const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing)) || (x.t === "abName" && !x.name);
+const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing)) || (x.t === "abName" && !x.name) || ((x.t === "effect" || x.t === "tgEffect" || x.t === "adjFeature") && !x.name) || (x.t === "tgKw" && !x.kw);
 /* Draws parent[key] (a test, or an empty "+ test" slot). parent may be an array (an all/any list). */
 function renderTest(parent, key, required, ctx) {
   const x = parent[key];
@@ -509,6 +529,13 @@ function renderTest(parent, key, required, ctx) {
     case "abName": add(lbl("The ability is")); add(abilityNameTok(x)); break;
     case "tg": add(lbl((tgFact(x.k) || [0, x.k])[1])); break;
     case "tgCond": add(lbl("The target is")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
+    case "effect": add(lbl("You have the")); add(textTok(x, "name", "effect name")); add(lbl("effect")); break;
+    case "tgEffect": add(lbl("The target has the")); add(textTok(x, "name", "effect name")); add(lbl("effect")); break;
+    case "tgKw": add(lbl("The target has the")); add(textTok(x, "kw", "Undead")); add(lbl("keyword")); break;
+    case "tgDist": add(lbl("The target is within")); add(textTok(x, "n", "1")); add(lbl(+x.n === 1 ? "square of you" : "squares of you")); break;
+    case "nearby": add(lbl("There are")); add(pickTok(x, "op", [[">=", "at least"], ["<=", "at most"], ["=", "exactly"]])); add(textTok(x, "n", "1"));
+      add(pickTok(x, "kind", [["Enemies", "enemies"], ["Friends", "allies"], ["Creatures", "creatures"]])); add(lbl("within")); add(textTok(x, "r", "1")); add(lbl("squares of you")); break;
+    case "adjFeature": add(lbl("An ally adjacent to you has the")); add(textTok(x, "name", "feature name")); add(lbl("feature")); break;
     case "cmp": add(pickTok(x, "a", testStats(ctx).map(s => [s[0], s[1]]))); add(pickTok(x, "op", TEST_OPS)); add(textTok(x, "n", "0")); break;
     case "not": {
       // "Not [You are Strained]" reads as one test: "You are not Strained". Numbers and lists keep the "Not".
@@ -540,7 +567,9 @@ function openTestPicker(anchor, parent, key, ctx) {
     ["The ability", "What the roll is for: keywords, a named ability, damage, signature...", [["It has the [Strike] keyword", () => ({ t: "abKw", kw: "Strike" })], ["The ability is [ ]", () => ({ t: "abName", name: "" }), "Pick it from a list."]]
       .concat(ABILITY_FACTS.map(a => [a[1], () => ({ t: "ab", k: a[0] })]))],
     ["The target", "The creature the ability is used against.", [["The target has a condition", () => ({ t: "tgCond", c: "Prone" }), "", CONDS_WORDS]]
-      .concat(TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })]))],
+      .concat(TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })]))
+      .concat([["The target is within [1] square of you", () => ({ t: "tgDist", n: "1" })], ["The target has the [Undead] keyword", () => ({ t: "tgKw", kw: "Undead" }), "A creature keyword."],
+        ["The target has the [ ] effect", () => ({ t: "tgEffect", name: "" }), "An ongoing effect, by name."], ["The target's Might is at least [ ]", cmp("Target.Might", "2"), "Any characteristic: change Might after."]])],
   ].concat(ctx === "offer" ? [["The roll", "How many creatures the ability targets.", [["There are fewer than [2] targets", () => ({ t: "cmp", a: "Cast.Target Count", op: "<", n: "2" })]]]] : []);
   // Combining tests (all of, any of, not) is how most tests start, so it leads the list.
   const groups = [["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
@@ -550,14 +579,18 @@ function openTestPicker(anchor, parent, key, ctx) {
       ["You don't have a condition", () => ({ t: "not", a: { t: "cond", c: "Prone" } }), "", CONDS_WORDS]]],
     ["Check health", "Winded, dying, or how much Stamina is left.", [["You are winded", () => ({ t: "winded" }), "Stamina is at half or less."],
       ["Your Stamina is at most [ ]", () => ({ t: "cmp", a: "Stamina", op: "<=", n: "10" })], ["You are dying", () => ({ t: "dying" })]]],
+    ["Check effects", "Ongoing effects and effects a saving throw can end.", [["You have the [ ] effect", () => ({ t: "effect", name: "" }), "An ongoing effect, by name."],
+      ["You have a save-ends effect", () => ({ t: "saveends" })]]],
+    ["Check what's nearby", "Creatures close to you.", [["There are at least [1] enemies within [1] squares of you", () => ({ t: "nearby", kind: "Enemies", op: ">=", n: "1", r: "1" }), "Also allies or any creatures."],
+      ["An ally adjacent to you has the [ ] feature", () => ({ t: "adjFeature", name: "" }), "Such as Shield? Shield!"]]],
     ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],
     ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your level is at least [ ]", cmp("Level", "5")], ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."],
       ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")], ["Your Victories are at least [ ]", cmp("Victories", "3")],
       ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["The combat round is at least [ ]", cmp("Combat Round", "2")],
-      ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")]]],
+      ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")], ["Your size is at most [ ]", () => ({ t: "cmp", a: "Size", op: "<=", n: "1" })]]],
   ]);
   // Combining tests leads; the rest go by how often compendium formulas use them (2026-11-23 count).
-  const BY_USE = ["Combine tests", "The ability", "Compare a number", "The target", "Check health", "Check a condition", "Check the moment", "The roll", "Strained (Talent)"];
+  const BY_USE = ["Combine tests", "The ability", "The target", "Compare a number", "Check health", "Check a condition", "Check effects", "Check what's nearby", "Check the moment", "The roll", "Strained (Talent)"];
   groups.sort((x, y) => BY_USE.indexOf(x[0]) - BY_USE.indexOf(y[0]));
   menuAt(anchor, m => {
     m.classList.add("picker");

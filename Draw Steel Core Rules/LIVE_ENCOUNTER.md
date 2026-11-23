@@ -522,7 +522,7 @@ individually-owned tokens or a player-side emit.
   added/removed at runtime by code (map-object scripts, macros). Surfaced by the
   **Encounter Actions strip** in `MCDMInitiativeBar.lua` (DM-only, below the cues
   strip, same `vaDrawer` chrome). A button is a flat table of scalars:
-  `{ id, name, summary, tooltip, command, sticky, malice }`. `command` is a chat-style
+  `{ id, name, summary, tooltip, command, sticky, malice, confirm }`. `command` is a chat-style
   command line without the leading slash (e.g. `"gnollarmy summon"`), executed via
   `dmhub.Execute` on the Director's client when clicked. By default a button is
   one-shot: the strip removes it (and uploads the queue) *before* executing, so a
@@ -532,6 +532,11 @@ individually-owned tokens or a player-side emit.
   the cost in the action bar's malice diamond overlapping the button's top edge,
   hides the button entirely while `CharacterResource.GetMalice()` is below the
   cost, and spends the malice on click before running the command.
+  `confirm` (optional, off by default) guards a button against an accidental click:
+  clicking opens the themed `ModalMessage` dialog with the button's name as its
+  title and Confirm / Cancel buttons. `true` asks "Are you sure?"; a string is asked
+  instead. Nothing happens (no removal, malice or command) until Confirm, and the
+  button is looked up again then, so one removed meanwhile does nothing.
   - Instance API (mutations don't upload; network afterwards):
     `GetCustomButtons()`, `GetCustomButton(id)`, `SetCustomButton(button)`
     (upsert by id, copy-on-write, returns true if changed),

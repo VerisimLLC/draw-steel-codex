@@ -5020,6 +5020,10 @@ end
 --             malice diamond on the button, hides the button entirely while
 --             the Director has less malice than the cost, and spends the
 --             malice on click (before running the command).
+--   confirm : optional, off by default. Set it for a button that must not be
+--             pressed by accident: clicking opens a Confirm / Cancel dialog
+--             first. true asks "Are you sure?"; a string asks that question.
+--             Cancel leaves the button as it was.
 -- Buttons ride inside the networked initiative queue like all other live
 -- encounter state, so mutations must be followed by an upload
 -- (info.UploadInitiative() / dmhub:UploadInitiativeQueue()). The static

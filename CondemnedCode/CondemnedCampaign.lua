@@ -12,7 +12,7 @@ local mod = dmhub.GetModLoading()
 --Sections unlock as the story reaches them. The story stage moves on when the
 --Director presses Next, and by itself when one of the adventure's combats starts
 --(see ENCOUNTER_STAGES). Reaching a stage can switch things on: the clocks, the
---players' Intel Tracker and the starting intel, the Justice's Stamina.
+--players' Intel Tracker, the Justice's Stamina. The saved documents' intel comes at the Abbey's end.
 --
 --Storage:
 --  * CampaignState (DocumentSystem/CampaignTrackerPanel.lua) holds the named flags
@@ -26,6 +26,8 @@ local mod = dmhub.GetModLoading()
 
 local DOC_ID = "condemnedCampaign"
 local INTEL_ENABLED_FLAG = "intel_tracker_enabled"
+--Campaign log entries for the saved documents' intel start with this, so SyncDocumentIntel can add up what it already granted.
+local STARTING_INTEL = "Starting intel"
 
 --intel and alarm keep the Intel Tracker's own colours, so the two panels read as one.
 local INTEL_COLOR = "#56b8b0"
@@ -257,6 +259,24 @@ end
 
 local function SetCounter(key, value, text)
     Log({ { kind = "counter", key = key, set = value } }, text)
+end
+
+--Each coded document saved from the Abbey is 1 intel for Part 2. It is granted as soon
+--as the count is recorded (the fight's end, or a Director correcting it), so moving the
+--story back and forth can't skip it. Earlier grants are read back from the log by their
+--name, so running this again only ever adds or removes the difference.
+local function SyncDocumentIntel()
+    local granted = 0
+    for _, entry in ipairs(CampaignState.Get().ledger or {}) do
+        local name = entry.name
+        if type(name) == "string" and string.starts_with(name, STARTING_INTEL) then
+            granted = granted + (tonumber(entry.intel) or 0)
+        end
+    end
+    local saved = Counter("documents_saved")
+    if saved ~= granted then
+        IntelTracker.Adjust(saved - granted, string.format("%s: %d document%s saved", STARTING_INTEL, saved, saved == 1 and "" or "s"))
+    end
 end
 
 local function StageNumber()
@@ -515,10 +535,9 @@ local REACH_EFFECTS = {
         if not Flag(INTEL_ENABLED_FLAG) then
             SetFlag(INTEL_ENABLED_FLAG, true, "INTEL: the Intel Tracker is open to the players")
         end
-        local saved = Counter("documents_saved")
-        if saved > 0 then
-            IntelTracker.Adjust(saved, string.format("Starting intel: %d document%s saved", saved, saved == 1 and "" or "s"))
-        end
+        --normally granted already at the Abbey's end; this catches a count set some
+        --other way (a journal exit card) without granting it twice.
+        SyncDocumentIntel()
     end,
     justice = function()
         if Counter("justice_stamina") <= 0 then
@@ -967,6 +986,8 @@ CondemnedCampaign = {
     SetCounter = SetCounter,
     GetFlag = Flag,
     GetCounter = Counter,
+    --call after writing documents_saved: brings Part 2's starting intel in line with it (safe to call again).
+    SyncDocumentIntel = SyncDocumentIntel,
     Ending = EndingVerdict,
     --grants one of INTEL_SOURCES by id, once (the panel shows it as granted).
     ClaimIntel = function(sourceid)
@@ -1230,7 +1251,7 @@ local function FlagRow(key, label, hint)
     return gui.Panel { flow = "vertical", width = "100%", height = "auto", vpad = 2, children = children }
 end
 
---A "- value +" control bound to a campaign counter.
+--A "- value +" control bound to a campaign counter. args.onChange (optional) runs after each change made with its buttons.
 local function CounterRow(key, label, args)
     args = args or {}
     local min = args.min or 0
@@ -1252,6 +1273,9 @@ local function CounterRow(key, label, args)
         if max ~= nil and after > max then after = max end
         if after ~= now then
             SetCounter(key, after, string.format("%s: %d", string.upper(label), after))
+            if args.onChange ~= nil then
+                args.onChange()
+            end
         end
     end
     local children = {
@@ -2198,7 +2222,7 @@ local function CreatePartOneSection()
             return string.format("%d of 3 documents saved", Counter("documents_saved"))
         end,
         children = {
-            CounterRow("documents_saved", "Coded documents saved", { min = 0, max = 3, hint = "Gerold burns one each turn." }),
+            CounterRow("documents_saved", "Coded documents saved", { min = 0, max = 3, hint = "Gerold burns one each turn.", onChange = SyncDocumentIntel }),
             Small("", {
                 width = "100%",
                 classes = { "ccMuted" },

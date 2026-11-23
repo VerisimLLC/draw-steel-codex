@@ -5487,6 +5487,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 				for _,target in ipairs(targets) do
 					ability.RecordTokenMessage(target.token, options, msg)
 				end
+				GameSystem.NotifyPlayObservers("typedmessage", msg)
 			end
 
 			if options ~= nil and options.complete ~= nil then

@@ -18,6 +18,8 @@ local mod = dmhub.GetModLoading()
 --- @field hero boolean True on the heroes' side.
 --- @field secret? boolean True when players may not see the name.
 --- @field tier? integer On a target: the tier of the roll against it.
+--- @field roll? {edges: number, banes: number, total: number, sources: HistoryEdgeSource[]|nil} On a target: its own roll, when edges or banes against it alone changed the total.
+--- @field sources? HistoryEdgeSource[] On a target without a roll of its own: what applied to its roll, when that differs from the roll's sources (empty when nothing did). Absent means the same as the roll's.
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
@@ -26,16 +28,51 @@ local mod = dmhub.GetModLoading()
 --- @field soaked? number On a target: how much of the damage temporary Stamina took.
 --- @field types? table<string, number> On a target: damage by type, typed damage only.
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
+--- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field conds? {name: string, icon: string|nil, duration: string|nil}[] On a target: conditions and effects it started.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players.
 --- @field ended? string[] On a target: names of what it ended.
+--- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
+--- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
---- @field resisted? boolean On a target: it resisted a potency test.
+--- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
+
+--- Something besides the tier itself that made a target's damage (2.3b).
+--- @class HistoryDamagePart
+--- @field kind "kit"|"modifier"|"surge"
+--- @field amount number The damage it added; negative when it took damage away.
+--- @field damagetype? string The type it added to; nil for untyped.
+--- @field name? string A kit's name, or a modifier's as the roll dialog's badge showed it.
+--- @field who? HistoryCreature On a trigger: whose trigger it is.
+--- @field count? integer On surges: how many were spent.
+--- @field each? number On surges: the damage each dealt (the highest characteristic).
+--- @field characteristic? string On surges: that characteristic's name.
+--- @field hovertext? string On a modifier, until History stores it: the roll dialog's hover text.
+--- @field hover? string On a modifier: id of that hover text in the map's History (History.HoverText).
+
+--- Something that added or took away edges or banes, as the roll dialog named it.
+--- @class HistoryEdgeSource
+--- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
+--- @field edges? integer Edges it added.
+--- @field banes? integer Banes it added.
+--- @field removedEdges? integer Edges it took away.
+--- @field removedBanes? integer Banes it took away.
+--- @field ignore? boolean It ignores every edge or bane ("Ignored by"), rather than removing one ("Removed by").
+--- @field tiers? integer Tiers it moved the roll (Tier Up +1, Tier Down -1).
+--- @field autosuccess? boolean It made the roll Tier 3.
+--- @field autofailure? boolean It made the roll Tier 1.
+--- @field nottierthree? boolean It kept the roll from Tier 3.
+--- @field nottierone? boolean It kept the roll off Tier 1.
+--- @field bonus? integer A flat number it added to the roll (negative when it took some off).
+--- @field who? HistoryCreature Whose it is: a trigger's owner, or a target whose own modifier took edges or banes away.
+--- @field hand? boolean Set with the roll dialog's edge and bane buttons.
+--- @field hovertext? string Until History stores it: the roll dialog's hover text for the modifier.
+--- @field hover? string Id of that hover text in the map's History (History.HoverText).
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -243,7 +280,14 @@ local function CastBegan(ability, casterToken, targets, options)
         kind = "action",
         map = casterToken.mapid,
         actor = History.Creature(actor),
-        ability = {name = ability.name, icon = ability:try_get("iconid"), action = ActionKind(ability)},
+        ability = {
+            name = ability.name,
+            icon = ability:try_get("iconid"),
+            action = ActionKind(ability),
+            area = ability:IsTargetTypeAOE(ability.targetType) or nil,
+        },
+        --whoever is rolling is on this client; nil means the Director.
+        player = not dmhub.isDM and dmhub.GetDisplayName(dmhub.userid) or nil,
         targets = {},
     }, targets, options)
     History.AddCombatFacts(state.entry)
@@ -282,7 +326,141 @@ local function WriteTrigger(state)
     History.Write(entry)
 end
 
-local function AddRoll(entry, cast)
+--The characteristic a power roll adds, by name and value: of those its formula names
+--("Might or Agility", "Highest Characteristic"), the one the value came from. Nil for a
+--flat roll such as "2d10 + 3".
+--- @return string|nil name
+--- @return number|nil value
+local function RollCharacteristic(ability, caster)
+    for _, behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local value = behavior:GetRollCharacteristicValue(caster)
+            if value == nil then
+                return nil, nil
+            end
+            local formula = string.lower(behavior:try_get("roll", ""))
+            local anyOne = string.find(formula, "highest", 1, true) ~= nil
+            for _, attrid in ipairs(creature.attributeIds) do
+                local name = creature.attributesInfo[attrid].description
+                if (anyOne or string.find(formula, string.lower(name), 1, true) ~= nil)
+                    and caster:AttributeMod(attrid) == value then
+                    return name, value
+                end
+            end
+            return nil, value
+        end
+    end
+    return nil, nil
+end
+
+--The ability's kit damage bonuses, read from the notes kits leave on an ability ("Includes
+--+1 reach, +2/+5/+7 damage from Panther kit", MCDMKit.lua). A kit adds to the first damage
+--in the tier, so that damage's type is the kit's (nil for untyped).
+--- @return {name: string, bonuses: number[], damagetypes: table<integer, string>}[]
+local function KitBonuses(ability)
+    local result = {}
+    local tiers = nil
+    for _, behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            tiers = behavior.tiers
+            break
+        end
+    end
+    for _, note in ipairs(ability:try_get("modificationLog", {})) do
+        local name = string.match(note, "from (.+) kit$")
+        if name ~= nil then
+            local bonuses = {0, 0, 0}
+            for a, b, c in string.gmatch(note, "%+(%d+)/%+(%d+)/%+(%d+) damage") do
+                bonuses[1] = bonuses[1] + tonumber(a)
+                bonuses[2] = bonuses[2] + tonumber(b)
+                bonuses[3] = bonuses[3] + tonumber(c)
+            end
+            if bonuses[1] + bonuses[2] + bonuses[3] > 0 then
+                local damagetypes = {}
+                for i = 1, 3 do
+                    --the same match MCDMKit uses ("13 + M fire damage"); the type is the last
+                    --word, unless that is a characteristic letter (M, A, R, I, P).
+                    local match = tiers ~= nil and tiers[i] ~= nil and regex.MatchGroups(tiers[i], "\\d+(?<words> [ A-Za-z,+]+)? damage") or nil
+                    local words = match ~= nil and type(match.words) == "string" and string.lower(match.words) or ""
+                    local last = string.match(words, "(%a+)[^%a]*$")
+                    damagetypes[i] = (last ~= nil and #last > 1) and last or nil
+                end
+                result[#result + 1] = {name = name, bonuses = bonuses, damagetypes = damagetypes}
+            end
+        end
+    end
+    return result
+end
+
+--The name of the characteristic that gives this value, first in sheet order on a tie.
+local function CharacteristicNamed(caster, value)
+    if caster == nil then
+        return nil
+    end
+    for _, attrid in ipairs(creature.attributeIds) do
+        if caster:AttributeMod(attrid) == value then
+            return creature.attributesInfo[attrid].description
+        end
+    end
+    return nil
+end
+
+--What made each damaged target's damage besides the tier (2.3b): the kit, the roll dialog's
+--damage modifiers, then surges, each with the type it added to. The card takes them off
+--the Tier line. A target whose immunity stopped it all still gets them, so its line can say
+--what made the damage that immunity took off.
+local function AddDamageParts(entry, cast, ability, caster)
+    local kits = KitBonuses(ability)
+    local targetDamage = cast:try_get("targetDamageSources", {})
+    local targetSurges = cast:try_get("targetSurges", {})
+    for _, who in ipairs(entry.targets) do
+        local tier = who.tier
+        if tier ~= nil and tier > 0 and who.taken ~= nil then
+            --- @type HistoryDamagePart[]
+            local parts = {}
+            for _, kit in ipairs(kits) do
+                if kit.bonuses[tier] ~= 0 then
+                    parts[#parts + 1] = {kind = "kit", name = kit.name, amount = kit.bonuses[tier], damagetype = kit.damagetypes[tier]}
+                end
+            end
+            for _, source in ipairs(targetDamage[who.id] or {}) do
+                local byType = source.tiers[tier] or {}
+                local typeNames = {}
+                for typeName in pairs(byType) do
+                    typeNames[#typeNames + 1] = typeName
+                end
+                table.sort(typeNames)
+                local owner = source.charid ~= nil and dmhub.GetCharacterById(source.charid) or nil
+                for _, typeName in ipairs(typeNames) do
+                    parts[#parts + 1] = {
+                        kind = "modifier",
+                        name = source.name,
+                        who = owner ~= nil and History.Creature(owner) or nil,
+                        amount = byType[typeName],
+                        damagetype = typeName ~= "untyped" and typeName or nil,
+                        hovertext = source.hovertext,
+                    }
+                end
+            end
+            local surges = targetSurges[who.id]
+            if surges ~= nil then
+                parts[#parts + 1] = {
+                    kind = "surge",
+                    count = surges.count,
+                    each = surges.each,
+                    characteristic = CharacteristicNamed(caster, surges.each),
+                    amount = surges.count * surges.each,
+                    damagetype = surges.damagetype,
+                }
+            end
+            if #parts > 0 then
+                who.parts = parts
+            end
+        end
+    end
+end
+
+local function AddRoll(entry, cast, ability, caster)
     local total = cast:try_get("total")
     if total == nil then
         return
@@ -294,7 +472,62 @@ local function AddRoll(entry, cast)
         edges = cast.boonsApplied,
         banes = cast.banesApplied,
         tier = cast.tier,
+        hidden = cast:try_get("hiddenRoll"),
     }
+    --what the dice add up to and what is added to them, for the receipt (2.2). The rest of
+    --the total past the dice, the characteristic and an edge or bane is a flat bonus.
+    local natural = cast:try_get("naturalRoll")
+    if natural ~= nil and caster ~= nil then
+        local name, value = RollCharacteristic(ability, caster)
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(entry.roll.edges or 0, entry.roll.banes or 0)
+        entry.roll.natural = natural
+        if name ~= nil then
+            entry.roll.characteristic = {name = name, value = value}
+        end
+        local bonus = total - natural - edgeBonus - (name ~= nil and value or 0)
+        if bonus ~= 0 then
+            entry.roll.bonus = bonus
+        end
+    end
+end
+
+--The roll dialog's sources for one target (2.3a), with each owner as it looks now.
+--- @return HistoryEdgeSource[]
+local function EdgeSources(sources)
+    local result = {}
+    for _, source in ipairs(sources) do
+        local owner = source.charid ~= nil and dmhub.GetCharacterById(source.charid) or nil
+        result[#result + 1] = {
+            name = source.name or "",
+            edges = source.edges,
+            banes = source.banes,
+            removedEdges = source.removedEdges,
+            removedBanes = source.removedBanes,
+            ignore = source.ignore,
+            tiers = source.tiers,
+            autosuccess = source.autosuccess,
+            autofailure = source.autofailure,
+            nottierthree = source.nottierthree,
+            nottierone = source.nottierone,
+            bonus = source.bonus,
+            who = owner ~= nil and History.Creature(owner) or nil,
+            hand = source.hand,
+            hovertext = source.hovertext,
+        }
+    end
+    return result
+end
+
+--Two source lists with the same key name the same things doing the same to the roll.
+--- @param sources HistoryEdgeSource[]
+--- @return string
+local function SourcesKey(sources)
+    local keys = {}
+    for _, source in ipairs(sources) do
+        keys[#keys + 1] = History.SourceKey(source)
+    end
+    table.sort(keys)
+    return table.concat(keys, ";")
 end
 
 local function CastFinished(ability, casterToken, options)
@@ -341,12 +574,43 @@ local function CastFinished(ability, casterToken, options)
 
     local cast = options.symbols ~= nil and options.symbols.cast or nil
     if cast ~= nil then
-        AddRoll(entry, cast)
+        AddRoll(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
         for tokenid, tier in pairs(cast:try_get("tokenToTier", {})) do
             if seen[tokenid] ~= nil then
                 seen[tokenid].tier = tier
             end
         end
+        local targetSources = cast:try_get("targetSources", {})
+        for tokenid, roll in pairs(cast:try_get("targetRolls", {})) do
+            if seen[tokenid] ~= nil then
+                local sources = targetSources[tokenid]
+                seen[tokenid].roll = {edges = roll.edges, banes = roll.banes, total = roll.total,
+                    sources = sources ~= nil and EdgeSources(sources) or nil}
+            end
+        end
+        --the roll's own sources are a target's with no roll of its own, as its tier is. Two
+        --such targets can owe the same edges to different things; the first one's show.
+        if entry.roll ~= nil then
+            for _, who in ipairs(entry.targets) do
+                if who.roll == nil and targetSources[who.id] ~= nil then
+                    entry.roll.sources = EdgeSources(targetSources[who.id])
+                    break
+                end
+            end
+            --a target can owe the same edge count to different things (Prone on one, Restrained
+            --on another), so it keeps its own list whenever that differs; the card names what
+            --applied to every target once, and each target's own parts on its line (Round 16).
+            local shared = SourcesKey(entry.roll.sources or {})
+            for _, who in ipairs(entry.targets) do
+                if who.roll == nil and who.tier ~= nil then
+                    local own = EdgeSources(targetSources[who.id] or {})
+                    if SourcesKey(own) ~= shared then
+                        who.sources = own
+                    end
+                end
+            end
+        end
+        AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
     end
     History.Write(entry)
 end
@@ -588,8 +852,10 @@ local DURATION_WORDS = {
 }
 
 --The name and icon History shows for a condition or an effect. Nil for one it leaves
---out: effects hidden from everyone, and markers that only track rules.
-local function EffectFacts(item)
+--out: effects hidden from everyone, and markers that only track rules. secret marks an
+--effect hidden from enemies on a creature off the heroes' side: players don't see it (2.4).
+--- @param token CharacterToken|nil Whose effect it is.
+local function EffectFacts(item, token)
     if item.conditionid ~= nil then
         local info = GetTableCached(CharacterCondition.tableName)[item.conditionid]
         if info == nil then
@@ -601,29 +867,41 @@ local function EffectFacts(item)
     if info == nil or not info.statusEffect or info.hiddenFromHistory then
         return nil
     end
-    return {name = info.name, icon = info.iconid, iscondition = info.condition ~= "none" or nil}
+    local secret = info.hiddenFromEnemies and token ~= nil and not History.Creature(token).hero
+    return {name = info.name, icon = info.iconid, iscondition = info.condition ~= "none" or nil, secret = secret or nil}
 end
 
 local function OnEffectStarted(creature, info)
     if not History.Enabled() then
         return
     end
-    local facts = EffectFacts(info)
     local token = dmhub.LookupToken(creature)
+    local facts = EffectFacts(info, token)
     if facts == nil or token == nil then
         return
     end
     facts.duration = DURATION_WORDS[info.duration]
+    facts.renewed = info.renewed
 
     local state = OpenCast(nil)
     if state == nil then
-        facts.causetext = Cause(info.source)
-        WriteLine(token, "condition", facts)
+        --a renewal outside any cast is upkeep (an aura re-applying what it gives every
+        --move), not something anyone did, so only casts record one (L39).
+        if not info.renewed then
+            facts.causetext = Cause(info.source)
+            WriteLine(token, "condition", facts)
+        end
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.conds = target.conds or {}
+        --an ability applying the same effect twice to one target reads once.
+        for _, existing in ipairs(target.conds) do
+            if existing.name == facts.name then
+                return
+            end
+        end
         target.conds[#target.conds + 1] = facts
     end
 end
@@ -633,7 +911,8 @@ end
 local g_endedFrame = nil
 local g_endedLines = {}
 
-local function WriteEnded(token, names, causetext)
+--- @param hidden table<string, boolean>|nil Names players may not see.
+local function WriteEnded(token, names, causetext, hidden)
     local frame = dmhub.FrameCount()
     if g_endedFrame ~= frame then
         g_endedFrame = frame
@@ -644,10 +923,14 @@ local function WriteEnded(token, names, causetext)
     if entry ~= nil then
         for _, name in ipairs(names) do
             entry.names[#entry.names + 1] = name
+            if hidden ~= nil and hidden[name] then
+                entry.hidden = entry.hidden or {}
+                entry.hidden[name] = true
+            end
         end
         return
     end
-    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext})
+    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden})
 end
 
 --The closing line of each encounter, while its creatures report what ended (L17).
@@ -720,7 +1003,34 @@ local function OnResource(creature, key, before, after, refreshType, note)
         refreshtype = refreshType,
         causetext = Cause(note),
         cause = state ~= nil and state.automatic and state.entry.cause or nil,
+        trigger = state ~= nil and state.automatic and state.entry.ability.name or nil,
+        triggerby = state ~= nil and state.automatic and state.actorToken ~= nil and History.Creature(state.actorToken) or nil,
     })
+end
+
+--A note an ability's author typed on one of its steps (REVIEW.md decision 5): kept on the
+--running cast's row for the card's Why, as written, unless it only repeats the ability's
+--name. Outside a cast there is no row to keep it on.
+local function OnTypedMessage(text)
+    if not History.Enabled() or type(text) ~= "string" then
+        return
+    end
+    text = trim(text)
+    local state = text ~= "" and OpenCast(nil) or nil
+    if state == nil then
+        return
+    end
+    local entry = state.entry
+    if entry.ability ~= nil and string.lower(text) == string.lower(entry.ability.name or "") then
+        return
+    end
+    entry.messages = entry.messages or {}
+    for _, message in ipairs(entry.messages) do
+        if message == text then
+            return
+        end
+    end
+    entry.messages[#entry.messages + 1] = text
 end
 
 --- Puts a resource line back the way it was. Whoever controls the creature can do this.
@@ -812,10 +1122,18 @@ local function OnEffectsEnded(creature, ended, cause)
         return
     end
     local names = {}
+    local conditions = {}
+    --names players may not see, kept beside each list of names as `hidden`.
+    local hidden = nil
     for _, item in ipairs(ended) do
-        local facts = EffectFacts(item)
+        local facts = EffectFacts(item, token)
         if facts ~= nil then
             names[#names + 1] = facts.name
+            conditions[facts.name] = facts.iscondition
+            if facts.secret then
+                hidden = hidden or {}
+                hidden[facts.name] = true
+            end
         end
     end
     --the save's own line already says it ended.
@@ -826,7 +1144,7 @@ local function OnEffectsEnded(creature, ended, cause)
     if cause == "endofencounter" then
         local closing = ClosingEntry(token)
         if closing ~= nil then
-            closing.ended[#closing.ended + 1] = {who = History.Creature(token), names = names}
+            closing.ended[#closing.ended + 1] = {who = History.Creature(token), names = names, hidden = hidden}
         end
         return
     end
@@ -846,15 +1164,21 @@ local function OnEffectsEnded(creature, ended, cause)
             local target = RowTarget(state, token)
             if target ~= nil then
                 target.ended = target.ended or {}
+                target.endedconds = target.endedconds or {}
                 for _, name in ipairs(names) do
                     target.ended[#target.ended + 1] = name
+                    target.endedconds[name] = conditions[name]
+                    if hidden ~= nil and hidden[name] then
+                        target.endedhidden = target.endedhidden or {}
+                        target.endedhidden[name] = true
+                    end
                 end
             end
             return
         end
         causetext = Cause(nil)
     end
-    WriteEnded(token, names, causetext)
+    WriteEnded(token, names, causetext, hidden)
 end
 
 local function OnConditionImmune(creature, conditionid)
@@ -871,7 +1195,22 @@ local function OnConditionImmune(creature, conditionid)
     end
 end
 
-local function OnResisted(creature)
+--The condition a potency's rule text was about to apply, if it names one.
+local function ConditionIn(text)
+    if text == nil then
+        return nil
+    end
+    text = string.lower(text)
+    for _, info in unhidden_pairs(GetTableCached(CharacterCondition.tableName)) do
+        local name = string.lower(info.name)
+        if string.find(text, name, 1, true) ~= nil then
+            return name
+        end
+    end
+    return nil
+end
+
+local function OnResisted(creature, ruleText)
     local state = History.Enabled() and OpenCast(nil) or nil
     local token = dmhub.LookupToken(creature)
     if state == nil or token == nil then
@@ -879,7 +1218,7 @@ local function OnResisted(creature)
     end
     local target = RowTarget(state, token)
     if target ~= nil then
-        target.resisted = true
+        target.resisted = ConditionIn(ruleText) or true
     end
 end
 
@@ -968,4 +1307,5 @@ GameSystem.RegisterPlayObserver("history", {
     persistenceended = OnPersistenceEnded,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
+    typedmessage = OnTypedMessage,
 })

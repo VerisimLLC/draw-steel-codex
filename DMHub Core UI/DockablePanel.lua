@@ -2315,7 +2315,8 @@ DockablePanel = {
 	--make the window vertically unresizable), dmonly, devonly, ...
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
-	--minWidth/maxWidth bound the window's width.
+	--minWidth/maxWidth bound the window's width; defaultWidth is the width
+	--a new window opens at (PanelDocument.DefaultWidth otherwise).
 	--popoutHeight (content px) gives the panel's native OS popout window
 	--its own default height, instead of inheriting the in-app window's
 	--footprint when popping out.

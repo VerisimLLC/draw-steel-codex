@@ -601,6 +601,7 @@ function ActivatedAbilityPurgeEffectsBehavior:CastPurge(ability, casterToken, ta
 
     for _,message in ipairs(messages) do
         chat.SendCustom(message)
+        GameSystem.NotifyPlayObservers("typedmessage", message.chatMessage)
     end
 
     ability:CommitToPaying(casterToken, options)

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---The History tray: a table item that shows a map's History as rounds and turns,
+--The History tray: a rail panel window that shows a map's History as rounds and turns,
 --newest at the bottom. Older rounds and turns fold away, so opening it builds a few
 --rows even after a long fight. The target design is the prototype named in
 --docs/action-log-design/BUILD-PLAN.md.
@@ -8,10 +8,13 @@ local mod = dmhub.GetModLoading()
 --Each refresh works out the list of rows from the entries, then keeps every row whose
 --signature is unchanged and builds only what is new. A new action builds one row.
 
+--Rows are laid out for this width. The window adds EDGE_STRIP on the right, where its
+--resize strip sits, so the list's scroll bar stays clear of it.
 local TRAY_WIDTH = 410
-local TRAY_HEIGHT = 520
-local TRAY_HEIGHT_ALL = 914
-local HEAD_HEIGHT = 36
+local EDGE_STRIP = 8
+
+--The bar above the list that holds Show all.
+local BAR_HEIGHT = 28
 
 --Rows built at first; scrolling to the top adds this many more each time.
 local ROWS_CHUNK = 40
@@ -24,9 +27,6 @@ local FOLD_FACES = 5
 
 --Targets on an action before the last cell becomes "+N".
 local TARGET_CELLS = 4
-
-local ITEM_KIND = "history"
-local ITEM_KEY = "tray"
 
 --The Codex's fonts have these two; Lua source stays ASCII (REVIEW.md, font check).
 local DOT = " \194\183 "
@@ -45,13 +45,23 @@ local ACTION_WORDS = {
     triggered = "Triggered action",
 }
 
+--Where the detail card goes. It sits beside the window, so it moves and zooms with it.
+local CARD_GAP = 12
+local CARD_HEIGHT = 914
+
+--The card's tail points at its row's title line, ROW_TITLE down the row; the tail sits
+--TAIL_DOWN down the card, level with the card's own title, when the card can line up.
+local ROW_TITLE = 14
+local TAIL_DOWN = 26
+
+--The icon rail runs down the screen's left edge; a card can't go under it.
+local RAIL_LEFT = 62
+
+--The open tray: {face, Refresh, Select}.
+local g_tray = nil
+
 local function Styles()
     return {
-        {
-            selectors = {"historyTray"},
-            bgcolor = "@bg",
-            borderColor = "@borderSolid",
-        },
         {
             selectors = {"label"},
             fontSize = 13,
@@ -190,6 +200,11 @@ local function Styles()
             color = "@fgMuted",
         },
         {
+            selectors = {"label", "historyTriggerResult"},
+            fontSize = 12,
+            color = "@fg",
+        },
+        {
             selectors = {"label", "historyTriggerNumber"},
             fontSize = 11,
             bold = true,
@@ -230,10 +245,188 @@ local function Styles()
             selectors = {"historyCaret"},
             bgcolor = "@fgMuted",
         },
+        --solid on purpose: with Transparent UI, a see-through fill shows the table behind
+        --the window rather than a lighter row.
+        {
+            selectors = {"historyFold", "historySelected"},
+            bgcolor = "@bgRaised",
+        },
+        --@border is white at 16% in the default theme: the seam under a round heading
+        --comes to 12%, the line between rows to 5%, as in the prototype.
         {
             selectors = {"historySeam"},
             bgcolor = "@border",
-            opacity = 0.35,
+            opacity = 0.75,
+        },
+        {
+            selectors = {"historyRule"},
+            bgcolor = "@border",
+            opacity = 0.31,
+        },
+        {
+            selectors = {"historyChevron"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"historyChevron", "parent:hover"},
+            bgcolor = "@fg",
+        },
+        --the rail windows' frame (framedPanel in DocumentWindowStyles), so the card
+        --matches History; its blurred backdrop is set on the panel.
+        {
+            selectors = {"historyCardFrame"},
+            bgcolor = "white",
+            gradient = "@surfaceLinear",
+            cornerRadius = 10,
+            opacity = 0.98,
+            borderWidth = 0,
+            boxShadow = Tabletop.shadows.rest,
+        },
+        {
+            selectors = {"historyCardFrame", "historyCardSolid"},
+            opacity = 1,
+            cornerRadius = 0,
+            boxShadow = false,
+        },
+        {
+            selectors = {"historyCardTail"},
+            bgcolor = "@bgAlt",
+        },
+        --The numbers (the receipt in the card).
+        {
+            selectors = {"label", "historyReceipt"},
+            fontSize = 14,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "historyReceiptValue"},
+            fontSize = 14,
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyHurt"},
+            color = "@danger",
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyHealed"},
+            color = "@success",
+        },
+        {
+            selectors = {"label", "historyReceiptAside"},
+            fontSize = 13,
+            color = "@fgMuted",
+        },
+        {
+            --between the receipt's lines and its notes, as the prototype's sources are.
+            selectors = {"label", "historyReceiptSource"},
+            fontSize = 13,
+            color = "@fg",
+            opacity = 0.8,
+        },
+        {
+            --a Why line (COPY.md N3): a rule down its left, a bold lead, a plain sentence.
+            selectors = {"historyWhy"},
+            bgcolor = "clear",
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"historyWhy", "historyWhyQuiet"},
+            borderColor = "@border",
+        },
+        {
+            selectors = {"label", "historyWhyLead"},
+            fontSize = 14,
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyWhyText"},
+            fontSize = 14,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "historyWhyPlain"},
+            fontSize = 14,
+            italics = true,
+            color = "@fgMuted",
+        },
+        {
+            --the roll dialog's surge bolt, in front of "Spent 2 surges".
+            selectors = {"historySurgeIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            --an edge or bane that did not count, crossed out; its value drops out of the column.
+            selectors = {"label", "historyStruck"},
+            strikethrough = true,
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyStruck"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyReceiptNote"},
+            fontSize = 12,
+            italics = true,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyReceiptMore"},
+            fontSize = 12,
+            color = "@fg",
+        },
+        {
+            selectors = {"historyReceiptRule"},
+            bgcolor = "@border",
+        },
+        {
+            selectors = {"label", "historyDie"},
+            fontSize = 12,
+            bold = true,
+            color = "@fgStrong",
+            bgcolor = "@bgRaised",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"historyEdgeIcon"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"historyBaneIcon"},
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"label", "historyEdgeText"},
+            color = "@success",
+        },
+        {
+            selectors = {"label", "historyBaneText"},
+            color = "@danger",
+        },
+        {
+            selectors = {"historyCardClose"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"historyCardClose", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyCardTitle"},
+            fontSize = 16,
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyCardMeta"},
+            fontSize = 12,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyStory"},
+            fontSize = 15,
+            color = "@fgStrong",
         },
         {
             selectors = {"historyHero"},
@@ -253,6 +446,11 @@ local function ShownName(who)
     return who.name
 end
 
+--The detail card is in its own file and speaks and draws the way the tray does.
+History.ShownName = ShownName
+History.DOT = DOT
+History.ACTION_WORDS = ACTION_WORDS
+
 --A round portrait from a snapshot, with a ring that says which side it is on.
 local function Face(who, size)
     local rect = who.rect
@@ -269,6 +467,8 @@ local function Face(who, size)
         imageRect = rect ~= nil and {x1 = rect[1], y1 = rect[2], x2 = rect[3], y2 = rect[4]} or nil,
     }
 end
+
+History.Face = Face
 
 --Small marks beside a name. Ended is the partner of Active: one for what stopped, one
 --for what is still on (L7, L10).
@@ -359,6 +559,10 @@ local function Amount(value, healed, size)
     }
 end
 
+History.Tag = Tag
+History.Amount = Amount
+History.TierBadge = TierBadge
+
 --The faces on a fold line, each with what it took and regained. Damage and healing stay
 --apart, so 9 taken and 8 healed never reads as -1 (fix B1).
 local function MiniFaces(tally)
@@ -413,6 +617,7 @@ local function MinionWords(entry)
 end
 
 local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid"}
+History.MOVED_VERBS = MOVED_VERBS
 
 --"Push 3", with "fell 4" after a dot when it fell too (T14). vertical_push reads "Vertical push".
 local function MovedWords(moved)
@@ -429,10 +634,14 @@ end
 
 --The small lines under a target (T14). ended marks one that takes an Ended tag.
 --minions: confirmed minion deaths that belong on this cell.
-local function Captions(who, minions)
+--allyHit: an area ability caught a creature on its user's side (T13).
+local function Captions(who, minions, allyHit)
     local list = {}
     local function Add(text, ended, style)
         list[#list + 1] = {text = text, ended = ended, style = style}
+    end
+    if allyHit then
+        Add("Ally hit")
     end
     if who.state ~= nil then
         Add(STATE_CAPTIONS[who.state].text, nil, STATE_CAPTIONS[who.state].style)
@@ -497,7 +706,8 @@ end
 --extraTaken: what triggers nested under this action added. A face shows everything
 --the creature took from the action, so it agrees with the detail (fix B1).
 --minions: confirmed minion deaths to show on this cell.
-local function TargetCell(who, width, showTier, extraTaken, minions)
+--allyHit: see Captions.
+local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
     local textWidth = width - 45
     local top = {}
     if (who.taken or 0) > 0 then
@@ -536,7 +746,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions)
             textAlignment = "center",
         }
     end
-    for _, caption in ipairs(Captions(who, minions)) do
+    for _, caption in ipairs(Captions(who, minions, allyHit)) do
         below[#below + 1] = gui.Label{
             classes = {"historyCaption", caption.style},
             bgimage = cond(caption.style == "historyDead", "panels/square.png", nil),
@@ -639,6 +849,21 @@ local function ResourceWords(amount, name)
     end
     return string.format("%d %s", amount, name)
 end
+History.ResourceWords = ResourceWords
+
+--What makes a row open the card: the tooltip and the click (T19). The tooltip waits for
+--the pointer to rest, because it would otherwise cover the next row on every pass.
+local function OpensCard(item)
+    return {
+        linger = gui.Tooltip{text = "Open the detail", fontSize = 13},
+        click = function(element)
+            element.tooltip = nil
+            if g_tray ~= nil then
+                g_tray.Select(item)
+            end
+        end,
+    }
+end
 
 --A tier on the action when every target got the same one; on the cells when not.
 local function SharedTier(entry)
@@ -655,8 +880,32 @@ local function SharedTier(entry)
     return shared, false
 end
 
---A trigger nested under an action (T15): who, which, and what it did to whom.
+--The engine can't measure text before layout, so one-line rows estimate it per character.
+--Generous: a row never wraps, a long name just shortens a little sooner.
+local function TextWidth(text, perChar)
+    return math.ceil(#text * perChar)
+end
+
+--Room for a trigger row: the action's text column, less the row's own left pad.
+local TRIGGER_ROW_WIDTH = TRAY_WIDTH - 52 - 12 - 9
+
+--The hairline above an action or a folded turn (the prototype's row separator).
+local function Rule()
+    return gui.Panel{
+        classes = {"historyRule"},
+        bgimage = "panels/square.png",
+        width = "100%",
+        height = 1,
+    }
+end
+
+--A trigger nested under an action (T15), on one line: number, owner, Triggered or Free,
+--"{Owner} . {trigger}", then after a caret what it did. The name shortens with "..." so the
+--result stays in view; hovering the name shows it whole, and the card has the full sentence.
+--entry.result is a change to the owner itself, such as "Clarity +1".
 local function TriggerRow(index, entry)
+    local tagText = cond(entry.ability.free, "Free", "Triggered")
+    local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
     --- @type Panel[]
     local children = {
         gui.Label{
@@ -675,20 +924,58 @@ local function TriggerRow(index, entry)
         local face = Face(entry.actor, 20)
         face.selfStyle.lmargin = 6
         children[#children + 1] = face
+        used = used + 26
     end
-    local owner = entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or ""
     children[#children + 1] = gui.Label{
         classes = {"historySmallCaps"},
-        text = cond(entry.ability.free, "Free", "Triggered"),
+        text = tagText,
         width = "auto",
         height = "auto",
         lmargin = 6,
         halign = "left",
         valign = "center",
     }
-    --what it did beyond the numbers (T15).
-    local effects = {}
+
+    --what it did, each part after a caret; resultWidth is their estimated width.
+    local results = {}
+    local resultWidth = 0
+    local function AddCaret()
+        results[#results + 1] = gui.Panel{
+            classes = {"historyCaret"},
+            bgimage = "phosphor/caret-right-bold.png",
+            width = 9,
+            height = 9,
+            lmargin = 6,
+            halign = "left",
+            valign = "center",
+        }
+        resultWidth = resultWidth + 15
+    end
+    local function AddWords(text)
+        results[#results + 1] = gui.Label{
+            classes = {"historyTriggerResult"},
+            text = text,
+            width = "auto",
+            height = "auto",
+            lmargin = 4,
+            textWrap = false,
+            halign = "left",
+            valign = "center",
+        }
+        resultWidth = resultWidth + 4 + TextWidth(text, 6.5)
+    end
+    local function AddAmount(value, healed)
+        local amount = Amount(value, healed, 13)
+        amount.selfStyle.lmargin = 3
+        results[#results + 1] = amount
+        resultWidth = resultWidth + 3 + TextWidth(tostring(value), 8) + 8
+    end
+    if entry.result ~= nil then
+        AddCaret()
+        AddWords(entry.result)
+    end
     for _, who in ipairs(entry.targets) do
+        local effects = {}
         for _, condition in ipairs(who.conds or {}) do
             effects[#effects + 1] = condition.name
         end
@@ -701,43 +988,43 @@ local function TriggerRow(index, entry)
         if who.moved ~= nil then
             effects[#effects + 1] = MovedWords(who.moved)
         end
-    end
-    local effectText = #effects > 0 and (": " .. table.concat(effects, ", ")) or ""
-    children[#children + 1] = gui.Label{
-        classes = {"historyTriggerText"},
-        text = owner .. entry.ability.name .. effectText,
-        width = "auto",
-        height = "auto",
-        lmargin = 5,
-        halign = "left",
-        valign = "center",
-    }
-    for _, who in ipairs(entry.targets) do
-        if (who.taken or 0) > 0 or (who.healed or 0) > 0 then
-            children[#children + 1] = gui.Panel{
-                classes = {"historyCaret"},
-                bgimage = "phosphor/caret-right-bold.png",
-                width = 9,
-                height = 9,
-                lmargin = 6,
-                halign = "left",
-                valign = "center",
-            }
+        local taken, healed = who.taken or 0, who.healed or 0
+        if taken > 0 or healed > 0 or #effects > 0 then
+            AddCaret()
             local face = Face(who, 20)
             face.selfStyle.lmargin = 4
-            children[#children + 1] = face
-            if (who.taken or 0) > 0 then
-                local amount = Amount(who.taken, false, 13)
-                amount.selfStyle.lmargin = 3
-                children[#children + 1] = amount
+            results[#results + 1] = face
+            resultWidth = resultWidth + 24
+            if taken > 0 then
+                AddAmount(taken, false)
             end
-            if (who.healed or 0) > 0 then
-                local amount = Amount(who.healed, true, 13)
-                amount.selfStyle.lmargin = 3
-                children[#children + 1] = amount
+            if healed > 0 then
+                AddAmount(healed, true)
+            end
+            if #effects > 0 then
+                AddWords(table.concat(effects, ", "))
             end
         end
     end
+
+    local name = (entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or "") .. entry.ability.name
+    children[#children + 1] = gui.Label{
+        classes = {"historyTriggerText"},
+        text = name,
+        width = "auto",
+        maxWidth = math.max(60, TRIGGER_ROW_WIDTH - used - resultWidth - 4),
+        height = "auto",
+        lmargin = 5,
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+        valign = "center",
+        linger = gui.Tooltip{text = name, fontSize = 13},
+    }
+    for _, panel in ipairs(results) do
+        children[#children + 1] = panel
+    end
+    --wrap only as a last resort, for results too wide for any line.
     return gui.Panel{
         flow = "horizontal",
         wrap = true,
@@ -823,7 +1110,8 @@ local function BuildAction(item)
         elseif kid.family == "resource" then
             triggers[#triggers + 1] = {
                 actor = kid.who,
-                ability = {name = string.format("%s: %s %+d", kid.causetext or "", kid.name, kid.amount)},
+                ability = {name = kid.causetext or ""},
+                result = string.format("%s %+d", kid.name, kid.amount),
                 targets = {},
             }
         else
@@ -840,13 +1128,16 @@ local function BuildAction(item)
     local inner = TRAY_WIDTH - 52 - 12
     local targets = entry.targets
     local cells = {}
+    local function Cell(who, width)
+        return TargetCell(who, width, tierPerTarget, extra[who.id], minions[who.id], History.IsAllyHit(entry, who))
+    end
     if #targets == 1 then
-        cells[1] = TargetCell(targets[1], inner, tierPerTarget, extra[targets[1].id], minions[targets[1].id])
+        cells[1] = Cell(targets[1], inner)
     else
         local cellWidth = math.floor((inner - 10) / 2)
         local shown = cond(#targets > TARGET_CELLS, TARGET_CELLS - 1, #targets)
         for i = 1, shown do
-            cells[#cells + 1] = TargetCell(targets[i], cellWidth, tierPerTarget, extra[targets[i].id], minions[targets[i].id])
+            cells[#cells + 1] = Cell(targets[i], cellWidth)
         end
         if #targets > shown then
             local rest = {}
@@ -862,51 +1153,71 @@ local function BuildAction(item)
         triggerRows[i] = TriggerRow(i, kid)
     end
 
+    local opens = OpensCard(item)
     return gui.Panel{
+        classes = {"historyFold"},
+        bgimage = "panels/square.png",
         flow = "vertical",
         width = "100%",
         height = "auto",
-        lpad = 52,
-        rpad = 12,
-        tpad = 4,
-        bpad = 9,
-        borderBox = true,
-        gui.Panel{
-            flow = "none",
-            width = "100%",
-            height = "auto",
-            bmargin = 4,
-            gui.Panel{
-                flow = "horizontal",
-                wrap = true,
-                width = inner - ACTION_WORDS_WIDTH,
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                children = titleChildren,
-            },
-            action ~= nil and gui.Label{
-                classes = {"historyMuted"},
-                text = action,
-                width = "auto",
-                height = "auto",
-                halign = "right",
-                valign = "center",
-            } or nil,
-        },
-        gui.Panel{
-            flow = "horizontal",
-            wrap = true,
-            width = "100%",
-            height = "auto",
-            children = cells,
-        },
+        linger = opens.linger,
+        click = opens.click,
+        Rule(),
         gui.Panel{
             flow = "vertical",
             width = "100%",
             height = "auto",
-            tmargin = 3,
-            children = triggerRows,
+            lpad = 52,
+            rpad = 12,
+            tpad = 4,
+            bpad = 9,
+            borderBox = true,
+            gui.Panel{
+                flow = "none",
+                width = "100%",
+                height = "auto",
+                bmargin = 4,
+                gui.Panel{
+                    flow = "horizontal",
+                    wrap = true,
+                    width = inner - ACTION_WORDS_WIDTH,
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    children = titleChildren,
+                },
+                action ~= nil and gui.Label{
+                    classes = {"historyMuted"},
+                    text = action,
+                    width = "auto",
+                    height = "auto",
+                    rmargin = 14,
+                    halign = "right",
+                    valign = "center",
+                } or nil,
+                gui.Panel{
+                    classes = {"historyChevron"},
+                    bgimage = "phosphor/caret-right-bold.png",
+                    width = 10,
+                    height = 10,
+                    halign = "right",
+                    valign = "center",
+                },
+            },
+            gui.Panel{
+                flow = "horizontal",
+                wrap = true,
+                width = "100%",
+                height = "auto",
+                children = cells,
+            },
+            gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                tmargin = 3,
+                children = triggerRows,
+            },
         },
     }
 end
@@ -922,7 +1233,9 @@ local function LineWords(entry)
         return string.format("%s regained %d Stamina", name, entry.healed)
     elseif family == "condition" then
         local duration = entry.duration ~= nil and string.format(" (%s)", entry.duration) or ""
-        if entry.iscondition then
+        if entry.renewed then
+            return string.format("%s's %s was renewed", name, entry.name)
+        elseif entry.iscondition then
             return string.format("%s is %s%s", name, string.lower(entry.name), duration)
         end
         return string.format("%s %s%s", name, entry.name, duration)
@@ -1015,6 +1328,7 @@ local function BuildLine(item)
     end
 
     --opacity does not reach a panel's children, so an undone line fades by its text colour.
+    --- @type Panel[]
     local top = {
         gui.Label{
             classes = {cond(entry.undone, "historyUndone", "historyLineText")},
@@ -1028,6 +1342,18 @@ local function BuildLine(item)
         },
     }
     top[2] = tag
+    --an effect hidden from enemies: players don't get this line, or these names (2.4).
+    if dmhub.isDM and (entry.secret or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
+        top[#top + 1] = gui.VisibilityPanel{
+            visible = false,
+            width = 14,
+            height = 14,
+            lmargin = 5,
+            halign = "left",
+            valign = "center",
+            linger = gui.Tooltip("Hidden from players"),
+        }
+    end
 
     local words = {
         gui.Panel{
@@ -1103,7 +1429,11 @@ local function BuildLine(item)
         }
     end
 
+    --the closing line of an encounter lists what ended on its card (L17).
+    local opens = entry.family == "encounterend" and #(entry.ended or {}) > 0 and OpensCard(item) or nil
     return gui.Panel{
+        classes = {"historyFold"},
+        bgimage = "panels/square.png",
         flow = "none",
         width = "100%",
         height = "auto",
@@ -1111,6 +1441,8 @@ local function BuildLine(item)
         rpad = 12,
         vpad = 4,
         borderBox = true,
+        linger = opens ~= nil and opens.linger or nil,
+        click = opens ~= nil and opens.click or nil,
         children = children,
     }
 end
@@ -1210,22 +1542,28 @@ local function BuildGroupFold(item)
     return gui.Panel{
         classes = {"historyFold"},
         bgimage = "panels/square.png",
-        flow = "horizontal",
+        flow = "vertical",
         width = "100%",
-        height = 30,
-        hpad = 12,
-        borderBox = true,
+        height = "auto",
         click = item.toggle,
-        Caret(false),
-        gui.Label{
-            classes = {"historyMuted"},
-            text = item.text,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "center",
+        Rule(),
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 29,
+            hpad = 12,
+            borderBox = true,
+            Caret(false),
+            gui.Label{
+                classes = {"historyMuted"},
+                text = item.text,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            MiniFaces(item.tally),
         },
-        MiniFaces(item.tally),
     }
 end
 
@@ -1233,25 +1571,31 @@ local function BuildTurnFold(item)
     return gui.Panel{
         classes = {"historyFold"},
         bgimage = "panels/square.png",
-        flow = "horizontal",
+        flow = "vertical",
         width = "100%",
-        height = 36,
-        hpad = 12,
-        borderBox = true,
+        height = "auto",
         click = item.toggle,
-        Caret(false),
-        gui.Label{
-            classes = {"historyMuted"},
-            text = tostring(item.number),
-            width = 26,
-            height = "auto",
-            halign = "left",
-            valign = "center",
-            rmargin = 7,
-            textAlignment = "right",
+        Rule(),
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 35,
+            hpad = 12,
+            borderBox = true,
+            Caret(false),
+            gui.Label{
+                classes = {"historyMuted"},
+                text = tostring(item.number),
+                width = 26,
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                rmargin = 7,
+                textAlignment = "right",
+            },
+            Face(item.owner, 26),
+            MiniFaces(item.tally),
         },
-        Face(item.owner, 26),
-        MiniFaces(item.tally),
     }
 end
 
@@ -1318,8 +1662,6 @@ local g_builders = {
 --with no entry here follows the default: only the newest stays open.
 local g_open = {}
 local g_showAll = false
-
-local g_tray = nil
 
 local function Toggle(id, isOpen)
     return function()
@@ -1496,6 +1838,7 @@ local function AddLoneTrigger(items, entry, key)
                 name = condition.name,
                 iscondition = condition.iscondition,
                 duration = condition.duration,
+                renewed = condition.renewed,
             }
         end
         if who.ended ~= nil then
@@ -1681,6 +2024,168 @@ local function CreateFace()
     local face
     local list
 
+    --The row whose card is open, the card, and where it was put.
+    --- @type {key: string, sig: any, item: table}|nil
+    local selected = nil
+    --- @type Panel|nil
+    local card = nil
+    --- @type {x: number, width: number, maxHeight: number, inTray: boolean}|nil
+    local cardPlace = nil
+
+    --Where the rail window sits on the screen layer, in layer units, with the top of this
+    --face (below the window's header). Nil in a popped-out window: it has no room beside it.
+    --- @return {x: number, top: number, w: number, scale: number, layerWidth: number, layerHeight: number}|nil
+    local function WindowRect()
+        local dialog = face:FindParentWithClass("panelDocumentWindow")
+        local hud = GameHud.instance
+        if PanelDocument.IsPoppedOut("history") or dialog == nil or not hud or hud.documentsPanel == nil or not hud.documentsPanel.valid then
+            return nil
+        end
+        local layer = hud.documentsPanel
+        local scale = dialog.data.windowScale or 1
+        return {
+            x = dialog.x,
+            top = dialog.y + (dialog.renderedHeight - face.renderedHeight) * scale,
+            w = dialog.renderedWidth * scale,
+            scale = scale,
+            layerWidth = layer.renderedWidth - RailRightColumnWidth(),
+            layerHeight = layer.renderedHeight,
+        }
+    end
+
+    --Beside the window on the side with room, else over the list with a way back (B7).
+    local function CardPlace()
+        local rect = WindowRect()
+        if rect ~= nil then
+            local needed = (History.CARD_WIDTH + CARD_GAP) * rect.scale
+            local x = nil
+            if rect.x + rect.w + needed <= rect.layerWidth then
+                x = face.renderedWidth + CARD_GAP
+            elseif rect.x - needed >= RAIL_LEFT then
+                x = -(History.CARD_WIDTH + CARD_GAP)
+            end
+            if x ~= nil then
+                --the card slides up or down to stay on the screen, so the screen's height bounds it.
+                local room = math.floor((rect.layerHeight - 2 * CARD_GAP) / rect.scale)
+                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false}
+            end
+        end
+        return {x = 0, width = TRAY_WIDTH, maxHeight = face.renderedHeight, inTray = true}
+    end
+
+    local Select
+
+    local function DropCard()
+        if card ~= nil and card.valid then
+            local tail = card.data.tail
+            if tail ~= nil and tail.valid then
+                tail:DestroySelf()
+            end
+            card:DestroySelf()
+        end
+        card = nil
+    end
+
+    local function ShowCard(item)
+        DropCard()
+        local place = CardPlace()
+        cardPlace = place
+        card = History.CreateCard{
+            entry = item.entry,
+            kids = item.triggers,
+            x = place.x,
+            width = place.width,
+            maxHeight = place.maxHeight,
+            inTray = place.inTray,
+            tail = not place.inTray and cond(place.x > 0, "left", "right") or nil,
+            close = function()
+                Select(nil)
+            end,
+        }
+        --the tail goes in first, so the card covers its inner half.
+        if card.data.tail ~= nil then
+            face:AddChild(card.data.tail)
+        end
+        face:AddChild(card)
+        --line it up once it has a height (layout takes a frame or two).
+        face:ScheduleEvent("alignCard", 0.03)
+        face:ScheduleEvent("alignCard", 0.15)
+    end
+
+    --Lines the card up with its row and points the tail at it. Runs when the card opens,
+    --when the list scrolls and once a second; the row's place comes from its distance
+    --to the screen's edges (x left, y bottom, z right, w top, in screen pixels).
+    local function AlignCard()
+        if card == nil or not card.valid or cardPlace == nil or cardPlace.inTray or selected == nil then
+            return
+        end
+        local row = rows[selected.key]
+        local rect = WindowRect()
+        local tail = card.data.tail
+        if row == nil or not row.panel.valid or rect == nil or tail == nil or not tail.valid then
+            return
+        end
+        local faceEdges = face.distancesToScreenEdge
+        local faceScreenHeight = dmhub.screenHeight - faceEdges.w - faceEdges.y
+        if faceScreenHeight <= 0 then
+            return
+        end
+        --screen pixels to this face's own units.
+        local k = face.renderedHeight / faceScreenHeight
+        local rowTop = (row.panel.distancesToScreenEdge.w - faceEdges.w) * k
+        local listTop = (list.distancesToScreenEdge.w - faceEdges.w) * k
+        local listBottom = listTop + list.renderedHeight
+        local target = rowTop + ROW_TITLE
+
+        --as close to level as the screen allows; a row scrolled out of sight holds the card
+        --at the edge of the list rather than leaving it beside nothing.
+        local inSight = target >= listTop and target <= listBottom
+        local level = math.max(listTop, math.min(target, listBottom))
+        local cardHeight = card.renderedHeight
+        local minY = CARD_GAP - rect.top / rect.scale
+        local maxY = (rect.layerHeight - rect.top) / rect.scale - CARD_GAP - cardHeight
+        local y = math.max(minY, math.min(level - TAIL_DOWN, maxY))
+        card.y = y
+
+        --no tail when its row is out of sight, or the card couldn't reach it.
+        local tailCenter = target - y
+        local shown = inSight and tailCenter >= 14 and tailCenter <= cardHeight - 14
+        tail:SetClass("collapsed", not shown)
+        tail.y = y + tailCenter - tail.renderedHeight / 2
+    end
+
+    --The tray moved or changed height, or the table did: the card may need a new place.
+    local function KeepCardPlaced()
+        if selected ~= nil and cardPlace ~= nil then
+            local place = CardPlace()
+            if place.x ~= cardPlace.x or place.maxHeight ~= cardPlace.maxHeight then
+                ShowCard(selected.item)
+            end
+        end
+    end
+
+    local function MarkRow(key, isSelected)
+        local row = rows[key]
+        if row ~= nil and row.panel.valid then
+            row.panel:SetClass("historySelected", isSelected)
+        end
+    end
+
+    --Opens a row's card, one at a time. The open row closes it again, and so does nil.
+    Select = function(item)
+        local wasOpen = selected ~= nil and item ~= nil and selected.key == item.key
+        if selected ~= nil then
+            MarkRow(selected.key, false)
+        end
+        DropCard()
+        selected = nil
+        if item ~= nil and not wasOpen then
+            selected = {key = item.key, sig = item.sig, item = item}
+            MarkRow(item.key, true)
+            ShowCard(item)
+        end
+    end
+
     local function Refresh()
         if face == nil or not face.valid then
             return
@@ -1690,28 +2195,64 @@ local function CreateFace()
         local first = math.max(1, #items - rowsWanted + 1)
         hasOlder = first > 1
 
+        --an entry rewritten quietly keeps its row and card; it only takes the new signature.
+        local quiet = History.quiet
+        local quietSeen = false
+        local function IsQuiet(item)
+            local id = item.entry ~= nil and item.entry.id or nil
+            if id ~= nil and quiet[id] then
+                quietSeen = true
+                return true
+            end
+            return false
+        end
+
         local children = {}
         local kept = {}
         for i = first, #items do
             local item = items[i]
             local row = rows[item.key]
+            if row ~= nil and row.sig ~= item.sig and row.panel.valid and IsQuiet(item) then
+                row.sig = item.sig
+            end
             if row == nil or row.sig ~= item.sig or not row.panel.valid then
                 row = {panel = g_builders[item.kind](item), sig = item.sig}
             end
             kept[item.key] = row
             children[#children + 1] = row.panel
+            row.panel:SetClass("historySelected", selected ~= nil and selected.key == item.key)
         end
         rows = kept
         rowsPanel.children = children
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
         end
+
+        --a trigger landing after the row closed changes what the open card says.
+        if selected ~= nil then
+            for _, item in ipairs(items) do
+                if item.key == selected.key then
+                    if item.sig ~= selected.sig then
+                        selected.sig = item.sig
+                        selected.item = item
+                        if not IsQuiet(item) then
+                            ShowCard(item)
+                        end
+                    end
+                    break
+                end
+            end
+        end
+        if quietSeen then
+            History.quiet = {}
+        end
     end
 
     list = gui.Panel{
         flow = "vertical",
-        width = "100%",
-        height = TRAY_HEIGHT - HEAD_HEIGHT - 6,
+        width = TRAY_WIDTH,
+        height = string.format("100%%-%d", BAR_HEIGHT),
+        halign = "left",
         vscroll = true,
         rowsPanel,
 
@@ -1721,6 +2262,7 @@ local function CreateFace()
 
         --at the top with more to show: build the next rows and hold the view still.
         scroll = function(element)
+            AlignCard()
             if hasOlder and not loadingOlder and element.vscrollPosition >= 0.98 then
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
@@ -1775,26 +2317,22 @@ local function CreateFace()
             g_showAll = not g_showAll
             g_open = {}
             element.text = cond(g_showAll, "Show less", "Show all")
-            list.selfStyle.height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT) - HEAD_HEIGHT - 6
-            face.selfStyle.height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT)
-            Tabletop.ResizeItem(ITEM_KIND, ITEM_KEY)
             rowsWanted = ROWS_CHUNK
             Refresh()
+            KeepCardPlaced()
             list:ScheduleEvent("toBottom", 0.05)
         end,
     }
 
+    --No background of its own: the rail window's frame shows through.
     face = gui.Panel{
         classes = {"historyTray"},
         styles = ThemeEngine.MergeStyles(Styles()),
-        bgimage = "panels/square.png",
         flow = "vertical",
-        width = TRAY_WIDTH,
-        height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT),
+        width = "100%",
+        height = "100%",
         halign = "left",
         valign = "top",
-        borderWidth = 1,
-        cornerRadius = 6,
 
         monitorGame = History.DocPath(mapid),
         refreshGame = Refresh,
@@ -1806,9 +2344,16 @@ local function CreateFace()
                 mapid = game.currentMapId
                 g_open = {}
                 rowsWanted = ROWS_CHUNK
+                Select(nil)
                 element.monitorGame = History.DocPath(mapid)
                 Refresh()
             end
+            KeepCardPlaced()
+            AlignCard()
+        end,
+
+        alignCard = function(element)
+            AlignCard()
         end,
 
         destroy = function()
@@ -1817,32 +2362,20 @@ local function CreateFace()
             end
         end,
 
+        --the window's own header names the panel, so this bar only holds Show all.
         gui.Panel{
             flow = "none",
-            width = "100%",
-            height = HEAD_HEIGHT,
-            hpad = 12,
+            width = TRAY_WIDTH,
+            height = BAR_HEIGHT,
+            halign = "left",
+            rpad = 12,
             borderBox = true,
-            gui.Label{
-                classes = {"historyTitle"},
-                text = "History",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-            },
             showAllButton,
-        },
-        gui.Panel{
-            classes = {"historySeam"},
-            bgimage = "panels/square.png",
-            width = "100%",
-            height = 1,
         },
         list,
     }
 
-    g_tray = {face = face, Refresh = Refresh}
+    g_tray = {face = face, Refresh = Refresh, Select = Select}
     list.vscrollPosition = 0
     Refresh()
     return face
@@ -1854,38 +2387,20 @@ ThemeEngine.OnThemeChanged(mod, function()
     end
 end)
 
-Tabletop.itemKinds = Tabletop.itemKinds or {}
-Tabletop.itemKinds[ITEM_KIND] = {
-    available = History.Enabled,
-    exists = function(key)
-        return true
-    end,
-    name = function(key)
-        return "History"
-    end,
-    size = function(key)
-        return TRAY_WIDTH, cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT)
-    end,
-    face = function(key)
-        return CreateFace()
-    end,
-    cornerRadius = 6,
-    --beside the rail, where it opens in the prototype.
-    place = function(layerWidth, layerHeight)
-        return 62, 110
-    end,
-}
-
+--A rail panel like Chat, so it gets the rail windows' frame, pin, pop out and Font Size zoom.
 DockablePanel.Register{
     name = "History",
     icon = "phosphor/clock-counter-clockwise-bold.png",
     available = History.Enabled,
-    launch = function()
-        if Tabletop.HasItem(ITEM_KIND, ITEM_KEY) then
-            Tabletop.CloseItem(ITEM_KIND, ITEM_KEY)
-        else
-            Tabletop.OpenItem(ITEM_KIND, ITEM_KEY)
-        end
+    vscroll = false,
+    minHeight = 200,
+    --the rows are laid out for one width; narrow windows are chunk 6.3.
+    defaultWidth = TRAY_WIDTH + EDGE_STRIP,
+    minWidth = TRAY_WIDTH + EDGE_STRIP,
+    maxWidth = TRAY_WIDTH + EDGE_STRIP,
+    resizableWidth = false,
+    content = function()
+        return CreateFace()
     end,
 }
 

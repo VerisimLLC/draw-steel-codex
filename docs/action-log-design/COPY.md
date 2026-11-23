@@ -76,7 +76,7 @@ Only what moved the result away from the plain roll.
 | T12 | Chips | Edge / Double edge / Bane / Double bane / Cancelled out / {n} surges / {n} surges: potency +1 / {n} Malice / {n} {Heroic Resource} / Critical / Hit an ally | |
 | T13 | Ally group | Ally hit | |
 | T14 | Captions | Push {n} / Push {n} · fell {n} / Winded / Dying / Killed / {k} of {m} killed / Squad destroyed / {n} minions / Cover: bane / {n} fire, {n} cold / Fire immunity -{n} / Fire weakness +{n} / {n} soaked by temporary Stamina / Resisted / Immune to frightened / {Condition} + Ended tag | changed 2026-11-06: was "Grabbed ended"; change: "Immune: frightened" -> "Immune to frightened", "Ended Grabbed" -> "Grabbed ended" |
-| T15 | Trigger rows | Before the roll / After the roll / Triggered / Free · {Owner} · {trigger}: {effect} | |
+| T15 | Trigger rows | Before the roll / After the roll / Triggered / Free · {Owner} · {trigger} › {result} | One line (James, 2026-11-07): the result goes after a caret (a portrait and amount, "Clarity +1", "Prone"); a long name shortens with "…" and shows whole on hover |
 | T16 | Turn lines | {Resource} +{n} · Start of turn ({die}) / saved against {Condition} · End of turn: rolled {n} ({target} or more ends it) / {Condition} + Ended tag · End of turn / ... · {cause} | see Round 4 |
 | T17 | Hidden roll (Director only) | Director rolled {dice} · Hidden from players | |
 | T18 | Player view | Unknown creature | hidden monsters |
@@ -293,3 +293,215 @@ because "Dying Ended" could read as the creature died.
 | D9 | Forced movement, no action | {Creature} was pushed {n} squares, it fell {m} squares |
 | D10 | A creature landed on, on the push's row (signed off 2026-11-07) | Landed on |
 | D11 | Cause when a creature landed on it, no push (signed off 2026-11-07) | Landed on by {Creature} |
+
+## Round 6: wordings the detail card needs (signed off 2026-11-07)
+
+N2 covers most sentences. These are the cases it doesn't cover, as built in chunk 2.1.
+| ID | What | Draft |
+|---|---|---|
+| X1 | An effect that isn't a condition | {Creature} took 3 damage and gained {Effect} until the end of its turn. |
+| X2 | An effect ended (a condition keeps W12) | ... and {Effect} ended. / {Creature}'s {Effect} ended. |
+| X3 | A creature landed on | ... took 10 damage and was landed on. |
+| X4 | Temporary Stamina took some of it | ... took 7 damage, 3 of it to temporary Stamina. |
+| X5 | Temporary Stamina grew | {Creature}'s temporary Stamina went from 3 to 10. / ... and temporary Stamina went from 3 to 10. |
+| X6 | A fall with no push | ... took 6 damage and fell 4 squares. |
+| X7 | Resisted, the rule text names no condition | ... took 4 damage and resisted. |
+| X8 | Damage partly typed | ... took 10 damage: 6 fire and 4 untyped. |
+| X9 | W11 for any area, not only a burst | {Creature}, an ally, was caught in the area and took {N} damage. |
+| X10 | A trigger that did more than damage (W13 covers damage) | {Owner}'s {trigger}: {sentence} |
+| X11 | An action that changed nothing | {Creature} used {Ability}. |
+| X12 | C6 with no roll behind it | {player} · {time} |
+| X13 | L30, no plural | Goblin 1-4 each took 6 damage. |
+
+Two N2 changes the data forces:
+- W15 loses "off {place}": nothing records the ledge's name, so it reads "pushed 3 squares, it fell 4 squares."
+- EoE stays out of sentences: the Codex also stores "no timer" as EoE, so a fall's Prone would read
+  "until the end of the encounter" when it ends on standing up. The tray keeps its (EoE) (D1).
+
+## Round 7: wordings the numbers need (signed off 2026-11-07)
+
+The receipt (chunk 2.2) uses C3, C3s, C4/C4b/C4c and T12 as signed. These are the cases they don't cover.
+| ID | Where | Text |
+|---|---|---|
+| Z1 | A target's own edges or banes | {Edge / Double edge / Bane / Double bane} for this target |
+| Z2 | A damage line | Tier 2 / Tier 2: fire (two types give two lines) |
+| Z3 | The value beside a double edge or double bane | +1 tier / -1 tier |
+| Z4 | Total for grouped targets (as in X13) | Taken, each |
+| Z5 | Immunity or weakness | Damage immunity 2 / Fire immunity 3 (the Why leads) / Fire weakness 3 |
+| Z6 | A flat roll bonus with no name behind it | Bonus |
+| Z7 | A Heroic Resource cost | Cost: {n} {Heroic Resource}, e.g. Cost: 3 Ferocity (C3's pattern) |
+
+## Round 8: the edge and bane sources (signed off 2026-11-08)
+
+C5 as signed needs facts the Codex doesn't record (who you flank with, whether a strike was melee). The
+receipt names each source as the roll dialog's badge did when the roll was made, so History repeats what
+the player saw. This replaces C5.
+| ID | Source | Text |
+|---|---|---|
+| C5 | A modifier | its badge name: Flanking / High Ground / Cover / Prone / Target is {name} |
+| C5t | Another creature's trigger | {Owner}'s {trigger}, e.g. Reactor 1's Test 5 |
+| C5h | The dialog's edge and bane buttons | Set by hand |
+
+## Round 9: removed edges and banes (signed off 2026-11-08)
+
+Ignore Edges, Ignore Banes, Remove Edge, Remove Bane and the removing half of Edge becomes Bane are listed
+too, so the card explains an edge that was there but did not count. When a side loses every edge or bane,
+its line and each source under it are crossed out, with the reason once, after the line, in the muted aside style
+(James, 2026-11-08: "real visual feedback on it being ignored"). When it loses only some, nobody knows
+which, so the remover gets its own muted line last, with no arrows.
+| ID | Where | Text |
+|---|---|---|
+| C5i | The line when every edge or bane was taken away | ~~Edge~~ Ignored by {name}, its value (+2, +1 tier, -2, -1 tier) crossed out and muted; each source under it crossed out with no reason (~~Prone~~), since the reason is the whole line's; on a target's own roll, ~~Edge for this target~~ |
+| C5r | The reason, or the remover's own line when only some were removed | Ignored by {name} (Ignore) / Removed by {name} (Remove one); several join: Ignored by X, removed by Y |
+| C5o | A remover that belongs to the target | {Target}'s {name}, e.g. Ignored by Ajax's Steadfast; the target's face shows only on a remover's own line, not in an inline reason |
+
+## Round 10: the Tier line split (signed off 2026-11-08)
+
+A target's sum lists what made its damage, in the order it applied: the tier's own damage (characteristic
+included), the kit, the roll dialog's damage modifiers, then surges, then immunity or weakness and Taken.
+Each addition comes off the damage type it was added to. Entries written before this keep one Tier line.
+| ID | Where | Text |
+|---|---|---|
+| K1 | A kit's damage bonus | {Kit} kit, e.g. Panther kit .......... +2 (one line per kit) |
+| K2 | A damage modifier from the roll dialog | its badge name, as C5 / C5t: Mark, {Owner}'s {trigger} with the owner's face .......... +4 |
+| C3s | Surges spent on damage | the surge bolt, Spent 2 surges, then (Might 2 each) muted .......... +4; a tie for highest names the first in sheet order |
+
+## Round 11: the Why lines History can write now (signed off 2026-11-08; G1-G3 replaced by Round 17)
+
+General forms of R1's examples, for 2.3c-1. Each line is a bold lead with one sentence under it and a
+thin rule on its left, between What happened and The numbers. A line that applies to several targets
+is written once, naming them as What happened does (L29, L30). Order: area, modifiers, surges, immunity,
+condition immunity. Y14 is not built (What happened already says the condition ended); Y2 moves to
+2.3c-3 with Y1; Y4's second sentence is dropped (The numbers lists the parts just below).
+| ID | Lead | Sentence |
+|---|---|---|
+| G1 | Damage immunity 2 / Fire immunity 3 / Fire weakness 3 (Z5) | {Target} took {landed} {type} damage instead of {before}. |
+| G2 | Spent 2 surges / Spent 1 surge | Each dealt 2 extra damage (Dwarf Fury's highest characteristic, Might 2). One surge: It dealt ...; typed: extra fire damage; several targets: ... damage to {Target} (...). |
+| G3 | the modifier's badge name (Mark; High Elf Tactician's Mark with the owner's face) | It dealt 4 extra damage. Lowered: It took 2 off the damage. Several targets: ... to {Target}. |
+| G4 | Area ability (only when an ally was hit) | It hits every creature in the area, allies included. |
+| G5 | Immune to {condition} | {Target} cannot be {condition}. Prone reads knocked prone. |
+| G6 | (none, muted italics) | Nothing changed the roll or the damage. Only when the action rolled or dealt damage and had no edges, banes, extra damage or immunity (a kit is the hero's normal damage). |
+
+## Round 12: triggers and typed messages in Why (signed off 2026-11-08)
+
+The Why says that a trigger fired and what it changed; its rules sit behind a hover on its name (2.3d:
+the brackets are the cue, per Round 15's hover note; the trigger's card; a monster's trigger shows its card to the Director only). This
+replaces R3 (Y11: "used a triggered action" / "Trigger: ..."); whether it cost a triggered action shows
+on its card. A trigger that changed the roll (an edge or bane) is 2.3c-3's, with the tier comparison,
+e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Tier 1 to Tier 2."
+| ID | Lead | Sentence |
+|---|---|---|
+| G7 | {Owner}'s {trigger}, with the owner's face | Triggered by this action: {what it did, in What happened's words}, e.g. Lv2 Human Null gained 1 Discipline. |
+| G7a | {Owner}'s trigger, when the trigger's name is its rule text (ends in a full stop, or runs past 40 characters; James 2026-11-08) | as G7; the rule shows on the hover |
+| G8 | (none) | A note typed on the action's steps or its triggers' steps, as written, in normal text; each once; skipped when it only repeats the ability's name. |
+
+## Round 13: the tier comparisons (signed off 2026-11-08; G9-G11 replaced by Round 14)
+
+History recomputes the tier with a side of the roll taken away, by the roll's own rules
+(RollUtils.DiceResultToTier), and says what each side did. One Why line per side: edges, banes, what
+ignored or removed them, and each tier modifier; roll lines come first in the Why. Leads name the
+sources as The numbers does (C5, C5t, C5h), joined with "and". Replaces Y1's and Y2's wordings. A
+roll whose recomputed tier doesn't match the recorded one (a row from before this) gets no tier lines.
+| ID | Where | Text |
+|---|---|---|
+| G9 | Why, edges or banes that changed the tier | It gave an edge (a double edge / a bane / a double bane), which moved the roll from Tier 1 to Tier 2. Several sources: They gave ... |
+| G9s | Why, edges or banes that didn't | It gave an edge; the roll stayed at Tier 2. |
+| G9r | Why, what ignored or removed them | It ignored an edge (a double edge), ... / It removed an edge, ... with G9's or G9s's ending |
+| G9t | Why, a target's own edges or banes (target-only sources) | It gave a bane against Reactor 1, which moved that roll from Tier 2 to Tier 1. / ...; that roll stayed at Tier 2. |
+| G10 | Why, tier modifiers | Tier Up: It raised the roll a tier, from Tier 1 to Tier 2. Tier Down: It lowered the roll a tier, from Tier 3 to Tier 2. Tier 3: It made the roll Tier 3 instead of Tier 1. Tier 1: It made the roll Tier 1 instead of Tier 2. Not Tier 3: It kept the roll from Tier 3: Tier 2 instead. Not Tier 1: It lifted the roll off Tier 1: Tier 2 instead. Unchanged: ...; the roll stayed at Tier 3. |
+| G11 | Why, a natural 19 or 20 that changed the tier | Natural 19 / A natural 19 or 20 is always Tier 3, so the roll is Tier 3 instead of Tier 2. |
+| Z8 | The numbers, a tier modifier (after the edge and bane lines; a trigger's with its owner's face) | {name} .... Tier 3 / Tier 1 / +1 tier / -1 tier / not Tier 3 / not Tier 1 |
+
+## Round 14: one tier line per roll (signed off 2026-11-08)
+
+James 2026-11-08: the Why is a sum, not an explainer line per part. One line per roll says where it
+landed and what got it there, worked out for all its parts together (each part alone gave
+contradicting claims). "From" is the tier the dice and characteristic gave alone. The line names the
+parts on the side the tier moved, and the other side only when it changed where the roll landed. A
+rule that sets the tier outright (Tier 3, Tier 1, a natural 19 or 20) is named alone. Live check 2026-11-10: a part that did nothing against the other side (an edge Twisted ignored) is not named on a side that moved the tier; what took edges or banes away leads the ", but" clause so its "it" sits next to them. A target with a
+roll of its own gets its own whole line, merged with targets that read the same; one that reads like
+the main roll's is left out. No line when nothing moved or held the tier, or when the recorded parts
+don't come to the recorded tier. Worked out when the card opens (James 2026-11-08), so fixes reach old rows.
+| ID | Where | Text |
+|---|---|---|
+| G12 | Why lead | Tier 3, up from Tier 2 / Tier 1, down from Tier 2 / Tier 2, not Tier 3 (something held a move) / Tier 2 (both sides would have moved it) / Tier 3 against Gwynhyvyr, up from Tier 2 (a target's own roll) |
+| G12a | Why text, the parts | {names} gave an edge / a double edge / a bane / a double bane; {name} raised it a tier / lowered it a tier / made it Tier 3 / made it Tier 1 / kept it from Tier 3 / kept it off Tier 1; {name} added 2 to the roll / took 2 off the roll; a natural 19 or 20 is always Tier 3 |
+| G12b | Why text, what took edges or banes away | after the edges it took were named: {name} ignored it / removed it / removed one; otherwise: {name} ignored an edge / removed a bane |
+| G12c | Why text, joining | parts joined with ", and" (A, B, and C); the other side after ", but ". e.g. Prone gave an edge, but Twisted ignored it. |
+| G12d | Why text, set by hand (signed off 2026-11-10) | An edge was set by hand. / Prone gave an edge, and another was set by hand. |
+| Z9 | The numbers, a modifier's flat bonus (after the edge and bane lines, with Z8; a trigger's with its owner's face) | {name} .... +2 / -2. The "Bonus" line under the characteristic keeps only what no modifier accounts for. |
+
+## Round 15: names in the Why (signed off 2026-11-10)
+
+James 2026-11-10: a source named "Target is Restrained" read as words, not a name, in "Target is
+Restrained gave an edge". Marking the name fixes it without changing the prose. Compared live: a tinted
+chip (flush and padded), bold, small caps, italic, gold. Small caps chosen first; James then compared
+small caps with square brackets on the busy card (2026-11-10) and chose brackets: they show where a
+many-word name starts and ends, and in many games a bracketed name is one you can hover.
+| ID | Where | Text |
+|---|---|---|
+| G13 | Why, every rule or ability name (the tier line's parts, a modifier's lead, a trigger's lead) | The name in square brackets; its owner stays outside: [Prone] gave an edge. / Dwarf Fury's [Twisted]. "Set by hand" and the plain "Trigger" lead are not names. The numbers keeps names plain. |
+
+Hover (James 2026-11-10, chosen over an underline at rest on a busy live render): the name's mark alone
+(now the brackets) is the cue that a name can be hovered; every name with something to show hovers. The underline appears
+only under the name the pointer is on (the text engine draws no dotted underline). A modifier's hover
+shows the text the roll dialog's own hover showed (its name and description, formulas filled in for
+the roller, "Inflicted by"), recorded at the roll, each distinct text stored once per map; a
+trigger's shows its card. Names recorded before this have nothing to show and don't hover. Built in 2.3d.
+
+## Round 16: a target's line says only what differed (signed off 2026-11-10)
+
+James 2026-11-10: on a busy card every target's line repeated the roll's parts. Only modifiers that
+applied are ever named (the dialog records only the modifiers that were on, and only what each changed),
+and a modifier is never named for a target it didn't apply to. The roll's line names what applied to
+every target; a target gets a line only when something that applied to it alone changed its tier, and
+that line names only those things. With no roll line (nothing shared moved the tier), "from" is the
+dice alone. When every target's own parts moved it, the roll's line keeps a tier no target ended on:
+it is what the roll did before anything about a target.
+| ID | Where | Text |
+|---|---|---|
+| G14 | Why lead, a target's line | Tier 2 against Goblin 1, down from Tier 3 ("from" is the roll line's tier) |
+| G14a | Why text, what differed | only that target's own parts: COVER gave a bane. |
+| G14b | Why text, a remover of the roll line's edges or banes | Goblin 2's CAST AWAY ALL HOPE ignored the double edge. / ignored the edge / ignored one edge / removed the bane |
+
+## Round 17: one damage line that sums it up (signed off 2026-11-10)
+
+Replaces G1-G3 (a line per modifier, surges, immunity). Built like the tier line: what the damage came
+to, "up from" what the tier dealt alone (a kit is the hero's normal damage, so it is in "from" and
+never named), then the parts that changed it. Only when something besides the tier and kit changed the
+damage; G6 is unchanged. The shared line names what changed the damage of every target that took some;
+a target gets a line only for what applied to it alone. When targets started from different tier
+damage, the shared line gives only the extra ("12 extra damage"); if the shared parts took damage
+away there, there is no shared line and each target's line names everything, from its tier damage.
+Targets whose lines read the same share one. Modifier names in brackets (G13); surges and immunity
+plain. Each part says exactly what it changed; a modifier that adds different amounts on different
+tiers is not shared. Order: modifiers, surges, weakness; what lowered it after ", but".
+| ID | Where | Text |
+|---|---|---|
+| G15 | Why lead, the shared damage line | 19 damage, up from 15 / 6 damage, down from 8 / 8 damage (parts cancelled out) / 12 extra damage (targets on different tiers) |
+| G15a | Why text, what raised it | [Empyrean Boon] added 10 holy / [Upholding High Standards] added 2 / 2 surges added 2 each (Dwarf Fury's highest characteristic, Might 2) / 1 surge added 2 (...) / fire weakness 3 added 3 |
+| G15b | Why text, what lowered it, after ", but" | holy immunity 5 took 5 off / damage immunity 2 took 2 off / [Name] took 2 off |
+| G15c | Why lead, a target's damage line | 15 damage to Goblin 2, down from 20 ("from" is what the shared line gave that target) |
+
+## Round 18: what players see (signed off 2026-11-10)
+
+The rule (REVIEW.md B5, James 2026-11-10): with Monster Info off, players see what the Action Log
+shows them; with it on, also what Monster Info has revealed. Immunity and weakness always show (the
+damage gives them away). A monster's ability card shows only with Monster Info on and that ability
+revealed; modifier hovers on a monster's roll never reach players; monster triggers stay Director only.
+Effects hidden from enemies, on a creature off the heroes' side, don't reach players.
+| ID | Where | Text |
+|---|---|---|
+| Z10 | The numbers, a monster's power roll | Its characteristic is not named: the stat block gives a flat number, so it joins the Bonus line ("Bonus .... +2"), for everyone. |
+| Z11 | The numbers, a roll hidden from players | Rolled in secret. (players: in place of the roll, with no tier lines in the Why; Director: above the numbers, after an eye) |
+| Z11a | Z11's eye, Director | tooltip: Hidden from players / Visible to everyone (the Action Log's words); clicking shows the roll to players or hides it again |
+| L28 | Secret modifier, Director (built here) | The name with an eye after it, tooltip: Hidden from players |
+| L28a | An effect hidden from enemies, Director's History line | the line with an eye after it, tooltip: Hidden from players |
+
+## Round 19: an effect renewed (signed off 2026-11-10)
+
+| ID | Where | Text |
+|---|---|---|
+| L39 | What happened, and a lone trigger's line: an effect or condition applied by a cast while the creature still had it (the game renews it) | {Creature}'s {effect} was renewed. |
+
+Only a cast records a renewal; one outside any cast (an aura's upkeep) stays quiet. Stacking effects use the same line for now.

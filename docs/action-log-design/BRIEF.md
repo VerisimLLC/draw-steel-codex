@@ -69,6 +69,7 @@ Status: Phase 1 framing signed; Phase 3 decision map next. Started 2026-10-23.
 | 2026-11-06 | Typed messages: never on the glance; in the card's Why, as written, unless the message is only the ability's name (generic rule, no per-ability code) | James, REVIEW.md decision 5 |
 | 2026-11-06 | First-build scope: all ten families (F1-F10) before release, because History replaces the log and nothing may be lost. Built in stages, combat first, then out of combat and Director actions; History runs beside the old log, off by default, until the last stage; the old log goes in the same step that turns History on for everyone | James, REVIEW.md decision 1 |
 | 2026-11-06 | Build plan signed off (BUILD-PLAN.md, 27 chunks). Retention gets a hard cap, performance first: try this encounter and the last, cull the oldest, build the newest 30-40 rows and more on scroll, as today's log does. Engine PR agreed in principle | James |
+| 2026-11-07 | History is a rail panel window like Chat, not a table item: the rail windows' frame and transparency, pin and pop out. Its height is the user's; Show all only unfolds every turn. Popped out, the card opens inside the window | James, after the 2.1 feedback |
 
 ## 3. Open questions
 

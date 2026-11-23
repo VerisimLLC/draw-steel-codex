@@ -9,6 +9,9 @@ local mod = dmhub.GetModLoading()
 --  entries:    {[key] = json string}, one per event. The key starts with the time,
 --              so sorting the keys sorts the events without parsing any of them.
 --  encounters: {[combat guid] = time of its first entry}, for retention.
+--  hovers:     {[id] = text}, the roll dialog's hover text for each modifier an entry
+--              names, stored once however many entries name it (2.3d).
+--  hoverused:  {[id] = time of the last entry written with it}, for retention.
 --
 --Each entry is a JSON string, not a table, on purpose. BeginChange and
 --CompleteChange copy and compare every value in the document, so nested entries
@@ -27,8 +30,9 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
---- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
+--- @field player? string On an action: the player who used it. Nil means the Director.
+--- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil} The power roll. hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
@@ -48,12 +52,19 @@ local mod = dmhub.GetModLoading()
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save or persistence line: what it is about.
 --- @field names? string[] On an ended line: what ended.
+--- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
+--- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
+--- @field hidden? table<string, boolean> On an ended line: names players may not see.
+--- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field duration? string On a condition line: "save ends", "EoT" or "EoE".
 --- @field passed? boolean On a save line: whether it was made.
 --- @field who? HistoryCreature On a line: who it happened to.
 --- @field causetext? string On a line: the small text under it.
+--- @field trigger? string On a resource line an automatic trigger wrote: the trigger's name.
+--- @field triggerby? HistoryCreature On such a line: whose trigger it is.
+--- @field messages? string[] On an action or automatic trigger: notes its author typed on its steps, as written.
 --- @field taken? number On a damage line: what landed.
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.
@@ -95,6 +106,20 @@ end
 --- @return string
 function History.DocId(mapid)
     return "history-" .. mapid
+end
+
+--- One roll source as text, so two lists can be compared: equal keys mean the same thing,
+--- with the same owner, doing the same to the roll.
+--- @param source HistoryEdgeSource
+--- @return string
+function History.SourceKey(source)
+    local flags = {}
+    for _, flag in ipairs({"ignore", "hand", "autosuccess", "autofailure", "nottierthree", "nottierone"}) do
+        flags[#flags + 1] = source[flag] and flag or ""
+    end
+    return string.format("%s|%s|%d|%d|%d|%d|%d|%d|%s", source.name or "", source.who ~= nil and source.who.id or "",
+        source.edges or 0, source.banes or 0, source.removedEdges or 0, source.removedBanes or 0, source.tiers or 0,
+        source.bonus or 0, table.concat(flags, ","))
 end
 
 --- The path to monitor for changes to a map's History (monitorGame on a panel).
@@ -149,6 +174,56 @@ local function Cull(data)
     end
 end
 
+--A short id for a hover text; equal texts get equal ids, so each is stored once.
+--The "h" matters: an all-digit id is a number key to the document, which then saves the
+--whole hovers table as a list and loses every other text.
+local function TextHash(text)
+    local h = 5381
+    for i = 1, #text do
+        h = (h * 33 + string.byte(text, i)) % 4294967296
+    end
+    return string.format("h%08x", h)
+end
+
+--Moves each roll dialog hover text in an entry (a hovertext field anywhere in it) into the
+--map's shared hovers, leaving its id in hover. used keeps the time each id was last
+--written, so Cull can drop texts no kept entry points at.
+local function StoreHoverTexts(node, hovers, used, t)
+    for _, value in pairs(node) do
+        if type(value) == "table" then
+            StoreHoverTexts(value, hovers, used, t)
+        end
+    end
+    local text = node.hovertext
+    if type(text) == "string" then
+        local id = TextHash(text)
+        while hovers[id] ~= nil and hovers[id] ~= text do
+            id = id .. "x"
+        end
+        hovers[id] = text
+        used[id] = math.max(used[id] or 0, t)
+        node.hovertext = nil
+        node.hover = id
+    end
+end
+
+--Drops the hover texts that only entries older than every kept one used.
+local function CullHoverTexts(data)
+    local oldest = nil
+    for key in pairs(data.entries) do
+        if oldest == nil or key < oldest then
+            oldest = key
+        end
+    end
+    local keepFrom = oldest ~= nil and tonumber(string.sub(oldest, 1, 13)) or math.huge
+    for id, t in pairs(data.hoverused) do
+        if t < keepFrom then
+            data.hoverused[id] = nil
+            data.hovers[id] = nil
+        end
+    end
+end
+
 --Writes every entry waiting for one map, in one change to its document.
 local function WriteEntries(mapid, list)
     local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
@@ -160,13 +235,20 @@ local function WriteEntries(mapid, list)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
+    --a list here is a table saved before ids had their "h" (see TextHash): start it again.
+    if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" or data.hovers[1] ~= nil then
+        data.hovers = {}
+        data.hoverused = {}
+    end
     for _, entry in ipairs(list) do
+        StoreHoverTexts(entry, data.hovers, data.hoverused, entry.t)
         data.entries[EntryKey(entry)] = dmhub.ToRawJson(entry)
         if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
             data.encounters[entry.encounter] = entry.t
         end
     end
     Cull(data)
+    CullHoverTexts(data)
     doc:CompleteChange("History", {undoable = false})
 end
 
@@ -233,15 +315,104 @@ end
 --until the map changes, which is a few hundred small tables at worst.
 local g_parsed = {}
 local g_parsedMap = nil
+--Whether the entries in g_parsed were cut down for a player (History.Entry).
+local g_parsedForPlayers = nil
+
+--A list of names without the ones in hidden; nil when none are left.
+local function WithoutHidden(names, hidden)
+    if names == nil or hidden == nil then
+        return names
+    end
+    local kept = {}
+    for _, name in ipairs(names) do
+        if not hidden[name] then
+            kept[#kept + 1] = name
+        end
+    end
+    return #kept > 0 and kept or nil
+end
+
+--Drops the hover text ids from roll sources or damage parts.
+local function WithoutHovers(list)
+    for _, item in ipairs(list or {}) do
+        item.hover = nil
+    end
+end
+
+--Cuts an entry down to what players may see (2.4, REVIEW.md B5: players see what they
+--saw live). Done once as it is parsed, so no view can show more by mistake. Nil when
+--nothing of it is left to show.
+--- @param entry HistoryEntry
+--- @return HistoryEntry|nil
+local function ForPlayers(entry)
+    --effects hidden from enemies, on a creature off the heroes' side.
+    if entry.family == "condition" and entry.secret then
+        return nil
+    end
+    if entry.family == "ended" then
+        entry.names = WithoutHidden(entry.names, entry.hidden)
+        if entry.names == nil then
+            return nil
+        end
+    end
+    if entry.ended ~= nil then
+        local kept = {}
+        for _, item in ipairs(entry.ended) do
+            local names = WithoutHidden(item.names, item.hidden)
+            if names ~= nil then
+                item.names = names
+                kept[#kept + 1] = item
+            end
+        end
+        entry.ended = kept
+    end
+    local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed
+    if hiddenRoll then
+        entry.roll = nil
+        entry.secretroll = true
+    end
+    --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
+    local monster = entry.actor ~= nil and not entry.actor.hero
+    if monster and entry.roll ~= nil then
+        WithoutHovers(entry.roll.sources)
+    end
+    for _, who in ipairs(entry.targets or {}) do
+        if who.conds ~= nil then
+            local kept = {}
+            for _, condition in ipairs(who.conds) do
+                if not condition.secret then
+                    kept[#kept + 1] = condition
+                end
+            end
+            who.conds = #kept > 0 and kept or nil
+        end
+        who.ended = WithoutHidden(who.ended, who.endedhidden)
+        if hiddenRoll then
+            --the tier, its own roll and what made its damage all come from the roll.
+            who.tier = nil
+            who.roll = nil
+            who.sources = nil
+            who.parts = nil
+        elseif monster then
+            WithoutHovers(who.sources)
+            WithoutHovers(who.roll ~= nil and who.roll.sources or nil)
+            WithoutHovers(who.parts)
+        end
+    end
+    return entry
+end
 
 --- One entry, parsed on first use. Nil if the key is gone or the entry is unreadable.
 --- @param mapid string
 --- @param key string
 --- @return HistoryEntry|nil
 function History.Entry(mapid, key)
-    if g_parsedMap ~= mapid then
+    --a Director looking through a token's eyes sees what a player would.
+    local forPlayers = not MonsterKnowledge.LocalUserSeesAll()
+    if g_parsedMap ~= mapid or g_parsedForPlayers ~= forPlayers then
         g_parsed = {}
         g_parsedMap = mapid
+        g_parsedForPlayers = forPlayers
     end
     local entries = mod:GetDocumentSnapshot(History.DocId(mapid)).data.entries
     local raw = type(entries) == "table" and entries[key] or nil
@@ -254,16 +425,44 @@ function History.Entry(mapid, key)
         if not ok or not decoded.success then
             return nil
         end
-        parsed = {raw = raw, entry = decoded.result}
+        local entry = decoded.result
+        if forPlayers then
+            entry = ForPlayers(entry)
+        end
+        parsed = {raw = raw, entry = entry}
         g_parsed[key] = parsed
     end
     return parsed.entry
+end
+
+--- A modifier's roll dialog hover text, by the id its source keeps in hover. Spoiler markup
+--- is kept: format it for the viewer. Nil when the text is gone or was never recorded.
+--- @param mapid string
+--- @param id string
+--- @return string|nil
+function History.HoverText(mapid, id)
+    local hovers = mod:GetDocumentSnapshot(History.DocId(mapid)).data.hovers
+    local text = type(hovers) == "table" and hovers[id] or nil
+    return type(text) == "string" and text or nil
 end
 
 --- Rewrites an entry that is already in History, for a change to what it says.
 --- @param entry HistoryEntry
 function History.Rewrite(entry)
     History.Write(entry)
+end
+
+--Entry ids rewritten with nothing on this client's screen changing. The tray keeps their
+--built rows and open card instead of rebuilding them (which flickers), then clears the id.
+--- @type table<string, boolean>
+History.quiet = {}
+
+--- Rewrites an entry whose change shows nothing new to the client making it (the Director
+--- flipping a roll's reveal eye), so the tray does not rebuild it here.
+--- @param entry HistoryEntry
+function History.RewriteQuietly(entry)
+    History.Write(entry)
+    History.quiet[entry.id] = true
 end
 
 --- Empties a map's History, for everyone.
@@ -273,5 +472,7 @@ function History.Clear(mapid)
     doc:BeginChange()
     doc.data.entries = nil
     doc.data.encounters = nil
+    doc.data.hovers = nil
+    doc.data.hoverused = nil
     doc:CompleteChange("Clear History", {undoable = false})
 end

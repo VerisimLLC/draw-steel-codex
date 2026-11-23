@@ -249,6 +249,40 @@ CharacterModifier.RegisterType("power", "Modify Power Rolls", {
 - **`form = "set"`** is the Level 2 conversion: keywords are stored as `{ Weapon = true }` and shown
   as a list.
 
+### Every slot type
+
+Each underlined word or chip in a block is one slot. Every slot takes these keys:
+
+| Key | What it does |
+|---|---|
+| `field` | which record field it saves to |
+| `default` | its value in a new block |
+| `form`, `get`, `set` | converting between how the record stores it and how it shows |
+| `showIf` | shows the slot only when another slot has a certain value |
+| `required` | Status flags it while it's empty |
+
+| Slot type | Shows as | Saves | Its own keys | Example in the codex |
+|---|---|---|---|---|
+| `Block.Text` | words you type in place | text | `placeholder`, `multiline` | Reminder text; a title's "Earned when" |
+| `Block.Number` | a number you type | a number | `min`, `max` | a perk choice's count; an aura's radius |
+| `Block.Toggle` | a phrase that is either there or not | true / false | `on`, `off` (the words for each) | Fall's ", stopping flight first" |
+| `Block.Choice` | one word picked from a list | one id | `from`, `only`, `words`, `options`, `empty` | edge / bane; damage type; increases by / is |
+| `Block.Many` | several picked from a list, joined as "a, b and c" | a list or set of ids | as Choice, plus `conj` ("and" / "or") and `max` | ability keywords; conditions you can't gain; perk groups |
+| `Block.Formula` | a number with the fx menu (level, Victories, characteristic, dice) | a number or a GoblinScript formula | `output` (number / roll), `docs` (help, examples), `dice` | damage; a stat change; temporary Stamina |
+| `Block.Test` | a "+ test" chip, opening the test picker | a GoblinScript test | `context` (which tests the picker offers: "you", "offer", "tick", "target", a trigger event) | Logic; Offered when; Automatically selected when |
+| `Block.Ref` | a search box over the compendium | the entry's id, or its name | `table` (effects, abilities, items, conditions...), `store` ("id" / "name"), `allowCustom` | Apply an effect (id); has the [ ] effect (name) |
+| `Block.Who` | a creature: you, the target, the triggering creature | an apply-to id | `roles` (which ones this block allows) | who takes the damage; who falls |
+| `Block.Cost` | an amount and a resource | an amount and a resource type | `resources` (heroic resource, surges, epic) | "always, and it costs 1 wrath" |
+| `Block.Ability` | an ability card with Edit, opening the ability editor | a whole ability record | `kind` ("ability" / "triggered") | Gain an ability; Gain a triggered ability |
+| `Block.Blocks` | a nested area that holds other blocks | a list of child records | `families` (which kinds of block may go inside) | inside Logic; each option of "Choose one benefit"; a growing table's rows |
+| `Block.Group` | several lines that travel together | whatever its slots save | `lines`, `slots`, `read`, `write` | the roll blocks' Offered when / Automatically selected |
+
+Two of these are a little different from the rest:
+- **Formula** already includes "scale with level" in its fx menu ("+1 from 7th level"), so
+  there is no separate slot for that.
+- **Ability** and **Blocks** are where blocks nest: an ability opens its own editor, while child
+  blocks sit inline.
+
 ### Setting up a Choice slot
 
 A Choice slot needs two things for each option: the **id** the record stores, and the **words**

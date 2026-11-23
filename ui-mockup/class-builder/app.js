@@ -418,15 +418,17 @@ const TEST_OPS = [[">=", "is at least"], ["<=", "is at most"], ["=", "is"], ["~=
 const TEST_OP_PROSE = { ">=": n => n + " or more", "<=": n => n + " or less", "=": n => "exactly " + n, "~=": n => "not " + n };
 const TEST_OP_FLIP = { ">=": "<", "<=": ">", "=": "~=", "~=": "=", "<": ">=", ">": "<=" };
 /* Numbers a class feature can compare: [GoblinScript name, word in the block, book wording from "5 or more"]. */
-function testStats() {
+function testStats(ctx) {
   const r = resWord();
-  return [["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
+  // The engine only tells "Offered when" about the cast (how many targets), not "Ticked when".
+  const castStats = ctx === "offer" ? [["Cast.Target Count", "the number of targets", q => "there are " + q + " targets"]] : [];
+  return castStats.concat([["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
     ...CHARS.map(c => [c[1], "your " + c[1], q => "your " + c[1] + " is " + q]),
     ["Stamina", "your Stamina", q => "your Stamina is " + q],
     ["Recoveries Available to Spend", "your Recoveries left", q => "you have " + q + " Recoveries left"],
     ["Heroic Resources Available to Spend", "your " + r, q => "you have " + q + " " + r],
     ["Heroic Resources This Turn", "the most " + r + " you've had this turn", q => "you have had " + q + " " + r + " this turn"],
-    ["Combat Round", "the combat round", q => "the combat round is " + q]];
+    ["Combat Round", "the combat round", q => "the combat round is " + q]]);
 }
 /* Yes/no facts about you: [type, block text, GoblinScript, book wording, negated book wording, negated block text]. */
 const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strained", "you are not Strained", "You are not Strained"],
@@ -435,13 +437,31 @@ const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strain
   ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn", "It is not your turn"],
   ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat", "You are not in combat"]];
 const fact = t => TEST_FACTS.find(x => x[0] === t);
+/* Roll tests ("Offered when", "Ticked automatically when" on a roll block) can also look at the
+   ability being rolled and its target: [key, block text, GoblinScript, book wording, negated]. */
+const ABILITY_FACTS = [["damage", "The ability deals damage", "Ability.DoesDamage", "the ability deals damage", "the ability doesn't deal damage"],
+  ["signature", "It's a signature ability", "Ability.Categorization = \"Signature Ability\"", "it's a signature ability", "it isn't a signature ability"],
+  ["heroic", "It's a heroic ability", "Ability.Categorization = \"Heroic Ability\"", "it's a heroic ability", "it isn't a heroic ability"],
+  ["main", "It uses a main action", "Ability.Main Action", "it uses a main action", "it doesn't use a main action"],
+  ["maneuver", "It's a maneuver", "Ability.Maneuver", "it's a maneuver", "it isn't a maneuver"],
+  ["forced", "It force moves a creature", "Ability.HasForcedMovement", "it force moves a creature", "it doesn't force move a creature"]];
+const TARGET_FACTS = [["winded", "The target is winded", "Target.Winded", "the target is winded", "the target isn't winded"],
+  ["concealed", "The target is concealed", "Target.Concealed or (Target.Conditions has \"concealment\")", "the target is concealed", "the target isn't concealed"],
+  ["cover", "The target has cover", "Target.HasCover", "the target has cover", "the target doesn't have cover"],
+  ["minion", "The target is a minion", "Target.Minion", "the target is a minion", "the target isn't a minion"]];
+const abFact = k => ABILITY_FACTS.find(x => x[0] === k), tgFact = k => TARGET_FACTS.find(x => x[0] === k);
 const isNum = v => /^-?\d+(\.\d+)?$/.test(String(v).trim());
 /* The engine formula for a test (an empty test counts as true, but the status column flags it). */
 function testGs(x) {
   if (!x) return "1";
-  const wrap = y => (y && (y.t === "all" || y.t === "any" || y.t === "raw" || y.t === "winded")) ? "(" + testGs(y) + ")" : testGs(y);
+  const wrap = y => (y && (y.t === "all" || y.t === "any" || y.t === "raw" || y.t === "winded" || (y.t === "tg" && / or /.test(testGs(y))))) ? "(" + testGs(y) + ")" : testGs(y);
   switch (x.t) {
     case "cond": return "Conditions has \"" + x.c + "\"";
+    case "ab": return (abFact(x.k) || [0, 0, "1"])[2];
+    case "abKw": return "Ability.Keywords has \"" + x.kw + "\"";
+    case "abName": return "Ability.Name = \"" + (x.name || "") + "\"";
+    case "tg": return (tgFact(x.k) || [0, 0, "1"])[2];
+    case "tgCond": return "Target.Conditions has \"" + x.c + "\"";
     case "cmp": return x.a + " " + x.op + " " + (isNum(x.n) ? String(x.n).trim() : "(" + (x.n || "0") + ")");
     case "not": return "not " + wrap(x.a);
     case "all": case "any": return x.items.map(wrap).join(x.t === "all" ? " and " : " or ");
@@ -454,7 +474,12 @@ function testProse(x, neg) {
   if (!x) return neg ? "a condition is not met" : "a condition is met";
   switch (x.t) {
     case "cond": return "you are " + (neg ? "not " : "") + String(x.c).toLowerCase();
-    case "cmp": { const s = testStats().find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
+    case "ab": return (abFact(x.k) || [])[neg ? 4 : 3] || "";
+    case "abKw": return "the ability " + (neg ? "doesn't have" : "has") + " the " + x.kw + " keyword";
+    case "abName": return "the ability is " + (neg ? "not " : "") + (x.name || "(no ability picked)");
+    case "tg": return (tgFact(x.k) || [])[neg ? 4 : 3] || "";
+    case "tgCond": return "the target is " + (neg ? "not " : "") + String(x.c).toLowerCase();
+    case "cmp": { const s = testStats("offer").find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
       const q = (TEST_OP_PROSE[op] || (n => (op === "<" ? "fewer than " : "more than ") + n))(x.n || "0");
       return s ? s[2](q) : x.a + " is " + q; }
     case "not": return testProse(x.a, !neg);
@@ -465,13 +490,13 @@ function testProse(x, neg) {
   }
 }
 /* True when the test, or any test inside it, still needs picking. */
-const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing));
+const testMissing = x => !x || (x.t === "not" && testMissing(x.a)) || ((x.t === "all" || x.t === "any") && x.items.some(testMissing)) || (x.t === "abName" && !x.name);
 /* Draws parent[key] (a test, or an empty "+ test" slot). parent may be an array (an all/any list). */
-function renderTest(parent, key, required) {
+function renderTest(parent, key, required, ctx) {
   const x = parent[key];
   if (!x) {
     const b = fk(E("button", "empty-test" + (required ? " required" : ""), "+ test"), "test:" + objKey(parent) + ":" + key); b.type = "button";
-    b.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(b, parent, key); });
+    b.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(b, parent, key, ctx); });
     return b;
   }
   const e = E("span", "x" + (x.t === "all" || x.t === "any" ? " list" : "")); const add = n => e.appendChild(n);
@@ -479,18 +504,23 @@ function renderTest(parent, key, required) {
     c.addEventListener("click", ev => { ev.stopPropagation(); change(() => { if (Array.isArray(parent) && parent.length > 2) parent.splice(key, 1); else parent[key] = null; }); }); return c; };
   switch (x.t) {
     case "cond": add(lbl("You are")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
-    case "cmp": add(pickTok(x, "a", testStats().map(s => [s[0], s[1]]))); add(pickTok(x, "op", TEST_OPS)); add(textTok(x, "n", "0")); break;
+    case "ab": add(lbl((abFact(x.k) || [0, x.k])[1])); break;
+    case "abKw": add(lbl("It has the")); add(pickTok(x, "kw", KEYWORDS.map(k => [k, k]))); add(lbl("keyword")); break;
+    case "abName": add(lbl("The ability is")); add(abilityNameTok(x)); break;
+    case "tg": add(lbl((tgFact(x.k) || [0, x.k])[1])); break;
+    case "tgCond": add(lbl("The target is")); add(pickTok(x, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break;
+    case "cmp": add(pickTok(x, "a", testStats(ctx).map(s => [s[0], s[1]]))); add(pickTok(x, "op", TEST_OPS)); add(textTok(x, "n", "0")); break;
     case "not": {
       // "Not [You are Strained]" reads as one test: "You are not Strained". Numbers and lists keep the "Not".
       const y = x.a;
       if (y && fact(y.t)) { add(lbl(fact(y.t)[5])); break; }
       if (y && y.t === "cond") { add(lbl("You are not")); add(pickTok(y, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break; }
-      add(lbl("Not")); add(renderTest(x, "a")); break;
+      add(lbl("Not")); add(renderTest(x, "a", false, ctx)); break;
     }
     case "raw": add(lbl("Formula")); add(textTok(x, "src", "GoblinScript test", 30)); break;
     case "all": case "any": {
       const head = E("div", "listhead", x.t === "all" ? "All of these are true" : "Any of these is true"); head.appendChild(clear()); add(head);
-      x.items.forEach((y, i) => { const it = E("div", "item"); it.appendChild(E("span", "bullet", x.t === "all" ? "and" : "or")); it.appendChild(renderTest(x.items, i)); e.appendChild(it); });
+      x.items.forEach((y, i) => { const it = E("div", "item"); it.appendChild(E("span", "bullet", x.t === "all" ? "and" : "or")); it.appendChild(renderTest(x.items, i, false, ctx)); e.appendChild(it); });
       const more = fk(E("button", "addtest", "+ test"), "testmore:" + objKey(x)); more.type = "button";
       more.addEventListener("click", ev => { ev.stopPropagation(); change(() => x.items.push(null)); }); add(more);
       return e;
@@ -500,10 +530,18 @@ function renderTest(parent, key, required) {
   add(clear()); return e;
 }
 /* The test picker: grouped ready-made tests with a search, as in the ability editor. */
-function openTestPicker(anchor, parent, key) {
+function openTestPicker(anchor, parent, key, ctx) {
   const r = resWord(), set = make => { closeMenu(); change(() => { parent[key] = make(); }); };
   const cmp = (a, n) => () => ({ t: "cmp", a, op: ">=", n });
-  const groups = [
+  const roll = ctx === "offer" || ctx === "tick";
+  // On a roll block the ability and its target come first: they are what roll options test most.
+  const rollGroups = !roll ? [] : [
+    ["The ability", "What the roll is for: damage, keywords, signature, a named ability...", ABILITY_FACTS.map(a => [a[1], () => ({ t: "ab", k: a[0] })])
+      .concat([["It has the [Strike] keyword", () => ({ t: "abKw", kw: "Strike" })], ["The ability is [ ]", () => ({ t: "abName", name: "" }), "Pick it from a list."]])],
+    ["The target", "The creature the ability is used against.", TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })])
+      .concat(T.conditions.map(c => ["The target is " + c[1].toLowerCase(), () => ({ t: "tgCond", c: c[1] })]))],
+  ].concat(ctx === "offer" ? [["The roll", "How many creatures the ability targets.", [["There are fewer than [2] targets", () => ({ t: "cmp", a: "Cast.Target Count", op: "<", n: "2" })]]]] : []);
+  const groups = rollGroups.concat([
     ["Strained (Talent)", "Whether you are, or are not, Strained.", [["You are Strained", () => ({ t: "strained" })], ["You are not Strained", () => ({ t: "not", a: { t: "strained" } })]]],
     ["Check a condition", "Prone, slowed, grabbed, and so on.", T.conditions.map(c => ["You are " + c[1].toLowerCase(), () => ({ t: "cond", c: c[1] })])
       .concat([["You are not [ ]", () => ({ t: "not", a: { t: "cond", c: "Slowed" } }), "Any condition: change it after."]])],
@@ -516,11 +554,14 @@ function openTestPicker(anchor, parent, key) {
       ["The combat round is at least [ ]", cmp("Combat Round", "2")]]],
     ["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
       ["Any of these is true", () => ({ t: "any", items: [null, null] }), "At least one test must pass."], ["Not [ ]", () => ({ t: "not", a: null }), "True when the test inside is false."]]],
-  ];
+  ]);
   menuAt(anchor, m => {
     m.classList.add("picker");
-    const ph = E("div", "ph"); ph.appendChild(E("div", "t", "Only if"));
-    ph.appendChild(E("p", null, "The blocks inside apply only while this is true for the hero with this feature."));
+    const head = ctx === "offer" ? ["Offered when", "The option shows on a roll only while this is true."]
+      : ctx === "tick" ? ["Ticked automatically when", "The option starts ticked when this is true. The player can always change it."]
+      : ["Only if", "The blocks inside apply only while this is true for the hero with this feature."];
+    const ph = E("div", "ph"); ph.appendChild(E("div", "t", head[0]));
+    ph.appendChild(E("p", null, head[1]));
     const search = E("input"); search.placeholder = "What do you want to check? e.g. prone, winded, level"; search.setAttribute("aria-label", "Search tests"); ph.appendChild(search); m.appendChild(ph);
     const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
     const draw = () => {
@@ -570,15 +611,28 @@ const numOr = v => /^-?\d+$/.test(String(v).trim()) ? +v : String(v).trim();
 /* "always applies / you choose when you roll": one phrase in place of the engine's activation fields. */
 /* "always applies / you choose when you roll / you can spend [1] [wrath]": one phrase for the power
    modifier's activation and cost fields. A cost makes it optional: the player pays when they roll. */
+/* The two roll-option lines under a roll block. "Offered when" decides whether the option shows on a
+   roll at all (displayCondition; empty = every matching roll). "Ticked" decides whether its box
+   starts ticked (activationCondition). Logic around the block is the early exit (filterCondition). */
 function appliesPhrase(f, add) {
-  add(lbl(",")); add(pickTok(f, "applies", [["always", "always applies"], ["choose", "you choose when you roll"], ["cost", "if you spend"]]));
-  if (f.applies === "cost") { if (f.costN == null) f.costN = "1"; add(textTok(f, "costN", "1")); add(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); add(lbl("when you roll")); }
+  const off = E("div", "usage"); off.appendChild(lbl("Offered when")); off.appendChild(renderTest(f, "offer", false, "offer"));
+  if (!f.offer) off.appendChild(E("span", "aside", "(every matching roll)"));
+  add(off);
+  const tk = E("div", "usage"); tk.appendChild(lbl("Ticked"));
+  tk.appendChild(pickTok(f, "applies", [["always", "automatically"], ["when", "automatically when"], ["choose", "by the player"], ["cost", "if they spend"]]));
+  if (f.applies === "when") tk.appendChild(renderTest(f, "tick", true, "tick"));
+  if (f.applies === "cost") { if (f.costN == null) f.costN = "1"; tk.appendChild(textTok(f, "costN", "1")); tk.appendChild(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); }
+  add(tk);
 }
 function appliesFields(f) {
-  if (f.applies === "cost") return { activationCondition: true, resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") };
-  return { activationCondition: f.applies === "always" };
+  // "1" is always ticked: the offer test already decides when it shows, so the test isn't repeated.
+  const shown = { displayCondition: f.offer ? testGs(f.offer) : "" };
+  if (f.applies === "cost") return Object.assign(shown, { activationCondition: "1", resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") });
+  if (f.applies === "when") return Object.assign(shown, { activationCondition: testGs(f.tick) });
+  return Object.assign(shown, { activationCondition: f.applies === "always" ? "1" : false });
 }
-const appliesProse = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
+const appliesProse = f => (f.offer ? " when " + testProse(f.offer) : "") + (f.applies === "when" ? " (it applies automatically when " + testProse(f.tick) + ")" : "") + appliesProseCost(f);
+const appliesProseCost = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
 function abilityNameTok(f) {
   const names = allAbilityNames();
   return tok(f.name || "choose an ability", b => menuAt(b, m => {
@@ -1475,6 +1529,8 @@ function featureIssues(f, lane) {
     if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " has no blocks yet, so it only shows text.", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
     if (s.type === "onlyIf" && testMissing(s.f.cond)) add("A Logic block in " + nm + " needs a test.", false);
+    if (s.f && s.f.applies === "when" && testMissing(s.f.tick)) add("\u201c" + d.label + "\u201d in " + nm + " is ticked automatically, but needs a test for when.", false);
+    if (s.f && s.f.offer && testMissing(s.f.offer)) add("\u201c" + d.label + "\u201d in " + nm + " has an unfinished \u201cOffered when\u201d test.", false);
     if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });
     if ((s.type === "ability" || s.type === "trigger") && s.f.rec && s.f.problems) add("\u201c" + recName(s.f.rec) + "\u201d in " + nm + " has " + s.f.problems.length + " thing" + (s.f.problems.length === 1 ? "" : "s") + " to finish: " + s.f.problems[0], false,

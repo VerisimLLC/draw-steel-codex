@@ -997,3 +997,34 @@ When the amount of a resource gain is a formula, the gain now reads "When combat
 number of resolve equal to your Victories" instead of "you gain Victories resolve". A plain number
 or dice still reads "you gain 2 resolve". The text shown on the hero's sheet uses the same wording.
 The comma now also sits right against the event ("When combat starts,").
+
+## 22. Roll options: Offered when and Ticked (2026-11-23)
+
+A roll modifier answers three questions. The roll blocks (Edge or bane on rolls, Extra damage,
+Change the outcome, Change potency) now ask each one in plain words, with the same "+ test"
+chips as Logic:
+
+| Question | Where | Saves as |
+|---|---|---|
+| Does it exist right now? (early exit) | A **Logic** block around the roll block. It can only test you. | `filterCondition` |
+| Is it offered on this roll? | **Offered when [+ test]** under the block. Empty means every matching roll. | `displayCondition` |
+| Does its box start ticked? | **Ticked** [automatically / automatically when [+ test] / by the player / if they spend N] | `activationCondition` |
+
+- **Test pickers for roll options:** these offer more than Logic does.
+  - **The ability:** deals damage, signature, heroic, main action, maneuver, force moves, has the
+    [keyword] keyword, or is [a named ability]. Ability names come from a picker, so there are no
+    exact names to type.
+  - **The target:** winded, concealed, has cover, minion, or any condition.
+  - **The roll:** the number of targets. This appears only under "Offered when", because the engine
+    does not give "Ticked" the cast (an engine gap; see below).
+  - **About you:** everything Logic offers.
+- **No repeated tests:** when the option should be ticked whenever it is offered, "Ticked
+  automatically" saves `1`. Content today often writes the same test into both fields (Rays
+  Ignis, concealment). Here the test lives only in "Offered when".
+- **Checks:** "Ticked automatically when" with no test is flagged in Status, and so is an
+  unfinished "Offered when" test.
+- **Engine findings (recorded only):**
+  - `hintPowerRoll` builds activation symbols without `cast`, while `shouldShowInPowerRollDialog`
+    includes it. So `Cast.Target Count` works when offered, but not when ticked.
+  - The after-roll pair (`displayAfterRoll` / `activationAfterRoll`) is used 5 times. It is not
+    in the blocks yet and stays in the old Modify Power Roll editor as the backup.

@@ -420,7 +420,7 @@ const TEST_OP_FLIP = { ">=": "<", "<=": ">", "=": "~=", "~=": "=", "<": ">=", ">
 /* Numbers a class feature can compare: [GoblinScript name, word in the block, book wording from "5 or more"]. */
 function testStats(ctx) {
   const r = resWord();
-  // The engine only tells "Offered when" about the cast (how many targets), not "Ticked when".
+  // The engine only tells "Offered when" about the cast (how many targets), not "Automatically selected when".
   const castStats = ctx === "offer" ? [["Cast.Target Count", "the number of targets", q => "there are " + q + " targets"]] : [];
   return castStats.concat([["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
     ...CHARS.map(c => [c[1], "your " + c[1], q => "your " + c[1] + " is " + q]),
@@ -437,7 +437,7 @@ const TEST_FACTS = [["strained", "You are Strained", "Strained", "you are Strain
   ["turn", "It is your turn", "Your Turn", "it is your turn", "it is not your turn", "It is not your turn"],
   ["combat", "You are in combat", "Combat Round > 0", "you are in combat", "you are not in combat", "You are not in combat"]];
 const fact = t => TEST_FACTS.find(x => x[0] === t);
-/* Roll tests ("Offered when", "Ticked automatically when" on a roll block) can also look at the
+/* Roll tests ("Offered when", "Automatically selected when" on a roll block) can also look at the
    ability being rolled and its target: [key, block text, GoblinScript, book wording, negated]. */
 const ABILITY_FACTS = [["damage", "The ability deals damage", "Ability.DoesDamage", "the ability deals damage", "the ability doesn't deal damage"],
   ["signature", "It's a signature ability", "Ability.Categorization = \"Signature Ability\"", "it's a signature ability", "it isn't a signature ability"],
@@ -537,10 +537,10 @@ function openTestPicker(anchor, parent, key, ctx) {
   const CONDS_WORDS = T.conditions.map(c => c[1]).join(" ");   // so searching "slowed" finds the condition tests
   // On a roll block the ability and its target come first: they are what roll options test most.
   const rollGroups = !roll ? [] : [
-    ["The ability", "What the roll is for: damage, keywords, signature, a named ability...", ABILITY_FACTS.map(a => [a[1], () => ({ t: "ab", k: a[0] })])
-      .concat([["It has the [Strike] keyword", () => ({ t: "abKw", kw: "Strike" })], ["The ability is [ ]", () => ({ t: "abName", name: "" }), "Pick it from a list."]])],
-    ["The target", "The creature the ability is used against.", TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })])
-      .concat([["The target has a condition", () => ({ t: "tgCond", c: "Prone" }), "", CONDS_WORDS]])],
+    ["The ability", "What the roll is for: keywords, a named ability, damage, signature...", [["It has the [Strike] keyword", () => ({ t: "abKw", kw: "Strike" })], ["The ability is [ ]", () => ({ t: "abName", name: "" }), "Pick it from a list."]]
+      .concat(ABILITY_FACTS.map(a => [a[1], () => ({ t: "ab", k: a[0] })]))],
+    ["The target", "The creature the ability is used against.", [["The target has a condition", () => ({ t: "tgCond", c: "Prone" }), "", CONDS_WORDS]]
+      .concat(TARGET_FACTS.map(a => [a[1], () => ({ t: "tg", k: a[0] })]))],
   ].concat(ctx === "offer" ? [["The roll", "How many creatures the ability targets.", [["There are fewer than [2] targets", () => ({ t: "cmp", a: "Cast.Target Count", op: "<", n: "2" })]]]] : []);
   // Combining tests (all of, any of, not) is how most tests start, so it leads the list.
   const groups = [["Combine tests", "Need several things at once, or any one of them.", [["All of these are true", () => ({ t: "all", items: [null, null] }), "Every test must pass."],
@@ -551,15 +551,18 @@ function openTestPicker(anchor, parent, key, ctx) {
     ["Check health", "Winded, dying, or how much Stamina is left.", [["You are winded", () => ({ t: "winded" }), "Stamina is at half or less."],
       ["Your Stamina is at most [ ]", () => ({ t: "cmp", a: "Stamina", op: "<=", n: "10" })], ["You are dying", () => ({ t: "dying" })]]],
     ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],
-    ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your Victories are at least [ ]", cmp("Victories", "3")], ["Your level is at least [ ]", cmp("Level", "5")],
-      ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."], ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")],
-      ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")],
-      ["The combat round is at least [ ]", cmp("Combat Round", "2")]]],
+    ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your level is at least [ ]", cmp("Level", "5")], ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."],
+      ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")], ["Your Victories are at least [ ]", cmp("Victories", "3")],
+      ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["The combat round is at least [ ]", cmp("Combat Round", "2")],
+      ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")]]],
   ]);
+  // Combining tests leads; the rest go by how often compendium formulas use them (2026-11-23 count).
+  const BY_USE = ["Combine tests", "The ability", "Compare a number", "The target", "Check health", "Check a condition", "Check the moment", "The roll", "Strained (Talent)"];
+  groups.sort((x, y) => BY_USE.indexOf(x[0]) - BY_USE.indexOf(y[0]));
   menuAt(anchor, m => {
     m.classList.add("picker");
     const head = ctx === "offer" ? ["Offered when", "The option shows on a roll only while this is true."]
-      : ctx === "tick" ? ["Ticked automatically when", "The option starts ticked when this is true. The player can always change it."]
+      : ctx === "tick" ? ["Automatically selected when", "The option starts selected when this is true. The player can always change it."]
       : ["Only if", "The blocks inside apply only while this is true for the hero with this feature."];
     const ph = E("div", "ph"); ph.appendChild(E("div", "t", head[0]));
     ph.appendChild(E("p", null, head[1]));
@@ -609,24 +612,21 @@ function usageFields(r, f) {
 }
 const AURA_WHO = [["selfandfriends", "You and each ally"], ["friends", "Each ally"], ["enemies", "Each enemy"], ["all", "Each creature"], ["allother", "Each other creature"]];
 const numOr = v => /^-?\d+$/.test(String(v).trim()) ? +v : String(v).trim();
-/* "always applies / you choose when you roll": one phrase in place of the engine's activation fields. */
-/* "always applies / you choose when you roll / you can spend [1] [wrath]": one phrase for the power
-   modifier's activation and cost fields. A cost makes it optional: the player pays when they roll. */
 /* The two roll-option lines under a roll block. "Offered when" decides whether the option shows on a
-   roll at all (displayCondition; empty = every matching roll). "Ticked" decides whether its box
-   starts ticked (activationCondition). Logic around the block is the early exit (filterCondition). */
+   roll at all (displayCondition; empty = every matching roll). "Automatically selected" decides
+   whether it starts selected (activationCondition). Logic around the block is the early exit (filterCondition). */
 function appliesPhrase(f, add) {
   const off = E("div", "usage"); off.appendChild(lbl("Offered when")); off.appendChild(renderTest(f, "offer", false, "offer"));
   if (!f.offer) off.appendChild(E("span", "aside", "(every matching roll)"));
   add(off);
-  const tk = E("div", "usage"); tk.appendChild(lbl("Ticked"));
-  tk.appendChild(pickTok(f, "applies", [["always", "automatically"], ["when", "automatically when"], ["choose", "by the player"], ["cost", "if they spend"]]));
+  const tk = E("div", "usage"); tk.appendChild(lbl("Automatically selected"));
+  tk.appendChild(pickTok(f, "applies", [["always", "always"], ["when", "when"], ["choose", "never (the player chooses)"], ["cost", "always, and it costs"]]));
   if (f.applies === "when") tk.appendChild(renderTest(f, "tick", true, "tick"));
   if (f.applies === "cost") { if (f.costN == null) f.costN = "1"; tk.appendChild(textTok(f, "costN", "1")); tk.appendChild(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); }
   add(tk);
 }
 function appliesFields(f) {
-  // "1" is always ticked: the offer test already decides when it shows, so the test isn't repeated.
+  // "1" is always selected: the offer test already decides when it shows, so the test isn't repeated.
   const shown = { displayCondition: f.offer ? testGs(f.offer) : "" };
   if (f.applies === "cost") return Object.assign(shown, { activationCondition: "1", resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") });
   if (f.applies === "when") return Object.assign(shown, { activationCondition: testGs(f.tick) });
@@ -1530,7 +1530,7 @@ function featureIssues(f, lane) {
     if (s.type === "growing") s.f.rows.forEach(r => { if (!r.blocks.length) add("The row at " + r.at + " in " + nm + " has no blocks yet, so it only shows text.", true); if (!/^\d+$/.test(String(r.at).trim())) add("A row in " + nm + "'s growing table needs a whole number.", false); });
     if (s.type === "aura" && !s.children.length) add("The aura in " + nm + " has nothing inside: add what it does to creatures in it.", false);
     if (s.type === "onlyIf" && testMissing(s.f.cond)) add("A Logic block in " + nm + " needs a test.", false);
-    if (s.f && s.f.applies === "when" && testMissing(s.f.tick)) add("\u201c" + d.label + "\u201d in " + nm + " is ticked automatically, but needs a test for when.", false);
+    if (s.f && s.f.applies === "when" && testMissing(s.f.tick)) add("\u201c" + d.label + "\u201d in " + nm + " is automatically selected \u201cwhen\u201d, but needs a test.", false);
     if (s.f && s.f.offer && testMissing(s.f.offer)) add("\u201c" + d.label + "\u201d in " + nm + " has an unfinished \u201cOffered when\u201d test.", false);
     if (s.type === "onlyIf" && !s.children.length) add("A Logic block in " + nm + " has nothing inside.", false, { label: "Remove it", run: () => change(() => { const L = findList(f, s); if (L) L.splice(L.indexOf(s), 1); }) });
     if ((s.type === "ability" || s.type === "trigger") && !s.f.rec) add(nm + " has an ability that isn't built yet.", false, { label: "Build it", run: () => openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; }) });

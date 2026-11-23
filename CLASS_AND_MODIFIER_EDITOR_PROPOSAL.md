@@ -1028,3 +1028,33 @@ chips as Logic:
     includes it. So `Cast.Target Count` works when offered, but not when ticked.
   - The after-roll pair (`displayAfterRoll` / `activationAfterRoll`) is used 5 times. It is not
     in the blocks yet and stays in the old Modify Power Roll editor as the backup.
+
+## 23. "Automatically selected", and tests ordered by use (2026-11-23)
+
+- **Renamed:** the roll block's "Ticked" line is now **Automatically selected**, with the choices
+  always, when [+ test], never (the player chooses), or always, and it costs N [resource].
+- **Test order in both editors:** "Combine tests" stays first. The rest are ordered by how often
+  the compendium's 5,201 condition and filter formulas use them:
+
+  | Test | Uses |
+  |---|---:|
+  | The ability's keywords | 340 |
+  | Level | 339 |
+  | The ability's name | 282 |
+  | Potency | 205 |
+  | Characteristics | 193 |
+  | Your conditions | 155 |
+  | The target's conditions | 137 |
+  | Deals damage | 125 |
+  | Winded | 105 |
+  | Concealed | 89 |
+  | Stamina | 76 |
+  | Resource this turn | 71 |
+  | Victories | 51 |
+  | Strained | 10 |
+
+  "Kind of creature", mostly "enemy", has 473 uses and leads the ability editor's list after
+  Combine and Compare.
+- **Groups that only some boxes have** (the triggering event, the parent ability, remembered
+  values) come right after Combine. "Remembered values" drops to the bottom while nothing is
+  remembered yet.

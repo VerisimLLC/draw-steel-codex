@@ -3354,8 +3354,11 @@ function pickerOptions(h) {
     groups.unshift(["From " + pn, "What happened when " + pn + " used this ability.", items]);
   }
   if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
-  // Combining tests (all of, any of, not) is how most tests start, so it leads the list.
-  const ci = groups.findIndex(g => g[0] === "Combine tests"); if (ci > 0) groups.unshift(groups.splice(ci, 1)[0]);
+  // Combining tests (all of, any of, not) leads; then what this box alone offers (the event, the parent
+  // ability, remembered values); then the rest by how often compendium formulas use them (2026-11-23 count).
+  const BY_USE = ["Compare a number", "Check what kind of creature", "Check a condition", "Check potency", "Check health", "Strained (Talent)"];
+  const rank = g => g[0] === "Combine tests" ? 0 : g[0] === "Remembered values" ? (mems.length ? 1 : 50) : BY_USE.includes(g[0]) ? 10 + BY_USE.indexOf(g[0]) : /^Examples/.test(g[0]) ? 60 : 1;
+  groups.sort((x, y) => rank(x) - rank(y));
   return groups.filter(g => g[2].length);
 }
 function openPicker(h, anchor) {

@@ -5610,7 +5610,8 @@ local function CreateFace()
         list:ScheduleEvent("toEntry", 0.1)
     end
 
-    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry, ShowMap = ShowMap}
+    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch, ShowEntry = ShowEntry, ShowMap = ShowMap,
+        MapId = function() return mapid end}
     list.vscrollPosition = 0
     Refresh()
     if g_showOnOpen ~= nil then

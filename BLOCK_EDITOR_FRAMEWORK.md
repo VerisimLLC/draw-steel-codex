@@ -377,8 +377,8 @@ feature's text.
   - 10 ability-editor blocks that have no engine type of their own.
 
   Columns: label, hover text, block sentence, book prose, group, status, engine name, the new
-  editor's own description, and notes. 37 types have built blocks, and 125 still need a
-  sentence or wording.
+  editor's own description, and notes. 28 engine types already have blocks (15 behaviours, 13
+  modifiers); 125 still need wording (78 behaviours, 47 modifiers).
 - **Q2 (new): one type, several blocks.** Some types already appear as more than one block:
   - `attribute` is Change a stat, Movement type, You ignore / can't... and Raise a
     characteristic;

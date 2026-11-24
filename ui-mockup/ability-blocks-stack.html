@@ -546,7 +546,11 @@ const SOURCES = [
 ];
 const POTENCY_NUMBER_NOTE = "A potency check with a plain number (such as 2), including power roll modifiers, still ignores the caster's Potency Bonus and monster level scaling, unlike the same check written in tier text (M<2). Prefer weak / average / strong where you can.";
 const NESTED_NOTE = "A follow-up inside a follow-up uses its parent's information. Today the engine fills these values from the outermost ability, so this needs an engine change (stop parameter substitution at nested follow-ups) before it runs as shown.";
-const sourceFor = expr => SOURCES.find(y => norm(y.expr) === norm(expr || ""));
+/* Everything else an ability use knows (ActivatedAbilityCast.helpSymbols): offered as "More from ...",
+   collapsed in the picker and found by its search, so the common few above stay uncluttered. */
+const MORE_SOURCES = [{"id": "anytargetcoverorconcealment", "label": "Any target cover or concealment", "kind": "number", "expr": "Cast.AnyTargetCoverOrConcealment", "desc": "True if any target of this ability has concealment, or has cover from at least one enemy (the Concealed and Cover From Any Enemy creature symbols). (1 if yes, 0 if no)"}, {"id": "creaturelistsize", "label": "Creature list size", "kind": "number", "expr": "Cast.CreatureListSize", "desc": "The number of creatures in any creature lists manipulated by this ability."}, {"id": "damagedealtagainst", "label": "Damage dealt against", "kind": "number", "expr": "Cast.DamageDealtAgainst", "desc": "The amount of damage dealt against a specific target while using this ability."}, {"id": "damageraw", "label": "Damage raw", "kind": "number", "expr": "Cast.DamageRaw", "desc": "The amount of raw damage (before resistance modifiers) dealt while using this ability."}, {"id": "damagerawagainst", "label": "Damage raw against", "kind": "number", "expr": "Cast.DamageRawAgainst", "desc": "The amount of raw damage (before resistance modifiers) dealt against a specific target while using this ability."}, {"id": "firsttarget", "label": "First target", "kind": "creature", "expr": "Cast.FirstTarget.ID", "desc": "The first target of this ability. This is only valid if there is at least one target."}, {"id": "forcedmovementcollision", "label": "Forced movement collision", "kind": "number", "expr": "Cast.ForcedMovementCollision", "desc": "True if any forced movement caused by this ability collided with a creature or object. (1 if yes, 0 if no)"}, {"id": "forcedmovementcreaturecollision", "label": "Forced movement creature collision", "kind": "number", "expr": "Cast.ForcedMovementCreatureCollision", "desc": "True if a creature force moved by this ability collided with one or more other creatures. (1 if yes, 0 if no)"}, {"id": "forcedmovementcreaturecollisioncount", "label": "Forced movement creature collision count", "kind": "number", "expr": "Cast.ForcedMovementCreatureCollisionCount", "desc": "The number of unique creatures involved in forced movement creature collisions, including the moved creatures."}, {"id": "forcedmovementcreaturecount", "label": "Forced movement creature count", "kind": "number", "expr": "Cast.ForcedMovementCreatureCount", "desc": "The number of unique creatures that were actually force moved by this ability (excludes creatures that resisted due to stability or could not be moved)."}, {"id": "forcedmovementdamagedealt", "label": "Forced movement damage dealt", "kind": "number", "expr": "Cast.ForcedMovementDamageDealt", "desc": "The amount of damage dealt by forced movement collisions while using this ability."}, {"id": "forcedmovementdamagedealttarget", "label": "Forced movement damage dealt to targets", "kind": "number", "expr": "Cast.ForcedMovementDamageDealttoTargets", "desc": "The amount of damage dealt by forced movement collisions to creatures targeted by this ability."}, {"id": "forcedmovementdistance", "label": "Forced movement distance", "kind": "number", "expr": "Cast.ForcedMovementDistance", "desc": "The total distance of forced movement caused by this ability."}, {"id": "healroll", "label": "Heal roll", "kind": "number", "expr": "Cast.HealRoll", "desc": "The healing roll made while using this ability."}, {"id": "healing", "label": "Healing", "kind": "number", "expr": "Cast.Healing", "desc": "The amount of healing made while using this ability."}, {"id": "heroicresourcesgained", "label": "Heroic resources gained", "kind": "number", "expr": "Cast.HeroicResourcesGained", "desc": "The amount of heroic resources gained while using this ability."}, {"id": "highroll", "label": "High roll", "kind": "number", "expr": "Cast.HighRoll", "desc": "The highest result of the 2d10 rolled during the power roll of this ability."}, {"id": "inflictedconditions", "label": "Inflicted conditions", "kind": "number", "expr": "Cast.InflictedConditions", "desc": "True if this ability cast has inflicted conditions on creatures. (1 if yes, 0 if no)"}, {"id": "lastcreaturepassed", "label": "Last creature passed", "kind": "creature", "expr": "Cast.LastCreaturePassed.ID", "desc": "The last creature, in path order, that this ability's movement passed. Set by a Relocate Creatures behavior that targets the creatures in its movement's vicinity."}, {"id": "lowroll", "label": "Low roll", "kind": "number", "expr": "Cast.LowRoll", "desc": "The lowest result of the 2d10 rolled during the power roll of this ability."}, {"id": "mode", "label": "Mode", "kind": "number", "expr": "Cast.Mode", "desc": "The mode the ability was cast with."}, {"id": "naturalroll", "label": "Natural roll", "kind": "number", "expr": "Cast.NaturalRoll", "desc": "The unmodified total of the dice rolled during the power roll of this ability."}, {"id": "negatedforcedmovement", "label": "Negated forced movement", "kind": "number", "expr": "Cast.NegatedForcedMovement", "desc": "In the custom trigger of a power roll modifier with Negate Forced Movement: how many squares the target would have been force moved, after stability and bonuses. 0 otherwise."}, {"id": "numberofaddedcreatures", "label": "Number of added creatures", "kind": "number", "expr": "Cast.NumberofAddedCreatures", "desc": "The number of creatures added to creature lists while using this ability."}, {"id": "opportunityattackstriggered", "label": "Opportunity attacks triggered", "kind": "number", "expr": "Cast.OpportunityAttacksTriggered", "desc": "The number of opportunity attacks triggered while using this ability."}, {"id": "purgedconditions", "label": "Purged conditions", "kind": "number", "expr": "Cast.PurgedConditions", "desc": "The number of conditions purged by this ability cast."}, {"id": "roll", "label": "Roll", "kind": "number", "expr": "Cast.Roll", "desc": "The roll made while using this ability. This is only valid for abilities with the Roll Behavior."}, {"id": "spacesmovedthisinvocation", "label": "Spaces moved this invocation", "kind": "number", "expr": "Cast.SpacesMovedThisInvocation", "desc": "The number of spaces moved during the current per-target invocation pass of an Invoke Ability behavior using Choose Invocation Order. Unlike Spaces Moved, this resets each time the invoke moves on to its next chosen target, and it does not count distance covered by teleports, relocates or swaps. Outside a Choose Invocation Order loop it counts all non-teleport movement of the cast."}, {"id": "targetsadjacent", "label": "Targets adjacent", "kind": "number", "expr": "Cast.TargetsAdjacent", "desc": "True if this cast currently has two or more targets and every pair of targets is adjacent to each other (within 1 square, accounting for the full space occupied by larger tokens). False if the cast has fewer than two targets. (1 if yes, 0 if no)"}];
+const ALL_SOURCES = SOURCES.concat(MORE_SOURCES);
+const sourceFor = expr => ALL_SOURCES.find(y => norm(y.expr) === norm(expr || ""));
 const SCOPES = {};
 /* A formula box inside a follow-up ability uses the base description plus the hand-offs its
    parent step provides. Keys look like "stepIf@s42": base description @ the follow-up step. */
@@ -1163,7 +1167,7 @@ function cX(x, h) {
     case "parentVal": case "isParent": case "parentExpr": {
       const pn = d.parentName ? d.parentName() : "the parent ability";
       if (!d.inFollowUp) bad(x.id, "This is information from the ability that uses this one, so it only works inside \u201cThen use a new ability\u201d.");
-      const src = SOURCES.find(y => y.id === f.src);
+      const src = ALL_SOURCES.find(y => y.id === f.src);
       let expr = src ? src.expr : f.expr;
       if (x.type === "parentExpr" && !f.expr) { bad(x.id, pn + " never sets this value (<<" + f.name + ">>), so it is always empty. Pick what it should be."); expr = ""; }
       if (paramSink && expr) paramSink[f.name] = expr;
@@ -1451,7 +1455,7 @@ function compileSteps(list, filters, out, prose) {   // list is also checked by 
           else if (f.targeting === "prompt" && f.from && /^enem(y|ies)$/.test(f.count)) child.targetFilter = "not Friends(Invoker, Target)"; }
         const params = {}; for (const k in paramSink) params[k] = "<<" + paramSink[k] + ">>";
         // A value written straight into a step ("<<tierresult>>", e.g. from pasted text) is passed too.
-        for (const mm of JSON.stringify(cb).matchAll(/<<(\w+)>>/g)) { const src = SOURCES.find(x => x.id === mm[1]); if (src && !(mm[1] in params)) params[mm[1]] = "<<" + src.expr + ">>"; }
+        for (const mm of JSON.stringify(cb).matchAll(/<<(\w+)>>/g)) { const src = ALL_SOURCES.find(x => x.id === mm[1]); if (src && !(mm[1] in params)) params[mm[1]] = "<<" + src.expr + ">>"; }
         // Opened from saved data: keep the information it was already passed, unless replaced.
         const src0 = st.srcList && sigMode !== "off" ? st.srcList[0] : null;
         if (src0 && src0.standardAbilityParams) for (const k in src0.standardAbilityParams) if (!(k in params)) params[k] = src0.standardAbilityParams[k];
@@ -1876,20 +1880,20 @@ function renderX(x, h) {
     }
     case "parentVal": {
       e.classList.add("passed"); add(E("span", "pass-ico", "\u2935")); add(lbl((d.parentName ? d.parentName() : "Parent") + "'s"));
-      add(sel(f, "src", SOURCES.filter(y => y.kind === "number").map(y => [y.id, y.label.toLowerCase()]), () => { f.name = f.src; refresh(); }, "parent information"));
+      add(sel(f, "src", ALL_SOURCES.filter(y => y.kind === "number").map(y => [y.id, y.label.toLowerCase()]), () => { f.name = f.src; refresh(); }, "parent information"));
       break;
     }
     case "isParent": {
       e.classList.add("passed"); add(sel(f, "role", roles, null, "creature")); add(lbl(verb()));
       add(E("span", "pass-ico", "\u2935")); add(lbl((d.parentName ? d.parentName() : "Parent") + "'s"));
-      add(sel(f, "src", SOURCES.filter(y => y.kind === "creature").map(y => [y.id, y.label.toLowerCase()]), () => { f.name = f.src; refresh(); }, "parent creature"));
+      add(sel(f, "src", ALL_SOURCES.filter(y => y.kind === "creature").map(y => [y.id, y.label.toLowerCase()]), () => { f.name = f.src; refresh(); }, "parent creature"));
       break;
     }
     case "parentExpr": {
       e.classList.add("passed"); add(E("span", "pass-ico", "\u2935")); add(lbl("value from " + (d.parentName ? d.parentName() : "parent")));
       // One click turns an unrecognised or missing value into a named piece of parent information.
       const pick = E("select", "f"); pick.setAttribute("aria-label", "choose parent information");
-      [["", f.expr ? "custom formula:" : "choose..."]].concat(SOURCES.filter(y => y.kind === "number").map(y => [y.id, y.label.toLowerCase()])).forEach(([v, t]) => { const o = E("option", null, t); o.value = v; pick.appendChild(o); });
+      [["", f.expr ? "custom formula:" : "choose..."]].concat(ALL_SOURCES.filter(y => y.kind === "number").map(y => [y.id, y.label.toLowerCase()])).forEach(([v, t]) => { const o = E("option", null, t); o.value = v; pick.appendChild(o); });
       pick.addEventListener("change", () => { if (pick.value) { x.type = "parentVal"; f.src = pick.value; refresh(); } });
       add(pick);
       if (f.expr) { const i = inp(f, "expr", "", "formula worked out by the parent"); i.style.fontFamily = "var(--font-mono)"; i.style.borderRadius = "4px"; add(i); }
@@ -3383,13 +3387,18 @@ function pickerOptions(h) {
   // Inside a follow-up ability, facts about the ability that used it come first.
   if (d.inFollowUp) {
     const pn = d.parentName();
-    const nums = SOURCES.filter(y => y.kind === "number"), cre = SOURCES.filter(y => y.kind === "creature");
     const pv = y => X("parentVal", { name: y.id, src: y.id });
-    const items = wantBool
-      ? cre.map(y => item(Who + " " + is + " " + pn + "'s " + y.label.toLowerCase(), y.desc, () => X("isParent", { role: who, name: y.id, src: y.id }), "parent creature", true))
-          .concat(nums.map(y => item(pn + "'s " + y.label.toLowerCase() + " is at least [ ]", y.desc, () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: pv(y) }), b: numH("2") }), "parent tier", true)))
-      : nums.map(y => item(pn + "'s " + y.label.toLowerCase(), y.desc, () => pv(y), "parent"));
-    groups.unshift(["From " + pn, "What happened when " + pn + " used this ability.", items]);
+    const itemsFor = list => {
+      const nums = list.filter(y => y.kind === "number"), cre = list.filter(y => y.kind === "creature");
+      return wantBool
+        ? cre.map(y => item(Who + " " + is + " " + pn + "'s " + y.label.toLowerCase(), y.desc, () => X("isParent", { role: who, name: y.id, src: y.id }), "parent creature", true))
+            .concat(nums.map(y => item(pn + "'s " + y.label.toLowerCase() + " is at least [ ]", y.desc, () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: pv(y) }), b: numH("2") }), "parent tier", true)))
+        : nums.map(y => item(pn + "'s " + y.label.toLowerCase(), y.desc, () => pv(y), "parent"));
+    };
+    // The common few first; everything else the parent knows sits in its own group, which the
+    // picker shows collapsed ("Show N more") and its search box looks through.
+    groups.unshift(["From " + pn, "What happened when " + pn + " used this ability.", itemsFor(SOURCES)],
+      ["More from " + pn, "Everything else " + pn + " knows: rolls, healing, forced movement, collisions... Search to find one.", itemsFor(MORE_SOURCES)]);
   }
   if (exItems.length) groups.push(["Examples for " + d.title.toLowerCase(), "Ready-made formulas for this box.", exItems]);
   // Combining tests (all of, any of, not) leads; then what this box alone offers (the event, the parent

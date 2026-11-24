@@ -747,7 +747,7 @@ function makeSentence(type) { const d = SENT[type]; return { id: newId("s"), typ
 // block in them stays editable, and dragging one in copies it.
 /* One shelf (critique alternative C): every block, plus a few recipes (several blocks, or a block with
    presets). Dropped on a level, an entry becomes a feature named after it; dropped into a feature, its
-   blocks are added there. Authors' own ready-made features join the shelf the same way. */
+   blocks are added there. Authors' own recipes (saved features) join the shelf the same way. */
 const RECIPES = [
   { key: "growing", label: "Growing table", group: "res", uses: 11, desc: "Rows at 2, 4 and 6, then 8 at 4th level, 10 at 7th and 12 at 10th: the same steps the core classes use.", name: () => "Growing " + (cls.resourceName || "Resource"),
     blocks: () => [["growing", { rows: [["2", "1"], ["4", "1"], ["6", "1"], ["8", "4"], ["10", "7"], ["12", "10"]].map(([at, level]) => ({ id: newId("r"), at, level, replaces: "", text: "", blocks: [] })) }]] },
@@ -1162,7 +1162,7 @@ function abilityCards(items, feat, setRec, onRemove, sent, seedFn) {
     cw.appendChild(card);
     const btns = E("div", "cbtns");
     const eb = E("button", "btn small", it.rec ? "Edit" : "Build it"); eb.type = "button"; eb.addEventListener("click", edit); btns.appendChild(eb);
-    if (it.problems) btns.appendChild(E("span", "warn", it.problems.length + " thing" + (it.problems.length === 1 ? "" : "s") + " to finish"));
+    if (it.problems) btns.appendChild(E("span", "warnpill", it.problems.length + " thing" + (it.problems.length === 1 ? "" : "s") + " to finish"));
     if (onRemove) { const rb = E("button", "btn small", "Remove"); rb.type = "button"; rb.addEventListener("click", () => { change(() => onRemove(i)); toast("Removed \u201c" + (it.rec ? recName(it.rec) : "ability") + "\u201d.", { label: "Undo", run: undo }); }); btns.appendChild(rb); }
     cw.appendChild(btns); wrap.appendChild(cw);
   });
@@ -1304,11 +1304,20 @@ function renderLane(k) {
   items.appendChild(add); lane.appendChild(items);
   return lane;
 }
+/* A feature is drawn in the colour of its first block (orange for an ability, blue for a stat...),
+   so it reads as a block on the lanes too. An empty feature uses the neutral block colour. */
+function featColor(f) {
+  const first = (f.sentences || [])[0]; const d = first && SENT[first.type];
+  const g = d && GROUPS.find(x => x[0] === d.group);
+  return g ? g[2] : "--c-adv";
+}
 function chip(f, k) {
   const bad = featureIssues(f, k).some(x => !x.soft);
-  const c = fk(E("button", "chip" + (bad ? " bad" : "")), "chip:" + f.id); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
-  c.appendChild(E("span", "kind", kindLabel(f))); c.appendChild(E("span", "nm", featName(f)));
-  c.title = (bad ? "Something to finish. " : "") + (featText(f) || "Click to open");
+  const c = fk(E("button", "chip blockchip" + (bad ? " bad" : "")), "chip:" + f.id); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
+  c.style.setProperty("--c", "var(" + featColor(f) + ")");
+  const gr = E("span", "grip"); gr.innerHTML = GRIP; c.appendChild(gr);
+  c.appendChild(E("span", "nm", featName(f)));
+  c.title = kindLabel(f) + (bad ? ". Something to finish." : "") + (featText(f) ? "\n" + featText(f) : "");
   c.addEventListener("click", () => { if (c.dataset.dragged) return; openFeature(f.id); });
   return c;
 }
@@ -1395,9 +1404,9 @@ function doDrop(d, t) {
 }
 
 function renderFeature(f, laneKey) {
-  const box = E("div", "feat");
-  const head = E("div", "feat-head");
-  head.appendChild(E("span", "kind", kindLabel(f)));
+  const box = E("div", "feat"); box.style.setProperty("--c", "var(" + featColor(f) + ")");
+  // The open feature's header is the block itself, in the feature's colour.
+  const head = E("div", "feat-head blockhead"); head.title = kindLabel(f);
   const nin = fk(E("input", "fname"), "fname:" + f.id); nin.value = f.name; nin.placeholder = featName(f) === "Unnamed feature" ? "Feature name" : featName(f); nin.setAttribute("aria-label", "Feature name");
   nin.addEventListener("change", () => setTimeout(() => change(() => { f.name = nin.value.trim(); }))); head.appendChild(nin);
   const close = fk(E("button", "btn small", "Close"), "close:" + f.id); close.type = "button"; close.addEventListener("click", () => { openId = null; render(); restoreFocus("chip:" + f.id); }); head.appendChild(close);
@@ -1427,7 +1436,7 @@ function renderFeature(f, laneKey) {
   const dup = fk(E("button", "btn small", "Duplicate"), "dup:" + f.id); dup.type = "button";
   dup.addEventListener("click", () => change(() => { const c = cloneFeature(f); cls.lanes[laneKey].push(c); openId = c.id; pendingFk = "fname:" + c.id; }));
   foot.appendChild(dup);
-  const sv = fk(E("button", "btn small", "Save as ready-made"), "tpl:" + f.id); sv.type = "button"; sv.title = "Keep a copy on your shelf to reuse in any class, and share";
+  const sv = fk(E("button", "btn small", "Save as recipe"), "tpl:" + f.id); sv.type = "button"; sv.title = "Keep this feature on your shelf as a recipe, to reuse in any class or share";
   sv.addEventListener("click", ev => { ev.stopPropagation(); saveTemplateMenu(sv, f); });
   foot.appendChild(sv);
   const del = fk(E("button", "btn small", "Delete"), "del:" + f.id); del.type = "button";
@@ -1511,8 +1520,8 @@ const groupColor = g => (GROUPS.find(x => x[0] === g) || [0, 0, "--c-adv"])[2];
 /* The shelf's entries by group: [group label, [{ key, label, color, uses, desc }]]. */
 function shelfEntries() {
   const out = [];
-  const mine = (store.templates || []).map(t => ({ key: "t:" + t.id, label: t.name, color: "--c-mine", desc: "Your ready-made feature: " + (sentenceProse(t.feature) || "(no blocks)"), tpl: t }));
-  out.push(["Your ready-made features", mine]);
+  const mine = (store.templates || []).map(t => ({ key: "t:" + t.id, label: t.name, color: "--c-mine", desc: "Your recipe: " + (sentenceProse(t.feature) || "(no blocks)"), tpl: t }));
+  out.push(["Your recipes", mine]);
   const groups = GROUPS.map(g => {
     const items = Object.keys(SENT).filter(t => SENT[t].group === g[0] && SENT[t].shelf !== false).map(t => ({ key: "s:" + t, label: SENT[t].label, color: g[2], uses: SENT[t].uses, desc: SENT[t].desc }))
       .concat(RECIPES.filter(r => r.group === g[0]).map(r => ({ key: "r:" + r.key, label: r.label, color: g[2], uses: r.uses, desc: r.desc + " A recipe: adds the blocks for you to edit.", recipe: true })));
@@ -1538,15 +1547,15 @@ function renderShelf() {
   shelf.appendChild(E("p", "hint", "Drag a block onto a level to make a new feature, or into a feature to add to it. Clicking a block adds it to " + (at ? "\u201c" + featName(at.feat) + "\u201d" : "a new feature") + "."));
   shelfEntries().forEach(([group, items, color]) => {
     const vis = items.filter(it => match(it.label + " " + group + " " + (it.desc || "")));
-    if (group === "Your ready-made features") { if (!vis.length && q) return; }
+    if (group === "Your recipes") { if (!vis.length && q) return; }
     else if (!vis.length) return;
     const gh = E("h5", "palhead"); const sw = E("span", "sw"); sw.style.background = "var(" + (color || (group.startsWith("Your") ? "--c-mine" : "--c-adv")) + ")"; gh.appendChild(sw); gh.appendChild(document.createTextNode(group));
-    if (group === "Your ready-made features" && (store.templates || []).length) {
+    if (group === "Your recipes" && (store.templates || []).length) {
       const sh = fk(E("button", "btn link", "Share all"), "tplshareall"); sh.type = "button"; sh.addEventListener("click", ev => { ev.stopPropagation(); shareTemplates(sh, store.templates); }); gh.appendChild(sh);
     }
     shelf.appendChild(gh);
     const box = E("div", "palgroup");
-    if (group === "Your ready-made features" && !vis.length) box.appendChild(E("p", "hint", "Open a feature and choose \u201cSave as ready-made\u201d to keep it here. Import adds ones others share."));
+    if (group === "Your recipes" && !vis.length) box.appendChild(E("p", "hint", "Open a feature and choose \u201cSave as recipe\u201d to keep it here. Import adds ones others share."));
     vis.forEach(it => {
       const click = () => { if (at) { const top = at.feat.sentences; addEntryToList(it.key, at.feat, top, top.length, false); } else addEntryToLane(it.key, laneKeys()[0]); };
       const b = shelfBlock(it.label, it.color, it.uses, it.desc, "entry", it.key, click);
@@ -1559,14 +1568,14 @@ function renderShelf() {
     shelf.appendChild(box);
   });
 }
-/* Your ready-made features: saved in this browser (store.templates), shared as text like classes. */
+/* Your recipes (saved features): kept in this browser (store.templates), shared as text like classes. */
 function saveTemplateMenu(btn, f) {
   menuAt(btn, m => {
-    m.appendChild(E("div", "q", "Save a copy of this feature to your shelf, to reuse in any class. Its abilities come with it."));
+    m.appendChild(E("div", "q", "Save this feature to your shelf as a recipe, to reuse in any class. Its abilities come with it."));
     const i = E("input", "filter"); i.value = featName(f) === "Unnamed feature" ? "" : featName(f); i.placeholder = "Name on the shelf"; m.appendChild(i);
     const yn = E("div", "yn"); const ok = E("button", "btn primary", "Save"); ok.type = "button";
     ok.addEventListener("click", () => { const name = i.value.trim() || featName(f); const c = JSON.parse(JSON.stringify(f)); delete c.id; c.name = name;
-      (store.templates = store.templates || []).push({ id: guid(), name, feature: c }); closeMenu(); saveStore(); render(); toast("Saved \u201c" + name + "\u201d to your ready-made features."); });
+      (store.templates = store.templates || []).push({ id: guid(), name, feature: c }); closeMenu(); saveStore(); render(); toast("Saved \u201c" + name + "\u201d to your recipes."); });
     i.addEventListener("keydown", e => { if (e.key === "Enter") ok.click(); });
     yn.appendChild(ok); m.appendChild(yn);
   });
@@ -1699,16 +1708,16 @@ function loadBuilderText(t) {
     const added = d.templates.filter(t => t && t.feature && Array.isArray(t.feature.sentences)).map(t => ({ id: guid(), name: String(t.name || "Shared feature"), feature: migrateClass({ lanes: { x: [Object.assign({ id: "f0" }, t.feature)] } }).lanes.x[0] }));
     added.forEach(t => delete t.feature.id);
     store.templates = (store.templates || []).concat(added); closeMenu(); saveStore(); render();
-    return toast("Added " + added.length + " ready-made feature" + (added.length === 1 ? "" : "s") + " to your shelf.");
+    return toast("Added " + added.length + " recipe" + (added.length === 1 ? "" : "s") + " to your shelf.");
   }
-  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class or ready-made feature shared from this builder.");
+  if (!d || !d.cls || !d.cls.lanes) return toast("That isn't a class or recipe shared from this builder.");
   const ids = t.match(/"id":"[a-z](\d+)"/g) || []; ids.forEach(m => { const n = +m.replace(/\D/g, ""); if (n >= uid) uid = n + 1; });
   // An imported class opens as a new class in the list; the one you had stays as it was.
   closeMenu(); const c = migrateClass(d.cls); if (store.classes[c.id]) c.id = guid();
   newClass(c); toast("Opened \u201c" + cls.name + "\u201d as a new class. Your other classes are in the Open list.");
 }
 function importBuilder(btn) {
-  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Paste a class or ready-made features someone shared with you, or choose a saved file. A class opens as a new class; features join your shelf.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
+  menuAt(btn, m => { m.classList.add("wide"); m.appendChild(E("div", "q", "Paste a class or recipes someone shared with you, or choose a saved file. A class opens as a new class; features join your shelf.")); const ta = E("textarea", "io"); ta.placeholder = '{"classBuilder":1, ...}'; m.appendChild(ta);
     const yn = E("div", "yn"); const o = E("button", "btn primary", "Open pasted class"); o.type = "button"; o.addEventListener("click", () => loadBuilderText(ta.value));
     const fl = E("label", "btn filebtn", "Choose a file\u2026"); const fi = E("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.id = "importFile";
     fi.addEventListener("change", () => { const x = fi.files[0]; if (x) x.text().then(loadBuilderText); }); fl.appendChild(fi);

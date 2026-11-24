@@ -1058,3 +1058,14 @@ chips as Logic:
 - **Groups that only some boxes have** (the triggering event, the parent ability, remembered
   values) come right after Combine. "Remembered values" drops to the bottom while nothing is
   remembered yet.
+
+## 24. Features look like blocks; recipes; readable warnings (2026-11-24)
+
+- **Features as blocks.** A feature is drawn as a block in the colour of its first block:
+  orange for an ability, blue for a stat, gold for skills and perks, and so on. This applies on
+  the level lanes and in the open feature's header. The "FEATURE" label is gone; the feature's
+  kind is in the hover text. An empty feature uses the neutral block colour.
+- **"Ready-made" is now "recipe" everywhere.** The button reads "Save as recipe", the shelf group
+  is "Your recipes", and the toasts and Share/Import text match.
+- **The "N things to finish" warning** on an ability card was light orange on the orange block.
+  It is now a white-on-dark pill with a red "!" mark, readable on any block colour.

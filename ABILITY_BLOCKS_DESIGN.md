@@ -1513,3 +1513,28 @@ both editors.
   `class-builder-data/build_data.py`.
 - **Custom names:** a typed name that isn't in the compendium is still allowed, because effects
   can be made in play. It is listed as worth checking ("isn't an effect in the compendium").
+
+## 4ad. Everything a follow-up can be passed (2026-11-24)
+
+"Use a new ability" used to offer the follow-up only 6 values from the ability that uses it:
+- tier
+- damage dealt
+- squares moved
+- number of targets
+- first target
+- target
+
+The engine knows 46 (`ActivatedAbilityCast.helpSymbols`). The test and formula pickers inside a
+follow-up now have two groups:
+- **From [parent]:** the common six, as before.
+- **More from [parent]:** the other 27 that can be passed as a value or a creature. Examples are
+  high and low roll, natural roll, healing, raw damage, heroic resources gained, forced movement
+  distance and collisions, opportunity attacks triggered, mode, and "last creature passed".
+  - The group is collapsed to 3 at first ("Show 24 more"), so the picker stays uncluttered, and
+    the search box finds any of them.
+  - Yes/no values pass as 1 or 0, which their descriptions say.
+
+Functions that need an argument (Has Target, Tier for Target, Memory...) are left out. Memory is
+covered by "Remember a value". Saved follow-ups that already pass one of these values now open
+with it as a chip instead of a formula. Round trips are unchanged: 45/45, 60/60, 1,148/1,148,
+and 23/23.

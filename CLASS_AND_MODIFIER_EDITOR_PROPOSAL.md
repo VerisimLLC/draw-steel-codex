@@ -1086,3 +1086,16 @@ How they save:
 The Recoveries and Kit blocks stay on the shelf for features that grant more. A class with no
 Recoveries in either place is listed in Status as worth checking. Classes saved earlier keep
 their blocks: their basics rows start empty and off, so nothing is counted twice.
+
+## 26. One formula picker everywhere (2026-11-24)
+
+Clicking an fx amount now opens the same picker in the class builder as in the ability editor:
+an "Amount / number" header, a search, the groups Use a stat, Scale with level, Do math and
+Roll dice, and "Type a formula instead" with the GoblinScript reference. Class amounts have no
+box beside the fx, so "Type a formula instead" starts open with the current amount in it.
+
+This covers every class amount, including both ways of gaining the heroic resource. The
+start-of-turn gain used to have its own "a set amount / a die roll" control. It now uses the
+picker too: "1d3" still saves as a die and anything else as a set amount, and "Scale with level"
+adds a "+1 from 7th level" step. Level steps on other amounts appear in the picker under
+"Changes with level".

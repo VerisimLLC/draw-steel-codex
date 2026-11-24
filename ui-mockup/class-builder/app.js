@@ -176,37 +176,75 @@ const fxIsCount = (obj, key) => /^(\d+|\d*d\d+)$/i.test(String(obj[key] == null 
 const gainAmountText = (g, res) => fxIsCount(g, "qty") || !String(g.qty || "").trim() ? fxText(g, "qty") + " " + res : "a number of " + res + " equal to " + fxWords(g, "qty");
 function fxTok(obj, key, placeholder, words) {
   const t = tok((words ? fxWords(obj, key) : fxText(obj, key)) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
-  t.classList.add("fx"); t.title = "Type a number, or click to use your level, Victories, a characteristic or a die roll"; return t;
+  t.classList.add("fx"); t.title = "Build a formula"; return t;
 }
-function fillFx(m, obj, key) {
-  m.innerHTML = "";
-  // Plain words; the engine formula only with "Show saved fields".
-  const hint = E("div", "hint"); const upd = () => { hint.textContent = (fxText(obj, key) ? "Reads: " + fxText(obj, key) : "") + (showGs ? "  \u00b7  saves as " + fxFormula(obj, key) : ""); }; upd();
-  const edit = fn => { change(fn, true); upd(); };
-  m.appendChild(E("h5", null, "Amount (a number or a formula)"));
-  const i = E("input", "filter"); i.value = obj[key] == null ? "" : obj[key]; i.placeholder = "e.g. 2, Victories, 1d3, Presence"; i.id = "fxInput";
-  i.addEventListener("change", () => edit(() => { obj[key] = i.value.trim(); }));
-  i.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); edit(() => { obj[key] = i.value.trim(); }); } });
-  m.appendChild(i);
-  const quick = E("div", "fxquick");
-  FX_PICKS.forEach(([v, l]) => { const b = E("button", "btn small", l); b.type = "button"; b.addEventListener("click", () => { i.value = v; edit(() => { obj[key] = v; }); }); quick.appendChild(b); });
-  m.appendChild(quick);
-  m.appendChild(E("h5", null, "Changes with level"));
-  const steps = obj[key + "Lv"] = obj[key + "Lv"] || [];
-  steps.forEach((x, n) => {
-    const row = E("div", "fxrow"); row.appendChild(document.createTextNode("From level "));
-    const lv = E("input", "fxlv"); lv.value = x.from; lv.inputMode = "numeric"; lv.setAttribute("aria-label", "From level");
-    lv.addEventListener("change", () => edit(() => { x.from = lv.value.trim(); }));
-    const va = E("input", "fxval"); va.value = x.value; va.placeholder = "e.g. 1d3 + 1"; va.setAttribute("aria-label", "Amount from that level");
-    va.addEventListener("change", () => edit(() => { x.value = va.value.trim(); }));
-    const rm = E("button", "btn small", "\u2715"); rm.type = "button"; rm.title = "Remove this step";
-    rm.addEventListener("click", () => { change(() => { steps.splice(n, 1); }, true); fillFx(m, obj, key); });
-    row.appendChild(lv); row.appendChild(document.createTextNode(":")); row.appendChild(va); row.appendChild(rm); m.appendChild(row);
-  });
-  const add = E("button", "btn small", "+ a different amount from a level"); add.type = "button";
-  add.addEventListener("click", () => { change(() => { steps.push({ from: "", value: "" }); }, true); fillFx(m, obj, key); const l = m.querySelectorAll(".fxlv"); if (l.length) l[l.length - 1].focus(); });
-  m.appendChild(add);
-  m.appendChild(hint);
+/* The formula picker, laid out like the ability editor's (same header, search, groups and
+   "Type a formula instead"), so an fx amount looks the same in every editor. Class amounts are
+   formula text, so a pick writes the formula; "Changes with level" keeps the level steps. */
+const FX_STATS = ["Level", "Victories", "Might", "Agility", "Reason", "Intuition", "Presence", "Highest Characteristic", "Stamina", "Maximum Stamina", "Recovery Value", "Recoveries Available to Spend", "Heroic Resources Available to Spend", "Walking Speed", "Size", "Reach", "Combat Round"];
+/* ad (optional) is for amounts stored another way, such as the start-of-turn gain:
+   { get(), set(formula), addStep(), reads(formula) }. Without it the amount is obj[key]. */
+function fillFx(m, obj, key, ad) {
+  m.innerHTML = ""; m.classList.add("picker");
+  const get = ad ? ad.get : () => obj[key];
+  const base = () => String(get() == null ? "" : get()).trim() || "1";
+  const wrap = f => /^[\w.]+$/.test(f) ? f : "(" + f + ")";
+  const steps = ad ? [] : (obj[key + "Lv"] = obj[key + "Lv"] || []);
+  const setF = f => { change(() => { if (ad) ad.set(f); else obj[key] = f; }); };
+  const ph = E("div", "ph"); const t = E("div", "t", "Amount"); t.appendChild(E("span", "kind", "number")); ph.appendChild(t);
+  ph.appendChild(E("p", null, "A number, or what it should be based on."));
+  const search = E("input"); search.placeholder = "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search); m.appendChild(ph);
+  const item = (txt, d, make, k) => ({ txt, d, make, k: k || "" });
+  const groups = [
+    ["Use a stat", "A characteristic, Level, Stamina...", FX_STATS.map(f => item("Your " + f, "", () => setF(f), "characteristic"))],
+    ["Scale with level", "Grows as the creature levels up.", [
+      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { steps.push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
+      item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
+    ["Do math", "Add, subtract, multiply, halve.", [
+      item("[ ] + [ ]", "Add two values (also -, * and /).", () => setF(base() + " + 1"), "plus minus times add subtract"),
+      item("Half of [ ]", "Division rounds down.", () => setF(wrap(base()) + " / 2"), "divide half"),
+      item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => setF("2 when Winded else " + base()), "when else choose")]],
+    ["Roll dice", "Only damage, healing and gains can roll.", [item("1d3", "Change the count and sides after.", () => setF("1d3"), "random d3 d6"), item("1d6", "", () => setF("1d6"), "random d6 d10")]],
+  ];
+  const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
+  const draw = () => {
+    pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
+    groups.forEach(([g, gd, opts]) => {
+      const vis = opts.filter(o => !q || (g + " " + o.txt + " " + o.d + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
+      const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
+      const cap = !q && !expanded.has(g) && vis.length > 4;
+      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", "d", o.d));
+        b.addEventListener("click", o.make); pb.appendChild(b); n++; });
+      if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
+    });
+    if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
+    // Level steps (core classes store these as a level table): shown under the groups while there are any.
+    if (steps.length && !q) {
+      const gh = E("div", "grp", "Changes with level"); gh.appendChild(E("span", "gd", "A different amount from a level on.")); pb.appendChild(gh);
+      steps.forEach((x, i) => {
+        const row = E("div", "fxrow"); row.appendChild(document.createTextNode("From level "));
+        const lv = E("input", "fxlv"); lv.value = x.from; lv.inputMode = "numeric"; lv.setAttribute("aria-label", "From level");
+        lv.addEventListener("change", () => { change(() => { x.from = lv.value.trim(); }, true); upd(); });
+        const va = E("input", "fxval"); va.value = x.value; va.placeholder = "e.g. 1d3 + 1"; va.setAttribute("aria-label", "Amount from that level");
+        va.addEventListener("change", () => { change(() => { x.value = va.value.trim(); }, true); upd(); });
+        const rm = E("button", "btn small", "✕"); rm.type = "button"; rm.title = "Remove this step";
+        rm.addEventListener("click", ev => { ev.stopPropagation(); change(() => { steps.splice(i, 1); }, true); fillFx(m, obj, key); });
+        row.appendChild(lv); row.appendChild(document.createTextNode(":")); row.appendChild(va); row.appendChild(rm); pb.appendChild(row);
+      });
+    }
+  };
+  search.addEventListener("input", draw); draw();
+  // Class amounts have no box beside the fx, so this one is open and holds the current amount.
+  const tb = E("details", "typebox"); tb.open = true; tb.appendChild(E("summary", null, "Type a formula instead"));
+  tb.appendChild(gsDocLink());
+  const ta = E("textarea"); ta.id = "fxInput"; ta.spellcheck = false; ta.setAttribute("aria-label", "GoblinScript formula"); ta.placeholder = "e.g. 2, Victories, 1d3, Presence"; ta.value = get() == null ? "" : get();
+  const res = E("div", "res"); const upd = () => { const v = ta.value.trim(); res.textContent = v ? "Reads: " + (ad ? ad.reads(v) : fxText(Object.assign({}, obj, { [key]: v }), key)) + (!ad && showGs ? "  ·  saves as " + fxFormula(Object.assign({}, obj, { [key]: v }), key) : "") : ""; };
+  ta.addEventListener("input", upd); upd();
+  const use = () => setF(ta.value.trim());
+  ta.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); use(); } });
+  const ins = E("button", "btn small", "Use this formula"); ins.type = "button"; ins.addEventListener("click", use);
+  tb.appendChild(ta); tb.appendChild(res); tb.appendChild(ins); m.appendChild(tb);
+  setTimeout(() => { if (m.isConnected) search.focus(); });
 }
 const lbl = t => document.createTextNode(" " + t + " ");
 
@@ -1236,8 +1274,13 @@ function renderBoard() {
     const sg = cls.startGain;
     const el = E("div", "sent startgain"); el.style.setProperty("--c", "var(--c-res)");
     el.appendChild(lbl("At the start of each of your turns, you gain"));
-    el.appendChild(pickTok(sg, "kind", [["flat", "a set amount:"], ["die", "a die roll: 1d"]]));
-    el.appendChild(textTok(sg, "n", sg.kind === "die" ? "3" : "2")); el.appendChild(lbl(res));
+    // The same fx picker as every other amount; "1d3" stores as a die, anything else as a set amount.
+    const sgAd = { get: () => sg.kind === "die" ? "1d" + sg.n : sg.n,
+      set: f => { const d = String(f).trim().match(/^1\s*d\s*(\d+)$/i); sg.kind = d ? "die" : "flat"; sg.n = d ? d[1] : String(f).trim(); },
+      addStep: () => { sg.steps = sg.steps || []; const last = sg.steps.length ? +sg.steps[sg.steps.length - 1].from : 4; sg.steps.push({ from: String(last < 7 ? 7 : 10), add: "1" }); },
+      reads: f => { const d = String(f).trim().match(/^1\s*d\s*(\d+)$/i); return startGainText(Object.assign({}, sg, { kind: d ? "die" : "flat", n: d ? d[1] : f })); } };
+    const amt = tok(sgAd.get() || "2", b => menuAt(b, m => fillFx(m, sg, "n", sgAd)), !String(sg.n || "").trim(), "startgain:n");
+    amt.classList.add("fx"); amt.title = "Build a formula"; el.appendChild(amt); el.appendChild(lbl(res));
     el.appendChild(E("span", "grow"));
     const mb = fk(E("button", "mb", "\u22ef"), "startgainmb"); mb.type = "button"; mb.setAttribute("aria-label", "Start-of-turn gain options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "This class doesn't gain " + res + " at the start of its turn"); x.type = "button";
@@ -1663,7 +1706,7 @@ function classIssues() {
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
   if (!cls.gains.length) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
-  if (cls.startGain && !/^\d+$/.test(String(cls.startGain.n).trim())) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain needs a whole number" + (cls.startGain.kind === "die" ? " (the die size)." : "."), soft: false });
+  if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
   if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
   if (!String(cls.recoveries || "").trim() && !laneKeys().some(k => (cls.lanes[k] || []).some(f => (f.sentences || []).some(x => x.type === "resource" && x.f.res === RES.recovery))))

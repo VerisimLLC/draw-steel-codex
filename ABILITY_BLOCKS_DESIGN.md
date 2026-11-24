@@ -1554,3 +1554,10 @@ of how often compendium follow-ups use them. A scan of invoked abilities found:
 The first three show. The rest open from a "More from [parent] (N)..." button at the foot of the
 same group, and search finds any of them. "First target" is no longer listed twice: the engine
 has two names for the primary target.
+
+**Revision (2026-11-24): showing where blocks can go.** As in the class builder, a drag now
+outlines every place that would take what is being dragged, in dashed gold. For a step, that is
+each step list it is allowed into; a power roll, for example, can't go inside a tier result. For
+a value block, it is each box of the same kind (number or test). For a keyword, it is the
+keyword row. The step list under the pointer opens a "Drop here" slot about the size of the step,
+in place of the old white line. Value boxes still turn solid white under the pointer.

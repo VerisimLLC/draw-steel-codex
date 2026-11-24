@@ -244,7 +244,13 @@ ul.problems.checks li { border-left-color: var(--gold); }
 .menu-btn:hover { background: rgba(0,0,0,.35); }
 .lbl { white-space: nowrap; }
 .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; opacity: .8; margin-right: 2px; }
-.drop-line { height: 4px; background: #fff; border-radius: 2px; box-shadow: 0 0 6px #fff; margin: 2px 0; }
+.drop-slot { box-sizing: border-box; margin: 3px 0; border: 2px dashed var(--gold); border-radius: 5px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); display: flex; align-items: center; justify-content: center; font: 600 12px var(--font-head); letter-spacing: .04em; animation: slotin .12s ease-out; }
+@keyframes slotin { from { height: 4px; opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .drop-slot { animation: none; } }
+body.is-dragging .stack.can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 70%, transparent); outline-offset: 3px; border-radius: 5px; background-color: color-mix(in srgb, var(--gold) 6%, transparent); min-height: 30px; }
+body.is-dragging .holder.can-drop > * { outline: 2px dashed color-mix(in srgb, var(--gold) 75%, transparent); outline-offset: 2px; }
+body.is-dragging [data-kwdrop].can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 75%, transparent); outline-offset: 2px; }
+body.is-dragging .holder.hot > *, body.is-dragging [data-kwdrop].hot { outline: 2px solid #fff; }
 .step.ghost { opacity: .35; }
 
 .addrow { display: flex; }
@@ -4070,19 +4076,18 @@ document.addEventListener("pointermove", ev => {
     ghost.innerHTML = ""; const c = drag.el.cloneNode(true); c.style.width = drag.el.offsetWidth + "px"; ghost.appendChild(c);
     if (!drag.fromPalette) drag.el.classList.add("ghost");
     else { drag.el.dataset.dragged = "1"; ghost.firstChild.style.width = "auto"; }
+    markDropZones(); document.body.classList.add("is-dragging");
   }
   ghost.style.transform = "translate(" + (ev.clientX - drag.ox) + "px," + (ev.clientY - drag.oy) + "px)";
-  main.querySelectorAll(".drop-line").forEach(l => l.remove());
   main.querySelectorAll(".holder.hot").forEach(l => l.classList.remove("hot"));
-  drag.target = null;
+  drag.target = null; let slotAt = null;
   if (drag.kind === "kw") {
     const row = main.querySelector("[data-kwdrop]");
     if (row) { const r = row.getBoundingClientRect(); const over = ev.clientX >= r.left - 10 && ev.clientX <= r.right + 10 && ev.clientY >= r.top - 10 && ev.clientY <= r.bottom + 10; row.classList.toggle("hot", over); drag.target = over ? row : null; }
   } else if (drag.kind === "step" || drag.kind === "new") {
-    const ctxOk = (c, sEl) => allowed(drag.st.type, c, listScopes[sEl.dataset.list] || null);
     let best = null;
     main.querySelectorAll(".stack[data-list]").forEach(s => {
-      if (drag.el.contains(s) || !ctxOk(s.dataset.ctx, s)) return;
+      if (!stackAccepts(s)) return;
       const r = s.getBoundingClientRect();
       if (ev.clientX < r.left - 10 || ev.clientX > r.right + 10 || ev.clientY < r.top - 12 || ev.clientY > r.bottom + 12) return;
       if (!best || best.r.width > r.width) best = { s, r };
@@ -4091,7 +4096,7 @@ document.addEventListener("pointermove", ev => {
       const kids = [...best.s.children].filter(k => k.classList.contains("step"));
       let idx = kids.length;
       for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (ev.clientY < r.top + Math.min(r.height / 2, 20)) { idx = i; break; } }
-      const line = E("div", "drop-line"); best.s.insertBefore(line, kids[idx] || best.s.querySelector(":scope > .ins.end"));
+      slotAt = { s: best.s, before: kids[idx] || best.s.querySelector(":scope > .ins.end"), key: best.s.dataset.list + ":" + idx };
       drag.target = { list: listsById[best.s.dataset.list], idx };
     }
   } else {
@@ -4105,10 +4110,32 @@ document.addEventListener("pointermove", ev => {
     });
     if (best) { best.he.classList.add("hot"); drag.target = best.h; }
   }
+  showSlot(slotAt);
 });
+/* Where the dragged thing can go. While dragging, each place that would take it is outlined, and
+   the step list under the pointer opens a "Drop here" slot about the size of the step. */
+function stackAccepts(s) { return !drag.el.contains(s) && allowed(drag.st.type, s.dataset.ctx, listScopes[s.dataset.list] || null); }
+function holderAccepts(he) {
+  if (drag.el.contains(he)) return false;
+  const h = allHolders()[he.dataset.holder]; return !!h && h !== drag.h && (h.kind === "boolean") === (drag.h.kind === "boolean");
+}
+function markDropZones() {
+  if (drag.kind === "kw") main.querySelectorAll("[data-kwdrop]").forEach(r => r.classList.add("can-drop"));
+  else if (drag.kind === "step" || drag.kind === "new") main.querySelectorAll(".stack[data-list]").forEach(s => { if (stackAccepts(s)) s.classList.add("can-drop"); });
+  else main.querySelectorAll(".holder").forEach(he => { if (holderAccepts(he)) he.classList.add("can-drop"); });
+}
+let slotEl = null, slotKey = null;
+function showSlot(at) {
+  const key = at ? at.key : null; if (key === slotKey) return; slotKey = key;
+  if (slotEl) { slotEl.remove(); slotEl = null; }
+  if (!at || !drag) return;
+  slotEl = E("div", "drop-slot", "Drop here"); slotEl.style.height = Math.max(34, Math.min(60, drag.el.getBoundingClientRect().height)) + "px";
+  at.s.insertBefore(slotEl, at.before || null);
+}
+function clearDropZones() { showSlot(null); document.body.classList.remove("is-dragging"); document.querySelectorAll(".can-drop, .hot").forEach(z => z.classList.remove("can-drop", "hot")); }
 document.addEventListener("pointerup", () => {
   if (!drag) return;
-  const d = drag; drag = null; ghost.innerHTML = "";
+  const d = drag; ghost.innerHTML = ""; clearDropZones(); drag = null;
   if (!d.on) return;
   if (d.kind === "kw") { main.querySelectorAll(".kwrow.hot").forEach(x => x.classList.remove("hot")); if (d.target) addKeyword(d.kw); else refresh(); return; }
   if (d.kind === "new") {

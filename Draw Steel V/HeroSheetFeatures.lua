@@ -224,6 +224,9 @@ local function GrantedAbilities(feature)
     return result
 end
 
+--- The abilities a feature grants, as its card lists them.
+HeroSheetFeatures.GrantedAbilities = GrantedAbilities
+
 --A feature's modifiers that bring their own controls to its card (their
 --CreateSheetPanel, as the old sheet draws them: Grant Treasure's pick and Claim).
 --- @param feature any

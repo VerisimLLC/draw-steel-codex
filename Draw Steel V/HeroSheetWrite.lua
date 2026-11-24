@@ -341,16 +341,17 @@ end
 --- The free equipment slot one of an item would go in, or nil and why.
 --- @param hero creature
 --- @param itemid string
+--- @param unowned nil|boolean true finds a slot even when the Hero does not carry the item (a preview of being given it)
 --- @return nil|string slot
 --- @return nil|string reason "none" (none left to equip), "noslot" (not equippable here) or "full"
-function HeroSheetWrite.EquipSlot(hero, itemid)
+function HeroSheetWrite.EquipSlot(hero, itemid, unowned)
     local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
     if item == nil then
         return nil, "noslot"
     end
     --a second click before the sheet redraws would otherwise equip a copy
     --the Hero does not have.
-    if (hero:GetItemQuantity(itemid) or 0) < 1 then
+    if not unowned and (hero:GetItemQuantity(itemid) or 0) < 1 then
         return nil, "none"
     end
     local slotType = nil

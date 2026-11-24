@@ -319,14 +319,12 @@ const SENT = {
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
   subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
-    // The subclasses to choose from: each built here opens on click; compendium ones show as linked.
+    // The subclasses to choose from: each built here opens on click; compendium ones that name this class show dashed.
     render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass") + ":"));
       cls.subclasses.forEach(sc => { const b = E("button", "subchip", sc.name); b.type = "button"; b.title = "Open the " + sc.name + " subclass"; b.addEventListener("click", ev => { ev.stopPropagation(); showView(sc.id); }); add(b); });
-      compendiumSubclasses().forEach(x => { const c = E("span", "subchip linked", x[1]); c.title = "In the compendium, linked to this class";
-        if (cls.linkedSubclasses.includes(x[0])) { const rm = E("button", "x", "\u00d7"); rm.type = "button"; rm.title = "Unlink"; rm.addEventListener("click", ev => { ev.stopPropagation(); change(() => { cls.linkedSubclasses = cls.linkedSubclasses.filter(y => y !== x[0]); }); }); c.appendChild(rm); }
+      compendiumSubclasses().forEach(x => { const c = E("span", "subchip linked", x[1]); c.title = "Already in the compendium with this class as its parent";
         add(c); });
       const nb = E("button", "subchip add", "+ new"); nb.type = "button"; nb.addEventListener("click", ev => { ev.stopPropagation(); change(() => { cls.view = newSubclass().id; openId = null; }); window.scrollTo(0, 0); }); add(nb);
-      const lk = E("button", "subchip add", "link existing"); lk.type = "button"; lk.addEventListener("click", ev => { ev.stopPropagation(); linkSubclassMenu(lk); }); add(lk);
       add(E("span", "aside", "(name this feature what the class calls its subclasses, such as College or Domain)")); },
     prose: (f, feat) => { const names = cls.subclasses.map(x => x.name).concat(compendiumSubclasses().map(x => x[1]));
       return "Choose your " + (feat && feat.name ? feat.name : "subclass") + (names.length ? " from " + listWords(names, "or") : "") + "."; },
@@ -936,7 +934,7 @@ function migrateClass(c) {
   // Classes saved before Recoveries and kits moved to the class's basics keep using their blocks.
   if (c.recoveries === undefined) c.recoveries = "";
   if (c.kits === undefined) c.kits = { on: "no", n: "1", type: "martial" };
-  if (!c.subclasses) c.subclasses = []; if (!c.linkedSubclasses) c.linkedSubclasses = []; if (c.view === undefined) c.view = null;
+  if (!c.subclasses) c.subclasses = []; delete c.linkedSubclasses; if (c.view === undefined) c.view = null;
   c.subclasses.forEach(sc => Object.keys(sc.lanes || {}).forEach(k => { sc.lanes[k] = sc.lanes[k].map(migrateFeature); sc.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }));
   Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
 /* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
@@ -999,9 +997,9 @@ function blankClass() {
     gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }],
     startGain: { kind: "flat", n: "2", steps: [], guid: guid() },
     recoveries: "8", kits: { on: "yes", n: "1", type: "martial" },
-    // Subclasses built here (each has its own levels), compendium subclasses linked to this class,
+    // Subclasses built here (each saves as its own compendium entry naming this class as parent),
     // and which one the board is showing (null = the class itself).
-    subclasses: [], linkedSubclasses: [], view: null,
+    subclasses: [], view: null,
     lanes: {} };
 }
 /* Characteristic arrays: core classes with one starting characteristic use four-number arrays, those with
@@ -1037,8 +1035,8 @@ const laneKeys = () => ed() === cls ? classLaneKeys() : LEVELS;
 /* Switching what the board shows isn't an edit, so it skips the undo stack. */
 function showView(id) { cls.view = id; openId = null; render(); saveStore(); window.scrollTo(0, 0); }
 function newSubclass(name) { const sc = { id: guid(), name: name || "New Subclass", details: "", lanes: {}, showLevels: 5 }; cls.subclasses.push(sc); return sc; }
-/* Compendium subclasses that already point at this class, plus any the author linked. */
-const compendiumSubclasses = () => (T.subclasses || []).filter(x => x[2] === cls.id || (cls.linkedSubclasses || []).includes(x[0]));
+/* Compendium subclasses that already name this class as their parent. */
+const compendiumSubclasses = () => (T.subclasses || []).filter(x => x[2] === cls.id);
 const className = id => (T.classes || []).find(c => c[0] === id)?.[1] || "";
 function laneLabel(k) {
   if (k.startsWith("tutorial")) return ["Encounter", k.slice(-1), ""];
@@ -1364,13 +1362,11 @@ function render() {
 }
 function renderBoard() {
   const y = window.scrollY; board.innerHTML = "";
-  board.appendChild(subclassTabs());
   const sc = ed() !== cls ? ed() : null, who = sc || cls;
-  const nm = E("div", "clsname");
   // Text fields commit after focus has moved on (setTimeout), so Tab lands on the next control.
   const ni = fk(E("input"), "cls:name"); ni.value = who.name; ni.setAttribute("aria-label", sc ? "Subclass name" : "Class name");
   ni.addEventListener("change", () => setTimeout(() => change(() => { who.name = ni.value.trim() || (sc ? "New Subclass" : "New Class"); })));
-  nm.appendChild(ni); board.appendChild(nm);
+  board.appendChild(nameTabs(ni));
   const det = fk(E("textarea", "details"), "cls:details"); det.placeholder = sc ? "The subclass's introduction, as the book prints it (optional)" : "The class's introduction, as the book prints it (optional)"; det.value = who.details;
   det.addEventListener("change", () => setTimeout(() => change(() => { who.details = det.value; }))); board.appendChild(det);
   if (sc) board.appendChild(subclassInfo(sc));
@@ -1487,14 +1483,19 @@ function renderBoard() {
   }
   window.scrollTo(0, y);
 }
-/* Tabs above the board: the class, each subclass built here, and "+ New subclass". */
-function subclassTabs() {
-  const bar = E("div", "subtabs"); bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", "Class and subclasses");
-  const tab = (label, kind, active, on) => { const b = E("button", "subtab" + (active ? " on" : ""), null); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", active ? "true" : "false");
-    b.appendChild(E("span", "k", kind)); b.appendChild(E("span", "n", label)); b.addEventListener("click", on); bar.appendChild(b); return b; };
-  tab(cls.name, "Class", ed() === cls, () => showView(null));
-  cls.subclasses.forEach(sc => fk(tab(sc.name, "Subclass", ed() === sc, () => showView(sc.id)), "subtab:" + sc.id));
-  const add = fk(E("button", "subtab add", "+ New subclass"), "subtab:new"); add.type = "button";
+/* The name row is a row of tabs: the class, then its subclasses to the right, then "+ subclass".
+   The tab being shown holds the name field; the others switch to theirs. Each subclass is still its
+   own compendium entry (table "subclasses") that stores this class as its parent. */
+function nameTabs(input) {
+  const bar = E("div", "clsname nametabs"); bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", "Class and subclasses");
+  const tab = (o, kind) => {
+    const on = ed() === o, t = E(on ? "div" : "button", "ntab" + (on ? " on" : "") + (kind === "Subclass" ? " sub" : ""));
+    t.setAttribute("role", "tab"); t.setAttribute("aria-selected", on ? "true" : "false"); t.appendChild(E("span", "k", kind));
+    if (on) t.appendChild(input); else { t.type = "button"; t.appendChild(E("span", "n", o.name)); t.addEventListener("click", () => showView(o === cls ? null : o.id)); fk(t, "subtab:" + (o === cls ? "class" : o.id)); }
+    bar.appendChild(t);
+  };
+  tab(cls, "Class"); cls.subclasses.forEach(x => tab(x, "Subclass"));
+  const add = fk(E("button", "ntab add", "+ subclass"), "subtab:new"); add.type = "button"; add.title = "Add a subclass to " + cls.name;
   add.addEventListener("click", () => { change(() => { cls.view = newSubclass().id; openId = null; }); window.scrollTo(0, 0); setTimeout(() => { const i = document.querySelector('[data-fk="cls:name"]'); if (i) { i.focus(); i.select(); } }); });
   bar.appendChild(add);
   return bar;
@@ -1502,7 +1503,7 @@ function subclassTabs() {
 /* Under a subclass's name: which class it belongs to, how players pick it, and Delete. */
 function subclassInfo(sc) {
   const b = E("div", "fixed");
-  const r = E("div", "row"); r.appendChild(E("span", "lbl", "Subclass of"));
+  const r = E("div", "row"); r.appendChild(E("span", "lbl", "Parent class"));
   const back = E("button", "tok", cls.name); back.type = "button"; back.title = "Back to the class"; back.addEventListener("click", () => showView(null)); r.appendChild(back);
   const choice = (() => { let at = null; classLaneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => { if (!at && (f.sentences || []).some(x => x.type === "subclassChoice")) at = { f, k }; })); return at; })();
   if (choice) { const [a, n] = laneLabel(choice.k); r.appendChild(lbl("Players choose it at " + a + " " + n + " (\u201c" + featName(choice.f) + "\u201d).")); }
@@ -1511,22 +1512,6 @@ function subclassInfo(sc) {
   const del = fk(E("button", "btn small", "Delete subclass"), "subdel"); del.type = "button";
   del.addEventListener("click", () => askConfirm(del, "Delete the " + sc.name + " subclass and its features?", "Delete", () => { change(() => { cls.subclasses = cls.subclasses.filter(x => x !== sc); cls.view = null; openId = null; }); toast("Deleted the " + sc.name + " subclass.", { label: "Undo", run: undo }); }));
   r.appendChild(del); b.appendChild(r); return b;
-}
-/* Link a compendium subclass to this class: search by name; its current class is shown. */
-function linkSubclassMenu(anchor) {
-  menuAt(anchor, m => {
-    m.classList.add("wide"); m.appendChild(E("h5", null, "Link a subclass from the compendium"));
-    const i = E("input", "filter"); i.placeholder = "Search subclasses, e.g. Berserker"; m.appendChild(i);
-    const list = E("div"); m.appendChild(list);
-    const draw = () => { list.innerHTML = ""; const q = i.value.trim().toLowerCase();
-      (T.subclasses || []).filter(x => !q || (x[1] + " " + className(x[2])).toLowerCase().includes(q)).slice(0, 40).forEach(x => {
-        const linked = compendiumSubclasses().some(y => y[0] === x[0]);
-        const o = E("button", null, x[1] + (x[2] && x[2] !== cls.id ? " (now a " + (className(x[2]) || "other class") + " subclass)" : "") + (linked ? " \u2713" : "")); o.type = "button"; o.disabled = linked;
-        o.addEventListener("click", () => { closeMenu(); change(() => { cls.linkedSubclasses.push(x[0]); }); if (x[2] && x[2] !== cls.id) toast(x[1] + " will move from the " + (className(x[2]) || "other") + " class to this one when saved.", { label: "Undo", run: undo }); });
-        list.appendChild(o); }); };
-    i.addEventListener("input", draw); draw();
-    m.appendChild(E("div", "hint", "Linking sets the subclass's class to this one. To make a new subclass, use \u201c+ New subclass\u201d."));
-  });
 }
 function renderLane(k) {
   const lane = E("div", "lane"); lane.dataset.lane = k;
@@ -1587,6 +1572,7 @@ document.addEventListener("pointermove", ev => {
     drag.live = true; closeMenu();
     ghost.innerHTML = ""; const c = drag.el.cloneNode(true); c.style.width = drag.el.getBoundingClientRect().width + "px"; ghost.appendChild(c); ghost.style.display = "block";
     drag.el.classList.add("dragging"); document.body.classList.add("is-dragging");
+    markDropZones();
   }
   ghost.style.transform = "translate(" + (ev.clientX - drag.ox) + "px," + (ev.clientY - drag.oy) + "px)";
   drag.target = dropTarget(ev.clientX, ev.clientY); showDrop(drag.target);
@@ -1594,6 +1580,7 @@ document.addEventListener("pointermove", ev => {
 document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null; ghost.style.display = "none"; ghost.innerHTML = ""; d.el.classList.remove("dragging"); document.body.classList.remove("is-dragging"); showDrop(null);
+  document.querySelectorAll(".can-drop").forEach(z => z.classList.remove("can-drop"));
   if (!d.live) return;
   d.el.dataset.dragged = "1"; setTimeout(() => delete d.el.dataset.dragged, 0);
   if (d.target) doDrop(d, d.target);
@@ -1606,22 +1593,43 @@ function dropTarget(x, y) {
   // A shelf entry over an open feature's blocks goes into them; anywhere else on a level, it makes a feature.
   const box = under.closest(".sents[data-list]");
   if (!box) { if (drag.kind !== "entry") return null; const lane = under.closest(".lane"); return lane ? { lane: lane.dataset.lane, el: lane } : null; }
-  const L = LISTS[box.dataset.list]; if (!L) return null;
-  const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
-  if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper || SENT[type].container)) return null;
-  if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return null;
-  if (L.combo && !(type && comboAccepts(L.combo, type, drag.kind === "entry" ? null : drag.value))) return null;
+  if (!listAccepts(box)) return null;
   const rows = [...box.children].filter(c => c.classList.contains("sent"));
   let idx = rows.length;
   for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) { idx = i; break; } }
   return { list: box.dataset.list, idx, el: box, before: rows[idx] || box.querySelector(":scope > .addsent") };
 }
+/* Can the block being dragged go into this block list? (Logic and aura bodies take no choices or
+   wrappers; a combined roll change takes only roll changes; nothing goes inside itself.) */
+function listAccepts(box) {
+  const L = LISTS[box.dataset.list]; if (!L || !drag) return false;
+  if (drag.kind === "feature") return false;
+  if (drag.kind !== "entry" && drag.el.contains(box)) return false;
+  const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
+  if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper || SENT[type].container)) return false;
+  if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return false;
+  if (L.combo && !(type && comboAccepts(L.combo, type, drag.kind === "entry" ? null : drag.value))) return false;
+  return true;
+}
+/* While dragging, every place that can take the block is outlined, so it's clear where it can go:
+   levels (a new feature there) for shelf blocks and features, and block lists for blocks. */
+function markDropZones() {
+  if (drag.kind === "entry" || drag.kind === "feature") document.querySelectorAll(".lane").forEach(l => l.classList.add("can-drop"));
+  document.querySelectorAll(".sents[data-list]").forEach(b => { if (listAccepts(b)) b.classList.add("can-drop"); });
+}
+/* The spot it would land opens up: a dashed slot about the size of the block, with what happens. */
+let dropKey = null;
 function showDrop(t) {
+  const key = t ? (t.lane ? "lane:" + t.lane : t.list + ":" + t.idx) : null;
+  if (key === dropKey) return; dropKey = key;
   document.querySelectorAll(".lane.drop").forEach(l => l.classList.remove("drop"));
   if (dropLine) { dropLine.remove(); dropLine = null; }
   if (!t) return;
-  if (t.lane) { t.el.classList.add("drop"); return; }
-  dropLine = E("div", "dropline"); if (t.before) t.before.before(dropLine); else t.el.appendChild(dropLine);
+  const h = Math.max(34, Math.min(64, drag ? drag.el.getBoundingClientRect().height : 40));
+  dropLine = E("div", "dropslot", t.lane ? (drag && drag.kind === "feature" ? "Move the feature here" : "Drop to make a new feature here") : "Drop here");
+  dropLine.style.height = h + "px";
+  if (t.lane) { t.el.classList.add("drop"); const items = t.el.querySelector(".items"), add = items && items.querySelector(":scope > .addf"); if (add) add.before(dropLine); else if (items) items.appendChild(dropLine); return; }
+  if (t.before) t.before.before(dropLine); else t.el.appendChild(dropLine);
 }
 function findSentence(id) {
   for (const k in LISTS) { const L = LISTS[k]; const i = L.list.findIndex(x => x.id === id); if (i >= 0) return { s: L.list[i], L, i }; }
@@ -1951,7 +1959,7 @@ function savedPanel() {
   det.appendChild(E("h3", "sec", "Whole class (empty levels left out)"));
   det.appendChild(E("pre", "saved", JSON.stringify(trimLevels(compiled), null, 2)));
   if (cls.subclasses.length) { det.appendChild(E("h3", "sec", "Subclasses (table subclasses)")); det.appendChild(E("pre", "saved", JSON.stringify(cls.subclasses.map(x => trimLevels(compileSubclass(x))), null, 2))); }
-  if (cls.linkedSubclasses.length) { det.appendChild(E("h3", "sec", "Linked compendium subclasses (primaryClassId set to this class)")); det.appendChild(E("pre", "saved", JSON.stringify(cls.linkedSubclasses.map(id => ({ id, primaryClassId: cls.id })), null, 2))); }
+
   side.appendChild(det);
 }
 let savedOpen = false;

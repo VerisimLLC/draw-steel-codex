@@ -385,13 +385,13 @@ const SENT = {
       render: (f, add) => { add(lbl("have their potency")); add(pickTok(f, "dir", [["up", "increased by"], ["down", "decreased by"]])); add(textTok(f, "n", "1")); },
       prose: f => "have their potency " + (f.dir === "up" ? "increased" : "decreased") + " by " + f.n } },
   surges: { desc: "Your ability rolls gain surges. Optionally only with some keywords, or for a cost.", label: "Extra surges", group: "rolls", uses: 0,
-    make: () => ({ n: "1", keywords: [], applies: "always" }),
-    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); appliesPhrase(f, add); },
-    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") + appliesProse(f) + ".",
-    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", surges: fxFormula(f, "n"), keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
-    combo: { fields: f => ({ surges: fxFormula(f, "n") }),
-      render: (f, add) => { add(lbl("gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); },
-      prose: f => "gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") } },
+    make: () => ({ n: "1", keep: "roll", keywords: [], applies: "always" }),
+    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); add(surgeKeepTok(f)); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") + surgeKeepProse(f) + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", surges: fxFormula(f, "n"), surgesCanBeKept: f.keep === "keep" ? true : undefined, keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
+    combo: { fields: f => Object.assign({ surges: fxFormula(f, "n") }, f.keep === "keep" ? { surgesCanBeKept: true } : {}),
+      render: (f, add) => { add(lbl("gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); add(surgeKeepTok(f)); },
+      prose: f => "gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") + surgeKeepProse(f) } },
   immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(fxTok(f, "amount", "amount")); },
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
@@ -817,6 +817,11 @@ function drawCombineBrackets(into, list, groups) {
     into.appendChild(b);
   });
 }
+/* Surges from a roll change are, by default, for that roll only: any not spent are lost
+   (the engine's surgesCanBeKept, "Surges can be Kept", is off). "that you keep" turns it on. */
+const SURGE_KEEP = [["roll", "to use on this roll only"], ["keep", "that you keep"]];
+const surgeKeepTok = f => pickTok(f, "keep", SURGE_KEEP, SURGE_KEEP[0][1]);
+const surgeKeepProse = f => f.keep === "keep" ? " that you keep if unspent" : " that can only be used on that roll";
 function abilityNameTok(f) {
   const names = allAbilityNames();
   return tok(f.name || "choose an ability", b => menuAt(b, m => {

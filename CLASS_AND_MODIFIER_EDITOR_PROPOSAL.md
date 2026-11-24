@@ -1122,3 +1122,7 @@ the author presses Combine.
 - **When roll options differ:** combining uses the first block's, and a toast says so with Undo.
 - **New block:** "Extra surges" ("Your ability rolls gain [1] surge"). It was needed so surges can
   be combined.
+- **Surges: keep or this roll only.** The Extra surges block ends with "[to use on this roll only /
+  that you keep]". "This roll only" is the engine default: surges not spent on the roll are lost.
+  "That you keep" sets `surgesCanBeKept` (the old editor's "Surges can be Kept"). Book text: "gain
+  1 surge that can only be used on that roll" or "gain 1 surge that you keep if unspent".

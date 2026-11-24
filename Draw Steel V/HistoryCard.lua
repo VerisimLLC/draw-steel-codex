@@ -2115,12 +2115,14 @@ local function ReceiptKey(who, own)
         stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
     end
     --the fall and landing amounts get lines of their own, so a faller and the creature it
-    --landed on must not share a sum.
+    --landed on must not share a sum. Kept out of stability: alone they put nothing in the sum
+    --(a landing that immunity took all of), so they must not give a target a heading.
+    local falls = ""
     if moved ~= nil and (moved.falldamage or 0) > 0 then
-        stability = stability .. string.format("/fall%d/%d/%s", moved.falldamage, moved.fallraw or 0, tostring(moved.fallseparate))
+        falls = string.format("/fall%d/%d/%s", moved.falldamage, moved.fallraw or 0, tostring(moved.fallseparate))
     end
     if who.landedon then
-        stability = stability .. string.format("/landed%d", who.landeddamage or 0)
+        falls = falls .. string.format("/landed%d", who.landeddamage or 0)
     end
     if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" and #own == 0 then
         return nil
@@ -2152,7 +2154,7 @@ local function ReceiptKey(who, own)
             part.amount, part.damagetype or "")
     end
     return string.format("%s|%d|%d|%s|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
-        table.concat(parts, ","), stability)
+        table.concat(parts, ","), stability .. falls)
 end
 
 --"Rolled in secret." for a roll hidden from players. The Director's copy carries an eye that

@@ -1639,8 +1639,9 @@ local function BuildParty(repaint)
         height = "auto",
         hpad = ROW_HPAD,
         borderBox = true,
-        Column(T("condemned.gear.col_hero"), COL_HERO),
-        Column(T("condemned.gear.col_gear"), COL_GEAR),
+        Column(T("condemned.gear.col_hero"), COL_HERO + 34),
+        --over the gear's name, past the art's slot (26 wide and 8 of gap).
+        Column(T("condemned.gear.col_gear"), COL_GEAR - 34),
         Column(T("condemned.gear.col_grenades"), COL_GRENADES),
     }
 

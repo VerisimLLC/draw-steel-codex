@@ -1611,7 +1611,8 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
         end
 
         if subjectTarget == "selfandallies" or subjectTarget == "allies" then
-            if not casterToken:IsFriend(subjectToken) then
+            --Allegiance, not just sides: under Memory Thief a creature's own side may not count as its allies.
+            if not IsAllyOf(casterToken, subjectToken) then
                 if argOptions.debugLog then
                     argOptions.debugLog[#argOptions.debugLog+1] = {
                             name = self.name,

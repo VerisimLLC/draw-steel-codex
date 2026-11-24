@@ -252,8 +252,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     return
                 end
             else
-                local friends = token:IsFriend(triggerTarget)
-                if not friends then
+                --Allegiance, not just sides: under Memory Thief a creature's own side may not count as its allies.
+                if not IsAllyOf(token, triggerTarget) then
                     return
                 end
             end
@@ -395,8 +395,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     return false
                 end
             else
-                local friends = token:IsFriend(triggerTarget)
-                if not friends then
+                --Allegiance, not just sides: under Memory Thief a creature's own side may not count as its allies.
+                if not IsAllyOf(token, triggerTarget) then
                     return false
                 end
             end

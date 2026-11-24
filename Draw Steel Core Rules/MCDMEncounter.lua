@@ -6180,8 +6180,9 @@ end
 --
 -- Execution model: a 0.7s heartbeat (the same cadence as the initiative-bar
 -- strips) runs on every client but only the ELECTED HOST fires handlers - the
--- lowest-sorting present director per dmhub.GetSessionInfo (NOT
--- dmhub.IsUserDM, which reflects the stale roster). Victory check functions
+-- lowest-sorting present director on the combat's map, per
+-- dmhub.GetSessionInfo (NOT dmhub.IsUserDM, which reflects the stale roster)
+-- and the map each director publishes (LiveEncounter.GetMapHost). Victory check functions
 -- are pure reads and may run on any director client via CheckVictory; the
 -- cached victory text is what player-facing surfaces display, so player
 -- clients never execute encounter-script code.
@@ -7210,9 +7211,178 @@ local function IsElectedHost()
     return best == dmhub.userid
 end
 
---Shared with other host-only round work (EnvironmentalKeyword's end-of-round
---zone spread) so every such job elects the same client.
+--Shared with other host-only work that is not tied to one map (puzzles, the
+--stream overlay) so every such job elects the same client.
 LiveEncounter.IsElectedHost = IsElectedHost
+
+--Combat is per map, and a client only sees the initiative and tokens of the map
+--it is on, so map work is elected among the Directors on that map. Each hosting
+--client publishes its map, writing only when it changes; session presence
+--already says who is still online. One document per game:
+--   data.maps     = { [userid] = mapid }
+--   data.override = { [mapid] = userid }   /scripthost, dev mode only
+do
+    local HOST_MAPS_DOC = "encounterScriptHosts"
+    --After arriving on a map, how long to leave the work to a Director already
+    --there, so two clients do not both act while the arrival is still syncing.
+    local ARRIVAL_SECONDS = 2
+
+    --read only by the election, never by a creature's modifiers.
+    CreatureCache.RegisterRulesNeutralDocument(HOST_MAPS_DOC)
+
+    local function HostMapsDoc()
+        return mod:GetDocumentSnapshot(HOST_MAPS_DOC)
+    end
+
+    --arrivedAt is dmhub.Time() when this client came to mapid.
+    --- @type {mapid: string|nil, gameid: string|nil, arrivedAt: number}
+    local g_here = { mapid = nil, gameid = nil, arrivedAt = 0 }
+
+    --- Note which map this client is on, and publish it when it has changed.
+    --- Returns the map id, or nil when there is none or this client cannot host.
+    --- @return string|nil
+    function LiveEncounter.UpdateHostMap()
+        if not IsDMOrPlayerHost() then
+            return nil
+        end
+        local mapid = game.currentMapId
+        if mapid == nil or mapid == "" then
+            return nil
+        end
+        local doc = HostMapsDoc()
+        local maps = doc.data.maps
+        local published = type(maps) == "table" and maps[dmhub.userid] or nil
+        --compare with our own last map, not just the document: two windows of one
+        --user on different maps would otherwise overwrite each other forever.
+        local changed = g_here.mapid ~= mapid or g_here.gameid ~= dmhub.gameid
+        if changed then
+            g_here.mapid = mapid
+            g_here.gameid = dmhub.gameid
+            g_here.arrivedAt = dmhub.Time()
+        end
+        if published == nil or (changed and published ~= mapid) then
+            doc:BeginChange()
+            if type(doc.data.maps) ~= "table" then
+                doc.data.maps = {}
+            end
+            doc.data.maps[dmhub.userid] = mapid
+            doc:CompleteChange("Encounter script host map", { undoable = false })
+        end
+        return mapid
+    end
+
+    --The present Directors on a map. A Director on a build that does not publish
+    --its map counts as being on every map: it still elects itself game-wide, so
+    --ignoring it could run a script on two clients.
+    --- @param mapid string
+    --- @return string[]
+    local function PresentOnMap(mapid)
+        local maps = HostMapsDoc().data.maps
+        if type(maps) ~= "table" then
+            maps = {}
+        end
+        local result = {}
+        for _, uid in ipairs(dmhub.users or {}) do
+            local onMap = maps[uid] == nil or maps[uid] == mapid
+            if uid == dmhub.userid then
+                onMap = game.currentMapId == mapid
+            end
+            if onMap and IsDirectorPresent(uid) then
+                result[#result + 1] = uid
+            end
+        end
+        return result
+    end
+
+    --- The user running a map's host-only work: the /scripthost choice while that
+    --- user is there, else the lowest-sorting present Director on the map. nil
+    --- when nobody looks present there.
+    --- @param mapid string
+    --- @return string|nil hostid
+    --- @return string[] candidates
+    function LiveEncounter.GetMapHost(mapid)
+        local candidates = PresentOnMap(mapid)
+        local overrides = HostMapsDoc().data.override
+        local override = type(overrides) == "table" and overrides[mapid] or nil
+        local best = nil
+        for _, uid in ipairs(candidates) do
+            if uid == override then
+                return uid, candidates
+            end
+            if best == nil or uid < best then
+                best = uid
+            end
+        end
+        return best, candidates
+    end
+
+    --- True when this client runs the current map's host-only work (encounter
+    --- scripts, zone spread). Like IsElectedHost it acts when nobody on the map
+    --- looks present: a stalled script is worse than a rare duplicate.
+    --- @return boolean
+    function LiveEncounter.IsElectedMapHost()
+        local mapid = LiveEncounter.UpdateHostMap()
+        if mapid == nil then
+            return false
+        end
+        local host, candidates = LiveEncounter.GetMapHost(mapid)
+        if host == nil then
+            return true
+        end
+        if host ~= dmhub.userid then
+            return false
+        end
+        return #candidates == 1 or dmhub.Time() - g_here.arrivedAt >= ARRIVAL_SECONDS
+    end
+
+    --- Choose who runs a map's host-only work; nil goes back to the election.
+    --- @param mapid string
+    --- @param userid string|nil
+    function LiveEncounter.SetMapHostOverride(mapid, userid)
+        local doc = HostMapsDoc()
+        doc:BeginChange()
+        if type(doc.data.override) ~= "table" then
+            doc.data.override = {}
+        end
+        doc.data.override[mapid] = userid
+        doc:CompleteChange("Encounter script host", { undoable = false })
+    end
+
+    Commands.RegisterMacro{
+        name = "scripthost",
+        summary = "run this map's encounter scripts here",
+        doc = "Usage: /scripthost me | auto\nme: your client runs this map's encounter scripts while you are on it. auto: the usual election. With no argument, says who runs them. Dev only.",
+        command = function(str)
+            if not devmode() then
+                print("SCRIPTHOST:: needs dev mode")
+                return
+            end
+            local mapid = LiveEncounter.UpdateHostMap()
+            if mapid == nil then
+                print("SCRIPTHOST:: only a Director on a map can run encounter scripts")
+                return
+            end
+            local arg = string.lower(trim(str or ""))
+            if arg == "me" then
+                LiveEncounter.SetMapHostOverride(mapid, dmhub.userid)
+            elseif arg == "auto" then
+                LiveEncounter.SetMapHostOverride(mapid, nil)
+            elseif arg ~= "" then
+                print("SCRIPTHOST:: usage /scripthost me | auto")
+                return
+            end
+
+            local host, candidates = LiveEncounter.GetMapHost(mapid)
+            local names = {}
+            for _, uid in ipairs(candidates) do
+                local info = dmhub.GetSessionInfo(uid)
+                names[#names + 1] = string.format("%s%s%s", info ~= nil and info.displayName or uid,
+                    uid == dmhub.userid and " (you)" or "", uid == host and " [running]" or "")
+            end
+            print("SCRIPTHOST:: Directors on this map: " .. (#names > 0 and table.concat(names, ", ") or "none"))
+        end,
+    }
+end
 
 -- ---------------------------------------------------------------------------
 -- Host runtime: the handler ctx and the heartbeat driver
@@ -7248,7 +7418,7 @@ local function MakeHostContext(instance)
         if tostring(q:try_get("guid")) ~= tostring(createdForQueue) then
             return false
         end
-        return IsElectedHost()
+        return LiveEncounter.IsElectedMapHost()
     end
 
     ctx.Announce = function(_, text)
@@ -7623,6 +7793,9 @@ local function RunInstanceTick(liveEncounter, instance, q, isLive)
 end
 
 local function DriverTick()
+    --before any early out: co-Directors need our map even when nothing runs here.
+    LiveEncounter.UpdateHostMap()
+
     local q = dmhub.initiativeQueue
     if q == nil then
         return
@@ -7645,7 +7818,7 @@ local function DriverTick()
         return
     end
 
-    if not IsElectedHost() then
+    if not LiveEncounter.IsElectedMapHost() then
         return
     end
 

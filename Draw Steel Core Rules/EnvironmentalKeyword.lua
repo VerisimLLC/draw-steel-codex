@@ -3587,11 +3587,12 @@ function EnvironmentalKeyword.SpreadZonesAtEndOfRound()
 end
 
 --Round watcher for the zone spread. Every client polls the initiative round;
---only the elected host (LiveEncounter.IsElectedHost: Director or player host,
---the same election encounter scripts use) acts. The last round handled is
---kept in a shared document keyed by the combat's queue guid, so the spread
---fires once per round boundary even across a host handover or a reload, and
---the client that advanced the round never runs it itself.
+--only the elected host (LiveEncounter.IsElectedMapHost: Director or player host
+--on this map, the same election encounter scripts use) acts. The last round
+--handled is kept per map in a shared document with the combat's queue guid, so
+--combats on two maps stay apart and the spread fires once per round boundary
+--even across a host handover or a reload, and the client that advanced the
+--round never runs it itself.
 local g_zoneSpreadDocId = "zoneSpreadRounds"
 
 function EnvironmentalKeyword.ZoneSpreadRoundTick()
@@ -3600,16 +3601,18 @@ function EnvironmentalKeyword.ZoneSpreadRoundTick()
 		return
 	end
 	--MCDMEncounter loads after this file; resolve at call time.
-	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedMapHost")
 	if electedHost == nil or not electedHost() then
 		return
 	end
 
+	local mapid = game.currentMapId
 	local queueGuid = tostring(q:try_get("guid"))
 	local round = q.round or 0
 	local doc = mod:GetDocumentSnapshot(g_zoneSpreadDocId)
-	local seenGuid = doc.data.queueGuid
-	local seenRound = doc.data.round
+	local seen = type(doc.data.maps) == "table" and doc.data.maps[mapid] or {}
+	local seenGuid = seen.queueGuid
+	local seenRound = seen.round
 	if seenGuid == queueGuid and seenRound == round then
 		return
 	end
@@ -3621,8 +3624,10 @@ function EnvironmentalKeyword.ZoneSpreadRoundTick()
 
 	--watermark first, so an error in the spread cannot refire it every tick.
 	doc:BeginChange()
-	doc.data.queueGuid = queueGuid
-	doc.data.round = round
+	if type(doc.data.maps) ~= "table" then
+		doc.data.maps = {}
+	end
+	doc.data.maps[mapid] = { queueGuid = queueGuid, round = round }
 	doc:CompleteChange("Zone spread round", { undoable = false })
 
 	if fire then
@@ -3657,7 +3662,7 @@ function EnvironmentalKeyword.ObjectKeywordZoneTick()
 		return
 	end
 
-	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedMapHost")
 	if electedHost == nil or not electedHost() then
 		return
 	end

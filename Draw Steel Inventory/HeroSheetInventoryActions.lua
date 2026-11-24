@@ -696,18 +696,62 @@ end
 ----------------------------------------------------------------------
 --Windows.
 
+--- @class HeroSheetStepperOptions
+--- @field min nil|integer the lowest count (default 1)
+--- @field plusTip nil|fun(): nil|string why + is blocked below the maximum, or nil when it is not
+--- @field lessLabel nil|string the - button's tooltip (default "Fewer")
+--- @field moreLabel nil|string the + button's tooltip (default "More")
+--- @field canEdit nil|fun(): boolean false shows the count without -, + or typing
+
 --- A count with - and + either side; the number itself is click-to-type
---- like every number on the sheet.
+--- like every number on the sheet. A button that can't go further dims; the
+--- + says why when options.plusTip gives a reason. Fire "refreshNumber" on it
+--- after the count changes elsewhere.
 --- @param get fun(): integer
 --- @param set fun(count: integer)
---- @param max integer
+--- @param max integer|fun(): integer the highest count, or a function for one that changes
+--- @param options nil|HeroSheetStepperOptions
 --- @return Panel
-local function Stepper(get, set, max)
-    local number
+local function Stepper(get, set, max, options)
+    options = options or {}
+    local min = options.min or 1
+    local function Max()
+        if type(max) == "function" then
+            return max()
+        end
+        return max
+    end
+    local function CanEdit()
+        return options.canEdit == nil or options.canEdit()
+    end
+    local function Clamp(count)
+        return math.max(min, math.min(Max(), count))
+    end
+    local function PlusTip()
+        if options.plusTip ~= nil then
+            return options.plusTip()
+        end
+        return nil
+    end
+    --- @param delta integer
+    --- @return boolean
+    local function Blocked(delta)
+        if not CanEdit() then
+            return true
+        end
+        if delta < 0 then
+            return get() <= min
+        end
+        return get() >= Max() or PlusTip() ~= nil
+    end
+    local root
     --- @param delta integer
     local function Step(delta)
-        set(math.max(1, math.min(max, get() + delta)))
-        number:FireEventTree("refreshNumber")
+        if Blocked(delta) then
+            return
+        end
+        set(Clamp(get() + delta))
+        root:FireEventTree("refreshNumber")
     end
     --- @param icon string
     --- @param delta integer
@@ -725,7 +769,17 @@ local function Stepper(get, set, max)
                 Step(delta)
             end,
             linger = function(element)
-                gui.Tooltip(label)(element)
+                local tip = delta > 0 and CanEdit() and PlusTip() or nil
+                gui.Tooltip(tip or label)(element)
+            end,
+            refreshNumber = function(element)
+                element:SetClass("collapsed", not CanEdit())
+                --opacity is not passed on to children: dim the icon too.
+                local opacity = Blocked(delta) and 0.35 or 1
+                element.selfStyle.opacity = opacity
+                for _, child in ipairs(element.children) do
+                    child.selfStyle.opacity = opacity
+                end
             end,
             gui.Panel{
                 classes = {"heroSheetFg"},
@@ -738,31 +792,37 @@ local function Stepper(get, set, max)
             },
         }
     end
-    number = HeroSheetTheme.ClickNumber{
+    local number = HeroSheetTheme.ClickNumber{
         get = get,
         set = function(count)
-            set(math.max(1, math.min(max, count)))
+            set(Clamp(count))
         end,
-        min = 1,
+        min = min,
+        canEdit = CanEdit,
         fontSize = 16,
         classes = {"heroSheetCardStrong"},
     }
-    return gui.Panel{
+    root = gui.Panel{
         width = "auto",
         height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "center",
-        Button("phosphor/minus-bold.png", -1, "Fewer"),
+        Button("phosphor/minus-bold.png", -1, options.lessLabel or "Fewer"),
         gui.Panel{
             width = 44,
             height = "auto",
             valign = "center",
             number,
         },
-        Button("phosphor/plus-bold.png", 1, "More"),
+        Button("phosphor/plus-bold.png", 1, options.moreLabel or "More"),
     }
+    root:FireEventTree("refreshNumber")
+    return root
 end
+
+--- A count with - and + either side (the Give window's): see Stepper above.
+Actions.Stepper = Stepper
 
 --The "How many" line's height and the gap above it; a window with one is
 --this much taller.

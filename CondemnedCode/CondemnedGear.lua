@@ -404,6 +404,542 @@ local function FindHero(charid)
     return nil
 end
 
+--The item shown in the preview pane, in this user's window.
+--- @type string
+local g_selected = CondemnedGear.GEAR[1]
+
+--True while the window is too narrow for gear cards: one row per item instead.
+local g_rows = false
+
+--the body under the band, and its two columns: the list, and the preview pane.
+local BODY_HEIGHT = WINDOW_HEIGHT - BAND_HEIGHT
+local BODY_HPAD = 14
+local BODY_VPAD = 11
+local PANE_WIDTH = 357
+local COLUMN_GAP = 14
+local LIST_WIDTH = WINDOW_WIDTH - 2 * BODY_HPAD - COLUMN_GAP - PANE_WIDTH
+--room the list keeps for its scroll bar.
+local SCROLL_GUTTER = 10
+local LIST_INNER = LIST_WIDTH - SCROLL_GUTTER
+local CARD_GAP = 8
+local CARD_WIDTH = math.floor((LIST_INNER - 2 * CARD_GAP) / 3)
+local CARD_HEIGHT = 132
+
+--Colours the hero sheet's classes do not have: a chosen item's edge and the Over limit
+--pill. Built from the scheme's palette, and built again when the scheme changes.
+--- @return table[]
+local function GearStyles()
+    local palette = HeroSheetTheme.Palette()
+    return {
+        --above the hero sheet's row edges (priority 5 and under).
+        { selectors = { "cgChosen" }, borderColor = HeroSheetTheme.ToHex(HeroSheetTheme.WithAlpha(palette.rawSuccess, 0.7)), priority = 10 },
+        --the shown item's edge wins over the chosen one.
+        { selectors = { "cgChosen", "heroSheetRowPinned" }, borderColor = palette.cardStrong, priority = 11 },
+        { selectors = { "cgArt" }, bgcolor = palette.tile, borderColor = palette.tileBorder },
+        { selectors = { "cgOverPill" }, borderColor = palette.warning, color = palette.warning },
+        { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
+    }
+end
+
+--- True when this user may change the hero's choices: the Director, or their own hero
+--- before it has been handed out.
+--- @param hero CondemnedGearHero
+--- @return boolean
+local function CanChooseFor(hero)
+    if CondemnedGear.Delivered(hero.token) ~= nil then
+        return false
+    end
+    if dmhub.isDM then
+        return true
+    end
+    for _, entry in ipairs(CondemnedGear.MyHeroes()) do
+        if entry.charid == hero.charid then
+            return true
+        end
+    end
+    return false
+end
+
+--- What the window shows for a hero: what they were given once handed out, else their
+--- choices so far.
+--- @param hero CondemnedGearHero
+--- @return CondemnedGearChoices
+local function ShownChoices(hero)
+    return CondemnedGear.Delivered(hero.token) or CondemnedGear.Choices(hero.charid)
+end
+
+--An item's picture in a small framed square, the size given.
+--- @param item table a tbl_Gear row
+--- @param size number
+--- @return Panel
+local function ItemArt(item, size)
+    return gui.Panel{
+        classes = { "cgArt" },
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 6,
+        width = size,
+        height = size,
+        halign = "left",
+        valign = "center",
+        interactable = false,
+        gui.Panel{
+            bgimage = item.iconid,
+            bgcolor = "white",
+            width = "86%",
+            height = "86%",
+            halign = "center",
+            valign = "center",
+        },
+    }
+end
+
+--A list section's heading: its name, the "n / max" count, and the Over limit pill.
+--Paint it with heading:FireEvent("count", n, max).
+--- @param text string
+--- @return Panel
+local function SectionHeading(text)
+    local count = gui.Label{
+        classes = { "heroSheetCardSub" },
+        text = "",
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        lmargin = 10,
+        halign = "left",
+        valign = "bottom",
+    }
+    local pill = gui.Label{
+        classes = { "heroSheetPill", "cgOverPill" },
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        border = 1,
+        cornerRadius = 9,
+        text = T("condemned.gear.over_limit"),
+        width = "auto",
+        height = 20,
+        hpad = 8,
+        borderBox = true,
+        fontSize = 12,
+        bold = true,
+        lmargin = 10,
+        halign = "left",
+        valign = "center",
+        linger = gui.Tooltip(T("condemned.gear.over_limit_tip")),
+    }
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        count = function(element, n, max)
+            count.text = T("condemned.gear.count", { n = n, max = max })
+            count:SetClass("heroSheetCardSuccess", n == max)
+            count:SetClass("heroSheetWarning", n > max)
+            count:SetClass("heroSheetCardSub", n < max)
+            pill:SetClass("collapsed", n <= max)
+        end,
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 24,
+            gui.Label{
+                classes = { "heroSheetCardStrong" },
+                text = string.upper(text),
+                width = "auto",
+                height = "auto",
+                fontSize = 15,
+                bold = true,
+                halign = "left",
+                valign = "bottom",
+            },
+            count,
+            pill,
+        },
+        gui.Panel{
+            classes = { "heroSheetDialogRule" },
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+            tmargin = 6,
+        },
+    }
+end
+
+--The "Chosen" mark on a gear card.
+--- @return Panel
+local function ChosenMark()
+    return gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        interactable = false,
+        gui.Panel{
+            classes = { "cgSuccessIcon" },
+            bgimage = "phosphor/check-bold.png",
+            width = 12,
+            height = 12,
+            valign = "center",
+        },
+        gui.Label{
+            classes = { "heroSheetCardSuccess" },
+            text = string.upper(T("condemned.gear.chosen")),
+            width = "auto",
+            height = "auto",
+            fontSize = 11,
+            bold = true,
+            lmargin = 4,
+            valign = "center",
+        },
+    }
+end
+
+--Builds the list of gear and grenades for the hero being chosen for. Built once; its
+--"paint" event sets counts, chosen edges, the shown item and the steppers.
+--repaint() repaints the whole window (after a choice is written).
+--- @param repaint fun()
+--- @return Panel
+local function BuildList(repaint)
+    local gearTable = dmhub.GetTable("tbl_Gear") or {}
+
+    local function Hero()
+        return g_charid ~= nil and FindHero(g_charid) or nil
+    end
+
+    local function Select(itemid)
+        g_selected = itemid
+        repaint()
+    end
+
+    local gearHeading = SectionHeading(T("condemned.gear.gear"))
+    local grenadeHeading = SectionHeading(T("condemned.gear.grenades"))
+
+    --Each gear item has a card (three to a row) and a one-line form for a narrow window;
+    --a layout change shows the other set, nothing is rebuilt.
+    local cards = {}
+    local rows = {}
+    for _, itemid in ipairs(CondemnedGear.GEAR) do
+        local item = gearTable[itemid]
+        if item ~= nil then
+            local keywords = HeroSheetInventory.Keywords(item)
+            local flavor = item:try_get("flavor", "")
+            cards[#cards + 1] = gui.Panel{
+                classes = { "heroSheetListRow", "hoverable" },
+                bgimage = "panels/square.png",
+                border = 1,
+                cornerRadius = 10,
+                width = CARD_WIDTH,
+                height = CARD_HEIGHT,
+                flow = "vertical",
+                pad = 9,
+                borderBox = true,
+                rmargin = CARD_GAP,
+                bmargin = CARD_GAP,
+                data = { itemid = itemid },
+                click = function()
+                    Select(itemid)
+                end,
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "100%",
+                    height = 46,
+                    interactable = false,
+                    ItemArt(item, 44),
+                    gui.Panel{
+                        flow = "vertical",
+                        width = CARD_WIDTH - 18 - 44 - 9,
+                        height = "auto",
+                        lmargin = 9,
+                        valign = "center",
+                        gui.Label{
+                            classes = { "heroSheetCardStrong" },
+                            text = item.name,
+                            width = "100%",
+                            height = "auto",
+                            maxHeight = 38,
+                            fontSize = 15,
+                            bold = true,
+                            textWrap = true,
+                        },
+                        HeroSheetTheme.EllipsisLabel{
+                            classes = { "heroSheetCardSub" },
+                            text = keywords,
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 12,
+                        },
+                    },
+                },
+                gui.Label{
+                    classes = { "heroSheetCardLab" },
+                    text = flavor,
+                    width = "100%",
+                    height = 34,
+                    fontSize = 12,
+                    italics = true,
+                    textWrap = true,
+                    textOverflow = "ellipsis",
+                    tmargin = 6,
+                    interactable = false,
+                },
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    valign = "bottom",
+                    interactable = false,
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        ChosenMark(),
+                    },
+                },
+            }
+            rows[#rows + 1] = gui.Panel{
+                classes = { "heroSheetListRow", "hoverable" },
+                bgimage = "panels/square.png",
+                border = 1,
+                cornerRadius = 8,
+                width = LIST_INNER,
+                height = 52,
+                flow = "horizontal",
+                hpad = 8,
+                borderBox = true,
+                bmargin = 5,
+                data = { itemid = itemid },
+                click = function()
+                    Select(itemid)
+                end,
+                ItemArt(item, 36),
+                gui.Panel{
+                    flow = "vertical",
+                    width = LIST_INNER - 16 - 36 - 10 - 90,
+                    height = "auto",
+                    lmargin = 10,
+                    valign = "center",
+                    interactable = false,
+                    gui.Panel{
+                        flow = "horizontal",
+                        width = "100%",
+                        height = "auto",
+                        gui.Label{
+                            classes = { "heroSheetCardStrong" },
+                            text = item.name,
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 15,
+                            bold = true,
+                            textWrap = false,
+                            valign = "bottom",
+                        },
+                        HeroSheetTheme.EllipsisLabel{
+                            classes = { "heroSheetCardSub" },
+                            text = keywords,
+                            width = 260,
+                            height = "auto",
+                            fontSize = 12,
+                            lmargin = 8,
+                            valign = "bottom",
+                        },
+                    },
+                    HeroSheetTheme.EllipsisLabel{
+                        classes = { "heroSheetCardLab" },
+                        text = flavor,
+                        width = "100%",
+                        height = "auto",
+                        fontSize = 12,
+                        italics = true,
+                    },
+                },
+                gui.Panel{
+                    width = 90,
+                    height = "auto",
+                    valign = "center",
+                    interactable = false,
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        halign = "right",
+                        ChosenMark(),
+                    },
+                },
+            }
+        end
+    end
+    local cardList = gui.Panel{
+        flow = "horizontal",
+        wrap = true,
+        width = LIST_INNER + CARD_GAP,
+        height = "auto",
+        tmargin = 8,
+        children = cards,
+    }
+    local rowList = gui.Panel{
+        flow = "vertical",
+        width = LIST_INNER,
+        height = "auto",
+        tmargin = 8,
+        children = rows,
+    }
+
+    --The grenades: a row each with a -/+ count.
+    local grenadeRows = {}
+    for _, itemid in ipairs(CondemnedGear.GRENADES) do
+        local item = gearTable[itemid]
+        if item ~= nil then
+            local function Count()
+                local hero = Hero()
+                return hero ~= nil and (ShownChoices(hero).grenades[itemid] or 0) or 0
+            end
+            local stepper = HeroSheetInventoryActions.Stepper(Count, function(count)
+                local hero = Hero()
+                if hero == nil or not CanChooseFor(hero) then
+                    return
+                end
+                local choices = CondemnedGear.Choices(hero.charid)
+                choices.grenades[itemid] = count > 0 and count or nil
+                CondemnedGear.SetChoices(hero.charid, choices)
+                g_selected = itemid
+                repaint()
+            end, function()
+                --room left under the allowance for this grenade.
+                local hero = Hero()
+                if hero == nil then
+                    return 0
+                end
+                local choices = ShownChoices(hero)
+                local others = CondemnedGear.GrenadeCount(choices) - (choices.grenades[itemid] or 0)
+                return math.max(Count(), CondemnedGear.Allowance().grenades - others)
+            end, {
+                min = 0,
+                canEdit = function()
+                    local hero = Hero()
+                    return hero ~= nil and CanChooseFor(hero)
+                end,
+                plusTip = function()
+                    local hero = Hero()
+                    local max = CondemnedGear.Allowance().grenades
+                    if hero ~= nil and CondemnedGear.GrenadeCount(ShownChoices(hero)) >= max then
+                        return T("condemned.gear.grenades_full_tip", { max = max })
+                    end
+                    return nil
+                end,
+            })
+            stepper.selfStyle.halign = "right"
+            grenadeRows[#grenadeRows + 1] = gui.Panel{
+                classes = { "heroSheetListRow", "hoverable" },
+                bgimage = "panels/square.png",
+                border = 1,
+                cornerRadius = 8,
+                width = LIST_INNER,
+                height = 42,
+                flow = "horizontal",
+                hpad = 6,
+                borderBox = true,
+                bmargin = 5,
+                data = { itemid = itemid },
+                click = function()
+                    Select(itemid)
+                end,
+                ItemArt(item, 30),
+                gui.Label{
+                    classes = { "heroSheetCardStrong" },
+                    text = item.name,
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 14,
+                    bold = true,
+                    lmargin = 10,
+                    halign = "left",
+                    valign = "center",
+                    textWrap = false,
+                    interactable = false,
+                },
+                HeroSheetTheme.EllipsisLabel{
+                    classes = { "heroSheetCardSub" },
+                    text = HeroSheetInventory.Keywords(item),
+                    width = 150,
+                    height = "auto",
+                    fontSize = 12,
+                    lmargin = 8,
+                    halign = "left",
+                    valign = "center",
+                },
+                stepper,
+            }
+        end
+    end
+    --the grenades share one flavour line: the book gives it once, for all of them.
+    local firstGrenade = gearTable[CondemnedGear.GRENADES[1]]
+
+    local inner = gui.Panel{
+        flow = "vertical",
+        width = LIST_INNER,
+        height = "auto",
+        valign = "top",
+        gearHeading,
+        cardList,
+        rowList,
+        gui.Panel{ width = 1, height = 10 },
+        grenadeHeading,
+        gui.Label{
+            classes = { "heroSheetCardLab" },
+            text = firstGrenade ~= nil and firstGrenade:try_get("flavor", "") or "",
+            width = "100%",
+            height = "auto",
+            fontSize = 12,
+            italics = true,
+            textWrap = true,
+            tmargin = 6,
+        },
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            tmargin = 8,
+            children = grenadeRows,
+        },
+    }
+
+    return gui.Panel{
+        width = LIST_WIDTH,
+        height = "100%",
+        vscroll = true,
+        paint = function(element)
+            local hero = Hero()
+            if hero == nil then
+                return
+            end
+            local allow = CondemnedGear.Allowance()
+            local choices = ShownChoices(hero)
+            gearHeading:FireEvent("count", #choices.gear, allow.gear)
+            grenadeHeading:FireEvent("count", CondemnedGear.GrenadeCount(choices), allow.grenades)
+            local chosen = {}
+            for _, itemid in ipairs(choices.gear) do
+                chosen[itemid] = true
+            end
+            for _, list in ipairs({ cards, rows }) do
+                for _, panel in ipairs(list) do
+                    local itemid = panel.data.itemid
+                    panel:SetClass("cgChosen", chosen[itemid] == true)
+                    panel:SetClass("heroSheetRowPinned", g_selected == itemid)
+                    --the mark is the card's last child.
+                    local children = panel.children
+                    children[#children]:SetClass("collapsed", chosen[itemid] ~= true)
+                end
+            end
+            for _, panel in ipairs(grenadeRows) do
+                local itemid = panel.data.itemid
+                panel:SetClass("cgChosen", (choices.grenades[itemid] or 0) > 0)
+                panel:SetClass("heroSheetRowPinned", g_selected == itemid)
+            end
+            cardList:SetClass("collapsed", g_rows)
+            rowList:SetClass("collapsed", not g_rows)
+            element:FireEventTree("refreshNumber")
+        end,
+        inner,
+    }
+end
+
 --- True while this user's window is up.
 --- @return boolean
 function CondemnedGear.IsWindowShowing()
@@ -496,15 +1032,41 @@ local function BuildWindow()
         halign = "center",
         valign = "center",
     }
-    --The party table (chunk 5) and the picker (chunks 3 and 4) go here.
-    local body = gui.Panel{
+    local content
+    local function Repaint()
+        if content ~= nil and content.valid then
+            content:FireEventTree("paint")
+        end
+    end
+
+    --The picker: the list, and the preview pane (chunk 4) beside it.
+    local picker = gui.Panel{
+        flow = "horizontal",
         width = "100%",
-        height = WINDOW_HEIGHT - BAND_HEIGHT,
-        flow = "vertical",
-        nobody,
+        height = "100%",
+        hpad = BODY_HPAD,
+        vpad = BODY_VPAD,
+        borderBox = true,
+        paint = function(element)
+            element:SetClass("collapsed", g_charid == nil)
+        end,
+        BuildList(Repaint),
+        gui.Panel{
+            width = PANE_WIDTH,
+            height = "100%",
+            lmargin = COLUMN_GAP,
+        },
     }
 
-    local content
+    --The party table (chunk 5) goes here too.
+    local body = gui.Panel{
+        width = "100%",
+        height = BODY_HEIGHT,
+        flow = "vertical",
+        nobody,
+        picker,
+    }
+
     content = gui.Panel{
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
@@ -523,7 +1085,11 @@ local function BuildWindow()
         end,
         multimonitor = { "fontsize", "iconrail" },
         monitor = function(element)
-            element:SetClass("cgRows", HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW)
+            local rows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
+            if rows ~= g_rows then
+                g_rows = rows
+                element:FireEventTree("paint")
+            end
         end,
         paint = function(element)
             local hero = g_charid ~= nil and FindHero(g_charid) or nil
@@ -545,8 +1111,20 @@ local function BuildWindow()
         band,
         body,
     }
-    content:SetClass("cgRows", HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW)
+    content.styles = GearStyles()
+    HeroSheetTheme.Track(content, function(panel)
+        panel.styles = GearStyles()
+    end)
     return content
+end
+
+--- Show the picker for one hero in this user's window (the party table's rows call it).
+--- @param charid string
+function CondemnedGear.ChooseFor(charid)
+    g_charid = charid
+    if g_frame ~= nil and g_frame.valid then
+        g_frame:FireEventTree("paint")
+    end
 end
 
 --- Show this user's window (already showing: bring it to the front).
@@ -556,6 +1134,7 @@ function CondemnedGear.ShowWindow()
         return
     end
     g_charid = StartingHero()
+    g_rows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
     local content = BuildWindow()
     g_frame = HeroSheetWindow.ShowPopup{
         content = content,

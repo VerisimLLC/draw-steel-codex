@@ -2352,6 +2352,7 @@ end
 --- @class LiveEncounter: Encounter
 --- @field new fun(o?: table): LiveEncounter
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field startedBy? string User id of the client that started this combat; the host election prefers it.
 LiveEncounter = RegisterGameType("LiveEncounter", "Encounter")
 
 -- Its own table name so it is distinguished from authored encounters.
@@ -2477,6 +2478,9 @@ function LiveEncounter.Create(encounter)
     --per-hero statistics for this encounter (see LiveEncounter:IncrementStat).
     --keyed by hero tokenid; sub-tables are vivified on first increment.
     result.stats = {}
+    --this runs on the client that creates the initiative queue, so it records who
+    --started the fight. IsElectedHost prefers that client to run encounter scripts.
+    result.startedBy = dmhub.userid
     return result
 end
 
@@ -7189,15 +7193,28 @@ local function IsDirectorPresent(userid)
     return isdm and (info.timeSinceLastContact or 0) < 140
 end
 
---Lowest-sorting present director wins; every client computes the same answer
---from the same shared presence data. Falls back to acting when presence is
---unreadable or nobody looks present - a stalled encounter script is worse
---than a rare duplicate.
+--The Director who started the combat hosts it while they are present, so the
+--client running the fight is the one that runs its scripts. Otherwise the
+--lowest-sorting present director wins. Every client computes the same answer
+--from the same shared data (the queue and session presence). Falls back to
+--acting when presence is unreadable or nobody looks present - a stalled
+--encounter script is worse than a rare duplicate.
 local function IsElectedHost()
     --hosting capability: the EotW player host must be electable.
     if not IsDMOrPlayerHost() then
         return false
     end
+
+    --old saved combats have no startedBy and use the lowest-id rule below. If the
+    --starter drops or idles past the presence window, hosting moves to that rule
+    --until they return. An EotW player host passes IsDirectorPresent too.
+    local q = dmhub.initiativeQueue
+    local live = q ~= nil and q:try_get("liveEncounter") or nil
+    local starter = live ~= nil and live:try_get("startedBy") or nil
+    if type(starter) == "string" and starter ~= "" and IsDirectorPresent(starter) then
+        return starter == dmhub.userid
+    end
+
     local best = nil
     for _, uid in ipairs(dmhub.users or {}) do
         if IsDirectorPresent(uid) and (best == nil or uid < best) then

@@ -2478,8 +2478,8 @@ function LiveEncounter.Create(encounter)
     --per-hero statistics for this encounter (see LiveEncounter:IncrementStat).
     --keyed by hero tokenid; sub-tables are vivified on first increment.
     result.stats = {}
-    --this runs on the client that creates the initiative queue, so it records who
-    --started the fight. IsElectedHost prefers that client to run encounter scripts.
+    --only the client starting the fight calls Create, so this records who that is.
+    --While that Director is present, their client runs the encounter scripts.
     result.startedBy = dmhub.userid
     return result
 end
@@ -6184,8 +6184,9 @@ end
 --
 -- Execution model: a 0.7s heartbeat (the same cadence as the initiative-bar
 -- strips) runs on every client but only the ELECTED HOST fires handlers - the
--- lowest-sorting present director per dmhub.GetSessionInfo (NOT
--- dmhub.IsUserDM, which reflects the stale roster). Victory check functions
+-- director who started the combat, or the lowest-sorting present director when
+-- they are gone (presence per dmhub.GetSessionInfo, NOT dmhub.IsUserDM, which
+-- reflects the stale roster). Victory check functions
 -- are pure reads and may run on any director client via CheckVictory; the
 -- cached victory text is what player-facing surfaces display, so player
 -- clients never execute encounter-script code.
@@ -7193,26 +7194,35 @@ local function IsDirectorPresent(userid)
     return isdm and (info.timeSinceLastContact or 0) < 140
 end
 
---The Director who started the combat hosts it while they are present, so the
---client running the fight is the one that runs its scripts. Otherwise the
---lowest-sorting present director wins. Every client computes the same answer
---from the same shared data (the queue and session presence). Falls back to
---acting when presence is unreadable or nobody looks present - a stalled
---encounter script is worse than a rare duplicate.
-local function IsElectedHost()
+--Picks the one client that does host-only work. The lowest-sorting present
+--director wins, and every client on every map gets the same answer from
+--session presence alone. Falls back to acting when presence is unreadable or
+--nobody looks present - a stalled encounter script is worse than a rare duplicate.
+--
+--preferStarter: pass true for work on this map's combat (its encounter scripts).
+--The Director who started that combat then hosts it while they are present.
+--Initiative is per map, so only clients on that map agree on the starter; work
+--that writes game-wide documents must leave this off. A starter who moves to
+--another map but stays online keeps the job, so the fight's scripts wait for
+--them; the default rule has the same gap when the lowest director is elsewhere.
+--- @param preferStarter? boolean
+local function IsElectedHost(preferStarter)
     --hosting capability: the EotW player host must be electable.
     if not IsDMOrPlayerHost() then
         return false
     end
 
-    --old saved combats have no startedBy and use the lowest-id rule below. If the
-    --starter drops or idles past the presence window, hosting moves to that rule
-    --until they return. An EotW player host passes IsDirectorPresent too.
-    local q = dmhub.initiativeQueue
-    local live = q ~= nil and q:try_get("liveEncounter") or nil
-    local starter = live ~= nil and live:try_get("startedBy") or nil
-    if type(starter) == "string" and starter ~= "" and IsDirectorPresent(starter) then
-        return starter == dmhub.userid
+    if preferStarter then
+        local queue = dmhub.initiativeQueue
+        local live = queue ~= nil and queue:try_get("liveEncounter") or nil
+        --old queues can hold false instead of a live encounter.
+        local starter = type(live) == "table" and live:try_get("startedBy") or nil
+        --no hidden check on purpose: onEnd fires after combat ends and the queue
+        --is hidden, and the starter should run it too. Combats saved before
+        --startedBy existed have none and use the rule below.
+        if type(starter) == "string" and starter ~= "" and IsDirectorPresent(starter) then
+            return starter == dmhub.userid
+        end
     end
 
     local best = nil
@@ -7227,8 +7237,8 @@ local function IsElectedHost()
     return best == dmhub.userid
 end
 
---Shared with other host-only round work (EnvironmentalKeyword's end-of-round
---zone spread) so every such job elects the same client.
+--Shared with other host-only work (the zone spread, puzzles, the stream overlay).
+--They call it with no argument, so they get the same answer on every map.
 LiveEncounter.IsElectedHost = IsElectedHost
 
 -- ---------------------------------------------------------------------------
@@ -7265,7 +7275,7 @@ local function MakeHostContext(instance)
         if tostring(q:try_get("guid")) ~= tostring(createdForQueue) then
             return false
         end
-        return IsElectedHost()
+        return IsElectedHost(true)
     end
 
     ctx.Announce = function(_, text)
@@ -7662,7 +7672,7 @@ local function DriverTick()
         return
     end
 
-    if not IsElectedHost() then
+    if not IsElectedHost(true) then
         return
     end
 

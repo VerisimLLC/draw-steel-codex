@@ -3588,8 +3588,9 @@ end
 
 --Round watcher for the zone spread. Every client polls the initiative round;
 --only the elected host (LiveEncounter.IsElectedHost: Director or player host,
---the same election encounter scripts use) acts. The last round handled is
---kept in a shared document keyed by the combat's queue guid, so the spread
+--the same answer on every map, since the watermark document is game-wide) acts.
+--The last round handled is kept in a shared document keyed by the combat's
+--queue guid, so the spread
 --fires once per round boundary even across a host handover or a reload, and
 --the client that advanced the round never runs it itself.
 local g_zoneSpreadDocId = "zoneSpreadRounds"

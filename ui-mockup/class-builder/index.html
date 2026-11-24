@@ -220,6 +220,18 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .tok.arrays .arr { background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 1px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; word-spacing: 3px; }
 .tok.arrays:hover .arr { border-color: #fff; }
 .tok.arrays .arrtag { font-size: 11px; opacity: .8; font-style: italic; }
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.subtab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; color: var(--fg); cursor: pointer; text-align: left; }
+.subtab .k { font: 600 9.5px var(--font-head); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.subtab .n { font-weight: 600; }
+.subtab.on { border-color: var(--gold); background: var(--dlg); box-shadow: inset 0 -2px 0 var(--gold); }
+.subtab.add { justify-content: center; border-style: dashed; color: var(--dim); }
+.subtab:hover { border-color: var(--gold); }
+.subchip { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 1px 10px; color: #fff; font-weight: 600; cursor: pointer; }
+button.subchip:hover { border-color: #fff; }
+.subchip.linked { cursor: default; font-weight: 500; border-style: dashed; }
+.subchip.add { font-weight: 500; border-style: dashed; opacity: .85; }
+.subchip .x { background: none; border: none; color: #fff; cursor: pointer; padding: 0 0 0 2px; }
 .menu { position: absolute; z-index: 50; background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: min(360px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto; }
 .menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; }
 .menu button:hover { background: var(--panel); }

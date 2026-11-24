@@ -21,6 +21,9 @@ tables = {
     # Ongoing effects, for "has the [ ] effect" tests (searched by name; 1,000+ of them).
     "effects": sorted({r["name"]: [r.get("id", ""), r["name"]] for r in rows("characterongoingeffects") if r.get("name")}.values(), key=lambda x: x[1].lower()),
     "resources": sorted([[r["id"], r["name"], r.get("grouping", "")] for r in rows("characterresources")], key=lambda x: x[1]),
+    # Classes and their subclasses, so a class can list and link the subclasses that point at it.
+    "classes": sorted([[r["id"], r["name"]] for r in rows("classes")], key=lambda x: x[1]),
+    "subclasses": sorted([[r["id"], r["name"], r.get("primaryClassId", "")] for r in rows("subclasses")], key=lambda x: x[1]),
 }
 # Loaded with a <script> tag (works from a file:// page too): window.CB_TABLES = {...}
 open(os.path.join(OUT, "tables.js"), "w").write("window.CB_TABLES = " + json.dumps(tables, separators=(",", ":")) + ";\n")

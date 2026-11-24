@@ -1126,3 +1126,26 @@ the author presses Combine.
   that you keep]". "This roll only" is the engine default: surges not spent on the roll are lost.
   "That you keep" sets `surgesCanBeKept` (the old editor's "Surges can be Kept"). Book text: "gain
   1 surge that can only be used on that roll" or "gain 1 surge that you keep if unspent".
+
+## 28. Subclasses inside the class builder (2026-11-24)
+
+A subclass is its own Class record in the `subclasses` table, with `isSubclass` set and
+`primaryClassId` pointing at its class. `CharacterSubclassChoice` offers every subclass whose
+`primaryClassId` matches. The builder now makes, opens and links them without leaving the class.
+
+- **Tabs above the board:** Class, each subclass built here, and "+ New subclass". A subclass
+  page has the same name, introduction and level lanes, with the same shelf and blocks. It has no
+  basics, heroic resource or slow start, since the class owns those. A row says which class it
+  belongs to, the level and feature where players choose it, and offers Delete subclass.
+- **The "Choose your subclass" block** lists the subclasses as chips: built ones open on click,
+  and linked compendium ones are dashed with an unlink ×. "+ new" starts a subclass, and "link
+  existing" searches the compendium's 45 subclasses. Linking sets the subclass's
+  `primaryClassId` to this class, and the toast says when that moves it from another class (for
+  example Berserker from the Fury). Book text: "Choose your Aspect from Stormborn or Berserker."
+- **Saving:** each subclass compiles to a Class record. Its features carry the subclass's id as
+  `classid`, as compendium subclasses do. Linked ones save as `{ id, primaryClassId }` changes.
+  "Saved data" shows the subclass on its own page, and all of them on the class page.
+- **Status:** a subclass page lists its own checks (a name, its features). The class page adds
+  one line for each subclass with something to finish ("Open it"). It also flags subclasses with
+  no choose block, and a choose block with no subclasses ("Add a subclass").
+- **Data:** `build_data.py` now also writes the `classes` and `subclasses` lists to tables.js.

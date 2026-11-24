@@ -319,8 +319,17 @@ const SENT = {
         modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
   subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
-    render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass"))); add(E("span", "aside", "(rename this feature to what the class calls its subclasses, such as College or Domain; the subclasses themselves are built separately)")); },
-    prose: (f, feat) => "Choose your " + (feat && feat.name ? feat.name : "subclass") + ".",
+    // The subclasses to choose from: each built here opens on click; compendium ones show as linked.
+    render: (f, add, s, feat) => { add(lbl("Choose your " + (feat && feat.name ? feat.name : "subclass") + ":"));
+      cls.subclasses.forEach(sc => { const b = E("button", "subchip", sc.name); b.type = "button"; b.title = "Open the " + sc.name + " subclass"; b.addEventListener("click", ev => { ev.stopPropagation(); showView(sc.id); }); add(b); });
+      compendiumSubclasses().forEach(x => { const c = E("span", "subchip linked", x[1]); c.title = "In the compendium, linked to this class";
+        if (cls.linkedSubclasses.includes(x[0])) { const rm = E("button", "x", "\u00d7"); rm.type = "button"; rm.title = "Unlink"; rm.addEventListener("click", ev => { ev.stopPropagation(); change(() => { cls.linkedSubclasses = cls.linkedSubclasses.filter(y => y !== x[0]); }); }); c.appendChild(rm); }
+        add(c); });
+      const nb = E("button", "subchip add", "+ new"); nb.type = "button"; nb.addEventListener("click", ev => { ev.stopPropagation(); change(() => { cls.view = newSubclass().id; openId = null; }); window.scrollTo(0, 0); }); add(nb);
+      const lk = E("button", "subchip add", "link existing"); lk.type = "button"; lk.addEventListener("click", ev => { ev.stopPropagation(); linkSubclassMenu(lk); }); add(lk);
+      add(E("span", "aside", "(name this feature what the class calls its subclasses, such as College or Domain)")); },
+    prose: (f, feat) => { const names = cls.subclasses.map(x => x.name).concat(compendiumSubclasses().map(x => x[1]));
+      return "Choose your " + (feat && feat.name ? feat.name : "subclass") + (names.length ? " from " + listWords(names, "or") : "") + "."; },
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterSubclassChoice" }, base) },
   stat: { desc: "Raise, lower or set one of the hero's numbers: Stamina, speed, stability, a characteristic...", label: "Change a stat", group: "stats", uses: 510, make: () => ({ attr: "hitpoints", op: "add", value: "3" }),
     render: (f, add) => {
@@ -927,6 +936,8 @@ function migrateClass(c) {
   // Classes saved before Recoveries and kits moved to the class's basics keep using their blocks.
   if (c.recoveries === undefined) c.recoveries = "";
   if (c.kits === undefined) c.kits = { on: "no", n: "1", type: "martial" };
+  if (!c.subclasses) c.subclasses = []; if (!c.linkedSubclasses) c.linkedSubclasses = []; if (c.view === undefined) c.view = null;
+  c.subclasses.forEach(sc => Object.keys(sc.lanes || {}).forEach(k => { sc.lanes[k] = sc.lanes[k].map(migrateFeature); sc.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }));
   Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
 /* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
 function kindLabel(f) {
@@ -940,7 +951,7 @@ function kindLabel(f) {
   return "Feature";
 }
 const primaryChars = () => Object.keys(cls.primary || {}).length ? Object.keys(cls.primary) : ["mgt"];
-function eachFeature(fn) { laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => fn(f, k))); }
+function eachFeature(fn) { const o = ed(); laneKeys().forEach(k => (o.lanes[k] || []).forEach(f => fn(f, k))); }
 function findFeature(id) { let r = null; eachFeature((f, k) => { if (f.id === id) r = { feat: f, lane: k }; }); return r; }
 
 // A feature with no book text of its own reads as its blocks.
@@ -988,6 +999,9 @@ function blankClass() {
     gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }],
     startGain: { kind: "flat", n: "2", steps: [], guid: guid() },
     recoveries: "8", kits: { on: "yes", n: "1", type: "martial" },
+    // Subclasses built here (each has its own levels), compendium subclasses linked to this class,
+    // and which one the board is showing (null = the class itself).
+    subclasses: [], linkedSubclasses: [], view: null,
     lanes: {} };
 }
 /* Characteristic arrays: core classes with one starting characteristic use four-number arrays, those with
@@ -1016,7 +1030,16 @@ function arraysTok() {
 }
 const LEVELS = Array.from({ length: 10 }, (_, i) => "level-" + (i + 1));
 const ENCOUNTERS = ["tutoriallevel-1", "tutoriallevel-2", "tutoriallevel-3", "tutoriallevel-4"];
-const laneKeys = () => (cls.slowStart ? ENCOUNTERS : []).concat(LEVELS);
+/* What the board is editing: the class, or one of its subclasses (same levels and blocks, no basics). */
+const ed = () => (cls.view && (cls.subclasses || []).find(x => x.id === cls.view)) || cls;
+const classLaneKeys = () => (cls.slowStart ? ENCOUNTERS : []).concat(LEVELS);
+const laneKeys = () => ed() === cls ? classLaneKeys() : LEVELS;
+/* Switching what the board shows isn't an edit, so it skips the undo stack. */
+function showView(id) { cls.view = id; openId = null; render(); saveStore(); window.scrollTo(0, 0); }
+function newSubclass(name) { const sc = { id: guid(), name: name || "New Subclass", details: "", lanes: {}, showLevels: 5 }; cls.subclasses.push(sc); return sc; }
+/* Compendium subclasses that already point at this class, plus any the author linked. */
+const compendiumSubclasses = () => (T.subclasses || []).filter(x => x[2] === cls.id || (cls.linkedSubclasses || []).includes(x[0]));
+const className = id => (T.classes || []).find(c => c[0] === id)?.[1] || "";
 function laneLabel(k) {
   if (k.startsWith("tutorial")) return ["Encounter", k.slice(-1), ""];
   const n = +k.slice(6);
@@ -1066,8 +1089,9 @@ function compileSentences(list, feat, filter) {
 /* The record type follows from the blocks (the author never picks it): modifiers only -> a feature;
    one choice alone -> that choice record; anything else -> a feature list holding a hidden feature with
    the modifiers, then each choice (as core classes store Characteristic Increase). */
+let compileOwner = null;   // a subclass's features carry the subclass's id as their classid
 function compileFeature(f) {
-  const name = featName(f), description = featText(f), base = { name, description, classid: cls.id };
+  const name = featName(f), description = featText(f), base = { name, description, classid: compileOwner || cls.id };
   const mods = compileSentences(f.sentences, { name, text: description });
   const parts = f.sentences.filter(x => SENT[x.type].compileChoice).map(x => SENT[x.type].compileChoice(x.f, f, base)).filter(Boolean);
   if (!parts.length) return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: mods });
@@ -1138,9 +1162,9 @@ function compileClass() {
     heroicResourceChecklist: g.checklist, levels: {} };
   if (cls.kits && cls.kits.on === "yes") rec.numKits = +cls.kits.n || 1;
   const all = ENCOUNTERS.concat(Array.from({ length: 20 }, (_, i) => "level-" + (i + 1)));
-  all.forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (laneKeys().includes(k) ? cls.lanes[k] || [] : []).map(compileFeature) }; });
+  all.forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (classLaneKeys().includes(k) ? cls.lanes[k] || [] : []).map(compileFeature) }; });
   // The resource feature holds the gain triggers, in the first lane (as core classes do).
-  const first = laneKeys()[0];
+  const first = classLaneKeys()[0];
   // Recoveries and kit access from the basics, as features of the first lane (where core classes keep them).
   const basics = [];
   if (String(cls.recoveries || "").trim()) basics.push({ __typeName: "CharacterFeature", name: "Recoveries", classid: cls.id, description: "You have " + cls.recoveries + " Recoveries.",
@@ -1154,6 +1178,18 @@ function compileClass() {
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);
   return rec;
 }
+
+/* A subclass is saved as its own Class record (table "subclasses"): isSubclass, and primaryClassId
+   pointing at this class. The class's "Choose your subclass" block lists every subclass that does. */
+function compileSubclass(sc) {
+  compileOwner = sc.id;
+  try {
+    const rec = { __typeName: "Class", id: sc.id, name: sc.name, details: sc.details, isSubclass: true, primaryClassId: cls.id, heroicResourceChecklist: [], levels: {} };
+    Array.from({ length: 20 }, (_, i) => "level-" + (i + 1)).forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (sc.lanes[k] || []).map(compileFeature) }; });
+    return rec;
+  } finally { compileOwner = null; }
+}
+const trimLevels = r => Object.assign({}, r, { levels: Object.fromEntries(Object.entries(r.levels).filter(([, v]) => v.features.length)) });
 
 // ---------------------------------------------------------------------------------------------
 // State, undo, and the draft kept in this browser.
@@ -1318,23 +1354,27 @@ const PRIMARY = { get list() { return Object.keys(cls.primary); }, set list(v) {
 // ---------------------------------------------------------------------------------------------
 // Rendering: board, shelf, side.
 const board = document.getElementById("board"), shelf = document.getElementById("shelf"), side = document.getElementById("side");
-let compiled = null;
+let compiled = null, compiledSub = null;
 function render() {
   for (const k in LISTS) delete LISTS[k];
-  compiled = compileClass();
+  compiled = compileClass(); compiledSub = ed() !== cls ? compileSubclass(ed()) : null;
   renderBoard(); renderShelf(); renderSide();
   document.getElementById("showGs").checked = showGs;
   if (store.order) updateOpenSel();
 }
 function renderBoard() {
   const y = window.scrollY; board.innerHTML = "";
+  board.appendChild(subclassTabs());
+  const sc = ed() !== cls ? ed() : null, who = sc || cls;
   const nm = E("div", "clsname");
   // Text fields commit after focus has moved on (setTimeout), so Tab lands on the next control.
-  const ni = fk(E("input"), "cls:name"); ni.value = cls.name; ni.setAttribute("aria-label", "Class name");
-  ni.addEventListener("change", () => setTimeout(() => change(() => { cls.name = ni.value.trim() || "New Class"; })));
+  const ni = fk(E("input"), "cls:name"); ni.value = who.name; ni.setAttribute("aria-label", sc ? "Subclass name" : "Class name");
+  ni.addEventListener("change", () => setTimeout(() => change(() => { who.name = ni.value.trim() || (sc ? "New Subclass" : "New Class"); })));
   nm.appendChild(ni); board.appendChild(nm);
-  const det = fk(E("textarea", "details"), "cls:details"); det.placeholder = "The class's introduction, as the book prints it (optional)"; det.value = cls.details;
-  det.addEventListener("change", () => setTimeout(() => change(() => { cls.details = det.value; }))); board.appendChild(det);
+  const det = fk(E("textarea", "details"), "cls:details"); det.placeholder = sc ? "The subclass's introduction, as the book prints it (optional)" : "The class's introduction, as the book prints it (optional)"; det.value = who.details;
+  det.addEventListener("change", () => setTimeout(() => change(() => { who.details = det.value; }))); board.appendChild(det);
+  if (sc) board.appendChild(subclassInfo(sc));
+  if (!sc) {
 
   // Basics
   board.appendChild(E("h3", "sec", "Basics"));
@@ -1411,9 +1451,11 @@ function renderBoard() {
   gs.appendChild(ag); board.appendChild(gs);
   board.appendChild(E("p", "hint", "Each of these is listed on the hero's sheet, and the game adds the " + res + " for them when it happens."));
 
+  }
   // Levels
   const lh = E("div", "lanes-head");
-  lh.appendChild(E("h3", "sec", "Levels"));
+  lh.appendChild(E("h3", "sec", sc ? sc.name + " features by level" : "Levels"));
+  if (!sc) {
   const st = E("label", "toggle"); const cb = fk(E("input"), "slowstart"); cb.type = "checkbox"; cb.checked = cls.slowStart;
   const setSlow = () => {
     // Turning it on moves 1st-level features into Encounter 1 (where core classes keep them); the
@@ -1430,26 +1472,68 @@ function renderBoard() {
     setSlow();
   });
   st.appendChild(cb); st.appendChild(document.createTextNode("Uses the slow start rules (Encounters 1–4)")); lh.appendChild(st);
+  }
   board.appendChild(lh);
-  if (cls.slowStart) board.appendChild(E("p", "hint", "With the slow start, a new hero plays their first encounter with only Encounter 1's features, then adds Encounter 2's, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once all four are done."));
+  if (!sc && cls.slowStart) board.appendChild(E("p", "hint", "With the slow start, a new hero plays their first encounter with only Encounter 1's features, then adds Encounter 2's, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once all four are done."));
   const keys = laneKeys(); let shown = 0;
   keys.forEach(k => {
     const isLevel = k.startsWith("level-"); const n = isLevel ? +k.slice(6) : 0;
-    if (isLevel && n > cls.showLevels && !(cls.lanes[k] || []).length) return;
+    if (isLevel && n > ed().showLevels && !(ed().lanes[k] || []).length) return;
     shown++; board.appendChild(renderLane(k));
   });
-  if (cls.showLevels < 10) {
-    const more = fk(E("button", "collapsed-note", "Show levels " + (cls.showLevels + 1) + "\u201310"), "morelevels"); more.type = "button";
-    more.addEventListener("click", () => change(() => { cls.showLevels = 10; })); board.appendChild(more);
+  if (ed().showLevels < 10) {
+    const more = fk(E("button", "collapsed-note", "Show levels " + (ed().showLevels + 1) + "\u201310"), "morelevels"); more.type = "button";
+    more.addEventListener("click", () => change(() => { ed().showLevels = 10; })); board.appendChild(more);
   }
   window.scrollTo(0, y);
+}
+/* Tabs above the board: the class, each subclass built here, and "+ New subclass". */
+function subclassTabs() {
+  const bar = E("div", "subtabs"); bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", "Class and subclasses");
+  const tab = (label, kind, active, on) => { const b = E("button", "subtab" + (active ? " on" : ""), null); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", active ? "true" : "false");
+    b.appendChild(E("span", "k", kind)); b.appendChild(E("span", "n", label)); b.addEventListener("click", on); bar.appendChild(b); return b; };
+  tab(cls.name, "Class", ed() === cls, () => showView(null));
+  cls.subclasses.forEach(sc => fk(tab(sc.name, "Subclass", ed() === sc, () => showView(sc.id)), "subtab:" + sc.id));
+  const add = fk(E("button", "subtab add", "+ New subclass"), "subtab:new"); add.type = "button";
+  add.addEventListener("click", () => { change(() => { cls.view = newSubclass().id; openId = null; }); window.scrollTo(0, 0); setTimeout(() => { const i = document.querySelector('[data-fk="cls:name"]'); if (i) { i.focus(); i.select(); } }); });
+  bar.appendChild(add);
+  return bar;
+}
+/* Under a subclass's name: which class it belongs to, how players pick it, and Delete. */
+function subclassInfo(sc) {
+  const b = E("div", "fixed");
+  const r = E("div", "row"); r.appendChild(E("span", "lbl", "Subclass of"));
+  const back = E("button", "tok", cls.name); back.type = "button"; back.title = "Back to the class"; back.addEventListener("click", () => showView(null)); r.appendChild(back);
+  const choice = (() => { let at = null; classLaneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => { if (!at && (f.sentences || []).some(x => x.type === "subclassChoice")) at = { f, k }; })); return at; })();
+  if (choice) { const [a, n] = laneLabel(choice.k); r.appendChild(lbl("Players choose it at " + a + " " + n + " (\u201c" + featName(choice.f) + "\u201d).")); }
+  else r.appendChild(E("span", "aside", "The class has no \u201cChoose your subclass\u201d block yet, so players can't pick it."));
+  r.appendChild(E("span", "grow"));
+  const del = fk(E("button", "btn small", "Delete subclass"), "subdel"); del.type = "button";
+  del.addEventListener("click", () => askConfirm(del, "Delete the " + sc.name + " subclass and its features?", "Delete", () => { change(() => { cls.subclasses = cls.subclasses.filter(x => x !== sc); cls.view = null; openId = null; }); toast("Deleted the " + sc.name + " subclass.", { label: "Undo", run: undo }); }));
+  r.appendChild(del); b.appendChild(r); return b;
+}
+/* Link a compendium subclass to this class: search by name; its current class is shown. */
+function linkSubclassMenu(anchor) {
+  menuAt(anchor, m => {
+    m.classList.add("wide"); m.appendChild(E("h5", null, "Link a subclass from the compendium"));
+    const i = E("input", "filter"); i.placeholder = "Search subclasses, e.g. Berserker"; m.appendChild(i);
+    const list = E("div"); m.appendChild(list);
+    const draw = () => { list.innerHTML = ""; const q = i.value.trim().toLowerCase();
+      (T.subclasses || []).filter(x => !q || (x[1] + " " + className(x[2])).toLowerCase().includes(q)).slice(0, 40).forEach(x => {
+        const linked = compendiumSubclasses().some(y => y[0] === x[0]);
+        const o = E("button", null, x[1] + (x[2] && x[2] !== cls.id ? " (now a " + (className(x[2]) || "other class") + " subclass)" : "") + (linked ? " \u2713" : "")); o.type = "button"; o.disabled = linked;
+        o.addEventListener("click", () => { closeMenu(); change(() => { cls.linkedSubclasses.push(x[0]); }); if (x[2] && x[2] !== cls.id) toast(x[1] + " will move from the " + (className(x[2]) || "other") + " class to this one when saved.", { label: "Undo", run: undo }); });
+        list.appendChild(o); }); };
+    i.addEventListener("input", draw); draw();
+    m.appendChild(E("div", "hint", "Linking sets the subclass's class to this one. To make a new subclass, use \u201c+ New subclass\u201d."));
+  });
 }
 function renderLane(k) {
   const lane = E("div", "lane"); lane.dataset.lane = k;
   const [a, n, sub] = laneLabel(k);
   const ln = E("div", "ln", a); ln.appendChild(E("b", null, n)); if (sub) ln.appendChild(E("small", null, sub)); lane.appendChild(ln);
   const items = E("div", "items");
-  (cls.lanes[k] || []).forEach(f => items.appendChild(f.id === openId ? renderFeature(f, k) : chip(f, k)));
+  (ed().lanes[k] || []).forEach(f => items.appendChild(f.id === openId ? renderFeature(f, k) : chip(f, k)));
   const add = fk(E("button", "addf", "+ add a feature"), "addf:" + k); add.type = "button";
   add.addEventListener("click", ev => { ev.stopPropagation(); menuAt(add, m => { addFilter(m);
     shelfEntries().forEach(([group, items]) => { if (!items.length) return; m.appendChild(E("h5", null, group));
@@ -1477,8 +1561,8 @@ function chip(f, k) {
 function openFeature(id) { openId = id; render(); restoreFocus("fname:" + id); const el = document.querySelector('[data-fk="fname:' + id + '"]'); if (el) el.scrollIntoView({ block: "nearest" }); }
 function addFeature(tpl, laneKey) {
   const f = newFeature(tpl);
-  const place = () => { (cls.lanes[laneKey] = cls.lanes[laneKey] || []).push(f); openId = f.id; pendingFk = "fname:" + f.id;
-    if (laneKey.startsWith("level-") && +laneKey.slice(6) > cls.showLevels) cls.showLevels = +laneKey.slice(6); };
+  const place = () => { const o = ed(); (o.lanes[laneKey] = o.lanes[laneKey] || []).push(f); openId = f.id; pendingFk = "fname:" + f.id;
+    if (laneKey.startsWith("level-") && +laneKey.slice(6) > o.showLevels) o.showLevels = +laneKey.slice(6); };
   // A feature made around an ability goes straight to the ability editor, and is only placed on Done.
   if (tpl.opens) { const s = f.sentences[0]; openEditor({ rec: null, kind: tpl.opens === "trigger" ? "triggered" : "ability" }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; if (!f.name && rec) f.name = recName(rec); place(); }); return; }
   change(place);
@@ -1546,8 +1630,8 @@ function findSentence(id) {
 function doDrop(d, t) {
   if (t.lane) {
     if (d.kind === "entry") return addEntryToLane(d.value, t.lane);
-    return change(() => { const at = findFeature(d.value); if (!at || at.lane === t.lane) return; cls.lanes[at.lane] = cls.lanes[at.lane].filter(x => x !== at.feat); (cls.lanes[t.lane] = cls.lanes[t.lane] || []).push(at.feat);
-      const n = +t.lane.slice(6); if (t.lane.startsWith("level-") && n > cls.showLevels) cls.showLevels = n; });
+    return change(() => { const o = ed(), at = findFeature(d.value); if (!at || at.lane === t.lane) return; o.lanes[at.lane] = o.lanes[at.lane].filter(x => x !== at.feat); (o.lanes[t.lane] = o.lanes[t.lane] || []).push(at.feat);
+      const n = +t.lane.slice(6); if (t.lane.startsWith("level-") && n > o.showLevels) o.showLevels = n; });
   }
   const L = LISTS[t.list];
   if (d.kind === "entry") return addEntryToList(d.value, L.feat, L.list, t.idx, L.inIf);
@@ -1586,16 +1670,16 @@ function renderFeature(f, laneKey) {
   const lanes = laneKeys();
   const mv = fk(E("button", "btn small", "Move to…"), "move:" + f.id); mv.type = "button";
   mv.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mv, m => lanes.forEach(k => { const [a, n, sub] = laneLabel(k); const x = E("button", null, a + " " + n + (sub ? " (" + sub + ")" : "")); x.type = "button";
-    x.addEventListener("click", () => change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); (cls.lanes[k] = cls.lanes[k] || []).push(f); if (k.startsWith("level-") && +k.slice(6) > cls.showLevels) cls.showLevels = +k.slice(6); })); m.appendChild(x); })); });
+    x.addEventListener("click", () => change(() => { const o = ed(); o.lanes[laneKey] = o.lanes[laneKey].filter(y => y !== f); (o.lanes[k] = o.lanes[k] || []).push(f); if (k.startsWith("level-") && +k.slice(6) > o.showLevels) o.showLevels = +k.slice(6); })); m.appendChild(x); })); });
   foot.appendChild(mv);
   const dup = fk(E("button", "btn small", "Duplicate"), "dup:" + f.id); dup.type = "button";
-  dup.addEventListener("click", () => change(() => { const c = cloneFeature(f); cls.lanes[laneKey].push(c); openId = c.id; pendingFk = "fname:" + c.id; }));
+  dup.addEventListener("click", () => change(() => { const c = cloneFeature(f); ed().lanes[laneKey].push(c); openId = c.id; pendingFk = "fname:" + c.id; }));
   foot.appendChild(dup);
   const sv = fk(E("button", "btn small", "Save as recipe"), "tpl:" + f.id); sv.type = "button"; sv.title = "Keep this feature on your shelf as a recipe, to reuse in any class or share";
   sv.addEventListener("click", ev => { ev.stopPropagation(); saveTemplateMenu(sv, f); });
   foot.appendChild(sv);
   const del = fk(E("button", "btn small", "Delete"), "del:" + f.id); del.type = "button";
-  del.addEventListener("click", () => { pendingFk = "addf:" + laneKey; change(() => { cls.lanes[laneKey] = cls.lanes[laneKey].filter(y => y !== f); openId = null; });
+  del.addEventListener("click", () => { pendingFk = "addf:" + laneKey; change(() => { const o = ed(); o.lanes[laneKey] = o.lanes[laneKey].filter(y => y !== f); openId = null; });
     toast("Deleted \u201c" + featName(f) + "\u201d.", { label: "Undo", run: undo }); });
   foot.appendChild(del);
   box.appendChild(foot);
@@ -1778,7 +1862,7 @@ function staleNote(f) {
 function featureIssues(f, lane) {
   const out = [], nm = "\u201c" + featName(f) + "\u201d", [a, n] = laneLabel(lane);
   const add = (msg, soft, fix) => out.push({ feat: f, lane, msg, soft, fix });
-  if (!f.sentences.length) add(nm + " doesn't do anything yet.", false, { label: "Delete it", run: () => { change(() => { cls.lanes[lane] = cls.lanes[lane].filter(x => x !== f); }); toast("Deleted.", { label: "Undo", run: undo }); } });
+  if (!f.sentences.length) add(nm + " doesn't do anything yet.", false, { label: "Delete it", run: () => { change(() => { const o = ed(); o.lanes[lane] = o.lanes[lane].filter(x => x !== f); }); toast("Deleted.", { label: "Undo", run: undo }); } });
   if (featName(f) === "Unnamed feature") add("A feature at " + a + " " + n + " has no name.", true);
   (function walk(list) { list.forEach(s => {
     const d = SENT[s.type];
@@ -1808,15 +1892,30 @@ function featureIssues(f, lane) {
 }
 function findList(f, s) { let r = null; (function walk(l) { l.forEach(x => { if (x === s) r = l; childLists(x).forEach(walk); }); })(f.sentences); return r; }
 function classIssues() {
+  if (ed() !== cls) return subclassIssues(ed());
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
   if (!cls.gains.length) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
   if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
   if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
-  if (!String(cls.recoveries || "").trim() && !laneKeys().some(k => (cls.lanes[k] || []).some(f => (f.sentences || []).some(x => x.type === "resource" && x.f.res === RES.recovery))))
+  if (!String(cls.recoveries || "").trim() && !classLaneKeys().some(k => (cls.lanes[k] || []).some(f => (f.sentences || []).some(x => x.type === "resource" && x.f.res === RES.recovery))))
     out.push({ msg: "The class has no Recoveries.", soft: true });
-  laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k))));
+  classLaneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k))));
+  // Subclasses are checked on their own page; here, one line each that has something to finish.
+  const hasChoice = classLaneKeys().some(k => (cls.lanes[k] || []).some(f => (f.sentences || []).some(x => x.type === "subclassChoice")));
+  cls.subclasses.forEach(sc => { const n = subclassIssues(sc).filter(x => !x.soft).length;
+    if (n) out.push({ msg: "The " + sc.name + " subclass has " + n + " thing" + (n === 1 ? "" : "s") + " to finish.", soft: false, fix: { label: "Open it", run: () => showView(sc.id) } }); });
+  if ((cls.subclasses.length || compendiumSubclasses().length) && !hasChoice) out.push({ msg: "The class has subclasses, but no \u201cChoose your subclass\u201d block, so players can't pick one.", soft: true });
+  if (hasChoice && !cls.subclasses.length && !compendiumSubclasses().length) out.push({ msg: "Players choose a subclass, but there are none yet.", soft: true, fix: { label: "Add a subclass", run: () => { change(() => { cls.view = newSubclass().id; openId = null; }); } } });
+  return out;
+}
+/* A subclass's own checks: its features, and that it has a name. */
+function subclassIssues(sc) {
+  const out = [];
+  if (!String(sc.name || "").trim() || sc.name === "New Subclass") out.push({ msg: "The subclass needs a name.", soft: false });
+  const saved = cls.view; cls.view = sc.id;   // featureIssues' fixes act on the board being shown
+  try { LEVELS.forEach(k => (sc.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k)))); } finally { cls.view = saved; }
   return out;
 }
 /* The right-hand column: the class's status (what's left to finish), then what the engine would store. */
@@ -1845,12 +1944,14 @@ function savedPanel() {
   const det = E("details", "savedbox"); det.open = !!savedOpen; det.addEventListener("toggle", () => { savedOpen = det.open; });
   det.appendChild(E("summary", null, "Saved data (for developers)"));
   det.appendChild(E("p", "hint", "Only needed when working on the app itself. To send this class to someone, use Share."));
-  const json = JSON.stringify(compiled, null, 2);
+  const json = JSON.stringify(compiledSub || compiled, null, 2);
   const cp = E("button", "btn small", "Copy the engine record"); cp.type = "button"; cp.addEventListener("click", () => copyText(json, null)); det.appendChild(cp);
   if (at) { det.appendChild(E("h3", "sec", "\u201c" + featName(at.feat) + "\u201d")); det.appendChild(E("pre", "saved", JSON.stringify(compileFeature(at.feat), null, 2))); }
+  if (compiledSub) { det.appendChild(E("h3", "sec", "Whole subclass (table subclasses; empty levels left out)")); det.appendChild(E("pre", "saved", JSON.stringify(trimLevels(compiledSub), null, 2))); side.appendChild(det); return; }
   det.appendChild(E("h3", "sec", "Whole class (empty levels left out)"));
-  const sm = Object.assign({}, compiled, { levels: Object.fromEntries(Object.entries(compiled.levels).filter(([, v]) => v.features.length)) });
-  det.appendChild(E("pre", "saved", JSON.stringify(sm, null, 2)));
+  det.appendChild(E("pre", "saved", JSON.stringify(trimLevels(compiled), null, 2)));
+  if (cls.subclasses.length) { det.appendChild(E("h3", "sec", "Subclasses (table subclasses)")); det.appendChild(E("pre", "saved", JSON.stringify(cls.subclasses.map(x => trimLevels(compileSubclass(x))), null, 2))); }
+  if (cls.linkedSubclasses.length) { det.appendChild(E("h3", "sec", "Linked compendium subclasses (primaryClassId set to this class)")); det.appendChild(E("pre", "saved", JSON.stringify(cls.linkedSubclasses.map(id => ({ id, primaryClassId: cls.id })), null, 2))); }
   side.appendChild(det);
 }
 let savedOpen = false;

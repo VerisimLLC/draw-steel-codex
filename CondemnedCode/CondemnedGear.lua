@@ -332,3 +332,308 @@ function CondemnedGear.HandOut(onDone)
     }
     return true
 end
+
+--- True once the gear has gone out: the window is closed and a hero has their marker.
+--- @return boolean
+function CondemnedGear.AnyHandedOut()
+    if CondemnedGear.IsOpen() then
+        return false
+    end
+    for _, entry in ipairs(CondemnedGear.Heroes()) do
+        if CondemnedGear.Delivered(entry.token) ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--------------------------------------------------------------------------------
+-- The window
+--------------------------------------------------------------------------------
+--A modal pop-up (HeroSheetWindow.ShowPopup: it follows Font Size and the colour
+--scheme, and caps itself to the screen). The Director's Open puts it on every screen;
+--anyone can close theirs and reopen it from the Campaign Tracker while it is open.
+--It is built once when it opens; clicks and remote changes repaint it in place.
+
+local OPEN_EVENT = "condemnedGearOpen"
+
+--design size in sheet units, before Font Size zooms it.
+local WINDOW_WIDTH = 1040
+local WINDOW_HEIGHT = 672
+local BAND_HEIGHT = 56
+
+--Narrower than this (the screen capping a large Font Size), the gear list shows one
+--row per item instead of cards: the list then has under about 38 lines of text width.
+local ROWS_BELOW = 930
+
+--The band's art: the painting on the journal's "Handout: Experimental Gear" page,
+--cropped to the collar (engine image rects count y from the bottom).
+local BAND_ART = "296d2a75-fd85-4ca4-aff4-e069e361f144"
+local BAND_ART_RECT = { x1 = 0.025, y1 = 0.523, x2 = 0.992, y2 = 0.714 }
+
+--- @type nil|Panel
+local g_frame = nil
+
+--The hero the window is choosing for; nil shows the party table (the Director, or a
+--player with several heroes).
+--- @type nil|string
+local g_charid = nil
+
+--The hero a player chooses for when the window opens: their only hero. The Director,
+--and a player with several, start on the party table.
+--- @return nil|string
+local function StartingHero()
+    if dmhub.isDM then
+        return nil
+    end
+    local mine = CondemnedGear.MyHeroes()
+    if #mine == 1 then
+        return mine[1].charid
+    end
+    return nil
+end
+
+--- @param charid string
+--- @return nil|CondemnedGearHero
+local function FindHero(charid)
+    for _, entry in ipairs(CondemnedGear.Heroes()) do
+        if entry.charid == charid then
+            return entry
+        end
+    end
+    return nil
+end
+
+--- True while this user's window is up.
+--- @return boolean
+function CondemnedGear.IsWindowShowing()
+    return g_frame ~= nil and g_frame.valid
+end
+
+--- Close this user's window.
+function CondemnedGear.CloseWindow()
+    HeroSheetWindow.ClosePopup(g_frame)
+    g_frame = nil
+end
+
+--Builds the window's content once. Paint (the root's "paint" event) sets what changes.
+--- @return Panel
+local function BuildWindow()
+    local title = gui.Label{
+        classes = { "heroSheetCardStrong" },
+        text = string.upper(T("condemned.gear.title")),
+        width = "auto",
+        height = "auto",
+        fontSize = 18,
+        bold = true,
+        halign = "left",
+        valign = "center",
+        textWrap = false,
+    }
+    local who = HeroSheetTheme.EllipsisLabel{
+        classes = { "heroSheetCardLabel" },
+        text = "",
+        width = 360,
+        height = "auto",
+        fontSize = 14,
+        bold = true,
+        lmargin = 12,
+        halign = "left",
+        valign = "center",
+    }
+    local back = HeroSheetTheme.WindowButton(T("condemned.gear.return_to_party"), function()
+        g_charid = nil
+        if g_frame ~= nil and g_frame.valid then
+            g_frame:FireEventTree("paint")
+        end
+    end, false)
+    back.selfStyle.halign = "left"
+    back.selfStyle.lmargin = 0
+    back.selfStyle.rmargin = 12
+
+    local band = gui.Panel{
+        classes = { "heroSheetCard" },
+        bgimage = "panels/square.png",
+        width = "100%",
+        height = BAND_HEIGHT,
+        flow = "horizontal",
+        hpad = 18,
+        borderBox = true,
+        --art, then a fade over its left edge so the title reads against it.
+        gui.Panel{
+            bgimage = BAND_ART,
+            bgcolor = "white",
+            imageRect = BAND_ART_RECT,
+            width = 200,
+            height = BAND_HEIGHT,
+            halign = "right",
+            rmargin = 30,
+            opacity = 0.75,
+            floating = true,
+            interactable = false,
+        },
+        back,
+        title,
+        who,
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "center",
+            hover = gui.Tooltip(T("condemned.gear.close")),
+            press = function()
+                CondemnedGear.CloseWindow()
+            end,
+        },
+    }
+
+    --A player with no hero of their own: the Director chooses for them.
+    local nobody = gui.Label{
+        classes = { "heroSheetCardSub" },
+        text = T("condemned.gear.director_chooses"),
+        width = "auto",
+        height = "auto",
+        fontSize = 16,
+        halign = "center",
+        valign = "center",
+    }
+    --The party table (chunk 5) and the picker (chunks 3 and 4) go here.
+    local body = gui.Panel{
+        width = "100%",
+        height = WINDOW_HEIGHT - BAND_HEIGHT,
+        flow = "vertical",
+        nobody,
+    }
+
+    local content
+    content = gui.Panel{
+        width = WINDOW_WIDTH,
+        height = WINDOW_HEIGHT,
+        flow = "vertical",
+        data = { wasOpen = CondemnedGear.IsOpen() },
+        monitorGame = CondemnedGear.DocPath(),
+        refreshGame = function(element)
+            --Hand out closed it for the table: close this copy too.
+            local open = CondemnedGear.IsOpen()
+            if element.data.wasOpen and not open then
+                CondemnedGear.CloseWindow()
+                return
+            end
+            element.data.wasOpen = open
+            element:FireEventTree("paint")
+        end,
+        multimonitor = { "fontsize", "iconrail" },
+        monitor = function(element)
+            element:SetClass("cgRows", HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW)
+        end,
+        paint = function(element)
+            local hero = g_charid ~= nil and FindHero(g_charid) or nil
+            if hero == nil then
+                g_charid = nil
+            end
+            --the party table is the way back, for whoever has one.
+            local hasParty = dmhub.isDM or #CondemnedGear.MyHeroes() > 1
+            back:SetClass("collapsed", hero == nil or not hasParty)
+            if hero == nil then
+                who.text = ""
+            elseif hasParty then
+                who.text = T("condemned.gear.choosing_for", { name = hero.name })
+            else
+                who.text = hero.name
+            end
+            nobody:SetClass("collapsed", dmhub.isDM or #CondemnedGear.MyHeroes() > 0)
+        end,
+        band,
+        body,
+    }
+    content:SetClass("cgRows", HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW)
+    return content
+end
+
+--- Show this user's window (already showing: bring it to the front).
+function CondemnedGear.ShowWindow()
+    if g_frame ~= nil and g_frame.valid then
+        g_frame:SetAsLastSibling()
+        return
+    end
+    g_charid = StartingHero()
+    local content = BuildWindow()
+    g_frame = HeroSheetWindow.ShowPopup{
+        content = content,
+        width = WINDOW_WIDTH,
+        height = WINDOW_HEIGHT,
+        modal = true,
+        onClose = function()
+            g_frame = nil
+        end,
+    }
+    content:FireEventTree("paint")
+end
+
+--- Director only: open the window for the table and put it on every screen.
+function CondemnedGear.OpenForAll()
+    if not dmhub.isDM then
+        return
+    end
+    CondemnedGear.SetOpen(true)
+    dmhub.BroadcastRemoteEvent(OPEN_EVENT, dmhub.GenerateGuid(), {}, true)
+    CondemnedGear.ShowWindow()
+    HeroSheetWindow.Toast(T("condemned.gear.opened_for_all"))
+end
+
+dmhub.RegisterRemoteEvent(OPEN_EVENT, function(info)
+    if mod.unloaded or dmhub.isDM then
+        return
+    end
+    CondemnedGear.ShowWindow()
+end)
+
+--A player who closed the window gets it back from the Campaign Tracker while it is open.
+local function CreateReopenSection()
+    local row = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        bmargin = 10,
+        gui.Label{
+            classes = { "bold" },
+            text = T("condemned.gear.reopen_label"),
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+            valign = "center",
+        },
+        gui.Button{
+            classes = { "sizeS" },
+            text = T("condemned.gear.reopen_button"),
+            width = 70,
+            height = 24,
+            fontSize = 12,
+            lmargin = 10,
+            valign = "center",
+            press = function()
+                CondemnedGear.ShowWindow()
+            end,
+        },
+    }
+    local function Paint()
+        row:SetClass("collapsed", dmhub.isDM or not CondemnedGear.IsOpen())
+    end
+    Paint()
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        monitorGame = CondemnedGear.DocPath(),
+        refreshGame = Paint,
+        row,
+    }
+end
+
+local campaignTracker = rawget(_G, "CampaignTracker")
+if campaignTracker ~= nil and campaignTracker.RegisterSection ~= nil then
+    campaignTracker.RegisterSection{
+        id = "condemnedGear",
+        ord = -21,
+        create = CreateReopenSection,
+    }
+end

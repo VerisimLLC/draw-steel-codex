@@ -2210,6 +2210,59 @@ local ABBEY_FIRE_TEXT = {
     [3] = "The abbey has collapsed",
 }
 
+--Gearing Up, back at de Caserta: the Director opens the Experimental Gear window
+--(CondemnedGear.lua) for the whole table, and later looks back at what each hero took.
+local function GearingUpBlock()
+    local gear = rawget(_G, "CondemnedGear")
+    if gear == nil then
+        return gui.Panel { classes = { "collapsed" }, width = 1, height = 1 }
+    end
+    local T = UIText.T
+    local chip = Chip("", nil, { lmargin = 8 })
+    local body = Small("", { width = "100%", classes = { "ccMuted" }, vmargin = 2 })
+    local openButton = Button(T("condemned.gear.open_button"), 170, function() gear.OpenForAll() end)
+    local showButton = Button(T("condemned.gear.show_it"), 80, function() gear.ShowWindow() end)
+    local seeButton = Button(T("condemned.gear.see_what_took"), 170, function() gear.ShowWindow() end)
+    local function Paint()
+        local open = gear.IsOpen()
+        local handedOut = gear.AnyHandedOut()
+        chip:SetClass("collapsed", not open and not handedOut)
+        if open then
+            SetChip(chip, T("condemned.gear.pill_open"), "ccInfo")
+            local heroes = gear.Heroes()
+            local done = 0
+            for _, entry in ipairs(heroes) do
+                if gear.Status(entry) == "done" then
+                    done = done + 1
+                end
+            end
+            body.text = T("condemned.gear.heroes_done", { done = done, total = #heroes })
+        else
+            SetChip(chip, T("condemned.gear.handed_out"), "ccOk")
+            body.text = T("condemned.gear.gearing_up_body")
+        end
+        body:SetClass("collapsed", handedOut)
+        openButton:SetClass("collapsed", open or handedOut)
+        showButton:SetClass("collapsed", not open)
+        seeButton:SetClass("collapsed", not handedOut)
+    end
+    local block = gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vmargin = 6,
+        monitorGame = gear.DocPath(),
+        refreshGame = Paint,
+        children = {
+            Row({ Label(T("condemned.gear.gearing_up"), { classes = { "ccTitle" }, bold = true, valign = "center" }), chip }),
+            body,
+            Row({ openButton, showButton, seeButton }, { tmargin = 4 }),
+        },
+    }
+    Paint()
+    return block
+end
+
 local function CreatePartOneSection()
     return Section {
         id = "part1",
@@ -2249,6 +2302,7 @@ local function CreatePartOneSection()
             FlagRow("abbey_gerold_fled", "Gerold went down the statue shaft"),
             CounterRow("riojan_bottles", "Riojan Gold bottles carried", { min = 0, hint = "Three in the basement." }),
             FlagRow("part1_clock_started", "The one-hour clock is running"),
+            UntilStage("return", GearingUpBlock()),
         },
     }
 end

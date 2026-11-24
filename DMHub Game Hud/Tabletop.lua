@@ -1090,8 +1090,13 @@ function g_chrome.AlphaMask(stops)
     }
 end
 
---The window's name in its titlebar.
-function g_chrome.NameLabel(text)
+--The window's name in its titlebar. With rename, the name can be edited by
+--clicking it while the label is editable (set editable to allow it);
+--rename(element) commits element.text and puts back the name to show.
+--- @param text string
+--- @param rename? fun(element: Label)
+--- @return Label
+function g_chrome.NameLabel(text, rename)
     return gui.Label{
         classes = {"tabletopTitleName"},
         width = "auto",
@@ -1102,7 +1107,24 @@ function g_chrome.NameLabel(text)
         textWrap = false,
         textOverflow = "ellipsis",
         text = text,
+        change = function(element)
+            if rename ~= nil then
+                rename(element)
+            end
+        end,
     }
+end
+
+--Whether this player may rename the map a window shows from its titlebar:
+--the Director, and not a Map Preview (its name is the previewed variant's).
+--- @param mapid string
+--- @return boolean
+function g_chrome.CanRenameMap(mapid)
+    if not dmhub.isDM then
+        return false
+    end
+    local map = game.GetMap(mapid)
+    return map ~= nil and map.valid and not map.preview
 end
 
 --A hairline between a titlebar's groups.
@@ -2201,7 +2223,19 @@ local function BuildWindow(rec)
         frozenHint,
     }
 
-    local nameLabel = g_chrome.NameLabel(MapName(rec.mapid))
+    --the Director renames the map by clicking its name (made editable by
+    --the window's refresh, which follows the map the window shows).
+    local nameLabel = g_chrome.NameLabel(MapName(rec.mapid), function(element)
+        local map = game.GetMap(rec.mapid)
+        local name = trim(element.text)
+        if map ~= nil and name ~= "" and g_chrome.CanRenameMap(rec.mapid) and name ~= map.description then
+            map:MarkUndo()
+            map.description = name
+            map:Upload("Renamed map")
+        end
+        element.text = MapName(rec.mapid)
+    end)
+    nameLabel.editable = g_chrome.CanRenameMap(rec.mapid)
 
     --a frozen window's map is in combat: its round.
     local roundLabel = gui.Label{
@@ -3629,8 +3663,12 @@ Refresh = function()
             g_chrome.RefreshVisionChip(rec)
 
             local name = MapName(rec.mapid)
-            if rec.nameLabel.text ~= name then
+            if rec.nameLabel.text ~= name and not rec.nameLabel.editing then
                 rec.nameLabel.text = name
+            end
+            local canRename = g_chrome.CanRenameMap(rec.mapid)
+            if rec.nameLabel.editable ~= canRename then
+                rec.nameLabel.editable = canRename
             end
             local round = nil
             if not live then
@@ -6261,6 +6299,11 @@ local function ApplyCardScale(card, except)
         card.share.frame.selfStyle.borderWidth = 2 / s
     end
     card.scaler.selfStyle.scale = s
+    --a document or table item's titlebar is as wide as the item (it only
+    --reaches past a small one to fit its controls); a card's sits in a corner.
+    if card.titleSpansItem and card.titlebar ~= nil and card.titlebar.valid then
+        card.titlebar.selfStyle.minWidth = math.floor(w * s)
+    end
     for _, grip in ipairs(card.grips) do
         if grip ~= except then
             PlaceGrip(card, grip)
@@ -6380,9 +6423,14 @@ local function CardGrip(card, hx, hy)
             if hy < 0 then
                 s = math.min(s, (card.y + curH - CARD_TITLE_HEIGHT) / h)
             end
-            --(a document item can go smaller than a card, a turned card
-            --bigger and not as small: card.minScale, card.maxScale.)
-            s = math.max(card.minScale or CARD_MIN_SCALE, math.min(card.maxScale or CARD_MAX_SCALE, s))
+            --(a document item can go smaller than a card and as big as the
+            --table, a turned card bigger and not as small: card.minScale,
+            --card.maxScale, a number or a function giving one.)
+            local maxScale = card.maxScale or CARD_MAX_SCALE
+            if type(maxScale) == "function" then
+                maxScale = maxScale()
+            end
+            s = math.max(card.minScale or CARD_MIN_SCALE, math.min(maxScale, s))
             if hx < 0 then
                 card.x = card.x + (curW - w * s)
                 panel.x = card.x
@@ -9030,6 +9078,17 @@ do
     --several-document window is set off.
     local DOC = {coverWidth = 120, pad = 10, icon = 24, iconGap = 8, minScale = 0.5, cascade = 24}
 
+    --The largest scale for an item of base size w x h: it may grow until it
+    --fills the table (titlebar included), and never stops short of an NPC
+    --card's CARD_MAX_SCALE.
+    ---@param w number
+    ---@param h number
+    ---@return number
+    function DOC.MaxScale(w, h)
+        local lw, lh = LayerSize()
+        return math.max(CARD_MAX_SCALE, math.min(lw / w, (lh - CARD_TITLE_HEIGHT) / h))
+    end
+
     local function DocItemId(entryid)
         return "doc:" .. entryid
     end
@@ -9254,6 +9313,12 @@ do
         end
         item.scale = item.scale or 1
         item.minScale = DOC.minScale
+        --measured when a grip is dragged, as the table can change size.
+        item.maxScale = function()
+            return DOC.MaxScale(w, h)
+        end
+        --the titlebar spans the item at every size (ApplyCardScale).
+        item.titleSpansItem = true
         --what the resize grips report a player's resize under (TookControl).
         item.layoutKey = DocItemId(item.entryid)
         --the face's cornerRadius, for its shadow (ApplyCardScale).
@@ -9535,7 +9600,7 @@ do
         local lw, lh = LayerSize()
         local bw, bh = DocBaseSize(entry, entryid)
         local item = DocItemById(entryid)
-        local scale = math.max(DOC.minScale, math.min(CARD_MAX_SCALE, options.scale or 1))
+        local scale = math.max(DOC.minScale, math.min(DOC.MaxScale(bw, bh), options.scale or 1))
         if item ~= nil then
             scale = item.scale or 1
         end
@@ -9966,13 +10031,14 @@ do
             return
         end
         for _, saved in ipairs(layout.docs) do
-            if type(saved) == "table" and type(saved.entryid) == "string" and CustomDocument.FindJournalEntry(saved.entryid) ~= nil
-                    and DocItemById(saved.entryid) == nil then
+            local entry = type(saved) == "table" and type(saved.entryid) == "string" and CustomDocument.FindJournalEntry(saved.entryid) or nil
+            if entry ~= nil and DocItemById(saved.entryid) == nil then
+                local bw, bh = DocBaseSize(entry, saved.entryid)
                 g_docItems[#g_docItems+1] = {
                     entryid = saved.entryid,
                     x = tonumber(saved.x) or 100,
                     y = tonumber(saved.y) or 100,
-                    scale = math.max(DOC.minScale, math.min(CARD_MAX_SCALE, tonumber(saved.scale) or 1)),
+                    scale = math.max(DOC.minScale, math.min(DOC.MaxScale(bw, bh), tonumber(saved.scale) or 1)),
                     fromShare = saved.fromShare == true or nil,
                 }
             end
@@ -10168,6 +10234,8 @@ local function DefineTableItems()
             return w, h
         end
         item.scale = item.scale or 1
+        --the titlebar spans the item at every size (ApplyCardScale).
+        item.titleSpansItem = true
         --the face's cornerRadius, for its shadow (ApplyCardScale); a kind may
         --say its own.
         item.shadowRadius = spec.cornerRadius or 4

@@ -1169,16 +1169,50 @@ local function LiveMover(charid, steps, fell, moved)
     return {id = charid, token = token, dead = dead, steps = steps, fell = fell, moved = moved}
 end
 
---- The creatures around a recorded move where they stood then, for the side view's others,
---- with a ghost made for each dead one (the side view draws a dead creature from its ghost;
---- they go in shown, to be destroyed). nil for moves saved before History kept them.
---- @param moved table
+--- The squares the side view draws other creatures on, as "x,y,floor" keys: those the mover
+--- covered at each step, and one square past either end along the path (the engine's
+--- MovementCrossSection does the same). A fall's steps below the start floor are left out.
+--- @param steps table[] From MovedSteps.
+--- @param size integer The mover's size in squares.
+--- @return table<string, boolean>
+local function SideViewSquares(steps, size)
+    local squares = {}
+    local function Cover(x, y, floor)
+        for dx = 0, size - 1 do
+            for dy = 0, size - 1 do
+                squares[string.format("%d,%d,%d", x + dx, y + dy, floor)] = true
+            end
+        end
+    end
+    local last = #steps
+    while last > 1 and steps[last].fall do
+        last = last - 1
+    end
+    for i = 1, last do
+        Cover(steps[i].x, steps[i].y, steps[i].floor)
+    end
+    if last >= 2 then
+        local first, second = steps[1], steps[2]
+        Cover(2 * first.x - second.x, 2 * first.y - second.y, first.floor)
+        local final, before = steps[last], steps[last - 1]
+        Cover(2 * final.x - before.x, 2 * final.y - before.y, final.floor)
+    end
+    return squares
+end
+
+--- The creatures the side view draws for a recorded move, where they stood then, for its
+--- others. One that has moved or died since also gets a ghost on the map there, so the map
+--- matches the side view (a dead one needs it to be drawn at all); ghosts go in shown, to be
+--- destroyed. nil for moves saved before History kept the creatures around them.
+--- @param mover HistoryMover
 --- @param shown LuaMultiObjectReference[]
 --- @return nil|{token: CharacterToken, x: integer, y: integer, floor: integer, altitude: integer}[]
-local function OthersThen(moved, shown)
+local function OthersThen(mover, shown)
+    local moved = mover.moved
     if moved.near == nil then
         return nil
     end
+    local squares = SideViewSquares(mover.steps, math.max(1, (mover.dead or mover.token).tileSize or 1))
     local forPlayers = not dmhub.isDM
     local others = {}
     for _, near in ipairs(moved.near) do
@@ -1187,15 +1221,25 @@ local function OthersThen(moved, shown)
         if not (forPlayers and unseen) then
             token, dead = LiveToken(charid)
         end
-        if dead ~= nil then
-            local ghost = dead:CreateGhost(core.Loc{x = x, y = y, floorIndex = floor}:WithAltitude(altitude))
-            if ghost ~= nil then
-                shown[#shown + 1] = ghost
-            end
-            token = dead
-        end
+        local drawn = false
         if token ~= nil then
-            others[#others + 1] = {token = token, x = x, y = y, floor = floor, altitude = altitude}
+            local size = math.max(1, (dead or token).tileSize or 1)
+            for dx = 0, size - 1 do
+                for dy = 0, size - 1 do
+                    drawn = drawn or squares[string.format("%d,%d,%d", x + dx, y + dy, floor)] == true
+                end
+            end
+        end
+        if drawn and token ~= nil then
+            local loc = token.loc
+            local movedSince = dead ~= nil or loc.x ~= x or loc.y ~= y or loc.floor ~= floor or loc.altitude ~= altitude
+            if movedSince then
+                local ghost = (dead or token):CreateGhost(core.Loc{x = x, y = y, floorIndex = floor}:WithAltitude(altitude))
+                if ghost ~= nil then
+                    shown[#shown + 1] = ghost
+                end
+            end
+            others[#others + 1] = {token = dead or token, x = x, y = y, floor = floor, altitude = altitude}
         end
     end
     return others
@@ -1313,7 +1357,7 @@ local function SideViewButton(row, mapid)
             end
             --the damage the fall did, as the live preview's badge shows it.
             local fall = mover.moved.falldamage or 0
-            local others = OthersThen(mover.moved, shown)
+            local others = OthersThen(mover, shown)
             local function Section(token)
                 return dmhub.SetMovementCrossSection{
                     token = token,

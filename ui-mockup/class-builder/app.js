@@ -812,7 +812,11 @@ function migrateSentence(x) {
   if (x.type === "onlyIf") x.f = migrateOnlyIf(x.f);
   (x.children || []).forEach(migrateSentence); return x;
 }
-function migrateClass(c) { Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
+function migrateClass(c) {
+  // Classes saved before Recoveries and kits moved to the class's basics keep using their blocks.
+  if (c.recoveries === undefined) c.recoveries = "";
+  if (c.kits === undefined) c.kits = { on: "no", n: "1", type: "martial" };
+  Object.keys(c.lanes || {}).forEach(k => { c.lanes[k] = c.lanes[k].map(migrateFeature); c.lanes[k].forEach(f => (f.sentences || []).forEach(migrateSentence)); }); return migrateText(c); }
 /* What a feature is, for its chip: named after its one choice, else Ability / Feature. */
 function kindLabel(f) {
   const top = f.sentences || [], ch = top.filter(x => SENT[x.type].choice);
@@ -869,6 +873,7 @@ function blankClass() {
     primary: { mgt: 2 }, arrays: "auto", arraysCustom: [], stamStart: "18", stamPer: "6", showLevels: 5,
     gains: [{ id: newId("g"), event: "rollinitiative", qty: "Victories", guid: guid() }],
     startGain: { kind: "flat", n: "2", steps: [], guid: guid() },
+    recoveries: "8", kits: { on: "yes", n: "1", type: "martial" },
     lanes: {} };
 }
 /* Characteristic arrays: core classes with one starting characteristic use four-number arrays, those with
@@ -994,6 +999,8 @@ function compileGains() {
   });
   return { checklist, triggers, mods };
 }
+/* Kit types the engine registers (Kit.RegisterKitType in MCDMKit.lua). */
+const KIT_TYPES = [["martial", "martial"], ["caster", "caster"], ["stormwight", "Stormwight"], ["null", "Null"]];
 function compileClass() {
   const primary = Object.fromEntries(Object.keys(cls.primary).map(k => [k, numOr(cls.primary[k])]));
   const arrays = arraysValue();
@@ -1002,10 +1009,19 @@ function compileClass() {
     heroicResourceName: cls.resourceName, epicResourceName: cls.epicName || undefined,
     baseCharacteristics: Object.assign({}, primary, { arrays }), hitpointsCalculation: cls.stamStart + " + (Level - 1)*" + cls.stamPer,
     heroicResourceChecklist: g.checklist, levels: {} };
+  if (cls.kits && cls.kits.on === "yes") rec.numKits = +cls.kits.n || 1;
   const all = ENCOUNTERS.concat(Array.from({ length: 20 }, (_, i) => "level-" + (i + 1)));
   all.forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (laneKeys().includes(k) ? cls.lanes[k] || [] : []).map(compileFeature) }; });
   // The resource feature holds the gain triggers, in the first lane (as core classes do).
   const first = laneKeys()[0];
+  // Recoveries and kit access from the basics, as features of the first lane (where core classes keep them).
+  const basics = [];
+  if (String(cls.recoveries || "").trim()) basics.push({ __typeName: "CharacterFeature", name: "Recoveries", classid: cls.id, description: "You have " + cls.recoveries + " Recoveries.",
+    modifiers: [{ __typeName: "CharacterModifier", name: "Recoveries", behavior: "resource", resourceType: RES.recovery, num: numOr(cls.recoveries) }] });
+  if (cls.kits && cls.kits.on === "yes") basics.push({ __typeName: "CharacterFeature", name: "Kit", classid: cls.id,
+    description: "You can use and gain the benefits of " + (cls.kits.n === "2" ? "two " + cls.kits.type + " kits" : "a " + cls.kits.type + " kit") + ".",
+    modifiers: [{ __typeName: "CharacterModifier", name: "Kit", behavior: "kitaccess", kitType: cls.kits.type }] });
+  rec.levels[first].features.unshift(...basics);
   rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
     description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.mods.concat(g.triggers) });
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);
@@ -1200,6 +1216,11 @@ function renderBoard() {
   row("Characteristics", lbl("You start with"), multiTok(PRIMARY, "list", CHARS, "choose", "and"),
     lbl("of 2; the other scores use one of these arrays:"), arraysTok());
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
+  // Recoveries and kits are part of every class, so they sit with the basics (the blocks still exist for features).
+  row("Recoveries", lbl("You have"), textTok(cls, "recoveries", "8"), lbl("Recoveries"));
+  const kitRow = [pickTok(cls.kits, "on", [["yes", "You use"], ["no", "This class doesn't use kits"]])];
+  if (cls.kits.on === "yes") kitRow.push(pickTok(cls.kits, "n", [["1", "one"], ["2", "two"]]), pickTok(cls.kits, "type", KIT_TYPES), lbl(cls.kits.n === "2" ? "kits" : "kit"));
+  row("Kits", ...kitRow);
   board.appendChild(b);
 
   // Heroic resource
@@ -1645,6 +1666,8 @@ function classIssues() {
   if (cls.startGain && !/^\d+$/.test(String(cls.startGain.n).trim())) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain needs a whole number" + (cls.startGain.kind === "die" ? " (the die size)." : "."), soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
   if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
+  if (!String(cls.recoveries || "").trim() && !laneKeys().some(k => (cls.lanes[k] || []).some(f => (f.sentences || []).some(x => x.type === "resource" && x.f.res === RES.recovery))))
+    out.push({ msg: "The class has no Recoveries.", soft: true });
   laneKeys().forEach(k => (cls.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k))));
   return out;
 }

@@ -1069,3 +1069,20 @@ chips as Logic:
   is "Your recipes", and the toasts and Share/Import text match.
 - **The "N things to finish" warning** on an ability card was light orange on the orange block.
   It is now a white-on-dark pill with a red "!" mark, readable on any block colour.
+
+## 25. Recoveries and kits in the class's basics (2026-11-24)
+
+Every class has Recoveries, and most use kits, so both now sit in the Basics box under Stamina:
+- **Recoveries:** "You have [8] Recoveries".
+- **Kits:** "[You use / This class doesn't use kits] [one / two] [martial / caster / Stormwight /
+  Null] kit(s)".
+
+How they save:
+- **Recoveries** saves as a "Recoveries" feature with the resource modifier, in the first lane.
+  That is where every core class keeps it (Censor 12, Fury 10, Conduit 8...).
+- **Kits** saves as a "Kit" feature (`kitaccess`, with the kit type) plus the class's `numKits`
+  (1 or 2). That is the engine's "Has Two Kits" option.
+
+The Recoveries and Kit blocks stay on the shelf for features that grant more. A class with no
+Recoveries in either place is listed in Status as worth checking. Classes saved earlier keep
+their blocks: their basics rows start empty and off, so nothing is counted twice.

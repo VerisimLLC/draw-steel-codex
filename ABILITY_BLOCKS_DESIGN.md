@@ -1538,3 +1538,19 @@ Functions that need an argument (Has Target, Tier for Target, Memory...) are lef
 covered by "Remember a value". Saved follow-ups that already pass one of these values now open
 with it as a chip instead of a formula. Round trips are unchanged: 45/45, 60/60, 1,148/1,148,
 and 23/23.
+
+**Revision (2026-11-24):** the two groups are now one. "From [parent]" lists the values in order
+of how often compendium follow-ups use them. A scan of invoked abilities found:
+
+| Value | Uses |
+|---|---:|
+| primary target | 25 |
+| tier | 23 |
+| squares moved | 12 |
+| damage dealt | 10 |
+| forced movement distance | 2 |
+| number of targets, roll, damage dealt against | 1 each |
+
+The first three show. The rest open from a "More from [parent] (N)..." button at the foot of the
+same group, and search finds any of them. "First target" is no longer listed twice: the engine
+has two names for the primary target.

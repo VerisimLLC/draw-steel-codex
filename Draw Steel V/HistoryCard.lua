@@ -2019,12 +2019,23 @@ local function AddTargetLines(rows, width, entry, who, count, own)
                 break
             end
         end
-        --a fall's damage gets a line of its own: it isn't the tier's (Knockback deals none).
-        local fall = (who.moved ~= nil and not who.moved.fallseparate) and (who.moved.falldamage or 0) or 0
+        --a fall, and a creature landing on this one, each get a line of their own: neither is
+        --the tier's damage (Knockback deals none). Both are counted before immunity, as base is.
+        local moved = who.moved
+        local fall = 0
+        if moved ~= nil and not moved.fallseparate then
+            fall = moved.fallraw or moved.falldamage or 0
+        end
+        local landed = who.landeddamage or 0
         if fall > 0 and (base.untyped or 0) >= fall then
             base.untyped = base.untyped - fall
         else
             fall = 0
+        end
+        if landed > 0 and (base.untyped or 0) >= landed then
+            base.untyped = base.untyped - landed
+        else
+            landed = 0
         end
 
         local first = true
@@ -2039,12 +2050,16 @@ local function AddTargetLines(rows, width, entry, who, count, own)
             lines[#lines + 1] = {label = T("history.numbers.dealt_type", {source = source, type = name}), amount = base[name]}
         end
         if base.untyped ~= nil then
-            --a creature that was only landed on took that damage from the faller, not the ability.
-            local label = (who.landedon and who.tier == nil) and T("history.numbers.landed_on") or source
-            lines[#lines + 1] = {label = label, amount = base.untyped}
+            --entries from before the landing damage was recorded: a landed-on creature with no
+            --roll took its damage from the faller.
+            local oldLanded = who.landedon and who.landeddamage == nil and who.tier == nil
+            lines[#lines + 1] = {label = oldLanded and T("history.numbers.landed_on") or source, amount = base.untyped}
         end
         if fall > 0 then
             lines[#lines + 1] = {label = T("history.numbers.fall"), amount = fall}
+        end
+        if landed > 0 then
+            lines[#lines + 1] = {label = T("history.numbers.landed_on"), amount = landed}
         end
         local shown = 0
         for _, line in ipairs(lines) do
@@ -2098,6 +2113,14 @@ local function ReceiptKey(who, own)
     local stability = ""
     if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
         stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
+    end
+    --the fall and landing amounts get lines of their own, so a faller and the creature it
+    --landed on must not share a sum.
+    if moved ~= nil and (moved.falldamage or 0) > 0 then
+        stability = stability .. string.format("/fall%d/%d/%s", moved.falldamage, moved.fallraw or 0, tostring(moved.fallseparate))
+    end
+    if who.landedon then
+        stability = stability .. string.format("/landed%d", who.landeddamage or 0)
     end
     if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" and #own == 0 then
         return nil

@@ -6734,7 +6734,8 @@ local function BuildCard(card)
             passPress = true,
             hover = gui.Tooltip("History"),
             click = function(element)
-                local token = dmhub.GetTokenById(card.charid)
+                --GetCharacterById also finds characters who are not on the live map.
+                local token = dmhub.GetCharacterById(card.charid)
                 if token ~= nil then
                     audio.FireSoundEvent("Mouse.Click")
                     history.OpenFor(token)

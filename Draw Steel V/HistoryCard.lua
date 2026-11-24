@@ -1106,10 +1106,38 @@ local function MovedSteps(moved)
     return steps
 end
 
+--- A creature whose recorded move the side view can draw.
+--- @class HistoryMover
+--- @field id string The creature's charid.
+--- @field token CharacterToken Draws the arrow: the creature's token, or its corpse once it has died.
+--- @field dead CharacterToken|nil The dead creature, when token is its corpse.
+--- @field steps table[] The squares it was moved through, start first (see MovedSteps).
+--- @field moved table The move as History saved it.
+
+--- A moved creature as it is on the map now: its own token, or its corpse once it has died
+--- (the corpse keeps the creature, so it can be raised). nil when neither is on the map or
+--- this user can't see it: the ghost and arrow would give a hidden one away.
+--- @param charid string
+--- @param steps table[]
+--- @param moved table
+--- @return HistoryMover|nil
+local function LiveMover(charid, steps, moved)
+    local token = dmhub.GetTokenById(charid)
+    local dead = nil
+    if token == nil or not token.valid then
+        dead = dmhub.GetCharacterById(charid)
+        token = dead ~= nil and dead:FindCorpse() or nil --[[@as CharacterToken|nil]]
+    end
+    if token == nil or not token.valid or not token.canSee then
+        return nil
+    end
+    return {id = charid, token = token, dead = dead, steps = steps, moved = moved}
+end
+
 --- The creatures in a row whose move can be drawn, with their tokens. Only on the map shown.
 --- @param row HistoryStoryRow
 --- @param mapid string|nil
---- @return {token: CharacterToken, steps: table[], moved: table}[]
+--- @return HistoryMover[]
 local function RowMovers(row, mapid)
     local movers = {}
     if not g_canDrawPaths or mapid == nil or mapid ~= game.currentMapId then
@@ -1117,10 +1145,9 @@ local function RowMovers(row, mapid)
     end
     for _, who in ipairs(row.who or {}) do
         local steps = MovedSteps(who.moved)
-        local token = steps ~= nil and dmhub.GetTokenById(who.id) or nil
-        --only a token this user can see now: the ghost and arrow would give a hidden one away.
-        if token ~= nil and token.valid and token.canSee then
-            movers[#movers + 1] = {token = token, steps = steps, moved = who.moved}
+        local mover = steps ~= nil and LiveMover(who.id, steps, who.moved) or nil
+        if mover ~= nil then
+            movers[#movers + 1] = mover
         end
     end
     return movers
@@ -1128,7 +1155,7 @@ end
 
 --- Draws each mover's recorded move on the map. Returns the markers and ghosts to destroy,
 --- and the first mover's path for the side view.
---- @param movers {token: CharacterToken, steps: table[], moved: table}[]
+--- @param movers HistoryMover[]
 --- @return LuaMultiObjectReference[] shown
 --- @return LuaPath|nil firstPath
 local function ShowMoves(movers)
@@ -1144,7 +1171,12 @@ local function ShowMoves(movers)
                 shown[#shown + 1] = arrow.marker
             end
             --the path's own first step keeps the altitude it started at (a ledge, a flight).
-            local ghost = mover.token:CreateGhost(path.steps[1])
+            --a dead creature's ghost is drawn from the creature itself; on engines without
+            --that, from its corpse (whose picture is blank, so no ghost shows).
+            local ghost = mover.dead ~= nil and mover.dead:CreateGhost(path.steps[1]) or nil
+            if ghost == nil then
+                ghost = mover.token:CreateGhost(path.steps[1])
+            end
             if ghost ~= nil then
                 shown[#shown + 1] = ghost
             end
@@ -1190,12 +1222,14 @@ local function SideViewButton(row, mapid)
         valign = "top",
         hover = function(element)
             Clear()
-            --the card outlives its tokens: one may be gone, or the map changed, since it was built.
+            --the card outlives its tokens: one may have died, been raised or gone, or the
+            --map changed, since it was built. Look each up again.
             local live = {}
             if mapid == game.currentMapId then
                 for _, mover in ipairs(movers) do
-                    if mover.token.valid and mover.token.canSee then
-                        live[#live + 1] = mover
+                    local now = LiveMover(mover.id, mover.steps, mover.moved)
+                    if now ~= nil then
+                        live[#live + 1] = now
                     end
                 end
             end
@@ -1206,11 +1240,22 @@ local function SideViewButton(row, mapid)
             shown, path = ShowMoves(live)
             local mover = live[1]
             local collision = mover.moved.collision or 0
-            local view = path ~= nil and dmhub.SetMovementCrossSection{
-                token = mover.token,
-                path = path,
-                collisionDamage = collision > 0 and collision or nil,
-            } or nil
+            local function Section(token)
+                return dmhub.SetMovementCrossSection{
+                    token = token,
+                    path = path,
+                    collisionDamage = collision > 0 and collision or nil,
+                }
+            end
+            local view = nil
+            if path ~= nil then
+                --a dead creature draws as itself where the engine can (from its ghost above),
+                --else as its corpse.
+                view = mover.dead ~= nil and Section(mover.dead) or nil
+                if view == nil then
+                    view = Section(mover.token)
+                end
+            end
             sectioned = view ~= nil
             --framed as the drag tooltip frames it; the bare name only when the
             --engine can't draw this move side-on (it crosses floors).

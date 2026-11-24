@@ -50,7 +50,7 @@ local Int = History.Int
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, near: table[]|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view, and near (the creatures around it then, see NearMove in HistoryCapture) too. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
 --- @field landedon? boolean On a target: a creature fell on it.
 --- @field landeddamage? number On a target a creature fell on: the damage that did, before immunity or weakness.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
@@ -1219,6 +1219,39 @@ local function OnThreshold(creature, thresholdState, info)
     end
 end
 
+--How far around a forced move to look for creatures to save: the square past either end, the
+--mover's own size, and room for a big creature whose corner is off to one side.
+local NEAR_MOVE_MARGIN = 4
+
+--- The creatures around a forced move, where they stand as it is recorded, so the side view
+--- can draw them there later instead of where they stand by then. Each is {charid, x, y,
+--- floor, altitude, unseen}: unseen is 1 when players could not see that creature then.
+--- @param mover CharacterToken
+--- @param path table[]|nil The move's squares as saved, {x, y, floor, altitude} each.
+--- @return table[]|nil near Empty when nobody was near; nil when there is no path.
+local function NearMove(mover, path)
+    if type(path) ~= "table" or #path == 0 then
+        return nil
+    end
+    local floors = {}
+    local x1, y1, x2, y2 = math.huge, math.huge, -math.huge, -math.huge
+    for _, step in ipairs(path) do
+        floors[step[3]] = true
+        x1, y1 = math.min(x1, step[1]), math.min(y1, step[2])
+        x2, y2 = math.max(x2, step[1]), math.max(y2, step[2])
+    end
+    local near = {}
+    for _, other in ipairs(dmhub.allTokens) do
+        local loc = other.loc
+        if other.charid ~= mover.charid and floors[loc.floor]
+            and loc.x >= x1 - NEAR_MOVE_MARGIN and loc.x <= x2 + NEAR_MOVE_MARGIN
+            and loc.y >= y1 - NEAR_MOVE_MARGIN and loc.y <= y2 + NEAR_MOVE_MARGIN then
+            near[#near + 1] = {other.charid, loc.x, loc.y, loc.floor, loc.altitude, UnseenByPlayers(other) ~= nil and 1 or nil}
+        end
+    end
+    return near
+end
+
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
     --a push that went nowhere is still worth a line when stability stopped it, it was
@@ -1235,6 +1268,7 @@ local function OnForcedMove(creature, info)
         collision = info.collision,
         walls = info.walls,
         path = info.path,
+        near = NearMove(token, info.path),
     }
     --what a collision hit: an object, or the first creature it ran into.
     if (info.collision or 0) > 0 then

@@ -75,8 +75,8 @@ text("condemned.gear.each_hero_takes", [[Each hero takes]])
 --After the two -/+ counts: "Each hero takes [1] gear [3] grenades".
 text("condemned.gear.allow_gear", [[gear]])
 text("condemned.gear.allow_grenades", [[grenades]])
---The book's allowance, shown beside the counts.
-text("condemned.gear.book", [[Book: 1 and 3]])
+--The info icon's tooltip beside the counts: what the book allows.
+text("condemned.gear.book_tip", [[The adventure allows one experimental gear item and three grenades per player.]])
 text("condemned.gear.reset", [[Reset]])
 text("condemned.gear.col_hero", [[Hero]])
 text("condemned.gear.col_gear", [[Gear]])

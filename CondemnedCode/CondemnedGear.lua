@@ -423,7 +423,7 @@ local SCROLL_GUTTER = 10
 local LIST_INNER = LIST_WIDTH - SCROLL_GUTTER
 local CARD_GAP = 8
 local CARD_WIDTH = math.floor((LIST_INNER - 2 * CARD_GAP) / 3)
-local CARD_HEIGHT = 132
+local CARD_HEIGHT = 116
 
 --Colours the hero sheet's classes do not have: a chosen item's edge and the Over limit
 --pill. Built from the scheme's palette and compiled once per palette (as RootStyles is).
@@ -444,6 +444,12 @@ local function GearStyles()
         { selectors = { "cgArt" }, bgcolor = palette.tile, borderColor = palette.tileBorder },
         { selectors = { "cgOverPill" }, borderColor = palette.warning, color = palette.warning },
         { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
+        --the window's own surface: the scheme's plate, the prototype's near-black.
+        { selectors = { "cgWindow" }, bgcolor = palette.plate },
+        --the main action: solid gold (the scheme's info colour) with dark bold words.
+        { selectors = { "heroSheetButton", "cgGold" }, bgcolor = palette.rawInfo, borderColor = palette.rawInfo, priority = 10 },
+        { selectors = { "heroSheetButton", "cgGold", "hover" }, brightness = 1.12, priority = 11 },
+        { selectors = { "heroSheetButtonLabel", "cgGold" }, color = palette.bg, bold = true, priority = 10 },
         --status pills: their colour wins over the pill's own muted text.
         { selectors = { "heroSheetPill", "heroSheetCardSuccess" }, color = palette.cardSuccess, priority = 10 },
         { selectors = { "heroSheetPill", "heroSheetCardLabel" }, color = palette.cardLabel, priority = 10 },
@@ -704,12 +710,12 @@ local function BuildList(repaint)
                         classes = { "heroSheetCardLab" },
                         text = flavor,
                         width = "100%",
-                        height = 34,
+                        height = 32,
                         fontSize = 12,
                         italics = true,
                         textWrap = true,
                         textOverflow = "ellipsis",
-                        tmargin = 6,
+                        tmargin = 4,
                         interactable = false,
                     },
                     gui.Panel{
@@ -859,7 +865,7 @@ local function BuildList(repaint)
                 border = 1,
                 cornerRadius = 8,
                 width = LIST_INNER,
-                height = 42,
+                height = 38,
                 flow = "horizontal",
                 hpad = 6,
                 borderBox = true,
@@ -868,7 +874,7 @@ local function BuildList(repaint)
                 click = function()
                     Select(itemid)
                 end,
-                ItemArt(item, 30),
+                ItemArt(item, 28),
                 gui.Label{
                     classes = { "heroSheetCardStrong" },
                     text = item.name,
@@ -1156,10 +1162,13 @@ local function BuildPane(repaint)
     --- @param text string
     --- @param fn nil|fun() nil dims the button
     --- @param tip nil|string why it is dimmed
-    local function SetButton(text, fn, tip)
+    --- @param gold nil|boolean the main action's gold (Choose); Put back is plain
+    local function SetButton(text, fn, tip, gold)
         buttonLabel.text = text
         action = fn
         button.data.tip = tip
+        button:SetClass("cgGold", gold == true)
+        buttonLabel:SetClass("cgGold", gold == true)
         local opacity = fn ~= nil and 1 or 0.45
         button.selfStyle.opacity = opacity
         buttonLabel.selfStyle.opacity = opacity
@@ -1217,7 +1226,7 @@ local function BuildPane(repaint)
         flow = "vertical",
         width = PANE_WIDTH,
         height = "100%",
-        lmargin = COLUMN_GAP,
+        lmargin = COLUMN_GAP - math.floor(COLUMN_GAP / 2),
         paint = function(element)
             local hero = g_charid ~= nil and FindHero(g_charid) or nil
             local item = gearTable[g_selected]
@@ -1378,19 +1387,21 @@ local function BuildPane(repaint)
             --The button.
             local count = grenade and (choices.grenades[g_selected] or 0) or 0
             have.text = count > 0 and T("condemned.gear.n_chosen", { n = count }) or ""
+            --the button fills the footer, beside the count when there is one.
+            button.selfStyle.width = PANE_WIDTH - (count > 0 and 110 or 0)
             button:SetClass("collapsed", not delivered and not CanChooseFor(hero))
             local selected = g_selected
             if delivered then
                 SetButton(T("condemned.gear.handed_out"), nil, nil)
             elseif grenade then
                 if CondemnedGear.GrenadeCount(choices) >= allow.grenades then
-                    SetButton(T("condemned.gear.choose_one"), nil, T("condemned.gear.grenades_full_tip", { max = allow.grenades }))
+                    SetButton(T("condemned.gear.choose_one"), nil, T("condemned.gear.grenades_full_tip", { max = allow.grenades }), true)
                 else
                     SetButton(T("condemned.gear.choose_one"), function()
                         ChangeChoices(hero, function(c)
                             c.grenades[selected] = (c.grenades[selected] or 0) + 1
                         end)
-                    end, nil)
+                    end, nil, true)
                 end
             elseif chosen then
                 SetButton(T("condemned.gear.put_back"), function()
@@ -1407,17 +1418,17 @@ local function BuildPane(repaint)
                     ChangeChoices(hero, function(c)
                         c.gear[#c.gear + 1] = selected
                     end)
-                end, nil)
+                end, nil, true)
             elseif allow.gear == 1 and #choices.gear == 1 then
                 local current = gearTable[choices.gear[1]]
                 SetButton(T("condemned.gear.swap"), function()
                     ChangeChoices(hero, function(c)
                         c.gear = { selected }
                     end)
-                end, nil)
+                end, nil, true)
                 button.data.tip = T("condemned.gear.swap_tip", { name = current ~= nil and current.name or "" })
             else
-                SetButton(T("condemned.gear.choose"), nil, T("condemned.gear.gear_full_tip", { n = #choices.gear, max = allow.gear }))
+                SetButton(T("condemned.gear.choose"), nil, T("condemned.gear.gear_full_tip", { n = #choices.gear, max = allow.gear }), true)
             end
         end,
         body,
@@ -1601,13 +1612,13 @@ local function BuildParty(repaint)
             height = "auto",
             halign = "right",
             valign = "center",
-            gui.Label{
-                classes = { "heroSheetCardSub" },
-                text = T("condemned.gear.book"),
-                width = "auto",
-                height = "auto",
-                fontSize = 13,
+            gui.Panel{
+                classes = { "heroSheetMutedIcon" },
+                bgimage = "phosphor/info.png",
+                width = 16,
+                height = 16,
                 valign = "center",
+                linger = gui.Tooltip(T("condemned.gear.book_tip")),
             },
             reset,
         },
@@ -1846,6 +1857,8 @@ local function BuildParty(repaint)
     end, true)
     anyway.selfStyle.lmargin = 0
     anyway.selfStyle.halign = "left"
+    anyway:SetClass("cgGold", true)
+    anyway.children[1]:SetClass("cgGold", true)
     local keepOpen = HeroSheetTheme.WindowButton(T("condemned.gear.keep_open"), function()
         showConfirm = false
         repaint()
@@ -1913,6 +1926,8 @@ local function BuildParty(repaint)
         HandOut()
     end, true)
     handOut.selfStyle.halign = "right"
+    handOut:SetClass("cgGold", true)
+    handOut.children[1]:SetClass("cgGold", true)
     local footer = gui.Panel{
         flow = "horizontal",
         width = "100%",
@@ -2065,26 +2080,48 @@ local function BuildWindow()
     back.selfStyle.lmargin = 0
     back.selfStyle.rmargin = 12
 
-    local band = gui.Panel{
-        classes = { "heroSheetCard" },
+    --the band's art fades in from the window's colour on its left, so it has no hard edge.
+    local fade = gui.Panel{
         bgimage = "panels/square.png",
+        bgcolor = "white",
+        width = "100%",
+        height = "100%",
+        interactable = false,
+    }
+    local function PaintFade()
+        local plate = HeroSheetTheme.ParseHex(HeroSheetTheme.Palette().plate) or { r = 0, g = 0, b = 0, a = 1 }
+        fade.selfStyle.gradient = gui.Gradient{
+            point_a = { x = 0, y = 0 },
+            point_b = { x = 1, y = 0 },
+            --the engine blends in linear light, so these are stronger than the
+            --prototype's 100 / 55 / 20% to look the same.
+            stops = {
+                { position = 0, color = HeroSheetTheme.ToHex(plate, 1) },
+                { position = 0.3, color = HeroSheetTheme.ToHex(plate, 0.94) },
+                { position = 0.6, color = HeroSheetTheme.ToHex(plate, 0.78) },
+                { position = 1, color = HeroSheetTheme.ToHex(plate, 0.5) },
+            },
+        }
+    end
+    PaintFade()
+    local band = gui.Panel{
         width = "100%",
         height = BAND_HEIGHT,
         flow = "horizontal",
         hpad = 18,
         borderBox = true,
-        --art, then a fade over its left edge so the title reads against it.
+        paint = PaintFade,
         gui.Panel{
             bgimage = BAND_ART,
             bgcolor = "white",
             imageRect = BAND_ART_RECT,
-            width = 200,
+            width = 210,
             height = BAND_HEIGHT,
             halign = "right",
-            rmargin = 30,
-            opacity = 0.75,
+            rmargin = 18,
             floating = true,
             interactable = false,
+            fade,
         },
         back,
         title,
@@ -2129,6 +2166,15 @@ local function BuildWindow()
             element:SetClass("collapsed", g_charid == nil)
         end,
         BuildList(Repaint),
+        --the line between the list and the pane, in the gap's middle.
+        gui.Panel{
+            classes = { "heroSheetDialogRule" },
+            bgimage = "panels/square.png",
+            width = 1,
+            height = "100%",
+            lmargin = math.floor(COLUMN_GAP / 2) - 1,
+            opacity = 0.6,
+        },
         BuildPane(Repaint),
     }
 
@@ -2142,6 +2188,8 @@ local function BuildWindow()
     }
 
     content = gui.Panel{
+        classes = { "cgWindow" },
+        bgimage = "panels/square.png",
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
         flow = "vertical",
@@ -2183,11 +2231,19 @@ local function BuildWindow()
             nobody:SetClass("collapsed", dmhub.isDM or #CondemnedGear.MyHeroes() > 0)
         end,
         band,
+        gui.Panel{
+            classes = { "heroSheetDialogRule" },
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+        },
         body,
     }
     content.styles = GearStyles()
     HeroSheetTheme.Track(content, function(panel)
         panel.styles = GearStyles()
+        --the band's fade is painted in the scheme's colour too.
+        panel:FireEventTree("paint")
     end)
     return content
 end
@@ -2210,15 +2266,20 @@ function CondemnedGear.ShowWindow()
     g_charid = StartingHero()
     g_rows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
     local content = BuildWindow()
-    g_frame = HeroSheetWindow.ShowPopup{
+    local frame
+    frame = HeroSheetWindow.ShowPopup{
         content = content,
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
         modal = true,
         onClose = function()
-            g_frame = nil
+            --a window closed just before a new one opened must not forget the new one.
+            if g_frame == frame then
+                g_frame = nil
+            end
         end,
     }
+    g_frame = frame
     content:FireEventTree("paint")
 end
 

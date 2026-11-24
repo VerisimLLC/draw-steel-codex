@@ -728,6 +728,15 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 	return entry.round > self.round
 end
 
+--LocalUserIsWatching(): true for an observer of an Encounter of the Week game
+--(in control of no hero, and not the host), who runs no part of the combat.
+--- @return boolean
+function InitiativeQueue.LocalUserIsWatching()
+	local eotw = rawget(_G, "EncounterOfTheWeekGame")
+	local narrative = rawget(_G, "EncounterNarrative")
+	return eotw ~= nil and narrative ~= nil and eotw.IsEotwGame() and narrative.LocalUserIsObserver()
+end
+
 --Claim-turn helpers.
 --
 --Historically the whole "claim this entry's turn" sequence lived inline in the
@@ -763,6 +772,10 @@ function InitiativeQueue.CanClaimTurn(initiativeid, options)
 	end
 
 	if canControl == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[initiativeid]) or (not q:IsEntryPlayer(initiativeid))) then
+		return false
+	end
+
+	if canControl == false and InitiativeQueue.LocalUserIsWatching() then
 		return false
 	end
 

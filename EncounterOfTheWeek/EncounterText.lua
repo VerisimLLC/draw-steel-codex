@@ -1172,7 +1172,10 @@ text("presence.latejoin.refused_full", [[{name} could not join: the party is ful
 text("presence.latejoin.refused_late", [[{name} could not join: it is too late for heroes to join.]])
 --Seen by everyone once the host lets a newcomer in.
 text("presence.latejoin.joining", [[{name} is joining the party with {heroes}.]])
-text("presence.latejoin.watching", [[{name} is coming to watch.]])
+--Seen by everyone, large, when an observer arrives in the game.
+text("presence.watching.arrived", [[{name} is now watching]])
+--Seen by everyone, small, when an observer has gone.
+text("presence.watching.left", [[{name} has stopped watching.]])
 --Seen by everyone when a newcomer's heroes reach a montage after its first
 --round: they get two actions in that round.
 text("presence.latehero.twice", [[{heroes} join the montage late and may act twice this round.]])
@@ -1220,6 +1223,11 @@ text("presence.exit.cancel_button", [[Cancel]])
 text("presence.exit.quit_button", [[Quit]])
 text("presence.exit.leave_button", [[Leave]])
 text("presence.exit.abandon_button", [[Abandon Game]])
+--The host's own versions of Leave / Quit and Abandon Game, and the mouseover
+--on the second. Short.
+text("presence.exit.leave_button_host", [[Save & Quit]])
+text("presence.exit.abandon_button_host", [[Abandon Encounter]])
+text("presence.exit.abandon_tooltip_host", [[Your progress will be lost]])
 --The abandon button after one click: a second click confirms.
 text("presence.exit.abandon_confirm", [[Really abandon?]])
 

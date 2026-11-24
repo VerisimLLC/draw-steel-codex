@@ -13138,9 +13138,8 @@ end
 --The name of this hero's accepted trigger whose cast may still claim the turn,
 --or nil. The prompt card goes the moment it is accepted, but Hesitation Is
 --Weakness only moves initiative once its cast runs, so TriggeredAbility.lua
---leaves a "turn-claim" marker in the card's removal write. Anything that hands
---the turn on (the Monster AI's turn choice, the end-of-turn handoff) must wait
---on it, or its initiative write crosses the claim's (BR8M9Z2W, AH6SYXTP).
+--leaves a "turn-claim" marker in the card's removal write. The Monster AI's turn
+--choice must wait on it, or its initiative write crosses the claim's (BR8M9Z2W).
 --- @return string|nil
 function creature:TurnClaimResolving()
     --Completed markers hold a little longer: the claim's initiative write
@@ -13162,8 +13161,8 @@ end
 
 --How long a trigger prompt stays available before it ages out. This is a
 --garbage-collection backstop, not a gameplay timer: in combat the sustain
---coroutine in TriggeredAbility.lua ends a prompt ~6s after the owner's turn
---refresh id changes, long before this fires. The cases that actually reach this
+--coroutine in TriggeredAbility.lua ends a prompt as turns go by
+--(TriggeredAbility.PromptTurnWatch), normally long before this fires. The cases that actually reach this
 --clock are orphaned entries whose watcher coroutine died (with a reload or a
 --previous session), invocation prompt cards (which have no coroutine at all),
 --and prompts raised out of combat where the turn id never advances.

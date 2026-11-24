@@ -1574,12 +1574,22 @@ TokenHud.RegisterPanel{
 }
 
 --Hovering a token you control shows a small character icon in the token's
---bottom-right corner; clicking it puts that character's card on the table
---beside the token (Tabletop.OpenCard), or brings the card forward if it is
---already there. With no table (the lobby) it toggles the old character
---panel window instead. The Party Member Controls game setting can extend
---the icon to party members a player doesn't control
+--bottom-right corner; clicking it toggles that character's panel window, or
+--with dev:tokenlaunchercard on, its card on the table beside the token
+--(Tabletop.ToggleLauncherCard; with no table, such as the lobby, it is the
+--window either way). The Party Member Controls game setting can extend the
+--icon to party members a player doesn't control
 --(CharacterPanel.CanViewToken).
+
+--Dev switch, no editor so it is in no settings menu: flip with
+--/toggle dev:tokenlaunchercard.
+local g_launcherCardSetting = setting{
+    id = "dev:tokenlaunchercard",
+    description = "Token icon opens the character's card instead of the character panel.",
+    default = false,
+    storage = "preference",
+}
+
 local g_characterPanelLauncherStyles = {
     gui.Style{
         selectors = {"characterPanelLauncher"},
@@ -1714,11 +1724,11 @@ TokenHud.RegisterPanel{
                 if not CharacterPanel.CanViewToken(token) then
                     return
                 end
-                if OpenCardBesideLauncher(token.charid) then
+                if g_launcherCardSetting:Get() == true and OpenCardBesideLauncher(token.charid) then
                     audio.FireSoundEvent("Mouse.Click")
                     return
                 end
-                --no table here: toggle the old character panel window.
+                --toggles: a second click while the window is open closes it.
                 local toggle = rawget(_G, "ToggleCharacterPanelDocument")
                 if toggle == nil then
                     return

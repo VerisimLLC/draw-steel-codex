@@ -220,6 +220,9 @@ local function Host()
         VoterKey = function(userid, heroes)
             return EncounterNarrative.VoterKeyForUser(userid, heroes)
         end,
+        MayAct = function(userid, heroes)
+            return not EncounterNarrative.IsObserver(userid, heroes)
+        end,
         --an argument's riders: its edges, and whether a secret one is theirs.
         Verdict = function(charid, argument)
             return EncounterScript.EvaluateRiders(argument.riders, EncounterMontage.HeroFacts(charid))

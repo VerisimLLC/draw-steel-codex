@@ -26,12 +26,19 @@ local mod = dmhub.GetModLoading()
 --                tokens of an away player and who runs them meanwhile. The
 --                record goes when the owner comes back.
 --  data.events = { { seq, kind = "left"|"abandoned"|"returned"|"given"|"newhost"|
---                    "latejoin"|"latehero", userid, name, controller,
+--                    "latejoin"|"latehero"|"watching"|"stoppedwatching",
+--                    userid, name, controller,
 --                    controllerName, heroNames, mode, at }, ... }
 --                (latejoin: the host let a newcomer in, mode "join"|"observe";
 --                latehero: a newcomer's heroes reached a montage after
---                round 1 and act twice)
+--                round 1 and act twice; watching: an observer has arrived;
+--                stoppedwatching: one has gone)
 --                the newest MAX_EVENTS changes, for the notices
+--  data.watchers = { [userid] = { name, at } }
+--                the observers announced and still here. The record goes,
+--                and their leaving is announced, once one has been gone
+--                WATCHER_LEFT_SECONDS; a reload or reconnect inside that
+--                says nothing.
 --  data.seq    = the last event's seq
 --  data.host   = the userid whose host tick last ran here; when another
 --                client's tick takes over, it records itself and adds a
@@ -72,6 +79,11 @@ local RETURN_FALLBACK_SECONDS = 30
 --has not heard from yet are not mistaken for departures.
 local STARTUP_GRACE_SECONDS = 10
 local MAX_EVENTS = 16
+--an observer must look like one for this long before they are announced, so
+--a newcomer whose heroes are still landing is not.
+local WATCHER_CONFIRM_SECONDS = 3
+--an announced observer gone this long has left.
+local WATCHER_LEFT_SECONDS = 45
 
 local m_loadedAt = dmhub.Time()
 
@@ -469,6 +481,121 @@ function EncounterPresence.DevSimulateReturn(userid)
     Return(userid)
 end
 
+--host-local: when each user first looked like an unannounced observer, and
+--when each announced one was first missed.
+local m_watcherSince = {}
+local m_watcherGoneSince = {}
+
+--{ [userid] = true } for everyone who plays here, whatever they control now:
+--whom the launch expected, who placed heroes, and who is recorded as away.
+local function KnownPlayers()
+    local players = {}
+    local state = mod:GetDocumentSnapshot(STATE_DOC_ID).data
+    for _, userid in ipairs(state.expectedUsers or {}) do
+        players[userid] = true
+    end
+    for userid, placed in pairs(state.placedHeroes or {}) do
+        if type(placed) == "table" and next(placed) ~= nil then
+            players[userid] = true
+        end
+    end
+    for userid, _ in pairs(GetDoc().data.away or {}) do
+        players[userid] = true
+    end
+    return players
+end
+
+--Is this user here only to watch? Unlike EncounterNarrative.IsObserver, never
+--true of a player whose heroes are someone else's for now (back from being
+--away, say, with the host who was minding them gone).
+---@param userid string
+---@return boolean
+function EncounterPresence.IsWatcher(userid)
+    return EncounterNarrative.IsObserver(userid) and not KnownPlayers()[userid]
+end
+
+--Host: announce each observer (EncounterNarrative.IsObserver) once they have
+--arrived in the game, and when they have gone, however they were let in: a public game admits
+--watchers without asking the host. Someone the launch expected, or who ever
+--brought heroes, is a player even when they control nothing now.
+local function AnnounceWatchers()
+    local narrative = rawget(_G, "EncounterNarrative")
+    if narrative == nil then
+        return
+    end
+    local now = dmhub.Time()
+    local data = GetDoc().data
+    local watchers = data.watchers or {}
+    local state = mod:GetDocumentSnapshot(STATE_DOC_ID).data
+    --until the launch roster is in, a player cannot be told from an observer.
+    if type(state.expectedUsers) ~= "table" then
+        return
+    end
+    local players = KnownPlayers()
+
+    local arrivals = {}
+    for userid, _ in pairs(state.arrived or {}) do
+        if watchers[userid] == nil then
+            if not players[userid] and EncounterPresence.IsOnline(userid) and narrative.IsObserver(userid) then
+                m_watcherSince[userid] = m_watcherSince[userid] or now
+                if now - m_watcherSince[userid] >= WATCHER_CONFIRM_SECONDS then
+                    arrivals[#arrivals + 1] = userid
+                end
+            else
+                m_watcherSince[userid] = nil
+            end
+        end
+    end
+
+    local left = {}
+    for userid, _ in pairs(watchers) do
+        if EncounterPresence.IsOnline(userid) then
+            m_watcherGoneSince[userid] = nil
+        else
+            m_watcherGoneSince[userid] = m_watcherGoneSince[userid] or now
+            if now - m_watcherGoneSince[userid] >= WATCHER_LEFT_SECONDS then
+                left[#left + 1] = userid
+            end
+        end
+    end
+
+    if #arrivals == 0 and #left == 0 then
+        return
+    end
+    --once the encounter is decided everyone goes: that is not news.
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    local decided = eotw ~= nil and eotw.OutcomeDecided()
+    local doc = GetDoc()
+    doc:BeginChange()
+    doc.data.watchers = doc.data.watchers or {}
+    for _, userid in ipairs(left) do
+        local name = watchers[userid].name or DisplayName(userid)
+        --someone given heroes since is a player: their leaving is Depart's.
+        if not decided and not players[userid] and narrative.IsObserver(userid) then
+            AddEvent(doc.data, { kind = "stoppedwatching", userid = userid, name = name })
+        end
+        doc.data.watchers[userid] = nil
+        m_watcherGoneSince[userid] = nil
+        printf("EotW presence: %s (%s) stopped watching", tostring(name), tostring(userid))
+    end
+    for _, userid in ipairs(arrivals) do
+        local name = DisplayName(userid)
+        doc.data.watchers[userid] = { name = name, at = dmhub.serverTime }
+        AddEvent(doc.data, { kind = "watching", userid = userid, name = name })
+        m_watcherSince[userid] = nil
+        printf("EotW presence: %s (%s) is watching", tostring(name), tostring(userid))
+    end
+    doc:CompleteChange("Encounter of the Week: observers", { undoable = false })
+end
+
+--Dev helper (host, from the debug console / MCP): announce an observer.
+function EncounterPresence.DevSimulateWatcher(name)
+    local doc = GetDoc()
+    doc:BeginChange()
+    AddEvent(doc.data, { kind = "watching", userid = "dev-watcher", name = name })
+    doc:CompleteChange("Encounter of the Week: observers", { undoable = false })
+end
+
 local m_lastTick = 0
 
 --Called by the map script's host tick (EncounterOfTheWeek.lua) on the host
@@ -539,6 +666,11 @@ function EncounterPresence.HostTick()
         if type(rec) == "table" and not rec.abandoned and HasReturned(userid, rec) then
             Return(userid)
         end
+    end
+
+    local watchersOk, watchersErr = pcall(AnnounceWatchers)
+    if not watchersOk then
+        printf("EotW presence: observer check failed: %s", tostring(watchersErr))
     end
 
     --a montage turn follows its hero to whoever controls it now.
@@ -614,9 +746,20 @@ local function EventText(e)
             return nil
         end
         if e.mode == "observe" then
-            return T("presence.latejoin.watching", { name = e.name })
+            --said once they arrive ("watching").
+            return nil
         end
         return T("presence.latejoin.joining", { name = e.name, heroes = heroes })
+    elseif e.kind == "watching" then
+        if e.userid == me then
+            return nil
+        end
+        return T("presence.watching.arrived", { name = e.name })
+    elseif e.kind == "stoppedwatching" then
+        if e.userid == me then
+            return nil
+        end
+        return T("presence.watching.left", { name = e.name })
     elseif e.kind == "latehero" then
         return T("presence.latehero.twice", { heroes = heroes })
     elseif e.kind == "given" then
@@ -658,6 +801,104 @@ local function ShowToast(text, e)
     }
 end
 
+local WATCHER_NOTICE_SECONDS = 8
+
+--the column the observer notices stack in.
+---@type Panel|nil
+local m_watcherColumn = nil
+
+--An observer has arrived: a notice across the top of the screen, larger than
+--the toasts. It takes no mouse and goes by itself.
+function EncounterPresence.ShowWatcherNotice(text)
+    local hud = rawget(_G, "gamehud")
+    local layer = hud ~= nil and hud.popupPanel or nil
+    if layer == nil or not layer.valid then
+        return
+    end
+    if m_watcherColumn == nil or not m_watcherColumn.valid then
+        m_watcherColumn = gui.Panel{
+            floating = true,
+            interactable = false,
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            y = 84,
+            styles = {
+                {
+                    selectors = {"watcherNotice"},
+                    bgcolor = "#14161bf2",
+                    borderColor = "#c9a659",
+                },
+                {
+                    selectors = {"watcherNotice", "create"},
+                    transitionTime = 0.35,
+                    y = -40,
+                    opacity = 0,
+                },
+                {
+                    selectors = {"fading"},
+                    transitionTime = 0.5,
+                    opacity = 0,
+                },
+            },
+        }
+        layer:AddChild(m_watcherColumn)
+    end
+    local column = m_watcherColumn
+    ---@cast column -nil
+
+    local notice = gui.Panel{
+        classes = {"watcherNotice"},
+        interactable = false,
+        bgimage = "panels/square.png",
+        borderWidth = 2,
+        cornerRadius = 8,
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        hpad = 28,
+        vpad = 14,
+        borderBox = true,
+        bmargin = 8,
+
+        fadeOut = function(element)
+            element:SetClassTree("fading", true)
+            element:ScheduleEvent("gone", 0.6)
+        end,
+        gone = function(element)
+            element:DestroySelf()
+        end,
+
+        gui.Panel{
+            interactable = false,
+            bgimage = "phosphor/eye-fill.png",
+            bgcolor = "#e8c877",
+            width = 34,
+            height = 34,
+            valign = "center",
+            rmargin = 16,
+        },
+        gui.Label{
+            interactable = false,
+            text = text,
+            fontSize = 26,
+            bold = true,
+            color = "#f4f0e6",
+            width = "auto",
+            maxWidth = 800,
+            height = "auto",
+            valign = "center",
+            textWrap = true,
+        },
+    }
+    column:AddChild(notice)
+    notice:ScheduleEvent("fadeOut", WATCHER_NOTICE_SECONDS)
+    audio.FireSoundEvent("Notify.UserJoin")
+end
+
 --the game the watcher below last read, the newest event it has dealt with,
 --and when it started watching that game (older events are history).
 local m_watchGame = nil
@@ -684,7 +925,9 @@ local function WatchEvents()
             --"welcome back" can land as they arrive).
             if (tonumber(e.at) or 0) >= m_watchStart - 5 then
                 local text = EventText(e)
-                if text ~= nil then
+                if text ~= nil and e.kind == "watching" then
+                    EncounterPresence.ShowWatcherNotice(text)
+                elseif text ~= nil then
                     ShowToast(text, e)
                 end
             end
@@ -857,9 +1100,12 @@ local function WatchHost()
         end
         return names
     end)()) or T("presence.hostgone.host_fallback")
-    ShowHostNotice(HOSTGONE_TOAST,
-        T("presence.hostgone.notice", { host = hostName }),
-        { { text = T("presence.hostgone.button"), click = function() RequestHost("claim") end } })
+    --a watcher is told, but may not take over.
+    local actions = nil
+    if not EncounterPresence.IsWatcher(dmhub.loginUserid) then
+        actions = { { text = T("presence.hostgone.button"), click = function() RequestHost("claim") end } }
+    end
+    ShowHostNotice(HOSTGONE_TOAST, T("presence.hostgone.notice", { host = hostName }), actions)
 end
 
 --- newcomers to a game under way (the host) ----------------------------------------
@@ -1226,6 +1472,14 @@ function EncounterPresence.ConfirmExit(kind, proceed)
     end
     local othersPlaying = not EncounterPresence.IsLastMember(me)
 
+    --the host's buttons are worded differently from everyone else's.
+    local leaveText = kind == "quit" and T("presence.exit.quit_button") or T("presence.exit.leave_button")
+    local abandonText = T("presence.exit.abandon_button")
+    if isHost then
+        leaveText = T("presence.exit.leave_button_host")
+        abandonText = T("presence.exit.abandon_button_host")
+    end
+
     local notes = {}
     if isHost and othersPlaying then
         notes[#notes + 1] = T("presence.exit.note_host")
@@ -1258,15 +1512,16 @@ function EncounterPresence.ConfirmExit(kind, proceed)
     local abandonButton
     abandonButton = gui.Button{
         classes = {"sizeL", "abandon"},
-        text = T("presence.exit.abandon_button"),
+        text = abandonText,
         width = 220,
         halign = "right",
         hmargin = 8,
         data = { confirming = false },
         resetConfirm = function(element)
             element.data.confirming = false
-            element.text = T("presence.exit.abandon_button")
+            element.text = abandonText
         end,
+        hover = isHost and gui.Tooltip(T("presence.exit.abandon_tooltip_host")) or nil,
         click = function(element)
             --a second click confirms: abandoning cannot be undone.
             if not element.data.confirming then
@@ -1344,7 +1599,7 @@ function EncounterPresence.ConfirmExit(kind, proceed)
                 flow = "horizontal",
                 gui.Button{
                     classes = {"sizeL"},
-                    text = kind == "quit" and T("presence.exit.quit_button") or T("presence.exit.leave_button"),
+                    text = leaveText,
                     hmargin = 8,
                     click = function()
                         Close()

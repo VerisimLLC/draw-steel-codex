@@ -443,6 +443,9 @@ Session.__index = Session
 --                                      natural}) or send("rollCancelled", {rollSeq}).
 --  Track(event, fields)                optional; analytics
 --  replySeconds, doneLingerSeconds     optional numbers
+--  MayAct(userid, heroes)              optional; false for someone only watching,
+--                                      whose shared presses (Continue, taking the
+--                                      deal, spending a clue) are ignored
 --  noWalkOut                           optional; true ignores "walkOut" requests
 --                                      (a host with no Leave button)
 --  minDealInterest                     optional number (default 1); "Take the deal"
@@ -873,6 +876,14 @@ function Session:CanSpendClue(m, beat)
     return m.phase == "choosing" and #(m.log or {}) == 0 and self.host.CanSpendClue(m, beat) == true
 end
 
+--May this user press the buttons the whole party shares? An observer may not.
+function Session:MayAct(userid, heroes)
+    if self.host.MayAct == nil then
+        return true
+    end
+    return self.host.MayAct(userid, heroes) == true
+end
+
 --The next trait the party has not learned, motivations first.
 function NegotiationScene.NextHiddenTrait(m, beat)
     for _, kind in ipairs({ "motivation", "pitfall" }) do
@@ -887,6 +898,11 @@ end
 
 function Session:HandleRequest(m, userid, req, beat, heroes)
     local kind = req.kind
+
+    if (kind == "spendClue" or kind == "continue" or kind == "walkOut" or kind == "takeDeal" or kind == "vote")
+        and not self:MayAct(userid, heroes) then
+        return string.format("ignored %s: %s is only watching", kind, tostring(userid))
+    end
 
     if kind == "spendClue" then
         if not self:CanSpendClue(m, beat) or self.host.SpendClue == nil then

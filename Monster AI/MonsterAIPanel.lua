@@ -92,8 +92,7 @@ local function HasRelayedTriggerInFlight(token)
 end
 
 --An accepted prompt's cast holds the monsters too: its card is gone, but a
---turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
---rule lives in creature:TurnClaimResolving, shared with the end-of-turn handoff.
+--turn-claim cast (Hesitation Is Weakness) has not moved initiative yet.
 ---@param token CharacterToken
 ---@return string|nil
 local function AcceptedTriggerResolving(token)

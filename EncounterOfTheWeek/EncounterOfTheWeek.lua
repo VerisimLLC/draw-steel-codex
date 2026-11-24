@@ -1718,9 +1718,6 @@ end
 --state doc) the confinement never returns -- a resume mid- or post-combat is
 --not confined.
 
---The Start-zone outline drawn while confinement is active.
-local START_ZONE_COLOR = "#79d2a0"
-
 --Seconds between the victory screen dismissing and this client leaving for
 --the titlescreen: covers the screen's 0.7s fade plus the 1-3s GameDetails
 --write coalescing, so the host's end-of-combat writes flush before the
@@ -1740,6 +1737,8 @@ local MontageStageExpected
 --the first map's starting area.
 local m_restrictionMapId = nil
 local m_restrictionZonesSeq = nil
+--when a Start-zone outline that failed to draw may be tried again.
+local m_zoneMarkerRetryAt = 0
 local m_outcomeSeen = false
 local m_exitScheduled = false
 --set the moment THIS user presses Proceed on the victory/defeat screen; the
@@ -1810,12 +1809,14 @@ local function UpdateStartZoneConfinement()
     end)
 
     if m_restrictionInstalled then
-        if m_restrictionMapId == mapid and m_restrictionZonesSeq == zonesSeq then
+        if m_restrictionMapId == mapid and m_restrictionZonesSeq == zonesSeq
+           and (m_zoneMarker ~= nil or dmhub.Time() < m_zoneMarkerRetryAt) then
             return
         end
         --the map changed under us (EnsureOnEncounterMap travelling to the
-        --chosen encounter, or a resume landing elsewhere) or the zones were
-        --edited: tear down and rebuild for what is now on screen.
+        --chosen encounter, or a resume landing elsewhere), the zones were
+        --edited, or the outline failed to draw: tear down and rebuild for what
+        --is now on screen.
         ClearStartZoneConfinement()
         GameHud.SetTooltipsSuppressed("eotw", true)
     end
@@ -1836,23 +1837,36 @@ local function UpdateStartZoneConfinement()
     pcall(function() dmhub.SetMovementRestriction{ locs = locs, teleportBetweenAreas = true } end)
     --One outline per floor: the engine draws a whole MarkLocs call on one
     --floor, so a start zone on another floor would appear on the wrong one.
-    local byFloor = {}
-    for _, loc in ipairs(locs) do
-        local floorLocs = byFloor[loc.floorIndex]
-        if floorLocs == nil then
-            floorLocs = {}
-            byFloor[loc.floorIndex] = floorLocs
+    --Read the floor with loc.floor: floorIndex is only a core.Loc{} argument,
+    --and reading it back gives nil.
+    local markers = {}
+    local ok, err = pcall(function()
+        local byFloor = {}
+        for _, loc in ipairs(locs) do
+            local floorLocs = byFloor[loc.floor]
+            if floorLocs == nil then
+                floorLocs = {}
+                byFloor[loc.floor] = floorLocs
+            end
+            floorLocs[#floorLocs + 1] = loc
         end
-        floorLocs[#floorLocs + 1] = loc
+        for _, floorLocs in pairs(byFloor) do
+            markers[#markers + 1] = dmhub.MarkLocs{
+                locs = floorLocs,
+                color = "#79d2a0",
+                style = "dashed",
+            }
+        end
+    end)
+    --m_zoneMarker stays nil on a failure, so the next retry draws it again.
+    if not ok then
+        for _, marker in ipairs(markers) do
+            pcall(function() marker:Destroy() end)
+        end
+        m_zoneMarkerRetryAt = dmhub.Time() + 10
+        error(err, 0)
     end
-    m_zoneMarker = {}
-    for _, floorLocs in pairs(byFloor) do
-        m_zoneMarker[#m_zoneMarker + 1] = dmhub.MarkLocs{
-            locs = floorLocs,
-            color = START_ZONE_COLOR,
-            style = "dashed",
-        }
-    end
+    m_zoneMarker = markers
 end
 
 --- coming home ---------------------------------------------------------
@@ -4203,43 +4217,52 @@ end
 --The per-client driver: a cheap 1s poll self-heals across Lua reloads, the
 --late IsEotwGame flip (the host stamps the doc during setup), and map loads.
 dmhub.Coroutine(function()
+    --One step's error must not stop the others. Each distinct error is logged
+    --once per Lua load, as the driver runs every second.
+    local logged = {}
+    local function Step(name, fn)
+        local ok, err = pcall(fn)
+        if not ok then
+            local line = string.format("EotW: %s failed: %s", name, tostring(err))
+            if not logged[line] then
+                logged[line] = true
+                printf("%s", line)
+            end
+        end
+    end
+
     while true do
         coroutine.yield(1)
         if mod.unloaded then
             ClearStartZoneConfinement()
             return
         end
-        pcall(UpdateDirectorUIHatch)
+        Step("Director UI hatch", UpdateDirectorUIHatch)
         --EotW allows no undo but Turn Rewind: the ordinary undo stack is per client
         --and blind to other players' writes, so one Ctrl+Z could delete the whole
         --combat (FM2VP7AK). Follows IsEotwGame, so it lifts when an authoring test ends.
-        pcall(function()
+        Step("undo lock", function()
             local want = EncounterOfTheWeekGame.IsEotwGame()
             if dmhub.undoDisabled ~= want then
                 dmhub.undoDisabled = want
             end
         end)
-        pcall(UpdateStartZoneConfinement)
-        pcall(UpdateArrangePanel)
-        pcall(UpdateBusyMirror)
-        pcall(UpdateEncounterConclusion)
+        Step("start zone", UpdateStartZoneConfinement)
+        Step("arrange panel", UpdateArrangePanel)
+        Step("busy mirror", UpdateBusyMirror)
+        Step("encounter conclusion", UpdateEncounterConclusion)
         --a won series part going straight on to the next one in this game.
-        do
-            local ok, err = pcall(function() Series.ContinueTick() end)
-            if not ok then
-                printf("EotW: next-part tick failed: %s", tostring(err))
-            end
-        end
-        pcall(UpdatePlayClock)
-        pcall(EnsureAnalyticsRun)
-        pcall(MirrorAnalyticsPhase)
-        pcall(function() EncounterOfTheWeekGame.EnsureMapScriptRunning() end)
+        Step("next-part tick", function() Series.ContinueTick() end)
+        Step("play clock", UpdatePlayClock)
+        Step("analytics run", EnsureAnalyticsRun)
+        Step("analytics phase", MirrorAnalyticsPhase)
+        Step("map script", function() EncounterOfTheWeekGame.EnsureMapScriptRunning() end)
         --an authoring test waiting to be set up after its player-host refresh.
-        pcall(function() EncounterOfTheWeekGame.ConsumePendingTest() end)
+        Step("pending test", function() EncounterOfTheWeekGame.ConsumePendingTest() end)
         --a montage turn that is this user's to roll (the stage's own think
         --also polls this; the driver is the backstop when the stage is not
         --mounted yet).
-        pcall(function()
+        Step("montage tick", function()
             local montage = rawget(_G, "EncounterMontage")
             if montage ~= nil then
                 montage.ClientTick()
@@ -4250,7 +4273,7 @@ dmhub.Coroutine(function()
             end
         end)
         --zones the script revealed: this client's zone overlay shows them.
-        pcall(function()
+        Step("revealed zones", function()
             local zones = rawget(_G, "EncounterZones")
             if zones ~= nil then
                 zones.ClientTick()
@@ -4271,7 +4294,8 @@ end)
 pcall(function()
     DSVictoryScreen.RegisterProceedOverride{
         canProceed = function()
-            return EncounterOfTheWeekGame.IsEotwGame()
+            --an observer gets the button once a player has ended the combat.
+            return EncounterOfTheWeekGame.IsEotwGame() and not EncounterNarrative.LocalUserIsObserver()
         end,
         holdUntilLocalProceed = function()
             --once this user has pressed Proceed the screen may close with
@@ -4281,6 +4305,9 @@ pcall(function()
         proceed = function(defaultProceed, alreadyEnded)
             if not EncounterOfTheWeekGame.IsEotwGame() then
                 return false
+            end
+            if not alreadyEnded and EncounterNarrative.LocalUserIsObserver() then
+                return true
             end
             m_localProceeded = true
             if alreadyEnded then

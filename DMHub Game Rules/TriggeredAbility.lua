@@ -1041,6 +1041,159 @@ function TriggeredAbility:HasDismissBehaviors()
     return false
 end
 
+--Seconds a prompt stays up once the turn it belonged to has passed, for prompts
+--that do not follow the hero rule below.
+local PROMPT_TURN_GRACE_SECONDS = 6
+
+--Seconds an accepted turn claim waits for the ended turn to pass. Under the 60s
+--limit on its "turn-claim" marker (creature:TurnClaimResolving), so the Monster
+--AI is still waiting when the claim lands.
+local TURN_CLAIM_WAIT_SECONDS = 45
+
+--Whose turn it is: nil with no live combat, false while the next turn is being
+--chosen, else a key that is different for every turn taken.
+--- @return nil|false|string key
+--- @return InitiativeQueue|nil queue
+local function CurrentTurnKey()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return nil, nil
+    end
+    if q:ChoosingTurn() then
+        return false, q
+    end
+    return string.format("%s/%d/%s", tostring(q:try_get("guid")), q.turnNumber, tostring(q.currentTurn)), q
+end
+
+--A player's creature, or any creature fighting on the players' side: party
+--heroes outside the default party are not playerControlled.
+--- @param token CharacterToken
+--- @param q InitiativeQueue
+--- @return boolean
+local function IsHeroSide(token, q)
+    if token.playerControlled then
+        return true
+    end
+    local initiativeid = InitiativeQueue.GetInitiativeId(token)
+    return initiativeid ~= nil and q.entries[initiativeid] ~= nil and q:IsEntryPlayer(initiativeid) == true
+end
+
+--- True if accepting this trigger takes the turn when another creature's ends
+--- (Hesitation is Weakness).
+--- @return boolean
+function TriggeredAbility:ClaimsTurnAtTurnEnd()
+    if self:try_get("trigger") ~= "endturn" then
+        return false
+    end
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInitiativeBehavior" and behavior:try_get("mode", "begin_turn") == "begin_turn" then
+            return true
+        end
+    end
+    return false
+end
+
+--- Watches the turns go by for one prompt. Make it when the prompt is raised and
+--- call it as the prompt is watched: it returns nil while the prompt may stay up,
+--- else the seconds it has left and why.
+---
+--- Ending a turn does not wait for prompts (David, 2026-11-23 playtest N12). A
+--- hero's prompt outlives the turn it was raised in instead: it stays up through
+--- the whole next turn, so another hero starting theirs does not take it away
+--- (2026-11-05 playtest N4), and ends when that turn ends. The Monster AI starts
+--- no turn while one is open (FindPendingPlayerTrigger in MonsterAIPanel.lua).
+--- A turn claim ends as soon as someone else starts a turn: accepted later it
+--- would take over a turn already under way.
+--- Everything else ends 6s after another turn starts.
+--- @param token CharacterToken
+--- @param claimsTurn boolean
+--- @param endedTurnToken CharacterToken|nil For a turn claim, the creature whose turn ended.
+--- @return fun(): number|nil, string|nil
+function TriggeredAbility.PromptTurnWatch(token, claimsTurn, endedTurnToken)
+    local raisedKey, raisedQueue = CurrentTurnKey()
+
+    if raisedQueue == nil or not IsHeroSide(token, raisedQueue) then
+        local turnid = token.properties:GetResourceRefreshId("turn")
+        return function()
+            if token.properties:GetResourceRefreshId("turn") ~= turnid
+                and (dmhub.initiativeQueue == nil or not dmhub.initiativeQueue:ChoosingTurn()) then
+                return PROMPT_TURN_GRACE_SECONDS, "turn changed; 6s grace elapsed"
+            end
+            return nil
+        end
+    end
+
+    local guid = raisedQueue:try_get("guid")
+    local endedEntry = nil
+    if claimsTurn and endedTurnToken ~= nil and endedTurnToken.valid then
+        endedEntry = InitiativeQueue.GetInitiativeId(endedTurnToken)
+    end
+
+    --The turn after the one the prompt was raised in, once it has started, and
+    --the queue's turn count then.
+    ---@type string|nil
+    local nextKey = nil
+    local nextNumber = 0
+
+    return function()
+        local key, q = CurrentTurnKey()
+        if q == nil or q:try_get("guid") ~= guid then
+            return PROMPT_TURN_GRACE_SECONDS, "combat ended; 6s grace elapsed"
+        end
+
+        if claimsTurn then
+            --Judged by whose turn it is, not only by when the prompt was raised: a
+            --relayed event can reach this client after the next turn has started.
+            if key and (key ~= raisedKey or (endedEntry ~= nil and q.currentTurn ~= endedEntry)) then
+                return 0, "another turn started"
+            end
+            return nil
+        end
+
+        if nextKey == nil then
+            if key and key ~= raisedKey then
+                nextKey = key
+                nextNumber = q.turnNumber
+            end
+        elseif key ~= nextKey then
+            if q.turnNumber < nextNumber then
+                --That turn was cancelled or reverted; the next one is still to come.
+                nextKey = nil
+            else
+                return 0, "the turn after it ended"
+            end
+        end
+        return nil
+    end
+end
+
+--- Holds an accepted turn claim until the turn that raised it has passed. The
+--- client ending that turn writes initiative too; a claim written before it saw
+--- the turn pass crossed that write, leaving the claimant's turn current with the
+--- monsters' side to pick, and the Monster AI played it (AH6SYXTP). Yields.
+--- Returns false if the claim is no longer good: someone else's turn has started.
+--- @param watch fun(): number|nil, string|nil The prompt's PromptTurnWatch.
+--- @return boolean
+function TriggeredAbility.WaitToClaimTurn(watch)
+    local deadline = dmhub.Time() + TURN_CLAIM_WAIT_SECONDS
+    while true do
+        if watch() ~= nil then
+            return false
+        end
+        if not CurrentTurnKey() then
+            --The next turn is being chosen.
+            return true
+        end
+        if dmhub.Time() >= deadline then
+            --The ending client is holding its turn (a villain action, a cast) or is
+            --gone. Claim now; NextInitiative leaves a claimed turn alone.
+            printf("TURNCLAIM:: the ended turn did not pass in %ds; claiming anyway", TURN_CLAIM_WAIT_SECONDS)
+            return true
+        end
+        coroutine.yield(0.1)
+    end
+end
+
 --The sustain coroutines below register the prompt ids they are watching here.
 --Session-local by nature: a restart or Lua reload that kills the coroutines
 --also empties this table, which is exactly what marks any surviving prompts
@@ -2078,12 +2231,14 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
             local triggers = casterToken.properties:GetAvailableTriggers() or {}
             trigger = triggers[guid]
 
-            local turnid = casterToken.properties:GetResourceRefreshId("turn")
+            local claimsTurn = self:ClaimsTurnAtTurnEnd()
+            local turnWatch = TriggeredAbility.PromptTurnWatch(casterToken, claimsTurn, subjectToken)
 
 			local sustain = true
 			local gameupdate = dmhub.ngameupdate
 
             local expireAt = nil
+            local expireReason = nil
             local wasDismissed = false
 
             --missingSince records when the trigger entry first went missing from
@@ -2112,15 +2267,18 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
                     break
                 end
 
-                if expireAt ~= nil then
-                    if dmhub.Time() >= expireAt then
-                        exitReason = "turn changed; 6s grace elapsed"
-                        sustain = false
+                --Hostile prompts are exempt: they survive turn changes and
+                --wait indefinitely for a manual resolution.
+                if expireAt == nil and not self.hostile then
+                    local secondsLeft, reason = turnWatch()
+                    if secondsLeft ~= nil then
+                        expireAt = dmhub.Time() + secondsLeft
+                        expireReason = reason
                     end
-                elseif (not self.hostile) and casterToken.properties:GetResourceRefreshId("turn") ~= turnid and (dmhub.initiativeQueue == nil or (not dmhub.initiativeQueue:ChoosingTurn())) then
-                    --Hostile prompts are exempt: they survive turn changes and
-                    --wait indefinitely for a manual resolution.
-                    expireAt = dmhub.Time() + 6
+                end
+                if expireAt ~= nil and dmhub.Time() >= expireAt then
+                    exitReason = expireReason
+                    sustain = false
                 end
 
                 local triggers = casterToken.properties:GetAvailableTriggers() or {}
@@ -2269,6 +2427,17 @@ function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols,
 			end
 
 			local accepted = trigger ~= nil and trigger.triggered
+			--Before the cast, which pays upfront: a claim that comes too late costs nothing.
+			if accepted and claimsTurn then
+				if not TriggeredAbility.WaitToClaimTurn(turnWatch) then
+					printf("TRIGGERGUARD:: prompt %s (%s) accepted too late to claim the turn; not cast", tostring(guid), tostring(self.name))
+					CompleteAIReaction()
+					return
+				end
+				if casterToken == nil or not casterToken.valid then
+					casterToken = dmhub.GetTokenById(tokid)
+				end
+			end
 			--Expiry must run On Dismiss behaviors too: death-rule overrides like Pixie
 			--Dust rely on them to remove the minion, which is otherwise stranded (BE8P56UV).
 			local dismissed = (not accepted) and (wasDismissed or expiredUnanswered or (trigger ~= nil and trigger.dismissed))

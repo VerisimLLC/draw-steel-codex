@@ -4781,6 +4781,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
             return children
         end
+        if EncounterNarrative.LocalUserIsObserver() then
+            return children
+        end
         Add(gui.Button{
             text = T("stage.consequence.continue_button"),
             halign = "center",
@@ -7759,7 +7762,7 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
                 Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
             end
         end
-        if fight and not m.doneAck then
+        if fight and not m.doneAck and not EncounterNarrative.LocalUserIsObserver() then
             Add(EncounterMontageStage.GauntletBigButton(T("stage.gauntlet.draw_steel_button"), function()
                 EncounterMontageStage.drawSteelPressedAt = dmhub.Time()
                 EncounterMontage.SendRequest("drawSteel", {})
@@ -7802,8 +7805,8 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
     if section.implicitOption then
         --no options: not a choice, just a Proceed under the text. Anyone's
         --click moves the party on; when it is the last section before a
-        --fight it is the "Draw Steel!" click as well.
-        if vote.result == nil and next(vote.choices or {}) == nil then
+        --fight it is the "Draw Steel!" click as well. Not an observer's.
+        if vote.result == nil and next(vote.choices or {}) == nil and not EncounterNarrative.LocalUserIsObserver() then
             local label = T("stage.gauntlet.proceed_button")
             local _, script = EncounterMontage.CurrentBeat()
             local drawSteel = EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)

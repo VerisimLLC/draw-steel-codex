@@ -214,13 +214,32 @@ accepted card also adds a `turn-claim` marker to the hero's
 cast's normal AI-reaction completion path. The AI keeps waiting while that
 marker is resolving (up to 60s) and for 2s after it completes, with the banner
 "Waiting for Iswyln's Hesitation Is Weakness to finish" (BR8M9Z2W). The check
-is `creature:TurnClaimResolving()`, and the end-of-turn handoff
-(`GameHud.WaitForHeroTriggerPrompts` in `MCDMInitiativeBar.lua`) waits on it
-too, so a hero's turn does not pass while an accepted claim is still landing:
-the two initiative writes used to cross, leaving the claimant's entry current
-with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
-never plays a current entry that `IsEntryPlayer` says is the players' (it logs
-`TURN REFUSED` once and leaves it to its player).
+is `creature:TurnClaimResolving()`. As a last guard, the AI thread never plays a
+current entry that `IsEntryPlayer` says is the players' (it logs `TURN REFUSED`
+once and leaves it to its player).
+
+Ending a turn does not wait for hero prompts: the turn passes at once on every
+client, and this AI wait is what keeps the monsters from acting (2026-11-23
+playtest N12; the earlier "End Turn Hero Prompts" hold is gone). Two things in
+`TriggeredAbility.lua` make that safe:
+
+- **How long a hero's prompt lives** (`TriggeredAbility.PromptTurnWatch`). It
+  stays up through the whole turn after the one it was raised in, hero's or
+  monster's, and ends when that turn ends. It used to end 6s after any other
+  turn started, so a Mark prompt died when another hero began their turn
+  (2026-11-05 N4). A turn claim (an `endturn` trigger with a Begin Turn
+  initiative behavior, `ClaimsTurnAtTurnEnd`) ends the moment someone else
+  starts a turn. Hostile prompts never end this way; a monster's prompt still
+  ends 6s after another turn starts. All but hostile ones age out at 10 minutes.
+- **A claim waits for the turn to pass** (`TriggeredAbility.WaitToClaimTurn`).
+  Accepted while the ended turn is still current (the ending client is running a
+  villain action or finishing a cast), it casts only once this client sees the
+  turn pass, up to 45s, so the two initiative writes cannot cross and leave the
+  claimant's entry current with the monsters' side to pick (AH6SYXTP). If someone
+  else's turn has started by then it does nothing and costs nothing.
+
+Run `../dependencies/lua/bin/lua.exe tests/trigger_prompt_turn_life_test.lua`
+from the codex root.
 
 Two more holds keep the thread from spinning (2026-11-13 playtest, where it
 replayed one monster turn over a thousand times after an EotW defeat):

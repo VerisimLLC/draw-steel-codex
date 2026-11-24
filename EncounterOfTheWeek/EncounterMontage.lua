@@ -2124,9 +2124,9 @@ end
 function EncounterMontage.LocalUserPacesScene(m)
     local t = m ~= nil and m.turn or nil
     if t ~= nil and t.status == "scene" and t.arrival then
-        --a Gauntlet section's arrival: no hero has stepped up, so anyone
-        --may turn the page (see GAUNTLET_PLAN.md).
-        return true
+        --a Gauntlet section's arrival: no hero has stepped up, so anyone who is
+        --playing may turn the page (see GAUNTLET_PLAN.md).
+        return not EncounterNarrative.LocalUserIsObserver()
     end
     return t ~= nil and t.status == "scene" and t.userid == dmhub.loginUserid
 end
@@ -5572,7 +5572,13 @@ function EncounterMontage.ConsumableUses(charid, itemid)
 
     local filterReason = nil
     if c ~= nil then
-        pcall(function() filterReason = ability:AbilityFilterFailureMessage(c) end)
+        --the cast gate that holds abilities back until combat is for the map;
+        --the montage has rules of its own for when an item may be used.
+        pcall(function()
+            local clone = ability:MakeTemporaryClone()
+            clone._tmp_ignoreCastGates = true
+            filterReason = clone:AbilityFilterFailureMessage(c)
+        end)
     end
 
     --false stands for "no mode": an ability without modes is one use.
@@ -5733,6 +5739,7 @@ function EncounterMontage.ConsumeItem(charid, itemid, mode)
     local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
     local ability = item:try_get("consumable"):MakeTemporaryClone()
     ability._tmp_boundCaster = tok.properties
+    ability._tmp_ignoreCastGates = true
 
     local m = EncounterMontage.GetState()
     local t = m ~= nil and m.turn or nil
@@ -6618,6 +6625,9 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
     elseif kind == "continue" then
         if m.phase ~= "consequences" then
             return "ignored continue"
+        end
+        if EncounterNarrative.IsObserver(userid, heroes) then
+            return "ignored continue: only watching"
         end
         if m.dice ~= nil then
             return "ignored continue: the dice are out"

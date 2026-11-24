@@ -2175,27 +2175,19 @@ local function ResourceHeadline(c, tok)
     local charid = tok.charid
     local valueLabel = Text{ text = tostring(value), width = "auto", fontSize = 40, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 12 }
     local children = { valueLabel }
-    --a click on the number swaps it for a box to type a new amount, as on
-    --the card's front (who may edit is decided there).
+    --edited where it stands, as on the card's front (who may edit is decided
+    --there).
     local card = rawget(_G, "EotwHeroCard")
     if card ~= nil and card.HeroResourceCurrent(charid) ~= nil then
-        local entry, open = card.CreateNumberEntry{
+        --room for the highlight's left edge inside the tab's clip.
+        valueLabel.selfStyle.lmargin = 4
+        g_resourceEntries[#g_resourceEntries+1] = card.CreateNumberEntry{
             label = valueLabel,
             fontSize = 40,
-            width = 80,
-            floating = false,
+            color = COLOR_RESOURCE,
             current = function() return card.HeroResourceCurrent(charid) end,
             apply = function(amount) card.SetHeroResource(charid, amount) end,
         }
-        entry.selfStyle.height = 52
-        entry.selfStyle.rmargin = 12
-        g_resourceEntries[#g_resourceEntries+1] = entry
-        valueLabel.interactable = true
-        if valueLabel.events == nil then
-            valueLabel.events = {}
-        end
-        valueLabel.events.click = function(element) open() end
-        children[#children+1] = entry
     end
     children[#children+1] = Text{ text = name, width = "auto", fontSize = 20, bold = true, color = COLOR_TEXT, textWrap = false, valign = "center" }
     return WithHover(gui.Panel{
@@ -2699,7 +2691,72 @@ local function OpenSheet(charid, element)
     end
 end
 
---- The footer: how to turn the card back, and a link to the full sheet.
+--- The footer's button that turns the card back over: always there while the
+--- back is up, whatever the mouse is on.
+--- @return Panel
+local function CreateTurnBackButton()
+    return gui.Panel{
+        classes = {"heroCardTurnBack"},
+        width = "auto",
+        height = 22,
+        halign = "left",
+        valign = "center",
+        flow = "horizontal",
+        hpad = 8,
+        borderBox = true,
+        cornerRadius = 6,
+        border = 1,
+        bgimage = "panels/square.png",
+        swallowPress = true,
+        styles = {
+            {
+                selectors = {"heroCardTurnBack"},
+                bgcolor = "#ffffff14",
+                borderColor = "#ffd66baa",
+            },
+            {
+                selectors = {"heroCardTurnBack", "hover"},
+                bgcolor = "#ffffff30",
+                borderColor = "#ffffff",
+            },
+            {
+                selectors = {"heroCardTurnBackIcon"},
+                bgcolor = COLOR_GOLD,
+            },
+            {
+                selectors = {"heroCardTurnBackIcon", "parent:hover"},
+                bgcolor = "#ffffff",
+            },
+        },
+        gui.Panel{
+            classes = {"heroCardTurnBackIcon"},
+            width = 13,
+            height = 13,
+            valign = "center",
+            rmargin = 6,
+            bgimage = "phosphor/arrow-clockwise.png",
+            interactable = false,
+        },
+        Text{
+            text = "Turn the card over",
+            width = "auto",
+            valign = "center",
+            fontSize = 12,
+            bold = true,
+            color = COLOR_TEXT,
+            textWrap = false,
+        },
+        click = function(element)
+            --turns the card even when the click closed the add-a-condition
+            --menu; that close must not swallow the next click.
+            ConsumeMenuClick()
+            audio.FireSoundEvent("Mouse.Click")
+            element:FireEventOnParents("turnCard")
+        end,
+    }
+end
+
+--- The footer: the button that turns the card back, and a link to the full sheet.
 --- @param charid string
 --- @return Panel
 local function CreateFooter(charid)
@@ -2710,14 +2767,7 @@ local function CreateFooter(charid)
         valign = "bottom",
         flow = "horizontal",
         interactable = false,
-        Text{
-            text = "Click to turn the card back over",
-            width = "auto",
-            valign = "center",
-            fontSize = 11,
-            color = "#6c7782",
-            textWrap = false,
-        },
+        CreateTurnBackButton(),
         gui.Label{
             text = "Full Character Sheet",
             width = "auto",
@@ -2754,12 +2804,13 @@ local TURNED_SCALE = 3
 local TURNED_RISE = 0.25
 
 --cards showing their back, oldest first. Only the last one opened draws on
---top of everything, so a newer card is never hidden under an older one.
+--top of everything, so a newer card is never hidden under an older one, and
+--only it takes Escape, which turns it back.
 --- @type Panel[]
 local g_turnedOrder = {}
 
 --- Lets only the newest card in the turned list draw above the screen's
---- other panels, dropping any card that no longer exists.
+--- other panels and take Escape, dropping any card that no longer exists.
 local function RaiseNewestTurned()
     for i = #g_turnedOrder, 1, -1 do
         if not g_turnedOrder[i].valid then
@@ -2769,6 +2820,7 @@ local function RaiseNewestTurned()
     local top = g_turnedOrder[#g_turnedOrder]
     for _, other in ipairs(g_turnedOrder) do
         other.renderOnTop = other == top
+        other.captureEscape = other == top
     end
 end
 
@@ -2782,6 +2834,7 @@ local function SetTurnedOrder(card, turned)
         g_turnedOrder[#g_turnedOrder+1] = card
     else
         card.renderOnTop = false
+        card.captureEscape = false
     end
     RaiseNewestTurned()
 end
@@ -3303,16 +3356,31 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight, options)
         end
     end
     cardArgs[#cardArgs+1] = backFace
+    --Escape turns the card back (captureEscape is RaiseNewestTurned's). An
+    --ability being aimed takes the key first, as do menus and dialogs.
+    cardArgs.escapePriority = EscapePriority.CANCEL_TOKEN_MENU
+    cardArgs.escape = function(element)
+        if backFace:HasClass("turned") then
+            element:FireEvent("turnCard")
+        end
+    end
+    --the front's hover buttons: off the card while its back, which has its
+    --own turn button, is up.
+    ---@type Panel[]
+    local frontButtons = {}
     ---@type Panel|nil
     local flipButton = nil
     if not options.noButton then
         flipButton = CreateFlipButton(charid)
         cardArgs[#cardArgs+1] = flipButton
+        frontButtons[#frontButtons+1] = flipButton
         --History sits just left of the centred flip button, unless this user is on the old Action
         --Log. The top-left corner is the trigger and downtime badges', so it stays out of there.
         local history = rawget(_G, "History")
         if history ~= nil and not history.UsingOldLog() then
-            cardArgs[#cardArgs+1] = CreateHistoryButton(charid, -32)
+            local historyButton = CreateHistoryButton(charid, -32)
+            cardArgs[#cardArgs+1] = historyButton
+            frontButtons[#frontButtons+1] = historyButton
         end
     end
     cardArgs.turnCard = function(element)
@@ -3335,6 +3403,9 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight, options)
         motion.turned = turned
         AnimateFlip(element, cardHeight, motion, function()
             backFace:FireEvent("showBack", turned)
+            for _, button in ipairs(frontButtons) do
+                button:SetClass("collapsed", turned)
+            end
             element:FireEventOnParents("heroCardTurned", turned)
         end, function()
             if flipButton ~= nil and flipButton.valid then

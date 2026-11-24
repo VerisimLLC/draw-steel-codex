@@ -1357,9 +1357,11 @@ end
 --Heroes" allows only Catch Breath and Null Field). A gate is
 --fn(ability, casterCreature, casterToken) returning a reason string to
 --refuse, or nil to allow. Gates bind only player-controlled casters, only
---under Strictly Enforce Action Economy, and never a TriggeredAbility, so
---the Director, the Monster AI and trigger prompts are never refused. The
---action bar greys a refused chip, shows the reason and ignores the press.
+--under Strictly Enforce Action Economy, and never a TriggeredAbility or a
+--test, so the Director, the Monster AI, trigger prompts and test rolls are
+--never refused. The action bar greys a refused chip, shows the reason and
+--ignores the press. A clone with _tmp_ignoreCastGates is not gated: a game
+--mode sets it on a use its own rules allow (an item in an EotW montage).
 --- @type table<string, fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil>
 local g_castGates = {}
 
@@ -1382,7 +1384,13 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
         return nil
     end
 
-    if next(g_castGates) ~= nil and StrictActionEconomyEnforced() then
+    --a synthetic test (isTest on the ability itself, not on a behavior) only
+    --carries a roll's card; it is not something a player casts.
+    if self:try_get("isTest", false) then
+        return nil
+    end
+
+    if next(g_castGates) ~= nil and not self:try_get("_tmp_ignoreCastGates", false) and StrictActionEconomyEnforced() then
         local casterToken = dmhub.LookupToken(casterCreature)
         if casterToken ~= nil and casterToken.playerControlled then
             for _,gate in pairs(g_castGates) do

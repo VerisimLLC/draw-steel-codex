@@ -811,7 +811,7 @@ function EncounterGauntlet.HoldDone(doc, script, beatIndex)
     for _, c in ipairs(clicked) do
         --every request is used up here; only a "drawSteel" moves on.
         m.handled[c.userid] = c.seq
-        if c.kind == "drawSteel" then
+        if c.kind == "drawSteel" and not EncounterNarrative.IsObserver(c.userid) then
             go = true
         end
     end
@@ -1596,8 +1596,9 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
         else
             key = EncounterNarrative.VoterKeyForUser(userid, heroes)
         end
-        --anyone may press an implicit Proceed, the Director included.
-        if key == nil and section.implicitOption then
+        --anyone but an observer may press an implicit Proceed, the Director
+        --included.
+        if key == nil and section.implicitOption and not EncounterNarrative.IsObserver(userid, heroes) then
             key = userid
         end
         if key == nil then

@@ -1528,7 +1528,7 @@ local function BuildParty(repaint)
             text = string.upper(text),
             width = width,
             height = "auto",
-            fontSize = 11,
+            fontSize = 13,
             bold = true,
             rmargin = COL_GAP,
             halign = "left",
@@ -1685,6 +1685,7 @@ local function BuildParty(repaint)
             width = 26,
             height = 26,
             rmargin = 8,
+            halign = "left",
             valign = "center",
         }
         local gearText = HeroSheetTheme.EllipsisLabel{
@@ -1693,6 +1694,7 @@ local function BuildParty(repaint)
             width = COL_GEAR - 34,
             height = "auto",
             fontSize = 14,
+            halign = "left",
             valign = "center",
         }
         local grenadeText = HeroSheetTheme.EllipsisLabel{
@@ -1702,6 +1704,7 @@ local function BuildParty(repaint)
             height = "auto",
             fontSize = 14,
             rmargin = COL_GAP,
+            halign = "left",
             valign = "center",
         }
         local pill = gui.Label{
@@ -1717,6 +1720,8 @@ local function BuildParty(repaint)
             borderBox = true,
             fontSize = 12,
             bold = true,
+            --clear of the table's scroll bar.
+            rmargin = 12,
             halign = "right",
             valign = "center",
         }
@@ -1734,11 +1739,13 @@ local function BuildParty(repaint)
             click = function()
                 CondemnedGear.ChooseFor(hero.charid)
             end,
+            --every cell starts at its column's left edge, whatever is in the others.
             gui.Panel{
                 flow = "vertical",
                 width = COL_HERO,
                 height = "auto",
                 rmargin = COL_GAP,
+                halign = "left",
                 valign = "center",
                 interactable = false,
                 name,
@@ -1749,6 +1756,7 @@ local function BuildParty(repaint)
                 width = COL_GEAR,
                 height = "auto",
                 rmargin = COL_GAP,
+                halign = "left",
                 valign = "center",
                 interactable = false,
                 gearArt,
@@ -1758,6 +1766,7 @@ local function BuildParty(repaint)
             gui.Panel{
                 width = COL_STATUS,
                 height = "auto",
+                halign = "left",
                 valign = "center",
                 interactable = false,
                 pill,
@@ -1779,7 +1788,8 @@ local function BuildParty(repaint)
                     end
                 end
                 local first = gearTable[choices.gear[1] or ""]
-                gearArt:SetClass("collapsed", first == nil)
+                --an empty slot keeps its room, so "No gear" starts where a gear name does.
+                gearArt.selfStyle.opacity = first ~= nil and 1 or 0
                 if first ~= nil then
                     gearArt.bgimage = first.iconid
                 end

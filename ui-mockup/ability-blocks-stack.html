@@ -247,7 +247,8 @@ ul.problems.checks li { border-left-color: var(--gold); }
 .drop-slot { box-sizing: border-box; margin: 3px 0; border: 2px dashed var(--gold); border-radius: 5px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); display: flex; align-items: center; justify-content: center; font: 600 12px var(--font-head); letter-spacing: .04em; animation: slotin .12s ease-out; }
 @keyframes slotin { from { height: 4px; opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { .drop-slot { animation: none; } }
-body.is-dragging .stack.can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 70%, transparent); outline-offset: 3px; border-radius: 5px; background-color: color-mix(in srgb, var(--gold) 6%, transparent); min-height: 30px; }
+body.is-dragging .ins.can-drop:not(.end)::before { background: repeating-linear-gradient(90deg, var(--gold) 0 8px, transparent 8px 13px); height: 2px; }
+body.is-dragging .ins.end.can-drop { border: 2px dashed var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
 body.is-dragging .holder.can-drop > * { outline: 2px dashed color-mix(in srgb, var(--gold) 75%, transparent); outline-offset: 2px; }
 body.is-dragging [data-kwdrop].can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 75%, transparent); outline-offset: 2px; }
 body.is-dragging .holder.hot > *, body.is-dragging [data-kwdrop].hot { outline: 2px solid #fff; }
@@ -4112,8 +4113,9 @@ document.addEventListener("pointermove", ev => {
   }
   showSlot(slotAt);
 });
-/* Where the dragged thing can go. While dragging, each place that would take it is outlined, and
-   the step list under the pointer opens a "Drop here" slot about the size of the step. */
+/* Where the dragged thing can go. While dragging, the insert points that would take a step show (its
+   list's "+ add" button and a gold sliver between steps), value boxes of the same kind are outlined,
+   and the spot under the pointer opens a "Drop here" slot about the size of the step. */
 function stackAccepts(s) { return !drag.el.contains(s) && allowed(drag.st.type, s.dataset.ctx, listScopes[s.dataset.list] || null); }
 function holderAccepts(he) {
   if (drag.el.contains(he)) return false;
@@ -4121,7 +4123,8 @@ function holderAccepts(he) {
 }
 function markDropZones() {
   if (drag.kind === "kw") main.querySelectorAll("[data-kwdrop]").forEach(r => r.classList.add("can-drop"));
-  else if (drag.kind === "step" || drag.kind === "new") main.querySelectorAll(".stack[data-list]").forEach(s => { if (stackAccepts(s)) s.classList.add("can-drop"); });
+  // Steps: only the insert points light up (the "+ add" button and a sliver between steps), not whole lists.
+  else if (drag.kind === "step" || drag.kind === "new") main.querySelectorAll(".stack[data-list]").forEach(s => { if (stackAccepts(s)) s.querySelectorAll(":scope > .ins").forEach(i => i.classList.add("can-drop")); });
   else main.querySelectorAll(".holder").forEach(he => { if (holderAccepts(he)) he.classList.add("can-drop"); });
 }
 let slotEl = null, slotKey = null;

@@ -1556,8 +1556,10 @@ same group, and search finds any of them. "First target" is no longer listed twi
 has two names for the primary target.
 
 **Revision (2026-11-24): showing where blocks can go.** As in the class builder, a drag now
-outlines every place that would take what is being dragged, in dashed gold. For a step, that is
-each step list it is allowed into; a power roll, for example, can't go inside a tier result. For
+outlines every place that would take what is being dragged, in dashed gold. For a step, only the
+insert points of each list it is allowed into light up: the list's "+ add" button turns dashed
+gold, and a gold sliver shows between steps. A power roll, for example, can't go inside a tier
+result. (Outlining whole lists was tried first; it read as "drop it anywhere".) For
 a value block, it is each box of the same kind (number or test). For a keyword, it is the
 keyword row. The step list under the pointer opens a "Drop here" slot about the size of the step,
 in place of the old white line. Value boxes still turn solid white under the pointer.

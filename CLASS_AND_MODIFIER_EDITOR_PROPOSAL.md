@@ -1565,9 +1565,11 @@ A subclass is its own Class record in the `subclasses` table, with `isSubclass` 
 
 ## 29. Showing where blocks can go (2026-11-24)
 
-Reviewers found it unclear where a dragged block could be placed. While dragging, every place
-that can take it gets a dashed gold outline: the level lanes (for shelf blocks and features) and
-each block list that accepts it. That last part follows the existing rules: no choices inside
+Reviewers found it unclear where a dragged block could be placed. While dragging, only the insert
+points light up: each "+ add a feature" (for shelf blocks and features) and each "+ add" of a
+block list that accepts it turn dashed gold, with a gold sliver between blocks. Outlining whole
+lists was tried first, but it read as "drop it anywhere". Which lists accept follows the
+existing rules: no choices inside
 Logic, only roll changes inside a combined block, and never inside itself. The spot under the
 pointer opens into a dashed slot the size of the block, reading "Drop here", "Drop to make a new
 feature here" or "Move the feature here". It replaces the old 3px line.

@@ -281,9 +281,9 @@ h5.palhead .sw { width: 10px; height: 10px; border-radius: 2px; }
 .dropslot { box-sizing: border-box; border: 2px dashed var(--gold); border-radius: 5px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); display: flex; align-items: center; justify-content: center; font: 600 12px var(--font-head); letter-spacing: .04em; animation: slotin .12s ease-out; }
 @keyframes slotin { from { height: 4px; opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { .dropslot { animation: none; } }
-body.is-dragging .lane.can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: -2px; }
-body.is-dragging .sents.can-drop { outline: 2px dashed color-mix(in srgb, var(--gold) 70%, transparent); outline-offset: 3px; border-radius: 5px; background-color: color-mix(in srgb, var(--gold) 6%, transparent); min-height: 34px; }
-body.is-dragging .lane.drop { outline-color: var(--gold); }
+/* While dragging, only the insert points show: each "+ add" button, and a gold sliver between blocks. */
+body.is-dragging .lane.can-drop > .items > .addf, body.is-dragging .sents.can-drop > .addsent { border: 2px dashed var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+body.is-dragging .sents.can-drop > .sent::before { content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 2px; background: repeating-linear-gradient(90deg, var(--gold) 0 8px, transparent 8px 13px); pointer-events: none; }
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
 /* Formula amounts: an "fx" mark on the value; the menu has quick picks and level steps. */
 .tok.fx::after { content: "fx"; font: italic 600 9.5px var(--font-mono); margin-left: 3px; opacity: .75; vertical-align: 1px; }

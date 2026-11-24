@@ -611,7 +611,14 @@ audio.SoundEvent{
 
 
 
-
+--Jump Begin
+audio.SoundEvent{
+    name = "Ability.Jump_Begin",
+    mixgroup = "gameplay",
+    sounds = {"abl/Abl_Jump_Begin_v1_01.wav","abl/Abl_Jump_Begin_v1_02.wav","abl/Abl_Jump_Begin_v1_03.wav","abl/Abl_Jump_Begin_v1_04.wav","abl/Abl_Jump_Begin_v1_05.wav","abl/Abl_Jump_Begin_v1_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.2,
+}
 
 
 

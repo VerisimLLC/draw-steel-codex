@@ -506,6 +506,9 @@ text("history.numbers.spent_surges.other", [[Spent {count} surges]])
 text("history.numbers.their_roll", [[Their roll]])
 --What one damage type dealt: "Tier 3: fire". {source} is the tier or the ability.
 text("history.numbers.dealt_type", [[{source}: {type}]])
+--Damage a fall dealt, and damage from a falling creature landing on this one.
+text("history.numbers.fall", [[Fall]])
+text("history.numbers.landed_on", [[Landed on]])
 --The damage total; "each" when several creatures share the sum.
 text("history.numbers.taken", [[Taken]])
 text("history.numbers.taken_each", [[Taken, each]])
@@ -648,6 +651,8 @@ text("history.why.lead.immune_to", [[Immune to {condition}]])
 text("history.why.cannot_be", [[{names} cannot be {condition}.]])
 --A fall that added to a forced move.
 text("history.why.fall", [[The fall dealt {amount} damage, for {total} instead of {without}.]])
+--A fall that was all of a target's damage.
+text("history.why.fall_only", [[The fall dealt {amount} damage.]])
 --When the side view can be shown.
 text("history.why.fall_side_view", [[{words} Hover here for the side view.]])
 text("history.why.lead.fell.one", [[Fell {count} square]])

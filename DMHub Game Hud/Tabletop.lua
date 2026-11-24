@@ -6717,12 +6717,31 @@ local function BuildCard(card)
         face,
     }
 
-    --the card's icon row, left to right: Character Sheet (a Hero the Hero
-    --sheet opens for), ping (left of the share button, DefinePings), share,
-    --follow, close. The launcher's peek has only the Character Sheet and
+    --the card's icon row, left to right: History, Character Sheet (a Hero the
+    --Hero sheet opens for), ping (left of the share button, DefinePings), share,
+    --follow, close. The launcher's peek has only History, the Character Sheet and
     --close: ping, share and follow are the character's table card's.
     ---@type Panel[]
     local controls = {}
+    --History (Draw Steel): the table's card has no flip button, so the hero
+    --card's own History chip never shows here.
+    local history = rawget(_G, "History")
+    if history ~= nil and history.OpenFor ~= nil and not history.UsingOldLog() then
+        controls[#controls+1] = WindowControl{
+            icon = "phosphor/clock-counter-clockwise-bold.png",
+            iconSize = 12,
+            width = 26,
+            passPress = true,
+            hover = gui.Tooltip("History"),
+            click = function(element)
+                local token = dmhub.GetTokenById(card.charid)
+                if token ~= nil then
+                    audio.FireSoundEvent("Mouse.Click")
+                    history.OpenFor(token)
+                end
+            end,
+        }
+    end
     card.heroSheetButton = nil
     local heroSheet = rawget(_G, "HeroSheet")
     if heroSheet ~= nil and heroSheet.Routes(tok) then

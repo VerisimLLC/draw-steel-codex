@@ -1626,6 +1626,14 @@ local function OnTypedMessage(text)
     if entry.ability ~= nil and string.lower(text) == string.lower(entry.ability.name or "") then
         return
     end
+    --Skip the notes the fall rules post ("Falling Damage", "Fallen On Top Of"): the card's
+    --Why already explains the fall.
+    local running = ActivatedAbility.CurrentCastInfo()
+    local ability = running ~= nil and running.ability or nil
+    local trigger = ability ~= nil and ability.typeName == "TriggeredAbility" and ability:try_get("trigger") or nil
+    if trigger == "fall" or trigger == "fallenon" then
+        return
+    end
     entry.messages = entry.messages or {}
     for _, message in ipairs(entry.messages) do
         if message == text then

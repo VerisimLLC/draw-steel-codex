@@ -445,6 +445,9 @@ Session.__index = Session
 --  replySeconds, doneLingerSeconds     optional numbers
 --  noWalkOut                           optional; true ignores "walkOut" requests
 --                                      (a host with no Leave button)
+--  minDealInterest                     optional number (default 1); "Take the deal"
+--                                      is offered only from this interest up, for a
+--                                      host whose lower offers are all refusals
 ---@param host table
 ---@return NegotiationSceneSession
 function NegotiationScene.Session(host)
@@ -648,9 +651,29 @@ function Session:AfterMeters(m)
     Bump(m)
 end
 
+--Report one argument or read to the host's analytics, if it has any.
+function Session:TrackStep(event, fields)
+    if self.host.Track ~= nil then
+        pcall(self.host.Track, event, fields)
+    end
+end
+
+--Is this a knack argument (one only some heroes may make)?
+local function IsKnack(argument)
+    for _, rider in ipairs(argument.riders or {}) do
+        if rider.effect == "allow" then
+            return true
+        end
+    end
+    return false
+end
+
 --Apply an argument under the book's rules. A pitfall fails whatever is
 --rolled, so it reaches here with no tier.
 function Session:ResolveArgument(m, beat, argument, hero, tier, total, natural)
+    --what the party knew before this argument, for the analytics: did they
+    --aim at a motivation they had found out about?
+    local knewTrait = argument.traitId ~= nil and (m.learned or {})[argument.traitId] == true
     local track = "nomotivation"
     local repeated = false
     if argument.kind == "pitfall" then
@@ -701,6 +724,23 @@ function Session:ResolveArgument(m, beat, argument, hero, tier, total, natural)
     --heroid / argumentId: the stage shows who made each argument on its card.
     m.log[#m.log + 1] = { heroName = hero.name, text = argument.name, track = track, tier = tier,
         heroid = hero.charid, argumentId = argument.id }
+    --track: appeal (a motivation), nomotivation or pitfall; trait: which one.
+    self:TrackStep("negotiation_argument", {
+        npc = beat.name,
+        argument = argument.name,
+        track = track,
+        trait = argument.appeals,
+        knewTrait = knewTrait,
+        repeated = repeated,
+        knack = IsKnack(argument),
+        tier = tier,
+        natural = natural,
+        step = #m.log,
+        interestChange = delta.interest,
+        patienceChange = delta.patience,
+        interest = m.interest,
+        patience = m.patience,
+    })
     self:AfterMeters(m)
 end
 
@@ -737,6 +777,15 @@ function Session:ResolveRead(m, beat, hero, tier, total, wants)
         total = total,
         found = found ~= nil and found.id or nil,
     }
+    self:TrackStep("negotiation_read", {
+        npc = beat.name,
+        tier = tier,
+        wants = wants,
+        found = found ~= nil and found.kind or nil,
+        step = #(m.log or {}),
+        interest = m.interest,
+        patience = m.patience,
+    })
     self:AfterMeters(m)
 end
 
@@ -808,6 +857,12 @@ function Session:SettleVote(m, beat, heroes)
     else
         self:Finish(m, beat, choice == "deal" and "deal" or "refused")
     end
+end
+
+--May the party stop and take the offer on the table now?
+function Session:CanTakeDeal(m)
+    local floor = math.max(1, tonumber(self.host.minDealInterest) or 1)
+    return m.phase == "choosing" and m.interest >= floor
 end
 
 --May Intelligence buy a hint now? Only where the host has Intelligence.
@@ -927,7 +982,7 @@ function Session:HandleRequest(m, userid, req, beat, heroes)
     --stopping is the party's choice: anyone may propose taking the deal on the
     --table, and every player then answers.
     if kind == "takeDeal" then
-        if m.phase ~= "choosing" or m.interest < 1 then
+        if not self:CanTakeDeal(m) then
             return nil
         end
         OpenVote(m, "voting", { "deal", "talk" })

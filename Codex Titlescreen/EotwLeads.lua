@@ -286,6 +286,16 @@ local function SendCarouse(entry, onDone)
         onDone(false, T("leads.carouse.offline"))
         return
     end
+    --the carouse shows before the respite reaches the City; wait for it, or
+    --the City would refuse a carouse it has not opened yet.
+    if EotwDowntime.RespiteBusy() then
+        dmhub.Schedule(0.5, function()
+            if not mod.unloaded then
+                SendCarouse(entry, onDone)
+            end
+        end)
+        return
+    end
     conn:Request{
         action = "carouse",
         args = entry,
@@ -1024,14 +1034,15 @@ end
 
 --- the carouse dialog ----------------------------------------------------------------
 
---What each tier of a carouse means, shown in the tier table: "learn a lead"
---on any tier that would learn one now, else that tier's nothing-learned text.
+--What each tier of a carouse means, shown in the tier table: that tier's
+--learn-a-lead text if it would learn one now, else its nothing-learned text.
 local function CarouseTierTexts()
     local nothing = { T("leads.carouse.tier1"), T("leads.carouse.tier2"), T("leads.carouse.tier3") }
+    local learn = { T("leads.carouse.tier1_lead"), T("leads.carouse.tier2_lead"), T("leads.carouse.tier3_lead") }
     local result = {}
     for tier = 1, 3 do
         if EotwLeads.NextLead(tier) ~= nil then
-            result[tier] = T("leads.carouse.tier3")
+            result[tier] = learn[tier]
         else
             result[tier] = nothing[tier]
         end
@@ -1219,6 +1230,18 @@ function EotwLeads.ShowCarouseDialog(host)
         end
     end
 
+    --Close the carouse and play the learned lead's conversation, then offer its project.
+    local function ListenToLead()
+        local leadid = state.leadid
+        local heroid = state.heroid
+        CloseDialog()
+        if leadid ~= nil and heroid ~= nil then
+            EotwLeads.ShowConversation(host, leadid, heroid, function()
+                OfferLeadProject(host, leadid, 0)
+            end)
+        end
+    end
+
     local Render
 
     local function ArmDice(signature)
@@ -1288,8 +1311,14 @@ function EotwLeads.ShowCarouseDialog(host)
                         state.tier = tonumber(result.tier) or state.tier
                         state.leadid = result.leadid
                         if state.leadid ~= nil then
-                            local lead = EotwLeads.LEADS[state.leadid]
-                            EotwDowntime.UI.ShowBanner(host, T("leads.carouse.new_lead_banner"), lead ~= nil and lead.title or "", "Notify.BigBanner_Pos")
+                            --a moment to read the result, then the conversation opens by
+                            --itself (skipped if the player closed or clicked Listen first).
+                            dmhub.Schedule(1.5, function()
+                                if mod.unloaded or dlg == nil or not dlg.valid then
+                                    return
+                                end
+                                ListenToLead()
+                            end)
                         end
                     end
                     Render()
@@ -1705,14 +1734,7 @@ function EotwLeads.ShowCarouseDialog(host)
                     height = 54,
                     hmargin = 8,
                     click = function()
-                        local leadid = state.leadid
-                        local heroid = state.heroid
-                        CloseDialog()
-                        if leadid ~= nil and heroid ~= nil then
-                            EotwLeads.ShowConversation(host, leadid, heroid, function()
-                                OfferLeadProject(host, leadid, 0)
-                            end)
-                        end
+                        ListenToLead()
                     end,
                 },
                 gui.Button{

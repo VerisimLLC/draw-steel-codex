@@ -1123,6 +1123,69 @@ local function CreateStaminaBar(charid, opts)
     }
 end
 
+--The hero whose heroic resource this user may change from a card: a hero or
+--companion's controller (or the Director), where card edits are allowed.
+--nil when they may not.
+--- @param charid string
+--- @return CharacterToken|nil
+local function HeroResourceEditableToken(charid)
+    local tok = dmhub.GetCharacterById(charid)
+    if tok == nil or not tok.valid or tok.properties == nil or not CardEditsAllowed() then
+        return nil
+    end
+    local ok = false
+    pcall(function()
+        ok = (dmhub.isDM or tok.canControl == true)
+            and (tok.properties:IsHero() or tok.properties:IsCompanion())
+    end)
+    if not ok then
+        return nil
+    end
+    return tok
+end
+
+--The heroic resource to start an edit from; nil when it may not be edited
+--(a CreateNumberEntry's current).
+--- @param charid string
+--- @return number|nil
+local function HeroResourceCurrent(charid)
+    local tok = HeroResourceEditableToken(charid)
+    if tok == nil then
+        return nil
+    end
+    return tok.properties:GetHeroicOrMaliceResources()
+end
+
+--Sets a hero's heroic resource as the character panel does: clamped to what
+--the resource allows, then refreshed or consumed by the difference.
+--- @param charid string
+--- @param value integer
+local function SetHeroResource(charid, value)
+    local tok = HeroResourceEditableToken(charid)
+    if tok == nil then
+        return
+    end
+    local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
+    local amount = value
+    if resource ~= nil then
+        amount = resource:ClampQuantity(tok.properties, value)
+    end
+    local diff = amount - tok.properties:GetHeroicOrMaliceResources()
+    if diff == 0 then
+        return
+    end
+    tok:ModifyProperties{
+        description = "Change Heroic Resource",
+        execute = function()
+            if diff > 0 then
+                tok.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+            else
+                tok.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+            end
+        end,
+    }
+end
+
 --Heroic resource, icon only: the class's heroic resource icon (the
 --character panel's own source) with the current value beside it. Surges
 --are NOT here -- they render as per-surge icons in the card's bottom-right
@@ -1185,63 +1248,14 @@ local function CreateResourceRow(charid, editable)
     ---@type Panel[]
     local children = { hrIcon, hrValue }
     if editable then
-        --who may change it: a hero or companion's controller (or the
-        --Director), where card edits are allowed.
-        local function EditableToken()
-            local tok = dmhub.GetCharacterById(charid)
-            if tok == nil or not tok.valid or tok.properties == nil or not CardEditsAllowed() then
-                return nil
-            end
-            local ok = false
-            pcall(function()
-                ok = (dmhub.isDM or tok.canControl == true)
-                    and (tok.properties:IsHero() or tok.properties:IsCompanion())
-            end)
-            if not ok then
-                return nil
-            end
-            return tok
-        end
         local entry
         entry, OpenEntry = CreateNumberEntry{
             label = hrValue,
             fontSize = 18,
             width = 44,
             floating = false,
-            current = function()
-                local tok = EditableToken()
-                if tok == nil then
-                    return nil
-                end
-                return tok.properties:GetHeroicOrMaliceResources()
-            end,
-            --as the character panel sets it: clamped to what the resource
-            --allows, then refreshed or consumed by the difference.
-            apply = function(value)
-                local tok = EditableToken()
-                if tok == nil then
-                    return
-                end
-                local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
-                local amount = value
-                if resource ~= nil then
-                    amount = resource:ClampQuantity(tok.properties, value)
-                end
-                local diff = amount - tok.properties:GetHeroicOrMaliceResources()
-                if diff == 0 then
-                    return
-                end
-                tok:ModifyProperties{
-                    description = "Change Heroic Resource",
-                    execute = function()
-                        if diff > 0 then
-                            tok.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
-                        else
-                            tok.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
-                        end
-                    end,
-                }
-            end,
+            current = function() return HeroResourceCurrent(charid) end,
+            apply = function(value) SetHeroResource(charid, value) end,
         }
         entry.selfStyle.lmargin = 3
         entry.selfStyle.height = "100%-4"
@@ -2443,6 +2457,10 @@ EotwHeroCard = {
     IsCardHeroDead = IsCardHeroDead,
     RosterSignature = RosterSignature,
     HeroDisplayName = HeroDisplayName,
+    --for the card back's own click-to-edit heroic resource.
+    CreateNumberEntry = CreateNumberEntry,
+    HeroResourceCurrent = HeroResourceCurrent,
+    SetHeroResource = SetHeroResource,
     --the card's style rules; callers wrap them in their own MergeTokens /
     --MergeStyles so the theme tokens resolve for their cascade root.
     rules = g_heroCardRules,

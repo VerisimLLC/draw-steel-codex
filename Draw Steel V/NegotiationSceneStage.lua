@@ -875,7 +875,7 @@ function NegotiationSceneStage.Create(args)
                 end or nil,
             }
         end
-        if m.phase == "choosing" and m.interest >= 1 then
+        if session:CanTakeDeal(m) then
             Add(T("negscene.take_deal"), function() session:SendRequest("takeDeal") end, DealTooltip)
         elseif m.phase == "reply" or m.phase == "done" then
             Add(T("negscene.continue"), function() session:SendRequest("continue") end)

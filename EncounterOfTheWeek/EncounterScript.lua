@@ -1681,6 +1681,53 @@ function EncounterScript.FindHeroLevel(parse)
     return EncounterScript.DEFAULT_HERO_LEVEL
 end
 
+--"Consequence: Retreat | Death | Lost" under "# Encounter": what happens to a
+--hero who dies in this encounter or series part (EncounterOfTheWeekGame.
+--Consequence). Retreat: home to town at full Stamina and Recoveries, no
+--Victory, no treasure. Death: buried in the Graveyard. Lost: in the Graveyard
+--as Lost, and nothing can bring them back. No line means Retreat.
+EncounterScript.CONSEQUENCE_LABELS = { consequence = true, ["if a hero falls"] = true, ["if a hero dies"] = true }
+EncounterScript.CONSEQUENCES = { "retreat", "death", "lost" }
+EncounterScript.DEFAULT_CONSEQUENCE = "retreat"
+
+--Returns { kind = "consequence", consequence = "retreat"|"death"|"lost" } or
+--nil. Looks for the word anywhere, so "they retreat" and "Death!" work.
+function EncounterScript.ParseConsequenceInstruction(text)
+    local t = lower(text or "")
+    local found = nil
+    for _, c in ipairs(EncounterScript.CONSEQUENCES) do
+        if string.find(t, c, 1, true) ~= nil then
+            if found ~= nil then
+                return nil
+            end
+            found = c
+        end
+    end
+    --"die", "dies", "dead" read as Death; "retreats" already matched above.
+    if found == nil and (string.find(t, "%f[%a]die") ~= nil or string.find(t, "%f[%a]dead") ~= nil) then
+        found = "death"
+    end
+    if found == nil then
+        return nil
+    end
+    return { kind = "consequence", consequence = found }
+end
+
+--The consequence a parsed script's "# Encounter" beat sets: its
+--"Consequence:" line, else DEFAULT_CONSEQUENCE.
+function EncounterScript.FindConsequence(parse)
+    for _, beat in ipairs((parse and parse.beats) or {}) do
+        if beat.kind == "encounter" then
+            for _, ins in ipairs(beat.setup or {}) do
+                if ins.kind == "consequence" then
+                    return ins.consequence
+                end
+            end
+        end
+    end
+    return EncounterScript.DEFAULT_CONSEQUENCE
+end
+
 --The player-facing line for a clear-the-map victory.
 function EncounterScript.DescribeVictory(instruction)
     if instruction == nil or instruction.condition ~= "clearmap" then
@@ -4912,6 +4959,8 @@ function EncounterScript.Parse(text)
     --its "---", or a scripted entry's option above / below its roll); nil
     --when lines are ordinary prose.
     local sceneTarget = nil
+    --entries already warned about a scene block with no "---" (once each).
+    local warnedNoSceneSep = {}
 
     g_trackEffects = {}
     g_parseLine = 0
@@ -5397,6 +5446,12 @@ function EncounterScript.Parse(text)
                                 Warn(lineIndex, "%s", T("author.script.encounter.level_not_understood", { level = rest, max = EncounterScript.MAX_HERO_LEVEL }))
                                 instruction = { kind = "unknown" }
                             end
+                        end
+                    elseif EncounterScript.CONSEQUENCE_LABELS[lower(trim(label))] then
+                        instruction = EncounterScript.ParseConsequenceInstruction(rest)
+                        if instruction == nil then
+                            Warn(lineIndex, "%s", T("author.script.encounter.consequence_not_understood", { consequence = rest }))
+                            instruction = { kind = "unknown" }
                         end
                     elseif EncounterScript.IsAIBehaviorLabel(label) then
                         instruction = EncounterScript.ParseAIBehaviorInstruction(rest)
@@ -6253,6 +6308,13 @@ function EncounterScript.Parse(text)
         elseif line == "" then
             FlushParagraph()
         else
+            --an "if ... then" scene block in an entry with no "---" is read as
+            --card text and shown to players as-is, so say how to fix it.
+            if entry ~= nil and not entry.scripted and not warnedNoSceneSep[entry]
+                and string.match(lower(line), "^if%s.+%sthen$") then
+                warnedNoSceneSep[entry] = true
+                Warn(i, "%s", T("author.script.scene.no_separator", { kind = entry.kind, entry = entry.name }))
+            end
             if #paragraph == 0 then
                 paragraphLine = i
             end
@@ -7321,6 +7383,8 @@ function EncounterScript.Describe(parse)
                     line("  %s: %s (parallaxratio %s)", ins.label, ins.level, tostring(ins.ratio))
                 elseif ins.kind == "herolevel" then
                     line("  %s: balanced for Level %d heroes", ins.label, ins.level)
+                elseif ins.kind == "consequence" then
+                    line("  %s: a hero who dies: %s", ins.label, ins.consequence)
                 else
                     line("  setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
                 end

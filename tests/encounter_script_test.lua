@@ -3356,6 +3356,26 @@ end)()
     check(#bad.warnings > 0 and bad.beats[1].setup[1].kind == "unknown" and EncounterScript.FindHeroLevel(bad) == 1, "a Level line with no Level warns and leaves Level 1")
 end)()
 
+--- "Consequence:" under "# Encounter": what happens to a hero who dies.
+;(function()
+    local NL = string.char(10)
+    local P = EncounterScript.ParseConsequenceInstruction
+    check((P("Retreat") or {}).consequence == "retreat", "Consequence: Retreat")
+    check((P("Death") or {}).consequence == "death", "Consequence: Death")
+    check((P("they are lost") or {}).consequence == "lost", "Consequence: they are lost")
+    check((P("the hero dies") or {}).consequence == "death", "'dies' reads as Death")
+    check(P("retreat or death") == nil and P("nothing") == nil, "two consequences, or none, is not understood")
+    local none = EncounterScript.Parse("# Encounter" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(EncounterScript.FindConsequence(none) == "retreat", "no Consequence line means Retreat")
+    local script = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Consequence: Lost" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#script.warnings == 0, "a Consequence line parses clean: " .. table.concat(script.warnings, " | "))
+    check(script.beats[1].setup[1].kind == "consequence" and EncounterScript.FindConsequence(script) == "lost", "Consequence: Lost on the encounter beat")
+    local alias = EncounterScript.Parse("# Encounter" .. NL .. NL .. "If a hero dies: Death" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(EncounterScript.FindConsequence(alias) == "death", "'If a hero dies:' is the same line")
+    local bad = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Consequence: sad" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#bad.warnings > 0 and bad.beats[1].setup[1].kind == "unknown" and EncounterScript.FindConsequence(bad) == "retreat", "a Consequence line not understood warns and leaves Retreat")
+end)()
+
 --- the validator: a reinforcement island that brings nobody.
 ;(function()
     --the validator registers its panel when loaded; give it a sink. stub():

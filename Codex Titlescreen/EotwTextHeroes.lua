@@ -226,6 +226,11 @@ text("herosheet.card.epitaph", [[Fell in <b>{encounter}</b>
 Played by {who}]])
 text("herosheet.card.epitaph_week", [[Fell in <b>{encounter}</b>, week {week}
 Played by {who}]])
+--The same for a Lost hero (the encounter's consequence was Lost).
+text("herosheet.card.epitaph_lost", [[Lost in <b>{encounter}</b>
+Played by {who}]])
+text("herosheet.card.epitaph_lost_week", [[Lost in <b>{encounter}</b>, week {week}
+Played by {who}]])
 --{who} when it was your own Hero.
 text("herosheet.card.epitaph_you", [[you]])
 

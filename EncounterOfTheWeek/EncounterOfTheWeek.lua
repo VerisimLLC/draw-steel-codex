@@ -484,6 +484,25 @@ function EncounterOfTheWeekGame.TargetHeroLevel()
     return level
 end
 
+--What happens to a hero who dies in this game: "retreat" (home, healed, no
+--Victory or treasure), "death" (buried) or "lost" (in the Graveyard for
+--good). The current part's "Consequence:" line, else Retreat; Deadly Mode is
+--always Death (user decision 2026-11-23).
+---@return string
+function EncounterOfTheWeekGame.Consequence()
+    if EncounterOfTheWeekGame.IsDeadly() then
+        return "death"
+    end
+    local consequence = EncounterScript.DEFAULT_CONSEQUENCE
+    pcall(function()
+        local montage = rawget(_G, "EncounterMontage")
+        if montage ~= nil then
+            consequence = EncounterScript.FindConsequence(montage.FindMapScript().parse)
+        end
+    end)
+    return consequence
+end
+
 --The average Level of the heroes on the map, or nil when there are none.
 ---@return number|nil
 function EncounterOfTheWeekGame.PartyLevel()
@@ -2118,6 +2137,98 @@ end
 
 EncounterOfTheWeekGame.EnsureArrivalItems = EnsureArrivalItems
 
+--- the end-of-combat sweep ---------------------------------------------------
+--User direction 2026-11-23 (survey: Dazed, Slowed, Snared, Wet and bleeding
+--carried into the next part of a series): when an EotW fight ends, every
+--condition and every combat-length ongoing effect comes off every creature.
+--Kept: effects that last until a respite, effects a hero brought from town
+--(the arrival record below), and effects with their own end-of-encounter
+--trigger (Doomed: the hero dies then), which are left for that trigger.
+--Fields, not locals: this file is at Lua's 200-local limit.
+
+--Host, once per game: the ongoing effects each hero arrived with,
+--arrivalEffects[charid] = { [effectid] = true }.
+function EncounterOfTheWeekGame.EnsureArrivalEffects()
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    if doc.data.arrivalEffects ~= nil then
+        return
+    end
+    local snapshot = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        pcall(function()
+            if token.valid and token.properties ~= nil and token.properties:IsHero() then
+                --_snapshot keeps the table non-empty, as in arrivalItems.
+                local ids = { _snapshot = true }
+                for _, inst in ipairs(token.properties:try_get("ongoingEffects", {})) do
+                    ids[inst.ongoingEffectid] = true
+                end
+                snapshot[token.charid] = ids
+            end
+        end)
+    end
+    doc:BeginChange()
+    doc.data.arrivalEffects = snapshot
+    doc:CompleteChange("Encounter of the Week: effects on arrival", {undoable = false})
+end
+
+--Whether an ongoing effect is one the sweep keeps, whoever has it: it lasts
+--until a respite, or it acts at the end of the encounter itself.
+function EncounterOfTheWeekGame.SweepKeepsEffect(inst)
+    if inst.removeOnShortRest or inst.removeOnLongRest then
+        return true
+    end
+    local keep = false
+    pcall(function()
+        local def = GetTableCached("characterOngoingEffects")[inst.ongoingEffectid]
+        for _, modifier in ipairs(def:try_get("modifiers", {})) do
+            local trigger = modifier:try_get("triggeredAbility")
+            if trigger ~= nil and trigger:try_get("trigger") == "endcombat" then
+                keep = true
+            end
+        end
+    end)
+    return keep
+end
+
+--Host, when a fight ends. A hero with an arrival record also sheds effects
+--with no duration (Wet) they did not bring; a creature without one
+--(monsters, allies, a hero who joined late) keeps those, since a monster's
+--own no-duration effects can be part of its stat block.
+function EncounterOfTheWeekGame.SweepCombatEffects()
+    local arrival = mod:GetDocumentSnapshot(STATE_DOC_ID).data.arrivalEffects
+    if type(arrival) ~= "table" then
+        arrival = {}
+    end
+    ElevateToHostPermissions()
+    for _, token in ipairs(dmhub.allTokens) do
+        local ok, err = pcall(function()
+            if not token.valid or token.properties == nil then
+                return
+            end
+            local props = token.properties
+            local brought = arrival[token.charid]
+            props:RemoveMatchingCondition(function() return true end)
+            props:RemoveMatchingOngoingEffects(function(inst)
+                if EncounterOfTheWeekGame.SweepKeepsEffect(inst) then
+                    return false
+                end
+                local timed = inst.removeOnSave or inst.removeOnEoE or inst.removeOnEoEOrDying
+                    or inst.removeAtNextTurnEnd ~= false or inst.removeAtRoundEnd ~= false
+                    or inst:try_get("duration") ~= nil
+                if timed then
+                    return true
+                end
+                return type(brought) == "table" and not brought[inst.ongoingEffectid]
+            end)
+        end)
+        if not ok then
+            printf("EotW: end-of-combat sweep failed for %s: %s", tostring(token.charid), tostring(err))
+        end
+    end
+    DropHostPermissions()
+    printf("EotW: the fight is over; conditions and combat effects cleared")
+end
+
 --The treasure a hero gained in this game: non-consumable items they hold
 --now beyond what they arrived with, { { itemid, name, quantity }, ... }
 --sorted by name. Empty for a hero with no arrival record.
@@ -2270,6 +2381,29 @@ pcall(function()
             return nil
         end
         return UIText.T("encounter.victory.treasure_note", { treasure = DescribeTreasure(treasure) })
+    end)
+end)
+
+--A hero who died says what that means for them, unless it is Death (their
+--card already shows them dead). Nothing in the Proving Pits.
+pcall(function()
+    DSVictoryScreen.RegisterHeroCardNote("eotw-consequence", function(live, token)
+        if token == nil or token.properties == nil or not EncounterOfTheWeekGame.IsEotwGame()
+            or EncounterOfTheWeekGame.IsPracticeGame() then
+            return nil
+        end
+        local dead = false
+        pcall(function() dead = token.properties:IsDead() end)
+        if not dead then
+            return nil
+        end
+        local consequence = EncounterOfTheWeekGame.Consequence()
+        if consequence == "retreat" then
+            return UIText.T("encounter.victory.retreat_note")
+        elseif consequence == "lost" then
+            return UIText.T("encounter.victory.lost_note")
+        end
+        return nil
     end)
 end)
 
@@ -2452,7 +2586,10 @@ end
 --{ { heroid, outcome }, ... } (heroid = the town roster id), for the town to
 --apply once the player is home (see eotw:pendingOutcomes). `result` is
 --"victory" or "defeat". A hero who is fully dead (not merely dying) at the
---end is buried: outcome.died, at a victory or a defeat. A survivor of a
+--end meets the encounter's consequence (EncounterOfTheWeekGame.Consequence),
+--at a victory or a defeat: Death buries them (outcome.died); Lost buries them
+--for good (outcome.died + outcome.lost); Retreat sends them home at full
+--Stamina and Recoveries with nothing else (outcome.retreated). A survivor of a
 --victory takes the Victory home (0 if they had won it before); every
 --survivor, of a victory or a defeat, takes their wounds home
 --(outcome.wounds). The player's own client sends these home; for a
@@ -2481,8 +2618,16 @@ local function OutcomesFor(userid, encounter, result)
                 alive = not dead
             end
         end)
-        if dead then
-            printf("EotW: %s fell in %s", tostring(tok ~= nil and tok.name or heroid), tostring(encounter))
+        local consequence = dead and EncounterOfTheWeekGame.Consequence() or nil
+        if consequence == "retreat" then
+            printf("EotW: %s fell in %s and retreats to town", tostring(tok ~= nil and tok.name or heroid), tostring(encounter))
+            --no Victory, no treasure; healed in town: no damage, no Recoveries spent.
+            entries[#entries + 1] = {
+                heroid = heroid,
+                outcome = { encounter = encounter, result = result, retreated = true, wounds = { damage = 0, recoveriesUsed = 0 } },
+            }
+        elseif dead then
+            printf("EotW: %s fell in %s (%s)", tostring(tok ~= nil and tok.name or heroid), tostring(encounter), tostring(consequence))
             local outcome = {
                 encounter = encounter,
                 result = result,
@@ -2491,6 +2636,8 @@ local function OutcomesFor(userid, encounter, result)
                 --win by it even when this hero fell winning.
                 challenge = cond(EncounterOfTheWeekGame.IsChallenge(), true, nil),
                 deadly = cond(EncounterOfTheWeekGame.IsDeadly(), true, nil),
+                --Lost: the City digs a grave nothing can raise them from.
+                lost = cond(consequence == "lost", true, nil),
             }
             for key, value in pairs(EncounterOfTheWeekGame.DeathFacts(tok)) do
                 outcome[key] = value
@@ -3222,12 +3369,15 @@ end
 
 --What this player's heroes came out with, for eotw_run_end.
 local function AnalyticsHeroOutcomes(result)
-    local died, survived, victories, treasures = 0, 0, 0, 0
+    local died, survived, victories, treasures, retreated, lost = 0, 0, 0, 0, 0, 0
     pcall(function()
         for _, entry in ipairs(OutcomesFor(dmhub.loginUserid, "", result)) do
             local o = entry.outcome or {}
-            if o.died then
+            --heroesDied counts every hero who fell, whatever the consequence.
+            if o.died or o.retreated then
                 died = died + 1
+                retreated = retreated + cond(o.retreated, 1, 0)
+                lost = lost + cond(o.lost, 1, 0)
             else
                 survived = survived + 1
             end
@@ -3235,7 +3385,10 @@ local function AnalyticsHeroOutcomes(result)
             treasures = treasures + #(o.treasures or {})
         end
     end)
-    return { heroesDied = died, heroesSurvived = survived, victoriesEarned = victories, treasuresEarned = treasures }
+    return {
+        heroesDied = died, heroesSurvived = survived, victoriesEarned = victories, treasuresEarned = treasures,
+        heroesRetreated = retreated, heroesLost = lost, consequence = EncounterOfTheWeekGame.Consequence(),
+    }
 end
 
 --Close this client's run. outcome "victory" | "defeat" | "abandoned"; how
@@ -6931,6 +7084,12 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         --combat just ended: stand the AI down. A won fight with beats after
         --it plays them now ("aftermath"); otherwise the script goes idle.
         EnsureAIStopped()
+        do
+            local ok, err = pcall(EncounterOfTheWeekGame.SweepCombatEffects)
+            if not ok then
+                printf("EotW: end-of-combat sweep failed: %s", tostring(err))
+            end
+        end
         local after = nil
         if m_outcomeKind == "victory" then
             pcall(function()
@@ -6984,6 +7143,8 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     --what every hero carries before the script hands anything out, so the
     --end of the game knows what treasure they won.
     pcall(EnsureArrivalItems)
+    --and the effects they bring from town, which the end-of-combat sweep keeps.
+    pcall(EncounterOfTheWeekGame.EnsureArrivalEffects)
 
     --Once per part, a few seconds after the last player arrived (so their own
     --placement repairs have settled): any hero still off the start tiles is
@@ -7683,6 +7844,7 @@ local function OpenOpeningBeatWhenPartyIn()
         end
         if EncounterOfTheWeekGame.AllPlayersArrived() then
             pcall(EnsureArrivalItems)
+            pcall(EncounterOfTheWeekGame.EnsureArrivalEffects)
             local ok, err = pcall(function()
                 local montage = rawget(_G, "EncounterMontage")
                 local script = montage.FindMapScript()
@@ -8430,6 +8592,7 @@ function Series.StartNextPartNow(nextPart, continuing)
     data.combatStarted = nil
     data.proceedRequested = nil
     data.arrivalItems = nil
+    data.arrivalEffects = nil
     data.autoEquip = nil
     data.alreadyCompleted = nil
     data.completedNormal = nil
@@ -9054,6 +9217,7 @@ local function ClearTestArrival(data)
     data.combatStarted = nil
     data.proceedRequested = nil
     data.arrivalItems = nil
+    data.arrivalEffects = nil
     data.autoEquip = nil
     data.alreadyCompleted = nil
     data.completedNormal = nil

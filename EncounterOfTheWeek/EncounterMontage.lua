@@ -8226,6 +8226,7 @@ function EncounterMontage.ResetTest(options)
         state.data.proceedRequested = nil
         state.data.arrange = nil
         state.data.arrivalItems = nil
+        state.data.arrivalEffects = nil
         state:CompleteChange("Montage test reset", { undoable = false })
     end
     local ms = rawget(_G, "MapScript")

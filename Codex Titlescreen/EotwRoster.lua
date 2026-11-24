@@ -124,6 +124,9 @@ local m_slots = nil
 --See EotwLeads.lua.
 local m_leads = nil
 local m_carouse = nil
+--the respite id ExpectCarouse showed before the City confirmed it, or nil.
+---@type string|nil
+local m_expectedCarouse = nil
 local m_refreshing = false
 local m_refreshAgain = false
 --heroids being imported right now, so a second refresh does not import twice.
@@ -324,6 +327,7 @@ function EotwRoster.Attach(conn)
     m_slots = nil
     m_leads = nil
     m_carouse = nil
+    m_expectedCarouse = nil
     m_joining = {}
     m_dismissing = {}
     EotwRoster.lastError = nil
@@ -643,8 +647,24 @@ function EotwRoster.SetListedLeads(leads, carouse)
         end
         m_leads = list
     end
-    --the city sends null (nil here) when no carouse is open.
+    --the city sends null (nil here) when no carouse is open. While a respite
+    --that will open one is still on its way, a roster listing from before it
+    --must not hide the carouse again.
+    if type(carouse) ~= "string" and type(m_carouse) == "string" and m_carouse == m_expectedCarouse and EotwDowntime.RespiteBusy() then
+        Bump()
+        return
+    end
+    m_expectedCarouse = nil
     m_carouse = cond(type(carouse) == "string", carouse, false)
+    Bump()
+end
+
+--A respite that banks a Victory is under way: show its carouse now instead of
+--after the City's round trips. The City's answer replaces it.
+---@param respiteid string
+function EotwRoster.ExpectCarouse(respiteid)
+    m_expectedCarouse = respiteid
+    m_carouse = respiteid
     Bump()
 end
 
@@ -3259,7 +3279,7 @@ function EotwRoster.GuildPanel(host)
         },
         gui.Panel{
             width = "100%",
-            height = "100%-190",
+            height = "100%-246",
             flow = "vertical",
             vscroll = true,
             rpad = 12,
@@ -3281,121 +3301,138 @@ function EotwRoster.GuildPanel(host)
                 statusLabel = element
             end,
         },
+        --two centred rows of buttons: the hero actions, then the rest.
         gui.Panel{
-            width = "auto",
+            width = "100%",
             height = "auto",
-            halign = "center",
             valign = "bottom",
-            flow = "horizontal",
-            gui.Button{
-                text = T("guild.create_button"),
-                fontSize = 18,
+            flow = "vertical",
+            gui.Panel{
                 width = "auto",
-                minWidth = 140,
-                hpad = 16,
-                height = 42,
-                hmargin = 4,
-                create = function(element)
-                    createButton = element
-                end,
-                click = function()
-                    if not EotwRoster.CanAddHero() then
-                        Fail(EotwRoster.FullRosterMessage())
-                        return
-                    end
-                    EotwRoster.lastError = nil
-                    EotwRoster.CreateHero(host)
-                end,
+                height = "auto",
+                halign = "center",
+                flow = "horizontal",
+                gui.Button{
+                    text = T("guild.create_button"),
+                    fontSize = 18,
+                    width = "auto",
+                    minWidth = 140,
+                    hpad = 16,
+                    height = 42,
+                    hmargin = 4,
+                    vmargin = 3,
+                    create = function(element)
+                        createButton = element
+                    end,
+                    click = function()
+                        if not EotwRoster.CanAddHero() then
+                            Fail(EotwRoster.FullRosterMessage())
+                            return
+                        end
+                        EotwRoster.lastError = nil
+                        EotwRoster.CreateHero(host)
+                    end,
+                },
+                gui.Button{
+                    text = T("guild.discard_button"),
+                    fontSize = 18,
+                    width = "auto",
+                    minWidth = 140,
+                    hpad = 16,
+                    height = 42,
+                    hmargin = 4,
+                    vmargin = 3,
+                    classes = { "collapsed" },
+                    create = function(element)
+                        discardButton = element
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(T("guild.discard_tooltip"))(element)
+                    end,
+                    resetConfirm = function(element)
+                        confirmingDiscard = false
+                        element.text = T("guild.discard_button")
+                    end,
+                    click = function(element)
+                        if not confirmingDiscard then
+                            confirmingDiscard = true
+                            element.text = T("guild.discard_confirm")
+                            element:ScheduleEvent("resetConfirm", 4)
+                            return
+                        end
+                        confirmingDiscard = false
+                        element.text = T("guild.discard_button")
+                        EotwRoster.DiscardDraft()
+                    end,
+                },
+                gui.Button{
+                    text = T("guild.recruit_button"),
+                    fontSize = 18,
+                    width = "auto",
+                    minWidth = 140,
+                    hpad = 16,
+                    height = 42,
+                    hmargin = 4,
+                    vmargin = 3,
+                    create = function(element)
+                        recruitButton = element
+                    end,
+                    click = function()
+                        if not EotwRoster.CanAddHero() then
+                            Fail(EotwRoster.FullRosterMessage())
+                            return
+                        end
+                        EotwRoster.lastError = nil
+                        ShowRecruitPicker(host)
+                    end,
+                },
+                gui.Button{
+                    classes = { "collapsed" },
+                    text = T("guild.project_button"),
+                    fontSize = 18,
+                    width = "auto",
+                    minWidth = 140,
+                    hpad = 16,
+                    height = 42,
+                    hmargin = 4,
+                    vmargin = 3,
+                    create = function(element)
+                        projectButton = element
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(T("guild.project_tooltip"))(element)
+                    end,
+                    click = function()
+                        EotwRoster.lastError = nil
+                        Bump()
+                        EotwDowntime.ShowStartProjectDialog(host, "expand-guild")
+                    end,
+                },
             },
-            gui.Button{
-                text = T("guild.discard_button"),
-                fontSize = 18,
+            gui.Panel{
                 width = "auto",
-                minWidth = 140,
-                hpad = 16,
-                height = 42,
-                hmargin = 4,
-                classes = { "collapsed" },
-                create = function(element)
-                    discardButton = element
-                end,
-                linger = function(element)
-                    gui.Tooltip(T("guild.discard_tooltip"))(element)
-                end,
-                resetConfirm = function(element)
-                    confirmingDiscard = false
-                    element.text = T("guild.discard_button")
-                end,
-                click = function(element)
-                    if not confirmingDiscard then
-                        confirmingDiscard = true
-                        element.text = T("guild.discard_confirm")
-                        element:ScheduleEvent("resetConfirm", 4)
-                        return
-                    end
-                    confirmingDiscard = false
-                    element.text = T("guild.discard_button")
-                    EotwRoster.DiscardDraft()
-                end,
+                height = "auto",
+                halign = "center",
+                flow = "horizontal",
+                --admins: search everyone's heroes to remove one or warn/ban
+                --its owner (the Guild otherwise lists only your own).
+                gui.Button{
+                    classes = { cond(dmhub.isAdminAccount, nil, "collapsed") },
+                    text = "Find Heroes",
+                    fontSize = 18,
+                    width = "auto",
+                    minWidth = 140,
+                    hpad = 16,
+                    height = 42,
+                    hmargin = 4,
+                    vmargin = 3,
+                    click = function()
+                        EotwModeration.ShowFindHeroesDialog()
+                    end,
+                },
+                --the player's achievements, on the row below the hero buttons.
+                EotwPlayerTags.GuildButton(host),
             },
-            gui.Button{
-                text = T("guild.recruit_button"),
-                fontSize = 18,
-                width = "auto",
-                minWidth = 140,
-                hpad = 16,
-                height = 42,
-                hmargin = 4,
-                create = function(element)
-                    recruitButton = element
-                end,
-                click = function()
-                    if not EotwRoster.CanAddHero() then
-                        Fail(EotwRoster.FullRosterMessage())
-                        return
-                    end
-                    EotwRoster.lastError = nil
-                    ShowRecruitPicker(host)
-                end,
-            },
-            gui.Button{
-                classes = { "collapsed" },
-                text = T("guild.project_button"),
-                fontSize = 18,
-                width = "auto",
-                minWidth = 140,
-                hpad = 16,
-                height = 42,
-                hmargin = 4,
-                create = function(element)
-                    projectButton = element
-                end,
-                linger = function(element)
-                    gui.Tooltip(T("guild.project_tooltip"))(element)
-                end,
-                click = function()
-                    EotwRoster.lastError = nil
-                    Bump()
-                    EotwDowntime.ShowStartProjectDialog(host, "expand-guild")
-                end,
-            },
-            --admins: search everyone's heroes to remove one or warn/ban
-            --its owner (the Guild otherwise lists only your own).
-            gui.Button{
-                classes = { cond(dmhub.isAdminAccount, nil, "collapsed") },
-                text = "Find Heroes",
-                fontSize = 18,
-                width = "auto",
-                minWidth = 140,
-                hpad = 16,
-                height = 42,
-                hmargin = 4,
-                click = function()
-                    EotwModeration.ShowFindHeroesDialog()
-                end,
-            },
-            --the player's achievements, after the hero buttons and set apart from them.
-            EotwPlayerTags.GuildButton(host),
         },
 
         --rebuild whenever the roster (or a working copy) changes.
@@ -3469,6 +3506,7 @@ local function OpenFallen(g)
         encounter = where,
         week = GraveWeek(e.encounter, g.at),
         playedBy = e.owner,
+        lost = e.lost == true,
     }
     audio.FireSoundEvent("Mouse.Click")
     --the sheet opens at once on its loading state, and fills in when the
@@ -3537,6 +3575,8 @@ local function GraveStatusText(grave)
         return T("graveyard.status_fire")
     elseif state == "beyond" then
         return T("graveyard.status_beyond")
+    elseif state == "lost" then
+        return T("graveyard.status_lost")
     end
     --the Temple is not named to a player who has not heard of it (its lead).
     if not EotwLeads.Knows("temple") then
@@ -3680,15 +3720,17 @@ function EotwRoster.ShowGraveyard(host)
             if type(g.at) == "number" then
                 when = DescribeServerTimestamp(g.at)
             end
+            --a Lost hero (the encounter's consequence) reads "Lost in ..." instead.
+            local prefix = cond(e.lost == true, "graveyard.lost", "graveyard.fell")
             local fell
             if where ~= nil and when ~= nil then
-                fell = T("graveyard.fell_in_on", { where = where, when = when })
+                fell = T(prefix .. "_in_on", { where = where, when = when })
             elseif where ~= nil then
-                fell = T("graveyard.fell_in", { where = where })
+                fell = T(prefix .. "_in", { where = where })
             elseif when ~= nil then
-                fell = T("graveyard.fell_on", { when = when })
+                fell = T(prefix .. "_on", { when = when })
             else
-                fell = T("graveyard.fell")
+                fell = T(prefix)
             end
             lines[#lines+1] = fell
             lines[#lines+1] = T("graveyard.played_by", { player = e.owner or "?" })
@@ -3703,9 +3745,9 @@ function EotwRoster.ShowGraveyard(host)
                 end)
             end
             --how this hero can come back: on your own graves, and on anyone's
-            --grave the hero has already risen from.
+            --grave the hero has already risen from or is Lost in.
             local status = nil
-            if mine or g.state == "risen" then
+            if mine or g.state == "risen" or g.state == "lost" then
                 status = GraveStatusText(g)
             end
             rows[#rows+1] = gui.Panel{

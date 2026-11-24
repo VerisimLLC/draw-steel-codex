@@ -78,14 +78,15 @@ text("forge.talk.stranger.leave_npc", [[Come back any time, friend, any time. Wh
 --  * What a deal does is fixed by the game, so the offers have no rules
 --    ("|" lines) -- only what Giddlebrick says. The offer's line should say
 --    what happens:
---      5  Yes, and   a station, and 100 points toward the first treasure
---      4  Yes        a station
---      3  Yes, but   turned away for 1 hour
---      2  No, but    turned away for 4 hours
---      1  No         turned away for a day
+--      5  Yes, and   a station, and 150 points toward the first treasure
+--      4  Yes        a station, and 100 points toward the first treasure
+--      3  Yes, but   a station
+--      2  No, but    turned away for 1 hour
+--      1  No         turned away for 4 hours
 --      0  No, and    turned away for a day
 --  * Played by, Language and Renown are not used here.
---  * The players can take the offer on the table at any time.
+--  * The players can take the offer on the table once it is "Yes, but" or
+--    better.
 --
 --KNACKS: arguments that suit particular heroes, written as in a montage
 --(KNACKS_REFERENCE.md in EncounterOfTheWeek has every requirement you can
@@ -221,19 +222,19 @@ Backfires: Begging, at my Forge? Out of the way, out of the way!
 Out! Out of my Forge, and don't come back until tomorrow!
 
 ## Offer: No
-No station. Not today. Try me again tomorrow, maybe I'll have forgotten all this.
+No station. Not today. Come back in a few hours, maybe I'll have forgotten all this.
 
 ## Offer: No, but
-Not today, my friend. Come back in a few hours and we'll see.
+Not yet, my friend. Come back in an hour and we'll see.
 
 ## Offer: Yes, but
-Fine, fine, you'll have your turn. Just not yet: come back in an hour.
+Fine, fine, you'll have a station. The draughtiest one, mind!
 
 ## Offer: Yes
-A station is yours, my friend. Mind the sparks!
+A station is yours, my friend, and I'll give your first piece a push myself. Mind the sparks!
 
 ## Offer: Yes, and
-A station is yours, and I'll get your first piece started myself!
+A station is yours, and I'll get your first piece well under way myself!
 ]])
 
 ----------------------------------------------------------------------------
@@ -253,8 +254,9 @@ text("great_forge.workshop.no_heroes_home", [[All your heroes are away with a pa
 --The talk went badly. {time} is the time left, e.g. 1:23:45.
 text("great_forge.workshop.locked", [[Giddlebrick has turned you away for now. Try again in {time}.]])
 text("great_forge.workshop.no_heroes", [[You have no heroes yet. Create one at the Hero's Guild.]])
---A "Yes, and" deal: the first treasure the player starts gets 100 points.
-text("great_forge.workshop.bonus", [[Giddlebrick promised you a head start: your first treasure begins with 100 Project Points.]])
+--A "Yes" or "Yes, and" deal: the first treasure the player starts gets
+--{points} points (100 or 150).
+text("great_forge.workshop.bonus", [[Giddlebrick promised you a head start: your first treasure begins with {points} Project Points.]])
 
 --Each hero's row. {item} is the treasure's name.
 text("great_forge.workshop.your_hero", [[Your hero]])

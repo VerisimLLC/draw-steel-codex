@@ -1309,12 +1309,48 @@ function S.EncounterEditor(ctx, beat, index)
     end
     children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = mc }
 
-    --setup lines.
+    --what happens to a hero who dies: the "Consequence:" line, written in
+    --place, or added after the setup lines (no line means Retreat).
+    local consequenceIns = nil
+    local shownSetup = 0
+    for _, ins in ipairs(beat.setup or {}) do
+        if ins.kind == "consequence" then
+            consequenceIns = consequenceIns or ins
+        else
+            shownSetup = shownSetup + 1
+        end
+    end
+    local consequenceOptions = {}
+    for _, c in ipairs(EncounterScript.CONSEQUENCES) do
+        consequenceOptions[#consequenceOptions + 1] = { id = c, text = T("author.script_builder.encounter.consequence_" .. c) }
+    end
+    children[#children + 1] = gui.Panel{
+        classes = { "mbSection" },
+        children = {
+            ctx.Label(T("author.script_builder.encounter.consequence_label"), { "mbFieldLabel" }),
+            ctx.PickDropdown(consequenceOptions, EncounterScript.FindConsequence({ beats = { beat } }), function(id)
+                local line = E.SetupLine({ kind = "consequence", consequence = id })
+                if consequenceIns ~= nil then
+                    ctx.Commit(T("author.script_builder.status.edited_consequence"), E.SetLine(parse, consequenceIns.line, line))
+                    return
+                end
+                local after = beat.line
+                for _, ins in ipairs(beat.setup or {}) do
+                    after = math.max(after, ins.line)
+                end
+                ctx.Commit(T("author.script_builder.status.edited_consequence"), One(E.InsertBlockAfter(parse, session.texts, after, { line })))
+            end, { width = 300 }),
+        },
+    }
+
+    --setup lines (the consequence has its own control above).
     local sc = { ctx.Label(T("author.script_builder.setup.label"), { "mbFieldLabel" }) }
     for _, ins in ipairs(beat.setup or {}) do
-        sc[#sc + 1] = SetupRow(ctx, ins)
+        if ins.kind ~= "consequence" then
+            sc[#sc + 1] = SetupRow(ctx, ins)
+        end
     end
-    if #(beat.setup or {}) == 0 then
+    if shownSetup == 0 then
         sc[#sc + 1] = ctx.Label(T("author.script_builder.setup.none"), { "mbSub" })
     end
     local addOptions = { { id = "", text = T("author.script_builder.setup.add") } }

@@ -371,6 +371,8 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
             elseif ins.kind == "herolevel" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_hero_level", { level = tostring(ins.level) }))
+            elseif ins.kind == "consequence" then
+                --shown below for every encounter beat, line or not.
             elseif ins.kind == "aibehavior" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_ai_behavior", { label = tostring(ins.label), text = EncounterScript.DescribeAIBehavior(ins) }))
                 local monsterAI = rawget(_G, "MonsterAI")
@@ -386,6 +388,10 @@ local function Report(parse)
                 Row(1, "flavourUnknown", "%s", T("author.validator.report.setup_unrecognized", { label = tostring(ins.label), text = tostring(ins.text) }))
                 Problem("%s", T("author.validator.problems.setup_not_understood", { where = tostring(EncounterScript.LineLabel(parse, ins.line)), text = tostring(ins.text) }))
             end
+        end
+        --what happens to a hero who dies here (its Consequence line, else Retreat).
+        if beat.kind == "encounter" then
+            Row(1, "rule", "%s", T("author.validator.report.setup_consequence_" .. EncounterScript.FindConsequence({ beats = { beat } })))
         end
 
         for _, r in ipairs(beat.reinforcements or {}) do

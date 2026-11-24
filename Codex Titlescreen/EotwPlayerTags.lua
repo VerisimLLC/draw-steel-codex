@@ -709,7 +709,7 @@ function EotwPlayerTags.GuildButton(host)
         hpad = 16,
         height = 42,
         hmargin = 4,
-        lmargin = 28,
+        vmargin = 3,
         data = { seen = -1 },
         thinkTime = 0.5,
         think = function(element)

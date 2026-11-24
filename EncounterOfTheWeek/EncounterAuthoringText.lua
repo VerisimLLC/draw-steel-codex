@@ -785,6 +785,10 @@ text("author.script_builder.montage.delete_button", [[Delete this montage]])
 text("author.script_builder.encounter.heading", [[ENCOUNTER]])
 text("author.script_builder.encounter.intro", [[The fight. Setup runs once, just before the monsters appear.]])
 text("author.script_builder.encounter.monsters_label", [[The monsters]])
+text("author.script_builder.encounter.consequence_label", [[If a hero dies]])
+text("author.script_builder.encounter.consequence_retreat", [[Retreat: home, healed, no Victory]])
+text("author.script_builder.encounter.consequence_death", [[Death: buried in the Graveyard]])
+text("author.script_builder.encounter.consequence_lost", [[Lost: in the Graveyard for good]])
 --Where the monsters are described, when there are none yet.
 text("author.script_builder.encounter.no_monsters", [[No monsters yet.]])
 --The monsters' description with their encounter value. {monsters} is the
@@ -910,6 +914,7 @@ text("author.script_builder.status.removed_choice_rule", [[Removed what a choice
 text("author.script_builder.status.added_island", [[Added the encounter island.]])
 text("author.script_builder.status.added_setup", [[Added a setup line.]])
 text("author.script_builder.status.edited_setup", [[Edited a setup line.]])
+text("author.script_builder.status.edited_consequence", [[Changed what happens to a hero who dies.]])
 text("author.script_builder.status.removed_setup", [[Removed a setup line.]])
 text("author.script_builder.status.added_reinforcements", [[Added reinforcements.]])
 text("author.script_builder.status.renamed_reinforcements", [[Renamed reinforcements.]])
@@ -1203,6 +1208,9 @@ text("author.validator.report.setup_unrecognized", [[setup {label}: UNRECOGNIZED
 text("author.validator.report.setup_mark", [[marked on the map for the heroes: {who}]])
 text("author.validator.report.setup_parallax", [[parallax set to {level} while this is played]])
 text("author.validator.report.setup_hero_level", [[balanced for Level {level} heroes: monsters are leveled up or down by the party's average Level minus {level}]])
+text("author.validator.report.setup_consequence_retreat", [[a hero who dies retreats to town, healed, with no Victory]])
+text("author.validator.report.setup_consequence_death", [[a hero who dies is buried in the Graveyard]])
+text("author.validator.report.setup_consequence_lost", [[a hero who dies is Lost: in the Graveyard, and nothing can bring them back]])
 --A "Monster AI:" line. {text} reads like "Bully on for Goblin Sniper".
 text("author.validator.report.setup_ai_behavior", [[setup {label}: {text}]])
 --Reinforcements. {name} is the group's name, {schedule} when they arrive
@@ -1351,6 +1359,7 @@ text("author.script.montage.scaling_not_understood", [[party-size directive '{di
 text("author.script.montage.scaling_too_many", [['{directive}' drops {drops} {kind} but round {round} introduces only {pool} that may be removed]])
 text("author.script.montage.scene_separator_misplaced", [['---' starts a scene only inside an opportunity or threat, above its first '### option'; ignored]])
 text("author.script.montage.second_scene", [[{kind} '{entry}' already has a scene; this '---' is ignored]])
+text("author.script.scene.no_separator", [[{kind} '{entry}' has no '---' line, so this scene shows as card text; add '---' above its first '### option']])
 text("author.script.montage.entry_no_options", [[{kind} '{entry}' has no options]])
 text("author.script.montage.option_no_rules", [[option '{option}' has no power roll and no rules (write '|Name: Characteristic' and tiers, or '|' clause lines for an option with no roll)]])
 --{threat} is the threat's name.
@@ -1435,6 +1444,7 @@ text("author.script.encounter.unknown_section", [['## {title}' in an encounter b
 text("author.script.encounter.victory_not_understood", [['Victory: {victory}' is not understood (write 'Victory: every enemy on the map is defeated' or 'Victory: every Dwarf on the map is defeated'); ignored]])
 text("author.script.encounter.parallax_not_understood", [['Parallax: {parallax}' is not understood (write 'Parallax: None', 'Parallax: Slight', 'Parallax: Normal' or 'Parallax: Pronounced'); ignored]])
 text("author.script.encounter.level_not_understood", [['Level: {level}' is not understood (write the hero Level this encounter is balanced for, 1 to {max}, e.g. 'Level: 2'); ignored]])
+text("author.script.encounter.consequence_not_understood", [['Consequence: {consequence}' is not understood (write Retreat, Death or Lost); a hero who dies retreats]])
 text("author.script.encounter.mark_not_understood", [['Mark:' names nobody (write e.g. 'Mark: The Choir' or 'Mark: Chorister and Bone Singer'); ignored]])
 text("author.script.encounter.unknown_setup", [[unrecognized encounter setup instruction '{label}: {instruction}'; ignored]])
 

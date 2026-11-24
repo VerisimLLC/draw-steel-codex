@@ -1733,6 +1733,63 @@ function EncounterOfTheWeek.PastEncounterKeys()
     return result
 end
 
+--Every Encounter of the Week up to this week, newest first: this week's,
+--then the past ones. Each entry is {key, week}: week counts from 1 for the
+--oldest, so week N offers N encounters. (The city's own week counter also
+--counts re-sets and repairs, so it can run ahead of the list.)
+function EncounterOfTheWeek.ScheduledEncounters()
+    local week = EncounterOfTheWeek.GetWeek()
+    if week == nil then
+        return {}
+    end
+    local keys = { week.current }
+    for _,key in ipairs(EncounterOfTheWeek.PastEncounterKeys()) do
+        keys[#keys+1] = key
+    end
+    local result = {}
+    for i,key in ipairs(keys) do
+        result[i] = { key = key, week = #keys - i + 1 }
+    end
+    return result
+end
+
+--Has any of this account's heroes defeated this scheduled encounter? A series
+--counts once every part played at the Town Gate is won; parts still "Coming
+--soon" there, or played only in the Proving Pits, do not count. Before the
+--pool has loaded a series reads as its first part.
+function EncounterOfTheWeek.AccountDefeated(key)
+    local entry = EncounterOfTheWeek.GetEncounter(key)
+    local parts = entry ~= nil and entry.parts or nil
+    if parts == nil then
+        return EotwRoster.AccountCompleted(key)
+    end
+    for _,p in ipairs(parts) do
+        local partKey = EncounterOfTheWeek.PartKey(key, p.number)
+        if not EncounterOfTheWeek.PartLockedOn(p, "gate") and EncounterOfTheWeek.PartBoard(partKey) == "gate"
+                and not EotwRoster.AccountCompleted(partKey) then
+            return false
+        end
+    end
+    return true
+end
+
+--The encounter the Town Gate presents to this account: the newest Encounter
+--of the Week it has not defeated, or this week's once it has defeated them
+--all. Returns key, week number (see ScheduledEncounters); nil before a week
+--is set.
+function EncounterOfTheWeek.GatePresentedEncounter()
+    local scheduled = EncounterOfTheWeek.ScheduledEncounters()
+    if #scheduled == 0 then
+        return nil
+    end
+    for _,s in ipairs(scheduled) do
+        if not EncounterOfTheWeek.AccountDefeated(s.key) then
+            return s.key, s.week
+        end
+    end
+    return scheduled[1].key, scheduled[1].week
+end
+
 --Is this the Encounter of the Week, or a past one?
 function EncounterOfTheWeek.IsScheduledEncounter(key)
     key = NormalizeKey(key)
@@ -4380,7 +4437,7 @@ CreateScreen = function(args)
     ---@type fun(key: string, explicitPart?: boolean, difficulty?: string, board?: string)
     local ShowCreateDialog = nil
     ---@type fun()
-    local ShowPastEncountersDialog = nil
+    local ShowAllEncountersDialog = nil
     ---@type fun()
     local ShowCreatorFeedbackDialog = nil
     --Proving Pits votes from the city's danger-stats, { [key] = {up, down,
@@ -7224,12 +7281,17 @@ CreateScreen = function(args)
         }
     end
 
-    --The Gate's header: this week's encounter, its backstory (the script's
+    --The Gate's header: the encounter it presents to this account (the newest
+    --Encounter of the Week it has not defeated), its backstory (the script's
     --"# Town Gate" text, published with the module) and who made it.
     local WeekBanner = function()
-        local key = EncounterOfTheWeek.CurrentEncounterKey()
+        local key, weekNumber = EncounterOfTheWeek.GatePresentedEncounter()
+        local overline = T("eotw.gate.week_overline")
+        if key ~= nil and key ~= EncounterOfTheWeek.CurrentEncounterKey() and weekNumber ~= nil then
+            overline = T("eotw.gate.earlier_week_overline", { week = weekNumber })
+        end
         ---@type Panel[]
-        local children = { Overline(T("eotw.gate.week_overline")) }
+        local children = { Overline(overline) }
         if key == nil then
             children[#children+1] = gui.Label{
                 text = T("eotw.gate.week_not_posted"),
@@ -7288,6 +7350,15 @@ CreateScreen = function(args)
             borderBox = true,
             vmargin = 4,
             children = children,
+            --the account's wins arrive from the city after the board is
+            --built (and change after a game): rebuild when they move the
+            --presented encounter on.
+            thinkTime = 1,
+            think = function(element)
+                if EncounterOfTheWeek.GatePresentedEncounter() ~= key and RefreshGames ~= nil then
+                    RefreshGames()
+                end
+            end,
         }
     end
 
@@ -7621,7 +7692,7 @@ CreateScreen = function(args)
                     ui.creatorButton:SetClass("collapsed", #MyEncounters() == 0)
                 end
                 if ui.pastButton ~= nil and ui.pastButton.valid then
-                    ui.pastButton:SetClass("collapsed", #EncounterOfTheWeek.PastEncounterKeys() == 0)
+                    ui.pastButton:SetClass("collapsed", EncounterOfTheWeek.CurrentEncounterKey() == nil)
                 end
             end
         end
@@ -8655,18 +8726,27 @@ CreateScreen = function(args)
         return dlg
     end
 
-    --The Gate's Past Encounters: every earlier Encounter of the Week, newest
-    --first, each still playable (and still worth its Victory, once a hero).
-    ShowPastEncountersDialog = function()
+    --The Gate's All Encounters: every Encounter of the Week up to this week,
+    --newest first, with its week and whether this account has defeated it.
+    --Each is still playable (and still worth its Victory, once a hero).
+    ShowAllEncountersDialog = function()
         local rows = {}
         local dlg = nil
-        local past = EncounterOfTheWeek.PastEncounterKeys()
-        if #past == 0 then
-            rows[1] = EmptyNote(T("eotw.past.none"))
+        local scheduled = EncounterOfTheWeek.ScheduledEncounters()
+        if #scheduled == 0 then
+            rows[1] = EmptyNote(T("eotw.gate.week_not_posted"))
         end
-        for _,key in ipairs(past) do
+        for _,s in ipairs(scheduled) do
+            local key = s.key
             local credit = EncounterOfTheWeek.EncounterCredit(key)
             local backstory = EncounterOfTheWeek.GetTownGateText(key)
+            local defeated = EncounterOfTheWeek.AccountDefeated(key)
+            local weekLine = nil
+            if s.week ~= nil then
+                weekLine = T(cond(defeated, "eotw.all.week_defeated", "eotw.all.week"), { week = s.week })
+            elseif defeated then
+                weekLine = T("eotw.all.defeated")
+            end
             rows[#rows+1] = gui.Panel{
                 width = "100%",
                 height = "auto",
@@ -8682,6 +8762,15 @@ CreateScreen = function(args)
                     height = "auto",
                     valign = "center",
                     flow = "vertical",
+                    gui.Label{
+                        classes = { cond(weekLine == nil, "collapsed", nil) },
+                        text = string.format("<cspace=0.2em>%s</cspace>", string.upper(weekLine or "")),
+                        fontSize = 13,
+                        bold = true,
+                        color = cond(defeated, "#9fc88a", "#b8ad96"),
+                        width = "100%",
+                        height = "auto",
+                    },
                     gui.Label{
                         text = EncounterOfTheWeek.EncounterTitle(key),
                         fontSize = 24,
@@ -8712,7 +8801,7 @@ CreateScreen = function(args)
                     },
                 },
                 gui.Button{
-                    text = T("eotw.past.form_party_button"),
+                    text = T("eotw.all.form_party_button"),
                     fontSize = 18,
                     width = 170,
                     height = 42,
@@ -8728,7 +8817,7 @@ CreateScreen = function(args)
                 },
             }
         end
-        dlg = ModalDialog{ title = T("eotw.past.title"), children = rows }
+        dlg = ModalDialog{ title = T("eotw.all.title"), children = rows }
     end
 
     --A creator's view of what Proving Pits players said about their
@@ -9318,7 +9407,10 @@ CreateScreen = function(args)
             local victories = tonumber(outcome.victories) or 0
             if outcome.died == true then
                 anyFell = true
-                parts[#parts + 1] = T("eotw.away.hero_fell")
+                parts[#parts + 1] = cond(outcome.lost == true, T("eotw.away.hero_lost"), T("eotw.away.hero_fell"))
+            elseif outcome.retreated == true then
+                --the encounter's consequence was Retreat: home, healed.
+                parts[#parts + 1] = T("eotw.away.hero_retreated")
             elseif victories > 0 then
                 parts[#parts + 1] = TP("eotw.away.hero_victories", victories)
             elseif outcome.completed then
@@ -9342,7 +9434,7 @@ CreateScreen = function(args)
 
         local hint = T("eotw.away.hint_victory")
         if defeat then
-            hint = T("eotw.away.hint_defeat")
+            hint = cond(anyFell, T("eotw.away.hint_defeat"), T("eotw.away.hint_defeat_none_fell"))
         elseif anyFell then
             hint = T("eotw.away.hint_victory_fallen")
         end
@@ -11930,7 +12022,7 @@ CreateScreen = function(args)
                     height = 48,
                     hmargin = 8,
                     click = function(element)
-                        local key = EncounterOfTheWeek.CurrentEncounterKey()
+                        local key = EncounterOfTheWeek.GatePresentedEncounter()
                         if key == nil then
                             ShowGamesError(T("eotw.gate.week_not_posted_error"))
                             return
@@ -11939,9 +12031,9 @@ CreateScreen = function(args)
                     end,
                 },
                 gui.Button{
-                    --shown by RefreshGames once the week has past encounters.
+                    --shown by RefreshGames once an Encounter of the Week is set.
                     classes = { "collapsed" },
-                    text = T("eotw.gate.past_button"),
+                    text = T("eotw.gate.all_button"),
                     fontSize = 22,
                     width = 240,
                     height = 48,
@@ -11950,7 +12042,7 @@ CreateScreen = function(args)
                         ui.pastButton = element
                     end,
                     click = function(element)
-                        ShowPastEncountersDialog()
+                        ShowAllEncountersDialog()
                     end,
                 },
             }

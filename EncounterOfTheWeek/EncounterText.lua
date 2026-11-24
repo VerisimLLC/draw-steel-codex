@@ -85,6 +85,11 @@ text("encounter.victory.already_completed", [[Already Completed]])
 text("encounter.victory.treasure_note", [[Treasure: {treasure}]])
 --On every hero's card after a Proving Pits game, which awards nothing.
 text("encounter.victory.practice_note", [[Proving Pits: practice only]])
+--On a dead hero's card when the encounter's consequence is Retreat: they go
+--home healed, with no Victory.
+text("encounter.victory.retreat_note", [[Retreats to Blackbottom]])
+--On a dead hero's card when the consequence is Lost: in the Graveyard for good.
+text("encounter.victory.lost_note", [[Lost]])
 
 --A hero's name in the town's Hall of Heroes when the game cannot find it.
 text("encounter.hall.hero_fallback", [[Hero]])

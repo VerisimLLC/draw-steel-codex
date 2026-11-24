@@ -12,10 +12,12 @@ local mod = dmhub.GetModLoading()
 --    NegotiationScene / NegotiationSceneStage (Draw Steel V), from the script
 --    in EotwTextForgeNegotiation.lua;
 --  * the City (city-core.ts "The Great Forge workshop") keeps the result:
---    interest 4 opens the Forge, 5 also puts 100 points into the account's
---    first treasure, anything lower locks the Forge to this player for a
---    while (3: 1 hour, 2: 4 hours, 0-1: 24 hours), shown on the town map as a
---    clock and countdown. A visit after the lock goes straight to the talk.
+--    interest 3 opens the Forge, 4 also puts 100 points into the account's
+--    first treasure and 5 puts 150, anything lower locks the Forge to this
+--    player for a while (2: 1 hour, 1: 4 hours, 0: 24 hours), shown on the
+--    town map as a clock and countdown. A visit after the lock goes straight
+--    to the talk. "Take the deal" only shows from interest 3, so a player
+--    cannot stop on an offer that turns them away.
 --Once in, each hero crafts one treasure at a time: Gold echelon 1 treasures
 --with a project goal, rolled with Downtime Activities on the hero's
 --"forge-craft" project, collected into their pack when done.
@@ -65,7 +67,7 @@ local function SetStatus(status)
 end
 
 --The account's Forge as last fetched (nil before the first answer):
---{built, standing, access, bonus, lastInterest, tries, remainingMs, crafts}.
+--{built, standing, access, bonus, bonusPoints, lastInterest, tries, remainingMs, crafts}.
 function EotwForge.Status()
     if m_statusUser ~= dmhub.loginUserid then
         return nil
@@ -400,6 +402,8 @@ function EotwForge.ShowNegotiation(host, opts, onDone)
             return beat
         end,
         Heroes = Speakers,
+        --offers below 3 turn the player away (city-core.ts forgeLockoutMs).
+        minDealInterest = 3,
         ShowRoll = function(args)
             ShowRoll(args, overlay, rollDialog)
         end,
@@ -2060,7 +2064,9 @@ function EotwForge.Panel(host, opts, close)
             end
         else
             if status.bonus then
-                rows[#rows+1] = gui.Label{ text = T("great_forge.workshop.bonus"), fontSize = 15, bold = true, color = GREEN, width = "100%", height = "auto", bmargin = 6 }
+                --a server from before bonusPoints only gave 100.
+                local points = tonumber(status.bonusPoints) or 100
+                rows[#rows+1] = gui.Label{ text = T("great_forge.workshop.bonus", { points = points }), fontSize = 15, bold = true, color = GREEN, width = "100%", height = "auto", bmargin = 6 }
             end
             for _, hero in ipairs(EotwRoster.GetHeroes() or {}) do
                 rows[#rows+1] = HeroRow(host, hero, busy, SetBusy)

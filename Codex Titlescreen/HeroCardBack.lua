@@ -801,6 +801,29 @@ local function EffectsMenuOpen()
     return button ~= nil and button.valid and button.popup ~= nil
 end
 
+--each card back's heroic resource entry box: like the menu, a back is not
+--rebuilt while one is open, which would throw away the typing.
+---@type Input[]
+local g_resourceEntries = {}
+
+--- Whether something on a card back is mid-edit (the add-a-condition menu,
+--- the heroic resource box), so a rebuild must wait.
+--- @return boolean
+local function BackEditOpen()
+    if EffectsMenuOpen() then
+        return true
+    end
+    for i = #g_resourceEntries, 1, -1 do
+        local entry = g_resourceEntries[i]
+        if not entry.valid then
+            table.remove(g_resourceEntries, i)
+        elseif not entry:HasClass("collapsed") then
+            return true
+        end
+    end
+    return false
+end
+
 --- For a click on the card: true when it closed the add-a-condition menu
 --- (the menu closes on the press), so the card must not turn this time.
 --- @return boolean
@@ -2149,13 +2172,38 @@ end
 --- @param tok CharacterToken hover: the resource's history, as the tac panel's box shows it
 local function ResourceHeadline(c, tok)
     local name, value = HeroResource(c)
+    local charid = tok.charid
+    local valueLabel = Text{ text = tostring(value), width = "auto", fontSize = 40, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 12 }
+    local children = { valueLabel }
+    --a click on the number swaps it for a box to type a new amount, as on
+    --the card's front (who may edit is decided there).
+    local card = rawget(_G, "EotwHeroCard")
+    if card ~= nil and card.HeroResourceCurrent(charid) ~= nil then
+        local entry, open = card.CreateNumberEntry{
+            label = valueLabel,
+            fontSize = 40,
+            width = 80,
+            floating = false,
+            current = function() return card.HeroResourceCurrent(charid) end,
+            apply = function(amount) card.SetHeroResource(charid, amount) end,
+        }
+        entry.selfStyle.height = 52
+        entry.selfStyle.rmargin = 12
+        g_resourceEntries[#g_resourceEntries+1] = entry
+        valueLabel.interactable = true
+        if valueLabel.events == nil then
+            valueLabel.events = {}
+        end
+        valueLabel.events.click = function(element) open() end
+        children[#children+1] = entry
+    end
+    children[#children+1] = Text{ text = name, width = "auto", fontSize = 20, bold = true, color = COLOR_TEXT, textWrap = false, valign = "center" }
     return WithHover(gui.Panel{
         width = "auto",
         height = "auto",
         flow = "horizontal",
         interactable = false,
-        Text{ text = tostring(value), width = "auto", fontSize = 40, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 12 },
-        Text{ text = name, width = "auto", fontSize = 20, bold = true, color = COLOR_TEXT, textWrap = false, valign = "center" },
+        children = children,
     }, function() return HistoryTip(tok, CharacterResource.heroicResourceId, name) end)
 end
 
@@ -3008,18 +3056,18 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         },
         --stamina, conditions and the like change under the card: rebuild
         --the back while it is showing.
-        --Not under an open add-a-condition menu, which the rebuild would
-        --close: it waits until the menu is gone.
+        --Not under an open add-a-condition menu or heroic resource box,
+        --which the rebuild would close: it waits until they are gone.
         monitorGame = "/characters",
         refreshGame = function(element)
             if not element:HasClass("turned") then
                 return
             end
-            if EffectsMenuOpen() then
+            if BackEditOpen() then
                 if not element.data.refreshWaiting then
                     element.data.refreshWaiting = true
                     dmhub.ScheduleWhen(function()
-                        return mod.unloaded or not EffectsMenuOpen()
+                        return mod.unloaded or not BackEditOpen()
                     end, function()
                         if mod.unloaded or not element.valid then
                             return

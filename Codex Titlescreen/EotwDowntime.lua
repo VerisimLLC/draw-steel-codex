@@ -1289,12 +1289,17 @@ function EotwDowntime.TakeRespite(onDone, heroid)
         end
         return
     end
+    local respiteid = dmhub.GenerateGuid()
     SaveMine("eotw:pendingRespite", {
-        respiteid = dmhub.GenerateGuid(),
+        respiteid = respiteid,
         grants = grants,
         pushed = {},
         stage = "new",
     })
+    --the City opens a carouse for a respite that banks a Victory; show it now.
+    if victories > 0 then
+        EotwRoster.ExpectCarouse(respiteid)
+    end
     ContinueRespite(onDone)
 end
 
@@ -1440,6 +1445,11 @@ function EotwDowntime.ResumePending()
     end
     --a carouse whose dice landed but the City never heard about.
     EotwLeads.ResumePending()
+    --a respite activity (Sanctified Weapon...) cut off before it was pushed.
+    local activities = rawget(_G, "EotwRespiteActivities")
+    if activities ~= nil then
+        activities.ResumePending()
+    end
 end
 
 --The roll formula's bonus and a description of it, for a hero working on a
@@ -3934,9 +3944,16 @@ local function InnRow(entry, onChanged, onRespite)
         end,
     }
 
+    --what other heroes' respite activities gave this one (EotwRespiteActivities.lua).
+    local giftLine = nil
+    local activities = rawget(_G, "EotwRespiteActivities")
+    if activities ~= nil then
+        giftLine = activities.GiftLine(tok)
+    end
+
     return gui.Panel{
         width = "100%",
-        height = 68,
+        height = cond(giftLine ~= nil, 84, 68),
         flow = "horizontal",
         vmargin = 2,
         hpad = 8,
@@ -3986,6 +4003,15 @@ local function InnRow(entry, onChanged, onRespite)
                 width = "100%",
                 height = "auto",
             },
+            giftLine ~= nil and gui.Label{
+                text = giftLine,
+                fontSize = 13,
+                color = AMBER,
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                minFontSize = 10,
+            } or nil,
         },
         gains,
         heroRespiteButton,
@@ -4294,6 +4320,8 @@ function EotwDowntime.InnPanel(host, openLocation)
         --after a respite: carouse in the common room for leads, and start
         --the projects those leads open (EotwLeads.lua).
         EotwLeads.InnLeadsPanel(host),
+        --respite activities: Sanctified Weapon and the like (EotwRespiteActivities.lua).
+        rawget(_G, "EotwRespiteActivities") ~= nil and EotwRespiteActivities.InnPanel(host) or nil,
         gui.Panel{
             classes = { "collapsed" },
             width = "100%",

@@ -101,6 +101,13 @@ select.edit-in option { background: var(--dlg); color: var(--fg); }
 .lbl2 { font: 600 10.5px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin: 8px 0 4px; }
 .sents { display: flex; flex-direction: column; gap: 4px; }
 .sent { --c: var(--c-adv); background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 4px; padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; position: relative; }
+.sents.hascombine { position: relative; padding-left: 30px; }
+.cbr { position: absolute; width: 8px; border: 2px solid var(--gold); border-right: none; border-radius: 4px 0 0 4px; box-sizing: border-box; pointer-events: none; }
+.cbar { position: absolute; height: 2px; width: 26px; background: var(--gold); pointer-events: none; }
+.cbar::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left: 6px solid var(--gold); border-right: none; }
+.cbtn { position: absolute; transform: translateY(-50%); writing-mode: vertical-rl; background: var(--gold); color: #1a1714; border: none; border-radius: 4px; padding: 6px 2px; font: 600 10.5px var(--font-head); letter-spacing: .06em; cursor: pointer; z-index: 2; }
+.cbtn:hover, .cbtn:focus-visible { filter: brightness(1.15); }
+.sent .combofoot { display: flex; flex-direction: column; gap: 4px; }
 .sent.drop-target { outline: 2px dashed var(--gold); }
 .sent .grow { flex: 1; }
 .sent .mb { background: rgba(0,0,0,.25); border: none; border-radius: 3px; color: #fff; cursor: pointer; padding: 0 6px; }

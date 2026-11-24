@@ -1099,3 +1099,26 @@ start-of-turn gain used to have its own "a set amount / a die roll" control. It 
 picker too: "1d3" still saves as a die and anything else as a set amount, and "Scale with level"
 adds a "+1 from 7th level" step. Level steps on other amounts appear in the picker under
 "Changes with level".
+
+## 27. Combining roll changes (2026-11-24)
+
+The engine saves a roll change as one power roll modifier, and one modifier can hold several
+parts: an edge, bane or outcome change (`modtype`, only one), extra damage (`damageModifier`),
+a potency change (`potencymod`) and extra surges (`surges`). The editor now lets the author
+combine roll-change blocks into one modifier. Nothing merges on its own (decision Q1 stands);
+the author presses Combine.
+
+- **When blocks can combine:** they sit in the same list, change ability rolls, have the same
+  keywords, and include at most one edge, bane or outcome change. Edges on tests don't combine.
+- **What shows:** a gold bracket at the left of the list, with an arrow to each block that can
+  combine and a Combine button on the bracket.
+- **The combined block:** "Your [Strike] ability rolls:" with a Combined tag. Each part reads as
+  one line ("have an edge", "deal 2 extra damage", "gain 1 surge"). The keywords and the roll
+  options ("Offered when", "Automatically selected") are shared and set once. "+ add a roll
+  change" offers only parts that fit. Book text: "Your Strike ability rolls have an edge, deal
+  2 extra damage and gain 1 surge."
+- **Undoing it:** "Split into separate blocks", or "Take out of the combined block" on one part.
+  A part taken out gets the shared keywords and roll options back.
+- **When roll options differ:** combining uses the first block's, and a toast says so with Undo.
+- **New block:** "Extra surges" ("Your ability rolls gain [1] surge"). It was needed so surges can
+  be combined.

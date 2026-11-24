@@ -349,7 +349,10 @@ const SENT = {
       appliesProse(f) + ".",
     compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
       keywords: f.on === "abilities" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [],
-      skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, displayCondition: "" }, appliesFields(f))) },
+      skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, displayCondition: "" }, appliesFields(f))),
+    combo: { modtype: f => f.mod, fields: () => ({}),
+      render: (f, add) => { add(lbl("have")); add(pickTok(f, "mod", [["edge", "an edge"], ["double_edge", "a double edge"], ["bane", "a bane"], ["double_bane", "a double bane"]])); },
+      prose: f => "have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] } },
   enemy: { desc: "Abilities used against you have a bane (or edge).", label: "Rolls against you", group: "rolls", uses: 252, make: () => ({ mod: "bane", keywords: [] }),
     render: (f, add) => { add(lbl("Abilities")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "of any kind", "and")); add(lbl("used against you have"));
       add(pickTok(f, "mod", [["bane", "a bane"], ["double_bane", "a double bane"], ["edge", "an edge"]])); },
@@ -361,19 +364,34 @@ const SENT = {
     prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities deal " + f.amount + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" + appliesProse(f) + ".",
     compile: (f, feat) => { const r = modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", damageModifier: fxFormula(f, "amount"),
       keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f)));
-      if (f.dtype) r.damageModifierType = f.dtype; return r; } },
+      if (f.dtype) r.damageModifierType = f.dtype; return r; },
+    combo: { fields: f => Object.assign({ damageModifier: fxFormula(f, "amount") }, f.dtype ? { damageModifierType: f.dtype } : {}),
+      render: (f, add) => { add(lbl("deal")); add(fxTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); },
+      prose: f => "deal " + fxText(f, "amount") + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" } },
   outcome: { desc: "Change a roll's outcome: always tier 3, never tier 1, one tier better or worse. Optionally for a cost.", label: "Change the outcome", group: "rolls", uses: 12,
     make: () => ({ out: "tier3", keywords: [], applies: "cost", costN: "1", costRes: "cost" }),
     render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls"));
       add(pickTok(f, "out", OUTCOMES)); appliesPhrase(f, add); },
     prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls " + (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] + appliesProse(f) + ".",
-    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.out, rollType: "ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.out, rollType: "ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
+    combo: { modtype: f => f.out, fields: () => ({}), render: (f, add) => add(pickTok(f, "out", OUTCOMES)), prose: f => (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] } },
   potency: { desc: "Raise or lower the potency of your abilities (or of ones used against you). Optionally for a cost.", label: "Change potency", group: "rolls", uses: 30,
     make: () => ({ dir: "up", n: "1", keywords: [], applies: "always" }),
     render: (f, add) => { add(lbl("The potency of your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("abilities"));
       add(pickTok(f, "dir", [["up", "increases by"], ["down", "decreases by"]])); add(textTok(f, "n", "1")); appliesPhrase(f, add); },
     prose: f => "The potency of your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities " + (f.dir === "up" ? "increases" : "decreases") + " by " + f.n + appliesProse(f) + ".",
-    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1), keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1), keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
+    combo: { fields: f => ({ potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1) }),
+      render: (f, add) => { add(lbl("have their potency")); add(pickTok(f, "dir", [["up", "increased by"], ["down", "decreased by"]])); add(textTok(f, "n", "1")); },
+      prose: f => "have their potency " + (f.dir === "up" ? "increased" : "decreased") + " by " + f.n } },
+  surges: { desc: "Your ability rolls gain surges. Optionally only with some keywords, or for a cost.", label: "Extra surges", group: "rolls", uses: 0,
+    make: () => ({ n: "1", keywords: [], applies: "always" }),
+    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", surges: fxFormula(f, "n"), keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
+    combo: { fields: f => ({ surges: fxFormula(f, "n") }),
+      render: (f, add) => { add(lbl("gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); },
+      prose: f => "gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") } },
   immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
     render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(fxTok(f, "amount", "amount")); },
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
@@ -445,6 +463,11 @@ const SENT = {
   aura: { desc: "An area around you: the blocks inside apply to creatures in it (you and your allies, enemies...).", label: "Aura", group: "abil", uses: 28, wrapper: true, featName: "",
     make: () => ({ radius: "3", who: "selfandfriends" }),
     render: (f, add) => { add(lbl("You have an aura of")); add(textTok(f, "radius", "3")); add(lbl(+f.radius === 1 ? "square." : "squares.")); add(pickTok(f, "who", AURA_WHO)); add(lbl("in it:")); } },
+  /* Several roll changes that apply to the same rolls, saved as ONE power roll modifier. The keywords
+     and roll options are shared, so they are set once here; each block inside adds its part. */
+  rollCombo: { shelf: false, desc: "Roll changes that apply together, saved as one power roll modifier.", label: "Combined roll change", group: "rolls", uses: 0, wrapper: true, comboHost: true,
+    make: () => ({ keywords: [], applies: "always" }),
+    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls:")); const t = E("span", "tag", "Combined"); t.title = "Saved as one power roll modifier"; add(t); } },
   onlyIf: { desc: "The blocks inside apply only while something is true: you're Strained, winded or prone, you have enough Victories, it's your turn...", label: "Logic", group: "if", uses: 720, make: () => ({ cond: null }), wrapper: true,
     render: (f, add) => { add(lbl("Only if")); add(renderTest(f, "cond", true)); } },
 };
@@ -749,6 +772,51 @@ function appliesFields(f) {
 }
 const appliesProse = f => (f.offer ? " when " + testProse(f.offer) : "") + (f.applies === "when" ? " (it applies automatically when " + testProse(f.tick) + ")" : "") + appliesProseCost(f);
 const appliesProseCost = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
+/* Combining roll changes. A block can join a combined block when it changes ability rolls: same
+   keywords, and at most one edge/bane/outcome change between them (one power modifier holds one). */
+const ROLL_OPT_KEYS = ["offer", "applies", "tick", "costN", "costRes"];
+const comboKey = s => { const d = SENT[s.type]; if (!(d.combo || d.comboHost) || (s.type === "edge" && s.f.on === "tests")) return null; return (s.f.keywords || []).slice().sort().join("|"); };
+const comboModtypes = s => SENT[s.type].comboHost ? s.children.map(comboModtypes).flat() : (SENT[s.type].combo.modtype ? [SENT[s.type].combo.modtype(s.f)] : []);
+/* Groups of sibling blocks that could be one combined block: [[id, id, ...], ...]. */
+function combinableGroups(list) {
+  const byKey = new Map();
+  list.forEach(s => { const k = comboKey(s); if (k == null) return; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(s); });
+  const out = [];
+  byKey.forEach(members => {
+    let mods = 0, hosts = 0; const pick = [];
+    members.forEach(s => { const m = comboModtypes(s).length, h = SENT[s.type].comboHost ? 1 : 0; if (mods + m > 1 || hosts + h > 1) return; mods += m; hosts += h; pick.push(s.id); });
+    if (pick.length > 1) out.push(pick);
+  });
+  return out;
+}
+function combineBlocks(list, ids) {
+  const members = list.filter(s => ids.includes(s.id)); if (members.length < 2) return;
+  let host = members.find(s => SENT[s.type].comboHost);
+  const first = members.find(s => !SENT[s.type].comboHost);
+  const differ = members.some(s => !SENT[s.type].comboHost && ROLL_OPT_KEYS.some(k => JSON.stringify(s.f[k]) !== JSON.stringify((host || first).f[k])));
+  change(() => {
+    const at = list.indexOf(members[0]);
+    if (!host) { host = makeSentence("rollCombo"); host.f.keywords = (first.f.keywords || []).slice(); ROLL_OPT_KEYS.forEach(k => { if (first.f[k] !== undefined) host.f[k] = JSON.parse(JSON.stringify(first.f[k])); }); }
+    members.filter(s => s !== host).forEach(s => { list.splice(list.indexOf(s), 1); host.children.push(s); });
+    if (!list.includes(host)) list.splice(Math.min(at, list.length), 0, host);
+  });
+  if (differ) toast("Combined. The blocks had different roll options, so the combined block uses the first one's.", { label: "Undo", run: undo });
+}
+/* A block taken out of a combined block gets the shared keywords and roll options back. */
+function uncombine(host, child) { child.f.keywords = (host.f.keywords || []).slice(); ROLL_OPT_KEYS.forEach(k => { child.f[k] = host.f[k] === undefined ? undefined : JSON.parse(JSON.stringify(host.f[k])); }); if (child.type === "edge") child.f.on = "abilities"; return child; }
+/* The bracket at the left of a list: an arrow to each block that can combine, and a Combine button. */
+function drawCombineBrackets(into, list, groups) {
+  groups.forEach((ids, gi) => {
+    const els = ids.map(id => into.querySelector(':scope > [data-value="' + CSS.escape(id) + '"]')).filter(Boolean); if (els.length < 2) return;
+    const mids = els.map(e => e.offsetTop + Math.min(e.offsetHeight / 2, 16)), top = Math.min(...mids), bot = Math.max(...mids);
+    const br = E("div", "cbr"); br.style.top = top + "px"; br.style.height = (bot - top) + "px"; br.style.left = (2 + gi * 4) + "px"; into.appendChild(br);
+    mids.forEach(y => { const a = E("div", "cbar"); a.style.top = (y - 1) + "px"; a.style.left = (2 + gi * 4) + "px"; into.appendChild(a); });
+    const b = E("button", "cbtn", "Combine"); b.type = "button"; b.title = "Combine these into one roll change (saved as one power roll modifier)";
+    b.style.top = ((top + bot) / 2) + "px"; b.style.left = (gi * 4) + "px";
+    b.addEventListener("click", ev => { ev.stopPropagation(); combineBlocks(list, ids); });
+    into.appendChild(b);
+  });
+}
 function abilityNameTok(f) {
   const names = allAbilityNames();
   return tok(f.name || "choose an ability", b => menuAt(b, m => {
@@ -881,6 +949,9 @@ function sentenceProse(f) {
     if (s.type === "aura") { const who = (AURA_WHO.find(x => x[0] === s.f.who) || ["", "Each creature"])[1].toLowerCase(); walk(s.children, "While within " + s.f.radius + " squares of you, " + who + ": "); return; }
     if (s.type === "growing") { s.f.rows.forEach(r => { const t = r.text || growRowProse(r); if (t) out.push("At " + r.at + " " + resWord() + (+r.level > 1 ? " (level " + r.level + "+)" : "") + ": " + t.replace(/\.?$/, ".")); }); return; }
     if (s.type === "ability" || s.type === "trigger") return;
+    if (s.type === "rollCombo") { const ps = s.children.filter(c => SENT[c.type].combo).map(c => SENT[c.type].combo.prose(c.f)); if (!ps.length) return;
+      const t = "Your " + (s.f.keywords.length ? listWords(s.f.keywords, "and") + " " : "") + "ability rolls " + listWords(ps, "and") + appliesProse(s.f) + ".";
+      out.push(prefix ? prefix + t.charAt(0).toLowerCase() + t.slice(1) : t); return; }
     // An unfinished block stays out of the book text (the status column lists it instead).
     if ((REQUIRED[s.type] || []).some(k => { const v = s.f[k]; return v == null || v === "" || (Array.isArray(v) && !v.length); })) return;
     let t;
@@ -957,6 +1028,13 @@ function compileSentences(list, feat, filter) {
     if (s.type === "aura") {
       const inner = compileSentences(s.children, feat);
       const r = modBase(feat, { behavior: "aura", radius: String(s.f.radius || "1"), aura: { __typeName: "Aura", name: feat.name, description: feat.text || "", applyto: s.f.who, modifiers: inner } });
+      if (filter) r.filterCondition = filter; out.push(r); continue;
+    }
+    if (s.type === "rollCombo") {
+      // One power modifier: the shared keywords and roll options, plus each block's part.
+      const parts = s.children.filter(c => SENT[c.type].combo), mt = parts.map(c => SENT[c.type].combo.modtype && SENT[c.type].combo.modtype(c.f)).find(Boolean);
+      const r = modBase(feat, Object.assign({ behavior: "power", modtype: mt || "none", rollType: "ability_power_roll", keywords: s.f.keywords.length ? Object.fromEntries(s.f.keywords.map(k => [k, true])) : [] },
+        ...parts.map(c => SENT[c.type].combo.fields(c.f)), appliesFields(s.f)));
       if (filter) r.filterCondition = filter; out.push(r); continue;
     }
     if (s.type === "onlyIf") { out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + testGs(s.f.cond) + ")")); continue; }
@@ -1443,6 +1521,7 @@ function dropTarget(x, y) {
   const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
   if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper || SENT[type].container)) return null;
   if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return null;
+  if (L.combo && !(type && comboAccepts(L.combo, type, drag.kind === "entry" ? null : drag.value))) return null;
   const rows = [...box.children].filter(c => c.classList.contains("sent"));
   let idx = rows.length;
   for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) { idx = i; break; } }
@@ -1470,7 +1549,8 @@ function doDrop(d, t) {
   const from = findSentence(d.value); if (!from) return;
   const inside = (x, l) => childLists(x).some(cl => cl === l || cl.some(c => inside(c, l)));
   if (inside(from.s, L.list)) return;   // an "Only if" can't go inside itself
-  change(() => { from.L.list.splice(from.i, 1); let idx = t.idx; if (from.L.list === L.list && from.i < idx) idx--; L.list.splice(idx, 0, from.s); });
+  // Dragged out of a combined block: it takes the shared keywords and roll options with it.
+  change(() => { if (from.L.combo && from.L.combo !== L.combo) uncombine(from.L.combo, from.s); from.L.list.splice(from.i, 1); let idx = t.idx; if (from.L.list === L.list && from.i < idx) idx--; L.list.splice(idx, 0, from.s); });
 }
 
 function renderFeature(f, laneKey) {
@@ -1516,6 +1596,11 @@ function renderFeature(f, laneKey) {
   box.appendChild(foot);
   return box;
 }
+/* Whether a block type can go into a combined block: a roll change, and no second edge/outcome change. */
+function comboAccepts(host, type, movingId) {
+  const d = SENT[type]; if (!d || !d.combo) return false;
+  return !d.combo.modtype || !host.children.some(c => c.id !== movingId && comboModtypes(c).length);
+}
 function regList(el, list, feat, inIf) { const id = "l:" + (feat.id || "") + ":" + Object.keys(LISTS).length; LISTS[id] = { list, feat, inIf }; el.dataset.list = id; }
 function addSentence(feat, list, type, idx) {
   const s = makeSentence(type);
@@ -1525,19 +1610,24 @@ function addSentence(feat, list, type, idx) {
   if (d.opensEditor) return openEditor({ rec: null, kind: d.opensEditor }, (rec, display, problems) => { s.f.rec = rec; s.f.problems = problems; if (display !== undefined) s.f.display = display; if (!feat.name && rec) feat.name = recName(rec); place(); });
   change(place);
 }
-function sentenceMenu(el, pick, noWrapper) {
+function sentenceMenu(el, pick, noWrapper, only) {
   menuAt(el, m => GROUPS.forEach(g => {
     // Inside an "Only if" there are no choices or nested wrappers (a choice is made when the feature is gained).
-    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && !(noWrapper && (SENT[t].wrapper || SENT[t].choice || SENT[t].container))); if (!types.length) return;
+    const types = Object.keys(SENT).filter(t => SENT[t].group === g[0] && t !== "rollCombo" && !(noWrapper && (SENT[t].wrapper || SENT[t].choice || SENT[t].container)) && (!only || only(t))); if (!types.length) return;
     m.appendChild(E("h5", null, g[1]));
     types.forEach(t => { const x = E("button", null, SENT[t].label); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pick(t); }); m.appendChild(x); });
   }));
 }
-function renderSentenceList(list, feat, into) {
-  list.forEach((s, i) => into.appendChild(renderSentence(s, list, i, feat)));
+function renderSentenceList(list, feat, into, host) {
+  list.forEach((s, i) => into.appendChild(renderSentence(s, list, i, feat, host)));
+  // Blocks that could be one roll change get a bracket and a Combine button (drawn once laid out).
+  const groups = host ? [] : combinableGroups(list);
+  if (groups.length) { into.classList.add("hascombine"); requestAnimationFrame(() => { if (into.isConnected) drawCombineBrackets(into, list, groups); }); }
 }
-function renderSentence(s, list, i, feat) {
-  const d = SENT[s.type]; const g = GROUPS.find(x => x[0] === d.group);
+function renderSentence(s, list, i, feat, host) {
+  const d0 = SENT[s.type], g = GROUPS.find(x => x[0] === d0.group);
+  // Inside a combined block each block shows only its part ("deal 2 extra damage"); the rest is shared.
+  const d = host && d0.combo ? Object.assign({}, d0, { render: d0.combo.render }) : d0;
   const el = E("div", "sent" + (d.wrapper ? " ifwrap" : "")); el.style.setProperty("--c", "var(" + g[2] + ")");
   el.dataset.drag = "block"; el.dataset.value = s.id;
   const line = d.wrapper ? E("div", "ifline") : el;
@@ -1550,18 +1640,22 @@ function renderSentence(s, list, i, feat) {
     const item = (t, fn) => { const x = E("button", null, t); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(fn); }); m.appendChild(x); };
     if (i > 0) item("Move up", () => { [list[i - 1], list[i]] = [list[i], list[i - 1]]; });
     if (i < list.length - 1) item("Move down", () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; });
-    if (!d.wrapper && !d.choice && !d.container) item("Wrap in Logic (Only if\u2026)", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
-    if (d.wrapper) item("Remove the \u201c" + d.label.replace(/\.\.\.$/, "") + "\u201d (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
+    if (!host && !d.wrapper && !d.choice && !d.container) item("Wrap in Logic (Only if\u2026)", () => { const w = makeSentence("onlyIf"); w.children.push(s); list.splice(i, 1, w); });
+    if (host) item("Take out of the combined block", () => { list.splice(i, 1); const hl = findSentence(host.id); hl.L.list.splice(hl.i + 1, 0, uncombine(host, s)); });
+    if (d.comboHost) item("Split into separate blocks", () => { list.splice(i, 1, ...s.children.map(c => uncombine(s, c))); });
+    else if (d.wrapper) item("Remove the \u201c" + d.label.replace(/\.\.\.$/, "") + "\u201d (keep what's inside)", () => { list.splice(i, 1, ...s.children); });
     const delItem = E("button", null, "Delete"); delItem.type = "button";
     delItem.addEventListener("click", () => { closeMenu(); pendingFk = "addsent:" + feat.id; change(() => { list.splice(i, 1); }); toast("Deleted \u201c" + d.label + "\u201d.", { label: "Undo", run: undo }); }); m.appendChild(delItem);
   }); });
   line.appendChild(mb);
   if (d.wrapper) {
     el.appendChild(line);
-    const body = E("div", "ifbody sents"); regList(body, s.children, feat, true); renderSentenceList(s.children, feat, body);
-    const add2 = fk(E("button", "addsent", "+ add inside"), "addin:" + s.id); add2.type = "button";
-    add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true); });
+    const body = E("div", "ifbody sents"); regList(body, s.children, feat, true); if (d.comboHost) LISTS[body.dataset.list].combo = s;
+    renderSentenceList(s.children, feat, body, d.comboHost ? s : null);
+    const add2 = fk(E("button", "addsent", d.comboHost ? "+ add a roll change" : "+ add inside"), "addin:" + s.id); add2.type = "button";
+    add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true, d.comboHost ? t => comboAccepts(s, t) : null); });
     body.appendChild(add2); el.appendChild(body);
+    if (d.comboHost) { const foot = E("div", "combofoot"); appliesPhrase(s.f, n => foot.appendChild(n)); el.appendChild(foot); }
   } else if (showGs) {
     if (d.choice) { const r = d.compileChoice(s.f, feat, {}), m = d.compile ? compileSentences([s], { name: featName(feat), text: featText(feat) }) : [];
       const lines = m.map(savesLine); if (r) lines.push("saves as a " + r.__typeName + " (the player's choice)" + (r.options ? ": " + r.options.length + " option" + (r.options.length === 1 ? "" : "s") : r.tag ? ": tag " + r.tag : ""));

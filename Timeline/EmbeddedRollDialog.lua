@@ -2034,6 +2034,31 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
+    --The roll carries its own copies of the target rows (rollProperties.multitargets, copied
+    --at each recalculation), and History reads those copies: give them the hover texts that
+    --ResolveHoverTexts just built on the dialog's rows, and drop the modifiers they still hold.
+    local function CopyHoverTexts(rows)
+        for _, row in ipairs(rows or {}) do
+            local original = nil
+            for _, target in ipairs(m_multitargets or {}) do
+                if target.token ~= nil and target.token.charid == row.tokenid then
+                    original = target
+                    break
+                end
+            end
+            for _, field in ipairs({"edgeSources", "damageSources"}) do
+                local originals = original ~= nil and original[field] or nil
+                for i, copy in ipairs(row[field] or {}) do
+                    local source = originals ~= nil and originals[i] or nil
+                    if source ~= nil and source.name == copy.name then
+                        copy.hovertext = source.hovertext
+                    end
+                    copy.hovermod = nil
+                end
+            end
+        end
+    end
+
     --Whether History is recording, so the dialog measures sources for it at all (not in Crows,
     --nor with Record History off).
     local function RecordingForHistory()
@@ -6289,7 +6314,21 @@ function GameHud.CreateEmbeddedRollDialog()
         --make sure the rollProperties have the correct multitargets.
         rollProperties.multitargets = {}
         for _, target in ipairs(m_multitargets) do
+            --a source's modifier is only for building its hover text, which CopyHoverTexts
+            --brings over when the roll is accepted: set it aside so the copy skips it.
+            local heldMods = {}
+            for _, field in ipairs({"edgeSources", "damageSources"}) do
+                for _, source in ipairs(target[field] or {}) do
+                    if source.hovermod ~= nil then
+                        heldMods[source] = source.hovermod
+                        source.hovermod = nil
+                    end
+                end
+            end
             local t = DeepCopy(target)
+            for source, hovermod in pairs(heldMods) do
+                source.hovermod = hovermod
+            end
             t.tokenid = target.token.charid
             t.token = nil
             rollProperties.multitargets[#rollProperties.multitargets + 1] = t
@@ -8446,6 +8485,11 @@ function GameHud.CreateEmbeddedRollDialog()
                         for _, target in ipairs(m_multitargets or {}) do
                             ResolveHoverTexts(target.edgeSources)
                             ResolveHoverTexts(target.damageSources)
+                        end
+                        CopyHoverTexts(rollProperties ~= nil and rollProperties:try_get("multitargets") or nil)
+                        local rolled = rollInfo ~= nil and rollInfo.properties or nil
+                        if rolled ~= nil and rolled ~= rollProperties then
+                            CopyHoverTexts(rolled:try_get("multitargets"))
                         end
                         completeRollFn(rollInfo, {edgeSources = m_edgeSources, dicetower = dicetower})
                     end

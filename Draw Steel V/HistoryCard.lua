@@ -714,8 +714,42 @@ local function ModifierLink(text, name, hover)
     return HoverLink(text, string.format("m|%s|%s|%s", g_linkMap, hover, name), {kind = "modifier", map = g_linkMap, hover = hover, name = name})
 end
 
+--- The rules text of an automatic trigger: its own description, else the description of the
+--- feature it comes from, else its modifier's. Nil when the content has none of these.
+--- @param creature creature The trigger's owner.
+--- @param ability table The triggered ability.
+--- @param modifier table|nil The modifier that grants it.
+--- @return string|nil
+local function AutomaticTriggerText(creature, ability, modifier)
+    local function NonBlank(value)
+        if type(value) ~= "string" or string.find(value, "%S") == nil then
+            return nil
+        end
+        return trim(value)
+    end
+    local text = NonBlank(ability:try_get("description"))
+    if text == nil and modifier ~= nil then
+        local guid = modifier:try_get("sourceguid")
+        if guid ~= nil then
+            for _, feature in ipairs(creature:GetFeatures() or {}) do
+                if feature.guid == guid then
+                    text = NonBlank(feature:try_get("description"))
+                    break
+                end
+            end
+        end
+        text = text or NonBlank(modifier:try_get("description"))
+    end
+    if text ~= nil then
+        --StringInterpolateGoblinScript returns nil only when given nil, so text stays a string.
+        text = StringInterpolateGoblinScript(text, creature) --[[@as string]]
+    end
+    return text
+end
+
 --- The card for a creature's trigger as it is now, or nil when it can't be found. A
---- triggered action shows the card its owner's panel shows; an automatic one, its ability card.
+--- triggered action shows the card its owner's panel shows; an automatic one, its rules text
+--- (AutomaticTriggerText), or its ability card when the content has no text for it.
 --- @param ownerid string Token id.
 --- @param name string
 --- @param side nil|"left"|"right" Which side of the name the card opens on.
@@ -735,6 +769,15 @@ local function TriggerCard(ownerid, name, side)
         local ability = triggered.ability
         if ability ~= nil and ability.name == name then
             return function()
+                local text = AutomaticTriggerText(token.properties, ability, triggered.modifier)
+                if text ~= nil then
+                    return CreateTooltipPanel{
+                        text = string.format("<b>%s</b>\n%s", ability.name, text),
+                        maxWidth = 600,
+                        halign = side or "right",
+                        valign = "center",
+                    }
+                end
                 return CreateAbilityTooltip(ability, {token = token, width = 480, halign = side})
             end
         end
@@ -1976,6 +2019,24 @@ local function AddTargetLines(rows, width, entry, who, count, own)
                 break
             end
         end
+        --a fall, and a creature landing on this one, each get a line of their own: neither is
+        --the tier's damage (Knockback deals none). Both are counted before immunity, as base is.
+        local moved = who.moved
+        local fall = 0
+        if moved ~= nil and not moved.fallseparate then
+            fall = moved.fallraw or moved.falldamage or 0
+        end
+        local landed = who.landeddamage or 0
+        if fall > 0 and (base.untyped or 0) >= fall then
+            base.untyped = base.untyped - fall
+        else
+            fall = 0
+        end
+        if landed > 0 and (base.untyped or 0) >= landed then
+            base.untyped = base.untyped - landed
+        else
+            landed = 0
+        end
 
         local first = true
         local function Dealt(label, raw)
@@ -1989,7 +2050,16 @@ local function AddTargetLines(rows, width, entry, who, count, own)
             lines[#lines + 1] = {label = T("history.numbers.dealt_type", {source = source, type = name}), amount = base[name]}
         end
         if base.untyped ~= nil then
-            lines[#lines + 1] = {label = source, amount = base.untyped}
+            --entries from before the landing damage was recorded: a landed-on creature with no
+            --roll took its damage from the faller.
+            local oldLanded = who.landedon and who.landeddamage == nil and who.tier == nil
+            lines[#lines + 1] = {label = oldLanded and T("history.numbers.landed_on") or source, amount = base.untyped}
+        end
+        if fall > 0 then
+            lines[#lines + 1] = {label = T("history.numbers.fall"), amount = fall}
+        end
+        if landed > 0 then
+            lines[#lines + 1] = {label = T("history.numbers.landed_on"), amount = landed}
         end
         local shown = 0
         for _, line in ipairs(lines) do
@@ -2043,6 +2113,14 @@ local function ReceiptKey(who, own)
     local stability = ""
     if moved ~= nil and moved.requested ~= nil and ((moved.stability or 0) > 0 or moved.ignored) then
         stability = string.format("%s/%d/%d/%d/%s", moved.kind, moved.requested, moved.stability or 0, moved.distance, tostring(moved.ignored))
+    end
+    --the fall and landing amounts get lines of their own, so a faller and the creature it
+    --landed on must not share a sum.
+    if moved ~= nil and (moved.falldamage or 0) > 0 then
+        stability = stability .. string.format("/fall%d/%d/%s", moved.falldamage, moved.fallraw or 0, tostring(moved.fallseparate))
+    end
+    if who.landedon then
+        stability = stability .. string.format("/landed%d", who.landeddamage or 0)
     end
     if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil and stability == "" and #own == 0 then
         return nil
@@ -3274,7 +3352,10 @@ function History.Why(entry, kids)
                     total, without = taken + fall, taken
                 end
                 local squares = moved.fell or 0
-                local text = T("history.why.fall", {amount = Int(fall), total = Int(total), without = Int(without)})
+                --when the fall is all the damage, comparing it with 0 says nothing.
+                local text = without > 0
+                    and T("history.why.fall", {amount = Int(fall), total = Int(total), without = Int(without)})
+                    or T("history.why.fall_only", {amount = Int(fall)})
                 local canShow = g_canDrawPaths and MovedSteps(moved) ~= nil
                 if canShow then
                     text = T("history.why.fall_side_view", {words = text})

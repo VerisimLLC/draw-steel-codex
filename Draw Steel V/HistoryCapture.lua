@@ -50,8 +50,9 @@ local Int = History.Int
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
 --- @field landedon? boolean On a target: a creature fell on it.
+--- @field landeddamage? number On a target a creature fell on: the damage that did, before immunity or weakness.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
 
 --- Something besides the tier itself that made a target's damage.
@@ -844,6 +845,8 @@ local function CastFinished(ability, casterToken, options)
         local landedOn = state.landedOn ~= nil and state.seen[state.landedOn] or nil
         if landedOn ~= nil then
             landedOn.landedon = true
+            --0 rather than nil marks an entry recorded since landing damage was kept apart.
+            landedOn.landeddamage = landedOn.landeddamage or 0
         end
         if state.landingOn.finished then
             History.RewriteCaptured(state.entry)
@@ -1058,6 +1061,7 @@ local function OnDamage(creature, info)
     local falling = state == nil and info.damagetype == "fall" and Falling(token) or nil
     if falling ~= nil and info.landed > 0 then
         falling.moved.falldamage = (falling.moved.falldamage or 0) + info.landed
+        falling.moved.fallraw = (falling.moved.fallraw or 0) + info.raw
         falling.moved.fallseparate = true
         if falling.row == nil or falling.row.finished then
             History.RewriteCaptured(falling.entry)
@@ -1085,9 +1089,17 @@ local function OnDamage(creature, info)
     if target == nil then
         return
     end
-    --a fall's damage, kept with the move so the Why can say what the fall added.
-    if info.damagetype == "fall" and target.moved ~= nil and info.landed > 0 then
+    --a fall's damage, kept with the move so the Why can say what the fall added. fallraw is
+    --before immunity or weakness, so the card's numbers can split it off the tier's.
+    --Damage from a creature landing on this one is kept apart: it was not this one's fall,
+    --even when an earlier push left it marked as fall damage.
+    if state.landedOn ~= nil and state.landedOn == token.charid then
+        if info.raw > 0 then
+            target.landeddamage = (target.landeddamage or 0) + info.raw
+        end
+    elseif info.damagetype == "fall" and target.moved ~= nil and info.landed > 0 then
         target.moved.falldamage = (target.moved.falldamage or 0) + info.landed
+        target.moved.fallraw = (target.moved.fallraw or 0) + info.raw
     end
     target.taken = (target.taken or 0) + info.landed
     if soaked > 0 then
@@ -1625,6 +1637,16 @@ local function OnTypedMessage(text)
     local entry = state.entry
     if entry.ability ~= nil and string.lower(text) == string.lower(entry.ability.name or "") then
         return
+    end
+    --Skip the two plain notes the Falling rule posts: the card's Why already explains the fall.
+    --Other fall notes (landing in water, Deadweight) say something the Why doesn't, so they stay.
+    if text == "Falling Damage" or text == "Fallen On Top Of" then
+        local running = ActivatedAbility.CurrentCastInfo()
+        local ability = running ~= nil and running.ability or nil
+        local trigger = ability ~= nil and ability.typeName == "TriggeredAbility" and ability:try_get("trigger") or nil
+        if trigger == "fall" or trigger == "fallenon" then
+            return
+        end
     end
     entry.messages = entry.messages or {}
     for _, message in ipairs(entry.messages) do

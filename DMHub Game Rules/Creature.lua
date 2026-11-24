@@ -6917,7 +6917,7 @@ function creature:FillTemporalActiveModifiers(result)
 	--if any modifiers we've accumulated so far themselves offer modifiers...
 	local additionalModifiers = {}
 	for _,mod in ipairs(result) do
-		mod.mod:AddModifiers(self, additionalModifiers)
+		mod.mod:AddModifiers(self, additionalModifiers, mod)
 	end
 
 	for _,mod in ipairs(additionalModifiers) do
@@ -6932,6 +6932,9 @@ function creature:FillTemporalActiveModifiers(result)
             allowEquipment = false
 		end
 	end
+	--The "Only if" checks above can cache attribute values from this partial list; clear
+	--them as FilterModifiers does, so later lookups see the finished list.
+	self._tmp_attr = nil
 
     if allowEquipment then
 	    self:FillEquipmentModifiers(result)

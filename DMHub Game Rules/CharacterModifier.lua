@@ -4517,6 +4517,11 @@ end
 function CharacterModifier:PreventsEquipment(modContext, creature)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.preventsEquipment ~= nil then
+		--Also called while the modifier list is still being built (before FilterModifiers),
+		--so a modifier whose "Only if" is false must not block equipment.
+		if not self:PassesFilter(creature, modContext) then
+			return false
+		end
 		self:InstallSymbolsFromContext(modContext)
 		return typeInfo.preventsEquipment(self, creature)
 	end
@@ -4553,9 +4558,17 @@ function CharacterModifier:FillModifiers(modContext, creature, result)
 	end
 end
 
-function CharacterModifier:AddModifiers(creature, result)
+--- Lets a modifier add further modifiers (a transformation adds its beast's). Called while the
+--- modifier list is still being built, before FilterModifiers, so "Only if" is checked here.
+--- @param creature creature
+--- @param result CharacterModifier[]
+--- @param modContext? table The modifier's entry in the creature's modifier list.
+function CharacterModifier:AddModifiers(creature, result, modContext)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.addModifiers ~= nil then
+		if not self:PassesFilter(creature, modContext) then
+			return nil
+		end
 		return typeInfo.addModifiers(self, creature, result)
 	end
 end

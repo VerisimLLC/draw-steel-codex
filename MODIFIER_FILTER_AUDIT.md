@@ -93,7 +93,7 @@ a trap or makes no sense), **Needs in-app test**.
 | `suppressabilities` | Suppress Abilities | Honoured | `modifyAbility` over the active list (same callers as `modifyability`). | Allow Only if. |
 | `suspended` | Suspended In Air | Honoured / Needs in-app test | Set from the active list each refresh (Creature.lua:6012 clears, 6073-6080 sets via Draw Steel Modifiers/ModifierSuspended.lua:10-12). Nothing in Lua reads `_tmp_suspended`; the consumer is presumably the engine. | Allow Only if; confirm in app the creature lands when the filter turns false. |
 | `tokenvisual` | Token Visual Effect | Honoured | Draw Steel Modifiers/ModifierTokenVisual.lua:93-104 (polled by the driver, :170). | Allow Only if. |
-| `transform` | Transformation | Partly | Most hooks use the active list, but two loops run inside `FillTemporalActiveModifiers` **before** filtering: `addModifiers` (Creature.lua:6917-6927, injects the beast's modifiers) and `preventsEquipment` (Creature.lua:6929-6934, skips all equipment). Also `originalSize` is recorded from raw ongoing-effect modifiers (Creature.lua:8556-8562). | Add support: guard those two loops with `mod.mod:PassesFilter(self, mod)`. Until then, don't allow. |
+| `transform` | Transformation | Partly | Most hooks use the active list, but two loops run inside `FillTemporalActiveModifiers` **before** filtering: `addModifiers` (Creature.lua:6917-6927, injects the beast's modifiers) and `preventsEquipment` (Creature.lua:6929-6934, skips all equipment). Also `originalSize` is recorded from raw ongoing-effect modifiers (Creature.lua:8556-8562). | **Fixed 2026-11-24:** `CharacterModifier:AddModifiers` and `:PreventsEquipment` now check `PassesFilter` first (CharacterModifier.lua), and the caller passes the modifier's context and clears the attribute cache afterwards (Creature.lua, `FillTemporalActiveModifiers`). `originalSize` (Creature.lua:8556-8562) still reads raw ongoing effects; it only records the size to restore. Allow Only if. |
 | `trigger` | Triggered Ability | Honoured | Creature.lua:11573-11577, 11717-11730, 12300-12317; MCDMCreature.lua:7544-7547. Editors / Monster AI reports read raw `feature.modifiers` (Draw Steel Ability Editor/NewTriggeredAbilityEditor.lua:2979-2990, Monster AI/MonsterAISupport.lua:243) on purpose, display only. | Allow Only if. |
 | `triggerdisplay` | Triggered Ability Display | Honoured | `GetTriggeredActions` (Draw Steel Core Rules/DSModifyTriggerDisplay.lua:662-669). Sheets list it from `feature.modifiers` (display only). | Allow Only if. |
 
@@ -156,7 +156,7 @@ If the block editor ever exposes the 5e types, these are also safe: `altspells`,
 `armorclasscalculation`, `attackattribute`, `damage`, `grantSpellList`, `grantSpells`,
 `rollsattacking`, `spell`, `spellcasting`.
 
-Declare **true after a fix**: `transform` (item 1), `d20` (item 3).
+Declare **true after a fix**: `transform` (item 1, fixed 2026-11-24, so true now), `d20` (item 3).
 Declare **true after an in-app test passes**: `alternateappearance`, `movementrestriction`,
 `suspended`.
 

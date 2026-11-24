@@ -2104,13 +2104,34 @@ local function BuildWindow()
         }
     end
     PaintFade()
+    --The app's standard close control, as map windows and the Hero sheet draw it; its
+    --colours come from the caption rules, read again on a scheme change.
+    local CLOSE_WIDTH = 36
+    local close = gui.Panel{
+        styles = Tabletop.CaptionStyles(),
+        width = CLOSE_WIDTH,
+        height = "100%",
+        halign = "right",
+        create = function(element)
+            HeroSheetTheme.Track(element, function(panel)
+                panel.styles = Tabletop.CaptionStyles()
+            end)
+        end,
+        Tabletop.WindowControl{
+            icon = "window-chrome/chrome-close.png",
+            danger = true,
+            hover = gui.Tooltip(T("condemned.gear.close")),
+            click = function()
+                CondemnedGear.CloseWindow()
+            end,
+        },
+    }
     local band = gui.Panel{
         width = "100%",
         height = BAND_HEIGHT,
         flow = "horizontal",
-        hpad = 18,
-        borderBox = true,
         paint = PaintFade,
+        --the art ends just left of the close control.
         gui.Panel{
             bgimage = BAND_ART,
             bgcolor = "white",
@@ -2118,23 +2139,23 @@ local function BuildWindow()
             width = 210,
             height = BAND_HEIGHT,
             halign = "right",
-            rmargin = 18,
+            rmargin = CLOSE_WIDTH,
             floating = true,
             interactable = false,
             fade,
         },
-        back,
-        title,
-        who,
-        gui.Button{
-            classes = { "closeButton" },
-            halign = "right",
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            lmargin = 18,
+            halign = "left",
             valign = "center",
-            hover = gui.Tooltip(T("condemned.gear.close")),
-            press = function()
-                CondemnedGear.CloseWindow()
-            end,
+            back,
+            title,
+            who,
         },
+        close,
     }
 
     --A player with no hero of their own: the Director chooses for them.

@@ -1,0 +1,548 @@
+[
+ {
+  "row": 92,
+  "sentence": "Use one of your abilities with {modifier}",
+  "prose": "Make a free strike with one of your abilities, using this ability's action and cost.",
+  "hover": "Lets the user pick one of their own existing abilities, usually a strike, and make it as part of this ability with a change applied. The picked ability uses this ability's action and cost.",
+  "note": "modifier (a Modify Ability modifier: what changes on the picked ability). Mono: must be the only block on the ability; picker filter lives in the modifier editor (unsure of exact field)."
+ },
+ {
+  "row": 93,
+  "sentence": "Send {triggerName} with {value} to {applyto}",
+  "prose": "",
+  "hover": "Sends a named signal, with an optional number, to each target. Any triggered ability on that creature listening for the same name can respond.",
+  "note": "triggerName, value, applyto. Triggered abilities listen for the same name; waitForResolution (advanced) pauses until they finish."
+ },
+ {
+  "row": 94,
+  "sentence": "Use a copy of an ability used this round that matches {abilityFilter}",
+  "prose": "",
+  "hover": "Lets the user pick an ability that any creature used since the round began (limited by a filter) and use a copy of it.",
+  "note": "abilityFilter (GoblinScript), applyto. Mono: must be alone on the ability; copy uses this ability's action and cost."
+ },
+ {
+  "row": 95,
+  "sentence": "Steal an ability that matches {abilityFilter} from {applyto} while {ongoingEffect} lasts",
+  "prose": "",
+  "hover": "Shows the target's abilities, lets the user pick one, and gives the user a copy for the length of an attached effect. An option can use the target's characteristic bonuses in the copy.",
+  "note": "abilityFilter, applyto, ongoingEffect (+ its duration). useTargetBonus (advanced) rolls with the victim's characteristic."
+ },
+ {
+  "row": 96,
+  "sentence": "Build a wall of {objectid} on the targeted squares{replacePrevious}",
+  "prose": "",
+  "hover": "Builds a solid wall one square at a time on the targeted squares. The wall appears while the player picks the squares, and an option can remove the user's previous wall.",
+  "note": "objectid (object with keyword wallvoxel), replacePrevious (renders ', replacing your previous wall'). No applyto: uses the ability's target squares."
+ },
+ {
+  "row": 97,
+  "sentence": "Give {applyto} {quantity} {itemid}",
+  "prose": "",
+  "hover": "Gives each target a chosen item. The quantity is rolled first and can be a fixed number or dice such as 2d6.",
+  "note": "quantity (number or dice, e.g. 2d6), itemid, applyto."
+ },
+ {
+  "row": 98,
+  "sentence": "Place {objectid} in the target area",
+  "prose": "",
+  "hover": "Places map objects from the object library in the target area, such as walls, brambles or spikes. It puts one on each square or one big object over the whole area, and can first push creatures standing there out of the way.",
+  "note": "objectid, applyto. placement (one per square vs one for the area), randomize, displaceOccupants stay advanced."
+ },
+ {
+  "row": 99,
+  "sentence": "{applyto} {discardBehavior} {number} of {slotTarget}",
+  "prose": "Each target drops all of its equipped items.",
+  "hover": "Makes each target drop or destroy items from its equipped gear or whole inventory: all of them, or one or several the player chooses. Dropped items appear on the map as loot.",
+  "note": "applyto, discardBehavior (drop|destroy; render drops/destroys to agree), number (one|multiple|all), slotTarget (equipped|all|named)."
+ },
+ {
+  "row": 100,
+  "sentence": "Creatures can step between portals named {auraName}",
+  "prose": "",
+  "hover": "When a creature steps onto a portal, it can teleport to an empty square next to any other portal of the same name placed by the same creature. Declining leaves it where it is.",
+  "note": "auraName (the portal aura's name; only portals placed by the same creature link). No applyto."
+ },
+ {
+  "row": 101,
+  "sentence": "Raise {applyto} from its corpse{restoreStamina}",
+  "prose": "",
+  "hover": "Brings a dead creature back onto the map at its corpse, optionally at full Stamina with its conditions cleared.",
+  "note": "applyto, restoreStamina (renders ' at full Stamina, conditions cleared'; default true)."
+ },
+ {
+  "row": 102,
+  "sentence": "Move your {auraName} aura to the targeted spot",
+  "prose": "",
+  "hover": "Moves one of the user's placed auras, found by name, to the targeted spot.",
+  "note": "auraName. No applyto: uses the ability's target location."
+ },
+ {
+  "row": 103,
+  "sentence": "Summon your animal companion",
+  "prose": "",
+  "hover": "Lets the player pick any Animal Companion creature from the bestiary and places it at the target square (or beside the user) as the user's companion, acting on the user's turn.",
+  "note": "No fields (EditorItems is empty): the player picks any Animal Companion at cast time; placed at the target square or beside the user."
+ },
+ {
+  "row": 104,
+  "sentence": "Summon {numSummons} {monsterType}",
+  "prose": "Summon 2 wolves.",
+  "hover": "Brings new creatures onto the map, either a set monster or a choice from a filtered bestiary list. Options cover how many appear, where they are placed, who controls them, their initiative and whether they stay after combat.",
+  "note": "numSummons (GoblinScript), monsterType (a monster, or 'custom' = pick from bestiaryFilter). Placement, control, initiative, duplicate mode stay advanced."
+ },
+ {
+  "row": 105,
+  "sentence": "Change the ground in a {shape} of radius {radius} by {height}",
+  "prose": "Raise the ground in a circle of radius 2 by 2 squares.",
+  "hover": "Raises or lowers the ground in the target area by a set height, for pits and pillars. Can optionally move creatures to the new height and check whether anyone falls.",
+  "note": "shape (circle|square), radius (number), height (GoblinScript; negative lowers). recalculateElevation, testFalling advanced. No applyto."
+ },
+ {
+  "row": 106,
+  "sentence": "Paint {tileid} over a {shape} of radius {radius}",
+  "prose": "",
+  "hover": "Paints a ground texture over the target area, such as churned earth. Often paired with Terraform Elevation.",
+  "note": "tileid (terrain tilesheet), shape (circle|square), radius. No applyto."
+ },
+ {
+  "row": 107,
+  "sentence": "{applyto} {turn|turns} into {monsterType} while {ongoingEffect} lasts",
+  "prose": "Each target turns into a rat until the end of the encounter.",
+  "hover": "Turns each target into a monster form for the length of an attached effect, chosen by the player or at random from monsters that match a filter.",
+  "note": "applyto, monsterType (or 'custom' = filtered bestiary pick via bestiaryFilter), ongoingEffect (+ its duration)."
+ },
+ {
+  "row": 108,
+  "sentence": "Turn {fromKeyword} zones in {location} into {toKeyword}",
+  "prose": "Turn flammable oil zones in the targets' squares into burning oil.",
+  "hover": "Turns a painted map zone of one type into another type, or removes it. It can look at the targets' squares, the squares next to them, or the whole area. If no zone is found, the rest of the ability stops.",
+  "note": "fromKeyword, location (targets|adjacent|area), toKeyword ('none' = remove the zone). abortIfNone (default on) stops the ability if nothing changed."
+ },
+ {
+  "row": 109,
+  "sentence": "{applyto} {say|says} a line from {variations}",
+  "prose": "",
+  "hover": "Shows a speech bubble from each target with a random line from a list you write, not repeating until all lines are used.",
+  "note": "applyto, variations (list of lines, shuffled, no repeats until all used). fallbackText advanced."
+ },
+ {
+  "row": 110,
+  "sentence": "Disguise as {mode}",
+  "prose": "You take on the appearance of the target.",
+  "hover": "Changes how a token looks: the caster takes on a target's appearance, or the targets take the look of a monster picked from the bestiary.",
+  "note": "mode (target = the caster copies the first target's look | bestiary = each target takes the look of monsterType). monsterType slot appears only in bestiary mode; no applyto editor."
+ },
+ {
+  "row": 111,
+  "sentence": "Show a {bannerType} banner {title} over {applyto}",
+  "prose": "",
+  "hover": "Shows a full-screen banner (heroic or malice style) with a title and subtitle on a creature, and pauses the ability until it finishes.",
+  "note": "bannerType (heroic|malice style), title (GoblinScript-interpolated text, e.g. {name}), applyto. subtitle optional; ability pauses until the banner ends."
+ },
+ {
+  "row": 112,
+  "sentence": "Open {applyto}'s character sheet on the {tab} tab",
+  "prose": "",
+  "hover": "Opens the user's character sheet on a chosen tab, such as the Builder.",
+  "note": "applyto, tab (character sheet tab id, default Builder)."
+ },
+ {
+  "row": 113,
+  "sentence": "Play {soundEvent}",
+  "prose": "",
+  "hover": "Plays a built-in sound effect or a custom audio file, with optional volume and delay.",
+  "note": "soundEvent (built-in sound). mode=custom swaps in soundAsset; volume and delay advanced. No applyto."
+ },
+ {
+  "row": 114,
+  "sentence": "Show {templateDocId} to {applyto}",
+  "prose": "",
+  "hover": "Opens a journal document for the player, adding any explanation text from the user's features under extra headings.",
+  "note": "templateDocId (journal document), applyto. Explanation text from the user's features is appended automatically."
+ },
+ {
+  "row": 115,
+  "sentence": "Copy {conferType} from {conditionSource} to {applyto}",
+  "prose": "Copy one chosen condition you have to the target.",
+  "hover": "Copies conditions from a source creature (the user by default) onto the targets, keeping their duration and who caused them: all of them, or ones the player picks. The source keeps its conditions.",
+  "note": "conferType (all|chosen|one), conditionSource (GoblinScript creature; blank = the caster), applyto. Specific conditions list, chatMessage, reminderText advanced."
+ },
+ {
+  "row": 116,
+  "sentence": "At most {maxFormula} creatures can have your {ongoingEffect}",
+  "prose": "",
+  "hover": "Caps how many creatures can carry one of the user's ongoing effects, removing it from the oldest ones to make room for the new targets. Place it before the block that applies the effect.",
+  "note": "maxFormula (GoblinScript), ongoingEffect. Place before the block that applies the effect; applyto defaults to caster."
+ },
+ {
+  "row": 117,
+  "sentence": "Change a save ends effect on {applyto} to end of turn",
+  "prose": "",
+  "hover": "Lets the player pick a \"save ends\" condition or effect on each target and change it to end at the end of the turn instead.",
+  "note": "applyto. allowMultiple (advanced) lets the player pick any number instead of one."
+ },
+ {
+  "row": 118,
+  "sentence": "{applyto} {become|becomes} the source of {condid}",
+  "prose": "The target becomes the source of the frightened condition.",
+  "hover": "Changes who a condition is tied to, so a creature becomes frightened of or taunted by the target instead of the original user. It works on conditions this ability just inflicted or on the user's own conditions.",
+  "note": "applyto, condid (default frightened). conditionMode (this ability's conditions vs the caster's) advanced."
+ },
+ {
+  "row": 119,
+  "sentence": "Chain to every enemy within {chainRange} squares",
+  "prose": "",
+  "hover": "Spreads the ability from its first target to every enemy within a set number of squares, then from each of those, until nobody new is in reach. The power roll after it hits every creature the chain reached.",
+  "note": "chainRange (number, default 3). applyto defaults to caster; following power roll hits every creature reached."
+ },
+ {
+  "row": 120,
+  "sentence": "Destroy {applyto}",
+  "prose": "",
+  "hover": "Kills the targets outright, whatever their Stamina, without setting off damage triggers.",
+  "note": "applyto. Kills outright; no damage triggers."
+ },
+ {
+  "row": 121,
+  "sentence": "Remove {applyto} from the map{leavesCorpse}",
+  "prose": "",
+  "hover": "Takes the targets off the map without dealing damage, optionally leaving a corpse and dropping their treasure. By default it waits for other abilities, and optionally triggers, to finish first.",
+  "note": "applyto, leavesCorpse (renders ', leaving a corpse'). dropsLoot, waitForAbilitiesToFinish, waitForTriggers advanced."
+ },
+ {
+  "row": 122,
+  "sentence": "Set {applyto}'s Stamina to {roll}",
+  "prose": "",
+  "hover": "Sets each target's Stamina to an exact value instead of healing or damaging them.",
+  "note": "applyto, roll (GoblinScript value; editor label 'Value'). SetStamina has no EditorItems of its own: uses the generic roll editor."
+ },
+ {
+  "row": 123,
+  "sentence": "Measure later push and pull from {type}",
+  "prose": "Pull toward the center of the area.",
+  "hover": "Picks the point that later push and pull blocks measure from: the centre of an aura or area, a creature the user chooses, or the first target.",
+  "note": "type (aura = centre of aura/area | creature = one the user picks | target = first target). auraName, creatureRange, creatureFilter apply by type. No applyto."
+ },
+ {
+  "row": 124,
+  "sentence": "{applyto} {is|are} taunted by the nearest creature ({duration})",
+  "prose": "",
+  "hover": "Makes each target taunted by whichever creature or attackable object is nearest to it, and can apply an extra effect on chosen tiers.",
+  "note": "applyto, duration (save_ends|end_of_next_turn|eoe). alsoApplyOngoingEffect advanced (tier gating unverified)."
+ },
+ {
+  "row": 125,
+  "sentence": "Add {expression} to {applyto}'s {listName} list, cleared each {refresh}",
+  "prose": "",
+  "hover": "Adds a creature to a named list kept on the target, which empties on a chosen schedule (each turn, encounter and so on), so you can count different creatures.",
+  "note": "expression (GoblinScript creature), applyto (who holds the list), listName (letters only), refresh (turn|round|encounter|...)."
+ },
+ {
+  "row": 126,
+  "sentence": "Wait {delay} seconds",
+  "prose": "",
+  "hover": "Pauses the ability for a number of seconds (60 at most) before the next block. It can also wait until a condition becomes true. Mostly used to time effects and deaths.",
+  "note": "delay (GoblinScript, max 60). proceedCondition (advanced) waits until true. No applyto."
+ },
+ {
+  "row": 127,
+  "sentence": "Drop {applyto} where {filterTarget} from the rest of the ability",
+  "prose": "Targets who resist the potency are unaffected by the rest of the ability.",
+  "hover": "Takes the targets that pass its filter out of the rest of the ability, so later blocks skip them. If it applies to every target, it removes them all.",
+  "note": "applyto, filterTarget (base filter). Blank filter on all targets removes them all."
+ },
+ {
+  "row": 128,
+  "sentence": "Only once per {refresh}: the rest of this ability",
+  "prose": "",
+  "hover": "Lets the rest of this ability work only once per chosen period (encounter, round, turn, etc.). Later uses in that period stop at this block.",
+  "note": "refresh (encounter|round|turn|...). keyOverride (advanced) shares the limit between abilities; applyto/filter advanced."
+ },
+ {
+  "row": 129,
+  "sentence": "Move the targeted squares {mode}",
+  "prose": "",
+  "hover": "Moves the ability's targeted squares one floor down or up. Targets with no floor in that direction are dropped.",
+  "note": "mode (floor_down|floor_up; render 'one floor down/up'). Squares with no floor that way are dropped."
+ },
+ {
+  "row": 130,
+  "sentence": "{targetMode} targets near {applyto}",
+  "prose": "",
+  "hover": "Asks the user to choose more targets, using this block's own targeting settings centred on each current target. The new targets are added to the list or replace it, and later blocks then affect them.",
+  "note": "targetMode (add|replace; render 'Choose more'/'Choose new'), applyto, targetingAbility (own range/shape, via Edit Targeting). promptText, allowDuplicates advanced."
+ },
+ {
+  "row": 131,
+  "sentence": "Add {value} to {paramid} for this use",
+  "prose": "This use of the ability gains 1 edge.",
+  "hover": "Adds a bonus to this use of the ability: extra damage, edges, banes, surges, or ignoring damage immunity.",
+  "note": "value (GoblinScript), paramid (Ability Damage|Number of Edges|Number of Banes|Number of Surges|Ignore Damage Immunity). name/description label the bonus."
+ },
+ {
+  "row": 132,
+  "sentence": "Order the targets by {orderFormula}, lowest first",
+  "prose": "",
+  "hover": "Sorts the targets by a formula, lowest first, so later blocks handle them in that order (for example, closest first).",
+  "note": "orderFormula (GoblinScript per target, e.g. distance to the caster). No applyto."
+ },
+ {
+  "row": 133,
+  "sentence": "Remember {applyto} as the stashed target",
+  "prose": "",
+  "hover": "Remembers the ability's first target so a trigger that fires later in the same use can check who it was (through \"Stashed Target\").",
+  "note": "applyto (default targets; only the first is stored). Read later through 'Stashed Target'."
+ },
+ {
+  "row": 134,
+  "sentence": "Forget which targets were hit or failed",
+  "prose": "",
+  "hover": "Clears the record of which targets were hit, failed a save, or won an opposed roll, so later blocks using those target lists start fresh. Useful when one ability makes several separate rolls.",
+  "note": "No fields."
+ },
+ {
+  "row": 135,
+  "sentence": "Add {quantity} to {applyto}'s {statid} stat",
+  "prose": "",
+  "hover": "Adds an amount (1 by default) to a named per-encounter statistic for a hero, for the end-of-encounter hero stats.",
+  "note": "quantity (GoblinScript, default 1), applyto, statid (free text name)."
+ },
+ {
+  "row": 136,
+  "sentence": "Carry {applyto} along with you using {ongoingEffect}",
+  "prose": "",
+  "hover": "Marks a creature within grab range as a passenger that moves along with the user, like a grabbed creature, by applying a chosen ongoing effect. Using it again on the same passenger lets them go.",
+  "note": "applyto, ongoingEffect (the passenger effect). Using it again on the same passenger releases them."
+ },
+ {
+  "row": 137,
+  "sentence": "{applyto} {switch|switches} to {movementType}",
+  "prose": "Each target starts flying.",
+  "hover": "Switches each target's current way of moving (walk, fly, swim, burrow and so on).",
+  "note": "applyto, movementType (walk|fly|swim|burrow|climb...)."
+ },
+ {
+  "row": 138,
+  "sentence": "{operation} {applyto}{dismountFalls}",
+  "prose": "You climb onto the target.",
+  "hover": "Lets the user climb onto each target, or makes targets get off whatever they are climbing, either sliding down safely or falling (with fall damage and prone).",
+  "note": "operation (climb = 'You climb onto' | dismount = 'Get ... off what they are climbing'), applyto, dismountFalls (dismount only; renders ', and they fall')."
+ },
+ {
+  "row": 139,
+  "sentence": "{applyto} {move|moves} up to {distance} squares straight up or down",
+  "prose": "",
+  "hover": "The user picks how far to move straight up or down through the ground, up to its size by default, using +/- buttons.",
+  "note": "applyto, distance (GoblinScript, default Tile Size). Player picks the amount with +/- buttons."
+ },
+ {
+  "row": 140,
+  "sentence": "Move creatures caught in your space to the nearest free square within {searchRadius}",
+  "prose": "",
+  "hover": "Can first grow the user with a chosen size effect. It then moves every creature caught inside the user's space to the nearest free square (the user picks when several are equally near), and those creatures become the targets.",
+  "note": "searchRadius (number, default 3). growEffect / growDuration (optional size growth first), addAsTarget, promptText, floatText advanced; applyto defaults to caster."
+ },
+ {
+  "row": 141,
+  "sentence": "{applyto} {fall|falls}{stopFlying}",
+  "prose": "",
+  "hover": "Makes the targets fall if nothing is holding them up, using the normal falling rules. It can optionally stop a flying target from flying first (\"Drop to Ground\").",
+  "note": "applyto, stopFlying (renders ', even if flying')."
+ },
+ {
+  "row": 142,
+  "sentence": "{applyto} {hop|hops} in place{shake}",
+  "prose": "",
+  "hover": "Makes each target jump up and land back on its own square, with an optional screen shake. It does not move the creature.",
+  "note": "applyto (default caster), shake (renders ', shaking the screen'; default on)."
+ },
+ {
+  "row": 143,
+  "sentence": "Hurl a grabbed creature where {hurlFilter} to the end of the line",
+  "prose": "",
+  "hover": "Throws a creature the user is grabbing to the far end of a line ability. The grab ends, the creature lands on the last square of the line (or the nearest free square to it), and it is added to the targets so the power roll that follows hits it too.",
+  "note": "hurlFilter (GoblinScript, default Size < 5). applyto defaults to caster (the grabber); searchRadius, addAsTarget, promptText advanced."
+ },
+ {
+  "row": 144,
+  "sentence": "{applyto} {jump|jumps}",
+  "prose": "",
+  "hover": "The player picks where to land, with rings showing how far each roll result reaches. A roll is made only when the jump goes farther or higher than normal, and a poor roll lands the creature short, which can make it fall.",
+  "note": "applyto only. Roll, tier distances/heights are class defaults with no editor; a roll happens only for a longer or higher jump."
+ },
+ {
+  "row": 145,
+  "sentence": "Lift {applyto} {distance} squares into the air{landAtEnd}",
+  "prose": "",
+  "hover": "Lifts each target straight up a set number of squares. When the ability ends, a target that can no longer fly is put back on the ground or falls.",
+  "note": "applyto, distance (GoblinScript, default 1), landAtEnd (renders ', landing when the ability ends'; default on)."
+ },
+ {
+  "row": 146,
+  "sentence": "Pull {applyto} into your space",
+  "prose": "",
+  "hover": "Moves each target straight into the user's own space for free (it counts as forced movement and passes through creatures), with an optional floating label such as \"Pulled in!\".",
+  "note": "applyto. floatText (default 'Pulled in!') advanced."
+ },
+ {
+  "row": 147,
+  "sentence": "Stop {applyto} at the first square of its path within {distance} of you",
+  "prose": "",
+  "hover": "Stops a creature that is moving past the caster at the first square of its path within a set distance, \"catching\" it there.",
+  "note": "applyto, distance (integer, default 1)."
+ },
+ {
+  "row": 148,
+  "sentence": "Teleport {applyto} to the end of the line",
+  "prose": "",
+  "hover": "Teleports the user to the far end of a line ability, or the free square closest to it, after everyone in the line has been hit.",
+  "note": "applyto (default caster). Runs after everyone in the line is hit; needs a line ability."
+ },
+ {
+  "row": 149,
+  "sentence": "Throw this object to the targeted square",
+  "prose": "",
+  "hover": "Throws the map object that gives this ability to the targeted square. The object counts as force-moved, so effects like \"takes damage per square moved\" apply.",
+  "note": "No fields: moves the object granting the ability; use a square target type and set range on the ability."
+ },
+ {
+  "row": 150,
+  "sentence": "Offer {modifier} on this power roll",
+  "prose": "Whoever rolls can add an edge to this roll.",
+  "hover": "Adds a modifier to this ability's own power roll, such as an edge, extra damage or a rider. Whoever rolls can take it as an option in the roll dialog.",
+  "note": "modifier (a power-roll modifier; its name, description and settings come from the modifier editor)."
+ },
+ {
+  "row": 151,
+  "sentence": "Treasure {treasureId} {mode} for {applyto}",
+  "prose": "",
+  "hover": "Equips a treasure the hero picked earlier, or removes it again (\"vanish\").",
+  "note": "treasureId (matches a Grant Treasure modifier's id), mode (manifest|vanish; render 'appears'/'vanishes'), applyto."
+ },
+ {
+  "row": 152,
+  "sentence": "Pay this ability's cost now",
+  "prose": "",
+  "hover": "Spends the ability's cost at this exact point instead of when its effects first land, so later steps can't skip or refund it.",
+  "note": "No fields."
+ },
+ {
+  "row": 153,
+  "sentence": "Run the Lua script {name}",
+  "prose": "",
+  "hover": "Runs custom code written by a developer, for effects no other block can do.",
+  "note": "name (letters only), code (the script, edited in the advanced editor). applyto/filter advanced."
+ },
+ {
+  "row": 154,
+  "sentence": "Run the command {macro}",
+  "prose": "",
+  "hover": "Runs a typed app command when the ability is used, such as a screen shake or a visual effect on a creature.",
+  "note": "macro (app command text). applyto/filter advanced."
+ },
+ {
+  "row": 155,
+  "sentence": "{applyto} {make|makes} saving throws against {conditionsMode}",
+  "prose": "",
+  "hover": "Has each target make saving throws against its \"save ends\" conditions and effects; end-of-turn ones simply expire. Can be limited to one chosen condition or set to remove them without rolling.",
+  "note": "applyto, conditionsMode (all | one chosen condition). rollMode (roll | remove without rolling), durationScope, promptEach, includeProne advanced."
+ },
+ {
+  "row": 156,
+  "sentence": "{mode} {applyto}",
+  "prose": "Start the target's turn now.",
+  "hover": "Changes the turn order. It can start the target's turn now, make the target act next, add the targets to combat on the caster's side, or skip the target's turn.",
+  "note": "mode (begin_turn | set_priority | add_to_initiative | skip_turn; render as 'Start the turn of' / 'Make act next' / 'Add to combat on your side:' / 'Skip the turn of'), applyto."
+ },
+ {
+  "row": 157,
+  "sentence": "Make an opposed {attackAttributes} vs {defenseAttributes} power roll against each target",
+  "prose": "Make an opposed Might vs Agility power roll against each target.",
+  "hover": "The user and each target make opposed power rolls with the chosen characteristic and skill. Targets who roll lower count as hit for the rest of the ability, and ties change nothing.",
+  "note": "attackAttributes, defenseAttributes (lists of characteristic + optional skill). No applyto editor; lower rollers count as hit."
+ },
+ {
+  "row": 158,
+  "sentence": "Roll {roll} for {applyto}",
+  "prose": "",
+  "hover": "Rolls a dice formula for each target, e.g. \"2d6+3\", and keeps the result so later blocks can read it as the cast's roll.",
+  "note": "roll (dice formula), applyto. rollDescription (dialog title) advanced; result readable as the cast's roll."
+ },
+ {
+  "row": 159,
+  "sentence": "Roll on {tableid} for {applyto}",
+  "prose": "",
+  "hover": "Rolls on a table (one built into the block or an existing one) for each target and applies the row that comes up. The result can also be read as a rules effect.",
+  "note": "tableid (when tableType is an existing table) or customTable (built in), applyto. resourceAction/itemAction/monsterAction, interpretResultAsGameRule advanced."
+ },
+ {
+  "row": 160,
+  "sentence": "{applyto} {make|makes} a {dc} test against {dcvalue}",
+  "prose": "Each target makes a Might test against 12.",
+  "hover": "Asks each target to make a pass/fail check against a set difficulty (an attribute, a skill or a flat roll). Targets that fail are recorded so later blocks can apply to them.",
+  "note": "applyto, dc (characteristic or skill id; rollType attribute|skill|flat picks which), dcvalue (difficulty). Failures recorded for later blocks."
+ },
+ {
+  "row": 161,
+  "sentence": "Apply flagged power roll bonuses to this free strike",
+  "prose": "",
+  "hover": "Applies any of the striker's power roll bonuses that are marked \"apply to free strikes\" to a free strike's targets, since free strikes don't go through the normal power roll.",
+  "note": "No fields."
+ },
+ {
+  "row": 162,
+  "sentence": "Place a {objectid} lane along the targeted line",
+  "prose": "",
+  "hover": "Places a lane along the targeted line that slides creatures toward its far end when they enter it or start their turn there. Creatures already inside slide right away.",
+  "note": "objectid (lane object). No applyto."
+ },
+ {
+  "row": 163,
+  "sentence": "Explode the loyalty collar",
+  "prose": "",
+  "hover": "Blows up the caster's war dog loyalty collar for everyone at the table: explosion effect and sound, the creature hidden in the blast, scorch marks on the floor.",
+  "note": "No fields."
+ },
+ {
+  "row": 164,
+  "sentence": "Roll Patron's Gaze",
+  "prose": "",
+  "hover": "Rolls the Acolyte's Patron's Gaze d10 on a special card. If the roll is at or under the current Gaze, it clears the Gaze, grants 2 Zeal and sets off Patron's Spite.",
+  "note": "No fields."
+ },
+ {
+  "row": 165,
+  "sentence": "Choose which persistent abilities to keep",
+  "prose": "",
+  "hover": "At the start of the user's turn, ends persistent abilities whose targets are all dead, then asks which of the rest to keep and shows how much Essence is left after paying for them.",
+  "note": "No designer fields beyond applyto/filter; trigger-only (start of turn)."
+ },
+ {
+  "row": 166,
+  "sentence": "{applyto} {choose|chooses} how to spend Recoveries, {freeEnhancements} extras free",
+  "prose": "",
+  "hover": "Opens the healing choice window: for each target, the player picks how many Recoveries to spend and which effects to end. Extra choices cost the heroic resource, and a setting can make some of them free.",
+  "note": "applyto, freeEnhancements (integer, default 0)."
+ },
+ {
+  "row": 167,
+  "sentence": "Choose active routines",
+  "prose": "",
+  "hover": "Opens a picker where the Troubadour chooses which routines are active, up to their routine limit. The oldest selection is dropped when they go over.",
+  "note": "No designer fields beyond applyto/filter; trigger-only."
+ },
+ {
+  "row": 168,
+  "sentence": "Shift a wall square into a space a pushed creature left",
+  "prose": "",
+  "hover": "Moves a wall square into one of the squares a pushed creature just left. The user picks the square if there are several.",
+  "note": "No designer fields beyond applyto/filter."
+ },
+ {
+  "row": 169,
+  "sentence": "Swing this object up to {maxDistance} squares and back: {rule}",
+  "prose": "Swing this object up to 3 squares and back: 10 damage; M<2, prone.",
+  "hover": "Swings a hanging map object like a pendulum, out in a chosen direction and back the other way. Creatures in its path that pass the filter take the effect once per swing (by default 10 damage and possibly prone, but small prone creatures duck under).",
+  "note": "maxDistance (GoblinScript), rule (power-roll-style rule text). hitFilter, shiftDistance, swingSpeed advanced."
+ }
+]

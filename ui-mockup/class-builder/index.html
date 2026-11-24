@@ -209,6 +209,10 @@ pre.saved { font: 11px var(--font-mono); background: var(--bg); border: 1px soli
 .menu.picker .typebox { border-top: 1px solid var(--line); padding: 8px 12px 10px; }
 .menu.picker .typebox summary { cursor: pointer; color: var(--dim); font-size: 12px; }
 .menu.picker .typebox textarea { width: 100%; box-sizing: border-box; margin: 6px 0; min-height: 48px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; font: 12px var(--font-mono); color: var(--fg); }
+.tok.arrays { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; border-bottom: none; }
+.tok.arrays .arr { background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 1px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; word-spacing: 3px; }
+.tok.arrays:hover .arr { border-color: #fff; }
+.tok.arrays .arrtag { font-size: 11px; opacity: .8; font-style: italic; }
 .menu { position: absolute; z-index: 50; background: var(--dlg); border: 1px solid var(--gold); border-radius: 6px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: min(360px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto; }
 .menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; }
 .menu button:hover { background: var(--panel); }

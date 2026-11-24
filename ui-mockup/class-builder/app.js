@@ -920,7 +920,7 @@ const STD_ARRAYS = { 1: [[2, 2, -1, -1], [2, 1, 1, -1], [2, 1, 0, 0], [1, 1, 1, 
 const arraysValue = () => cls.arrays === "custom" ? cls.arraysCustom : (STD_ARRAYS[Object.keys(cls.primary).length] || STD_ARRAYS[1]);
 const arrayWords = a => a.map(x => x.map(n => n < 0 ? "\u2212" + (-n) : String(n)).join(", ")).join("  \u00b7  ");
 function arraysTok() {
-  return tok(arrayWords(arraysValue()) + (cls.arrays === "custom" ? "" : " (standard)"), b => menuAt(b, m => {
+  const s = tok(arrayWords(arraysValue()) + (cls.arrays === "custom" ? "" : " (standard)"), b => menuAt(b, m => {
     m.classList.add("wide");
     const st = E("button", null, "Standard arrays for " + word(Object.keys(cls.primary).length || 1) + " starting characteristic" + (Object.keys(cls.primary).length === 2 ? "s" : "")); st.type = "button";
     st.addEventListener("click", () => { closeMenu(); change(() => { cls.arrays = "auto"; }); }); m.appendChild(st);
@@ -931,6 +931,12 @@ function arraysTok() {
       if (!rows.length) return toast("Write each array as numbers separated by commas, one per line (e.g. 2, -1, -1)."); closeMenu(); change(() => { cls.arrays = "custom"; cls.arraysCustom = rows; }); });
     yn.appendChild(ok); m.appendChild(yn);
   }), false, "cls:arrays");
+  // One chip per array, numbers signed ("+2 +2 −1 −1"), so the arrays are easy to tell apart.
+  const t = s; t.textContent = ""; t.classList.add("arrays");
+  arraysValue().forEach(x => t.appendChild(E("span", "arr", x.map(n => n < 0 ? "\u2212" + (-n) : n > 0 ? "+" + n : "0").join(" "))));
+  if (cls.arrays !== "custom") t.appendChild(E("span", "arrtag", "standard"));
+  t.setAttribute("aria-label", "Characteristic arrays: " + arrayWords(arraysValue()) + (cls.arrays === "custom" ? "" : " (standard)"));
+  return t;
 }
 const LEVELS = Array.from({ length: 10 }, (_, i) => "level-" + (i + 1));
 const ENCOUNTERS = ["tutoriallevel-1", "tutoriallevel-2", "tutoriallevel-3", "tutoriallevel-4"];

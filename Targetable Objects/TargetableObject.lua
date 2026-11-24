@@ -730,18 +730,20 @@ end
 --Lets the shared creature damage path tell objects apart (see creature.isMapObject).
 TargetableObject.isMapObject = true
 
---- Fires a table-wide moment (a new round, the end of combat) on every map
---- object that has a trigger for it. Objects have no initiative entry, so the
---- round and combat code that walks the initiative queue never reaches them.
---- Only objects with a matching trigger are dispatched to: a map can hold
---- hundreds of targetable objects, and each dispatch also notifies every token.
+--- Fires an event on every map object that has a trigger for it: a table-wide
+--- moment (a new round, the end of combat) or the end of one creature's turn.
+--- Objects have no initiative entry, so the round and combat code that walks the
+--- initiative queue never reaches them. Only objects with a matching trigger are
+--- dispatched to: a map can hold hundreds of them, and an event with no subject
+--- also notifies every token.
 --- @param eventName string a trigger id, e.g. "beginround" or "endcombat"
---- @param info nil|table event arguments (copied per object)
+--- @param info nil|table event arguments (copied per object); info.subject makes it an event about that creature
 function TargetableObject.DispatchToObjects(eventName, info)
+    local aboutOther = info ~= nil and info.subject ~= nil
     for _, tok in ipairs(dmhub.allObjectTokens or {}) do
         --An object only has properties when it has a Targetable component.
         local props = tok.valid and tok.properties --[[@as TargetableObject|nil]] or nil
-        if props ~= nil and props:HasTriggerFor(eventName) then
+        if props ~= nil and props:HasTriggerFor(eventName, aboutOther) then
             props:DispatchEvent(eventName, info ~= nil and shallow_copy_table(info) or {})
         end
     end
@@ -769,12 +771,37 @@ do
     end
 end
 
+--Map objects that act at the end of each creature's turn (a lit grenade's fuse) use this
+--trigger. Its subject is the creature whose turn ended, so pick e.g. "Any Hero (Not Self)":
+--with "Self" it never fires. Make it Automatic and Local so the ending turn waits for it.
+TriggeredAbility.RegisterTrigger{
+    id = "objectturnend",
+    text = "End of Any Turn (Objects)",
+}
+
+local g_baseEndTurn = creature.EndTurn
+function creature:EndTurn(token)
+    g_baseEndTurn(self, token)
+    --If only this file is reloaded, the old copy of this function is still wrapped inside
+    --the new one. It stops here so objects hear each turn end once, not twice.
+    if mod.unloaded then
+        return
+    end
+    local ok, err = pcall(TargetableObject.DispatchToObjects, "objectturnend", { subject = self })
+    if not ok then
+        printf("TargetableObject: end of turn for objects failed: %s", tostring(err))
+    end
+end
+
 --True if any of this object's modifiers has a triggered ability for eventName.
+--Pass aboutOther when the event is about another creature (it has a subject), so
+--triggers with a subject like "Any Hero (Not Self)" count, as they do for creatures.
 --- @param eventName string
+--- @param aboutOther? boolean
 --- @return boolean
-function TargetableObject:HasTriggerFor(eventName)
+function TargetableObject:HasTriggerFor(eventName, aboutOther)
     for _, entry in ipairs(self:GetActiveModifiers()) do
-        if entry.mod:HasTriggeredEvent(self, eventName) then
+        if entry.mod:HasTriggeredEvent(self, eventName, aboutOther) then
             return true
         end
     end

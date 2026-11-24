@@ -3613,6 +3613,19 @@ local function WhyRow(row, width)
     }
 end
 
+--The bubble's fade, for everything History puts in it (the chat rows' labels have their own).
+--A touch shorter than the bubble's 0.7s fade: the bubble's blurred background vanishes at once,
+--so the text fading a little faster looks in step.
+local BUBBLE_FADE_STYLES = {
+    {
+        selectors = {"fadeout"},
+        inherit_selectors = true,
+        opacity = 0,
+        transitionTime = 0.6,
+        priority = 10,
+    },
+}
+
 --- One row of the Sidebar Preview: what an action or line did, for the chat bubble beside
 --- the History button. An action has a header over up to two of its sentences and "and 3
 --- more"; a line is its sentence alone. Your creatures' sentences carry the gold edge, as
@@ -3668,7 +3681,16 @@ function History.CreateBubbleContents(args)
             width = "auto",
             height = "auto",
             interactable = false,
-            children = body,
+            --Opacity does not pass down to children, so this panel makes each row element
+            --fade itself when the bubble or its row starts fading.
+            gui.Panel{
+                styles = BUBBLE_FADE_STYLES,
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                interactable = false,
+                children = body,
+            },
         },
     }
 end

@@ -976,6 +976,10 @@ end)
 --------------------------------------------------------------------------------
 
 CondemnedCampaign = {
+    --the heroes the panel tracks, {charid, token, name}[] sorted by name (cached 1.5 s).
+    Roster = Roster,
+    --a hero's collar: "collared", "removed", "detonated" or "none".
+    CollarStatus = CollarStatus,
     Stage = function()
         return STAGES[StageNumber()].id
     end,

@@ -444,6 +444,10 @@ local function GearStyles()
         { selectors = { "cgArt" }, bgcolor = palette.tile, borderColor = palette.tileBorder },
         { selectors = { "cgOverPill" }, borderColor = palette.warning, color = palette.warning },
         { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
+        --status pills: their colour wins over the pill's own muted text.
+        { selectors = { "heroSheetPill", "heroSheetCardSuccess" }, color = palette.cardSuccess, priority = 10 },
+        { selectors = { "heroSheetPill", "heroSheetCardLabel" }, color = palette.cardLabel, priority = 10 },
+        { selectors = { "heroSheetPill", "heroSheetWarning" }, color = palette.warning, priority = 10 },
     }
     local compiled = {}
     for i, rule in ipairs(rules) do
@@ -1439,6 +1443,581 @@ local function BuildPane(repaint)
     }
 end
 
+--The party table's columns, in sheet units, inside a row's padding.
+local PARTY_HPAD = 16
+local ROW_HPAD = 12
+local COL_HERO = 290
+local COL_GEAR = 290
+local COL_GRENADES = 266
+local COL_STATUS = 96
+local COL_GAP = 14
+
+--Status pill text and colour class, by CondemnedGear.Status.
+local STATUS_PILL = {
+    done = { id = "condemned.gear.status_done", class = "heroSheetCardSuccess" },
+    choosing = { id = "condemned.gear.status_choosing", class = "heroSheetCardLabel" },
+    nothing = { id = "condemned.gear.status_nothing", class = "heroSheetCardSub" },
+    over = { id = "condemned.gear.over_limit", class = "heroSheetWarning" },
+    given = { id = "condemned.gear.handed_out", class = "heroSheetCardSuccess" },
+}
+
+--Under a hero's name in the party table: their class, and the player who owns them.
+--- @param token CharacterToken
+--- @return string
+local function HeroSubline(token)
+    local className = nil
+    pcall(function()
+        --heroes are characters; GetClass is a character method.
+        local classItem = (token.properties --[[@as character]]):GetClass()
+        className = classItem ~= nil and classItem.name or nil
+    end)
+    local owner = token.ownerId
+    local player = nil
+    if owner ~= nil and owner ~= "" and owner ~= "PARTY" then
+        player = owner
+        pcall(function() player = dmhub.GetDisplayName(owner) or owner end)
+    end
+    if className ~= nil and player ~= nil then
+        return T("condemned.gear.hero_sub", { class = className, player = player })
+    end
+    return className or player or ""
+end
+
+--A grenade's short name for the party table: "Blackpowder" for "Blackpowder Grenade".
+--- @param item table a tbl_Gear row
+--- @return string
+local function ShortGrenadeName(item)
+    local short = string.gsub(item.name, "%s+[Gg]renade$", "")
+    return short
+end
+
+--The party table: the Director's (allowance, every hero, Hand out), or a player's with
+--several heroes (their own heroes only). A row opens the picker for that hero. Rows are
+--built when the list of heroes changes and painted on every change.
+--- @param repaint fun()
+--- @return Panel
+local function BuildParty(repaint)
+    local gearTable = dmhub.GetTable("tbl_Gear") or {}
+    local book = CondemnedGear.BOOK_ALLOWANCE
+    local director = dmhub.isDM
+
+    --The heroes this table lists.
+    local function Listed()
+        if director then
+            return CondemnedGear.Heroes()
+        end
+        return CondemnedGear.MyHeroes()
+    end
+
+    --- @param text string
+    --- @param width number
+    local function Column(text, width)
+        return gui.Label{
+            classes = { "heroSheetCardLabel" },
+            text = string.upper(text),
+            width = width,
+            height = "auto",
+            fontSize = 11,
+            bold = true,
+            rmargin = COL_GAP,
+            halign = "left",
+        }
+    end
+
+    --The allowance: how much each hero may take (Director only, until Hand out).
+    local function CanSetAllowance()
+        return director and not CondemnedGear.AnyHandedOut()
+    end
+    local function AllowanceStepper(field, max)
+        return HeroSheetInventoryActions.Stepper(function()
+            return CondemnedGear.Allowance()[field]
+        end, function(count)
+            local allow = CondemnedGear.Allowance()
+            allow[field] = count
+            CondemnedGear.SetAllowance(allow.gear, allow.grenades)
+            repaint()
+        end, max, { min = 0, canEdit = CanSetAllowance })
+    end
+    --- @param text string
+    local function AllowanceWord(text)
+        return gui.Label{
+            classes = { "heroSheetCardStrong" },
+            text = text,
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+            lmargin = 6,
+            rmargin = 22,
+            halign = "left",
+            valign = "center",
+        }
+    end
+    local reset = gui.Label{
+        classes = { "heroSheetCardLabel", "link", "underline" },
+        bgimage = "panels/square.png",
+        bgcolor = "#00000001",
+        text = T("condemned.gear.reset"),
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        lmargin = 10,
+        valign = "center",
+        press = function()
+            if CanSetAllowance() then
+                CondemnedGear.SetAllowance(book.gear, book.grenades)
+                repaint()
+            end
+        end,
+    }
+    local allowRow = gui.Panel{
+        classes = { "heroSheetListRow" },
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 8,
+        width = "100%",
+        height = 48,
+        flow = "horizontal",
+        hpad = ROW_HPAD,
+        borderBox = true,
+        bmargin = 12,
+        gui.Label{
+            classes = { "heroSheetCardLabel" },
+            text = string.upper(T("condemned.gear.each_hero_takes")),
+            width = "auto",
+            height = "auto",
+            fontSize = 11,
+            bold = true,
+            rmargin = 18,
+            halign = "left",
+            valign = "center",
+        },
+        AllowanceStepper("gear", 6),
+        AllowanceWord(T("condemned.gear.allow_gear")),
+        AllowanceStepper("grenades", 9),
+        AllowanceWord(T("condemned.gear.allow_grenades")),
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            gui.Label{
+                classes = { "heroSheetCardSub" },
+                text = T("condemned.gear.book"),
+                width = "auto",
+                height = "auto",
+                fontSize = 13,
+                valign = "center",
+            },
+            reset,
+        },
+    }
+
+    local hint = gui.Label{
+        classes = { "heroSheetCardSub" },
+        text = T("condemned.gear.own_list_hint"),
+        width = "100%",
+        height = "auto",
+        fontSize = 14,
+        bmargin = 10,
+    }
+
+    local header = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        hpad = ROW_HPAD,
+        borderBox = true,
+        Column(T("condemned.gear.col_hero"), COL_HERO),
+        Column(T("condemned.gear.col_gear"), COL_GEAR),
+        Column(T("condemned.gear.col_grenades"), COL_GRENADES),
+    }
+
+    --- @type {charid: string, paint: fun(hero: CondemnedGearHero)}[]
+    local rows = {}
+    local rowsKey = nil
+    local rowHolder = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+    }
+    local rowScroll = gui.Panel{
+        width = "100%",
+        height = 340,
+        vscroll = true,
+        tmargin = 6,
+        rowHolder,
+    }
+
+    --One hero's row: built once, painted from their choices (or what they were given).
+    --- @param hero CondemnedGearHero
+    local function BuildRow(hero)
+        local name = HeroSheetTheme.EllipsisLabel{
+            classes = { "heroSheetCardStrong" },
+            text = hero.name,
+            width = "100%",
+            height = "auto",
+            fontSize = 15,
+            bold = true,
+        }
+        local sub = HeroSheetTheme.EllipsisLabel{
+            classes = { "heroSheetCardSub" },
+            text = "",
+            width = "100%",
+            height = "auto",
+            fontSize = 12,
+        }
+        local gearArt = gui.Panel{
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            width = 26,
+            height = 26,
+            rmargin = 8,
+            valign = "center",
+        }
+        local gearText = HeroSheetTheme.EllipsisLabel{
+            classes = { "heroSheetCardText" },
+            text = "",
+            width = COL_GEAR - 34,
+            height = "auto",
+            fontSize = 14,
+            valign = "center",
+        }
+        local grenadeText = HeroSheetTheme.EllipsisLabel{
+            classes = { "heroSheetCardText" },
+            text = "",
+            width = COL_GRENADES,
+            height = "auto",
+            fontSize = 14,
+            rmargin = COL_GAP,
+            valign = "center",
+        }
+        local pill = gui.Label{
+            classes = { "heroSheetPill" },
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            border = 1,
+            cornerRadius = 9,
+            text = "",
+            width = "auto",
+            height = 22,
+            hpad = 9,
+            borderBox = true,
+            fontSize = 12,
+            bold = true,
+            halign = "right",
+            valign = "center",
+        }
+        local panel = gui.Panel{
+            classes = { "heroSheetListRow", "hoverable" },
+            bgimage = "panels/square.png",
+            border = 1,
+            cornerRadius = 8,
+            width = "100%",
+            height = 56,
+            flow = "horizontal",
+            hpad = ROW_HPAD,
+            borderBox = true,
+            bmargin = 6,
+            click = function()
+                CondemnedGear.ChooseFor(hero.charid)
+            end,
+            gui.Panel{
+                flow = "vertical",
+                width = COL_HERO,
+                height = "auto",
+                rmargin = COL_GAP,
+                valign = "center",
+                interactable = false,
+                name,
+                sub,
+            },
+            gui.Panel{
+                flow = "horizontal",
+                width = COL_GEAR,
+                height = "auto",
+                rmargin = COL_GAP,
+                valign = "center",
+                interactable = false,
+                gearArt,
+                gearText,
+            },
+            grenadeText,
+            gui.Panel{
+                width = COL_STATUS,
+                height = "auto",
+                valign = "center",
+                interactable = false,
+                pill,
+            },
+        }
+        rowHolder:AddChild(panel)
+        rows[#rows + 1] = {
+            charid = hero.charid,
+            paint = function(current)
+                local choices = ShownChoices(current)
+                name.text = current.name
+                sub.text = HeroSubline(current.token)
+                --the gear: its art and name, or "No gear".
+                local names = {}
+                for _, itemid in ipairs(choices.gear) do
+                    local item = gearTable[itemid]
+                    if item ~= nil then
+                        names[#names + 1] = item.name
+                    end
+                end
+                local first = gearTable[choices.gear[1] or ""]
+                gearArt:SetClass("collapsed", first == nil)
+                if first ~= nil then
+                    gearArt.bgimage = first.iconid
+                end
+                gearText.text = #names > 0 and table.concat(names, ", ") or T("condemned.gear.no_gear")
+                gearText:SetClass("heroSheetCardSub", #names == 0)
+                gearText.selfStyle.italics = #names == 0
+                --the grenades: "3 Blackpowder, 1 Stun", or "No grenades".
+                local parts = {}
+                for _, itemid in ipairs(CondemnedGear.GRENADES) do
+                    local count = choices.grenades[itemid] or 0
+                    local item = gearTable[itemid]
+                    if count > 0 and item ~= nil then
+                        parts[#parts + 1] = string.format("%d %s", count, ShortGrenadeName(item))
+                    end
+                end
+                grenadeText.text = #parts > 0 and table.concat(parts, ", ") or T("condemned.gear.no_grenades")
+                grenadeText:SetClass("heroSheetCardSub", #parts == 0)
+                grenadeText.selfStyle.italics = #parts == 0
+                local status = STATUS_PILL[CondemnedGear.Status(current)] or STATUS_PILL.nothing
+                pill.text = T(status.id)
+                for _, entry in pairs(STATUS_PILL) do
+                    pill:SetClass(entry.class, entry.class == status.class)
+                end
+                pill:SetClass("cgOverPill", status == STATUS_PILL.over)
+            end,
+        }
+    end
+
+    --Hand out, with its confirm when not everyone is done.
+    local confirmLines = gui.Label{
+        classes = { "heroSheetCardText" },
+        text = "",
+        width = "100%",
+        height = "auto",
+        fontSize = 14,
+        textWrap = true,
+        valign = "top",
+        vmargin = 4,
+    }
+    local fixNote = gui.Label{
+        classes = { "heroSheetWarning" },
+        text = T("condemned.gear.fix_over_first"),
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        lmargin = 12,
+        halign = "left",
+        valign = "center",
+    }
+    local showConfirm = false
+    local function Finish(ok, count)
+        if ok then
+            HeroSheetWindow.Toast(UIText.Plural("condemned.gear.handed_out_to", count))
+        else
+            HeroSheetWindow.Toast(T("condemned.gear.refused"))
+            audio.FireSoundEvent("UI.Error_Generic")
+        end
+        repaint()
+    end
+    local function HandOut()
+        showConfirm = false
+        CondemnedGear.HandOut(Finish)
+        repaint()
+    end
+    local anyway = HeroSheetTheme.WindowButton(T("condemned.gear.hand_out_anyway"), function()
+        local over = false
+        for _, hero in ipairs(CondemnedGear.Heroes()) do
+            if CondemnedGear.Status(hero) == "over" then
+                over = true
+            end
+        end
+        if not over then
+            HandOut()
+        end
+    end, true)
+    anyway.selfStyle.lmargin = 0
+    anyway.selfStyle.halign = "left"
+    local keepOpen = HeroSheetTheme.WindowButton(T("condemned.gear.keep_open"), function()
+        showConfirm = false
+        repaint()
+    end, false)
+    keepOpen.selfStyle.halign = "left"
+    local confirm = gui.Panel{
+        classes = { "heroSheetListRow", "cgOverPill" },
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 8,
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        pad = 12,
+        borderBox = true,
+        tmargin = 8,
+        gui.Label{
+            classes = { "heroSheetCardStrong" },
+            text = T("condemned.gear.not_done"),
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+            bold = true,
+            halign = "left",
+        },
+        --a fixed height that scrolls, so a long list never pushes Hand out off the window.
+        gui.Panel{
+            width = "100%",
+            height = 104,
+            vscroll = true,
+            confirmLines,
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            tmargin = 6,
+            anyway,
+            keepOpen,
+            fixNote,
+        },
+    }
+
+    local tally = gui.Label{
+        classes = { "heroSheetCardText" },
+        text = "",
+        width = "auto",
+        height = "auto",
+        fontSize = 14,
+        halign = "left",
+        valign = "center",
+    }
+    local handOut = HeroSheetTheme.WindowButton(T("condemned.gear.hand_out"), function()
+        if not director or CondemnedGear.IsHandingOut() or CondemnedGear.AnyHandedOut() then
+            return
+        end
+        for _, hero in ipairs(CondemnedGear.Heroes()) do
+            local status = CondemnedGear.Status(hero)
+            if status ~= "done" and status ~= "given" then
+                showConfirm = true
+                repaint()
+                return
+            end
+        end
+        HandOut()
+    end, true)
+    handOut.selfStyle.halign = "right"
+    local footer = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = 44,
+        tmargin = 10,
+        tally,
+        handOut,
+    }
+
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "100%",
+        hpad = PARTY_HPAD,
+        vpad = 14,
+        borderBox = true,
+        paint = function(element)
+            if g_charid ~= nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local listed = Listed()
+            --a player with no hero of their own sees the window's "Director chooses" line instead.
+            element:SetClass("collapsed", not director and #listed == 0)
+            --rows follow the list of heroes; built again only when that changes.
+            local ids = {}
+            for _, hero in ipairs(listed) do
+                ids[#ids + 1] = hero.charid
+            end
+            local key = table.concat(ids, ",")
+            if key ~= rowsKey then
+                rowsKey = key
+                rowHolder.children = {}
+                rows = {}
+                for _, hero in ipairs(listed) do
+                    BuildRow(hero)
+                end
+            end
+            for i, hero in ipairs(listed) do
+                rows[i].paint(hero)
+            end
+
+            allowRow:SetClass("collapsed", not director)
+            hint:SetClass("collapsed", director)
+            footer:SetClass("collapsed", not director)
+            local allow = CondemnedGear.Allowance()
+            local handedOut = CondemnedGear.AnyHandedOut()
+            reset:SetClass("collapsed", handedOut or (allow.gear == book.gear and allow.grenades == book.grenades))
+            element:FireEventTree("refreshNumber")
+
+            --the footer: how many are done, or who got their gear.
+            local done, given, over = 0, 0, false
+            local lines = {}
+            for _, hero in ipairs(listed) do
+                local status = CondemnedGear.Status(hero)
+                if status == "done" then
+                    done = done + 1
+                elseif status == "given" then
+                    given = given + 1
+                else
+                    over = over or status == "over"
+                    local id = status == "over" and "condemned.gear.not_done_over"
+                        or status == "nothing" and "condemned.gear.not_done_nothing"
+                        or "condemned.gear.not_done_choosing"
+                    lines[#lines + 1] = T(id, { name = hero.name })
+                end
+            end
+            if handedOut then
+                tally.text = UIText.Plural("condemned.gear.handed_out_to", given)
+            else
+                tally.text = T("condemned.gear.tally", { done = done, total = #listed })
+            end
+            handOut:SetClass("collapsed", handedOut)
+            local waiting = CondemnedGear.IsHandingOut()
+            handOut.data.tip = waiting and T("condemned.gear.waiting") or T("condemned.gear.hand_out_tip")
+            handOut.selfStyle.opacity = waiting and 0.45 or 1
+            handOut.children[1].selfStyle.opacity = waiting and 0.45 or 1
+
+            --the confirm, while it is up and someone is not done.
+            local confirming = showConfirm and #lines > 0 and not handedOut and not waiting
+            confirm:SetClass("collapsed", not confirming)
+            confirmLines.text = table.concat(lines, "\n")
+            fixNote:SetClass("collapsed", not over)
+            --opacity is not passed on to children: dim the label too.
+            anyway.selfStyle.opacity = over and 0.45 or 1
+            anyway.children[1].selfStyle.opacity = over and 0.45 or 1
+            --the table gives the confirm its room.
+            rowScroll.selfStyle.height = confirming and 190 or 380
+        end,
+        allowRow,
+        hint,
+        header,
+        gui.Panel{
+            classes = { "heroSheetDialogRule" },
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+            tmargin = 6,
+        },
+        rowScroll,
+        confirm,
+        footer,
+    }
+end
+
 --- True while this user's window is up.
 --- @return boolean
 function CondemnedGear.IsWindowShowing()
@@ -1553,12 +2132,12 @@ local function BuildWindow()
         BuildPane(Repaint),
     }
 
-    --The party table (chunk 5) goes here too.
     local body = gui.Panel{
         width = "100%",
         height = BODY_HEIGHT,
         flow = "vertical",
         nobody,
+        BuildParty(Repaint),
         picker,
     }
 

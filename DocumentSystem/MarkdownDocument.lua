@@ -3226,6 +3226,9 @@ local function PowerRollDisplay(getDocument)
                 width = PRESET_CYCLER_WIDTH,
                 height = 18,
                 valign = "center",
+                --left keeps it beside the title; centered, it would float to
+                --the middle of the space the full-width row leaves free.
+                halign = "left",
                 text = "",
                 refreshPowerRoll = function(element, token)
                     if token.preset == nil then

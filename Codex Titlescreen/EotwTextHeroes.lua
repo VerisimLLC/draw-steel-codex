@@ -554,6 +554,13 @@ text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
 
+--The potency row at the top of the Abilities section, and its hover.
+text("herocard.back.potency.title", [[Potency]])
+text("herocard.back.potency.weak", [[Weak]])
+text("herocard.back.potency.average", [[Average]])
+text("herocard.back.potency.strong", [[Strong]])
+text("herocard.back.potency.tip", [[An ability's potency effect lands only on a target whose characteristic is lower than your potency for it: Weak, Average or Strong. Your bonuses to potency are included.]])
+
 --A Summoner's minion squads, in Stats. {live} and {total} count a squad's
 --minions (up, and in the squad); {stamina} is its Stamina, already formatted;
 --{dot} a small middle dot.

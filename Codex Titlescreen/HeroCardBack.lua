@@ -2032,6 +2032,57 @@ local function TriggerReadyLine(c)
     return Text{ text = T("herocard.back.triggers.used"), fontSize = 12, color = COLOR_MUTED, bmargin = 2 }
 end
 
+--- The hero's potencies, Weak, Average and Strong, with their bonuses: the top
+--- of Abilities, since every potency effect in them is checked against these.
+--- Hover: what potency does.
+local function PotencyRow(c)
+    --the rules' potency names, with the card's words for them.
+    local tiers = {
+        { id = "weak", text = T("herocard.back.potency.weak") },
+        { id = "average", text = T("herocard.back.potency.average") },
+        { id = "strong", text = T("herocard.back.potency.strong") },
+    }
+    local labelWidth = 66
+    local cellWidth = math.floor((CONTENT_WIDTH - labelWidth) / #tiers)
+    local cells = {
+        Text{ text = string.upper(T("herocard.back.potency.title")), width = labelWidth, fontSize = 11, bold = true, color = COLOR_MUTED, valign = "center", textWrap = false },
+    }
+    for _, tier in ipairs(tiers) do
+        local value = tonumber(Try(function() return c:CalculatePotencyValue(tier.id) end))
+        if value == nil then
+            return nil
+        end
+        cells[#cells+1] = gui.Panel{
+            width = cellWidth - 6,
+            height = 24,
+            rmargin = 6,
+            bgimage = "panels/square.png",
+            bgcolor = COLOR_PLATE,
+            border = 1,
+            borderColor = "#3a4654",
+            interactable = false,
+            Text{
+                text = string.format("<b><size=15><color=%s>%d</color></size></b>  %s", COLOR_TEXT, value, tier.text),
+                height = "100%",
+                valign = "center",
+                fontSize = 11,
+                color = COLOR_MUTED,
+                textAlignment = "center",
+                textWrap = false,
+            },
+        }
+    end
+    return WithHover(gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        --clear of the Abilities heading's rule above it.
+        tmargin = 8,
+        interactable = false,
+        children = cells,
+    }, function() return T("herocard.back.potency.tip") end)
+end
+
 --- Abilities: every ability in folding buckets in the sheet's order, the
 --- triggered actions in their own bucket with what sets each off.
 --- Appended to result/info.
@@ -2753,6 +2804,11 @@ local function BuildHeroScroll(tok, charid, state)
 
     result[#result+1] = SectionHeading("abilities")
     info[#info+1] = { heading = false, section = "abilities" }
+    local potency, potencyInfo = Collect{ function() return PotencyRow(c) end }
+    for i, row in ipairs(potency) do
+        result[#result+1] = row
+        info[#info+1] = potencyInfo[i]
+    end
     AppendAbilities(result, info, tok, c, state)
 
     AppendSection(result, info, "features", {

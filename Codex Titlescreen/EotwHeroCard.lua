@@ -1395,7 +1395,7 @@ local function SetHeroSurges(charid, value)
     tok:ModifyProperties{
         description = "Change Surges",
         execute = function()
-            tok.properties:ConsumeSurges(-diff, "Manually Set")
+            tok.properties:ConsumeSurges(-diff, creature.manualSurgeNote)
         end,
     }
 end

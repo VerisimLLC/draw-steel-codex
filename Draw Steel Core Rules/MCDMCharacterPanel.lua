@@ -3671,7 +3671,7 @@ function TacPanel.SurgesBox()
                         token:ModifyProperties{
                             description = "Change Surges",
                             execute = function()
-                                token.properties:ConsumeSurges(-diff, "Manually Set")
+                                token.properties:ConsumeSurges(-diff, creature.manualSurgeNote)
                             end,
                         }
                     end
@@ -14183,7 +14183,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
                         m_token:ModifyProperties{
                             description = "Change Surges",
                             execute = function()
-                                m_token.properties:ConsumeSurges(-diff, "Manually Set")
+                                m_token.properties:ConsumeSurges(-diff, creature.manualSurgeNote)
                             end,
                         }
 

@@ -444,6 +444,10 @@ function creature:GetSurgePoolOwner()
     return self
 end
 
+-- History note for surge counts typed into the character sheet. ConsumeSurges skips
+-- the Use Resource trigger for this note, so pass it from any manual surge edit.
+creature.manualSurgeNote = "Manually Set"
+
 function creature:ConsumeSurges(ncount, note)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
@@ -453,6 +457,7 @@ function creature:ConsumeSurges(ncount, note)
     -- Retainers spend from their mentor's pool, matching where Resource.lua sends their surge gains.
     local mentor = self:GetSurgeSharingMentor()
     local mentorToken = mentor ~= nil and dmhub.LookupToken(mentor) or nil
+    local summonerToken = self:GetSurgeSharingSummonerToken()
     if mentorToken ~= nil then
         mentorToken:ModifyProperties{
             description = "Consume Surges",
@@ -460,21 +465,26 @@ function creature:ConsumeSurges(ncount, note)
                 mentorToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
             end,
         }
-        return
-    end
-
-    local summonerToken = self:GetSurgeSharingSummonerToken()
-    if summonerToken ~= nil then
+    elseif summonerToken ~= nil then
         summonerToken:ModifyProperties{
             description = "Consume Surges",
             execute = function()
                 summonerToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
             end,
         }
-        return
+    else
+        self:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
     end
 
-    self:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
+    -- Fire the Use Resource trigger on the creature that spent the surges, even when
+    -- they came from a shared pool. Gaining surges or editing the count on the sheet doesn't count.
+    local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[surgeid]
+    if ncount > 0 and note ~= creature.manualSurgeNote and resourceInfo ~= nil then
+        self:DispatchEvent("useresource", {
+            resource = string.lower(resourceInfo.name),
+            quantity = ncount,
+        })
+    end
 end
 
 function creature:GetAvailableSurges()

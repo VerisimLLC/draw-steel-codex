@@ -2071,6 +2071,177 @@ Commands.RegisterMacro{
     end,
 }
 
+--Director chat command /archivistknown (Fighting the Archivist): a list of the heroes on the
+--map to tick the ones who revealed a criminal backstory, or were revealed as part of the
+--resistance, during the negotiation. Applying gives exactly the ticked heroes the Known to
+--the Archivist effect for the encounter (his He Knows You edge); ticking nobody is a valid
+--answer. It then sets the archivist_known variable, which tells the encounter script to take
+--its Known to the Archivist button away. A journal button can run it to add a hero later.
+--Kept in a block: this file's main chunk is close to Lua's 200-local limit.
+do
+    local KNOWN_EFFECT = "338a5a55-02bb-45bf-aa11-024da242867f"
+
+    ---@param token CharacterToken
+    ---@return boolean
+    local function IsKnown(token)
+        local found = false
+        pcall(function()
+            for _, effect in ipairs(token.properties:ActiveOngoingEffects()) do
+                if effect.ongoingEffectid == KNOWN_EFFECT then
+                    found = true
+                end
+            end
+        end)
+        return found
+    end
+
+    --Gives or takes away the effect so the heroes ticked are exactly the ones known, then
+    --tells the Directors who is known and lets the encounter script drop its button.
+    ---@param picks {token: CharacterToken, check: Panel}[]
+    local function ApplyKnown(picks)
+        local names = {}
+        for _, pick in ipairs(picks) do
+            local token = pick.token
+            local wanted = pick.check.value == true
+            if token.valid and wanted ~= IsKnown(token) then
+                token:ModifyProperties{
+                    description = wanted and "Known to the Archivist" or "No longer known to the Archivist",
+                    execute = function()
+                        if wanted then
+                            token.properties:ApplyOngoingEffect(KNOWN_EFFECT, "eoe")
+                        else
+                            token.properties:RemoveOngoingEffect(KNOWN_EFFECT)
+                        end
+                    end,
+                }
+            end
+            if wanted then
+                names[#names + 1] = tostring(token.name)
+            end
+        end
+        Commands.setvar("archivist_known done")
+        local text = "Known to the Archivist: nobody."
+        if #names > 0 then
+            text = "Known to the Archivist (he has an edge on power rolls against them): " .. table.concat(names, ", ") .. "."
+        end
+        SendTitledChatMessage(text, "Fighting the Archivist", "#e8a030", SafetyTools.DirectorUserIds())
+    end
+
+    local function ShowKnownDialog()
+        local heroes = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            local hero = false
+            pcall(function() hero = token.properties:IsHero() end)
+            if hero then
+                heroes[#heroes + 1] = token
+            end
+        end
+        table.sort(heroes, function(a, b) return tostring(a.name) < tostring(b.name) end)
+
+        local picks = {}
+        local rows = {}
+        for _, token in ipairs(heroes) do
+            local check = gui.Check{
+                text = tostring(token.name),
+                value = IsKnown(token),
+                width = "auto",
+                height = 24,
+                minWidth = 0,
+                fontSize = 14,
+                vmargin = 2,
+            }
+            picks[#picks + 1] = { token = token, check = check }
+            rows[#rows + 1] = check
+        end
+        if #heroes == 0 then
+            rows[#rows + 1] = gui.Label{
+                text = "There are no heroes on this map.",
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+                italics = true,
+            }
+        end
+
+        --the modal layer passes no themed cascade, so the window roots its own.
+        local dialog = gui.Panel{
+            styles = ThemeEngine.GetStyles(),
+            width = "auto",
+            height = "auto",
+            children = {
+                gui.Panel{
+                    classes = { "framedPanel" },
+                    width = 460,
+                    height = "auto",
+                    flow = "vertical",
+                    borderBox = true,
+                    pad = 16,
+                    children = {
+                        gui.Label{
+                            text = "Known to the Archivist",
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 20,
+                            bold = true,
+                        },
+                        gui.Label{
+                            text = "Who revealed a criminal backstory during the negotiation, or was revealed as part of the resistance? He has an edge on power rolls against them for the rest of the encounter. Tick nobody if no one did.",
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 14,
+                            textWrap = true,
+                            vmargin = 8,
+                        },
+                        gui.Panel{
+                            flow = "vertical",
+                            width = "100%",
+                            height = "auto",
+                            children = rows,
+                        },
+                        gui.Panel{
+                            flow = "horizontal",
+                            width = "auto",
+                            height = "auto",
+                            halign = "right",
+                            tmargin = 12,
+                            children = {
+                                gui.Button{
+                                    text = "Cancel",
+                                    rmargin = 8,
+                                    press = function()
+                                        gui.CloseModal()
+                                    end,
+                                },
+                                gui.Button{
+                                    text = "Apply",
+                                    press = function()
+                                        gui.CloseModal()
+                                        ApplyKnown(picks)
+                                    end,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        gui.ShowModal(dialog)
+    end
+
+    Commands.RegisterMacro{
+        name = "archivistknown",
+        summary = "pick the heroes Known to the Archivist",
+        doc = "Usage: /archivistknown\nOpens a list of the heroes on the map. Tick the ones who revealed a criminal backstory, or were revealed as part of the resistance, during the negotiation, then Apply: exactly those heroes are Known to the Archivist for the encounter (he has an edge on power rolls against them). Applying with nobody ticked is fine. Director only.",
+        command = function(str)
+            if not dmhub.isDM then
+                SendTitledChatMessage("Only a Director can use /archivistknown.", "Fighting the Archivist", "#e8a030", { dmhub.userid })
+                return
+            end
+            ShowKnownDialog()
+        end,
+    }
+end
+
 --The centre of the squares a token covers, in floor space (square centres are whole numbers).
 ---@param token CharacterToken
 ---@return number, number

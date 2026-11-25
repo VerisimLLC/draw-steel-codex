@@ -7049,7 +7049,17 @@ local function BuildCard(card)
             if card.turned then
                 return
             end
-            ChatItemLinks.Dragging(function() return {ChatItemLinks.CharacterItem(card.charid)} end)
+            --a link for this card and each selected card dragged with it.
+            ChatItemLinks.Dragging(function()
+                local items = {ChatItemLinks.CharacterItem(card.charid)}
+                local group = g_cs.group
+                if group ~= nil and group.card == card then
+                    for _, m in ipairs(group.members) do
+                        items[#items+1] = ChatItemLinks.CharacterItem(m.card.charid)
+                    end
+                end
+                return items
+            end)
             --the other selected cards follow it while it is over the table.
             local overTable = dmhub.tabletopDragSurface ~= "map"
             g_cs.MoveCardGroup(card, element.xdrag - card.x, element.ydrag - card.y, overTable)
@@ -7100,14 +7110,31 @@ local function BuildCard(card)
             local drag = g_cardDrag
             --dropped on a scene, or on the bare table while a scene is its
             --background: the card moves into the scene (SceneElements.lua).
-            local intoScene = (toChat and SceneElements.TookCharacter(card.charid))
-                or (not toChat and dmhub.panelDropSurface == "table" and SceneElements.DropOnBackground({card.charid}))
+            local charids = {card.charid}
+            if group ~= nil then
+                for _, m in ipairs(group.members) do
+                    charids[#charids+1] = m.card.charid
+                end
+            end
+            local onBackground = not toChat and dmhub.panelDropSurface == "table" and SceneElements.DropOnBackground(charids)
+            local intoScene = (toChat and SceneElements.TookCharacter(card.charid)) or onBackground
             if intoScene then
                 if drag ~= nil and drag.card == card then
                     element:SetClass("tabletopCardOverMap", false)
                     EndCardDrag(drag, element)
                 end
                 CloseCard(card)
+            end
+            --the selected cards dragged with it go in too: all of them onto a
+            --background scene, and each a scene window took.
+            if group ~= nil and (toChat or onBackground) then
+                for _, m in ipairs(group.members) do
+                    if onBackground or SceneElements.TookCharacter(m.card.charid) then
+                        CloseCard(m.card)
+                    end
+                end
+            end
+            if intoScene then
                 return
             end
             if drag ~= nil and drag.card == card then

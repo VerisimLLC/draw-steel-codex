@@ -14812,13 +14812,21 @@ CreateAbilityController = function()
                         if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                             newPathEndShapes = newPathEndShapes or {}
 
+                            local pusher = g_currentSymbols.invoker ~= nil and Utils.ResolveGoblinScriptObject(g_currentSymbols.invoker) or nil
+                            local movementType = g_currentAbility:try_get("forcedMovement", "slide")
+
                             for _, collision in ipairs(movementInfo.bounceCollisions) do
                                 local bounceCollideWith = collision.collideWith or {}
-                                local bounceDamage = collision.speed
+                                --a wall, or any object among what it hit, as AbilityRelocateCreature
+                                --reports a bounce to the Collision rule.
                                 local bounceIsObject = #bounceCollideWith == 0
-                                if bounceIsObject then
-                                    bounceDamage = bounceDamage + 2
+                                for _, collideToken in ipairs(bounceCollideWith) do
+                                    if collideToken.isObject then
+                                        bounceIsObject = true
+                                        break
+                                    end
                                 end
+                                local bounceDamage = g_token.properties:PredictedCollisionDamage(collision.speed, bounceIsObject, pusher, movementType)
 
                                 --see the note on suppressDamage above.
                                 local suppressBounceDamage = #bounceCollideWith > 0
@@ -14859,9 +14867,15 @@ CreateAbilityController = function()
                                         radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                     }
                                     if not suppressBounceDamage then
+                                        --a creature it hits takes its own share; an object is labelled
+                                        --with the mover's.
+                                        local hitDamage = bounceDamage
+                                        if not collideToken.isObject then
+                                            hitDamage = collideToken.properties:PredictedCollisionDamage(collision.speed, bounceIsObject, pusher, movementType)
+                                        end
                                         newTextLabels[#newTextLabels + 1] = {
                                             point = collideToken:PosAtLoc(),
-                                            text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                            text = string.format("-%d<color=#00000000>-</color>", hitDamage),
                                         }
                                     end
                                 end

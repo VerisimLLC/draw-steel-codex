@@ -2935,6 +2935,512 @@ end
 CondemnedCampaign.CollarRowExtras = CollarRowExtras
 
 --------------------------------------------------------------------------------
+-- The Patrol Fight popup
+--------------------------------------------------------------------------------
+--The Director's rail popup for a Crysopolis patrol fight. Set Up opens the patrol's map in
+--prep, where its encounter script puts each group on the start position picked here.
+--Wrapped in a function so its locals don't count toward the file's 200-local limit.
+;(function()
+    local MAPS = {
+        --d10 is the book's Starting Position table: the result for each roll of 1 to 10
+        { id = "road", text = "Crysopolis Road", mapid = "673809e5-5b01-4a64-96d2-d1d25a0cf567",
+          d10 = { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5 }, positions = 5 },
+        { id = "facility", text = "War Dog Facility", mapid = "33b4b4a6-4781-444d-ba44-6dbcff4c11ef",
+          d10 = { 1, 1, 2, 2, 3, 3, 3, 4, 4, 4 }, positions = 4 },
+    }
+
+    --Each patrol's monsters and script are read from the journal widget that holds it. The
+    --elevator's fixed start and missing destination are repeated here and must match the
+    --settings of its widget's patrol script (heroStart 1, canLeave off).
+    --name is the patrol's name in ALARM_LEVELS, which says which patrol each alarm level brings.
+    local PATROLS = {
+        { id = "squad", name = "War Dog Squad", text = "War Dog Squad (alarm 2)",
+          page = "Montage Test: Crysopolis Infiltration", key = "encounter" },
+        { id = "patrol", name = "War Dog Patrol", text = "War Dog Patrol (alarm 3)",
+          page = "Montage Test: Crysopolis Infiltration", key = "encounter-1" },
+        { id = "strike", name = "War Dog Strike Team", text = "War Dog Strike Team (alarm 4+)",
+          page = "Montage Test: Crysopolis Infiltration", key = "encounter-2" },
+        --the elevator fight can't end by leaving, so its war dogs head nowhere: no Destination row
+        { id = "elevator", text = "Restricted Elevator patrol", page = "Montage Test: Entering the Armory", key = "encounter-3",
+          onlyMap = "facility", heroStart = 1, noDestination = true },
+    }
+
+    --the groups that get a start position, in the book's rolling order
+    local ROWS = {
+        --text labels the row; phrase names the group inside a sentence
+        { key = "heroes", text = "Condemned", phrase = "the Condemned", param = "heroStart" },
+        { key = "dogs", text = "War dogs", phrase = "the war dogs", param = "dogStart" },
+        { key = "civilians", text = "Civilians", phrase = "the civilians", param = "civStart", onlyMap = "road" },
+        { key = "destination", text = "Destination", param = "destStart", onlyMap = "facility",
+          hint = "Where the war dogs head" },
+    }
+
+    local SCRIPT_NAME = "The Condemned - Patrol Start Positions"
+
+    --The entry of list with this id; the first entry if none matches.
+    local function Find(list, id)
+        for _, entry in ipairs(list) do
+            if entry.id == id then
+                return entry
+            end
+        end
+        return list[1]
+    end
+
+    --The encounter stored in the patrol's journal widget, or nil.
+    local function FindEncounter(patrol)
+        local doc = FindJournalPage(patrol.page)
+        local tag = doc ~= nil and (doc:try_get("annotations") or {})[patrol.key] or nil
+        --try_get: a widget of another kind at this key has no encounter field, and reading it would raise
+        return tag ~= nil and tag:try_get("encounter") or nil
+    end
+
+    --- Builds the Patrol Fight popup.
+    --- @param owner Panel the rail button it opens from; a successful Set Up closes the popup
+    --- @return Panel
+    CondemnedCampaign.CreatePatrolPanel = function(owner)
+        local alarm = IntelTracker.Alarm()
+
+        local mapId = "road"
+        --start on the patrol the current alarm level brings (the squad below alarm 2)
+        local alarmPatrol = (ALARM_LEVELS[alarm] or ALARM_LEVELS[0]).patrol
+        local patrolId = "squad"
+        for _, patrol in ipairs(PATROLS) do
+            if alarmPatrol ~= nil and patrol.name == alarmPatrol then
+                patrolId = patrol.id
+            end
+        end
+
+        --chosen start position by row key, rolled here or picked by hand; nil = the patrol script
+        --rolls it (start positions when Set Up starts the prep, the destination when the fight starts)
+        local chosen = {}
+        local rowPanels = {}
+        local rolling = false
+        --goes up when the map or patrol changes or Roll Start Positions is pressed, so a die
+        --still rolling for the old picks is ignored; rowChange does the same for one row picked by hand
+        local changeCount = 0
+        local rowChange = {}
+        --Set Up is refused while any die is still rolling, so a result landing after it is never lost
+        local diceInAir = 0
+        ---@type Dropdown|nil
+        local mapDropdown = nil
+        --says why the map choice is locked while a patrol has its own map
+        local mapNote = gui.Label {
+            classes = { "sizeXs", "collapsed" },
+            text = "Set by the patrol",
+            width = "100%",
+            height = "auto",
+            tmargin = 2,
+        }
+
+        local helpLabel = gui.Label {
+            classes = { "sizeXs" },
+            text = "",
+            width = "100%",
+            height = "auto",
+            tmargin = 8,
+            textWrap = true,
+        }
+
+        --why Set Up can't go ahead, in red above the button; a message box would open behind
+        --this popup
+        local message = gui.Label {
+            classes = { "sizeXs", "danger", "collapsed" },
+            text = "",
+            width = "100%",
+            height = "auto",
+            tmargin = 6,
+            textWrap = true,
+        }
+        local function Say(text)
+            message.text = text or ""
+            message:SetClass("collapsed", text == nil)
+        end
+
+        local function CurrentMap()
+            local patrol = Find(PATROLS, patrolId)
+            return Find(MAPS, patrol.onlyMap or mapId)
+        end
+
+        local function RowApplies(row)
+            if row.key == "destination" and Find(PATROLS, patrolId).noDestination then
+                return false
+            end
+            return row.onlyMap == nil or row.onlyMap == CurrentMap().id
+        end
+
+        --The choices for a row's list. A destination left on Roll is rolled when the fight
+        --starts; every other group is rolled when Set Up starts the prep.
+        local function PositionOptions(row)
+            local rollText = row.key == "destination" and "Roll at fight start" or "Roll at Set Up"
+            local options = { { id = "roll", text = rollText } }
+            for i = 1, CurrentMap().positions do
+                options[#options + 1] = { id = tostring(i), text = "Start Position " .. i }
+            end
+            return options
+        end
+
+        --Redraws the map choice and every row: a row is hidden when it does not apply to this
+        --map, the elevator's fixed start is shown as such, otherwise its dropdown shows the pick.
+        local function RefreshRows()
+            Say(nil)
+            local patrol = Find(PATROLS, patrolId)
+            --a patrol tied to one map (the elevator) shows that map and locks the choice
+            if mapDropdown ~= nil and mapDropdown.valid then
+                mapDropdown.idChosen = CurrentMap().id
+                mapDropdown.interactable = patrol.onlyMap == nil
+                mapDropdown:SetClass("disabled", patrol.onlyMap ~= nil)
+            end
+            mapNote:SetClass("collapsed", patrol.onlyMap == nil)
+            local destinationShown = false
+            for _, row in ipairs(ROWS) do
+                if row.key == "destination" and RowApplies(row) then
+                    destinationShown = true
+                end
+                local panel = rowPanels[row.key]
+                if panel ~= nil and panel.valid then
+                    panel:SetClass("collapsed", not RowApplies(row))
+                    local dropdown = panel.data.dropdown
+                    local fixedNote = panel.data.fixedNote
+                    local rollButton = panel.data.rollButton
+                    local fixed = row.key == "heroes" and patrol.heroStart or nil
+                    dropdown:SetClass("collapsed", fixed ~= nil)
+                    rollButton:SetClass("collapsed", fixed ~= nil)
+                    fixedNote:SetClass("collapsed", fixed == nil)
+                    if fixed ~= nil then
+                        fixedNote.text = string.format("Start Position %d (the elevator)", fixed)
+                    else
+                        dropdown.options = PositionOptions(row)
+                        dropdown.idChosen = chosen[row.key] ~= nil and tostring(chosen[row.key]) or "roll"
+                    end
+                end
+            end
+            local help = "Set Up opens the map and starts prep. Positions left on Roll are rolled then."
+            if destinationShown then
+                help = help .. " A destination left on Roll is rolled when the fight starts."
+            end
+            helpLabel.text = help
+        end
+
+        --The positions already taken when rolling for row: the book rerolls a group onto a
+        --free position, and the destination only has to differ from the war dogs' start.
+        local function TakenFor(row)
+            local taken = {}
+            local patrol = Find(PATROLS, patrolId)
+            if row.key == "destination" then
+                if chosen.dogs ~= nil then
+                    taken[chosen.dogs] = true
+                end
+                return taken
+            end
+            if patrol.heroStart ~= nil then
+                taken[patrol.heroStart] = true
+            end
+            for _, other in ipairs(ROWS) do
+                if other.key ~= row.key and other.key ~= "destination" and RowApplies(other) and chosen[other.key] ~= nil then
+                    taken[chosen[other.key]] = true
+                end
+            end
+            return taken
+        end
+
+        --Rolls a d10 on the map's table for one row, rerolling a taken result, then calls done.
+        local function RollOne(row, done)
+            local map = CurrentMap()
+            local rolledFor = changeCount
+            local rowFor = rowChange[row.key] or 0
+            diceInAir = diceInAir + 1
+            dmhub.Roll {
+                roll = "1d10",
+                description = "Patrol start: " .. row.text,
+                dmonly = true,
+                complete = function(info)
+                    diceInAir = diceInAir - 1
+                    --the popup was closed, or the map, patrol or every pick changed, while this die rolled
+                    if mod.unloaded or not message.valid or rolledFor ~= changeCount then
+                        return
+                    end
+                    --this row was picked by hand while its die rolled: keep the pick, go on to the next row
+                    if rowFor ~= (rowChange[row.key] or 0) then
+                        if done ~= nil then
+                            done()
+                        end
+                        return
+                    end
+                    --taken is read now, not when the die was thrown: another row may have landed since
+                    local taken = TakenFor(row)
+                    local pos = map.d10[math.floor(info.total or 0)]
+                    if pos == nil or taken[pos] then
+                        RollOne(row, done)
+                        return
+                    end
+                    chosen[row.key] = pos
+                    RefreshRows()
+                    if done ~= nil then
+                        done()
+                    end
+                end,
+            }
+        end
+
+        local function RollAll()
+            if rolling then
+                return
+            end
+            rolling = true
+            changeCount = changeCount + 1
+            chosen = {}
+            RefreshRows()
+            local patrol = Find(PATROLS, patrolId)
+            local index = 0
+            local function Next()
+                index = index + 1
+                local row = ROWS[index]
+                if row == nil then
+                    rolling = false
+                    return
+                end
+                --a row the Director picked by hand since this run began keeps that pick
+                if not RowApplies(row) or (row.key == "heroes" and patrol.heroStart ~= nil) or chosen[row.key] ~= nil then
+                    Next()
+                    return
+                end
+                RollOne(row, Next)
+            end
+            Next()
+        end
+
+        --Starts the patrol on its map in prep. Returns false, with the reason shown in the
+        --popup, when it can't, so the popup stays open with the Director's picks.
+        local function SetUp()
+            local patrol = Find(PATROLS, patrolId)
+            local map = CurrentMap()
+
+            if diceInAir > 0 then
+                Say("Wait for the dice to land.")
+                return false
+            end
+
+            --positions picked by hand can clash (the d10 rerolls clashes); the script would
+            --quietly move one group, so ask the Director to choose instead
+            local holder = {}
+            if patrol.heroStart ~= nil then
+                holder[patrol.heroStart] = "the Condemned"
+            end
+            for _, row in ipairs(ROWS) do
+                local pos = chosen[row.key]
+                if row.key ~= "destination" and RowApplies(row) and pos ~= nil then
+                    if holder[pos] ~= nil then
+                        Say(string.format("Start Position %d has both %s and %s. Pick another position or roll.", pos, holder[pos], row.phrase))
+                        return false
+                    end
+                    holder[pos] = row.phrase
+                end
+            end
+            --no RowApplies check needed: a destination can only be picked while its row shows,
+            --and changing the map or patrol clears every pick
+            if chosen.destination ~= nil and chosen.destination == chosen.dogs then
+                Say("The war dogs can't head for the Start Position they begin at. Pick another destination or roll.")
+                return false
+            end
+
+            --without this, the encounter would be set up on whatever map the Director is viewing
+            local gameMap = game.GetMap(map.mapid)
+            if gameMap == nil or not gameMap.valid then
+                Say("This game doesn't have the " .. map.text .. " map.")
+                return false
+            end
+            --each map has its own fight, so only a fight on the patrol's map is in the way
+            if Tabletop.MapInCombat(map.mapid) then
+                Say("A fight is already running on the " .. map.text .. " map. End it before setting up a patrol.")
+                return false
+            end
+            --one encounter in prep per map; the game would refuse after the popup had closed
+            if Encounter.GetPrep(map.mapid) ~= nil then
+                Say("A fight is being prepared on the " .. map.text .. " map. Press Draw Steel or Cancel on the bar at the top of the map first.")
+                return false
+            end
+            local source = FindEncounter(patrol)
+            if source == nil then
+                Say("Couldn't find the " .. (patrol.name or patrol.text) .. " widget on " .. patrol.page .. ".")
+                return false
+            end
+
+            local encounter = DeepCopy(source)
+            encounter.mapid = map.mapid
+            --the map picked in the popup wins: without this, a widget set on a Map Library
+            --map would open that map instead
+            encounter.mapRef = ""
+            --hand the chosen positions to the patrol script through its settings, on this copy so
+            --the journal widget keeps its own; rows left on Roll keep the widget's 0, which the
+            --script rolls itself
+            local scriptFound = false
+            for _, instance in ipairs(encounter:GetScripts()) do
+                if instance:try_get("name") == SCRIPT_NAME then
+                    scriptFound = true
+                    local params = instance:try_get("params", {})
+                    for _, row in ipairs(ROWS) do
+                        local fixedHeroes = row.key == "heroes" and patrol.heroStart ~= nil
+                        if RowApplies(row) and chosen[row.key] ~= nil and not fixedHeroes then
+                            params[row.param] = chosen[row.key]
+                        end
+                    end
+                    instance.params = params
+                end
+            end
+            --without the script the fight would start with no one in a start position and no
+            --way to end it by leaving
+            if not scriptFound then
+                Say("The " .. (patrol.name or patrol.text) .. " widget has no \"" .. SCRIPT_NAME .. "\" script.")
+                return false
+            end
+            Encounter.StartEncounterOnItsMap(encounter, Encounter.CurrentParty(), { start = true })
+            return true
+        end
+
+        local function Caption(text)
+            return gui.Label { classes = { "sizeS" }, text = text, width = "100%", height = "auto", tmargin = 8, bmargin = 2 }
+        end
+
+        --A map or patrol dropdown. Picking another clears the start positions, which belong to one map.
+        local function Choice(options, value, onChange)
+            return gui.Dropdown {
+                classes = { "sizeS" },
+                width = 276,
+                height = 24,
+                fontSize = 12,
+                options = options,
+                idChosen = value,
+                change = function(element)
+                    onChange(element.idChosen)
+                    changeCount = changeCount + 1
+                    rolling = false
+                    chosen = {}
+                    RefreshRows()
+                end,
+            }
+        end
+
+        --One start-position row: the group, a dropdown to pick a position by hand, and a
+        --d10 button that rerolls just this row.
+        local function PositionRow(row)
+            local dropdown = gui.Dropdown {
+                classes = { "sizeS" },
+                width = 136,
+                height = 22,
+                fontSize = 11,
+                valign = "center",
+                options = PositionOptions(row),
+                idChosen = "roll",
+                change = function(element)
+                    local id = element.idChosen
+                    chosen[row.key] = id ~= "roll" and tonumber(id) or nil
+                    --a pick by hand wins over this row's die if it is still rolling
+                    rowChange[row.key] = (rowChange[row.key] or 0) + 1
+                    Say(nil)
+                end,
+            }
+            local fixedNote = gui.Label { classes = { "sizeXs", "collapsed" }, text = "", width = 180, height = "auto", valign = "center" }
+            local rollButton = gui.Button {
+                classes = { "sizeXs" },
+                text = "d10",
+                width = 40,
+                valign = "center",
+                lmargin = 6,
+                hover = gui.Tooltip("Roll this group's start position"),
+                click = function(element)
+                    if not rolling then
+                        RollOne(row)
+                    end
+                end,
+            }
+            local panel = gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 2,
+                data = { dropdown = dropdown, fixedNote = fixedNote, rollButton = rollButton },
+                children = {
+                    gui.Label { classes = { "sizeXs" }, text = row.text, width = 86, height = "auto", valign = "center",
+                        hover = row.hint ~= nil and gui.Tooltip(row.hint) or nil },
+                    dropdown,
+                    fixedNote,
+                    rollButton,
+                },
+            }
+            rowPanels[row.key] = panel
+            return panel
+        end
+
+        mapDropdown = Choice(MAPS, mapId, function(id) mapId = id end)
+
+        local children = {
+            gui.Label { classes = { "sizeL", "bold" }, text = "Patrol Fight", width = "auto", height = "auto" },
+            gui.Label { classes = { "sizeS" }, text = string.format("Crysopolis alarm level: %d", alarm),
+                width = "100%", height = "auto", tmargin = 4 },
+            Caption("Map"),
+            mapDropdown,
+            mapNote,
+            Caption("Patrol"),
+            Choice(PATROLS, patrolId, function(id) patrolId = id end),
+            Caption("Start positions"),
+        }
+        for _, row in ipairs(ROWS) do
+            children[#children + 1] = PositionRow(row)
+        end
+        children[#children + 1] = gui.Button {
+            classes = { "sizeM" },
+            text = "Roll Start Positions",
+            width = 200,
+            halign = "left",
+            tmargin = 6,
+            click = function(element)
+                RollAll()
+            end,
+        }
+        children[#children + 1] = helpLabel
+        children[#children + 1] = message
+        children[#children + 1] = gui.Button {
+            classes = { "sizeM" },
+            text = "Set Up",
+            halign = "right",
+            tmargin = 10,
+            click = function(element)
+                if SetUp() then
+                    owner.popup = nil
+                end
+            end,
+        }
+
+        --the rail passes no theme to its popups, so the root carries the theme styles
+        --and the framed surface sits inside it (styles only reach a panel's descendants)
+        local root = gui.Panel {
+            styles = ThemeEngine.GetStyles(),
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "bottom",
+            create = function()
+                RefreshRows()
+            end,
+            children = {
+                gui.Panel {
+                    classes = { "framedPanel" },
+                    width = 300,
+                    height = "auto",
+                    flow = "vertical",
+                    borderBox = true,
+                    hpad = 12,
+                    vpad = 10,
+                    children = children,
+                },
+            },
+        }
+        return root
+    end
+end)()
+
+--------------------------------------------------------------------------------
 -- The players' side: shared handouts
 --------------------------------------------------------------------------------
 --Everyone's Campaign Tracker lists the handouts the Director has shared; each one

@@ -135,16 +135,16 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .shelf { overflow: auto; max-height: 480px; padding-bottom: 8px; }
 .shelf .sechead { margin: 6px 12px 0; }
 .shelf .underline { margin: 0 12px 2px; }
-.shelfrow { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; cursor: grab; transition: background .1s; touch-action: none; user-select: none; }
-.shelfrow:hover { background: var(--bgAlt); }
-.shelfrow .nm { font: 15px var(--f-label); color: var(--fg); }
-.shelfrow .uses { margin-left: auto; font: 11px var(--f-input); color: var(--fgMuted); }
+/* shelf rows are small blocks: the same fixed colour and white text as the block they add */
+.shelfrow { height: 32px; display: flex; align-items: center; gap: 8px; margin: 4px 12px; padding: 0 10px 0 8px; background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 5px; cursor: grab; touch-action: none; user-select: none; }
+.shelfrow:hover { filter: brightness(1.12); }
+.shelfrow .nm { font: 15px var(--f-label); color: #fff; }
+.shelfrow .uses { margin-left: auto; font: 11px var(--f-input); color: rgba(255,255,255,.75); }
 .shelfrow .grip { margin: 0; }
-.shelfrow .sw { flex: none; width: 14px; height: 14px; border-radius: 3px; background: var(--c); border: 1px solid rgba(0,0,0,.35); }
 .checks { border-top: 1px solid var(--borderSolid); padding: 8px 12px 12px; }
 .issue { display: flex; gap: 8px; align-items: baseline; font: 14px var(--f-label); padding: 4px 0; }
 .issue .sev { width: 8px; height: 8px; border-radius: 50%; flex: none; transform: translateY(-1px); }
-.ghost { position: fixed; pointer-events: none; z-index: 50; background: var(--bg); border: 1px solid var(--fg); border-radius: 5px; padding: 6px 12px; font: 15px var(--f-label); color: var(--fgStrong); opacity: .85; box-shadow: 0 6px 18px #000a; }
+.ghost { position: fixed; pointer-events: none; z-index: 50; background: var(--c, var(--bg)); border: 1px solid rgba(0,0,0,.35); border-radius: 5px; padding: 6px 12px; font: 15px var(--f-label); color: #fff; opacity: .9; box-shadow: 0 6px 18px #000a; }
 
 /* gui.ContextMenu: flat @bg, radius 7, no border */
 .menu { position: fixed; z-index: 60; background: var(--bg); border-radius: 7px; padding: 6px 0; min-width: 230px; box-shadow: 0 8px 28px #000c, 0 0 0 1px var(--borderSolid); }
@@ -327,19 +327,19 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
         <div class="search" data-lua='gui.SearchInput{ classes = {"bordered"}, borderBox = true, placeholderText = "Search blocks", edit = FilterShelf }' data-what="Shelf search"><svg><use href="#i-search"/></svg><input id="shelf-search" type="search" placeholder="Search blocks" aria-label="Search blocks"></div>
         <div class="shelf" id="shelf" data-lua='gui.Panel{ flow = "vertical", vscroll = true }  -- rows registered by BlockEditor.RegisterBlock{ group, label, uses }' data-what="Block shelf">
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Common<span class="count">4</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="roll" data-lua='gui.Panel{ classes = {"beShelfRow"}, draggable = true, dragMove = false, beginDrag = MakeGhost, dragging = MoveGhost, canDragOnto = function(p, t) return t:HasClass("beSliver") end, drag = InsertAt }' data-what="Shelf row (drag it)"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Change a power roll</span><span class="uses">412</span></div>
-          <div class="shelfrow" data-cat="res"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Gain a resource</span><span class="uses">188</span></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose a skill</span><span class="uses">96</span></div>
-          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Only if</span><span class="uses">71</span></div>
+          <div class="shelfrow" data-cat="roll" data-lua='gui.Panel{ classes = {"beShelfRow"}, draggable = true, dragMove = false, beginDrag = MakeGhost, dragging = MoveGhost, canDragOnto = function(p, t) return t:HasClass("beSliver") end, drag = InsertAt }' data-what="Shelf row (drag it)"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Change a power roll</span><span class="uses">412</span></div>
+          <div class="shelfrow" data-cat="res"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Gain a resource</span><span class="uses">188</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a skill</span><span class="uses">96</span></div>
+          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Only if</span><span class="uses">71</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Change rolls<span class="count">6</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Edge or bane</span><span class="uses">140</span></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Extra damage</span><span class="uses">133</span></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Surges</span><span class="uses">58</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Edge or bane</span><span class="uses">140</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Extra damage</span><span class="uses">133</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Surges</span><span class="uses">58</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Choices<span class="count">5</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose from options</span><span class="uses">81</span></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose a perk</span><span class="uses">54</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose from options</span><span class="uses">81</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a perk</span><span class="uses">54</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Logic<span class="count">3</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="grow"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Grows with level</span><span class="uses">39</span></div>
+          <div class="shelfrow" data-cat="grow"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Grows with level</span><span class="uses">39</span></div>
         </div>
         <div class="checks" data-lua='BEStatusPanel.Create(issues)  -- rows of a @warning/@danger dot + label; press jumps to the block' data-what="Checks">
           <div class="sechead" style="margin-top:0"><svg class="caret"><use href="#i-caret"/></svg>Checks<span class="count">2</span></div><div class="underline"></div>
@@ -481,7 +481,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
       if (!drag || drag.row !== row) return;
       if (!drag.ghost) {
         if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 4) return;   // dragThreshold = 4
-        drag.ghost = document.createElement('div'); drag.ghost.className = 'ghost'; drag.ghost.textContent = row.querySelector('.nm').textContent;
+        drag.ghost = document.createElement('div'); drag.ghost.className = 'ghost'; drag.ghost.dataset.cat = row.dataset.cat; drag.ghost.textContent = row.querySelector('.nm').textContent;
         document.body.appendChild(drag.ghost); app.classList.add('dragging');
         insWhat.textContent = 'Dragging'; insCode.textContent = 'dragMove = false; the "dragging" event moves a floating ghost. Slivers carry drag-target, the one under the cursor drag-target-hover.';
       }

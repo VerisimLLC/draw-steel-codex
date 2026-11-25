@@ -1616,16 +1616,24 @@ function keepIfUnchanged(st, out, before) {
   const sig = JSON.stringify(out.slice(before));
   // Recording happens in the same pass as restoring, so a step's fingerprint already includes its
   // inner steps restored to their originals (exactly what a later save will see).
-  if (sigMode === "record") st.openSig = sig;
+  if (sigMode === "record") { st.openSig = sig; st.openOut = JSON.parse(sig); }
   const tag = () => { if (st.srcOrder != null) out.slice(before).forEach((o, i) => { if (o && typeof o === "object") SAVED_ORDER.set(o, st.srcOrder + i / 100); }); };
   if (st.openSig === sig) { out.splice(before, out.length - before, ...JSON.parse(JSON.stringify(st.srcList))); tag(); return; }
-  // Changed: write the new settings over the original record, so fields no block shows (Strained,
-  // chat messages, ids) survive the edit. An "Only if" the author removed takes its filter with it.
-  if (st.srcList.length === 1 && out.length - before === 1 && out[before].__typeName === st.srcList[0].__typeName) {
-    const merged = Object.assign(JSON.parse(JSON.stringify(st.srcList[0])), out[before]);
-    if (!("filterTarget" in out[before])) delete merged.filterTarget;
-    out[before] = merged;
-  }
+  // Changed: merge each written record with the saved one it came from, as the class builder does
+  // (mergeSaved): a field that still compiles to what it did when opened keeps its saved value, a
+  // changed field is written, a field the author cleared goes (an "Only if" removed takes its
+  // filterTarget with it), and fields no block shows (Strained, chat messages, ids) are kept.
+  // A step can write several records: each pairs with the saved record of the same type, in order.
+  const now = out.slice(before), open = st.openOut || [], used = new Set();
+  now.forEach((r, i) => {
+    if (!r || typeof r !== "object") return;
+    let j = st.srcList[i] && st.srcList[i].__typeName === r.__typeName && !used.has(i) ? i : -1;
+    if (j < 0) j = st.srcList.findIndex((x, k) => !used.has(k) && x && x.__typeName === r.__typeName);
+    if (j < 0) return;   // a record the step didn't have before: written as compiled
+    used.add(j);
+    const o = open[i] && open[i].__typeName === r.__typeName ? open[i] : null;
+    out[before + i] = mergeSaved(st.srcList[j], r, o);
+  });
   tag();
 }
 /* Split "you are Strained" out of an Only-if test: {strain: "strained" | "unstrained" | null, rest}.

@@ -14,6 +14,28 @@ Documents: IMPL = `BLOCK_EDITOR_IMPLEMENTATION_PLAN.md`, CODING = `BLOCK_EDITOR_
 FW = `BLOCK_EDITOR_FRAMEWORK.md`, CLASS = `CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md`,
 ABILITY = `ABILITY_BLOCKS_DESIGN.md`.
 
+## 0. Fixed in the prototypes (2026-11-25)
+
+The save bugs were fixed in the HTML prototypes so the reference the Lua port copies is right.
+Checked by `ui-mockup/tests/run.js` (nine tests, all passing; see section 6 for the invariants).
+
+| Item | Fix |
+|---|---|
+| B1 usage limits | Ability and trigger blocks write `usageLimitOptions` inside the ability or trigger, keyed by the modifier's guid (new blocks get one), and read the limit from there first. A saved `resourceid` is kept (some core records share one counter), and records that keep the limit only inside stay that way. |
+| Gain limits | Every gain trigger, the start-of-turn one included, carries its once-per-round or once-per-encounter limit; changing only "how often" rewrites both the checklist mode and the trigger's limit. |
+| Missing checklist mode | Read as once per encounter, as the game reads it. |
+| Gain amounts | New and edited gains write the amount as core content does (a formula, or a level table when it grows), so level steps read back. |
+| B5 stamina and levels | A Stamina formula the editor can't split is kept and shown whole; unchanged class fields write back verbatim; saved levels 11-20 are kept; no empty levels are added. |
+| Surges reader | Uses its own `base` instead of a hard-coded "surges", and leaves "and (A) or (B)" alone. The wrong "spent together" hint is gone. |
+| "Who" menu | Adds "another creature" (the engine's `other`). |
+| Only if | The audit's allow-list: no slot opens and no menu item is offered where the game ignores the condition (kit access...), and an existing one is flagged in the checks. `modcaptain`/`modrider` stay off until F2. |
+| Combining | Keeps `rollRequirement` and the characteristic. |
+| Growing tables | A saved row level of 1 stays 1; a table with its own condition opens as an advanced block (kept exactly). |
+| Opening menus | The formula picker no longer writes to the block, and "unchanged" checks ignore UI-only state, so opening a picker never marks a block as edited. |
+| B3 ability editor | A changed step merges each of its records with the saved record it came from (three-way, as the class builder does), not only single-record steps. With every step forced through the edited path, 1,006 of 1,019 core abilities now save back identical (was 581); unchanged saves are 1,015 of 1,019. The 13 left are steps the reader shows as one block although the saved records differ (e.g. a "spend extra Ferocity" step saved as a command behaviour): a reader-precision issue for the port. |
+
+Still open from this review: B2, B4, B6, B7, B8 and section 2's design and Lua UI items.
+
 ## 1. Blockers
 
 | # | Issue | Evidence | Fix |

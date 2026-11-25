@@ -189,7 +189,7 @@ function fillFx(m, obj, key, ad) {
   const get = ad ? ad.get : () => obj[key];
   const base = () => String(get() == null ? "" : get()).trim() || "1";
   const wrap = f => /^[\w.]+$/.test(f) ? f : "(" + f + ")";
-  const steps = ad ? [] : (obj[key + "Lv"] = obj[key + "Lv"] || []);
+  const steps = ad ? [] : (obj[key + "Lv"] || []);   // read only: opening the picker changes nothing
   const setF = f => { change(() => { if (ad) ad.set(f); else obj[key] = f; }); };
   const ph = E("div", "ph"); const t = E("div", "t", "Amount"); t.appendChild(E("span", "kind", "number")); ph.appendChild(t);
   ph.appendChild(E("p", null, "A number, or what it should be based on."));
@@ -198,7 +198,7 @@ function fillFx(m, obj, key, ad) {
   const groups = [
     ["Use a stat", "A characteristic, Level, Stamina...", FX_STATS.map(f => item("Your " + f, "", () => setF(f), "characteristic"))],
     ["Scale with level", "Grows as the creature levels up.", [
-      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { steps.push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
+      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
       item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
     ["Do math", "Add, subtract, multiply, halve.", [
       item("[ ] + [ ]", "Add two values (also -, * and /).", () => setF(base() + " + 1"), "plus minus times add subtract"),
@@ -459,12 +459,12 @@ const SENT = {
   kit: { featName: "Kit", desc: "You can use and gain the benefits of a martial or caster kit.", label: "Kit", group: "res", uses: 10, make: () => ({ kitType: "martial" }),
     render: (f, add) => { add(lbl("You can use and gain the benefits of a")); add(pickTok(f, "kitType", [["martial", "martial"], ["caster", "caster"]])); add(lbl("kit")); },
     compile: (f, feat) => modBase(feat, { behavior: "kitaccess", kitType: f.kitType }) },
-  ability: { desc: "Give the hero an ability. You build it in the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null }), opensEditor: "ability",
+  ability: { desc: "Give the hero an ability. You build it in the ability editor.", label: "Gain an ability", group: "abil", uses: 1052, make: () => ({ rec: null, mguid: guid() }), opensEditor: "ability",
     render: (f, add, s, feat) => { add(lbl("You have the following ability")); add(abilityCards([{ rec: f.rec, problems: f.problems }], feat, (i, rec, d, problems) => { f.rec = rec; f.problems = problems; }, null, s)); usagePhrase(f, add); },
-    compile: (f, feat) => f.rec ? usageFields(modBase(feat, { behavior: "activated", name: "Ability", activatedAbility: f.rec }), f) : null },
-  trigger: { desc: "Give the hero an ability they use in response to something happening. You build it in the ability editor.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null }), opensEditor: "triggered",
+    compile: (f, feat) => f.rec ? usageFields(modBase(feat, Object.assign(f.mguid ? { guid: f.mguid } : {}, { behavior: "activated", name: "Ability", activatedAbility: f.rec })), f) : null },
+  trigger: { desc: "Give the hero an ability they use in response to something happening. You build it in the ability editor.", label: "Gain a triggered ability", group: "abil", uses: 1727, make: () => ({ rec: null, display: null, mguid: guid() }), opensEditor: "triggered",
     render: (f, add, s, feat) => { add(lbl("You have the following triggered ability")); add(abilityCards([{ rec: f.rec, display: f.display, trig: true, problems: f.problems }], feat, (i, rec, display, problems) => { f.rec = rec; f.display = display; f.problems = problems; }, null, s)); usagePhrase(f, add); },
-    compile: (f) => f.rec ? usageFields(Object.assign({}, f.rec), f) : null, extra: f => f.display ? [f.display] : [] },
+    compile: (f) => f.rec ? usageFields(Object.assign(f.mguid && !f.rec.guid ? { guid: f.mguid } : {}, f.rec), f) : null, extra: f => f.display ? [f.display] : [] },
   modAbility: { desc: "Change an ability: more distance, more targets, or a keyword.", label: "Change an ability", group: "abil", uses: 309, make: () => ({ name: "", change: "range", value: "2", keyword: "Charge" }),
     render: (f, add) => {
       add(lbl("Your")); whichAbility(f, add); add(lbl("gains"));
@@ -511,9 +511,9 @@ const SENT = {
         const rm = fk(E("button", "mb", "\u2715"), "growrm:" + r.id); rm.type = "button"; rm.title = "Remove this row";
         rm.addEventListener("click", () => { change(() => { f.rows.splice(i, 1); f.rows.forEach(x => { if (x.replaces === r.id) x.replaces = ""; }); }); toast("Removed the row at " + r.at + ".", { label: "Undo", run: undo }); });
         head.appendChild(rm); row.appendChild(head);
-        const body = E("div", "ifbody sents"); regList(body, r.blocks, feat, true); renderSentenceList(r.blocks, feat, body);
+        const body = E("div", "ifbody sents"); regList(body, r.blocks, feat, true, true); renderSentenceList(r.blocks, feat, body);
         const ad = fk(E("button", "addsent", "+ add to this row"), "growadd:" + r.id); ad.type = "button";
-        ad.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(ad, type => addSentence(feat, r.blocks, type), true); });
+        ad.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(ad, type => addSentence(feat, r.blocks, type), true, onlyIfAllowed); });
         body.appendChild(ad); row.appendChild(body);
         const tx = E("div", "growtext"); tx.appendChild(lbl("On the sheet:")); tx.appendChild(textTok(r, "text", growRowShort(r) || "short text for the table", 40));
         if (!r.text) tx.appendChild(E("span", "aside", "(text made from its blocks)"));
@@ -888,9 +888,35 @@ function usagePhrase(f, add) {
   row.appendChild(pickTok(f, "limit", LIMITS, "any number of times")); add(row);
 }
 function usageFields(r, f) {
-  if (f.limit && f.limit !== "none") { r.resourceRefreshType = f.limit; if (String(f.uses || "1") !== "1") r.numCharges = numOr(f.uses); }
+  const on = f.limit && f.limit !== "none";
+  // Some core records keep the limit only inside the ability or trigger; those stay that way.
+  if (on && f.limitWhere !== "inner") { r.resourceRefreshType = f.limit; if (String(f.uses || "1") !== "1") r.numCharges = numOr(f.uses); }
+  if (on && !r.guid) r.guid = f.mguid || (f.mguid = guid());
+  return limitInner(r, r.activatedAbility ? "activatedAbility" : "triggeredAbility", on ? f.limit : "none", f.uses);
+}
+/* The game enforces "N times per round" from usageLimitOptions inside the ability or trigger, keyed
+   by the modifier's guid (CharacterModifier.lua:2061, 2226; ActivatedAbility.lua:2675). The modifier's
+   own resourceRefreshType / numCharges are only what the old editor shows, so both are written. */
+function limitInner(r, key, limit, uses) {
+  if (!r[key]) return r;
+  const inner = r[key] = clone(r[key]);
+  // A saved resourceid is kept: some core records share one counter (two "This One's Yours" triggers).
+  const was = inner.usageLimitOptions || {};
+  if (limit && limit !== "none") inner.usageLimitOptions = Object.assign({}, was, { resourceRefreshType: limit, charges: String(uses || "1"), resourceid: was.resourceid || r.guid });
+  else if (inner.usageLimitOptions) inner.usageLimitOptions = Object.assign({}, inner.usageLimitOptions, { resourceRefreshType: "none" });
   return r;
 }
+/* A gain line's limit: once per round / encounter is both the checklist mode and the trigger's own
+   limit, so the trigger (and any other steps in it) doesn't fire again once the line is used. */
+function gainLimit(r, g) {
+  const lim = g.freq === "round" || g.freq === "encounter" ? g.freq : "none";
+  if (!r.guid) r.guid = g.mguid || (g.mguid = guid());
+  // "none" over a saved value (deleting it would let the save-back merge restore the old one).
+  if (lim !== "none") r.resourceRefreshType = lim; else if ("resourceRefreshType" in r) r.resourceRefreshType = "none";
+  return limitInner(r, "triggeredAbility", lim, "1");
+}
+/* A gain's amount on its resource step: a formula string, or a level table when it grows (as core content). */
+const gainQty = g => fxSteps(g, "qty").length ? fxTable(g, "qty") : fxFormula(g, "qty");
 const omit = (o, ks) => { ks.forEach(k => delete o[k]); return o; };
 /* The feature record a companion / summoner wrapper holds: a saved one keeps its own fields. */
 const wrapFeature = (src, inner, feat) => Object.assign(src && src.feature ? omit(clone(src.feature), ["modifiers"]) : { __typeName: "CharacterFeature", name: feat.name, description: feat.text || "" }, { modifiers: inner });
@@ -938,7 +964,8 @@ function abilityOption(o) {
 }
 /* Combining roll changes. A block can join a combined block when it changes ability rolls: same
    keywords, and at most one edge/bane/outcome change between them (one power modifier holds one). */
-const ROLL_OPT_KEYS = ["offer", "applies", "tick", "costN", "costRes"];
+// The roll options a combined block shares (it takes the first block's; the toast says when they differed).
+const ROLL_OPT_KEYS = ["offer", "req", "applies", "tick", "costN", "costRes"];
 const comboKey = s => { const d = SENT[s.type]; if (!(d.combo || d.comboHost) || (s.type === "edge" && s.f.on === "tests")) return null; return (s.f.keywords || []).slice().sort().join("|"); };
 const comboModtypes = s => SENT[s.type].comboHost ? s.children.map(comboModtypes).flat() : (SENT[s.type].combo.modtype ? [SENT[s.type].combo.modtype(s.f)] : []);
 /* Groups of sibling blocks that could be one combined block: [[id, id, ...], ...]. */
@@ -961,6 +988,9 @@ function combineBlocks(list, ids) {
   change(() => {
     const at = list.indexOf(members[0]);
     if (!host) { host = makeSentence("rollCombo"); host.f.keywords = (first.f.keywords || []).slice(); ROLL_OPT_KEYS.forEach(k => { if (first.f[k] !== undefined) host.f[k] = JSON.parse(JSON.stringify(first.f[k])); }); }
+    // A characteristic on an edge or outcome block is kept on the combined record (the game ignores
+    // it on ability rolls, but saved records carry it).
+    if (!host.f.attr) host.f.attr = members.map(s => s.f.attr).find(Boolean) || "";
     members.filter(s => s !== host).forEach(s => { list.splice(list.indexOf(s), 1); host.children.push(s); });
     if (!list.includes(host)) list.splice(Math.min(at, list.length), 0, host);
   });
@@ -1019,6 +1049,22 @@ function newOption(f, feat) {
 const recName = rec => rec.__typeName === "CharacterModifier" ? ((rec.triggeredAbility || {}).name || rec.name) : rec.name;
 /* The block lists inside a block: an Only if's children, or each row of a growing table. */
 const childLists = s => s.children ? [s.children] : s.type === "growing" ? s.f.rows.map(r => r.blocks) : [];
+/* Modifier types the game honours "Only if" on (MODIFIER_FILTER_AUDIT.md, "supportsFilter = true").
+   modcaptain and modrider wait for FOLLOW_UP_ITEMS F2; kitaccess, light and the rest are decided
+   before the condition is checked, so the condition would be ignored. */
+const ONLY_IF_OK = new Set(["abilityimprovement", "activated", "attribute", "aura", "bestowcondition", "conditionimmunity",
+  "conditionsourcebestow", "creaturetype", "expandsingletarget", "filter", "forcedmovement", "grantkeyword", "growingresources",
+  "icon", "ignoredifficultterrain", "invisibility", "journalexplanation", "loyaltycollar", "modcompanion", "modifyability",
+  "modifydamageaftersave", "modifyresourcechecklist", "modifytrigger", "modsummoner", "movementcarrier", "movementtext", "power",
+  "powertableadditional", "powertabletrigger", "proficiency", "resistance", "resource", "routine", "suppressabilities",
+  "tokenvisual", "trigger", "triggerdisplay"]);
+/* The modifier types a block saves as that ignore "Only if" (empty when it is safe to wrap). */
+function onlyIfIgnored(s) {
+  const saved = compileSrcMods; compileSrcMods = null;
+  try { return [...new Set(compileSentences([s], { name: "", text: "" }).map(r => r.behavior).filter(b => b && !ONLY_IF_OK.has(b)))]; }
+  catch (e) { return []; } finally { compileSrcMods = saved; }
+}
+const onlyIfAllowed = t => !onlyIfIgnored({ id: "probe", type: t, f: SENT[t].make ? SENT[t].make() : {}, children: SENT[t].wrapper ? [] : undefined }).length;
 const resWord = () => (cls && cls.resourceName || "resource").toLowerCase();
 /* A row's text: its blocks in words. The sheet's short text is the first sentence, trimmed. */
 function growRowProse(r) { return sentenceProse({ sentences: r.blocks }); }
@@ -1168,7 +1214,7 @@ const GAIN_TRIGGERS = [
   { id: "useresource", you: "spend a resource", other: "spends a resource", symbols: [["Resource", "text", "The resource spent, such as \"surges\""], ["Quantity", "number", "How many were spent"]] },
   { id: "gainresource", you: "gain a resource", other: "gains a resource", symbols: [["Resource", "text", "The resource gained"], ["Quantity", "number", "How many were gained"]] },
   { id: "spendsurges", you: "spend surges", other: "spends surges", engine: "useresource", base: 'Resource = "Surges"',
-    symbols: [["Quantity", "number", "How many surges were spent (one roll's surges are spent together)"]],
+    symbols: [["Quantity", "number", "How many surges were spent at once"]],
     picks: [["At least 3 surges", "Quantity >= 3", "at least 3 of them"], ["At least 2 surges", "Quantity >= 2", "at least 2 of them"]] },
   { id: "inflictcondition", you: "gain a condition", other: "gains a condition" }, { id: "creaturedeath", you: "die", other: "dies" },
   { id: "kill", you: "kill a creature", other: "kills a creature" }, { id: "earnvictory", you: "earn a Victory", other: "earns a Victory" },
@@ -1178,7 +1224,7 @@ const GAIN_TRIGGERS = [
    the 11 classes and 45 subclasses, 2026-11-25), plus spending surges; the rest of GAIN_TRIGGERS
    still words imported lines, and anything else is built with "Build the trigger yourself...". */
 const GAIN_MENU = ["rollinitiative", "losehitpoints", "dealdamage", "forcemove", "creaturedeath", "useability", "rollpower", "spendsurges", "useresource"];
-const GAIN_WHO = [["self", "you"], ["selfandallies", "you or an ally"], ["allies", "an ally"], ["selfandheroes", "you or another hero"], ["otherheroes", "another hero"], ["enemy", "an enemy"], ["any", "any creature"]];
+const GAIN_WHO = [["self", "you"], ["selfandallies", "you or an ally"], ["allies", "an ally"], ["selfandheroes", "you or another hero"], ["otherheroes", "another hero"], ["enemy", "an enemy"], ["other", "another creature"], ["any", "any creature"]];
 const GAIN_FREQ = [["round", "The first time each round"], ["encounter", "The first time in an encounter"], ["recurring", "Whenever"]];
 const gainTrigger = g => GAIN_TRIGGERS.find(t => t.id === g.event) || { id: g.event, you: (g.src && g.src.check.name) || g.event, other: (g.src && g.src.check.name) || g.event };
 /* The engine trigger a gain line saves as, and its condition: the event's own limit (spending
@@ -1290,7 +1336,10 @@ function growRowCond(rows, r) {
    block and its Logic condition are unchanged, the record is written back exactly as it was; once
    edited, the block's fields replace the ones it claims and every other field is kept. */
 let compileSrcMods = null;   // the saved feature's modifiers, while compiling an imported feature
-const srcHash = o => { const t = JSON.stringify(o); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h; };
+/* UI-only state left out of every "unchanged?" check: the ability editor's notes on a block, and a
+   picker's empty level-step list. Opening a menu must never make a block count as edited. */
+const snapClean = (k, v) => k === "problems" || (/Lv$/.test(k) && Array.isArray(v) && !v.length) ? undefined : v;
+const srcHash = o => { const t = JSON.stringify(o, snapClean); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h; };
 const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
 /* What makes a block "unchanged": its fields, and for a wrapper (Logic, aura, combined roll change) its children. */
 const blockSnap = s => srcHash(s.children ? { f: s.f, c: s.children } : s.f);
@@ -1334,7 +1383,7 @@ function compileSentences(list, feat, filter) {
       // One power modifier: the shared keywords and roll options, plus each block's part.
       const parts = s.children.filter(c => SENT[c.type].combo), mt = parts.map(c => SENT[c.type].combo.modtype && SENT[c.type].combo.modtype(c.f)).find(Boolean);
       const r = modBase(feat, Object.assign({ behavior: "power", modtype: mt || "none", rollType: "ability_power_roll", keywords: s.f.keywords.length ? Object.fromEntries(s.f.keywords.map(k => [k, true])) : [] },
-        ...parts.map(c => SENT[c.type].combo.fields(c.f)), appliesFields(s.f)));
+        ...parts.map(c => SENT[c.type].combo.fields(c.f)), s.f.attr ? { attribute: s.f.attr } : {}, appliesFields(s.f)));
       if (filter) r.filterCondition = filter; out.push(mergeSrc(s, r)); continue;
     }
     if (s.type === "onlyIf") { out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + testGs(s.f.cond) + ")")); continue; }
@@ -1342,7 +1391,7 @@ function compileSentences(list, feat, filter) {
       const rows = s.f.rows.filter(r => /^\d+$/.test(String(r.at).trim()));
       const own = keptRecords(s, filter);
       out.push(own ? own[0] : mergeSrc(s, { __typeName: "CharacterModifier", behavior: "growingresources", name: feat.name, description: "",
-        progression: rows.map(r => ({ resources: +r.at, level: +r.level > 1 ? +r.level : 0, description: r.text || growRowShort(r), tooltip: rowTooltip(r) })) }));
+        progression: rows.map(r => ({ resources: +r.at, level: +r.level > 1 ? +r.level : (r.level0 != null ? r.level0 : 0), description: r.text || growRowShort(r), tooltip: rowTooltip(r) })) }));
       rows.forEach(r => out.push(...compileSentences(r.blocks, feat, (filter ? filter + " and " : "") + "(" + growRowCond(rows, r) + ")")));
       continue;
     }
@@ -1451,9 +1500,9 @@ function compileStartGain(res) {
   }
   const details = sg.kind === "die" ? "At the start of your turn you gain " + startGainText(sg) + " " + res + "." : "At the start of your turn you gain {" + A + "} " + res + ".";
   return { mods, check: { name, details, guid: sg.guid, mode: "round", quantity: qty },
-    trigger: { __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
+    trigger: gainLimit({ __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
       triggeredAbility: { __typeName: "TriggeredAbility", name, description: details, trigger: "beginturn", targetType: "self", mandatory: "game:heroicresourcetriggers", conditionFormula: A + " > 0",
-        triggerPrompt: "Start of turn: gain " + res + ".", behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: sg.guid, quantity: qty, resourceid: RES.heroic }] } } };
+        triggerPrompt: "Start of turn: gain " + res + ".", behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: sg.guid, quantity: qty, resourceid: RES.heroic }] } }, Object.assign(sg, { freq: "round" })) };
 }
 /* The events a gain can use: the usual ones, plus the one an opened class's gain already uses (a
    start-of-turn formula, "an enemy uses Malice"...), named by its checklist line. */
@@ -1475,19 +1524,19 @@ function compileGains() {
         ta.mandatory = ta.mandatory || "game:heroicresourcetriggers"; ta.behaviors = ta.behaviors || [];
         let rb = ta.behaviors.find(b => b.__typeName === "ActivatedAbilityReplenishBehavior" && (b.checklistid === g.guid || !b.resourceid || b.resourceid === RES.heroic));
         if (!rb) { rb = { __typeName: "ActivatedAbilityReplenishBehavior", resourceid: RES.heroic }; ta.behaviors.push(rb); }
-        rb.checklistid = g.guid; rb.resourceid = RES.heroic; rb.quantity = fxFormula(g, "qty");
+        rb.checklistid = g.guid; rb.resourceid = RES.heroic; rb.quantity = gainQty(g);
       }
-      triggers.push(r); if (g.display) triggers.push(clone(g.display));
+      triggers.push(gainLimit(r, g)); if (g.display) triggers.push(clone(g.display));
       return;
     }
     const name = gainPhrase(g), cond = g.cond ? ", if " + testProse(g.cond) : "";
     const details = name + cond + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
     checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
     // Who sets it off is the trigger's subject (default: you); the line's test is its condition.
-    triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
+    triggers.push(gainLimit({ __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
       triggeredAbility: Object.assign({ __typeName: "TriggeredAbility", name, description: details, trigger: gainEngineId(g), targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: name + ": gain " + res + ".",
-        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] },
-        g.who && g.who !== "self" ? { subject: g.who } : {}, gainCondFormula(g) ? { conditionFormula: gainCondFormula(g) } : {}) });
+        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: gainQty(g), resourceid: RES.heroic }] },
+        g.who && g.who !== "self" ? { subject: g.who } : {}, gainCondFormula(g) ? { conditionFormula: gainCondFormula(g) } : {}) }, g));
   });
   return { checklist, triggers, mods };
 }
@@ -1499,7 +1548,7 @@ function compileClass() {
   const g = compileGains();
   const rec = { __typeName: "Class", id: cls.id, name: cls.name, details: cls.details, isSubclass: false,
     heroicResourceName: cls.resourceName, epicResourceName: cls.epicName || undefined,
-    baseCharacteristics: Object.assign({}, primary, { arrays }), hitpointsCalculation: cls.stamStart + " + (Level - 1)*" + cls.stamPer,
+    baseCharacteristics: Object.assign({}, primary, { arrays }), hitpointsCalculation: cls.stamRaw ? cls.stamStart : cls.stamStart + " + (Level - 1)*" + cls.stamPer,
     heroicResourceChecklist: g.checklist, levels: {} };
   if (cls.kits && cls.kits.on === "yes") rec.numKits = +cls.kits.n || 1;
   const all = ENCOUNTERS.concat(Array.from({ length: 20 }, (_, i) => "level-" + (i + 1)));
@@ -1520,7 +1569,7 @@ function compileClass() {
   else rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
     description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.mods.concat(g.triggers) });
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);
-  return mergeClassSrc(cls.src, rec);
+  return mergeClassSrc(cls.src, rec, cls);
 }
 
 /* A subclass is saved as its own Class record (table "subclasses"): isSubclass, and primaryClassId
@@ -1533,15 +1582,23 @@ function compileSubclass(sc) {
     const rec = { __typeName: "Class", id: sc.id, name: sc.name, details: sc.details, isSubclass: true, primaryClassId: cls.id,
       heroicResourceChecklist: clone(sc.src && sc.src.heroicResourceChecklist || []), levels: {} };
     ENCOUNTERS.concat(Array.from({ length: 20 }, (_, i) => "level-" + (i + 1))).forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (sc.lanes[k] || []).map(compileFeature) }; });
-    return mergeClassSrc(sc.src, rec);
+    return mergeClassSrc(sc.src, rec, sc);
   } finally { compileOwner = null; }
 }
 /* An imported class or subclass keeps every field the builder doesn't edit (colour, portrait, ability
    category names...), and each level keeps its own fields around the rebuilt feature list. */
 // numKits is written only when kits are switched on, so a saved value is otherwise kept.
 const CLASS_CLAIMS = ["name", "details", "heroicResourceName", "epicResourceName", "baseCharacteristics", "hitpointsCalculation", "heroicResourceChecklist", "levels", "isSubclass", "primaryClassId"];
-function mergeClassSrc(src, rec) {
+/* The class's own fields (not its features or gains), to tell whether the author changed them. */
+const classModel = c => ({ n: c.name, d: c.details, r: c.resourceName, e: c.epicName, p: c.primary, a: c.arrays, ac: c.arraysCustom, ss: c.stamStart, sp: c.stamPer, k: c.kits });
+const CLASS_OWN = ["name", "details", "heroicResourceName", "epicResourceName", "baseCharacteristics", "hitpointsCalculation", "numKits", "isSubclass", "primaryClassId"];
+// Levels the editor shows or can switch on; any other saved level (11th to 20th) is kept as saved.
+const EDITED_LEVELS = new Set(ENCOUNTERS.concat(LEVELS));
+function mergeClassSrc(src, rec, owner) {
   if (!src) return rec;
+  // Unchanged class fields write back exactly as saved (a formula's spelling, a field left out).
+  if (owner && owner.snap0 != null && srcHash(classModel(owner)) === owner.snap0)
+    CLASS_OWN.forEach(k => { if (k in src) rec[k] = clone(src[k]); else delete rec[k]; });
   // Blank values the saved record leaves out are defaults (isSubclass false, details "").
   Object.keys(rec).forEach(k => { if (!(k in src) && (rec[k] === false || rec[k] === "" || (Array.isArray(rec[k]) && !rec[k].length))) delete rec[k]; });
   // The same Stamina formula spelled differently ("(Level-1)" vs "(Level - 1)") keeps the saved spelling.
@@ -1549,7 +1606,10 @@ function mergeClassSrc(src, rec) {
   if (src.hitpointsCalculation && hp(src.hitpointsCalculation) === hp(rec.hitpointsCalculation)) rec.hitpointsCalculation = src.hitpointsCalculation;
   const out = clone(src); CLASS_CLAIMS.forEach(k => { if (k !== "levels") delete out[k]; });
   const levels = out.levels || {};
-  Object.keys(rec.levels).forEach(k => { levels[k] = Object.assign(levels[k] || {}, rec.levels[k]); });
+  Object.keys(rec.levels).forEach(k => {
+    if (!EDITED_LEVELS.has(k) && levels[k]) return;   // not shown in the editor: keep it as saved
+    if (!levels[k] && !rec.levels[k].features.length) return;   // don't add empty levels the record didn't have
+    levels[k] = Object.assign(levels[k] || {}, rec.levels[k]); });
   return Object.assign(out, rec, { levels });
 }
 const trimLevels = r => Object.assign({}, r, { levels: Object.fromEntries(Object.entries(r.levels).filter(([, v]) => v.features.length)) });
@@ -1745,7 +1805,8 @@ function renderBoard() {
   const row = (label, ...nodes) => { const r = E("div", "row"); r.appendChild(E("span", "lbl", label)); nodes.forEach(n => r.appendChild(n)); b.appendChild(r); };
   row("Characteristics", lbl("You start with"), multiTok(PRIMARY, "list", CHARS, "choose", "and"),
     lbl("of 2; the other scores use one of these arrays:"), arraysTok());
-  row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
+  if (cls.stamRaw) row("Stamina", textTok(cls, "stamStart", "18"), lbl("(a formula)"));
+  else row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   // Recoveries and kits are part of every class, so they sit with the basics (the blocks still exist for features).
   // Core classes keep Recoveries and kits in features (kits often in each subclass); say where.
   const recFeat = basicsSource(o => o.type === "resource" && o.f.res === RES.recovery), kitFeats = basicsSource(o => o.type === "kit", true);
@@ -2007,6 +2068,8 @@ function listAccepts(box) {
   const type = drag.kind === "entry" ? (drag.value.startsWith("s:") ? drag.value.slice(2) : null) : (findSentence(drag.value) || {}).s?.type;
   if (L.inIf && type && (SENT[type].choice || SENT[type].wrapper || SENT[type].container)) return false;
   if (L.inIf && drag.kind === "entry" && !drag.value.startsWith("s:")) return false;
+  // No slot opens where the game would ignore the condition (kit access...).
+  if (L.filtered && type && (drag.kind === "entry" ? !onlyIfAllowed(type) : onlyIfIgnored(findSentence(drag.value).s).length)) return false;
   if (L.combo && !(type && comboAccepts(L.combo, type, drag.kind === "entry" ? null : drag.value))) return false;
   return true;
 }
@@ -2041,8 +2104,11 @@ function doDrop(d, t) {
       const n = +t.lane.slice(6); if (t.lane.startsWith("level-") && n > o.showLevels) o.showLevels = n; });
   }
   const L = LISTS[t.list];
-  if (d.kind === "entry") return addEntryToList(d.value, L.feat, L.list, t.idx, L.inIf);
+  const ignoredMsg = what => toast("The game ignores \u201cOnly if\u201d for " + what + ", so it can't go inside one.");
+  const et = d.kind === "entry" && d.value.startsWith("s:") ? d.value.slice(2) : null;
+  if (d.kind === "entry") { if (L.filtered && et && !onlyIfAllowed(et)) return ignoredMsg(SENT[et].label.toLowerCase()); return addEntryToList(d.value, L.feat, L.list, t.idx, L.inIf); }
   const from = findSentence(d.value); if (!from) return;
+  if (L.filtered && onlyIfIgnored(from.s).length) return ignoredMsg(SENT[from.s.type].label.toLowerCase());
   const inside = (x, l) => childLists(x).some(cl => cl === l || cl.some(c => inside(c, l)));
   if (inside(from.s, L.list)) return;   // an "Only if" can't go inside itself
   // Dragged out of a combined block: it takes the shared keywords and roll options with it.
@@ -2097,7 +2163,8 @@ function comboAccepts(host, type, movingId) {
   const d = SENT[type]; if (!d || !d.combo) return false;
   return !d.combo.modtype || !host.children.some(c => c.id !== movingId && comboModtypes(c).length);
 }
-function regList(el, list, feat, inIf) { const id = "l:" + (feat.id || "") + ":" + Object.keys(LISTS).length; LISTS[id] = { list, feat, inIf }; el.dataset.list = id; }
+// filtered: the list's records are saved under a condition (an "Only if" body, a growing-table row).
+function regList(el, list, feat, inIf, filtered) { const id = "l:" + (feat.id || "") + ":" + Object.keys(LISTS).length; LISTS[id] = { list, feat, inIf, filtered: !!filtered }; el.dataset.list = id; }
 function addSentence(feat, list, type, idx) {
   const s = makeSentence(type);
   const place = () => { if (idx == null || idx > list.length) list.push(s); else list.splice(idx, 0, s); pendingFk = "mb:" + s.id; };
@@ -2146,10 +2213,10 @@ function renderSentence(s, list, i, feat, host) {
   line.appendChild(mb);
   if (d.wrapper) {
     el.appendChild(line);
-    const body = E("div", "ifbody sents"); regList(body, s.children, feat, true); if (d.comboHost) LISTS[body.dataset.list].combo = s;
+    const body = E("div", "ifbody sents"); regList(body, s.children, feat, true, s.type === "onlyIf"); if (d.comboHost) LISTS[body.dataset.list].combo = s;
     renderSentenceList(s.children, feat, body, d.comboHost ? s : null);
     const add2 = fk(E("button", "addsent", d.comboHost ? "+ add a roll change" : "+ add inside"), "addin:" + s.id); add2.type = "button";
-    add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true, d.comboHost ? t => comboAccepts(s, t) : null); });
+    add2.addEventListener("click", ev => { ev.stopPropagation(); sentenceMenu(add2, type => addSentence(feat, s.children, type), true, d.comboHost ? t => comboAccepts(s, t) : s.type === "onlyIf" ? onlyIfAllowed : null); });
     body.appendChild(add2); el.appendChild(body);
     if (d.comboHost) { const foot = E("div", "combofoot"); appliesPhrase(s.f, n => foot.appendChild(n)); el.appendChild(foot); }
   } else if (showGs) {
@@ -2294,6 +2361,15 @@ function featureIssues(f, lane) {
     (REQUIRED[s.type] || []).forEach(k => { const v = s.f[k]; if (v == null || v === "" || (Array.isArray(v) && !v.length)) add("\u201c" + d.label + "\u201d in " + nm + " is missing a value.", false); });
     childLists(s).forEach(walk);
   }); })(f.sentences);
+  // Blocks under an "Only if" (or a growing-table row) that save as a type the game decides before
+  // checking the condition: the hero would always get them.
+  (function walkF(list, inF) { list.forEach(s => {
+    if (inF && s.type !== "onlyIf") { const bad = onlyIfIgnored(s);
+      if (bad.length) add("\u201c" + (SENT[s.type].label || s.type) + "\u201d in " + nm + " is inside an \u201cOnly if\u201d, but the game ignores the condition for it (" + bad.join(", ") + "), so the hero always gets it. Move it out of the Only if.",
+        s.srcIdx != null && blockSnap(s) === s.snap); }
+    if (s.type === "onlyIf") walkF(s.children, true);
+    else if (s.type === "growing") s.f.rows.forEach(r => walkF(r.blocks, true));
+    else childLists(s).forEach(l => walkF(l, false)); }); })(f.sentences, false);
   if (textStale(f)) add("The blocks in " + nm + " changed since its text was written.", true, { label: "Use the blocks' wording", run: () => change(() => { f.text = ""; f.textBasis = null; }) });
   return out;
 }

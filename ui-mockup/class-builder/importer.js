@@ -71,7 +71,7 @@ function readPower(m) {
   if (!parts.length) return null;
   if (parts.length === 1) { readApplies(m, parts[0].f); return parts[0]; }
   if (parts.filter(p => p.type === "edge" || p.type === "outcome").length > 1) return null;
-  return { type: "rollCombo", f: readApplies(m, make("rollCombo", { keywords: kw })), children: parts };
+  return { type: "rollCombo", f: readApplies(m, make("rollCombo", { keywords: kw, attr })), children: parts };
 }
 const READERS = {
   power: readPower,
@@ -96,9 +96,9 @@ const READERS = {
     : m.subtype === "skill" ? { type: "skills", f: make("skills", { granted: kwList(m.skills), num: "0", groups: [], named: [] }) } : null,
   resource: m => scalar(m.num) ? { type: "resource", f: make("resource", { res: m.resourceType, num: String(m.num) }) } : null,
   kitaccess: m => ({ type: "kit", f: make("kit", { kitType: m.kitType }) }),
-  activated: m => m.activatedAbility ? { type: "ability", f: make("ability", { rec: clone(m.activatedAbility), limit: m.resourceRefreshType || "none", uses: String(m.numCharges || "1") }) } : null,
+  activated: m => m.activatedAbility ? { type: "ability", f: make("ability", Object.assign({ rec: clone(m.activatedAbility), mguid: m.guid }, readLimit(m, m.activatedAbility))) } : null,
   // Its "Only if" lives on the Logic block or growing-table row around it, not on the ability.
-  trigger: m => { const rec = clone(m); delete rec.resourceRefreshType; delete rec.numCharges; delete rec.filterCondition; return { type: "trigger", f: make("trigger", { rec, limit: m.resourceRefreshType || "none", uses: String(m.numCharges || "1") }) }; },
+  trigger: m => { const rec = clone(m); delete rec.resourceRefreshType; delete rec.numCharges; delete rec.filterCondition; return { type: "trigger", f: make("trigger", Object.assign({ rec, mguid: m.guid }, readLimit(m, m.triggeredAbility))) }; },
   // A power roll trigger opens as the same "triggered ability" block; the ability editor saves either kind.
   powertabletrigger: m => READERS.trigger(m),
   // Wrappers: the children are the records inside; their own fields are checked here.
@@ -118,6 +118,13 @@ const READERS = {
   },
   movementtext: m => ({ type: "reminder", f: make("reminder", { text: m.text || "", color: m.color || "white" }) }),
 };
+/* A usage limit as the game enforces it: usageLimitOptions inside the ability or trigger first,
+   then the modifier's own fields (what the old editor shows). */
+function readLimit(m, inner) {
+  const u = (inner && inner.usageLimitOptions) || {}, lim = u.resourceRefreshType && u.resourceRefreshType !== "none" ? u.resourceRefreshType : (m.resourceRefreshType || "none");
+  return { limit: lim, uses: String(u.resourceRefreshType && u.resourceRefreshType !== "none" ? (u.charges || "1") : (m.numCharges || "1")),
+    limitWhere: lim !== "none" && !(m.resourceRefreshType && m.resourceRefreshType !== "none") ? "inner" : "both" };
+}
 // What each block writes. Everything else on the saved record is kept as it was.
 const CLAIMS = {
   stat: ["attribute", "operation", "value", "filterCondition"], move: ["attribute", "operation", "value", "filterCondition"], flag: ["attribute", "operation", "value", "filterCondition"],
@@ -202,7 +209,7 @@ function readOne(m, i, filter, stats) {
    Rows that replace an earlier row are found by trying each later row as the replacer. */
 function readGrowing(mods, gi, used, stats) {
   const g = mods[gi];
-  const rows = (g.progression || []).map(p => ({ id: newId("r"), at: String(p.resources), level: String(+p.level > 1 ? p.level : 1), replaces: "", text: p.description || "", tooltip: p.tooltip || "", blocks: [] }));
+  const rows = (g.progression || []).map(p => ({ id: newId("r"), at: String(p.resources), level: String(+p.level > 1 ? p.level : 1), level0: +p.level > 1 ? undefined : p.level, replaces: "", text: p.description || "", tooltip: p.tooltip || "", blocks: [] }));
   const later = r => rows.filter(x => x !== r && (+x.at > +r.at || (+x.at === +r.at && +x.level > +r.level)));
   mods.forEach((m, i) => {
     if (i === gi || used.has(i) || !m.filterCondition) return;
@@ -240,7 +247,9 @@ function readModifiers(mods, stats) {
 function readModifierList(mods, stats) {
   const out = []; let wrap = null; const used = new Set(), grow = {};
   pairDisplays(mods, used);
-  mods.forEach((m, i) => { if (m.behavior === "growingresources") grow[i] = readGrowing(mods, i, used, stats); });
+  // A growing table with its own condition opens as an advanced block (kept exactly): the table
+  // block has no "Only if" of its own, and its rows' conditions would carry the table's too.
+  mods.forEach((m, i) => { if (m.behavior === "growingresources" && !String(m.filterCondition || "").trim()) grow[i] = readGrowing(mods, i, used, stats); });
   mods.forEach((m, i) => {
     if (used.has(i)) return;
     if (grow[i]) { wrap = null; out.push(grow[i]); return; }
@@ -320,9 +329,11 @@ function importClassRecord(rec, subs) {
   c.slowStart = ENCOUNTERS.some(k => c.lanes[k]);
   const std = STD_ARRAYS[n.length] || STD_ARRAYS[1], arr = (rec.baseCharacteristics || {}).arrays;
   if (arr && JSON.stringify(arr) !== JSON.stringify(std)) { c.arrays = "custom"; c.arraysCustom = clone(arr); } else c.arrays = "auto";
-  if (!hp) { c.stamStart = rec.hitpointsCalculation || ""; c.stamPer = ""; }
+  // A formula that isn't "start + (Level - 1)*per" is kept whole and shown as one formula.
+  if (!hp) { c.stamStart = rec.hitpointsCalculation || ""; c.stamPer = ""; c.stamRaw = !!rec.hitpointsCalculation; }
   readGains(c);   // falls back to the read-only checklist if the gains can't be paired up
-  c.subclasses = (subs || []).map(s => { const st = newStats(); const sc = { id: s.id, name: s.name, details: s.details || "", lanes: importLanes(s.levels, st), showLevels: 10, src: s }; sc.stats = st; return sc; });
+  c.subclasses = (subs || []).map(s => { const st = newStats(); const sc = { id: s.id, name: s.name, details: s.details || "", lanes: importLanes(s.levels, st), showLevels: 10, src: s }; sc.stats = st; sc.snap0 = srcHash(classModel(sc)); return sc; });
+  c.snap0 = srcHash(classModel(c));   // the class's own fields as opened: unchanged ones write back verbatim
   c.importStats = stats;
   return c;
 }
@@ -390,7 +401,8 @@ function readGains(c) {
     // How often (the line's mode), who sets it off (the trigger's subject) and its condition.
     const ta = t.m.triggeredAbility, fixed = (GAIN_TRIGGERS.find(x => x.id === ev) || {}).fixed;
     const sp = readGainEvent(ev, String(ta.conditionFormula || "").trim());
-    const g = { id: newId("g"), event: sp.event, guid: ck.guid, src, refs: [[t, "trigger"]], freq: ck.mode || (fixed ? "encounter" : "recurring"), who: ta.subject || "self",
+    // A line with no mode counts once per encounter, as the game reads it (AbilityReplenish.lua:358).
+    const g = { id: newId("g"), event: sp.event, guid: ck.guid, src, refs: [[t, "trigger"]], freq: ck.mode || "encounter", who: ta.subject || "self",
       cond: sp.cond ? { t: "raw", src: sp.cond } : null };
     if (q && q.__typeName === "GoblinScriptTable") { const es = q.entries.slice().sort((a, b) => a.threshold - b.threshold); g.qty = String(es[0].script); g.qtyLv = es.slice(1).map(e => ({ from: String(e.threshold), value: String(e.script) })); }
     else g.qty = String(q);
@@ -412,8 +424,12 @@ function readGains(c) {
    spelling the editor or an author writes) reads as spending surges, with the rest as the test. */
 function readGainEvent(ev, cond) {
   for (const t of GAIN_TRIGGERS.filter(x => x.engine === ev && x.base)) {
-    const m = /^\s*Resource\s*(?:=|is)\s*"surges"\s*(?:and\s*\((.*)\)|and\s+(.*))?\s*$/i.exec(cond);
-    if (m) return { event: t.id, cond: (m[1] || m[2] || "").trim() };
+    // The entry's own limit, e.g. Resource = "Surges": a field, then = or is, then a quoted value.
+    const bm = /^\s*([A-Za-z ]+?)\s*=\s*"([^"]*)"\s*$/.exec(t.base); if (!bm) continue;
+    const esc = x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = new RegExp("^\\s*" + esc(bm[1]).replace(/ /g, "\\s*") + "\\s*(?:=|is)\\s*\"" + esc(bm[2]) + "\"\\s*(?:and\\s*\\((.*)\\)|and\\s+(.*))?\\s*$", "i").exec(cond);
+    // "and (A) or (B)" is not this event plus a test (GoblinScript reads and/or left to right): leave it alone.
+    if (m && (m[1] == null || balanced(m[1])) && !/\bor\b/i.test(m[2] || "")) return { event: t.id, cond: (m[1] || m[2] || "").trim() };
   }
   return { event: ev, cond };
 }
@@ -432,9 +448,10 @@ function gainRefRecord(f) {
   if (ch.who) { if (g.who && g.who !== "self") ta.subject = g.who; else delete ta.subject; }
   if (ch.cond || ch.event) ta.conditionFormula = gainCondFormula(g);
   if (ch.event || ch.who || ch.freq) ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
-  if (ch.event) { ta.trigger = t2.triggeredAbility.trigger; ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
-    if ("resourceRefreshType" in src) { if (c2.mode === "round" || c2.mode === "encounter") r.resourceRefreshType = c2.mode; else delete r.resourceRefreshType; } }
-  if (ch.amount && rb) rb.quantity = g === cls.startGain ? clone(t2.triggeredAbility.behaviors[0].quantity) : clone(c2.quantity);
+  if (ch.event) ta.trigger = t2.triggeredAbility.trigger;
+  // How often is both the checklist mode and the trigger's own limit: rewrite both together.
+  if ((ch.event || ch.freq) && g !== cls.startGain) { g.mguid = g.mguid || r.guid; gainLimit(r, g); Object.assign(ta, r.triggeredAbility); r.triggeredAbility = ta; }
+  if (ch.amount && rb) rb.quantity = clone(t2.triggeredAbility.behaviors.find(b => b.checklistid === g.guid || b.__typeName === "ActivatedAbilityReplenishBehavior").quantity);
   return r;
 }
 /* The class's checklist: each gain's saved line while unchanged, else updated; new gains are added. */

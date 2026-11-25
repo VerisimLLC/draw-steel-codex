@@ -1573,3 +1573,45 @@ existing rules: no choices inside
 Logic, only roll changes inside a combined block, and never inside itself. The spot under the
 pointer opens into a dashed slot the size of the block, reading "Drop here", "Drop to make a new
 feature here" or "Move the feature here". It replaces the old 3px line.
+
+## 30. Opening a core class: the Fury and its subclasses (2026-11-25)
+
+The class builder can now open the Fury, the Berserker, the Reaver and the Stormwight from the
+compendium: Open, then "Core classes (from the compendium)". The records are read back into blocks
+(`ui-mockup/class-builder/importer.js`), and `build_data.py` writes the records to `core-classes.js`.
+
+**How reading works (the claims rule, decided).**
+- Each block declares `claims` (the fields it writes) and `read(record)` beside its other settings.
+- A record opens as a block only if writing that block back gives the same claimed fields. Missing
+  fields count as the engine's default, and conditions match ignoring case, spaces and order.
+- Fields no block claims are kept. Anything no block can show opens as a grey block, "Make changes
+  in the advanced editor", which keeps the record exactly.
+- Records with the same "Only if" share one Logic block. A growing-resources table opens as the
+  growing table block, with each record placed in the row whose condition it has, including rows
+  that replace an earlier row.
+
+**Results.**
+
+| | Records as blocks | Grey (advanced) | Choices read | Text-only features |
+|---|---|---|---|---|
+| Fury | 22 of 31 | 9 | 15 of 16 | 10 |
+| Berserker | 26 of 33 | 7 | 3 of 3 | 0 |
+| Reaver | 23 of 31 | 8 | 2 of 3 | 0 |
+| Stormwight | 7 of 8 | 1 | 3 of 3 | 3 |
+
+- **Saved unchanged:** the class and all three subclasses come back identical, record for record.
+- **One value edited:** only that value changes (tested on "Might increases to 5" -> 6).
+- **Every block forced to rebuild from its fields:** the records come back with the same meaning.
+  The only differences are formatting: defaults written out, "10" saved as 10, outer brackets on a
+  condition, "always" saved as `true` (decided), and the growing table's hover text regenerated
+  from its blocks.
+
+**What the Fury taught us (design findings).**
+1. **Subclasses use the slow start too.** Each Fury subclass grants four features in Encounter 1. Subclass pages now follow the class's slow-start setting; they showed levels only before.
+2. **Kits and Recoveries live in features, often in subclasses.** The Fury's kits come from each subclass's Kit feature, and its 10 Recoveries from a feature at Encounter 1. The Basics rows now say where the value comes from, rather than offering an empty field or "doesn't use kits".
+3. **The heroic resource checklist is kept as saved** (including the start-of-turn 1d3 that becomes 1d3+1 at 7th level). It shows read-only, "Make changes in the advanced editor". Reading it back into gain blocks is a follow-up.
+4. **What stays grey, and the block that would cover it:**
+   - Primordial Strike's seven element versions (surge damage type): the planned "Change the damage" block (Q3).
+   - Two Growing Ferocity rows are written as ability conditions rather than row conditions, so they show as text rows plus a grey record.
+   - Aura, forced movement, power roll trigger, "modify an ability" and a resistance with extra settings remain advanced, as planned.
+5. **Content gaps found:** a Fury skill choice at level 10 has no name; the Berserker's Growing Ferocity contains a record named "Vuken Growing Ferocity" (copied from another subclass); 10 Fury features are book text with no automation.

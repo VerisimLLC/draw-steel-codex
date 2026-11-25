@@ -315,8 +315,9 @@ const SENT = {
     prose: f => f.cat === "signature" ? "Choose " + word(f.num) + " signature ability from the following options. Signature abilities can be used at will."
       : "Choose " + word(f.num) + " heroic ability from the following options, each of which costs " + f.cost + " " + (cls.resourceName || "heroic resource").toLowerCase() + " to use.",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
-      options: f.options.filter(o => o.rec).map(o => ({ __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
-        modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] })) }) },
+      options: f.options.filter(o => o.rec).map(o => o.src && JSON.stringify(o.rec) === JSON.stringify(o.src.modifiers[0].activatedAbility) ? clone(o.src)
+        : { __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
+          modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] }) }) },
   subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
     // The subclasses to choose from: each built here opens on click; compendium ones that name this class show dashed.
@@ -765,20 +766,21 @@ function appliesPhrase(f, add) {
   if (!f.offer) off.appendChild(E("span", "aside", "(every matching roll)"));
   add(off);
   const tk = E("div", "usage"); tk.appendChild(lbl("Automatically selected"));
-  tk.appendChild(pickTok(f, "applies", [["always", "always"], ["when", "when"], ["choose", "never (the player chooses)"], ["cost", "always, and it costs"]]));
+  tk.appendChild(pickTok(f, "applies", [["always", "always"], ["when", "when"], ["choose", "never (the player chooses)"], ["cost", "always, and it costs"], ["choosecost", "never (the player chooses), and it costs"]]));
   if (f.applies === "when") tk.appendChild(renderTest(f, "tick", true, "tick"));
-  if (f.applies === "cost") { if (f.costN == null) f.costN = "1"; tk.appendChild(textTok(f, "costN", "1")); tk.appendChild(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); }
+  if (f.applies === "cost" || f.applies === "choosecost") { if (f.costN == null) f.costN = "1"; tk.appendChild(textTok(f, "costN", "1")); tk.appendChild(pickTok(f, "costRes", [["cost", resWord()], ["surges", "surges"], ["epic", (cls.epicName || "epic resource").toLowerCase()]], resWord())); }
   add(tk);
 }
 function appliesFields(f) {
   // "1" is always selected: the offer test already decides when it shows, so the test isn't repeated.
   const shown = { displayCondition: f.offer ? testGs(f.offer) : "" };
-  if (f.applies === "cost") return Object.assign(shown, { activationCondition: "1", resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") });
+  // "Always" is stored as true and "never" as false, as the engine stores them (MCDModifyPowerRolls.lua).
+  if (f.applies === "cost" || f.applies === "choosecost") return Object.assign(shown, { activationCondition: f.applies === "cost", resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") });
   if (f.applies === "when") return Object.assign(shown, { activationCondition: testGs(f.tick) });
-  return Object.assign(shown, { activationCondition: f.applies === "always" ? "1" : false });
+  return Object.assign(shown, { activationCondition: f.applies === "always" });
 }
 const appliesProse = f => (f.offer ? " when " + testProse(f.offer) : "") + (f.applies === "when" ? " (it applies automatically when " + testProse(f.tick) + ")" : "") + appliesProseCost(f);
-const appliesProseCost = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
+const appliesProseCost = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "choosecost" ? " (you can choose to spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
 /* Combining roll changes. A block can join a combined block when it changes ability rolls: same
    keywords, and at most one edge/bane/outcome change between them (one power modifier holds one). */
 const ROLL_OPT_KEYS = ["offer", "applies", "tick", "costN", "costRes"];
@@ -972,6 +974,7 @@ function sentenceProse(f) {
     if (SENT[s.type].prose) t = SENT[s.type].prose(s.f, f);
     else { const tmp = E("span"); SENT[s.type].render(s.f, n => tmp.appendChild(n), s, f);
       t = [...tmp.childNodes].map(n => n.textContent.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim(); }
+    if (!t) return;   // blocks with no wording (grey advanced blocks) add nothing to the book text
     if (prefix) t = prefix + t.charAt(0).toLowerCase() + t.slice(1);
     out.push(t.replace(/[.,]?$/, "."));
   }); })(f.sentences || [], "");
@@ -1031,7 +1034,8 @@ const ENCOUNTERS = ["tutoriallevel-1", "tutoriallevel-2", "tutoriallevel-3", "tu
 /* What the board is editing: the class, or one of its subclasses (same levels and blocks, no basics). */
 const ed = () => (cls.view && (cls.subclasses || []).find(x => x.id === cls.view)) || cls;
 const classLaneKeys = () => (cls.slowStart ? ENCOUNTERS : []).concat(LEVELS);
-const laneKeys = () => ed() === cls ? classLaneKeys() : LEVELS;
+// Subclasses follow the class's slow start: core subclasses also grant features in Encounters 1-4.
+const laneKeys = () => classLaneKeys();
 /* Switching what the board shows isn't an edit, so it skips the undo stack. */
 function showView(id) { cls.view = id; openId = null; render(); saveStore(); window.scrollTo(0, 0); }
 function newSubclass(name) { const sc = { id: guid(), name: name || "New Subclass", details: "", lanes: {}, showLevels: 5 }; cls.subclasses.push(sc); return sc; }
@@ -1048,9 +1052,34 @@ const ORD = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12
 
 // ---------------------------------------------------------------------------------------------
 // Compile: the class record as the engine stores it.
+/* When a growing-table row applies: reached the amount this turn (and the level), and no later row
+   that replaces it is unlocked. Saving and reading saved records (importer.js) both use this. */
+function growRowCond(rows, r) {
+  let c = "Heroic Resources This Turn >= " + r.at + (+r.level > 1 ? " and Level >= " + r.level : "");
+  rows.filter(x => x.replaces === r.id).forEach(x => { c += " and (Heroic Resources This Turn < " + x.at + (+x.level > 1 ? " or Level < " + x.level : "") + ")"; });
+  return c;
+}
+/* Imported records (see importer.js). A block read from a saved record keeps that record: while the
+   block and its Logic condition are unchanged, the record is written back exactly as it was; once
+   edited, the block's fields replace the ones it claims and every other field is kept. */
+let compileSrcMods = null;   // the saved feature's modifiers, while compiling an imported feature
+const srcHash = o => { const t = JSON.stringify(o); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h; };
+const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+function keptRecords(s, filter) {
+  if (s.srcIdx == null || !compileSrcMods || srcHash(s.f) !== s.snap || filter !== s.srcFilter) return null;
+  return [s.srcIdx].concat(s.srcExtra != null ? [s.srcExtra] : []).map(i => clone(compileSrcMods[i]));
+}
+function mergeSrc(s, r) {
+  if (s.srcIdx == null || !compileSrcMods) return r;
+  const src = clone(compileSrcMods[s.srcIdx]); (SENT[s.type].claims || []).forEach(k => delete src[k]);
+  delete r.name; delete r.description;
+  return Object.assign(src, r);
+}
 function compileSentences(list, feat, filter) {
   const out = [];
   for (const s of list) {
+    // (A growing table keeps only its own record here; its rows are compiled below either way.)
+    const kept = s.type !== "growing" && keptRecords(s, filter); if (kept) { out.push(...kept); continue; }
     if (s.type === "aura") {
       const inner = compileSentences(s.children, feat);
       const r = modBase(feat, { behavior: "aura", radius: String(s.f.radius || "1"), aura: { __typeName: "Aura", name: feat.name, description: feat.text || "", applyto: s.f.who, modifiers: inner } });
@@ -1061,26 +1090,22 @@ function compileSentences(list, feat, filter) {
       const parts = s.children.filter(c => SENT[c.type].combo), mt = parts.map(c => SENT[c.type].combo.modtype && SENT[c.type].combo.modtype(c.f)).find(Boolean);
       const r = modBase(feat, Object.assign({ behavior: "power", modtype: mt || "none", rollType: "ability_power_roll", keywords: s.f.keywords.length ? Object.fromEntries(s.f.keywords.map(k => [k, true])) : [] },
         ...parts.map(c => SENT[c.type].combo.fields(c.f)), appliesFields(s.f)));
-      if (filter) r.filterCondition = filter; out.push(r); continue;
+      if (filter) r.filterCondition = filter; out.push(mergeSrc(s, r)); continue;
     }
     if (s.type === "onlyIf") { out.push(...compileSentences(s.children, feat, (filter ? filter + " and " : "") + "(" + testGs(s.f.cond) + ")")); continue; }
     if (s.type === "growing") {
       const rows = s.f.rows.filter(r => /^\d+$/.test(String(r.at).trim()));
-      out.push({ __typeName: "CharacterModifier", behavior: "growingresources", name: feat.name, description: "",
-        progression: rows.map(r => ({ resources: +r.at, level: +r.level > 1 ? +r.level : 0, description: r.text || growRowShort(r), tooltip: growRowProse(r) })) });
-      rows.forEach(r => {
-        // Unlocked: reached the amount this turn (and the level). Replaced: a later row that replaces it is unlocked.
-        let c = "Heroic Resources This Turn >= " + r.at + (+r.level > 1 ? " and Level >= " + r.level : "");
-        rows.filter(x => x.replaces === r.id).forEach(x => { c += " and (Heroic Resources This Turn < " + x.at + (+x.level > 1 ? " or Level < " + x.level : "") + ")"; });
-        out.push(...compileSentences(r.blocks, feat, (filter ? filter + " and " : "") + "(" + c + ")"));
-      });
+      const own = keptRecords(s, filter);
+      out.push(own ? own[0] : mergeSrc(s, { __typeName: "CharacterModifier", behavior: "growingresources", name: feat.name, description: "",
+        progression: rows.map(r => ({ resources: +r.at, level: +r.level > 1 ? +r.level : 0, description: r.text || growRowShort(r), tooltip: growRowProse(r) || r.tooltip || "" })) }));
+      rows.forEach(r => out.push(...compileSentences(r.blocks, feat, (filter ? filter + " and " : "") + "(" + growRowCond(rows, r) + ")")));
       continue;
     }
     const d = SENT[s.type]; if (!d.compile) continue;
     const r = d.compile(s.f, feat); if (!r) continue;
     if (filter) r.filterCondition = r.filterCondition ? "(" + r.filterCondition + ") and " + filter : filter;
     Object.keys(r).forEach(k => r[k] === undefined && delete r[k]);
-    out.push(r); if (d.extra) out.push(...d.extra(s.f));
+    out.push(mergeSrc(s, r)); if (d.extra) out.push(...d.extra(s.f));
   }
   return out;
 }
@@ -1089,6 +1114,23 @@ function compileSentences(list, feat, filter) {
    the modifiers, then each choice (as core classes store Characteristic Increase). */
 let compileOwner = null;   // a subclass's features carry the subclass's id as their classid
 function compileFeature(f) {
+  // An imported feature nobody has changed is written back exactly as it was saved.
+  if (f.src && srcHash({ n: f.name, t: f.text, s: f.sentences }) === f.snap) return clone(f.src);
+  compileSrcMods = f.src && f.src.modifiers || null;
+  try { return mergeFeatureSrc(f.src, compileFeatureBlocks(f), f); } finally { compileSrcMods = null; }
+}
+/* An edited imported feature keeps the saved fields its blocks don't write (guid, source, tags...).
+   What the blocks write replaces the saved value; a name or text the saved record left blank stays blank. */
+const FEATURE_CLAIMS = ["modifiers", "features", "options", "numChoices", "tag", "categories", "individualSkills", "allowDuplicateChoices"];
+function mergeFeatureSrc(src, r, f) {
+  if (!src || src.__typeName !== r.__typeName) return r;
+  const out = clone(src); FEATURE_CLAIMS.forEach(k => delete out[k]);
+  Object.keys(r).forEach(k => { if (["name", "description", "classid"].includes(k) && !(k in src)) return;
+    if (k === "description" && src.description === "" && !f.text) return;   // a deliberately blank text stays blank
+    out[k] = r[k]; });
+  return out;
+}
+function compileFeatureBlocks(f) {
   const name = featName(f), description = featText(f), base = { name, description, classid: compileOwner || cls.id };
   const mods = compileSentences(f.sentences, { name, text: description });
   const parts = f.sentences.filter(x => SENT[x.type].compileChoice).map(x => SENT[x.type].compileChoice(x.f, f, base)).filter(Boolean);
@@ -1171,10 +1213,12 @@ function compileClass() {
     description: "You can use and gain the benefits of " + (cls.kits.n === "2" ? "two " + cls.kits.type + " kits" : "a " + cls.kits.type + " kit") + ".",
     modifiers: [{ __typeName: "CharacterModifier", name: "Kit", behavior: "kitaccess", kitType: cls.kits.type }] });
   rec.levels[first].features.unshift(...basics);
-  rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
+  // An imported class keeps its saved checklist; its resource feature is one of its imported features.
+  if (cls.hrRaw) rec.heroicResourceChecklist = clone(cls.hrRaw);
+  else rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
     description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.mods.concat(g.triggers) });
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);
-  return rec;
+  return mergeClassSrc(cls.src, rec);
 }
 
 /* A subclass is saved as its own Class record (table "subclasses"): isSubclass, and primaryClassId
@@ -1183,9 +1227,19 @@ function compileSubclass(sc) {
   compileOwner = sc.id;
   try {
     const rec = { __typeName: "Class", id: sc.id, name: sc.name, details: sc.details, isSubclass: true, primaryClassId: cls.id, heroicResourceChecklist: [], levels: {} };
-    Array.from({ length: 20 }, (_, i) => "level-" + (i + 1)).forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (sc.lanes[k] || []).map(compileFeature) }; });
-    return rec;
+    ENCOUNTERS.concat(Array.from({ length: 20 }, (_, i) => "level-" + (i + 1))).forEach(k => { rec.levels[k] = { __typeName: "ClassLevel", features: (sc.lanes[k] || []).map(compileFeature) }; });
+    return mergeClassSrc(sc.src, rec);
   } finally { compileOwner = null; }
+}
+/* An imported class or subclass keeps every field the builder doesn't edit (colour, portrait, ability
+   category names...), and each level keeps its own fields around the rebuilt feature list. */
+const CLASS_CLAIMS = ["name", "details", "heroicResourceName", "epicResourceName", "baseCharacteristics", "hitpointsCalculation", "heroicResourceChecklist", "levels", "numKits", "isSubclass", "primaryClassId"];
+function mergeClassSrc(src, rec) {
+  if (!src) return rec;
+  const out = clone(src); CLASS_CLAIMS.forEach(k => { if (k !== "levels") delete out[k]; });
+  const levels = out.levels || {};
+  Object.keys(rec.levels).forEach(k => { levels[k] = Object.assign(levels[k] || {}, rec.levels[k]); });
+  return Object.assign(out, rec, { levels });
 }
 const trimLevels = r => Object.assign({}, r, { levels: Object.fromEntries(Object.entries(r.levels).filter(([, v]) => v.features.length)) });
 
@@ -1207,7 +1261,9 @@ function change(fn, keepMenu) {
 function undo() { if (!undoStack.length) return toast("Nothing to undo."); redoStack.push(JSON.stringify(cls)); cls = JSON.parse(undoStack.pop()); render(); saveStore(); toast("Undone.", { label: "Redo", run: redo }); }
 function redo() { if (!redoStack.length) return toast("Nothing to redo."); undoStack.push(JSON.stringify(cls)); cls = JSON.parse(redoStack.pop()); render(); saveStore(); toast("Redone."); }
 function saveStore() {
-  store.classes[cls.id] = { cls, undo: undoStack.slice(-30), redo: redoStack.slice(-30) };
+  // A big class (an imported core class) keeps its undo history in memory only: browser storage is small.
+  const big = JSON.stringify(cls).length > 100000;
+  store.classes[cls.id] = { cls, undo: big ? [] : undoStack.slice(-30), redo: big ? [] : redoStack.slice(-30) };
   if (!store.order.includes(cls.id)) store.order.push(cls.id); store.current = cls.id; store.uid = uid;
   // Browser storage is limited: if it's full, keep the classes and drop old history first.
   for (const keep of [30, 5, 0]) {
@@ -1380,10 +1436,16 @@ function renderBoard() {
     lbl("of 2; the other scores use one of these arrays:"), arraysTok());
   row("Stamina", textTok(cls, "stamStart", "18"), lbl("at 1st level, plus"), textTok(cls, "stamPer", "6"), lbl("each level after"));
   // Recoveries and kits are part of every class, so they sit with the basics (the blocks still exist for features).
-  row("Recoveries", lbl("You have"), textTok(cls, "recoveries", "8"), lbl("Recoveries"));
-  const kitRow = [pickTok(cls.kits, "on", [["yes", "You use"], ["no", "This class doesn't use kits"]])];
-  if (cls.kits.on === "yes") kitRow.push(pickTok(cls.kits, "n", [["1", "one"], ["2", "two"]]), pickTok(cls.kits, "type", KIT_TYPES), lbl(cls.kits.n === "2" ? "kits" : "kit"));
-  row("Kits", ...kitRow);
+  // Core classes keep Recoveries and kits in features (kits often in each subclass); say where.
+  const recFeat = basicsSource(o => o.type === "resource" && o.f.res === RES.recovery), kitFeats = basicsSource(o => o.type === "kit", true);
+  if (!String(cls.recoveries || "").trim() && recFeat) row("Recoveries", lbl("You have " + recFeat.s.f.num + " Recoveries, from the \u201c" + featName(recFeat.f) + "\u201d feature (" + laneLabel(recFeat.k).slice(0, 2).join(" ") + ")."));
+  else row("Recoveries", lbl("You have"), textTok(cls, "recoveries", "8"), lbl("Recoveries"));
+  if (cls.kits.on !== "yes" && kitFeats.length) row("Kits", lbl("Kits come from " + listWords([...new Set(kitFeats.map(x => x.where))], "and") + "."));
+  else {
+    const kitRow = [pickTok(cls.kits, "on", [["yes", "You use"], ["no", "This class doesn't use kits"]])];
+    if (cls.kits.on === "yes") kitRow.push(pickTok(cls.kits, "n", [["1", "one"], ["2", "two"]]), pickTok(cls.kits, "type", KIT_TYPES), lbl(cls.kits.n === "2" ? "kits" : "kit"));
+    row("Kits", ...kitRow);
+  }
   board.appendChild(b);
 
   // Heroic resource
@@ -1395,7 +1457,10 @@ function renderBoard() {
   const gl = E("div", "lbl2", "How you gain " + (cls.resourceName || "it").toLowerCase()); board.appendChild(gl);
   const gs = E("div", "sents");
   const res = (cls.resourceName || "resource").toLowerCase();
-  if (cls.startGain) {
+  // An imported class keeps its saved resource checklist; it is shown, and changed in the advanced editor.
+  if (cls.hrRaw) cls.hrRaw.forEach(c => { const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-adv)"); el.appendChild(E("span", null, c.details || c.name));
+    el.appendChild(E("span", "grow")); el.appendChild(E("span", "aside", "Make changes in the advanced editor")); gs.appendChild(el); });
+  if (cls.startGain && !cls.hrRaw) {
     const sg = cls.startGain;
     const el = E("div", "sent startgain"); el.style.setProperty("--c", "var(--c-res)");
     el.appendChild(lbl("At the start of each of your turns, you gain"));
@@ -1444,7 +1509,7 @@ function renderBoard() {
     menuAt(ag, m => { const a = E("button", null, "At the start of each turn (start-of-turn gain)"); a.type = "button"; a.addEventListener("click", () => { closeMenu(); change(() => { cls.startGain = { kind: "flat", n: "2", steps: [], guid: guid() }; }); });
       const b = E("button", null, "When something happens (combat starts, you deal damage...)"); b.type = "button"; b.addEventListener("click", () => { closeMenu(); change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })); });
       m.appendChild(a); m.appendChild(b); }); });
-  gs.appendChild(ag); board.appendChild(gs);
+  if (!cls.hrRaw) gs.appendChild(ag); board.appendChild(gs);
   board.appendChild(E("p", "hint", "Each of these is listed on the hero's sheet, and the game adds the " + res + " for them when it happens."));
 
   }
@@ -1482,6 +1547,15 @@ function renderBoard() {
     more.addEventListener("click", () => change(() => { ed().showLevels = 10; })); board.appendChild(more);
   }
   window.scrollTo(0, y);
+}
+/* Finds a block in the class's features (and, with subs, its subclasses' features). Returns the first
+   match ({ s, f, k }), or with subs every match with where it is ("the Berserker subclass"). */
+function basicsSource(test, subs) {
+  const hits = [];
+  const scan = (lanes, where) => Object.keys(lanes || {}).forEach(k => (lanes[k] || []).forEach(f => (function walk(l) { (l || []).forEach(x => { if (test(x)) hits.push({ s: x, f, k, where }); walk(x.children); }); })(f.sentences)));
+  scan(cls.lanes, "the class's features");
+  if (subs) cls.subclasses.forEach(sc => scan(sc.lanes, "the " + sc.name + " subclass"));
+  return subs ? hits : hits[0];
 }
 /* The name row is a row of tabs: the class, then its subclasses to the right, then "+ subclass".
    The tab being shown holds the name field; the others switch to theirs. Each subclass is still its
@@ -1722,7 +1796,7 @@ function renderSentenceList(list, feat, into, host) {
   if (groups.length) { into.classList.add("hascombine"); requestAnimationFrame(() => { if (into.isConnected) drawCombineBrackets(into, list, groups); }); }
 }
 function renderSentence(s, list, i, feat, host) {
-  const d0 = SENT[s.type], g = GROUPS.find(x => x[0] === d0.group);
+  const d0 = SENT[s.type], g = GROUPS.find(x => x[0] === d0.group) || ["adv", "", "--c-adv"];
   // Inside a combined block each block shows only its part ("deal 2 extra damage"); the rest is shared.
   const d = host && d0.combo ? Object.assign({}, d0, { render: d0.combo.render }) : d0;
   const el = E("div", "sent" + (d.wrapper ? " ifwrap" : "")); el.style.setProperty("--c", "var(" + g[2] + ")");
@@ -1870,7 +1944,7 @@ function staleNote(f) {
 function featureIssues(f, lane) {
   const out = [], nm = "\u201c" + featName(f) + "\u201d", [a, n] = laneLabel(lane);
   const add = (msg, soft, fix) => out.push({ feat: f, lane, msg, soft, fix });
-  if (!f.sentences.length) add(nm + " doesn't do anything yet.", false, { label: "Delete it", run: () => { change(() => { const o = ed(); o.lanes[lane] = o.lanes[lane].filter(x => x !== f); }); toast("Deleted.", { label: "Undo", run: undo }); } });
+  if (!f.sentences.length && !f.src) add(nm + " doesn't do anything yet.", false, { label: "Delete it", run: () => { change(() => { const o = ed(); o.lanes[lane] = o.lanes[lane].filter(x => x !== f); }); toast("Deleted.", { label: "Undo", run: undo }); } });
   if (featName(f) === "Unnamed feature") add("A feature at " + a + " " + n + " has no name.", true);
   (function walk(list) { list.forEach(s => {
     const d = SENT[s.type];
@@ -1903,7 +1977,7 @@ function classIssues() {
   if (ed() !== cls) return subclassIssues(ed());
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
-  if (!cls.gains.length) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
+  if (!cls.gains.length && !cls.hrRaw) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
   if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });
   if (!Object.keys(cls.primary).length) out.push({ msg: "Pick the class's starting characteristics.", soft: false });
@@ -1923,7 +1997,7 @@ function subclassIssues(sc) {
   const out = [];
   if (!String(sc.name || "").trim() || sc.name === "New Subclass") out.push({ msg: "The subclass needs a name.", soft: false });
   const saved = cls.view; cls.view = sc.id;   // featureIssues' fixes act on the board being shown
-  try { LEVELS.forEach(k => (sc.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k)))); } finally { cls.view = saved; }
+  try { classLaneKeys().forEach(k => (sc.lanes[k] || []).forEach(f => out.push(...featureIssues(f, k)))); } finally { cls.view = saved; }
   return out;
 }
 /* The right-hand column: the class's status (what's left to finish), then what the engine would store. */
@@ -2014,15 +2088,23 @@ function updateOpenSel() {
   store.order.forEach(id => { const c = store.classes[id]; if (!c) return; const nm = c.cls.name || "Unnamed class"; seen[nm] = (seen[nm] || 0) + 1;
     const o = E("option", null, nm + (seen[nm] > 1 ? " (" + seen[nm] + ")" : "")); o.value = "open:" + id; g.appendChild(o); });
   openSel.appendChild(g);
+  // Core classes from the compendium (core-classes.js): opening one reads its records back into blocks.
+  const core = (window.CB_CORE || { classes: [] }).classes;
+  if (core.length) { const cg = E("optgroup"); cg.label = "Core classes (from the compendium)";
+    core.forEach(c => { const o = E("option", null, c.name + (store.classes[c.id] ? "" : " (open a copy)")); o.value = "core:" + c.id; if (!store.classes[c.id]) cg.appendChild(o); }); if (cg.children.length) openSel.appendChild(cg); }
   [["new", "+ New blank class"], ["delete", "Delete this class\u2026"]].forEach(([v, t]) => { const o = E("option", null, t); o.value = v; openSel.appendChild(o); });
   openSel.value = "open:" + cls.id;
 }
 openSel.addEventListener("change", () => {
   const v = openSel.value;
   if (v.startsWith("open:")) openClass(v.slice(5));
+  else if (v.startsWith("core:")) openCoreClass(v.slice(5));
   else if (v === "new") { newClass(); toast("Started a new class. Your other classes are in the Open list."); }
   else if (v === "delete") { updateOpenSel(); askConfirm(openSel, "Delete \u201c" + cls.name + "\u201d from this browser? This can't be undone.", "Delete class", deleteClass); return; }
   updateOpenSel();
 });
-loadStore();
-if (store.current && store.classes[store.current]) openClass(store.current); else newClass();
+// Start once every script has loaded (importer.js adds blocks that opened classes may use).
+window.addEventListener("DOMContentLoaded", () => {
+  loadStore();
+  if (store.current && store.classes[store.current]) openClass(store.current); else newClass();
+});

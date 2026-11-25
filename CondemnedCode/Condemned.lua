@@ -2080,6 +2080,10 @@ Commands.RegisterMacro{
 --Kept in a block: this file's main chunk is close to Lua's 200-local limit.
 do
     local KNOWN_EFFECT = "338a5a55-02bb-45bf-aa11-024da242867f"
+    --The Fighting the Archivist encounter script (Condemned repo) watches this shared
+    --variable to take its button away; renaming it breaks that button.
+    local KNOWN_DONE_VAR = "archivist_known"
+    local CHAT_TITLE, CHAT_COLOR = "Fighting the Archivist", "#e8a030"
 
     ---@param token CharacterToken
     ---@return boolean
@@ -2116,15 +2120,15 @@ do
                 }
             end
             if wanted then
-                names[#names + 1] = tostring(token.name)
+                names[#names + 1] = creature.GetTokenDescription(token)
             end
         end
-        Commands.setvar("archivist_known done")
+        Commands.setvar(KNOWN_DONE_VAR .. " done")
         local text = "Known to the Archivist: nobody."
         if #names > 0 then
             text = "Known to the Archivist (he has an edge on power rolls against them): " .. table.concat(names, ", ") .. "."
         end
-        SendTitledChatMessage(text, "Fighting the Archivist", "#e8a030", SafetyTools.DirectorUserIds())
+        SendTitledChatMessage(text, CHAT_TITLE, CHAT_COLOR, SafetyTools.DirectorUserIds())
     end
 
     local function ShowKnownDialog()
@@ -2136,13 +2140,15 @@ do
                 heroes[#heroes + 1] = token
             end
         end
-        table.sort(heroes, function(a, b) return tostring(a.name) < tostring(b.name) end)
+        table.sort(heroes, function(first, second)
+            return creature.GetTokenDescription(first) < creature.GetTokenDescription(second)
+        end)
 
         local picks = {}
         local rows = {}
         for _, token in ipairs(heroes) do
             local check = gui.Check{
-                text = tostring(token.name),
+                text = creature.GetTokenDescription(token),
                 value = IsKnown(token),
                 width = "auto",
                 height = 24,
@@ -2163,7 +2169,8 @@ do
             }
         end
 
-        --the modal layer passes no themed cascade, so the window roots its own.
+        --A dialog opened with gui.ShowModal doesn't get the theme's styles from the screen
+        --behind it, so it brings its own.
         local dialog = gui.Panel{
             styles = ThemeEngine.GetStyles(),
             width = "auto",
@@ -2215,8 +2222,10 @@ do
                                 gui.Button{
                                     text = "Apply",
                                     press = function()
-                                        gui.CloseModal()
+                                        --read the ticks before closing: a closed dialog's
+                                        --checkboxes can no longer be read
                                         ApplyKnown(picks)
+                                        gui.CloseModal()
                                     end,
                                 },
                             },
@@ -2234,7 +2243,7 @@ do
         doc = "Usage: /archivistknown\nOpens a list of the heroes on the map. Tick the ones who revealed a criminal backstory, or were revealed as part of the resistance, during the negotiation, then Apply: exactly those heroes are Known to the Archivist for the encounter (he has an edge on power rolls against them). Applying with nobody ticked is fine. Director only.",
         command = function(str)
             if not dmhub.isDM then
-                SendTitledChatMessage("Only a Director can use /archivistknown.", "Fighting the Archivist", "#e8a030", { dmhub.userid })
+                SendTitledChatMessage("Only a Director can use /archivistknown.", CHAT_TITLE, CHAT_COLOR, { dmhub.userid })
                 return
             end
             ShowKnownDialog()

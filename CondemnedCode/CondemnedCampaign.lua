@@ -2250,6 +2250,9 @@ local function GearingUpBlock()
         local open = gear.IsOpen()
         confirming = confirming and open
         local handedOut = gear.AnyHandedOut()
+        --heroes who had nothing to get at Hand out can be given gear in another round.
+        local given, total = gear.HandedOutCount()
+        local finished = handedOut and given == total
         chip:SetClass("collapsed", not open and not handedOut)
         if open then
             SetChip(chip, T("condemned.gear.pill_open"), "ccInfo")
@@ -2265,8 +2268,8 @@ local function GearingUpBlock()
             SetChip(chip, T("condemned.gear.handed_out"), "ccOk")
             body.text = T("condemned.gear.gearing_up_body")
         end
-        body:SetClass("collapsed", handedOut)
-        openButton:SetClass("collapsed", open or handedOut)
+        body:SetClass("collapsed", finished)
+        openButton:SetClass("collapsed", open or finished)
         showButton:SetClass("collapsed", not open)
         seeButton:SetClass("collapsed", not handedOut)
         closeButton:SetClass("collapsed", not open or confirming)

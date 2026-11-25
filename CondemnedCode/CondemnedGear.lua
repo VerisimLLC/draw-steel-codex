@@ -312,8 +312,12 @@ function CondemnedGear.HandOut(onDone)
         if status == "over" then
             return false
         end
-        if status ~= "given" then
-            pending[#pending + 1] = { token = entry.token, choices = CondemnedGear.Choices(entry.charid) }
+        --a hero with nothing chosen (Done or not) gets no marker, so a later round can still
+        --give them gear: pressing Done by mistake must not lock a hero out.
+        local choices = CondemnedGear.Choices(entry.charid)
+        local empty = #choices.gear == 0 and CondemnedGear.GrenadeCount(choices) == 0
+        if status ~= "given" and not empty then
+            pending[#pending + 1] = { token = entry.token, choices = choices }
         end
     end
     if #pending == 0 then
@@ -359,6 +363,20 @@ function CondemnedGear.HandOut(onDone)
         end,
     }
     return true
+end
+
+--- How many heroes have had their gear, out of how many heroes there are.
+--- @return integer given
+--- @return integer total
+function CondemnedGear.HandedOutCount()
+    local heroes = CondemnedGear.Heroes()
+    local given = 0
+    for _, entry in ipairs(heroes) do
+        if CondemnedGear.Delivered(entry.token) ~= nil then
+            given = given + 1
+        end
+    end
+    return given, #heroes
 end
 
 --- True once the gear has gone out: the window is closed and a hero has their marker.
@@ -1568,7 +1586,8 @@ local function BuildParty(repaint)
 
     --The allowance: how much each hero may take (Director only, until Hand out).
     local function CanSetAllowance()
-        return director and not CondemnedGear.AnyHandedOut()
+        --fixed once anyone has their gear, so a second round plays by the same numbers.
+        return director and CondemnedGear.HandedOutCount() == 0
     end
     local function AllowanceStepper(field, max)
         return HeroSheetInventoryActions.Stepper(function()
@@ -1954,7 +1973,8 @@ local function BuildParty(repaint)
         valign = "center",
     }
     local handOut = HeroSheetTheme.WindowButton(T("condemned.gear.hand_out"), function()
-        if not director or CondemnedGear.IsHandingOut() or CondemnedGear.AnyHandedOut() then
+        local given, total = CondemnedGear.HandedOutCount()
+        if not director or CondemnedGear.IsHandingOut() or (total > 0 and given == total) then
             return
         end
         for _, hero in ipairs(CondemnedGear.Heroes()) do
@@ -2016,8 +2036,10 @@ local function BuildParty(repaint)
             hint:SetClass("collapsed", director)
             footer:SetClass("collapsed", not director)
             local allow = CondemnedGear.Allowance()
-            local handedOut = CondemnedGear.AnyHandedOut()
-            reset:SetClass("collapsed", handedOut or (allow.gear == book.gear and allow.grenades == book.grenades))
+            --everyone has their gear; until then Hand out stays for a later round.
+            local givenCount, heroCount = CondemnedGear.HandedOutCount()
+            local handedOut = heroCount > 0 and givenCount == heroCount
+            reset:SetClass("collapsed", givenCount > 0 or (allow.gear == book.gear and allow.grenades == book.grenades))
             element:FireEventTree("refreshNumber")
 
             --the footer: how many are done, or who got their gear.
@@ -2040,7 +2062,7 @@ local function BuildParty(repaint)
             if handedOut then
                 tally.text = UIText.Plural("condemned.gear.handed_out_to", given)
             else
-                tally.text = T("condemned.gear.tally", { done = done, total = #listed })
+                tally.text = T("condemned.gear.tally", { done = done, total = #listed - given })
             end
             handOut:SetClass("collapsed", handedOut)
             local waiting = CondemnedGear.IsHandingOut()
@@ -2501,10 +2523,11 @@ local function KeepTab()
     end
     --while a game loads, the old HUD's layer can still be referenced but already torn down,
     --and adding to it raises. (Loading progress is no guide: a player's can stall below 1.)
+    --GameHud.instance can be false, not only nil, while the HUD is being rebuilt.
     local hud = GameHud.instance
-    local layer = hud ~= nil and hud.mainDialogPanel or nil
-    if layer == nil or not layer.valid then
-        local why = string.format("hud=%s layer=%s", tostring(hud ~= nil), tostring(layer ~= nil))
+    local layer = hud and hud.mainDialogPanel or nil
+    if not layer or not layer.valid then
+        local why = string.format("hud=%s layer=%s", tostring(hud), tostring(layer ~= nil))
         if why ~= g_tabWait then
             g_tabWait = why
             print("CONDEMNED GEAR:: tab waiting: " .. why)

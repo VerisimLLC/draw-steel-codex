@@ -966,6 +966,15 @@ local function ManagedEffects(tok)
             styles[#styles+1] = rule
         end
     end
+    --the "No conditions" placeholder is 16pt for the tac panel: on the card
+    --it reads at the size of the card's other muted lines. After the tac
+    --rule, so it wins.
+    styles[#styles+1] = {
+        selectors = {"label", "cond-empty"},
+        fontSize = 11.5,
+        lmargin = 4,
+        color = COLOR_MUTED,
+    }
     --the chips' buttons (Set Caster, remove) take their look from the
     --theme, which the card's cascade lacks: without it they are invisible
     --but still pressable. The tactical panel gets the theme from its dock.

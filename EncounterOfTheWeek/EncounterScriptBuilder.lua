@@ -1315,7 +1315,10 @@ function S.EncounterEditor(ctx, beat, index)
     local shownSetup = 0
     for _, ins in ipairs(beat.setup or {}) do
         if ins.kind == "consequence" then
-            consequenceIns = consequenceIns or ins
+            --the dropdown edits the plain line; "Consequence in <Mode> Mode:" lines stay as written.
+            if ins.mode == nil then
+                consequenceIns = consequenceIns or ins
+            end
         else
             shownSetup = shownSetup + 1
         end

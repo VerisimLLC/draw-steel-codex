@@ -486,20 +486,27 @@ end
 
 --What happens to a hero who dies in this game: "retreat" (home, healed, no
 --Victory or treasure), "death" (buried) or "lost" (in the Graveyard for
---good). The current part's "Consequence:" line, else Retreat; Deadly Mode is
---always Death (user decision 2026-11-23).
+--good). The current part's line for the mode being played ("Consequence in
+--Deadly Mode: Lost"), else its "Consequence:" line, else Retreat. Deadly Mode
+--with no line of its own is always Death.
 ---@return string
 function EncounterOfTheWeekGame.Consequence()
+    local mode = "normal"
     if EncounterOfTheWeekGame.IsDeadly() then
-        return "death"
+        mode = "deadly"
+    elseif EncounterOfTheWeekGame.IsChallenge() then
+        mode = "challenge"
     end
-    local consequence = EncounterScript.DEFAULT_CONSEQUENCE
+    local consequence, fromModeLine = EncounterScript.DEFAULT_CONSEQUENCE, false
     pcall(function()
         local montage = rawget(_G, "EncounterMontage")
         if montage ~= nil then
-            consequence = EncounterScript.FindConsequence(montage.FindMapScript().parse)
+            consequence, fromModeLine = EncounterScript.FindConsequence(montage.FindMapScript().parse, mode)
         end
     end)
+    if mode == "deadly" and not fromModeLine then
+        return "death"
+    end
     return consequence
 end
 
@@ -8932,8 +8939,53 @@ local function TestMode(id)
     return nil
 end
 
+--A test can also start at one narrative section. Its mode id is
+--"section:<beat index>:<section id>", e.g. "section:2:s3-the-crossroads".
+--Returns the beat index and section id, or nil for any other mode.
+--- @param modeid any
+--- @return integer|nil, string|nil
+function EncounterOfTheWeekGame.ParseSectionTestMode(modeid)
+    if type(modeid) ~= "string" then
+        return nil, nil
+    end
+    local index, sectionId = string.match(modeid, "^section:(%d+):(.+)$")
+    if index == nil then
+        return nil, nil
+    end
+    return tonumber(index), sectionId
+end
+
+--One "Start at" choice per section of every narrative in this script, in
+--script order: { {id, text}, ... }. The test dialog lists them after the
+--fixed modes.
+function EncounterOfTheWeekGame.NarrativeSectionTestModes(script)
+    local result = {}
+    local beats = script ~= nil and script.parse ~= nil and script.parse.beats or {}
+    for index, beat in ipairs(beats) do
+        if beat.kind == "narrative" then
+            for _, section in ipairs(EncounterScript.GauntletSections(beat)) do
+                result[#result + 1] = {
+                    id = string.format("section:%d:%s", index, section.id),
+                    text = UIText.T("encounter.test.mode_section", { section = section.name or section.id }),
+                }
+            end
+        end
+    end
+    return result
+end
+
 --The beat a test of this mode starts on: index, beat -- or nil, reason.
+--A section mode (see ParseSectionTestMode) also returns the section id.
 function EncounterOfTheWeekGame.TestStartBeat(script, modeid)
+    local sectionBeat, sectionId = EncounterOfTheWeekGame.ParseSectionTestMode(modeid)
+    if sectionBeat ~= nil then
+        local beats = script ~= nil and script.parse ~= nil and script.parse.beats or {}
+        local beat = beats[sectionBeat]
+        if beat ~= nil and beat.kind == "narrative" and EncounterScript.FindGauntletSection(beat, sectionId) ~= nil then
+            return sectionBeat, beat, sectionId
+        end
+        return nil, UIText.T("encounter.test.no_section")
+    end
     local mode = TestMode(modeid)
     if mode == nil then
         return nil, UIText.T("encounter.test.unknown_mode")
@@ -9263,7 +9315,7 @@ local function TestArrival(pending)
     --region and start tiles) until data.test carries it.
     Series.testPart = tonumber(pending.part) or 1
     local script = montage.FindMapScript(true)
-    local index, beat = EncounterOfTheWeekGame.TestStartBeat(script, pending.mode)
+    local index, beat, startSection = EncounterOfTheWeekGame.TestStartBeat(script, pending.mode)
     if index == nil then
         error(beat)
     end
@@ -9366,7 +9418,8 @@ local function TestArrival(pending)
     if beat.kind == "montage" then
         montage.Begin(script, beat, index)
     elseif beat.kind == "narrative" and narrative ~= nil then
-        narrative.Begin(script, beat, index)
+        --a section test opens the narrative on that section instead of its first.
+        narrative.Begin(script, beat, index, { startSection = startSection })
     elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
         EncounterNegotiation.Begin(script, beat, index)
     end

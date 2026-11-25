@@ -1211,6 +1211,8 @@ text("author.validator.report.setup_hero_level", [[balanced for Level {level} he
 text("author.validator.report.setup_consequence_retreat", [[a hero who dies retreats to town, healed, with no Victory]])
 text("author.validator.report.setup_consequence_death", [[a hero who dies is buried in the Graveyard]])
 text("author.validator.report.setup_consequence_lost", [[a hero who dies is Lost: in the Graveyard, and nothing can bring them back]])
+--A "Consequence in <Mode> Mode:" line. {mode} is normal, challenge or deadly; {text} is one of the lines above.
+text("author.validator.report.setup_consequence_in_mode", [[in {mode} mode, {text}]])
 --A "Monster AI:" line. {text} reads like "Bully on for Goblin Sniper".
 text("author.validator.report.setup_ai_behavior", [[setup {label}: {text}]])
 --Reinforcements. {name} is the group's name, {schedule} when they arrive

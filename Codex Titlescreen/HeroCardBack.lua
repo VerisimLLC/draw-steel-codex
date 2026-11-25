@@ -1145,6 +1145,119 @@ local function Effects(c, tok)
     }
 end
 
+--- Kit modifiers -------------------------------------------------------------
+
+--- What the hero's kit adds, in two columns: Stamina, Speed, Stability and
+--- Disengage always (a 0 says the kit gives none), then the distances and
+--- damage bonuses it has, then its armor. Read from character:Kit(), which
+--- already merges a hero's two kits; read only (that kit is shared, and
+--- Kit:DamageBonuses() would write to it). nil for a hero with no kit.
+local function KitModifiers(c)
+    local kit = Try(function() return c:Kit() end)
+    if kit == nil then
+        return nil
+    end
+    local function Bonus(n)
+        return string.format("%+d", tonumber(n) or 0)
+    end
+    local rows = {
+        { T("herocard.back.kit.stamina"), Bonus(kit.health) },
+        { T("herocard.back.kit.speed"), Bonus(kit.speed) },
+        { T("herocard.back.kit.stability"), Bonus(kit.stability) },
+        { T("herocard.back.kit.disengage"), Bonus(kit.disengage) },
+    }
+    local function Optional(label, n)
+        n = tonumber(n) or 0
+        if n ~= 0 then
+            rows[#rows+1] = { label, Bonus(n) }
+        end
+    end
+    Optional(T("herocard.back.kit.melee_distance"), kit.reach)
+    Optional(T("herocard.back.kit.ranged_distance"), kit.range)
+    Optional(T("herocard.back.kit.area"), kit.area)
+    local bonuses = Try(function() return kit:try_get("damageBonuses") end, {}) or {}
+    local damageLabels = {
+        melee = T("herocard.back.kit.melee_damage"),
+        ranged = T("herocard.back.kit.ranged_damage"),
+        supernatural = T("herocard.back.kit.supernatural_damage"),
+    }
+    --damage rows run the full width: "+1/+1/+1" needs the room.
+    local damageRows = {}
+    for _, bonusType in ipairs(Try(function() return Kit.damageBonusTypes end, {})) do
+        local b = bonuses[bonusType.id]
+        local label = damageLabels[bonusType.id]
+        if type(b) == "table" and label ~= nil and ((tonumber(b[1]) or 0) ~= 0 or (tonumber(b[2]) or 0) ~= 0 or (tonumber(b[3]) or 0) ~= 0) then
+            damageRows[#damageRows+1] = { label, string.format("%s/%s/%s", Bonus(b[1]), Bonus(b[2]), Bonus(b[3])) }
+        end
+    end
+
+    local function Cell(row, width, rmargin)
+        return gui.Panel{
+            width = width,
+            height = "auto",
+            flow = "vertical",
+            rmargin = rmargin,
+            interactable = false,
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vpad = 2,
+                interactable = false,
+                Text{ text = row[1], width = "68%", fontSize = 11.5, color = COLOR_MUTED, textWrap = false },
+                Text{ text = row[2], width = "32%", fontSize = 11.5, bold = true, color = COLOR_TEXT, textAlignment = "right", textWrap = false },
+            },
+            Divider(),
+        }
+    end
+    local colWidth = math.floor(CONTENT_WIDTH / 2) - 6
+    local cells = {}
+    for i, row in ipairs(rows) do
+        cells[#cells+1] = Cell(row, colWidth, cond(i % 2 == 1, 12, 0))
+    end
+    --a lone last cell still leaves the next row to start on the left.
+    if #rows % 2 == 1 then
+        cells[#cells+1] = gui.Panel{ width = colWidth, height = 1, interactable = false }
+    end
+    for _, row in ipairs(damageRows) do
+        cells[#cells+1] = Cell(row, CONTENT_WIDTH)
+    end
+
+    local name = Try(function() return kit.name end, "")
+    local description = Try(function() return kit.description end, "")
+    local children = {
+        WithHover(SectionLabel(T("herocard.back.kit.title", { kit = name })), function()
+            if type(description) ~= "string" or description == "" then
+                return nil
+            end
+            return description
+        end),
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            wrap = true,
+            interactable = false,
+            children = cells,
+        },
+    }
+    local armor = Try(function() return kit.armor end)
+    if type(armor) == "string" and armor ~= "" and armor ~= "None" then
+        children[#children+1] = Text{
+            text = string.format("<b><color=%s>%s</color></b>  %s", COLOR_MUTED, string.upper(T("herocard.back.kit.armor")), armor),
+            fontSize = 12,
+            tmargin = 4,
+        }
+    end
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        interactable = false,
+        children = children,
+    }
+end
+
 --- Heroic resource gains -----------------------------------------------------
 
 local function TwoColumnRow(left, right, rightColor, dim)
@@ -2850,6 +2963,7 @@ local function BuildHeroScroll(tok, charid, state)
         function() return MovementLine(c, tok) end,
         function() return Effects(c, tok) end,
         function() return PersistentAbilities(c, tok) end,
+        function() return KitModifiers(c) end,
     })
 
     result[#result+1] = SectionHeading("abilities")

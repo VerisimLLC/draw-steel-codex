@@ -554,6 +554,22 @@ text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
 
+--The kit's modifiers at the end of Stats. {kit} is the kit's name (or both
+--kits' names, for a hero with two). Damage values read +1/+2/+3, by tier.
+text("herocard.back.kit.title", [[{kit} kit]])
+text("herocard.back.kit.stamina", [[Stamina]])
+text("herocard.back.kit.speed", [[Speed]])
+text("herocard.back.kit.stability", [[Stability]])
+text("herocard.back.kit.disengage", [[Disengage]])
+text("herocard.back.kit.melee_distance", [[Melee distance]])
+text("herocard.back.kit.ranged_distance", [[Ranged distance]])
+text("herocard.back.kit.area", [[Area]])
+text("herocard.back.kit.melee_damage", [[Melee damage]])
+text("herocard.back.kit.ranged_damage", [[Ranged damage]])
+--a caster kit's bonus to magic and psionic abilities.
+text("herocard.back.kit.supernatural_damage", [[Supernatural damage]])
+text("herocard.back.kit.armor", [[Armor]])
+
 --Under the condition chips while something ends on a save. {threshold} is the
 --number to reach (already formatted, with its +); {roll} is the dice, e.g.
 --1d10 or 1d10 + 1.

@@ -71,7 +71,7 @@ Draw Steel UI. It follows the file organisation of `Draw Steel Character Builder
 | `FeatureCache.lua` | `RecordCache.lua` | `BERecordCache` | The open record read into blocks, and written back (calls the rules-side reader and writer); keeps the kept-record marks |
 | `SelectionStatus.lua` | `IssueStatus.lua` | `BEIssueStatus` | Things to finish / worth checking, per area and in total |
 | `CharacterPanel.lua` (right column) | `StatusPanel.lua` | `BEStatusPanel` | The right column: status, book text preview, saved data |
-| `Styles.lua` | `Styles.lua` | `BEStyles` | `BEStyles.SIZES`, `GetStyles()`; theme tokens only (no hard-coded colours, unlike CBStyles.COLORS); merged with `ThemeEngine.MergeStyles` and re-applied on theme change, as MainPanel.lua:55 / 820-825 |
+| `Styles.lua` | `Styles.lua` | `BEStyles` | `BEStyles.SIZES`, `BEStyles.BlockColors`, `GetStyles()`. Chrome (ground, cards, shelf, menus) uses theme tokens only, merged with `ThemeEngine.MergeStyles` and re-applied on theme change, as MainPanel.lua:55 / 820-825. **Block colours are fixed** (decided 2026-11-25): a block's colour tells the author what kind of block it is, so `BlockColors` holds literal hex per block group (the prototype's palette), set on the block's own style with white text, never `@tokens`; a theme never changes them. A registered block names its group; a new group registers its colour here. |
 | `HeroBuilderText.lua` | `BlockEditorText.lua` | (UIText) | Every string, `UIText.Define("BlockEditorText")`; added to `tests/uitext_check.lua` |
 | (HeroBuilder's host) | `Hosts.lua` | `BEHosts` | The host interface and its `RegisterHost` calls: class (with subclass tabs), feature, title, perk; later ability |
 

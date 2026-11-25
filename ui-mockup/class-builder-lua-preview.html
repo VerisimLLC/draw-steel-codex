@@ -13,12 +13,22 @@
   --border: #FFFFFF29; --borderSolid: #313134; --borderInverse: #7A7468;
   --accent: #E4DDD0; --accentHover: #F7F3EA;
   --success: #4DB88C; --info: #E9C868; --warning: #E8A030; --danger: #C94040;
-  /* optional category edge hues (not in the theme: see the "Category marks" switch) */
-  --cat-roll: #6F8FB8; --cat-res: #B88A4D; --cat-choice: #8C78B0; --cat-logic: #6E9C7A;
+  /* Block colours: fixed, NOT theme tokens. They tell the author what kind of block it is,
+     so a theme may change the ground and chrome around them but never these. Same palette as
+     the web prototype; in Lua they live in one table (BEStyles.BlockColors) as literal hex. */
+  --blk-rolls: #7d4aa3; --blk-res: #8a6a20; --blk-choice: #3d7a3a; --blk-if: #b05a24;
+  --blk-grow: #8f3a2e; --blk-abil: #b36125; --blk-test: #2c7391; --blk-adv: #5b564e;
   /* fonts: web stand-ins for Berling (label), Liberation Sans (input), Courier (mono) */
   --f-label: "Crimson Pro", "Berling", Georgia, serif;
   --f-input: "Arimo", "Liberation Sans", Arial, sans-serif;
   --f-mono: "Courier Prime", "Courier New", monospace;
+}
+/* The Warm Gold scheme from DefaultStyles.lua, to show the blocks keep their colours. */
+.app[data-scheme="warm-gold"] {
+  --bg: #1B1310; --bgAlt: #2A1E15; --bgRaised: #3A2B1E; --bgInverse: #E9B86F;
+  --fg: #F5E9D3; --fgStrong: #FFF5DD; --fgMuted: #A89377; --fgPending: #8B7960; --fgInverse: #1B1310;
+  --border: #C4956266; --borderSolid: #5A4128; --borderInverse: #5A4128;
+  --accent: #B8884C; --accentHover: #F1D3A5; --success: #6BA84F; --warning: #E08A2E; --danger: #C73131;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-input); }
@@ -33,8 +43,8 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .check input:focus-visible { outline: 1px solid var(--fgStrong); outline-offset: 2px; }
 
 /* ---------- the app window ---------- */
-.app { background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
-.titlebar { background: linear-gradient(90deg, #070708, var(--bgAlt)); display: flex; flex-wrap: wrap; align-items: end; gap: 4px 18px; padding: 10px 14px 0; border-bottom: 1px solid var(--borderSolid); }
+.app { color: var(--fg); background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.titlebar { background: linear-gradient(90deg, var(--bg), var(--bgAlt)); display: flex; flex-wrap: wrap; align-items: end; gap: 4px 18px; padding: 10px 14px 0; border-bottom: 1px solid var(--borderSolid); }
 .classname { font: 700 22px/1 var(--f-label); color: var(--fgStrong); padding-bottom: 10px; }
 .tabbar { display: flex; flex-wrap: wrap; gap: 2px; }
 .tab { font: 600 15px var(--f-label); color: var(--fgMuted); background: var(--bg); border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px 14px 7px; cursor: pointer; }
@@ -51,7 +61,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .navrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning); }
 .seam { height: 1px; background: var(--border); opacity: .5; margin: 0 12px; }
 
-.detail { padding: 6px 18px 30px; background: radial-gradient(ellipse at 50% 30%, #1c1c1e, #0a0a0b 70%); overflow: auto; max-height: 760px; }
+.detail { padding: 6px 18px 30px; background: radial-gradient(ellipse at 50% 30%, var(--bgAlt), var(--bg) 70%); overflow: auto; max-height: 760px; }
 .sechead { display: flex; align-items: center; gap: 8px; height: 30px; margin-top: 14px; font: 700 13px var(--f-input); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); cursor: pointer; }
 .sechead:hover { color: var(--fgStrong); }
 .sechead .count { margin-left: auto; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--fgMuted); font-size: 11px; }
@@ -63,35 +73,35 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .dragging .sliver { background: var(--accent); opacity: .35; height: 4px; }
 .dragging .sliver.hover { opacity: 1; height: 10px; background: var(--accentHover); }
 
-/* a block: one row panel holding a grip, one wrapping sentence label, a gear */
-.block { position: relative; display: flex; align-items: flex-start; gap: 8px; background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 5px; padding: 8px 10px 8px 8px; transition: background .1s; }
-.block:hover { background: #121214; }
-.block.selected { border-left: 3px solid var(--accent); padding-left: 6px; }
-.cats .block[data-cat] { border-left: 3px solid var(--c); padding-left: 6px; }
-.block[data-cat="roll"] { --c: var(--cat-roll); } .block[data-cat="res"] { --c: var(--cat-res); }
-.block[data-cat="choice"] { --c: var(--cat-choice); } .block[data-cat="logic"] { --c: var(--cat-logic); }
-.grip, .gear { flex: none; width: 16px; height: 16px; margin-top: 3px; color: var(--fgMuted); opacity: .5; cursor: grab; }
+/* a block: one row panel holding a grip, one wrapping sentence label, a gear. Its fill is the
+   block's fixed colour, with its own white text, so it reads the same on any theme. */
+.block { --c: var(--blk-adv); position: relative; display: flex; align-items: flex-start; gap: 8px; background: var(--c); color: #fff; border: 1px solid rgba(0,0,0,.35); border-radius: 5px; padding: 8px 10px 8px 8px; }
+.block:hover { filter: brightness(1.08); }
+.block.selected { outline: 2px solid var(--fgStrong); outline-offset: 1px; }
+[data-cat="roll"] { --c: var(--blk-rolls); } [data-cat="res"] { --c: var(--blk-res); }
+[data-cat="choice"] { --c: var(--blk-choice); } [data-cat="logic"] { --c: var(--blk-if); }
+[data-cat="grow"] { --c: var(--blk-grow); }
+.grip, .gear { flex: none; width: 16px; height: 16px; margin-top: 3px; color: #fff; opacity: .55; cursor: grab; }
 .gear { cursor: pointer; margin-left: auto; }
-.block:hover > .grip, .block:hover > .gear { opacity: 1; color: var(--fg); }
-.tag { flex: none; font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: var(--fgMuted); border: 1px solid var(--borderSolid); border-radius: 3px; padding: 2px 5px; margin-top: 2px; }
-.sentence { font: 16px/1.55 var(--f-label); color: var(--fg); min-width: 0; flex: 1; }
-/* a link region inside the label: TMP <mark> fill + <u>, since @accent equals @fg in this scheme */
-.tok { color: var(--fgStrong); background: var(--bgRaised); border-radius: 3px; padding: 0 4px; text-decoration: underline; text-decoration-color: var(--fgMuted); text-underline-offset: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-.tok:hover, .tok.open { background: var(--bgInverse); color: var(--fgInverse); text-decoration-color: var(--fgInverse); }
-.tok:focus-visible { outline: 1px solid var(--fgStrong); }
+.block:hover > .grip, .block:hover > .gear { opacity: 1; }
+.tag { flex: none; font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: #fff; border: 1px solid rgba(255,255,255,.55); border-radius: 3px; padding: 2px 5px; margin-top: 2px; }
+.sentence { font: 16px/1.55 var(--f-label); color: #fff; min-width: 0; flex: 1; }
+/* a link region inside the label: a darker inset of the block's own colour (TMP <mark>) + underline */
+.tok { color: #fff; background: rgba(0,0,0,.3); border-radius: 3px; padding: 0 4px; text-decoration: underline; text-decoration-color: rgba(255,255,255,.5); text-underline-offset: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.tok:hover, .tok.open { background: #fff; color: #111; text-decoration-color: #111; }
+.tok:focus-visible { outline: 1px solid #fff; }
 .fx { font-family: var(--f-mono); font-size: 14px; }
-.aside { color: var(--fgMuted); font-size: 14px; font-style: italic; }
+.aside { color: rgba(255,255,255,.78); font-size: 14px; font-style: italic; }
 
 .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
-.chip { display: inline-flex; align-items: center; gap: 4px; font: 13px var(--f-input); color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
-.chip .x { width: 14px; height: 14px; display: grid; place-content: center; font-size: 10px; border: 1px solid var(--danger); border-radius: 3px; opacity: 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font: 13px var(--f-input); color: #fff; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.35); border-radius: 5px; padding: 1px 6px; }
+.chip .x { width: 14px; height: 14px; display: grid; place-content: center; font-size: 10px; border: 1px solid #fff; border-radius: 3px; opacity: 0; }
 .chip:hover .x { opacity: 1; }
 
-/* wrapper: "Only if" header + an indented inner stack with a left rule */
-.wrap { background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 5px; padding: 8px 10px 6px 8px; }
-.cats .wrap { border-left: 3px solid var(--cat-logic); padding-left: 6px; }
-.wrap > .block { border: 0; padding: 0; background: transparent; }
-.inner { margin: 6px 0 2px 24px; padding-left: 10px; border-left: 2px solid var(--borderSolid); }
+/* wrapper: the Only if block's colour frames an inner stack, so what it guards sits inside it */
+.wrap { --c: var(--blk-if); background: var(--c); border: 1px solid rgba(0,0,0,.35); border-radius: 5px; padding: 8px; }
+.wrap > .block { border: 0; padding: 0 2px 0 0; background: transparent; }
+.inner { margin: 6px 0 0 14px; padding: 2px 8px; background: var(--bgAlt); border-radius: 4px; }
 
 /* combine: a bracket built from three thin panels plus a small button */
 .combo { display: grid; grid-template-columns: 26px minmax(0, 1fr); }
@@ -130,9 +140,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .shelfrow .nm { font: 15px var(--f-label); color: var(--fg); }
 .shelfrow .uses { margin-left: auto; font: 11px var(--f-input); color: var(--fgMuted); }
 .shelfrow .grip { margin: 0; }
-.cats .shelfrow::before { content: ""; width: 3px; align-self: stretch; margin: 7px 0; background: var(--c); }
-.shelfrow[data-cat="roll"] { --c: var(--cat-roll); } .shelfrow[data-cat="res"] { --c: var(--cat-res); }
-.shelfrow[data-cat="choice"] { --c: var(--cat-choice); } .shelfrow[data-cat="logic"] { --c: var(--cat-logic); }
+.shelfrow .sw { flex: none; width: 14px; height: 14px; border-radius: 3px; background: var(--c); border: 1px solid rgba(0,0,0,.35); }
 .checks { border-top: 1px solid var(--borderSolid); padding: 8px 12px 12px; }
 .issue { display: flex; gap: 8px; align-items: baseline; font: 14px var(--f-label); padding: 4px 0; }
 .issue .sev { width: 8px; height: 8px; border-radius: 50%; flex: none; transform: translateY(-1px); }
@@ -182,7 +190,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
     </div>
     <div class="switches">
       <label class="check"><input type="checkbox" id="sw-lua" checked> Show Lua names</label>
-      <label class="check"><input type="checkbox" id="sw-cat"> Category marks</label>
+      <label class="check"><input type="checkbox" id="sw-theme"> Warm Gold theme</label>
       <label class="check"><input type="checkbox" id="sw-drag"> Show drag state</label>
     </div>
   </div>
@@ -225,7 +233,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 
         <div class="stack" data-stack>
           <div class="sliver" data-lua='gui.Panel{ classes = {"beSliver"}, height = 2, dragTarget = true, data = { index = 1 } }  -- clear at rest; drag-target / drag-target-hover restyle it' data-what="Drop sliver"></div>
-          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain, { kind = "startGain" })  -- one row: grip | sentence label | gear' data-what="Block: start-of-turn gain">
+          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain, { kind = "startGain" })  -- one row: grip | sentence label | gear; bgcolor = BEStyles.BlockColors.resource (literal hex, never an @token)' data-what="Block: start-of-turn gain">
             <svg class="grip" data-lua='gui.Panel{ classes = {"beGrip"}, bgimage = "phosphor/dots-six-vertical.png", draggable = true, dragMove = false }' data-what="Drag handle"><use href="#i-grip"/></svg>
             <div class="sentence" data-lua='gui.Label{ classes = {"beSentence"}, width = "100%-40", textWrap = true, links = true, text = BESentence.Render(tokens) }  -- ONE label: words are link regions' data-what="Sentence label">At the start of each of your turns, you gain <span class="tok fx" tabindex="0" data-menu="die">1d3</span> Ferocity<span class="aside">, and more from</span> <span class="tok" tabindex="0" data-menu="lvl">4th and 7th level</span>.</div>
             <svg class="gear" data-lua='gui.Button{ classes = {"beGear"}, icon = "phosphor/dots-three.png", press = function(el) el.popup = gui.ContextMenu{ entries = BlockMenu(block) } end }' data-what="Block menu"><use href="#i-gear"/></svg>
@@ -301,7 +309,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
               </div>
               <div class="inner stack" data-stack data-lua='gui.Panel{ classes = {"beInner"}, lmargin = 24, hpad = 10, borderBox = true, border = {x1 = 2} }' data-what="Wrapper's inner stack">
                 <div class="sliver"></div>
-                <div class="block" data-cat="roll" style="border-left-width:1px">
+                <div class="block" data-cat="roll">
                   <svg class="grip"><use href="#i-grip"/></svg>
                   <div class="sentence">Your <span class="tok" tabindex="0" data-menu="abil">strikes</span> deal <span class="tok fx" tabindex="0" data-menu="fx">+ Might</span> extra damage.</div>
                   <svg class="gear"><use href="#i-gear"/></svg>
@@ -319,19 +327,19 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
         <div class="search" data-lua='gui.SearchInput{ classes = {"bordered"}, borderBox = true, placeholderText = "Search blocks", edit = FilterShelf }' data-what="Shelf search"><svg><use href="#i-search"/></svg><input id="shelf-search" type="search" placeholder="Search blocks" aria-label="Search blocks"></div>
         <div class="shelf" id="shelf" data-lua='gui.Panel{ flow = "vertical", vscroll = true }  -- rows registered by BlockEditor.RegisterBlock{ group, label, uses }' data-what="Block shelf">
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Common<span class="count">4</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="roll" data-lua='gui.Panel{ classes = {"beShelfRow"}, draggable = true, dragMove = false, beginDrag = MakeGhost, dragging = MoveGhost, canDragOnto = function(p, t) return t:HasClass("beSliver") end, drag = InsertAt }' data-what="Shelf row (drag it)"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Change a power roll</span><span class="uses">412</span></div>
-          <div class="shelfrow" data-cat="res"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Gain a resource</span><span class="uses">188</span></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a skill</span><span class="uses">96</span></div>
-          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Only if</span><span class="uses">71</span></div>
+          <div class="shelfrow" data-cat="roll" data-lua='gui.Panel{ classes = {"beShelfRow"}, draggable = true, dragMove = false, beginDrag = MakeGhost, dragging = MoveGhost, canDragOnto = function(p, t) return t:HasClass("beSliver") end, drag = InsertAt }' data-what="Shelf row (drag it)"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Change a power roll</span><span class="uses">412</span></div>
+          <div class="shelfrow" data-cat="res"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Gain a resource</span><span class="uses">188</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose a skill</span><span class="uses">96</span></div>
+          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Only if</span><span class="uses">71</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Change rolls<span class="count">6</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Edge or bane</span><span class="uses">140</span></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Extra damage</span><span class="uses">133</span></div>
-          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Surges</span><span class="uses">58</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Edge or bane</span><span class="uses">140</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Extra damage</span><span class="uses">133</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Surges</span><span class="uses">58</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Choices<span class="count">5</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose from options</span><span class="uses">81</span></div>
-          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a perk</span><span class="uses">54</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose from options</span><span class="uses">81</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Choose a perk</span><span class="uses">54</span></div>
           <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Logic<span class="count">3</span></div><div class="underline"></div>
-          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Grows with level</span><span class="uses">39</span></div>
+          <div class="shelfrow" data-cat="grow"><svg class="grip"><use href="#i-grip"/></svg><span class="sw"></span><span class="nm">Grows with level</span><span class="uses">39</span></div>
         </div>
         <div class="checks" data-lua='BEStatusPanel.Create(issues)  -- rows of a @warning/@danger dot + label; press jumps to the block' data-what="Checks">
           <div class="sechead" style="margin-top:0"><svg class="caret"><use href="#i-caret"/></svg>Checks<span class="count">2</span></div><div class="underline"></div>
@@ -350,8 +358,8 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
   <h2 class="notes-h">What the Lua toolkit changes from the web prototype</h2>
   <div class="notes">
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Sentences with words you click</h3><p>One <code>gui.Label</code> per sentence with <code>links = true</code>; each word is a <code>&lt;link=id&gt;</code> region, so the sentence wraps like text. A press reads <code>element.linkHovered</code> and opens the picker as <code>element.popup</code>. The ability roll text already does this.</p></div>
-    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Words are marked with a fill, not a colour</h3><p>In the default scheme <code>@accent</code> is the same parchment as the text, so a link colour can't mark a word. Words get a <code>&lt;mark&gt;</code> fill in <code>@bgRaised</code> and an underline, and invert on hover like buttons do.</p></div>
-    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Category colours are a choice</h3><p>The theme is achromatic and the style guide says not to add colours for one panel. Blocks can go without hues (the default here) or use a 3px left edge in a category hue. Try the "Category marks" switch.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Words are marked with a fill</h3><p>A word you can click gets a <code>&lt;mark&gt;</code> fill (a darker inset of the block's colour) and an underline, and turns white on hover. That works on every block colour, where a link colour would not.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Block colours are fixed</h3><p>A block's colour tells the author what kind of block it is, so it is not a theme token. The colours live in one Lua table (<code>BEStyles.BlockColors</code>) as literal hex, set on each block's own style, and each block carries its own white text. A theme recolours the ground, cards, menus and shelf around them. Try the "Warm Gold theme" switch.</p></div>
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Drop slivers</h3><p>The engine adds <code>drag-target</code> to every valid target during a drag and <code>drag-target-hover</code> to the one under the cursor. That is the style guide's own rule: 2px and clear at rest, a 10px accent bar on hover.</p></div>
     <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Dragging from the shelf needs a ghost</h3><p>A dragged panel moves itself, so a shelf row uses <code>dragMove = false</code> and moves a floating copy in its <code>dragging</code> event (engine ask E2 would make this built in). Every drag keeps a menu path: "Add a block" and the block menu's Move up / Move down.</p></div>
     <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Rectangles only</h3><p>No notched puzzle shapes: panels have per-corner radius, bevels or 9-slice images. Blocks are rows with 5px corners, wrappers indent with a 2px rule, and the combine bracket is three 1px panels plus a button.</p></div>
@@ -371,11 +379,11 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
   // switches
   const apply = () => {
     app.classList.toggle('luaon', sw('sw-lua').checked);
-    app.classList.toggle('cats', sw('sw-cat').checked);
+    if (sw('sw-theme').checked) app.dataset.scheme = 'warm-gold'; else delete app.dataset.scheme;
     app.classList.toggle('dragging', sw('sw-drag').checked);
   };
-  ['sw-lua', 'sw-cat'].forEach(id => { const v = safeGet('luaui-' + id); if (v !== null) sw(id).checked = v === '1'; });
-  ['sw-lua', 'sw-cat', 'sw-drag'].forEach(id => sw(id).addEventListener('change', () => { safeSet('luaui-' + id, sw(id).checked ? '1' : '0'); apply(); }));
+  ['sw-lua', 'sw-theme'].forEach(id => { const v = safeGet('luaui-' + id); if (v !== null) sw(id).checked = v === '1'; });
+  ['sw-lua', 'sw-theme', 'sw-drag'].forEach(id => sw(id).addEventListener('change', () => { safeSet('luaui-' + id, sw(id).checked ? '1' : '0'); apply(); }));
   apply();
 
   // inspector: the nearest element that names its gui call
@@ -459,6 +467,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
     roll: 'Power rolls on <span class="tok" tabindex="0" data-menu="char">Might</span> tests have <span class="tok" tabindex="0" data-menu="edge">an edge</span>.',
     res: 'You gain <span class="tok" tabindex="0" data-menu="num">1</span> Ferocity.',
     choice: 'The player chooses <span class="tok" tabindex="0" data-menu="num">1</span> skill from <span class="chips"><span class="chip">Exploration<span class="x">X</span></span></span>.',
+    grow: 'At <span class="tok" tabindex="0" data-menu="lvl">4th level</span> this becomes <span class="tok" tabindex="0" data-menu="num">2</span>.',
     logic: '<b>Only if</b> <span class="tok" tabindex="0" data-menu="test">you are winded</span>:',
   };
   let drag = null;

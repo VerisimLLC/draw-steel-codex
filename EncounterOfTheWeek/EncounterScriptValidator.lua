@@ -392,6 +392,13 @@ local function Report(parse)
         --what happens to a hero who dies here (its Consequence line, else Retreat).
         if beat.kind == "encounter" then
             Row(1, "rule", "%s", T("author.validator.report.setup_consequence_" .. EncounterScript.FindConsequence({ beats = { beat } })))
+            --each mode line overrides it in that mode only, so name the mode.
+            for _, ins in ipairs(beat.setup or {}) do
+                if ins.kind == "consequence" and ins.mode ~= nil then
+                    Row(1, "rule", "%s", T("author.validator.report.setup_consequence_in_mode", {
+                        mode = ins.mode, text = T("author.validator.report.setup_consequence_" .. ins.consequence) }))
+                end
+            end
         end
 
         for _, r in ipairs(beat.reinforcements or {}) do

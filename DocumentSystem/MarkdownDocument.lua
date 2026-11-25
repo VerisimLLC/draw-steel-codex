@@ -1750,6 +1750,27 @@ function MarkdownDocument.PageSkinPalette(doc)
     }
 end
 
+--Style rules that repaint a dropdown (the closed box and its open menu) in a
+--journal page's colors. Add them to a widget's styles; the open menu picks
+--them up from the widget. Priority 60 is needed to beat the app theme's own
+--dropdown rules, the highest of which is 55.
+--- @param pal table A palette from MarkdownDocument.PageSkinPalette.
+--- @return table[] styles
+function MarkdownDocument.PageSkinDropdownStyles(pal)
+    return {
+        { selectors = {"dropdown"}, priority = 60, bgcolor = pal.page, borderColor = pal.border },
+        { selectors = {"dropdown", "hover"}, priority = 60, bgcolor = pal.wash },
+        { selectors = {"label", "dropdownLabel"}, priority = 60, color = pal.ink },
+        { selectors = {"dropdownTriangle"}, priority = 60, bgcolor = pal.ink },
+        { selectors = {"dropdownBorder"}, priority = 60, bgcolor = pal.page, borderColor = pal.border },
+        { selectors = {"dropdownOption"}, priority = 60, bgcolor = pal.page, color = pal.ink },
+        { selectors = {"dropdownOption", "hover"}, priority = 60, bgcolor = pal.wash, color = pal.ink },
+        --Keep after the hover rule: on a tie the later rule wins, so a hovered
+        --disabled option stays muted.
+        { selectors = {"dropdownOption", "disabled"}, priority = 60, color = pal.muted },
+    }
+end
+
 --Redaction hides text by drawing it in the same colour as its own highlight, so
 --`ink` must feed both; the app theme's pale @fg leaves a washed-out bar on a page.
 --A deterministic letter permutation, one per language. NOT cryptography and not meant

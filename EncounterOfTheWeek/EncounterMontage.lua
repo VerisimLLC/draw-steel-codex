@@ -275,6 +275,13 @@ function EncounterMontage.Story(doc)
                 retreated = EncounterMontage.CopyRetreated(r.retreated) }
         end
     end)
+    --what a hero who dies here meets, for "If the consequence is Lost:" lines.
+    pcall(function()
+        local eotwGame = rawget(_G, "EncounterOfTheWeekGame")
+        if eotwGame ~= nil and eotwGame.Consequence ~= nil then
+            result.consequence = eotwGame.Consequence()
+        end
+    end)
     return result
 end
 
@@ -6960,7 +6967,9 @@ end
 --present the opening montage during its own arrival setup, before the party
 --is in (and before its heroes are even placed), and the stage is what every
 --player's loading screen reveals.
-function EncounterMontage.Begin(script, beat, beatIndex)
+--options.startSection (a narrative's section id, from the authoring test):
+--the narrative opens on that section instead of its first.
+function EncounterMontage.Begin(script, beat, beatIndex, options)
     local doc = EncounterMontage.GetDoc()
     doc:BeginChange()
     doc.data.montage = {
@@ -6974,6 +6983,7 @@ function EncounterMontage.Begin(script, beat, beatIndex)
         handled = {},
         log = {},
         seq = 0,
+        startSection = options ~= nil and options.startSection or nil,
     }
     doc.data.stageDismissAt = nil
     --scene ids restart with m.seq, so a cursor left over from an earlier

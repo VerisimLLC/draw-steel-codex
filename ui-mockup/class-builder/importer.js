@@ -81,6 +81,8 @@ const READERS = {
   activated: m => m.activatedAbility ? { type: "ability", f: make("ability", { rec: clone(m.activatedAbility), limit: m.resourceRefreshType || "none", uses: String(m.numCharges || "1") }) } : null,
   // Its "Only if" lives on the Logic block or growing-table row around it, not on the ability.
   trigger: m => { const rec = clone(m); delete rec.resourceRefreshType; delete rec.numCharges; delete rec.filterCondition; return { type: "trigger", f: make("trigger", { rec, limit: m.resourceRefreshType || "none", uses: String(m.numCharges || "1") }) }; },
+  // A power roll trigger opens as the same "triggered ability" block; the ability editor saves either kind.
+  powertabletrigger: m => READERS.trigger(m),
   movementtext: m => ({ type: "reminder", f: make("reminder", { text: m.text || "" }) }),
 };
 // What each block writes. Everything else on the saved record is kept as it was.

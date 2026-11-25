@@ -2728,7 +2728,7 @@ DockablePanel = {
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			if dock ~= nil then
+			if dock ~= nil and dock.valid then
 				for _,child in ipairs(dock.data.GetChildren()) do
 					for _,instance in ipairs(child.data.GetPanelInstances()) do
 						if instance.data.identifier == identifier then

@@ -76,6 +76,14 @@ K.ZONE_PRESETS = {
         fields = { difficultTerrain = true },
     },
     {
+        key = "fast",
+        name = "Fast Terrain",
+        summary = "Costs half to move through",
+        color = "#d9c23d",
+        description = "Each square entered costs half a square of movement.",
+        fields = { fastTerrain = true },
+    },
+    {
         key = "water",
         name = "Water",
         summary = "Water - swim or wade",
@@ -1070,6 +1078,7 @@ local function KeywordSummary(kw)
     local parts = {}
     local flags = KeywordFlags(kw)
     if flags.difficultTerrain then parts[#parts+1] = "Difficult terrain" end
+    if kw ~= nil and kw:try_get("fastTerrain", false) then parts[#parts+1] = "Fast terrain" end
     if flags.water then parts[#parts+1] = "Water" end
     if flags.concealment then parts[#parts+1] = "Concealment" end
     if flags.climbable then

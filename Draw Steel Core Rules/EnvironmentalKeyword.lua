@@ -20,6 +20,7 @@ local mod = dmhub.GetModLoading()
 --- @field display table Icon display settings (bgcolor/hueshift/saturation/brightness).
 --- @field difficultTerrain boolean If true, an area marked with this keyword counts as difficult terrain. Uses the same terrain rule flag name as tiles (asset.rules.difficultTerrain).
 --- @field terrainKeywords table<string, boolean>|nil Ability keywords (keyword -> true, e.g. {Magic = true}) attached to the difficult terrain of areas marked with this keyword. Folded onto the aura's difficultTerrainKeywords by ApplyToAura; a creature whose Ignore Difficult Terrain modifier names any of them ignores that difficult terrain. No class default: absent = none.
+--- @field fastTerrain boolean If true, an area marked with this keyword is Fast Terrain: entering its squares on foot or swimming costs half, and half a square left over at the end of a move is lost. Engine: Aura.fastTerrain, read by CharacterToken.GetMoveCostFn.
 --- @field water boolean If true, an area marked with this keyword counts as water. Uses the same terrain rule flag name as tiles (asset.rules.water).
 --- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
 --- @field coversSky boolean If true, an area marked with this keyword shelters creatures from the sky (a tree canopy, an awning): a creature in it is not "Exposed To Sky" even on a floor with no ceiling. No terrain effect of its own.
@@ -60,6 +61,7 @@ EnvironmentalKeyword.tableName = "environmentalKeywords"
 EnvironmentalKeyword.source = "Environmental Keyword"
 EnvironmentalKeyword.iconid = "ui-icons/skills/1.png"
 EnvironmentalKeyword.difficultTerrain = false
+EnvironmentalKeyword.fastTerrain = false
 EnvironmentalKeyword.water = false
 EnvironmentalKeyword.concealment = false
 EnvironmentalKeyword.coversSky = false
@@ -202,6 +204,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 		end
 		--keywords on the terrain (e.g. Magic), matched by Ignore Difficult Terrain modifiers.
 		Aura.AddDifficultTerrainKeywords(auraDef, keyword:try_get("terrainKeywords"))
+		if keyword:try_get("fastTerrain", false) == true then
+			auraDef.fastTerrain = true
+		end
 		if keyword:try_get("water", false) == true then
 			auraDef.water = true
 		end
@@ -2071,6 +2076,19 @@ local SetData = function(tableName, keywordPanel, keyid)
 	}
 
 	children[#children+1] = terrainKeywordsRow
+
+	--an area marked with this keyword is fast terrain.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("fastTerrain", false),
+			text = "Fast Terrain",
+			change = function(element)
+				keyword.fastTerrain = element.value
+				UploadKeyword()
+			end,
+		},
+	}
 
 	--an area marked with this keyword is water.
 	children[#children+1] = gui.Panel{

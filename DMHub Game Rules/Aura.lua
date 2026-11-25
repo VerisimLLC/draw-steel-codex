@@ -29,6 +29,7 @@ local mod = dmhub.GetModLoading()
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
 --- @field difficultTerrainKeywords? table<string, boolean> Keywords describing where this aura's difficult terrain came from (keyword -> true), e.g. {Magic = true}. Stamped from the creating ability's keywords in ActivatedAbilityAuraBehavior:CastOnArea and from the Environmental Keyword's terrainKeywords. A creature with an Ignore Difficult Terrain modifier naming any of them ignores this aura's difficult terrain (engine: AuraInstance:GetDifficultTerrainKeywords). Read with try_get.
 --- @field water? boolean Tiles in the area count as water (engine tile rule via AuraInstance:GetWater); read with try_get.
+--- @field fastTerrain? boolean Fast Terrain: entering the area's squares on foot or swimming costs half (AuraInstance:GetFastTerrain); read with try_get.
 --- @field climbable? boolean Tiles in the area can be climbed like a climbable wall (AuraInstance:GetClimbable); read with try_get.
 --- @field climbersOnly? boolean With climbable, restricts climbing to natural climbers; read with try_get.
 --- @field stepped? boolean Stepped Terrain: a 1-square height change whose higher tile is in the area is a sharp step for forced movement, not a slope (AuraInstance:GetStepped); read with try_get.
@@ -1915,6 +1916,13 @@ end
 
 function AuraInstance:GetDifficultTerrain()
     return self.aura:try_get("difficult_terrain", false)
+end
+
+--Whether the aura's tiles are Fast Terrain: entering one on foot or swimming costs
+--half. Read by the engine (Aura.fastTerrain).
+--- @return boolean
+function AuraInstance:GetFastTerrain()
+    return self.aura:try_get("fastTerrain", false) == true
 end
 
 --Keywords describing where this aura's difficult terrain came from, as a set of

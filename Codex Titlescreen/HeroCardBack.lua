@@ -28,6 +28,13 @@ local COLOR_BLUE = "#6fa8ff"
 local COLOR_TEMP = "#9cc4ff"
 local COLOR_STAMINA = "#4caf6a"
 local COLOR_RESOURCE = "#ffc98f"
+--the separator in "Winded 22 · dies at -22", as the hero sheet's {dot}: a
+--hyphen there reads as a minus sign.
+local MIDDOT = "\u{00B7}"
+
+--dying: a lighter red than the condition chips' #cc2222 border, so it reads
+--as text on the dark plate.
+local COLOR_DYING = "#ff6b61"
 
 local function Try(fn, default)
     local ok, result = pcall(fn)
@@ -390,9 +397,29 @@ local function StaminaStrip(c, tok)
     local fillWidth = Px(cur)
     local tempWidth = math.min(barWidth - fillWidth, Px(temp))
 
-    local numbers = string.format("<b><color=%s>%d</color></b> / %d", COLOR_TEXT, cur, max)
+    --heroes and retainers die below 0 (at -winded); for them the label gives
+    --the range, and while dying the bar fills red with how far in they are.
+    local death = tonumber(Try(function() return c:KillThresholdStamina() end, 0)) or 0
+    local dying = death < 0 and Try(function() return c:IsDying() end, cur <= 0) == true
+    local dyingWidth = 0
+    if dying then
+        dyingWidth = math.floor(barWidth * math.max(0, math.min(1, cur / death)))
+    end
+
+    local numbers
+    if dying then
+        numbers = string.format("<b><color=%s>%d</color></b> / %d  <b><color=%s>%s</color></b>", COLOR_DYING, cur, max, COLOR_DYING, T("herocard.back.stamina.dying"))
+    else
+        numbers = string.format("<b><color=%s>%d</color></b> / %d", COLOR_TEXT, cur, max)
+    end
     if temp > 0 then
         numbers = numbers .. string.format("   <color=%s>+%d temp</color>", COLOR_TEMP, temp)
+    end
+    local thresholds
+    if death < 0 then
+        thresholds = T("herocard.back.stamina.range", { winded = string.format("%d", winded), dot = MIDDOT, death = string.format("%d", death) })
+    else
+        thresholds = T("herocard.back.stamina.winded", { winded = string.format("%d", winded) })
     end
 
     local recText = string.format("Recoveries <b><color=%s>%d/%d</color></b>", COLOR_TEXT, recCurrent, recMax)
@@ -450,8 +477,8 @@ local function StaminaStrip(c, tok)
             height = "auto",
             flow = "horizontal",
             interactable = false,
-            Text{ text = numbers, fontSize = 13, color = COLOR_MUTED, width = "60%" },
-            Text{ text = string.format("Winded at %d", winded), fontSize = 11, color = COLOR_MUTED, width = "40%", textAlignment = "right" },
+            Text{ text = numbers, fontSize = 13, color = COLOR_MUTED, width = "52%" },
+            Text{ text = thresholds, fontSize = 11, color = COLOR_MUTED, width = "48%", textAlignment = "right", valign = "center" },
         }, function() return SourcesText(heroTok, "maxStamina") end),
         gui.Panel{
             width = barWidth,
@@ -477,6 +504,16 @@ local function StaminaStrip(c, tok)
                 height = "100%",
                 bgimage = "panels/square.png",
                 bgcolor = COLOR_TEMP,
+                interactable = false,
+            },
+            --while dying: how far toward death.
+            gui.Panel{
+                floating = true,
+                halign = "left",
+                width = dyingWidth,
+                height = "100%",
+                bgimage = "panels/square.png",
+                bgcolor = COLOR_DYING,
                 interactable = false,
             },
             gui.Panel{
@@ -2313,6 +2350,7 @@ local function SquadRow(name, total, liveTokens, sq)
             Text{ text = name, width = "55%", fontSize = 12, bold = true, color = COLOR_TEXT, textWrap = false },
             Text{
                 text = T("herocard.back.summoner.count", {
+                    dot = MIDDOT,
                     live = string.format("%d", tonumber(sq.liveMinions) or #liveTokens),
                     total = string.format("%d", total),
                     stamina = string.format("<b><color=%s>%d</color></b>/%d", COLOR_TEXT, hp, maxhp),

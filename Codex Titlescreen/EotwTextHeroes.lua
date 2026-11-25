@@ -546,10 +546,19 @@ text("herocard.back.triggers.ready", [[Triggered action ready this round]])
 text("herocard.back.triggers.used", [[Triggered action used this round]])
 text("herocard.back.trigger.when", [[<b>When:</b> {trigger}]])
 
+--Beside the stamina numbers. {winded} is the winded value; {death} the
+--(negative) Stamina at which a hero dies; {dot} a small middle dot (not a
+--hyphen, which would read as a minus sign before {death}).
+text("herocard.back.stamina.winded", [[Winded at {winded}]])
+text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
+--After the numbers while a hero is between 0 and their death value.
+text("herocard.back.stamina.dying", [[Dying]])
+
 --A Summoner's minion squads, in Stats. {live} and {total} count a squad's
---minions (up, and in the squad); {stamina} is its Stamina, already formatted.
+--minions (up, and in the squad); {stamina} is its Stamina, already formatted;
+--{dot} a small middle dot.
 text("herocard.back.summoner.title", [[Minion squads]])
-text("herocard.back.summoner.count", [[{live}/{total} up - {stamina}]])
+text("herocard.back.summoner.count", [[{live}/{total} up {dot} {stamina}]])
 text("herocard.back.summoner.none", [[No minions summoned]])
 text("herocard.back.summoner.sacrifice", [[Sacrifice]])
 text("herocard.back.summoner.sacrifice_tip", [[Sacrifice one or more of your minions to reduce the cost of a heroic ability by 1 or more.]])

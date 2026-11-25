@@ -628,7 +628,17 @@ text("herocard.back.label.notes", [[Notes]])
 text("herocard.back.label.downtime", [[Downtime Activities]])
 text("herocard.back.label.projects", [[Projects]])
 text("herocard.back.skills.none", [[No skills]])
---The Gear section while the hero has no projects (items come later).
+--The Gear section. {equipped} and {cap} count leveled treasures equipped and
+--the most that may be; {echelon} is a number.
+text("herocard.back.gear.leveled", [[Leveled treasures]])
+text("herocard.back.gear.leveled_count", [[{equipped} of {cap} equipped]])
+text("herocard.back.gear.trinkets", [[Trinkets]])
+text("herocard.back.gear.consumables", [[Consumables]])
+text("herocard.back.gear.titles", [[Titles]])
+text("herocard.back.gear.equipped", [[equipped]])
+text("herocard.back.gear.carried", [[carried]])
+text("herocard.back.gear.echelon", [[Echelon {echelon}]])
+--The Gear section while the hero has no treasures, titles or projects.
 text("herocard.back.gear.none", [[Nothing here yet]])
 --The title of the test a click on a skill rolls. {skill} is the skill's name.
 text("herocard.back.skill_test", [[{skill} Test]])

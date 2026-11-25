@@ -3078,6 +3078,131 @@ local function ProjectsList(c)
     return Lines(rows)
 end
 
+--- Gear -----------------------------------------------------------------------
+
+--- The hero sheet's treasures and titles (EotwHeroSheet.Data), reused for a
+--- few seconds per card like the ability list: titles read the feature index.
+--- @return table|nil d with d.treasures and d.titles
+local function GearData(tok, state)
+    local now = dmhub.Time()
+    local cache = state.gear
+    if cache ~= nil and now - cache.at < ABILITY_CACHE_SECONDS then
+        return cache.d
+    end
+    local sheet = rawget(_G, "EotwHeroSheet")
+    local d = nil
+    if sheet ~= nil then
+        d = Try(function() return sheet.Data(tok, {"treasures", "titles"}) end)
+    end
+    state.gear = { at = now, d = d }
+    return d
+end
+
+--- One item or title: its name, a note on the right, its rules on hover.
+--- dim: carried but not equipped.
+local function GearRow(name, note, tip, dim)
+    return WithHover(TwoColumnRow(name or "", note or "", COLOR_MUTED, dim), function()
+        if type(tip) ~= "string" or tip == "" then
+            return nil
+        end
+        return TipFrame(tip, true)
+    end)
+end
+
+--- A heading and its rows, or nil with no rows.
+local function GearList(title, rows, aside)
+    if #rows == 0 then
+        return nil
+    end
+    local heading = SectionLabel(title)
+    if aside ~= nil then
+        heading.text = heading.text .. string.format("  <color=%s>%s</color>", COLOR_MUTED, aside)
+    end
+    local children = { heading }
+    for _, row in ipairs(rows) do
+        children[#children+1] = row
+    end
+    return Lines(children)
+end
+
+--- Leveled treasures: equipped ones full, carried ones dimmed; the heading
+--- counts how many are equipped against the sheet's cap.
+local function LeveledTreasures(d)
+    local t = d ~= nil and d.treasures or nil
+    if t == nil then
+        return nil
+    end
+    local rows = {}
+    for _, it in ipairs(t.leveled or {}) do
+        --the note column is narrow: equipped or carried there, the echelon
+        --at the top of the hover.
+        local note = it.equipped and T("herocard.back.gear.equipped") or T("herocard.back.gear.carried")
+        local tip = it.description
+        if it.echelon ~= nil then
+            tip = string.format("**%s**\n\n%s", T("herocard.back.gear.echelon", { echelon = string.format("%d", it.echelon) }), tip or "")
+        end
+        rows[#rows+1] = GearRow(it.name, note, tip, not it.equipped)
+    end
+    local cap = Try(function() return EotwHeroSheet.LEVELED_EQUIP_CAP end, 3)
+    return GearList(T("herocard.back.gear.leveled"), rows,
+        T("herocard.back.gear.leveled_count", { equipped = string.format("%d", t.leveledEquipped or 0), cap = string.format("%d", cap) }))
+end
+
+--- Trinkets (and ancestry items, which the sheet lists with them).
+local function Trinkets(d)
+    local t = d ~= nil and d.treasures or nil
+    if t == nil then
+        return nil
+    end
+    local rows = {}
+    for _, it in ipairs(t.trinkets or {}) do
+        local note = nil
+        if it.equippable then
+            note = it.equipped and T("herocard.back.gear.equipped") or T("herocard.back.gear.carried")
+        end
+        rows[#rows+1] = GearRow(it.name, note, it.description, it.equippable and not it.equipped)
+    end
+    return GearList(T("herocard.back.gear.trinkets"), rows)
+end
+
+--- Consumables with how many the hero has.
+local function Consumables(d)
+    local t = d ~= nil and d.treasures or nil
+    if t == nil then
+        return nil
+    end
+    local rows = {}
+    for _, it in ipairs(t.consumables or {}) do
+        local note = nil
+        if (tonumber(it.quantity) or 1) > 1 then
+            note = string.format("x%d", it.quantity)
+        end
+        rows[#rows+1] = GearRow(it.name, note, it.description)
+    end
+    return GearList(T("herocard.back.gear.consumables"), rows)
+end
+
+--- Titles, each with its benefits on hover.
+local function Titles(d)
+    local titles = d ~= nil and d.titles or nil
+    if titles == nil then
+        return nil
+    end
+    local rows = {}
+    for _, title in ipairs(titles) do
+        local parts = {}
+        for _, benefit in ipairs(title.benefits or {}) do
+            if benefit.name ~= nil and benefit.text ~= nil then
+                parts[#parts+1] = string.format("**%s.** %s", benefit.name, benefit.text)
+            elseif benefit.text ~= nil then
+                parts[#parts+1] = benefit.text
+            end
+        end
+        rows[#rows+1] = GearRow(title.name, T("herocard.back.gear.echelon", { echelon = string.format("%d", title.echelon or 1) }), table.concat(parts, "\n\n"))
+    end
+    return GearList(T("herocard.back.gear.titles"), rows)
+end
+
 --- Appends one section of the scroll: its big heading, then what its builders
 --- make. The heading is marked so the jump row can find it.
 local function AppendSection(result, info, id, builders)
@@ -3132,9 +3257,21 @@ local function BuildHeroScroll(tok, charid, state)
         function() return NotesLine(c) end,
     })
 
-    AppendSection(result, info, "gear", {
-        function() return ProjectsList(c) or EmptyLine(T("herocard.back.gear.none")) end,
-    })
+    local gear = GearData(tok, state)
+    local gearBuilders = {
+        function() return LeveledTreasures(gear) end,
+        function() return Trinkets(gear) end,
+        function() return Consumables(gear) end,
+        function() return Titles(gear) end,
+        function() return ProjectsList(c) end,
+    }
+    local before = #result
+    AppendSection(result, info, "gear", gearBuilders)
+    --the heading alone: say so rather than leave a bare heading.
+    if #result == before + 1 then
+        result[#result+1] = EmptyLine(T("herocard.back.gear.none"))
+        info[#info+1] = { heading = false }
+    end
     return result, info
 end
 
@@ -3421,8 +3558,8 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
     local foldDefaults = {}
     local sections, info = {}, {}
 
-    --a hero's cached ability list and class panel.
-    local state = { abilities = nil, classPanel = nil }
+    --a hero's cached ability list, gear and class panel.
+    local state = { abilities = nil, gear = nil, classPanel = nil }
 
     local function IsFolded(bucket)
         local f = folded[bucket]
@@ -3628,6 +3765,7 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
             element:SetClass("turned", show)
             if show then
                 state.abilities = nil
+                state.gear = nil
                 scroller.vscrollPosition = 1
                 content:FireEvent("refreshBack")
             end

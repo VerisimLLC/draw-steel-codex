@@ -648,10 +648,18 @@ local function MovementLine(c, tok)
     else
         local surges = Try(function() return c:GetAvailableSurges() end)
         if surges ~= nil then
+            --what each surge adds to damage, as the hero sheet works it out.
+            local damage = 0
+            local sheet = rawget(_G, "EotwHeroSheet")
+            if sheet ~= nil and tok ~= nil then
+                damage = tonumber(Try(function() return sheet.Data(tok, {"resource"}).surgeDamage end, 0)) or 0
+            end
+            local text = Stat("Surges", surges)
+            if damage > 0 then
+                text = text .. string.format(" <color=%s>%s</color>", COLOR_MUTED, T("herocard.back.surges.damage", { damage = string.format("%d", damage) }))
+            end
             --hover: the hero sheet's words for surges and their damage.
-            parts[#parts+1] = { Stat("Surges", surges), nil, function()
-                local d = EotwHeroSheet.Data(tok, {"resource"})
-                local damage = d ~= nil and d.surgeDamage or 0
+            parts[#parts+1] = { text, nil, function()
                 return TP("herosheet.card.surges_tip", tonumber(surges) or 0, { damage = string.format("%d", damage) })
             end }
         end

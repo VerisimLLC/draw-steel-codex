@@ -554,6 +554,9 @@ text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
 
+--After the Surges count in Stats: the damage each surge adds. {damage} is a number.
+text("herocard.back.surges.damage", [[(+{damage} each)]])
+
 --The potency row at the top of the Abilities section, and its hover.
 text("herocard.back.potency.title", [[Potency]])
 text("herocard.back.potency.weak", [[Weak]])

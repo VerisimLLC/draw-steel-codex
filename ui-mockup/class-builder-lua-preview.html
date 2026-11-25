@@ -1,0 +1,506 @@
+<title>Block Editor in Lua</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Courier+Prime&family=Crimson+Pro:wght@400;600;700&display=swap">
+<style>
+/* Layout: the Character Builder shell (selectors 285 | detail | panel 447) drawn with the
+   codex default colour scheme. One dark look on purpose: it is the app's own scheme. */
+:root {
+  color-scheme: dark;
+  /* DefaultStyles.lua "default" scheme, verbatim */
+  --bg: #0A0A0B; --bgAlt: #1A1A1E; --bgRaised: #2E2E33; --bgInverse: #E4DDD0;
+  --fg: #E4DDD0; --fgStrong: #F2EDE1; --fgMuted: #8A8A8A; --fgPending: #7A7468; --fgInverse: #0A0A0B;
+  --border: #FFFFFF29; --borderSolid: #313134; --borderInverse: #7A7468;
+  --accent: #E4DDD0; --accentHover: #F7F3EA;
+  --success: #4DB88C; --info: #E9C868; --warning: #E8A030; --danger: #C94040;
+  /* optional category edge hues (not in the theme: see the "Category marks" switch) */
+  --cat-roll: #6F8FB8; --cat-res: #B88A4D; --cat-choice: #8C78B0; --cat-logic: #6E9C7A;
+  /* fonts: web stand-ins for Berling (label), Liberation Sans (input), Courier (mono) */
+  --f-label: "Crimson Pro", "Berling", Georgia, serif;
+  --f-input: "Arimo", "Liberation Sans", Arial, sans-serif;
+  --f-mono: "Courier Prime", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-input); }
+.page { padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1500px; margin: 0 auto; display: grid; gap: 18px; }
+.intro { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
+.intro h1 { font: 700 28px/1.1 var(--f-label); color: var(--fgStrong); margin: 0; }
+.intro p { margin: 4px 0 0; color: var(--fgMuted); max-width: 70ch; }
+.switches { display: flex; flex-wrap: wrap; gap: 14px; }
+.check { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--fg); user-select: none; }
+.check input { appearance: none; width: 16px; height: 16px; margin: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 3px; display: grid; place-content: center; cursor: pointer; }
+.check input:checked::after { content: ""; width: 8px; height: 8px; background: var(--fg); border-radius: 1px; }
+.check input:focus-visible { outline: 1px solid var(--fgStrong); outline-offset: 2px; }
+
+/* ---------- the app window ---------- */
+.app { background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.titlebar { background: linear-gradient(90deg, #070708, var(--bgAlt)); display: flex; flex-wrap: wrap; align-items: end; gap: 4px 18px; padding: 10px 14px 0; border-bottom: 1px solid var(--borderSolid); }
+.classname { font: 700 22px/1 var(--f-label); color: var(--fgStrong); padding-bottom: 10px; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 2px; }
+.tab { font: 600 15px var(--f-label); color: var(--fgMuted); background: var(--bg); border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px 14px 7px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.selected { background: var(--bgAlt); color: var(--fgStrong); font-weight: 700; border-color: var(--fg); }
+.tab.add { color: var(--fgMuted); background: transparent; }
+.cols { display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px; min-height: 640px; }
+.col { min-width: 0; }
+.nav { border-right: 1px solid var(--borderSolid); padding: 8px 0; }
+.navrow { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--fg); font: 16px var(--f-label); cursor: pointer; border-left: 3px solid transparent; transition: background .1s; }
+.navrow:hover { background: var(--bgAlt); }
+.navrow.selected { background: var(--bgAlt); border-left-color: var(--accent); color: var(--fgStrong); font-weight: 700; }
+.navrow .count { margin-left: auto; font: 11px var(--f-input); color: var(--fgMuted); opacity: .8; }
+.navrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning); }
+.seam { height: 1px; background: var(--border); opacity: .5; margin: 0 12px; }
+
+.detail { padding: 6px 18px 30px; background: radial-gradient(ellipse at 50% 30%, #1c1c1e, #0a0a0b 70%); overflow: auto; max-height: 760px; }
+.sechead { display: flex; align-items: center; gap: 8px; height: 30px; margin-top: 14px; font: 700 13px var(--f-input); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); cursor: pointer; }
+.sechead:hover { color: var(--fgStrong); }
+.sechead .count { margin-left: auto; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--fgMuted); font-size: 11px; }
+.underline { height: 1px; background: var(--border); opacity: .9; margin-bottom: 4px; }
+.hint { color: var(--fgMuted); font: 13px var(--f-label); font-style: italic; margin: 6px 0 2px; }
+
+/* drop slivers: invisible 2px at rest, accent while a drag is on (drag-target), 10px bar on hover */
+.sliver { height: 2px; margin: 3px 0; border-radius: 2px; background: transparent; transition: height .08s, background .08s; }
+.dragging .sliver { background: var(--accent); opacity: .35; height: 4px; }
+.dragging .sliver.hover { opacity: 1; height: 10px; background: var(--accentHover); }
+
+/* a block: one row panel holding a grip, one wrapping sentence label, a gear */
+.block { position: relative; display: flex; align-items: flex-start; gap: 8px; background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 5px; padding: 8px 10px 8px 8px; transition: background .1s; }
+.block:hover { background: #121214; }
+.block.selected { border-left: 3px solid var(--accent); padding-left: 6px; }
+.cats .block[data-cat] { border-left: 3px solid var(--c); padding-left: 6px; }
+.block[data-cat="roll"] { --c: var(--cat-roll); } .block[data-cat="res"] { --c: var(--cat-res); }
+.block[data-cat="choice"] { --c: var(--cat-choice); } .block[data-cat="logic"] { --c: var(--cat-logic); }
+.grip, .gear { flex: none; width: 16px; height: 16px; margin-top: 3px; color: var(--fgMuted); opacity: .5; cursor: grab; }
+.gear { cursor: pointer; margin-left: auto; }
+.block:hover > .grip, .block:hover > .gear { opacity: 1; color: var(--fg); }
+.tag { flex: none; font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: var(--fgMuted); border: 1px solid var(--borderSolid); border-radius: 3px; padding: 2px 5px; margin-top: 2px; }
+.sentence { font: 16px/1.55 var(--f-label); color: var(--fg); min-width: 0; flex: 1; }
+/* a link region inside the label: TMP <mark> fill + <u>, since @accent equals @fg in this scheme */
+.tok { color: var(--fgStrong); background: var(--bgRaised); border-radius: 3px; padding: 0 4px; text-decoration: underline; text-decoration-color: var(--fgMuted); text-underline-offset: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.tok:hover, .tok.open { background: var(--bgInverse); color: var(--fgInverse); text-decoration-color: var(--fgInverse); }
+.tok:focus-visible { outline: 1px solid var(--fgStrong); }
+.fx { font-family: var(--f-mono); font-size: 14px; }
+.aside { color: var(--fgMuted); font-size: 14px; font-style: italic; }
+
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font: 13px var(--f-input); color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+.chip .x { width: 14px; height: 14px; display: grid; place-content: center; font-size: 10px; border: 1px solid var(--danger); border-radius: 3px; opacity: 0; }
+.chip:hover .x { opacity: 1; }
+
+/* wrapper: "Only if" header + an indented inner stack with a left rule */
+.wrap { background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 5px; padding: 8px 10px 6px 8px; }
+.cats .wrap { border-left: 3px solid var(--cat-logic); padding-left: 6px; }
+.wrap > .block { border: 0; padding: 0; background: transparent; }
+.inner { margin: 6px 0 2px 24px; padding-left: 10px; border-left: 2px solid var(--borderSolid); }
+
+/* combine: a bracket built from three thin panels plus a small button */
+.combo { display: grid; grid-template-columns: 26px minmax(0, 1fr); }
+.bracket { position: relative; }
+.bracket .v { position: absolute; left: 12px; top: 18px; bottom: 18px; width: 1px; background: var(--fgMuted); }
+.bracket .h1, .bracket .h2 { position: absolute; left: 12px; width: 12px; height: 1px; background: var(--fgMuted); }
+.bracket .h1 { top: 18px; } .bracket .h2 { bottom: 18px; }
+.bracket button { position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--border); background: var(--bgAlt); color: var(--fg); font: 700 12px var(--f-input); cursor: pointer; padding: 0; }
+.bracket button:hover { background: var(--bgInverse); color: var(--fgInverse); }
+
+/* featureCard: header strip + body, @bgAlt, 10px outer corners */
+.card { background: var(--bgAlt); border-radius: 10px; margin: 10px 0; }
+.cardhead { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px 10px 0 0; }
+.cardhead .name { font: 700 17px var(--f-label); color: var(--fgStrong); }
+.cardhead .lvl { font: 11px var(--f-input); color: var(--fgMuted); margin-left: 4px; }
+.cardhead .del { margin-left: auto; width: 16px; height: 16px; color: var(--fgMuted); opacity: .5; cursor: pointer; }
+.cardhead .del:hover { color: var(--danger); opacity: 1; }
+.cardbody { border: 1px solid var(--border); border-top: 0; border-radius: 0 0 10px 10px; padding: 8px 10px 10px; }
+.caret { width: 12px; height: 12px; color: var(--fg); flex: none; }
+.addrow { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; color: var(--fgMuted); font: 15px var(--f-label); border-radius: 5px; cursor: pointer; }
+.addrow:hover { color: var(--fgStrong); background: var(--bgAlt); }
+.addrow svg { width: 14px; height: 14px; }
+
+/* right column: shelf + checks */
+.right { border-left: 1px solid var(--borderSolid); display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+.search { margin: 12px; position: relative; }
+.search input { width: 100%; height: 30px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 5px; font: 13px var(--f-input); padding: 0 10px 0 30px; }
+.search input:hover { background: var(--bgRaised); }
+.search input:focus { outline: none; border-color: var(--fgStrong); background: var(--bgRaised); }
+.search svg { position: absolute; left: 9px; top: 8px; width: 14px; height: 14px; color: var(--fgMuted); }
+.shelf { overflow: auto; max-height: 480px; padding-bottom: 8px; }
+.shelf .sechead { margin: 6px 12px 0; }
+.shelf .underline { margin: 0 12px 2px; }
+.shelfrow { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; cursor: grab; transition: background .1s; touch-action: none; user-select: none; }
+.shelfrow:hover { background: var(--bgAlt); }
+.shelfrow .nm { font: 15px var(--f-label); color: var(--fg); }
+.shelfrow .uses { margin-left: auto; font: 11px var(--f-input); color: var(--fgMuted); }
+.shelfrow .grip { margin: 0; }
+.cats .shelfrow::before { content: ""; width: 3px; align-self: stretch; margin: 7px 0; background: var(--c); }
+.shelfrow[data-cat="roll"] { --c: var(--cat-roll); } .shelfrow[data-cat="res"] { --c: var(--cat-res); }
+.shelfrow[data-cat="choice"] { --c: var(--cat-choice); } .shelfrow[data-cat="logic"] { --c: var(--cat-logic); }
+.checks { border-top: 1px solid var(--borderSolid); padding: 8px 12px 12px; }
+.issue { display: flex; gap: 8px; align-items: baseline; font: 14px var(--f-label); padding: 4px 0; }
+.issue .sev { width: 8px; height: 8px; border-radius: 50%; flex: none; transform: translateY(-1px); }
+.ghost { position: fixed; pointer-events: none; z-index: 50; background: var(--bg); border: 1px solid var(--fg); border-radius: 5px; padding: 6px 12px; font: 15px var(--f-label); color: var(--fgStrong); opacity: .85; box-shadow: 0 6px 18px #000a; }
+
+/* gui.ContextMenu: flat @bg, radius 7, no border */
+.menu { position: fixed; z-index: 60; background: var(--bg); border-radius: 7px; padding: 6px 0; min-width: 230px; box-shadow: 0 8px 28px #000c, 0 0 0 1px var(--borderSolid); }
+.menu .item { display: flex; gap: 8px; align-items: center; height: 28px; padding: 0 14px; font: 15px var(--f-label); color: var(--fg); cursor: pointer; }
+.menu .item:hover, .menu .item:focus-visible { background: var(--bgAlt); outline: none; }
+.menu .item .ck { width: 12px; color: var(--fgStrong); }
+.menu .div { height: 1px; background: var(--borderSolid); margin: 5px 0; }
+.menu .grp { font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: var(--fgMuted); padding: 4px 14px 2px; }
+
+/* the inspector: what draws the element under the cursor */
+.inspect { position: sticky; bottom: 0; z-index: 20; background: var(--bgAlt); border: 1px solid var(--borderSolid); border-radius: 8px; padding: 10px 14px; display: grid; gap: 4px; min-height: 64px; }
+.inspect .what { font: 700 13px var(--f-input); color: var(--fgStrong); }
+.inspect code { font: 13px/1.45 var(--f-mono); color: var(--info); white-space: pre-wrap; word-break: break-word; }
+.luaon [data-lua]:hover { outline: 1px dashed var(--info); outline-offset: 1px; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.note { background: var(--bgAlt); border-radius: 8px; padding: 14px 16px; }
+.note h3 { font: 700 17px var(--f-label); color: var(--fgStrong); margin: 0 0 6px; text-wrap: balance; }
+.note p { margin: 0; color: var(--fg); font-size: 13.5px; }
+.note code { font: 12.5px var(--f-mono); color: var(--info); }
+.note .tagline { font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.notes-h { font: 700 20px var(--f-label); color: var(--fgStrong); margin: 10px 0 0; }
+
+@media (max-width: 1100px) { .cols { grid-template-columns: 200px minmax(0, 1fr); } .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); } }
+@media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .nav { border-right: 0; border-bottom: 1px solid var(--borderSolid); display: flex; overflow-x: auto; padding: 0; } .navrow { flex: none; border-left: 0; border-bottom: 3px solid transparent; } .navrow.selected { border-bottom-color: var(--accent); } .seam { display: none; } .detail { padding: 4px 10px 20px; max-height: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-caret" viewBox="0 0 16 16"><path d="M3 5.5h10L8 11z" fill="currentColor"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="5.5" cy="3.5" r="1.3"/><circle cx="10.5" cy="3.5" r="1.3"/><circle cx="5.5" cy="8" r="1.3"/><circle cx="10.5" cy="8" r="1.3"/><circle cx="5.5" cy="12.5" r="1.3"/><circle cx="10.5" cy="12.5" r="1.3"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></g></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="page">
+  <div class="intro">
+    <div>
+      <h1>The class builder, drawn with the codex's Lua UI</h1>
+      <p>The Fury, laid out like THC's character builder and built only from what <code>gui</code> and the default theme provide. Hover any part to see the call that would draw it. Drag a block from the shelf to see the drop targets.</p>
+    </div>
+    <div class="switches">
+      <label class="check"><input type="checkbox" id="sw-lua" checked> Show Lua names</label>
+      <label class="check"><input type="checkbox" id="sw-cat"> Category marks</label>
+      <label class="check"><input type="checkbox" id="sw-drag"> Show drag state</label>
+    </div>
+  </div>
+
+  <div class="app luaon" id="app" data-lua="BEMainPanel.CreatePanel{ host = ClassHost }  -- DockablePanel or full-screen launchable; root of the tree" data-what="Editor root">
+    <div class="titlebar" data-lua='gui.Panel{ classes = {"panel", "barTrack"}, flow = "horizontal", wrap = true }' data-what="Title bar">
+      <div class="classname" data-lua='gui.Label{ classes = {"label", "sizeXl", "bold"}, editableOnDoubleClick = true, text = cls.name }' data-what="Class name (double-click to rename)">Fury</div>
+      <div class="tabbar" role="tablist" data-lua='gui.Panel{ classes = {"tabBar"}, flow = "horizontal" }' data-what="Subclass tabs">
+        <button class="tab selected" role="tab" aria-selected="true" data-lua='gui.Label{ classes = {"tab", "selected"}, text = "Fury", press = ShowView }' data-what="Tab: the class itself">Fury</button>
+        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }  -- one per compendium subclass with primaryClassId = cls.id' data-what="Tab: a subclass entry">Berserker</button>
+        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }' data-what="Tab: a subclass entry">Reaver</button>
+        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }' data-what="Tab: a subclass entry">Stormwight</button>
+        <button class="tab add" data-lua='gui.Button{ icon = "phosphor/plus-bold.png", text = "Subclass", press = NewSubclass }  -- adds a compendium entry' data-what="Add a subclass">+ Subclass</button>
+      </div>
+    </div>
+
+    <div class="cols" id="cols">
+      <nav class="col nav" data-lua='gui.Panel{ width = 230, height = "100%", flow = "vertical", vscroll = true }  -- CBSelectors-style left column' data-what="Section selectors">
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"}, height = 34, hpad = 12, borderBox = true, press = Select, gui.Label{text = "Basics"} }' data-what="Selector row">Basics</div>
+        <div class="seam"></div>
+        <div class="navrow selected" data-lua='gui.Panel{ classes = {"beNavRow", "selected"} }  -- @bgAlt fill + 3px @accent edge, name bold @fgStrong' data-what="Selected selector row">How you gain Ferocity <span class="count">4</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">1st level <span class="count">5</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- the dot is a small @warning panel: this level has a check' data-what="Selector row with a check">2nd level <span class="dot" aria-label="has a check"></span><span class="count">2</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">3rd level <span class="count">1</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">4th level <span class="count">3</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">5th to 10th <span class="count">14</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">Slow start <span class="count">0</span></div>
+      </nav>
+
+      <section class="col detail" id="detail" data-lua='gui.Panel{ width = "100%-560", height = "100%", flow = "vertical", vscroll = true, hideObjectsOutOfScroll = true }  -- BEFeatureDetail' data-what="Detail column">
+        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"}, gui.ExpandoArrow{ bgimage = "phosphor/caret-down-fill.png" }, gui.Label{ text = "How you gain Ferocity" }, gui.Label{ classes = {"count"} } }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>How you gain Ferocity<span class="count">4 ways</span></div>
+        <div class="underline"></div>
+        <p class="hint" data-lua='gui.Label{ classes = {"label", "sizeS", "fgMuted"}, text = BEText.GainSlowStartHint }' data-what="Hint label">Create slow start rules used by Pregen Characters.</p>
+
+        <div class="stack" data-stack>
+          <div class="sliver" data-lua='gui.Panel{ classes = {"beSliver"}, height = 2, dragTarget = true, data = { index = 1 } }  -- clear at rest; drag-target / drag-target-hover restyle it' data-what="Drop sliver"></div>
+          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain, { kind = "startGain" })  -- one row: grip | sentence label | gear' data-what="Block: start-of-turn gain">
+            <svg class="grip" data-lua='gui.Panel{ classes = {"beGrip"}, bgimage = "phosphor/dots-six-vertical.png", draggable = true, dragMove = false }' data-what="Drag handle"><use href="#i-grip"/></svg>
+            <div class="sentence" data-lua='gui.Label{ classes = {"beSentence"}, width = "100%-40", textWrap = true, links = true, text = BESentence.Render(tokens) }  -- ONE label: words are link regions' data-what="Sentence label">At the start of each of your turns, you gain <span class="tok fx" tabindex="0" data-menu="die">1d3</span> Ferocity<span class="aside">, and more from</span> <span class="tok" tabindex="0" data-menu="lvl">4th and 7th level</span>.</div>
+            <svg class="gear" data-lua='gui.Button{ classes = {"beGear"}, icon = "phosphor/dots-three.png", press = function(el) el.popup = gui.ContextMenu{ entries = BlockMenu(block) } end }' data-what="Block menu"><use href="#i-gear"/></svg>
+          </div>
+          <div class="sliver"></div>
+          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain)' data-what="Block: a gain line">
+            <svg class="grip"><use href="#i-grip"/></svg>
+            <div class="sentence" data-lua='gui.Label{ links = true, text = "When combat starts, you gain <mark=#2E2E33><u><link=qty>a number of Ferocity equal to your Victories</link></u></mark>." }' data-what="Sentence label">When combat starts, you gain <span class="tok" tabindex="0" data-menu="qty">a number of Ferocity equal to your Victories</span>.</div>
+            <svg class="gear"><use href="#i-gear"/></svg>
+          </div>
+          <div class="sliver"></div>
+          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain)' data-what="Block: a gain line">
+            <svg class="grip"><use href="#i-grip"/></svg>
+            <div class="sentence"><span class="tok" tabindex="0" data-menu="freq">The first time each round</span> <span class="tok" tabindex="0" data-menu="who">you</span> <span class="tok" tabindex="0" data-menu="event" data-lua='-- a link region; press reads element.linkHovered == "event" and opens gui.ContextMenu{ entries = GainEventEntries() }' data-what="Link region: the event">take damage</span>, you gain <span class="tok" tabindex="0" data-menu="num">1</span> Ferocity.</div>
+            <svg class="gear"><use href="#i-gear"/></svg>
+          </div>
+          <div class="sliver"></div>
+          <div class="block" data-cat="res" data-lua='BEBlockPanel.Create(gain)  -- an advanced gain: the tag is a small bordered label' data-what="Block: an advanced gain">
+            <svg class="grip"><use href="#i-grip"/></svg>
+            <span class="tag" data-lua='gui.Label{ classes = {"beTag"} , text = "Trigger" }' data-what="Tag label">Trigger</span>
+            <div class="sentence"><span class="tok" tabindex="0" data-menu="trig" data-lua='-- press opens the triggered ability editor (NewTriggeredAbilityEditor) as a modal, seeded from the line' data-what="Link region: opens the trigger editor">The first time in an encounter you become winded</span> <span class="aside">(change)</span>, you gain <span class="tok" tabindex="0" data-menu="num">1</span> Ferocity <span class="aside">counted</span> <span class="tok" tabindex="0" data-menu="count">once each encounter</span>.</div>
+            <svg class="gear"><use href="#i-gear"/></svg>
+          </div>
+          <div class="sliver"></div>
+          <div class="addrow" data-lua='gui.Panel{ classes = {"beAddRow", "hoverable"}, press = OpenShelfMenu, gui.Panel{ classes = {"iconButton", "addButton", "sizeXs"} }, gui.Label{ text = "Add a way to gain Ferocity" } }' data-what="Add row"><svg><use href="#i-plus"/></svg>Add a way to gain Ferocity</div>
+        </div>
+
+        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"} }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>1st level<span class="count">5 features</span></div>
+        <div class="underline"></div>
+
+        <div class="card" data-lua='gui.Panel{ classes = {"featureCard"}, gui.Panel{ classes = {"featureCardHeader", "expanded"} }, gui.Panel{ classes = {"featureCardBody"} } }  -- existing theme classes' data-what="Feature card">
+          <div class="cardhead" data-lua='gui.Panel{ classes = {"featureCardHeader", "expanded"}, height = 34, flow = "horizontal" }' data-what="Feature card header"><svg class="caret"><use href="#i-caret"/></svg><span class="name" data-lua='gui.Label{ editableOnDoubleClick = true, text = feature.name }' data-what="Feature name">Mighty Leaps</span><span class="lvl">feature</span><svg class="del" data-lua='gui.Button{ classes = {"iconButton", "deleteButton", "sizeXs"} }' data-what="Delete feature"><use href="#i-x"/></svg></div>
+          <div class="cardbody stack" data-stack data-lua='gui.Panel{ classes = {"featureCardBody"}, flow = "vertical" }  -- BEStack: blocks with a sliver between each' data-what="Feature card body (a block stack)">
+            <div class="sliver"></div>
+            <div class="combo" data-lua='gui.Panel{ classes = {"beCombo"}, flow = "horizontal", BEBracket(), BEStack(blocks) }' data-what="Combinable pair">
+              <div class="bracket" data-lua='gui.Panel{ width = 26, gui.Panel{ classes = {"beBracketLine"}, width = 1, height = "100%-36", valign = "center" }, gui.Panel{ width = 12, height = 1 } (x2), gui.Button{ text = "+", tooltip = "Combine into one power modifier" } }' data-what="Combine bracket (three 1px panels and a button)">
+                <span class="v"></span><span class="h1"></span><span class="h2"></span><button type="button" aria-label="Combine these into one power roll modifier" data-lua='gui.Button{ classes = {"button", "sizeXxs"}, text = "+", tooltip = "Combine into one power modifier", press = CombineBlocks }' data-what="Combine button">+</button>
+              </div>
+              <div>
+                <div class="block" data-cat="roll" data-lua='BEBlockPanel.Create(block)  -- power roll modifier' data-what="Block: change a roll">
+                  <svg class="grip"><use href="#i-grip"/></svg>
+                  <div class="sentence">Power rolls on <span class="tok" tabindex="0" data-menu="char">Might</span> tests <span class="tok" tabindex="0" data-menu="testfor">to jump, lift or haul</span> can't have an outcome below <span class="tok" tabindex="0" data-menu="tier">tier 2</span>.</div>
+                  <svg class="gear"><use href="#i-gear"/></svg>
+                </div>
+                <div class="sliver"></div>
+                <div class="block" data-cat="roll" data-lua='BEBlockPanel.Create(block)' data-what="Block: change a roll">
+                  <svg class="grip"><use href="#i-grip"/></svg>
+                  <div class="sentence">Those rolls have <span class="tok" tabindex="0" data-menu="edge">an edge</span>.</div>
+                  <svg class="gear"><use href="#i-gear"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="sliver"></div>
+            <div class="addrow"><svg><use href="#i-plus"/></svg>Add a block</div>
+          </div>
+        </div>
+
+        <div class="card" data-lua='gui.Panel{ classes = {"featureCard"} }' data-what="Feature card">
+          <div class="cardhead"><svg class="caret"><use href="#i-caret"/></svg><span class="name">Primordial Aspect</span><span class="lvl">choice</span><svg class="del"><use href="#i-x"/></svg></div>
+          <div class="cardbody stack" data-stack>
+            <div class="sliver"></div>
+            <div class="block" data-cat="choice" data-lua='BEBlockPanel.Create(choice)  -- a choice block: sentence + gui.Multiselect chips' data-what="Block: a choice">
+              <svg class="grip"><use href="#i-grip"/></svg>
+              <div class="sentence">The player chooses <span class="tok" tabindex="0" data-menu="num">1</span> skill from <span class="chips" data-lua='gui.Multiselect{ options = SkillGroups(), value = block.groups }  -- {multiselectChip} rows, X shows on hover' data-what="Multiselect chips"><span class="chip">Exploration<span class="x">X</span></span><span class="chip">Intrigue<span class="x">X</span></span></span>.</div>
+              <svg class="gear"><use href="#i-gear"/></svg>
+            </div>
+            <div class="sliver"></div>
+            <div class="wrap" data-lua='BEWrapperPanel.Create(onlyIf)  -- header block + indented BEStack with a 2px left rule' data-what="Wrapper: Only if">
+              <div class="block" data-cat="logic">
+                <svg class="grip"><use href="#i-grip"/></svg>
+                <div class="sentence"><b>Only if</b> <span class="tok" tabindex="0" data-menu="test">you are winded</span>:</div>
+                <svg class="gear"><use href="#i-gear"/></svg>
+              </div>
+              <div class="inner stack" data-stack data-lua='gui.Panel{ classes = {"beInner"}, lmargin = 24, hpad = 10, borderBox = true, border = {x1 = 2} }' data-what="Wrapper's inner stack">
+                <div class="sliver"></div>
+                <div class="block" data-cat="roll" style="border-left-width:1px">
+                  <svg class="grip"><use href="#i-grip"/></svg>
+                  <div class="sentence">Your <span class="tok" tabindex="0" data-menu="abil">strikes</span> deal <span class="tok fx" tabindex="0" data-menu="fx">+ Might</span> extra damage.</div>
+                  <svg class="gear"><use href="#i-gear"/></svg>
+                </div>
+                <div class="sliver"></div>
+              </div>
+            </div>
+            <div class="sliver"></div>
+            <div class="addrow"><svg><use href="#i-plus"/></svg>Add a block</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="col right" data-lua='gui.Panel{ width = 330, height = "100%", flow = "vertical" }  -- BEShelf over BEStatusPanel' data-what="Right column">
+        <div class="search" data-lua='gui.SearchInput{ classes = {"bordered"}, borderBox = true, placeholderText = "Search blocks", edit = FilterShelf }' data-what="Shelf search"><svg><use href="#i-search"/></svg><input id="shelf-search" type="search" placeholder="Search blocks" aria-label="Search blocks"></div>
+        <div class="shelf" id="shelf" data-lua='gui.Panel{ flow = "vertical", vscroll = true }  -- rows registered by BlockEditor.RegisterBlock{ group, label, uses }' data-what="Block shelf">
+          <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Common<span class="count">4</span></div><div class="underline"></div>
+          <div class="shelfrow" data-cat="roll" data-lua='gui.Panel{ classes = {"beShelfRow"}, draggable = true, dragMove = false, beginDrag = MakeGhost, dragging = MoveGhost, canDragOnto = function(p, t) return t:HasClass("beSliver") end, drag = InsertAt }' data-what="Shelf row (drag it)"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Change a power roll</span><span class="uses">412</span></div>
+          <div class="shelfrow" data-cat="res"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Gain a resource</span><span class="uses">188</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a skill</span><span class="uses">96</span></div>
+          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Only if</span><span class="uses">71</span></div>
+          <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Change rolls<span class="count">6</span></div><div class="underline"></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Edge or bane</span><span class="uses">140</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Extra damage</span><span class="uses">133</span></div>
+          <div class="shelfrow" data-cat="roll"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Surges</span><span class="uses">58</span></div>
+          <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Choices<span class="count">5</span></div><div class="underline"></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose from options</span><span class="uses">81</span></div>
+          <div class="shelfrow" data-cat="choice"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Choose a perk</span><span class="uses">54</span></div>
+          <div class="sechead"><svg class="caret"><use href="#i-caret"/></svg>Logic<span class="count">3</span></div><div class="underline"></div>
+          <div class="shelfrow" data-cat="logic"><svg class="grip"><use href="#i-grip"/></svg><span class="nm">Grows with level</span><span class="uses">39</span></div>
+        </div>
+        <div class="checks" data-lua='BEStatusPanel.Create(issues)  -- rows of a @warning/@danger dot + label; press jumps to the block' data-what="Checks">
+          <div class="sechead" style="margin-top:0"><svg class="caret"><use href="#i-caret"/></svg>Checks<span class="count">2</span></div><div class="underline"></div>
+          <div class="issue"><span class="sev" style="background:var(--warning)"></span>2nd level: "Furious Change" has no blocks yet.</div>
+          <div class="issue"><span class="sev" style="background:var(--success)"></span>Saves back unchanged: 1,153 records.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="inspect" id="inspect" aria-live="polite">
+    <div class="what" id="insp-what">Hover any part of the editor</div>
+    <code id="insp-code">Each part shows the gui call (and theme classes) that would draw it in Lua.</code>
+  </div>
+
+  <h2 class="notes-h">What the Lua toolkit changes from the web prototype</h2>
+  <div class="notes">
+    <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Sentences with words you click</h3><p>One <code>gui.Label</code> per sentence with <code>links = true</code>; each word is a <code>&lt;link=id&gt;</code> region, so the sentence wraps like text. A press reads <code>element.linkHovered</code> and opens the picker as <code>element.popup</code>. The ability roll text already does this.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Words are marked with a fill, not a colour</h3><p>In the default scheme <code>@accent</code> is the same parchment as the text, so a link colour can't mark a word. Words get a <code>&lt;mark&gt;</code> fill in <code>@bgRaised</code> and an underline, and invert on hover like buttons do.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Category colours are a choice</h3><p>The theme is achromatic and the style guide says not to add colours for one panel. Blocks can go without hues (the default here) or use a 3px left edge in a category hue. Try the "Category marks" switch.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Drop slivers</h3><p>The engine adds <code>drag-target</code> to every valid target during a drag and <code>drag-target-hover</code> to the one under the cursor. That is the style guide's own rule: 2px and clear at rest, a 10px accent bar on hover.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Dragging from the shelf needs a ghost</h3><p>A dragged panel moves itself, so a shelf row uses <code>dragMove = false</code> and moves a floating copy in its <code>dragging</code> event (engine ask E2 would make this built in). Every drag keeps a menu path: "Add a block" and the block menu's Move up / Move down.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Rectangles only</h3><p>No notched puzzle shapes: panels have per-corner radius, bevels or 9-slice images. Blocks are rows with 5px corners, wrappers indent with a 2px rule, and the combine bracket is three 1px panels plus a button.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Menus and pickers</h3><p><code>gui.ContextMenu</code> for short lists, like the gain event menu with "Build the trigger yourself..." at the end; <code>gui.Dropdown</code> with <code>hasSearch</code> for long ones (abilities, conditions); <code>gui.Multiselect</code> chips for skill groups.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--danger)">Watch</div><h3>Panel count</h3><p>Each block is a few panels, but a full class is hundreds. Rebuild only the block that changed, never the stack; use <code>hideObjectsOutOfScroll</code> in the detail column; check long link sentences at 80% to 140% font size.</p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const app = document.getElementById('app');
+  const insWhat = document.getElementById('insp-what'), insCode = document.getElementById('insp-code');
+  const sw = id => document.getElementById(id);
+  const safeGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+  // switches
+  const apply = () => {
+    app.classList.toggle('luaon', sw('sw-lua').checked);
+    app.classList.toggle('cats', sw('sw-cat').checked);
+    app.classList.toggle('dragging', sw('sw-drag').checked);
+  };
+  ['sw-lua', 'sw-cat'].forEach(id => { const v = safeGet('luaui-' + id); if (v !== null) sw(id).checked = v === '1'; });
+  ['sw-lua', 'sw-cat', 'sw-drag'].forEach(id => sw(id).addEventListener('change', () => { safeSet('luaui-' + id, sw(id).checked ? '1' : '0'); apply(); }));
+  apply();
+
+  // inspector: the nearest element that names its gui call
+  const show = el => {
+    const t = el && el.closest('[data-lua]');
+    if (!t || !sw('sw-lua').checked) return;
+    insWhat.textContent = t.dataset.what || 'Part of the editor';
+    insCode.textContent = t.dataset.lua;
+  };
+  app.addEventListener('mouseover', e => show(e.target));
+  app.addEventListener('focusin', e => show(e.target));
+
+  // pickers: one menu per word, in the gui.ContextMenu look
+  const MENUS = {
+    event: { lua: 'gui.ContextMenu{ entries = GainEventEntries() }  -- GAIN_MENU, a divider, then the advanced entry', items: ['When combat starts', 'takes damage', 'deals damage', 'force moves a creature', 'dies', 'uses an ability', 'makes a power roll', 'spends surges', 'spends a resource', '-', '#Advanced', 'Build the trigger yourself…'] },
+    freq: { items: ['The first time each round', 'The first time in an encounter', 'Whenever'] },
+    who: { items: ['you', 'you or an ally', 'an ally', 'you or another hero', 'another hero', 'an enemy', 'any creature'] },
+    count: { items: ['each time', 'once each round', 'once each encounter'] },
+    num: { items: ['1', '2', '3', '-', 'Formula…'] },
+    die: { items: ['1d3', '1d6', '2', '3', '-', 'Formula…'] },
+    lvl: { items: ['Edit the level steps…', 'Remove the level steps'] },
+    qty: { items: ['your Victories', 'a number', '-', 'Formula…'] },
+    trig: { lua: 'NewTriggeredAbilityEditor as a modal, seeded from this line', items: ['Open the trigger editor…', 'Change back to a common event'] },
+    char: { items: ['Might', 'Agility', 'Reason', 'Intuition', 'Presence', 'any characteristic'] },
+    testfor: { items: ['to jump, lift or haul', 'any test', '-', 'Choose skills…'] },
+    tier: { items: ['tier 2', 'tier 3'] },
+    edge: { items: ['an edge', 'a double edge', 'a bane', 'a double bane'] },
+    test: { items: ['you are winded', 'you are dying', 'your Ferocity is at least [ ]', '-', 'Build a test…'] },
+    abil: { items: ['strikes', 'abilities', 'signature abilities', 'Choose abilities…'] },
+    fx: { items: ['+ Might', '+ 2', '-', 'Formula…'] },
+  };
+  let menu = null, openTok = null;
+  const closeMenu = () => { if (menu) { menu.remove(); menu = null; } if (openTok) { openTok.classList.remove('open'); openTok.focus(); openTok = null; } };
+  const openMenu = tok => {
+    closeMenu();
+    const spec = MENUS[tok.dataset.menu]; if (!spec) return;
+    menu = document.createElement('div'); menu.className = 'menu'; menu.setAttribute('role', 'menu');
+    spec.items.forEach(it => {
+      if (it === '-') { const d = document.createElement('div'); d.className = 'div'; menu.appendChild(d); return; }
+      if (it[0] === '#') { const g = document.createElement('div'); g.className = 'grp'; g.textContent = it.slice(1); menu.appendChild(g); return; }
+      const row = document.createElement('div'); row.className = 'item'; row.tabIndex = 0; row.setAttribute('role', 'menuitem');
+      const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = it === tok.textContent ? '✓' : '';
+      row.appendChild(ck); row.appendChild(document.createTextNode(it));
+      const pick = () => { if (!/…$/.test(it) && !/^(Remove|Change back)/.test(it)) tok.textContent = it; closeMenu(); };
+      row.addEventListener('click', pick);
+      row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      menu.appendChild(row);
+    });
+    document.body.appendChild(menu);
+    const r = tok.getBoundingClientRect(), mw = menu.offsetWidth, mh = menu.offsetHeight;
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - mw - 8)) + 'px';
+    menu.style.top = (r.bottom + 4 + mh > innerHeight ? Math.max(8, r.top - mh - 4) : r.bottom + 4) + 'px';
+    openTok = tok; tok.classList.add('open');
+    insWhat.textContent = 'Popup menu'; insCode.textContent = 'element.popup = ' + (spec.lua || 'gui.ContextMenu{ entries = { {text = ..., click = SetToken}, ... } }');
+    const first = menu.querySelector('.item'); if (first) first.focus();
+  };
+  document.addEventListener('click', e => {
+    const tok = e.target.closest('.tok');
+    if (tok) { e.stopPropagation(); if (openTok === tok) closeMenu(); else openMenu(tok); return; }
+    if (menu && !menu.contains(e.target)) closeMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMenu();
+    const tok = e.target.closest && e.target.closest('.tok');
+    if (tok && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openMenu(tok); }
+    if (menu && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      const items = [...menu.querySelectorAll('.item')], i = items.indexOf(document.activeElement);
+      e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    }
+  });
+  window.addEventListener('scroll', closeMenu, true);
+
+  // shelf search
+  document.getElementById('shelf-search').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('.shelfrow').forEach(r => { r.hidden = q && !r.textContent.toLowerCase().includes(q); });
+  });
+
+  // drag a shelf row: a floating ghost, every sliver a drag-target, the one under the cursor hovered
+  const SENT = {
+    roll: 'Power rolls on <span class="tok" tabindex="0" data-menu="char">Might</span> tests have <span class="tok" tabindex="0" data-menu="edge">an edge</span>.',
+    res: 'You gain <span class="tok" tabindex="0" data-menu="num">1</span> Ferocity.',
+    choice: 'The player chooses <span class="tok" tabindex="0" data-menu="num">1</span> skill from <span class="chips"><span class="chip">Exploration<span class="x">X</span></span></span>.',
+    logic: '<b>Only if</b> <span class="tok" tabindex="0" data-menu="test">you are winded</span>:',
+  };
+  let drag = null;
+  document.querySelectorAll('.shelfrow').forEach(row => {
+    row.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); row.setPointerCapture(e.pointerId);
+      drag = { row, ghost: null, x0: e.clientX, y0: e.clientY, hover: null };
+    });
+    row.addEventListener('pointermove', e => {
+      if (!drag || drag.row !== row) return;
+      if (!drag.ghost) {
+        if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 4) return;   // dragThreshold = 4
+        drag.ghost = document.createElement('div'); drag.ghost.className = 'ghost'; drag.ghost.textContent = row.querySelector('.nm').textContent;
+        document.body.appendChild(drag.ghost); app.classList.add('dragging');
+        insWhat.textContent = 'Dragging'; insCode.textContent = 'dragMove = false; the "dragging" event moves a floating ghost. Slivers carry drag-target, the one under the cursor drag-target-hover.';
+      }
+      drag.ghost.style.left = (e.clientX + 12) + 'px'; drag.ghost.style.top = (e.clientY + 8) + 'px';
+      const under = document.elementsFromPoint(e.clientX, e.clientY);
+      let s = under.find(el => el.classList && el.classList.contains('sliver'));
+      if (!s) {   // nearest sliver in the stack under the cursor, so the target is easy to hit
+        const stack = under.find(el => el.hasAttribute && el.hasAttribute('data-stack'));
+        if (stack) { let best = null, bd = 1e9; stack.querySelectorAll(':scope > .sliver').forEach(sl => { const r = sl.getBoundingClientRect(), d = Math.abs(r.top - e.clientY); if (d < bd) { bd = d; best = sl; } }); s = best; }
+      }
+      if (drag.hover !== s) { if (drag.hover) drag.hover.classList.remove('hover'); drag.hover = s; if (s) s.classList.add('hover'); }
+    });
+    const end = () => {
+      if (!drag || drag.row !== row) return;
+      const d = drag; drag = null;
+      if (d.ghost) d.ghost.remove();
+      app.classList.toggle('dragging', sw('sw-drag').checked);
+      if (d.hover) {
+        d.hover.classList.remove('hover');
+        const cat = row.dataset.cat, b = document.createElement('div');
+        b.className = 'block selected'; b.dataset.cat = cat; b.dataset.lua = 'BEBlockPanel.Create(newBlock)  -- inserted at the sliver\'s data.index; only this block is built'; b.dataset.what = 'New block';
+        b.innerHTML = '<svg class="grip"><use href="#i-grip"/></svg><div class="sentence">' + SENT[cat] + '</div><svg class="gear"><use href="#i-gear"/></svg>';
+        const sl = document.createElement('div'); sl.className = 'sliver';
+        d.hover.after(b, sl);
+        setTimeout(() => b.classList.remove('selected'), 1600);
+      }
+    };
+    row.addEventListener('pointerup', end); row.addEventListener('pointercancel', end);
+  });
+})();
+</script>

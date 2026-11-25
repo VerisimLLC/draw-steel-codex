@@ -10652,6 +10652,13 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            --An object marked only to say why this ability can't target it: hovering shows
+            --the reason, and a click does nothing, even for the Director.
+            if targetToken.sheet ~= nil and targetToken.sheet.data.targetBlocked == true
+                and not list_contains(g_targetsChosen, targetToken.id) then
+                return
+            end
+
             -- Strict-targeting: players cannot select invalid targets (out of
             -- range, forbidden, etc). The reticule still lights up with the
             -- invalid styling so they get feedback on why, but the click is
@@ -13912,6 +13919,7 @@ CreateAbilityController = function()
                     if tok ~= nil and tok.valid and tok.sheet ~= nil then
                         tok.sheet.data.targetInfo = nil
                         tok.sheet.data.targetValid = nil
+                        tok.sheet.data.targetBlocked = nil
                         tok.sheet:FireEvent("untarget")
                     end
                 end
@@ -14003,6 +14011,7 @@ CreateAbilityController = function()
                     tok.sheet.data.targetInfo = targetInfo
                     local reason = reasons[tok.charid]
                     tok.sheet.data.targetValid = reason == nil
+                    tok.sheet.data.targetBlocked = nil
                     if reason ~= nil then
                         tok.sheet:FireEvent("target", { valid = false, reason = reason, classes = { 'invalid' } })
                     else
@@ -16056,10 +16065,19 @@ local function CalculateSpellTargetFocusing(symbols)
 
                 local canTarget = true
 
+                --An attackable object this ability can't pick (it can't target objects, or object
+                --targeting is switched off). Shown as invalid with a reason, only within range,
+                --so a strike doesn't light up every object on the map.
+                local objectReason = nil
+                if spell.targetType == "target" and range ~= nil
+                    and targetToken:Distance(g_token) <= range + dmhub.unitsPerSquare then
+                    objectReason = g_currentAbility:ObjectTargetingReason(g_token, targetToken, symbols)
+                end
+
                 -- For objectTarget abilities, respect the Creatures/Objects/Both setting.
                 -- Object-only abilities (targetAllegiance == "none") don't show that
                 -- slider at all, so a stale preference must not filter their candidates.
-                if g_currentAbility.objectTarget == true and g_currentAbility.targetAllegiance ~= "none" then
+                if objectReason == nil and g_currentAbility.objectTarget == true and g_currentAbility.targetAllegiance ~= "none" then
                     local treatAsObject = (not targetToken.isObject) and
                                           targetToken.properties ~= nil and
                                           targetToken.properties:try_get("treatAsObject", false)
@@ -16132,7 +16150,14 @@ local function CalculateSpellTargetFocusing(symbols)
                 --set when failReason is a line of effect reason, shown on the arrow, not the token.
                 local failIsLineOfEffect = false
 
-                if canTarget then
+                --true when the target is shown only to explain why it can't be picked:
+                --unlike a range or filter reason, the Director can't click past it.
+                local blocked = false
+
+                if canTarget and objectReason ~= nil then
+                    failReason = objectReason
+                    blocked = true
+                elseif canTarget then
                     canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
                     if failReason ~= nil then
                         canTarget = true
@@ -16257,6 +16282,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         --record validity so click handlers can reject invalid
                         --targets when strict-targeting is enforced for players.
                         targetToken.sheet.data.targetValid = valid
+                        targetToken.sheet.data.targetBlocked = blocked
                         --out-of-range and line of effect are shown as arrow labels instead of a token tooltip.
                         local tooltipReason = failReason
                         if tooltipReason ~= nil and (failIsLineOfEffect or string.starts_with(tooltipReason, "Out of range")
@@ -16290,6 +16316,7 @@ local function CalculateSpellTargetFocusing(symbols)
                     end
                     tok.sheet.data.targetInfo = g_targetInfo
                     tok.sheet.data.targetValid = true
+                    tok.sheet.data.targetBlocked = nil
                     tok.sheet:FireEvent("target", { valid = true })
                 end
             end

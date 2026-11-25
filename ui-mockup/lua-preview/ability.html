@@ -6,7 +6,7 @@
 <title>Ability Editor in Lua</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Courier+Prime&family=Crimson+Pro:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Courier+Prime&family=Crimson+Pro:wght@400;600;700&display=swap">
 <style>
 /* Layout: the Character Builder shell (selectors 285 | detail | panel 447) drawn with the
    codex default colour scheme. One dark look on purpose: it is the app's own scheme. */
@@ -226,22 +226,27 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .followup > .block { border: 0; padding: 0 2px 0 0; background: transparent; }
 .followup { --c: var(--blk-abil); background: var(--c); border: 1px solid rgba(0,0,0,.35); border-radius: 5px; padding: 8px; }
 .textblk .sentence { font-style: italic; }
-/* the card: the ability tooltip the AbilityEditor preview column already renders */
 .rightab { border-left: 1px solid var(--borderSolid); padding: 12px; display: grid; gap: 12px; align-content: start; overflow: auto; max-height: 760px; }
-.abcard { background: var(--bgAlt); border: 1px solid var(--borderSolid); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
-.abcard .t { display: flex; align-items: baseline; gap: 10px; }
-.abcard h3 { margin: 0; font: 700 22px/1.1 var(--f-label); color: var(--fgStrong); }
-.abcard .cost { margin-left: auto; font: 700 13px var(--f-input); color: var(--fgInverse); background: var(--bgInverse); border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
-.abcard .flav { font: italic 15px var(--f-label); color: var(--fgMuted); margin: 0; }
-.abcard .kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font: 600 15px var(--f-label); color: var(--fg); border-top: 1px solid var(--borderSolid); padding-top: 8px; }
-.abcard .kv span:nth-child(even) { text-align: right; }
-.abcard .pr { font: 700 15px var(--f-label); color: var(--fgStrong); margin-top: 2px; }
-.abcard table { border-collapse: collapse; font: 15px var(--f-label); color: var(--fg); }
-.abcard td { padding: 2px 10px 2px 0; vertical-align: top; }
-.abcard td:first-child { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--fgStrong); }
-.abcard .eff { font: 15px var(--f-label); color: var(--fg); margin: 0; }
-.abcard .line { border-radius: 3px; cursor: pointer; }
-.abcard .line:hover { background: var(--bgRaised); }
+/* the card: laid out like the printed book. Its paper and ink are fixed, like the block
+   colours, so it reads as the book page on any theme. */
+.abcard { --paper: #fdfcf8; --ink: #141414; background: var(--paper); color: var(--ink); border-radius: 4px; padding: 14px 16px 14px 14px; font: 14.5px/1.45 "Bitter", Georgia, serif; }
+.abcard .hdr { position: relative; padding-left: 20px; margin-bottom: 10px; }
+.abcard .hdr::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: 2px; width: 1.5px; background: var(--ink); }
+.abcard .marks { position: absolute; left: -2px; top: 6px; width: 14px; height: 40px; color: var(--ink); }
+.abcard h3 { margin: 0; font: 700 19px/1.25 "Bitter", Georgia, serif; }
+.abcard .flav { font-style: italic; margin: 1px 0 0; padding-bottom: 3px; border-bottom: 1px solid var(--ink); }
+.abcard .kwrow, .abcard .dtrow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.abcard .kwrow { font-weight: 700; margin-top: 2px; }
+.abcard .dt { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.abcard .dt svg { width: 17px; height: 17px; flex: none; }
+.abcard .pr { font-weight: 700; margin: 10px 0 3px; }
+.abcard .chr { display: inline-block; background: var(--ink); color: var(--paper); font: 700 11.5px/1 "Bitter", Georgia, serif; padding: 2px 4px; border-radius: 2px; vertical-align: 1px; }
+.abcard .tier { display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; margin-top: 3px; align-items: baseline; }
+.abcard .n { display: inline-block; width: 40px; height: 18px; text-align: center; font: 600 10.5px/18px "Bitter", Georgia, serif; position: relative; }
+.abcard .n svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.abcard .eff { margin: 8px 0 0; }
+.abcard .line { border-radius: 3px; cursor: text; }
+.abcard .line:hover { background: rgba(140,106,36,.15); }
 .cardhint { font: 13px var(--f-input); color: var(--fgMuted); margin: 0; }
 .dragging .sliver.nodrop { height: 2px; margin: 3px 0; border: 0; background: transparent; }
 @media (max-width: 1150px) { .cols.ab { grid-template-columns: minmax(0, 1fr) 250px; } .rightab { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); max-height: none; } }
@@ -415,16 +420,18 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
           <div class="issue"><span class="sev" style="background:var(--warning)"></span>One sentence is card text only: the game won't deal the opportunity-attack damage back.</div>
           <div class="issue"><span class="sev" style="background:var(--success)"></span>Saves back unchanged.</div>
         </div>
-        <div class="abcard" data-lua='CreateAbilityTooltip(ability, { width = 306 })  -- the existing ability card, rebuilt when a block changes (AbilityEditor&#39;s preview column does the same)' data-what="Live ability card">
-          <div class="t"><h3 class="line">Out of the Way!</h3><span class="cost">3 Ferocity</span></div>
-          <p class="flav line">Your enemies will clear your path, whether they want to or not.</p>
-          <div class="kv"><span class="line">Melee, Strike, Weapon</span><span class="line">Main action</span><span class="line">Melee 1</span><span class="line">One creature</span></div>
-          <div class="pr">Power Roll + Might:</div>
-          <table>
-            <tr class="line"><td>11 or lower</td><td>3 + M damage; slide 2</td></tr>
-            <tr class="line"><td>12 to 16</td><td>5 + M damage; slide 3</td></tr>
-            <tr class="line"><td>17+</td><td>8 + M damage; slide 5</td></tr>
-          </table>
+        <div class="abcard" data-lua='BEAbilityCard.Create(ability)  -- book layout: fixed paper and ink colours, tier marks in the DrawSteelGlyphs font (as the roll text uses), each line a link region you can reword' data-what="Ability card, book layout">
+          <div class="hdr">
+            <svg class="marks" viewBox="0 0 14 40" aria-hidden="true"><path d="M7 0l5 5-5 5-5-5z" fill="currentColor"/><path d="M7 11l5 5-5 5-5-5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 22l5 5-5 5-5-5z" fill="currentColor"/></svg>
+            <h3 class="line">Out of the Way! (3 Ferocity)</h3>
+            <p class="flav line">Your enemies will clear your path, whether they want to or not.</p>
+            <div class="kwrow"><span class="line">Melee, Strike, Weapon</span><span class="line">Main action</span></div>
+            <div class="dtrow"><span class="dt line"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14L14 14L2 2Z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 14v-2M7 14v-2M9.5 14v-2" stroke="currentColor" stroke-width="1.1"/></svg>Melee 1</span><span class="dt line"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="3.3" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>One creature</span></div>
+          </div>
+          <div class="pr line">Power Roll + Might:</div>
+          <div class="tier line"><span class="n"><svg viewBox="0 0 40 18" preserveAspectRatio="none" aria-hidden="true"><path d="M7 1H35Q39 1 39 5V13Q39 17 35 17H7L1 9Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>&le;11</span><span>3 + <span class="chr">M</span> damage; slide 2</span></div>
+          <div class="tier line"><span class="n"><svg viewBox="0 0 40 18" preserveAspectRatio="none" aria-hidden="true"><path d="M7 1H35Q39 1 39 5V13Q39 17 35 17H7L1 9Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>12&ndash;16</span><span>5 + <span class="chr">M</span> damage; slide 3</span></div>
+          <div class="tier line"><span class="n"><svg viewBox="0 0 40 18" preserveAspectRatio="none" aria-hidden="true"><path d="M7 1H35Q39 1 39 5V13Q39 17 35 17H7L1 9Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>17+</span><span>8 + <span class="chr">M</span> damage; slide 5</span></div>
           <p class="eff line"><b>Effect:</b> When you slide the target, you can move into any square they leave. If you take damage from an opportunity attack by moving this way, the target takes the same damage.</p>
         </div>
         <p class="cardhint">Click any line on the card to change its wording.</p>
@@ -443,7 +450,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Power roll tiers</h3><p>A power roll block holds three rows, each a fixed-width tier label and its own block stack. No special shape is needed: a coloured panel with inner panels. The tier steps save back into the tier text ("3 + M damage; slide 2").</p></div>
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Only the right slots light up</h3><p>Each sliver says what fits there in <code>data.slot</code>, and the dragged block's <code>canDragOnto</code> checks it, so the engine only marks slots that accept the block. Drag "Damage" from the shelf: only the tier slots open.</p></div>
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Fixed lines have no grip</h3><p>What it is and who it targets are always there, so they are one coloured group with rows split by a hairline and no drag handle. Only steps move.</p></div>
-    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>The card is the real one</h3><p>The web prototype drew its own parchment card. In Lua the preview is the existing ability tooltip, as AbilityEditor's preview column shows it, so it always matches the game. Clicking a line to reword it needs the tooltip to report which line was clicked.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">New panel</div><h3>The card follows the book</h3><p>The preview keeps the printed book's layout: the ruled header with diamond marks, keywords and action on one line, distance and target with icons, tier marks and the characteristic chip. It is a new panel (<code>BEAbilityCard</code>) rather than the game's tooltip. Its paper and ink are fixed like the block colours, and the tier marks use the <code>DrawSteelGlyphs</code> font the roll text already uses. Each line is a link region you can click to reword.</p></div>
     <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>One colour table for both editors</h3><p>The two web prototypes used slightly different values for some groups (resources, logic). In Lua both read one <code>BEStyles.BlockColors</code> table, so a resource block is the same gold in both.</p></div>
   </div>
 </div>

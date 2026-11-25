@@ -3589,17 +3589,27 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         end
     end
 
-    --the bucket headings are its children, so their clicks land here.
+    --holds the rows (a hero's in section groups), so its rendered height is
+    --the scroll's true content height. A monster's bucket headings are its
+    --children, so their clicks land here.
+    local scrollBody = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        interactable = false,
+        toggleBucket = function(element, bucket)
+            folded[bucket] = not IsFolded(bucket)
+            ApplyFolds()
+        end,
+    }
+
     local scroller = gui.Panel{
         width = "100%",
         height = designHeight - VPAD * 2 - FOOTER_HEIGHT,
         flow = "vertical",
         vscroll = true,
         interactable = false,
-        toggleBucket = function(element, bucket)
-            folded[bucket] = not IsFolded(bucket)
-            ApplyFolds()
-        end,
+        scrollBody,
     }
 
     --a hero's header and jump row: they stay put while the back scrolls.
@@ -3611,39 +3621,68 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         interactable = false,
     }
 
+    --a hero's sections, each a margin-free group panel holding its heading
+    --and rows: { id = string, panel = Panel }, in scroll order.
+    local groups = {}
+
     --Scrolls so a section's heading sits at the top. There is no engine
-    --scroll-into-view: the offset is summed from the rendered heights (and
-    --bottom margins) of the shown rows above it, as ActionLogPanel does.
+    --scroll-into-view: the offset is the rendered heights of the section
+    --groups above it, and the range the body's own height less the view's.
+    --Groups carry no margins of their own and their auto height takes in
+    --their rows' margins, so nothing reads a row's margins: selfStyle reads
+    --of unset margins raise (logged even under pcall), and summing rows
+    --without them came up short, so every jump overshot.
     local function JumpTo(id)
-        local target = nil
-        for i, entry in ipairs(info) do
-            if entry.section == id then
-                target = i
+        local offset, found = 0, false
+        for _, group in ipairs(groups) do
+            if group.id == id then
+                found = true
                 break
             end
+            offset = offset + (tonumber(Try(function() return group.panel.renderedHeight end, 0)) or 0)
         end
-        if target == nil then
+        if not found then
             return
         end
-        --panel reads raise rather than return nil, so each is guarded.
-        local offset, total = 0, 0
-        for i, section in ipairs(sections) do
-            local shown = Try(function() return section.valid and not section:HasClass("collapsed") end, false)
-            local h = 0
-            if shown then
-                h = (tonumber(Try(function() return section.renderedHeight end, 0)) or 0)
-                    + (tonumber(Try(function() return section.selfStyle.bmargin end, 0)) or 0)
-            end
-            if i < target then
-                offset = offset + h
-            end
-            total = total + h
-        end
-        local range = total - Try(function() return scroller.renderedHeight end, 0)
+        local range = (tonumber(Try(function() return scrollBody.renderedHeight end, 0)) or 0)
+            - (tonumber(Try(function() return scroller.renderedHeight end, 0)) or 0)
         if range <= 0 then
             return
         end
         scroller.vscrollPosition = 1 - math.max(0, math.min(range, offset)) / range
+    end
+
+    --Gathers the rows into one group per section (rows before the first
+    --section heading, if any, ride in the first group).
+    --- @return Panel[]
+    local function GroupSections()
+        groups = {}
+        local current = nil
+        for i, section in ipairs(sections) do
+            local id = info[i] and info[i].section
+            if id ~= nil or current == nil then
+                current = { id = id, rows = {} }
+                groups[#groups+1] = current
+            end
+            current.rows[#current.rows+1] = section
+        end
+        local panels = {}
+        for _, group in ipairs(groups) do
+            --a bucket heading's click goes to its parent: the group.
+            group.panel = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                interactable = false,
+                toggleBucket = function(element, bucket)
+                    folded[bucket] = not IsFolded(bucket)
+                    ApplyFolds()
+                end,
+                children = group.rows,
+            }
+            panels[#panels+1] = group.panel
+        end
+        return panels
     end
 
     local content
@@ -3708,7 +3747,12 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
             for _, section in ipairs(sections) do
                 section.selfStyle.width = CONTENT_WIDTH
             end
-            scroller.children = sections
+            if isHero then
+                scrollBody.children = GroupSections()
+            else
+                groups = {}
+                scrollBody.children = sections
+            end
             ApplyFolds()
         end,
         heroTop,

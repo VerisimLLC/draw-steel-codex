@@ -1282,6 +1282,11 @@ local function OnForcedMove(creature, info)
     if not History.Enabled() or token == nil or wentNowhere then
         return
     end
+    --it has moved again: damage from here on is not an earlier push's collision, even when this
+    --move records none of its own (it only bounced, or passed through creatures).
+    if not info.stopped then
+        g_colliding[token.charid] = nil
+    end
     local moved = {
         kind = info.kind,
         distance = info.distance,

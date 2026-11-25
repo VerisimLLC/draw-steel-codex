@@ -27,10 +27,10 @@ tables = {
 }
 # Core classes the builder can open (records exactly as the compendium stores them), with every
 # subclass that names them as parent. Opening one reads the records back into blocks.
-CORE_CLASSES = ["Fury"]
+CORE_CLASSES = None   # every class (None) or a list of names
 core = {"classes": [], "subclasses": []}
 for c in rows("classes"):
-    if c.get("name") in CORE_CLASSES:
+    if CORE_CLASSES is None or c.get("name") in CORE_CLASSES:
         core["classes"].append(c)
         core["subclasses"] += [x for x in rows("subclasses") if x.get("primaryClassId") == c["id"]]
 open(os.path.join(OUT, "core-classes.js"), "w").write("window.CB_CORE = " + json.dumps(core, separators=(",", ":")) + ";\n")

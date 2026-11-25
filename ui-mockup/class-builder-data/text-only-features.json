@@ -1,0 +1,584 @@
+[
+ {
+  "class": "Beastheart",
+  "lane": "level-2",
+  "feature": "Everyone's Best Friend",
+  "text": "Once per round during a montage test, when you or another character makes a test, your companion can increase the tier outcome by one tier (maximum tier 3)."
+ },
+ {
+  "class": "Beastheart",
+  "lane": "level-4",
+  "feature": "Unleash the Beast",
+  "text": "The first time each combat round that a creature adjacent to your companion takes damage, you gain 3 ferocity instead of 2 ferocity.\n\n*Implemented under the Ferocity class feature's Adjacent to Companion Damaged trigger*"
+ },
+ {
+  "class": "Beastheart",
+  "lane": "level-6",
+  "feature": "Become the Beast",
+  "text": "Your companion\u2019s rampage burns in your brain, and you become part beast yourself. You gain the level 6 advancement feature granted by your companion\u2019s stat block.\u000b**Important:** These are implemented on each companion's "
+ },
+ {
+  "class": "Beastheart/Guardian",
+  "lane": "level-5",
+  "feature": "There For Each Other",
+  "text": "When you or your companion uses your The Pack Defends ability to spend a Recovery, you and the target both regain Stamina."
+ },
+ {
+  "class": "Beastheart/Punisher",
+  "lane": "level-5",
+  "feature": "I Can Take It",
+  "text": "When you or your companion uses your Thunderclap ability and halves the triggering damage, whoever uses the ability can take the remaining damage instead of the original target. The damage is transferred before immunity "
+ },
+ {
+  "class": "Censor",
+  "lane": "level-10",
+  "feature": "Templar",
+  "text": "You are the ultimate representation of your god\u2019s justice in the timescape. Whenever you use your Judgment ability, you can use a free triggered action to use a conduit domain effect associated with your chosen domain, o"
+ },
+ {
+  "class": "Censor",
+  "lane": "level-4",
+  "feature": "Wrath Beyond Wrath",
+  "text": "The first time each combat round that you deal damage to a creature judged by you, you gain 2 wrath instead of 1."
+ },
+ {
+  "class": "Censor/Oracle",
+  "lane": "level-5",
+  "feature": "Prophecy",
+  "text": "You can better sift through the constant fragmentary visions from your deity and act to make them manifest. Each time you earn 1 or more Victories, you can make a number of 2d10 rolls equal to the number of Victories you"
+ },
+ {
+  "class": "Censor/Paragon",
+  "lane": "level-8",
+  "feature": "Vow",
+  "text": "Your words take on the power of your deity, with all the authority that entails. If you convince a creature to take an oath, they can\u2019t break it for 7 days. If you take an oath, you can\u2019t break it for 7 days."
+ },
+ {
+  "class": "Conduit",
+  "lane": "level-10",
+  "feature": "Avatar",
+  "text": "You are now an avatar of your god! When you use your Prayer feature, you can be affected by up to three prayers at once, and you can change all those prayers and your ward as a respite activity. You can also use a maneuv"
+ },
+ {
+  "class": "Conduit",
+  "lane": "level-3",
+  "feature": "Minor Miracle",
+  "text": "As a respite activity, you can perform a religious ritual and beseech the gods to restore a dead creature to life. You must have at least half the creature\u2019s remains, and they must have died within the last 24 hours from"
+ },
+ {
+  "class": "Conduit",
+  "lane": "level-4",
+  "feature": "Blessed Domain",
+  "text": "Whenever you gain piety from a domain effect, you gain 1 additional piety"
+ },
+ {
+  "class": "Elementalist",
+  "lane": "level-4",
+  "feature": "Font of Essence",
+  "text": "The first time each combat round that you or a creature within 10 squares takes damage that isn't untyped or holy damage, you gain 2 essence instead of 1."
+ },
+ {
+  "class": "Elementalist",
+  "lane": "level-4",
+  "feature": "Mantle of Essence",
+  "text": "While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantl"
+ },
+ {
+  "class": "Elementalist",
+  "lane": "level-6",
+  "feature": "Wyrding",
+  "text": "You can spend 10 uninterrupted minutes to create a freeform magic spell for a variety of situations. Choose one of the following magical effects:\nYou create a mundane object of a size equal to your Reason score or smalle"
+ },
+ {
+  "class": "Elementalist",
+  "lane": "level-7",
+  "feature": "Mantle of Quintessence",
+  "text": "Your Mantle of Essence feature no longer requires essence. \n\nAdditionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle's aura have their starting patience inc"
+ },
+ {
+  "class": "Elementalist/Fire",
+  "lane": "level-3",
+  "feature": "A Conversation with Fire",
+  "text": "When you spend 1 uninterrupted minute in front of a fire, you can speak the name of another creature. If that creature is willing to speak to you, their image appears in the fire, and they can see you before them in a sh"
+ },
+ {
+  "class": "Elementalist/Green",
+  "lane": "level-8",
+  "feature": " Chimeric Manifestation",
+  "text": "Nature isn\u2019t static and unchanging, and neither are you. You can enter or exit your animal form as a free maneuver the first time you use your Disciple of the Green feature on your turn. Additionally, whenever you use yo"
+ },
+ {
+  "class": "Elementalist/Green",
+  "lane": "tutoriallevel-1",
+  "feature": "It Is the Soul Which Hears",
+  "text": "You can speak with and understand animals, beasts, and plant creatures, even if they don\u2019t share a language with you. Your ability to communicate with these creatures doesn\u2019t make them inherently more intelligent, but yo"
+ },
+ {
+  "class": "Elementalist/Void",
+  "lane": "level-3",
+  "feature": "Distance Is Only Memory",
+  "text": "Each time you finish a respite, you can open a two-way portal that leads to any place you have previously been. You and your allies can pass through the portal, which remains open for 1 hour or until you dismiss it as a "
+ },
+ {
+  "class": "Fury",
+  "lane": "level-10",
+  "feature": "Chaos Incarnate",
+  "text": "Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score. If yo"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-10",
+  "feature": "Growing Ferocity Improvement",
+  "text": "Your Growing Ferocity feature provides additional benefits when youhave 12 or more ferocity.\n*Implemented under subclass Encounter 1 feature*"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-10",
+  "feature": "Primordial Ferocity",
+  "text": "The first time you take damage each combat round, you gain 3 ferocity instead of 2.\n\n*Implemented under Encounter 1 Ferocity Feature*"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-4",
+  "feature": "Damaging Ferocity",
+  "text": "The first time you take damage each combat round, you gain 2 ferocity instead of 1."
+ },
+ {
+  "class": "Fury",
+  "lane": "level-4",
+  "feature": "Growing Ferocity Improvement",
+  "text": "Your Growing Ferocity feature provides additional benefits when you have 8 or more ferocity."
+ },
+ {
+  "class": "Fury",
+  "lane": "level-4",
+  "feature": "Primordial Attunement",
+  "text": "As your ferocity manifests elemental forces created by the Primordial Chaos, you are aware of how elemental power interacts with those around you. You automatically sense whether any creature within 10 squares has damage"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-6",
+  "feature": "Primordial Portal",
+  "text": "As a main action, you can touch a magic source of elemental power and use it to create a portal to Quintessence. You can then use a main action to teleport yourself and any willing creatures within 10 squares of you thro"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-7",
+  "feature": "Greater Ferocity",
+  "text": "When you gain ferocity at the start of each of your turns during combat,\nyou gain 1d3 + 1 ferocity instead of 1d3. "
+ },
+ {
+  "class": "Fury",
+  "lane": "level-7",
+  "feature": "Growing Ferocity Improvement",
+  "text": "Your Growing Ferocity feature provides additional benefits when you\nhave 10 or more ferocity.\n\n*Implemented under subclass Encounter 1 feature*"
+ },
+ {
+  "class": "Fury",
+  "lane": "level-9",
+  "feature": "Harbinger of the Primordial Chaos",
+  "text": "You can create a temporary source of elemental power as a respite activity. This source of elemental power lasts 24 hours after creation, and can be used to create a portal to Quintessence with your Primordial Portal fea"
+ },
+ {
+  "class": "Fury/Stormwight",
+  "lane": "level-3",
+  "feature": "Nature\u2019s Knight",
+  "text": "You can speak with all animals and elementals regardless of what form you are in. You automatically sense the presence of any animal or elemental within 10 squares of you, even if they are hidden. You are considered to h"
+ },
+ {
+  "class": "Fury/Stormwight",
+  "lane": "level-5",
+  "feature": "Stormborn",
+  "text": "You and each ally within 5 squares of you ignore negative effects from inclement weather, such as banes or environmental damage. Additionally, you can use the Blessing of Fortunate Weather feature as if you were a 1st-le"
+ },
+ {
+  "class": "Fury/Stormwight",
+  "lane": "level-5",
+  "feature": "Blessing of Fortunate Weather",
+  "text": "When you finish a respite, you can decide the weather conditions within 100 squares of you. Until you finish another respite, the weather conditions you establish follow you through any mundane outdoor locations. \n\nChoos"
+ },
+ {
+  "class": "Null",
+  "lane": "level-10",
+  "feature": "Discipline Mastery Improvement",
+  "text": "Your Discipline Mastery feature provides additional benefits when you have 12 or more discipline.\n*Implemented under subclass Encounter 1 feature*"
+ },
+ {
+  "class": "Null",
+  "lane": "level-10",
+  "feature": "Manifold Resonance",
+  "text": "Your body becomes perfected matter, beyond the whims and chaos of the timescape and the restrictions of the manifolds. Each time you finish a respite, you can shift yourself and any creatures in the area of your Null Fie"
+ },
+ {
+  "class": "Null",
+  "lane": "level-4",
+  "feature": "Discipline Mastery Improvement",
+  "text": "Your Discipline Mastery feature provides additional benefits when you have 8 or more discipline."
+ },
+ {
+  "class": "Null",
+  "lane": "level-4",
+  "feature": "Enhanced Null Field",
+  "text": "While using your Null Field ability, you disrupt magic and psionic power suffusing the area around you. During combat, any temporary supernatural terrain effects of your level or lower are removed when your aura partiall"
+ },
+ {
+  "class": "Null",
+  "lane": "level-4",
+  "feature": "Regenerative Field",
+  "text": "The first time each combat round that an enemy in the area of your Null Field ability uses a main action, you gain 2 discipline instead of 1."
+ },
+ {
+  "class": "Null",
+  "lane": "level-6",
+  "feature": "Elemental Absorption",
+  "text": "Whenever you use your Inertial Shield triggered action, you gain immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Intuition score against the triggering damage."
+ },
+ {
+  "class": "Null",
+  "lane": "level-7",
+  "feature": "Discipline Mastery Improvement",
+  "text": "Your Discipline Mastery feature provides additional benefits when you have 10 or more discipline.\n*Implemented under subclass Encounter 1 feature*"
+ },
+ {
+  "class": "Null/Disciple of the Chronokinetic",
+  "lane": "level-2",
+  "feature": "Rapid Processing",
+  "text": "As a maneuver, you can read an entire book or process a similar amount of information. Additionally, during any respite, you can take an additional respite activity. "
+ },
+ {
+  "class": "Null/Disciple of the Cryokinetic",
+  "lane": "level-8",
+  "feature": "Synaptic Triage",
+  "text": "As a free maneuver, you can spend 1d6 Stamina to remove one effect on you. Each creature of your choice in the area of your Null Field ability also gains this benefit."
+ },
+ {
+  "class": "Null/Disciple of the Metakinetic",
+  "lane": "level-8",
+  "feature": "Inertial Dampener",
+  "text": "You and each creature or object of your choice in the area of your Null Field ability gain a bonus to stability equal to your Intuition score. A creature who attempts to force move a target with this bonus takes psychic "
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-10",
+  "feature": "Death Pool",
+  "text": "The first time each combat round that you deal damage incorporating 1 or more surges, you gain 3 insight instead of 2.\n*Implemented under Encounter 1 Insight feature*"
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-10",
+  "feature": "Improved Umbral Form",
+  "text": "You gain full control over the shadow creature you become with your Umbral Form feature, and you can end the transformation at will (no action required). Additionally, you are always wreathed in darkness that grants you "
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-4",
+  "feature": "Keep It Down",
+  "text": "While conversing with any creature you share a language with, you can decide whether anyone else can perceive what you're conveying, even while yelling."
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-4",
+  "feature": "Surge of Insight",
+  "text": "The first time each combat round that you deal damage incorporating 1 or more surges, you gain 2 insight instead of 1."
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-7",
+  "feature": "Keen Insight",
+  "text": "At the start of each of your turns during combat, you gain 1d3 + 1 insight instead of 1d3."
+ },
+ {
+  "class": "Shadow",
+  "lane": "level-7",
+  "feature": "Ventriloquist",
+  "text": "Whenever you communicate, you can throw your voice so that it seems to originate from a creature or object within 10 squares. If you are hidden, talking this way doesn't cause you to be revealed."
+ },
+ {
+  "class": "Summoner",
+  "lane": "level-10",
+  "feature": "No Matter the Cost",
+  "text": "Whenever you sacrifice minions, you now reduce the cost of a heroic ability or minion by the same amount (to a minimum of 1) instead of only reducing the cost by 1.\n*Implemented within Essence Minion Death trigger\u2014Encoun"
+ },
+ {
+  "class": "Summoner",
+  "lane": "level-4",
+  "feature": "Minion Chain",
+  "text": "Whenever you use Minion Bridge as a maneuver, each of your minions within your Summoner\u2019s Range can shift up to their speed before the maneuver takes effect, as long as each minion that shifts ends their movement adjacen"
+ },
+ {
+  "class": "Summoner",
+  "lane": "level-6",
+  "feature": "Minion Machinations",
+  "text": "Your maximum number of followers increases by 2.\nYou can summon and recruit an artisan follower and a sage follower that share a keyword with a minion you can summon. These followers can be creatures from your portfolio "
+ },
+ {
+  "class": "Summoner",
+  "lane": "level-9",
+  "feature": "Steward of Two Worlds",
+  "text": "You and your allies are now welcome in your circle\u2019s source manifold. Negotiations with native denizens of your circle\u2019s source manifold have their patience increased by 2"
+ },
+ {
+  "class": "Summoner",
+  "lane": "tutoriallevel-1",
+  "feature": "Minions Outside of Combat",
+  "text": "While outside of combat, you can have up to 4 minions summoned without spending essence. You can freely summon your signature minions this way. For other minions, while you have a number of Victories equal to the minion\u2019"
+ },
+ {
+  "class": "Summoner",
+  "lane": "tutoriallevel-1",
+  "feature": "Essence Outside of Combat",
+  "text": "Though you can\u2019t gain essence outside of combat, you can use your heroic abilities and effects that cost essence without spending it. Whenever you use an ability or effect outside of combat that costs essence, you can\u2019t "
+ },
+ {
+  "class": "Summoner",
+  "lane": "tutoriallevel-3",
+  "feature": "Summoner Abilities",
+  "text": "Your own abilities focus on support and enable you to position and outfit your allies for success."
+ },
+ {
+  "class": "Summoner",
+  "lane": "tutoriallevel-3",
+  "feature": "Heroic Abilities",
+  "text": "Breaking down your essence into pure power can lead to devastating effects. Your heroic abilities enable you to punctuate your army's efforts."
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "level-2",
+  "feature": "Summoner\u2019s Dominion",
+  "text": "Your circle allows you to call forth a piece of your portfolio\u2019s dominion like any minion. \nOnce per encounter, you can use a maneuver to summon a fixture from your minions\u2019 native manifold or origin into an unoccupied s"
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "level-2",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "level-5",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "level-8",
+  "feature": "8th-Level Circle Feature",
+  "text": "Your circle grants you a feature as shown on the 8th-Level Summoner Circle Features table."
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "level-8",
+  "feature": "Portfolio Champion",
+  "text": "Your circle now allows you to add a champion to your portfolio. Champions follow the same rules as your other minions, with the following exceptions:\n\u2022 You can only summon and command one instance of your champion.\n\u2022 You"
+ },
+ {
+  "class": "Summoner/Circle of Blight",
+  "lane": "tutoriallevel-3",
+  "feature": "Soulsense",
+  "text": "While you have line of effect to a creature with a soul, you can perceive a trail of where the creature has been in the last number of minutes equal to 5 \u00d7 your level.\nWhen you finish a respite, you can always perceive t"
+ },
+ {
+  "class": "Summoner/Circle of Graves",
+  "lane": "level-2",
+  "feature": "Summoner's Dominion",
+  "text": "Your circle allows you to call forth a piece of your portfolio's dominion like any minion. \nOnce per encounter, you can use a maneuver to summon a fixture from your minions' native manifold or origin into an unoccupied s"
+ },
+ {
+  "class": "Summoner/Circle of Graves",
+  "lane": "level-2",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Graves",
+  "lane": "level-5",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Graves",
+  "lane": "level-8",
+  "feature": "8th-Level Circle Feature",
+  "text": "Your circle grants you a feature as shown on the 8th-Level Summoner Circle Features table."
+ },
+ {
+  "class": "Summoner/Circle of Graves",
+  "lane": "level-8",
+  "feature": "Portfolio Champion",
+  "text": "Your circle now allows you to add a champion to your portfolio. Champions follow the same rules as your other minions, with the following exceptions:\n\u2022 You can only summon and command one instance of your champion.\n\u2022 You"
+ },
+ {
+  "class": "Summoner/Circle of Spring",
+  "lane": "level-2",
+  "feature": "Summoner's Dominion",
+  "text": "Your circle allows you to call forth a piece of your portfolio's dominion like any minion. \nOnce per encounter, you can use a maneuver to summon a fixture from your minions' native manifold or origin into an unoccupied s"
+ },
+ {
+  "class": "Summoner/Circle of Spring",
+  "lane": "level-2",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Spring",
+  "lane": "level-5",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Spring",
+  "lane": "level-8",
+  "feature": "8th-Level Circle Feature",
+  "text": "Your circle grants you a feature as shown on the 8th-Level Summoner Circle Features table."
+ },
+ {
+  "class": "Summoner/Circle of Spring",
+  "lane": "level-8",
+  "feature": "Portfolio Champion",
+  "text": "Your circle now allows you to add a champion to your portfolio. Champions follow the same rules as your other minions, with the following exceptions:\n\u2022 You can only summon and command one instance of your champion.\n\u2022 You"
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "level-2",
+  "feature": "Summoner's Dominion",
+  "text": "Your circle allows you to call forth a piece of your portfolio's dominion like any minion. \nOnce per encounter, you can use a maneuver to summon a fixture from your minions' native manifold or origin into an unoccupied s"
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "level-2",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "level-5",
+  "feature": "New Portfolio Minion",
+  "text": "Your circle allows you to select new minions to add to your portfolio."
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "level-8",
+  "feature": "8th-Level Circle Feature",
+  "text": "Your circle grants you a feature as shown on the 8th-Level Summoner Circle Features table."
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "level-8",
+  "feature": "Portfolio Champion",
+  "text": "Your circle now allows you to add a champion to your portfolio. Champions follow the same rules as your other minions, with the following exceptions:\n\u2022 You can only summon and command one instance of your champion.\n\u2022 You"
+ },
+ {
+  "class": "Summoner/Circle of Storms",
+  "lane": "tutoriallevel-3",
+  "feature": "Heart of Nature",
+  "text": "You can sense the presence of creatures with the elemental or dragon keywords within 1 mile of you. You can innately feel their emotions or pain, and you can't obtain lower than a tier 2 outcome on any Intuition test mad"
+ },
+ {
+  "class": "Tactician",
+  "lane": "level-10",
+  "feature": "Warmaster",
+  "text": "You have mastered the entirety of possible strategies and tactics. Whenever you or any ally makes an ability roll against a target marked by you, the character making the roll can roll three dice and choose which two to "
+ },
+ {
+  "class": "Tactician",
+  "lane": "level-4",
+  "feature": "Focus on Their Weaknesses ",
+  "text": "The first time each combat round that you or any ally damages a target marked by you, you gain 2 focus instead of 1. "
+ },
+ {
+  "class": "Tactician",
+  "lane": "tutoriallevel-1",
+  "feature": "Field Arsenal",
+  "text": "You have drilled with a broad array of weapons and have developed techniques to optimize their use. Whenever you select or change your kit, you can select an additional martial kit and gain the benefits of both kits.\n\nIf"
+ },
+ {
+  "class": "Tactician/Insurgent",
+  "lane": "tutoriallevel-1",
+  "feature": "Covert Operations",
+  "text": "While in your presence or working according to your plans, each of your allies gains an edge on tests with any skill from the intrigue skill group. Additionally, you can use the Lead skill to assist on any test made with"
+ },
+ {
+  "class": "Tactician/Vanguard",
+  "lane": "tutoriallevel-1",
+  "feature": "Imposing Attitude",
+  "text": "You command any room you walk into. While you are present, each hero with you is treated as having a Renown 2 higher than usual for the purpose of negotiations and influencing tests. Additionally, each hero with you has "
+ },
+ {
+  "class": "Talent",
+  "lane": "level-10",
+  "feature": "Clear Mind",
+  "text": "The first time each combat round that a creature is force moved, you gain 3 clarity instead of 2.\n*Implement under Encounter 1 Clarity feature*"
+ },
+ {
+  "class": "Talent",
+  "lane": "level-10",
+  "feature": "Psion",
+  "text": "At the start of each of your turns during combat, you gain 1d3 + 2 clarity instead of 1d3 + 1.\nAdditionally, you can choose to not take damage from having negative clarity. You can also choose to take on any ability\u2019s st"
+ },
+ {
+  "class": "Talent",
+  "lane": "level-7",
+  "feature": "Lucid Mind",
+  "text": "At the start of each of your turns during combat, you gain 1d3 + 1 clarity instead of 1d3."
+ },
+ {
+  "class": "Talent/Chronopathy",
+  "lane": "level-2",
+  "feature": "Ease the Hours",
+  "text": "You can increase the number of rounds in a montage test by 1 if the test would end before the heroes hit the success limit. "
+ },
+ {
+  "class": "Talent/Chronopathy",
+  "lane": "level-8",
+  "feature": "Doubling the Hours",
+  "text": "While you have 5 or more Victories, you can undertake an additional respite activity during a respite."
+ },
+ {
+  "class": "Talent/Telepathy",
+  "lane": "level-5",
+  "feature": "Compulsion",
+  "text": "Whenever you obtain a success on a test using a skill from the interpersonal skill group while interacting with an NPC, you can ask them a question using your Telepathic Speech feature. The NPC must answer the question t"
+ },
+ {
+  "class": "Talent/Telepathy",
+  "lane": "level-8",
+  "feature": "Universal Connection",
+  "text": "The range of your Telepathic Speech feature increases to anywhere on the same world."
+ },
+ {
+  "class": "Troubadour",
+  "lane": "level-1",
+  "feature": "Scene Partner",
+  "text": "Whenever you obtain a success on a test to interact with an NPC using a skill from the interpersonal group, you can form a bond with that NPC. When you enter into a negotiation with a bonded NPC, their patience increases"
+ },
+ {
+  "class": "Troubadour",
+  "lane": "level-10",
+  "feature": "Dramaturgy",
+  "text": "You gain 1 additional drama or other Heroic Resource whenever youuse your Appeal to the Muses feature. Additionally, your performances no longer have a distance, but can affect any target on the encounter map within your"
+ },
+ {
+  "class": "Troubadour",
+  "lane": "level-10",
+  "feature": "Greatest of All Time",
+  "text": "Whenever you obtain a success on a test, each NPC within your line of effect has their Impression score decreased by 4 during a negotiation (to a minimum of 1), and each ally within 3 squares of you gains an edge on thei"
+ },
+ {
+  "class": "Troubadour",
+  "lane": "level-2",
+  "feature": "Appeal to the Muses",
+  "text": "You can give a rousing speech, invoke your inspirations, or lift your fellows\u2019 spirits, appealing to the muses to heighten a battle\u2019s drama.\nHowever, irony is eager to hand your fortune to the villain to achieve\nthe same"
+ },
+ {
+  "class": "Troubadour/Auteur",
+  "lane": "level-3",
+  "feature": "Missed Cue",
+  "text": "If you aren't surprised at the start of an encounter, you can choose one enemy within your line of effect who is not a leader or solo creature. The Director temporarily removes the chosen creature from the encounter. The"
+ },
+ {
+  "class": "Troubadour/Duelist",
+  "lane": "level-8",
+  "feature": "Masterwork",
+  "text": "Choose one of your signature abilities and name it after yourself. You always have this ability available, even if it is sourced from a kit you switch out. Whenever you use this ability, you gain an edge and 1 surge that"
+ }
+]

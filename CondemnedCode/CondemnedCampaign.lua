@@ -3016,9 +3016,8 @@ CondemnedCampaign.CollarRowExtras = CollarRowExtras
         local chosen = {}
         local rowPanels = {}
         local rolling = false
-        --goes up whenever all the picks change (map, patrol, Roll Start Positions), so a die
-        --still in the air for the old picks is thrown away; rowChange does the same for one row
-        --when it is picked by hand
+        --goes up when the map or patrol changes or Roll Start Positions is pressed, so a die
+        --still rolling for the old picks is ignored; rowChange does the same for one row picked by hand
         local changeCount = 0
         local rowChange = {}
         --Set Up is refused while any die is still rolling, so a result landing after it is never lost
@@ -3269,6 +3268,9 @@ CondemnedCampaign.CollarRowExtras = CollarRowExtras
 
             local encounter = DeepCopy(source)
             encounter.mapid = map.mapid
+            --the map picked in the popup wins: without this, a widget set on a Map Library
+            --map would open that map instead
+            encounter.mapRef = ""
             --hand the chosen positions to the patrol script through its settings, on this copy so
             --the journal widget keeps its own; rows left on Roll keep the widget's 0, which the
             --script rolls itself

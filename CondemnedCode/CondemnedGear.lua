@@ -8,9 +8,10 @@ local mod = dmhub.GetModLoading()
 --part is the state and the hand out; the window is built on top of it.
 --
 --Storage:
---  * The "condemnedGear" document: the allowance, whether the window is open, and each
---    hero's choices as one JSON string. Every write copies the whole document, so it
---    holds only this, and two players choosing at once write different keys.
+--  * The "condemnedGear" document: the allowance, whether the window is open, each
+--    hero's choices as one JSON string, and which heroes are done. Every write copies the
+--    whole document, so it holds only this, and two players choosing at once write
+--    different keys. Done has its own key so pressing it never rewrites the choices.
 --  * What a hero was given is a marker on the hero (MARKER), written in the same write
 --    as the items. An undo takes both away together, so nothing is given twice.
 
@@ -117,6 +118,7 @@ function CondemnedGear.Reset()
     ChangeDoc("Reset experimental gear", function(data)
         data.open = nil
         data.choices = nil
+        data.done = nil
     end)
 end
 
@@ -142,28 +144,34 @@ local function DecodeChoices(raw)
             result.grenades[itemid] = count
         end
     end
-    result.done = value.done == true or nil
     return result
 end
 
---- What a hero has chosen so far.
+--- What a hero has chosen so far, and whether their player pressed Done.
 --- @param charid string
 --- @return CondemnedGearChoices
 function CondemnedGear.Choices(charid)
-    return DecodeChoices((Doc().data.choices or {})[charid])
+    local data = Doc().data
+    local result = DecodeChoices((data.choices or {})[charid])
+    result.done = (data.done or {})[charid] == true or nil
+    return result
 end
 
 --- Store a hero's choices (the whole set, replacing what was there); nil clears them.
+--- Any change sets the hero back to choosing until Done is pressed again.
 --- @param charid string
 --- @param choices nil|CondemnedGearChoices
 function CondemnedGear.SetChoices(charid, choices)
+    local stored = nil
     if choices ~= nil then
-        --a change to what was chosen means the hero is not done with it any more.
-        choices.done = nil
+        stored = { gear = choices.gear, grenades = choices.grenades }
     end
     ChangeDoc("Choose experimental gear", function(data)
         data.choices = data.choices or {}
-        data.choices[charid] = choices ~= nil and dmhub.ToRawJson(choices) or nil
+        data.choices[charid] = stored ~= nil and dmhub.ToRawJson(stored) or nil
+        if data.done ~= nil then
+            data.done[charid] = nil
+        end
     end)
 end
 
@@ -171,11 +179,9 @@ end
 --- allowance; changing them afterwards (SetChoices) sets the hero back to choosing.
 --- @param charid string
 function CondemnedGear.SetDone(charid)
-    local choices = CondemnedGear.Choices(charid)
-    choices.done = true
     ChangeDoc("Done choosing experimental gear", function(data)
-        data.choices = data.choices or {}
-        data.choices[charid] = dmhub.ToRawJson(choices)
+        data.done = data.done or {}
+        data.done[charid] = true
     end)
 end
 
@@ -242,7 +248,8 @@ function CondemnedGear.MyHeroes()
 end
 
 --- Where a hero is up to: "given" (handed out), "over" (more than the allowance, after
---- the Director lowered it), "done" (exactly the allowance), "nothing" or "choosing".
+--- the Director lowered it), "done" (their player pressed Done, whatever they chose),
+--- "nothing" or "choosing".
 --- @param entry CondemnedGearHero
 --- @return string
 function CondemnedGear.Status(entry)
@@ -274,9 +281,8 @@ function CondemnedGear.IsHandingOut()
 end
 
 --Gives one hero their choices, equipping gear into a free slot (else it stays in the
---inventory), and leaves the marker. Runs inside the hand out's write; a hero who already
---has the marker (a second Director, or a Firebase game, which skips the server's check)
---is left alone.
+--inventory), and leaves the marker. Runs inside the hand out's write. Skips a hero whose
+--marker this screen already sees, e.g. after another Director's Hand out has arrived.
 --- @param hero creature
 --- @param choices CondemnedGearChoices
 local function GiveChoices(hero, choices)
@@ -296,21 +302,22 @@ end
 --- Director only. Gives every hero who has not had their gear yet what they chose, as one
 --- write the server applies whole or not at all, then closes the window for everyone.
 --- onDone(ok, count) runs when the server answers: ok false means another change to a
---- hero got in first and nothing was given. Returns false when nothing was sent: not the
---- Director, a hand out already waiting, someone Over limit, or every hero already has
---- their gear.
+--- hero got in first and nothing was given. Returns false and why when nothing was sent:
+--- "busy" (not the Director, or a hand out already waiting), "over" (someone Over limit)
+--- or "nothing" (no hero who still needs gear has chosen any).
 --- @param onDone nil|fun(ok: boolean, count: integer)
---- @return boolean
+--- @return boolean sent
+--- @return nil|string why
 function CondemnedGear.HandOut(onDone)
     if g_handingOut or not dmhub.isDM then
-        return false
+        return false, "busy"
     end
     --- @type {token: CharacterToken, choices: CondemnedGearChoices}[]
     local pending = {}
     for _, entry in ipairs(CondemnedGear.Heroes()) do
         local status = CondemnedGear.Status(entry)
         if status == "over" then
-            return false
+            return false, "over"
         end
         --a hero with nothing chosen (Done or not) gets no marker, so a later round can still
         --give them gear: pressing Done by mistake must not lock a hero out.
@@ -321,7 +328,7 @@ function CondemnedGear.HandOut(onDone)
         end
     end
     if #pending == 0 then
-        return false
+        return false, "nothing"
     end
 
     local holders = {}
@@ -396,10 +403,9 @@ end
 --------------------------------------------------------------------------------
 -- The window
 --------------------------------------------------------------------------------
---A modal pop-up (HeroSheetWindow.ShowPopup: it follows Font Size and the colour
---scheme, and caps itself to the screen). The Director's Open puts it on every screen;
---anyone can close theirs and reopen it from the Campaign Tracker while it is open.
---It is built once when it opens; clicks and remote changes repaint it in place.
+--A modal pop-up the Director's Open puts on every screen. Anyone can close theirs and
+--reopen it from the floating tab or the Campaign Tracker while it is open. Built once;
+--changes repaint it in place.
 
 local OPEN_EVENT = "condemnedGearOpen"
 
@@ -408,8 +414,8 @@ local WINDOW_WIDTH = 1040
 local WINDOW_HEIGHT = 672
 local BAND_HEIGHT = 56
 
---Narrower than this (the screen capping a large Font Size), the gear list shows one
---row per item instead of cards: the list then has under about 38 lines of text width.
+--Narrower than this (a large Font Size capped by the screen), gear shows as one row per
+--item: three cards would be too narrow to read.
 local ROWS_BELOW = 930
 
 --The band's art: the painting on the journal's "Handout: Experimental Gear" page,
@@ -455,7 +461,7 @@ end
 local g_selected = CondemnedGear.GEAR[1]
 
 --True while the window is too narrow for gear cards: one row per item instead.
-local g_rows = false
+local g_useRows = false
 
 --the body under the band, and its two columns: the list, and the preview pane.
 local BODY_HEIGHT = WINDOW_HEIGHT - BAND_HEIGHT
@@ -472,9 +478,20 @@ local LIST_INNER = LIST_WIDTH - SCROLL_GUTTER
 local CARD_GAP = 8
 local CARD_WIDTH = math.floor((LIST_INNER - 2 * CARD_GAP) / 3)
 local CARD_HEIGHT = 116
+--a gear card's padding, art and the gap after the art: its name column gets the rest.
+local CARD_PAD = 9
+local CARD_ART = 44
+local CARD_TEXT_WIDTH = CARD_WIDTH - 2 * CARD_PAD - CARD_ART - CARD_PAD
+--a grenade row's padding, art and gap, and the room its -/+ count takes on the right.
+local ROW_PAD = 8
+local ROW_ART = 36
+local ROW_ART_GAP = 10
+local ROW_STEPPER_ROOM = 90
+--the pane's "n chosen" label beside its button, for a grenade the hero has some of.
+local CHOSEN_COUNT_ROOM = 110
 
 --Colours the hero sheet's classes do not have: a chosen item's edge and the Over limit
---pill. Built from the scheme's palette and compiled once per palette (as RootStyles is).
+--pill. Built from the scheme's palette and compiled once per palette.
 local g_gearStyles = { key = nil, styles = nil }
 
 --- @return table[]
@@ -492,7 +509,7 @@ local function GearStyles()
         { selectors = { "cgArt" }, bgcolor = palette.tile, borderColor = palette.tileBorder },
         { selectors = { "cgOverPill" }, borderColor = palette.warning, color = palette.warning },
         { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
-        --the window's own surface: the scheme's plate, the prototype's near-black.
+        --the window's own surface: the scheme's plate colour.
         { selectors = { "cgWindow" }, bgcolor = palette.plate },
         { selectors = { "cgTab" }, borderColor = palette.tileBorder },
         --the main action: solid gold (the scheme's info colour) with dark bold words.
@@ -510,6 +527,27 @@ local function GearStyles()
     end
     g_gearStyles = { key = key, styles = compiled }
     return compiled
+end
+
+--The window's buttons are a frame with a label inside; these change both at once.
+local DIM_OPACITY = 0.45
+
+--- Solid gold (the scheme's info colour), for a window's main action.
+--- @param button Panel a HeroSheetTheme.WindowButton
+--- @param gold boolean
+local function SetGold(button, gold)
+    button:SetClass("cgGold", gold)
+    button.children[1]:SetClass("cgGold", gold)
+end
+
+--- Dim a button that can't be used now. Opacity is not passed on to children, so the
+--- label is dimmed too.
+--- @param button Panel a HeroSheetTheme.WindowButton
+--- @param dimmed boolean
+local function Dim(button, dimmed)
+    local opacity = dimmed and DIM_OPACITY or 1
+    button.selfStyle.opacity = opacity
+    button.children[1].selfStyle.opacity = opacity
 end
 
 --- True when this user may change the hero's choices: the Director, or their own hero
@@ -602,12 +640,12 @@ local function SectionHeading(text)
         flow = "vertical",
         width = "100%",
         height = "auto",
-        count = function(element, n, max)
-            count.text = T("condemned.gear.count", { n = n, max = max })
-            count:SetClass("heroSheetCardSuccess", n == max)
-            count:SetClass("heroSheetWarning", n > max)
-            count:SetClass("heroSheetCardSub", n < max)
-            pill:SetClass("collapsed", n <= max)
+        count = function(element, chosen, max)
+            count.text = T("condemned.gear.count", { n = chosen, max = max })
+            count:SetClass("heroSheetCardSuccess", chosen == max)
+            count:SetClass("heroSheetWarning", chosen > max)
+            count:SetClass("heroSheetCardSub", chosen < max)
+            pill:SetClass("collapsed", chosen <= max)
         end,
         gui.Panel{
             flow = "horizontal",
@@ -716,7 +754,7 @@ local function BuildList(repaint)
                     width = CARD_WIDTH,
                     height = CARD_HEIGHT,
                     flow = "vertical",
-                    pad = 9,
+                    pad = CARD_PAD,
                     borderBox = true,
                     rmargin = CARD_GAP,
                     bmargin = CARD_GAP,
@@ -729,12 +767,12 @@ local function BuildList(repaint)
                         width = "100%",
                         height = 46,
                         interactable = false,
-                        ItemArt(item, 44),
+                        ItemArt(item, CARD_ART),
                         gui.Panel{
                             flow = "vertical",
-                            width = CARD_WIDTH - 18 - 44 - 9,
+                            width = CARD_TEXT_WIDTH,
                             height = "auto",
-                            lmargin = 9,
+                            lmargin = CARD_PAD,
                             valign = "center",
                             gui.Label{
                                 classes = { "heroSheetCardStrong" },
@@ -798,19 +836,19 @@ local function BuildList(repaint)
                     width = LIST_INNER,
                     height = 52,
                     flow = "horizontal",
-                    hpad = 8,
+                    hpad = ROW_PAD,
                     borderBox = true,
                     bmargin = 5,
                     data = { itemid = itemid },
                     click = function()
                         Select(itemid)
                     end,
-                    ItemArt(item, 36),
+                    ItemArt(item, ROW_ART),
                     gui.Panel{
                         flow = "vertical",
-                        width = LIST_INNER - 16 - 36 - 10 - 90,
+                        width = LIST_INNER - 2 * ROW_PAD - ROW_ART - ROW_ART_GAP - ROW_STEPPER_ROOM,
                         height = "auto",
-                        lmargin = 10,
+                        lmargin = ROW_ART_GAP,
                         valign = "center",
                         interactable = false,
                         gui.Panel{
@@ -992,9 +1030,9 @@ local function BuildList(repaint)
             if hero == nil then
                 return
             end
-            if g_rows and #rows == 0 then
+            if g_useRows and #rows == 0 then
                 BuildRows()
-            elseif not g_rows and #cards == 0 then
+            elseif not g_useRows and #cards == 0 then
                 BuildCards()
             end
             local allow = CondemnedGear.Allowance()
@@ -1020,27 +1058,16 @@ local function BuildList(repaint)
                 panel:SetClass("cgChosen", (choices.grenades[itemid] or 0) > 0)
                 panel:SetClass("heroSheetRowPinned", g_selected == itemid)
             end
-            cardList:SetClass("collapsed", g_rows)
-            rowList:SetClass("collapsed", not g_rows)
+            cardList:SetClass("collapsed", g_useRows)
+            rowList:SetClass("collapsed", not g_useRows)
             element:FireEventTree("refreshNumber")
         end,
         inner,
     }
 end
 
---- @param itemid string
---- @return boolean
-local function IsGrenade(itemid)
-    for _, id in ipairs(CondemnedGear.GRENADES) do
-        if id == itemid then
-            return true
-        end
-    end
-    return false
-end
-
---Changes to a hero's choices, from the pane's button. Each reads the stored choices
---fresh, so a change made on another screen meanwhile is kept.
+--Changes to a hero's choices, from the pane's button. Each reads the stored choices just
+--before writing, so a change from another screen that has already arrived is kept.
 --- @param hero CondemnedGearHero
 --- @param change fun(choices: CondemnedGearChoices)
 local function ChangeChoices(hero, change)
@@ -1186,7 +1213,7 @@ local function BuildPane(repaint)
     end
 
     --The footer: how many of a grenade are chosen, and the button.
-    local have = gui.Label{
+    local chosenCount = gui.Label{
         classes = { "heroSheetCardSuccess" },
         text = "",
         width = "auto",
@@ -1218,11 +1245,8 @@ local function BuildPane(repaint)
         buttonLabel.text = text
         action = fn
         button.data.tip = tip
-        button:SetClass("cgGold", gold == true)
-        buttonLabel:SetClass("cgGold", gold == true)
-        local opacity = fn ~= nil and 1 or 0.45
-        button.selfStyle.opacity = opacity
-        buttonLabel.selfStyle.opacity = opacity
+        SetGold(button, gold == true)
+        Dim(button, fn == nil)
     end
 
     local body = gui.Panel{
@@ -1285,7 +1309,7 @@ local function BuildPane(repaint)
                 return
             end
             local token = hero.token
-            local grenade = IsGrenade(g_selected)
+            local grenade = table.contains(CondemnedGear.GRENADES, g_selected)
             local delivered = CondemnedGear.Delivered(token) ~= nil
             local choices = ShownChoices(hero)
             local allow = CondemnedGear.Allowance()
@@ -1299,33 +1323,31 @@ local function BuildPane(repaint)
             local flavorItem = grenade and gearTable[CondemnedGear.GRENADES[1]] or item
             flavor.text = flavorItem ~= nil and flavorItem:try_get("flavor", "") or ""
 
-            local chosen = false
-            for _, itemid in ipairs(choices.gear) do
-                if itemid == g_selected then
-                    chosen = true
-                end
-            end
+            local chosen = table.contains(choices.gear, g_selected)
 
             --What equipping it would change. Gear only; once handed out the hero is
             --wearing it, so there is nothing left to preview.
-            local key = string.format("%s|%s|%s|%d", hero.charid, g_selected, dmhub.ToJson(token.properties:Equipment()), level)
             if grenade or delivered then
                 chips = {}
                 chipsKey = nil
-            elseif key ~= chipsKey then
-                chipsKey = key
-                chips = {}
-                pcall(function()
-                    local slot = HeroSheetWrite.EquipSlot(token.properties, g_selected, true)
-                    if slot ~= nil then
-                        for _, change in ipairs(EotwHeroSheet.EquipPreview(token, g_selected, nil, slot) or {}) do
-                            local from, to = tonumber(change.from), tonumber(change.to)
-                            if from ~= nil and to ~= nil and from ~= to then
-                                chips[#chips + 1] = { label = change.label, change = to - from }
+            else
+                --worked out again only when the hero, the item, their equipment or Level changes.
+                local key = string.format("%s|%s|%s|%d", hero.charid, g_selected, dmhub.ToJson(token.properties:Equipment()), level)
+                if key ~= chipsKey then
+                    chipsKey = key
+                    chips = {}
+                    pcall(function()
+                        local slot = HeroSheetWrite.EquipSlot(token.properties, g_selected, true)
+                        if slot ~= nil then
+                            for _, change in ipairs(EotwHeroSheet.EquipPreview(token, g_selected, nil, slot) or {}) do
+                                local from, to = tonumber(change.from), tonumber(change.to)
+                                if from ~= nil and to ~= nil and from ~= to then
+                                    chips[#chips + 1] = { label = change.label, change = to - from }
+                                end
                             end
                         end
-                    end
-                end)
+                    end)
+                end
             end
             chipSection:SetClass("collapsed", #chips == 0)
             chipHeading.text = string.upper(chosen and T("condemned.gear.giving_you") or T("condemned.gear.would_change"))
@@ -1437,9 +1459,9 @@ local function BuildPane(repaint)
 
             --The button.
             local count = grenade and (choices.grenades[g_selected] or 0) or 0
-            have.text = count > 0 and T("condemned.gear.n_chosen", { n = count }) or ""
+            chosenCount.text = count > 0 and T("condemned.gear.n_chosen", { n = count }) or ""
             --the button fills the footer, beside the count when there is one.
-            button.selfStyle.width = PANE_WIDTH - (count > 0 and 110 or 0)
+            button.selfStyle.width = PANE_WIDTH - (count > 0 and CHOSEN_COUNT_ROOM or 0)
             button:SetClass("collapsed", not delivered and not CanChooseFor(hero))
             local selected = g_selected
             if delivered then
@@ -1449,32 +1471,32 @@ local function BuildPane(repaint)
                     SetButton(T("condemned.gear.choose_one"), nil, T("condemned.gear.grenades_full_tip", { max = allow.grenades }), true)
                 else
                     SetButton(T("condemned.gear.choose_one"), function()
-                        ChangeChoices(hero, function(c)
-                            c.grenades[selected] = (c.grenades[selected] or 0) + 1
+                        ChangeChoices(hero, function(stored)
+                            stored.grenades[selected] = (stored.grenades[selected] or 0) + 1
                         end)
                     end, nil, true)
                 end
             elseif chosen then
                 SetButton(T("condemned.gear.put_back"), function()
-                    ChangeChoices(hero, function(c)
-                        for i = #c.gear, 1, -1 do
-                            if c.gear[i] == selected then
-                                table.remove(c.gear, i)
+                    ChangeChoices(hero, function(stored)
+                        for i = #stored.gear, 1, -1 do
+                            if stored.gear[i] == selected then
+                                table.remove(stored.gear, i)
                             end
                         end
                     end)
                 end, nil)
             elseif #choices.gear < allow.gear then
                 SetButton(T("condemned.gear.choose"), function()
-                    ChangeChoices(hero, function(c)
-                        c.gear[#c.gear + 1] = selected
+                    ChangeChoices(hero, function(stored)
+                        stored.gear[#stored.gear + 1] = selected
                     end)
                 end, nil, true)
             elseif allow.gear == 1 and #choices.gear == 1 then
                 local current = gearTable[choices.gear[1]]
                 SetButton(T("condemned.gear.swap"), function()
-                    ChangeChoices(hero, function(c)
-                        c.gear = { selected }
+                    ChangeChoices(hero, function(stored)
+                        stored.gear = { selected }
                     end)
                 end, nil, true)
                 button.data.tip = T("condemned.gear.swap_tip", { name = current ~= nil and current.name or "" })
@@ -1498,7 +1520,7 @@ local function BuildPane(repaint)
                 flow = "horizontal",
                 width = "100%",
                 height = "auto",
-                have,
+                chosenCount,
                 button,
             },
         },
@@ -1513,6 +1535,15 @@ local COL_GEAR = 290
 local COL_GRENADES = 266
 local COL_STATUS = 96
 local COL_GAP = 14
+--a gear cell's art and the gap after it: the GEAR header starts past them, over the name.
+local GEAR_ART = 26
+local GEAR_ART_GAP = 8
+local GEAR_ART_SLOT = GEAR_ART + GEAR_ART_GAP
+--the allowance's highest grenade count: three times the book's three.
+local MAX_GRENADES = 9
+--the party table's height, and its height while the Hand out confirm takes the room below.
+local ROWS_HEIGHT = 380
+local ROWS_HEIGHT_CONFIRMING = 190
 
 --Status pill text and colour class, by CondemnedGear.Status.
 local STATUS_PILL = {
@@ -1545,14 +1576,6 @@ local function HeroSubline(token)
     return className or player or ""
 end
 
---A grenade's short name for the party table: "Blackpowder" for "Blackpowder Grenade".
---- @param item table a tbl_Gear row
---- @return string
-local function ShortGrenadeName(item)
-    local short = string.gsub(item.name, "%s+[Gg]renade$", "")
-    return short
-end
-
 --The party table: the Director's (allowance, every hero, Hand out), or a player's with
 --several heroes (their own heroes only). A row opens the picker for that hero. Rows are
 --built when the list of heroes changes and painted on every change.
@@ -1562,14 +1585,6 @@ local function BuildParty(repaint)
     local gearTable = dmhub.GetTable("tbl_Gear") or {}
     local book = CondemnedGear.BOOK_ALLOWANCE
     local director = dmhub.isDM
-
-    --The heroes this table lists.
-    local function Listed()
-        if director then
-            return CondemnedGear.Heroes()
-        end
-        return CondemnedGear.MyHeroes()
-    end
 
     --- @param text string
     --- @param width number
@@ -1654,9 +1669,9 @@ local function BuildParty(repaint)
             halign = "left",
             valign = "center",
         },
-        AllowanceStepper("gear", 6),
+        AllowanceStepper("gear", #CondemnedGear.GEAR),
         AllowanceWord(T("condemned.gear.allow_gear")),
-        AllowanceStepper("grenades", 9),
+        AllowanceStepper("grenades", MAX_GRENADES),
         AllowanceWord(T("condemned.gear.allow_grenades")),
         gui.Panel{
             flow = "horizontal",
@@ -1691,9 +1706,8 @@ local function BuildParty(repaint)
         height = "auto",
         hpad = ROW_HPAD,
         borderBox = true,
-        Column(T("condemned.gear.col_hero"), COL_HERO + 34),
-        --over the gear's name, past the art's slot (26 wide and 8 of gap).
-        Column(T("condemned.gear.col_gear"), COL_GEAR - 34),
+        Column(T("condemned.gear.col_hero"), COL_HERO + GEAR_ART_SLOT),
+        Column(T("condemned.gear.col_gear"), COL_GEAR - GEAR_ART_SLOT),
         Column(T("condemned.gear.col_grenades"), COL_GRENADES),
     }
 
@@ -1708,7 +1722,7 @@ local function BuildParty(repaint)
     }
     local rowScroll = gui.Panel{
         width = "100%",
-        height = 340,
+        height = ROWS_HEIGHT,
         vscroll = true,
         tmargin = 6,
         rowHolder,
@@ -1735,16 +1749,16 @@ local function BuildParty(repaint)
         local gearArt = gui.Panel{
             bgimage = "panels/square.png",
             bgcolor = "white",
-            width = 26,
-            height = 26,
-            rmargin = 8,
+            width = GEAR_ART,
+            height = GEAR_ART,
+            rmargin = GEAR_ART_GAP,
             halign = "left",
             valign = "center",
         }
         local gearText = HeroSheetTheme.EllipsisLabel{
             classes = { "heroSheetCardText" },
             text = "",
-            width = COL_GEAR - 34,
+            width = COL_GEAR - GEAR_ART_SLOT,
             height = "auto",
             fontSize = 14,
             halign = "left",
@@ -1849,13 +1863,14 @@ local function BuildParty(repaint)
                 gearText.text = #names > 0 and table.concat(names, ", ") or T("condemned.gear.no_gear")
                 gearText:SetClass("heroSheetCardSub", #names == 0)
                 gearText.selfStyle.italics = #names == 0
-                --the grenades: "3 Blackpowder, 1 Stun", or "No grenades".
+                --the grenades by short name: "3 Blackpowder, 1 Stun", or "No grenades".
                 local parts = {}
                 for _, itemid in ipairs(CondemnedGear.GRENADES) do
                     local count = choices.grenades[itemid] or 0
                     local item = gearTable[itemid]
                     if count > 0 and item ~= nil then
-                        parts[#parts + 1] = string.format("%d %s", count, ShortGrenadeName(item))
+                        local short = string.gsub(item.name, "%s+[Gg]renade$", "")
+                        parts[#parts + 1] = string.format("%d %s", count, short)
                     end
                 end
                 grenadeText.text = #parts > 0 and table.concat(parts, ", ") or T("condemned.gear.no_grenades")
@@ -1902,26 +1917,19 @@ local function BuildParty(repaint)
         end
         repaint()
     end
-    local function HandOut()
+    local function StartHandOut()
         showConfirm = false
-        CondemnedGear.HandOut(Finish)
+        local _, why = CondemnedGear.HandOut(Finish)
+        if why == "nothing" then
+            HeroSheetWindow.Toast(T("condemned.gear.nothing_to_hand_out"))
+        end
         repaint()
     end
-    local anyway = HeroSheetTheme.WindowButton(T("condemned.gear.hand_out_anyway"), function()
-        local over = false
-        for _, hero in ipairs(CondemnedGear.Heroes()) do
-            if CondemnedGear.Status(hero) == "over" then
-                over = true
-            end
-        end
-        if not over then
-            HandOut()
-        end
-    end, true)
+    --HandOut refuses while someone is Over limit; the button is dimmed then too.
+    local anyway = HeroSheetTheme.WindowButton(T("condemned.gear.hand_out_anyway"), StartHandOut, true)
     anyway.selfStyle.lmargin = 0
     anyway.selfStyle.halign = "left"
-    anyway:SetClass("cgGold", true)
-    anyway.children[1]:SetClass("cgGold", true)
+    SetGold(anyway, true)
     local keepOpen = HeroSheetTheme.WindowButton(T("condemned.gear.keep_open"), function()
         showConfirm = false
         repaint()
@@ -1987,11 +1995,10 @@ local function BuildParty(repaint)
                 return
             end
         end
-        HandOut()
+        StartHandOut()
     end, true)
     handOut.selfStyle.halign = "right"
-    handOut:SetClass("cgGold", true)
-    handOut.children[1]:SetClass("cgGold", true)
+    SetGold(handOut, true)
     local footer = gui.Panel{
         flow = "horizontal",
         width = "100%",
@@ -2013,7 +2020,8 @@ local function BuildParty(repaint)
                 element:SetClass("collapsed", true)
                 return
             end
-            local listed = Listed()
+            --the Director lists every hero; a player, their own.
+            local listed = director and CondemnedGear.Heroes() or CondemnedGear.MyHeroes()
             --a player with no hero of their own sees the window's "Director chooses" line instead.
             element:SetClass("collapsed", not director and #listed == 0)
             --rows follow the list of heroes; built again only when that changes.
@@ -2038,7 +2046,7 @@ local function BuildParty(repaint)
             hint:SetClass("collapsed", director)
             footer:SetClass("collapsed", not director)
             local allow = CondemnedGear.Allowance()
-            --everyone has their gear; until then Hand out stays for a later round.
+            --Hand out hides once every hero has their gear; until then it stays for a later round.
             local givenCount, heroCount = CondemnedGear.HandedOutCount()
             local handedOut = heroCount > 0 and givenCount == heroCount
             reset:SetClass("collapsed", givenCount > 0 or (allow.gear == book.gear and allow.grenades == book.grenades))
@@ -2069,19 +2077,16 @@ local function BuildParty(repaint)
             handOut:SetClass("collapsed", handedOut)
             local waiting = CondemnedGear.IsHandingOut()
             handOut.data.tip = waiting and T("condemned.gear.waiting") or T("condemned.gear.hand_out_tip")
-            handOut.selfStyle.opacity = waiting and 0.45 or 1
-            handOut.children[1].selfStyle.opacity = waiting and 0.45 or 1
+            Dim(handOut, waiting)
 
             --the confirm, while it is up and someone is not done.
             local confirming = showConfirm and #lines > 0 and not handedOut and not waiting
             confirm:SetClass("collapsed", not confirming)
             confirmLines.text = table.concat(lines, "\n")
             fixNote:SetClass("collapsed", not over)
-            --opacity is not passed on to children: dim the label too.
-            anyway.selfStyle.opacity = over and 0.45 or 1
-            anyway.children[1].selfStyle.opacity = over and 0.45 or 1
+            Dim(anyway, over)
             --the table gives the confirm its room.
-            rowScroll.selfStyle.height = confirming and 190 or 380
+            rowScroll.selfStyle.height = confirming and ROWS_HEIGHT_CONFIRMING or ROWS_HEIGHT
         end,
         allowRow,
         hint,
@@ -2159,8 +2164,7 @@ local function BuildWindow()
         fade.selfStyle.gradient = gui.Gradient{
             point_a = { x = 0, y = 0 },
             point_b = { x = 1, y = 0 },
-            --the engine blends in linear light, so these are stronger than the
-            --prototype's 100 / 55 / 20% to look the same.
+            --the engine blends in linear light, so the stops are stronger than they look.
             stops = {
                 { position = 0, color = HeroSheetTheme.ToHex(plate, 1) },
                 { position = 0.3, color = HeroSheetTheme.ToHex(plate, 0.94) },
@@ -2257,10 +2261,9 @@ local function BuildWindow()
         end
     end, true)
     done.selfStyle.halign = "right"
-    done:SetClass("cgGold", true)
-    done.children[1]:SetClass("cgGold", true)
+    SetGold(done, true)
 
-    --The picker: the list, and the preview pane (chunk 4) beside it, over the Done footer.
+    --The picker: the list and the item's pane side by side, over the Done footer.
     local picker = gui.Panel{
         flow = "vertical",
         width = "100%",
@@ -2278,9 +2281,7 @@ local function BuildWindow()
             done:SetClass("collapsed", status == "given" or not CanChooseFor(hero))
             local over = status == "over"
             done.data.tip = over and T("condemned.gear.over_limit_tip") or (not dmhub.isDM and T("condemned.gear.done_tip") or nil)
-            --opacity is not passed on to children: dim the label too.
-            done.selfStyle.opacity = over and 0.45 or 1
-            done.children[1].selfStyle.opacity = over and 0.45 or 1
+            Dim(done, over)
         end,
         gui.Panel{
             flow = "horizontal",
@@ -2331,7 +2332,7 @@ local function BuildWindow()
         data = { wasOpen = CondemnedGear.IsOpen() },
         monitorGame = CondemnedGear.DocPath(),
         refreshGame = function(element)
-            --Hand out closed it for the table: close this copy too.
+            --Closed for the table (Hand out or Close for everyone): close this copy too.
             local open = CondemnedGear.IsOpen()
             if element.data.wasOpen and not open then
                 CondemnedGear.CloseWindow()
@@ -2342,9 +2343,9 @@ local function BuildWindow()
         end,
         multimonitor = { "fontsize", "iconrail" },
         monitor = function(element)
-            local rows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
-            if rows ~= g_rows then
-                g_rows = rows
+            local useRows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
+            if useRows ~= g_useRows then
+                g_useRows = useRows
                 element:FireEventTree("paint")
             end
         end,
@@ -2399,7 +2400,7 @@ function CondemnedGear.ShowWindow()
         return
     end
     g_charid = StartingHero()
-    g_rows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
+    g_useRows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
     local content = BuildWindow()
     local frame
     frame = HeroSheetWindow.ShowPopup{
@@ -2424,7 +2425,8 @@ function CondemnedGear.OpenForAll()
         return
     end
     CondemnedGear.SetOpen(true)
-    dmhub.BroadcastRemoteEvent(OPEN_EVENT, dmhub.GenerateGuid(), {}, true)
+    --every map: a player can be looking at another one.
+    dmhub.BroadcastRemoteEvent(OPEN_EVENT, dmhub.GenerateGuid(), {}, true, true)
     CondemnedGear.ShowWindow()
     HeroSheetWindow.Toast(T("condemned.gear.opened_for_all"))
 end
@@ -2458,8 +2460,7 @@ local function CreateTab()
     local open = HeroSheetTheme.WindowButton(T("condemned.gear.reopen_button"), function()
         CondemnedGear.ShowWindow()
     end, false)
-    open:SetClass("cgGold", true)
-    open.children[1]:SetClass("cgGold", true)
+    SetGold(open, true)
     local box = gui.Panel{
         classes = { "cgWindow", "cgTab", "collapsed" },
         bgimage = "panels/square.png",
@@ -2483,8 +2484,8 @@ local function CreateTab()
         open,
     }
     box.styles = GearStyles()
-    --think polls a cheap signature: closing the window changes nothing the document sees.
-    --The wrapper never collapses, as a collapsed panel stops thinking; only the box hides.
+    --Polled, because closing the window on this screen doesn't change the document. The
+    --wrapper never collapses, as a collapsed panel stops thinking; only the box hides.
     local shown = nil
     local tab = gui.Panel{
         styles = HeroSheetTheme.RootStyles(),
@@ -2523,9 +2524,8 @@ local function KeepTab()
     if g_tab ~= nil and g_tab.valid then
         return
     end
-    --while a game loads, the old HUD's layer can still be referenced but already torn down,
-    --and adding to it raises. (Loading progress is no guide: a player's can stall below 1.)
-    --GameHud.instance can be false, not only nil, while the HUD is being rebuilt.
+    --During a game load the old HUD's layer can still be referenced after it's torn down,
+    --and GameHud.instance can be false. Wait for a valid layer.
     local hud = GameHud.instance
     local layer = hud and hud.mainDialogPanel or nil
     if not layer or not layer.valid then

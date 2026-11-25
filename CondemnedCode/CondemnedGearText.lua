@@ -116,6 +116,8 @@ text("condemned.gear.handed_out_to.other", [[Handed out to {count} heroes.]])
 text("condemned.gear.refused", [[A hero changed while handing out, so nothing was given. Press Hand out again.]])
 --Hand out's tooltip while the last Hand out is still being saved.
 text("condemned.gear.waiting", [[Waiting on the last hand out.]])
+--Toast when Hand out finds no hero with anything chosen to give.
+text("condemned.gear.nothing_to_hand_out", [[No hero has chosen anything to hand out yet.]])
 
 ----------------------------------------------------------------------------
 -- OPENING AND REOPENING

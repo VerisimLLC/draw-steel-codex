@@ -50,7 +50,7 @@ end
 ---@field frozen Panel[] the panels collapsed for this frame, uncollapsed on pop.
 ---@field slot Panel the panel the stacked card mounts into.
 ---@field prevSlot Panel|nil the slot below (nil = the sidebar itself).
----@field coid any the stacked cast's coroutine id; popping is tied to it.
+---@field coid any the coroutine the pop waits for: the stacked cast, or another cast still using its slot.
 ---@field dialog Panel the interrupted roll dialog.
 ---@field displayedAbility any
 ---@field aliases table
@@ -2810,6 +2810,11 @@ function CharacterPanel.LockDisplayAbility(coid)
     return g_abilityLock.id
 end
 
+--The cast coroutine that is between showing its card and embedding its roll
+--dialog in AcquireAbilityRollDialog, or nil. It yields one frame there with no
+--dialog up yet, so other casts queue on this claim until the dialog is tagged.
+local g_acquiringRollDialogCoid = nil
+
 --Pop `frame` off the trigger roll stack, along with anything stacked above it,
 --and bring the interrupted card back exactly as it was. Safe to call twice.
 ---@param frame AbilityCardFrame
@@ -2822,6 +2827,32 @@ local function PopCardFrame(frame)
         end
     end
     if index == nil then
+        return
+    end
+
+    --Another cast may have started a roll in the stacked slot while the stacked
+    --cast was finishing. Removing the slot now would destroy that roll, or drop it
+    --into the restored card, so wait for that cast; the slot's think pops later.
+    local busy = nil
+    if g_acquiringRollDialogCoid ~= nil and g_acquiringRollDialogCoid ~= frame.coid
+        and coroutine.IsCoroutineWithIdStillRunning(g_acquiringRollDialogCoid) then
+        busy = g_acquiringRollDialogCoid
+    end
+    for i = index, #g_cardStack do
+        local slot = g_cardStack[i].slot
+        if busy == nil and slot.valid then
+            local dialog = slot:FindChildRecursive(function(p)
+                return p:HasClass("embeddedRollDialog")
+            end)
+            local owner = dialog ~= nil and dialog.data ~= nil and dialog.data.castCoroutine or nil
+            if owner ~= nil and owner ~= frame.coid and coroutine.IsCoroutineWithIdStillRunning(owner) then
+                busy = owner
+            end
+        end
+    end
+    if busy ~= nil then
+        frame.coid = busy
+        print(string.format("AcquireRollDialog:: UNSTACK deferred for castCoroutine=%s", tostring(busy)))
         return
     end
 
@@ -2850,13 +2881,7 @@ local function PopCardFrame(frame)
 
     local host = LiveHostPanel("abilityDisplay")
     if host ~= nil then
-        local kept = {}
-        for _, child in ipairs(host.children) do
-            if child.valid then
-                kept[#kept+1] = child
-            end
-        end
-        host.children = kept
+        host.children = table.filter(host.children, function(child) return child.valid end)
     end
 
     print(string.format("AcquireRollDialog:: UNSTACK depth=%d", #g_cardStack))
@@ -2895,7 +2920,7 @@ local function PushCardFrame(coid, interrupted)
         flow = "vertical",
         interactable = false,
 
-        --Backstop for a stacked cast that dies without reaching FinishCast:
+        --Backstop for a stacked cast that errors or is stopped before it finishes:
         --the interrupted card must not stay buried under an empty slot.
         thinkTime = 0.25,
         think = function(element)
@@ -3035,11 +3060,6 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
 
     return true, lockId
 end
-
---The cast coroutine that is between showing its card and embedding its roll
---dialog in AcquireAbilityRollDialog, or nil. It yields one frame there with no
---dialog up yet, so other casts queue on this claim until the dialog is tagged.
-local g_acquiringRollDialogCoid = nil
 
 --Acquire an embedded roll dialog for an ability-roll behavior, serializing
 --against any other ability roll in progress.

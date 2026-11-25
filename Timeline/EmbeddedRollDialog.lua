@@ -3258,8 +3258,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
         thinkTime = 0.5,
         think = function(element)
-            --Frozen under a stacked trigger roll our trigger copies go stale; a
-            --re-send would overwrite what that trigger did meanwhile. See Resume.
+            --While this dialog is frozen under a stacked trigger roll, its copies of
+            --the triggers go stale; re-sending them would undo what the trigger did
+            --meanwhile (see Resume).
             if resultPanel.data.suspended then
                 return
             end

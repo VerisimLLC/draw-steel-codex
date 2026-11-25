@@ -343,7 +343,7 @@ function openCoreClass(id) {
    start-of-turn die size is an attribute modifier. Reading pairs them into the gain blocks, and the
    feature keeps a "gainRef" placeholder where each record sits, so an unchanged gain saves back
    exactly and an edited one updates its own records in place. */
-const gainModel = g => g === cls.startGain || g.kind ? { k: g.kind, n: g.n, st: g.steps } : { e: g.event, q: g.qty, l: g.qtyLv || [], f: g.freq, w: g.who || "self", c: g.cond || null };
+const gainModel = g => g === cls.startGain || g.kind ? { k: g.kind, n: g.n, st: g.steps } : { e: g.event, q: g.qty, l: g.qtyLv || [], f: g.freq, w: g.who || "self", c: g.cond || null, t: g.trig ? srcHash(g.trig) : 0 };
 // (a "manual" line has no trigger, so it never counts as changed)
 const gainChanged = g => g.event !== "manual" && (!g.src || srcHash(gainModel(g)) !== g.snap);
 /* What changed in an opened gain since it was opened: its event, and/or its amount. */
@@ -416,7 +416,8 @@ function gainRefRecord(f) {
   const r = clone(src);
   if (f.kind === "startAttr") { if (String(cls.startGain.n) !== String(g.src.model0.n)) r.value = numOr(cls.startGain.n); return r; }
   if (f.kind === "startStep") return null;   // an edited start gain writes its level steps afresh (newGainRecords)
-  const all = compileGains(), c2 = all.checklist.find(c => c.guid === g.guid), t2 = all.triggers.find(t => t.triggeredAbility.behaviors[0].checklistid === g.guid);
+  const all = compileGains(), c2 = all.checklist.find(c => c.guid === g.guid), t2 = all.triggers.find(t => ((t.triggeredAbility || {}).behaviors || []).some(b => b.checklistid === g.guid));
+  if (g.event === "advanced") return t2 ? clone(t2) : null;   // built in the triggered ability editor
   const ta = r.triggeredAbility, rb = ta.behaviors.find(b => b.checklistid === g.guid), ch = gainChanges(g);
   if (ch.who) { if (g.who && g.who !== "self") ta.subject = g.who; else delete ta.subject; }
   if (ch.cond) { if (g.cond) ta.conditionFormula = testGs(g.cond); else ta.conditionFormula = ""; }
@@ -445,7 +446,7 @@ function gainChecklist() {
 function newGainRecords() {
   const all = compileGains(), fresh = [cls.startGain].concat(cls.gains).filter(g => g && !g.src);
   const out = [];
-  fresh.forEach(g => { if (g === cls.startGain) out.push(...all.mods); out.push(all.triggers.find(t => t.triggeredAbility.behaviors[0].checklistid === g.guid)); });
+  fresh.forEach(g => { if (g === cls.startGain) out.push(...all.mods); out.push(all.triggers.find(t => ((t.triggeredAbility || {}).behaviors || []).some(b => b.checklistid === g.guid))); });
   // An opened set-amount start gain that was edited: its level-step modifiers are written afresh.
   const sg = cls.startGain; if (sg && sg.src && sg.kind === "flat" && gainChanged(sg)) out.push(...all.mods.slice(1));
   return out.filter(Boolean);

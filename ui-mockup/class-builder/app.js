@@ -1183,6 +1183,25 @@ function gainPhrase(g) {
   const who = g.who || "self";
   return lookupName(GAIN_FREQ, g.freq || "recurring") + " " + lookupName(GAIN_WHO, who) + " " + (who === "self" ? t.you : t.other);
 }
+/* The event menu: the usual events, then "Build the trigger yourself..." (the triggered ability
+   editor), for anything the list can't say (cast information, several conditions, extra steps). */
+function gainEventTok(g, opts, text) {
+  const cur = opts.find(o => o[0] === g.event);
+  const b = tok(text || (cur ? cur[1] : g.event), btn => menuAt(btn, m => {
+    m.appendChild(E("h5", null, "When this happens"));
+    opts.forEach(([v, l]) => { const x = E("button", null, l); x.type = "button"; x.addEventListener("click", () => { closeMenu(); change(() => { g.event = v; delete g.trig; delete g.display; }); }); m.appendChild(x); });
+    m.appendChild(E("h5", null, "Advanced"));
+    const adv = E("button", null, "Build the trigger yourself\u2026"); adv.type = "button"; adv.title = "Opens the triggered ability editor: any event, who, conditions and cast information";
+    adv.addEventListener("click", () => { closeMenu(); openGainTrigger(g); }); m.appendChild(adv);
+  }), false, "gainev:" + g.id);
+  if (text) b.classList.add("small");
+  return b;
+}
+/* Opens the gain's trigger in the triggered ability editor, starting from what the line says now. */
+function openGainTrigger(g) {
+  const seed = g.trig || (compileGains().triggers.find(t => ((t.triggeredAbility || {}).behaviors || []).some(b => b.checklistid === g.guid)) || null);
+  openEditor({ rec: seed && clone(seed), display: g.display || null, kind: "triggered" }, (rec, display) => { g.event = "advanced"; g.trig = rec; g.display = display || null; });
+}
 /* Gains made before how often / who / conditions were separate keep their meaning. */
 const migrateGain = g => { if (g.freq === undefined) { const old = GAIN_EVENTS.find(e => e[0] === g.event); g.freq = old ? old[2] : "recurring"; } if (g.who === undefined) g.who = "self"; if (g.cond === undefined) g.cond = null; return g; };
 const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"],
@@ -1435,6 +1454,21 @@ function compileGains() {
   if (sg) { checklist.push(sg.check); triggers.push(sg.trigger); mods.push(...sg.mods); }
   cls.gains.filter(g => g.event !== "manual").forEach(g => {
     migrateGain(g);
+    if (g.event === "advanced") {
+      if (!g.trig) return;
+      const name = recName(g.trig) || "Gain " + res, details = (g.trig.triggeredAbility && g.trig.triggeredAbility.description) || name + ": you gain " + gainAmountText(g, res) + ".";
+      checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
+      const r = clone(g.trig), ta = r.triggeredAbility;
+      if (ta) {
+        // The resource step: the one the author added (for this resource), else one is added; it points at the line.
+        ta.mandatory = ta.mandatory || "game:heroicresourcetriggers"; ta.behaviors = ta.behaviors || [];
+        let rb = ta.behaviors.find(b => b.__typeName === "ActivatedAbilityReplenishBehavior" && (b.checklistid === g.guid || !b.resourceid || b.resourceid === RES.heroic));
+        if (!rb) { rb = { __typeName: "ActivatedAbilityReplenishBehavior", resourceid: RES.heroic }; ta.behaviors.push(rb); }
+        rb.checklistid = g.guid; rb.resourceid = RES.heroic; rb.quantity = fxFormula(g, "qty");
+      }
+      triggers.push(r); if (g.display) triggers.push(clone(g.display));
+      return;
+    }
     const name = gainPhrase(g), cond = g.cond ? ", if " + testProse(g.cond) : "";
     const details = name + cond + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
     checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
@@ -1762,9 +1796,14 @@ function renderBoard() {
     migrateGain(g); const rw = (cls.resourceName || "resource").toLowerCase(), t = gainTrigger(g);
     // "[The first time each round] [you or an ally] [spends surges on an ability], only if [test],"
     const evOpts = GAIN_TRIGGERS.concat(GAIN_TRIGGERS.some(x => x.id === g.event) ? [] : [t]).map(x => [x.id, x.fixed || ((g.who || "self") === "self" ? x.you : x.other) + (x.engine === false ? " (not in the game yet)" : "")]);
-    if (t.fixed) el.appendChild(pickTok(g, "event", evOpts));
-    else { el.appendChild(pickTok(g, "freq", GAIN_FREQ)); el.appendChild(pickTok(g, "who", GAIN_WHO)); el.appendChild(pickTok(g, "event", evOpts)); }
-    if (g.cond) { el.appendChild(lbl(", only if")); el.appendChild(renderTest(g, "cond", false, "gain:" + g.event)); }
+    if (g.event === "advanced") {
+      // Built in the triggered ability editor: its event, who, conditions and steps are all there.
+      el.appendChild(E("span", "tag", "Trigger"));
+      const tt = tok(g.trig ? recName(g.trig) : "build the trigger", () => openGainTrigger(g), !g.trig, "gaintrig:" + g.id); tt.title = "Edit this trigger in the triggered ability editor"; el.appendChild(tt);
+      el.appendChild(gainEventTok(g, evOpts, "change"));
+    } else if (t.fixed) el.appendChild(gainEventTok(g, evOpts));
+    else { el.appendChild(pickTok(g, "freq", GAIN_FREQ)); el.appendChild(pickTok(g, "who", GAIN_WHO)); el.appendChild(gainEventTok(g, evOpts)); }
+    if (g.event === "advanced") {} else if (g.cond) { el.appendChild(lbl(", only if")); el.appendChild(renderTest(g, "cond", false, "gain:" + g.event)); }
     else { const oi = fk(E("button", "addsent inblock gainif", "+ only if"), "gainif:" + g.id); oi.type = "button"; oi.title = "Add a condition (e.g. 3 or more surges spent)";
       oi.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(oi, g, "cond", "gain:" + g.event); }); el.appendChild(oi); }
     // "you gain 2 resolve", or "you gain a number of resolve equal to your Victories" for a formula.
@@ -1772,6 +1811,7 @@ function renderBoard() {
     const comma = E("span", null, ","); comma.style.marginLeft = "-4px"; el.appendChild(comma);
     if (fxIsCount(g, "qty") || !String(g.qty || "").trim()) { el.appendChild(document.createTextNode("you gain ")); el.appendChild(fxTok(g, "qty", "1")); el.appendChild(lbl(rw)); }
     else { el.appendChild(document.createTextNode("you gain a number of " + rw + " equal to ")); el.appendChild(fxTok(g, "qty", "1", true)); }
+    if (g.event === "advanced") { el.appendChild(lbl("(counted")); el.appendChild(pickTok(g, "freq", [["round", "once each round"], ["encounter", "once each encounter"], ["recurring", "each time"]])); el.appendChild(lbl(")")); }
     el.appendChild(E("span", "grow"));
     const mb = fk(E("button", "mb", "\u22ef"), "gainmb:" + g.id); mb.type = "button"; mb.setAttribute("aria-label", "Options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => cls.gains.splice(i, 1)); toast("Deleted that way to gain " + (cls.resourceName || "it").toLowerCase() + ".", { label: "Undo", run: undo }); }); m.appendChild(x); }); });
@@ -2251,6 +2291,8 @@ function classIssues() {
   if (ed() !== cls) return subclassIssues(ed());
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
+  cls.gains.forEach(g => { if (g.event === "advanced" && !g.trig) out.push({ msg: "A way to gain " + resWord() + " needs its trigger built.", soft: false });
+    if (g.event === "advanced" && g.trig && !g.trig.triggeredAbility) out.push({ msg: "\u201c" + recName(g.trig) + "\u201d changes a power roll, so it can't add " + resWord() + ". Build it as a triggered ability that reacts after the roll.", soft: false }); });
   cls.gains.forEach(g => { if (gainTrigger(g).engine === false) out.push({ msg: "\u201c" + gainTrigger(g).you + "\u201d isn't a game event yet, so that gain won't happen in play until the game reports surges spent.", soft: true }); });
   if (!cls.gains.length && !cls.hrRaw) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
   if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });

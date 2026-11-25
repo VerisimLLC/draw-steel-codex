@@ -1690,6 +1690,25 @@ EncounterScript.CONSEQUENCE_LABELS = { consequence = true, ["if a hero falls"] =
 EncounterScript.CONSEQUENCES = { "retreat", "death", "lost" }
 EncounterScript.DEFAULT_CONSEQUENCE = "retreat"
 
+--The game modes a consequence line can name, by the word an author writes.
+EncounterScript.CONSEQUENCE_MODES = { normal = "normal", challenge = "challenge", challenging = "challenge", deadly = "deadly" }
+
+--Is `label` a consequence label? "Consequence" gives true, nil; "Consequence in
+--Deadly Mode" gives true, "deadly" (that mode only); any other label gives false.
+--- @param label string
+--- @return boolean, string|nil
+function EncounterScript.ConsequenceLabel(label)
+    local lowerLabel = lower(trim(label or ""))
+    if EncounterScript.CONSEQUENCE_LABELS[lowerLabel] then
+        return true, nil
+    end
+    local base, modeWord = string.match(lowerLabel, "^(.-)%s+in%s+(%a+)%s+mode$")
+    if base ~= nil and EncounterScript.CONSEQUENCE_LABELS[base] and EncounterScript.CONSEQUENCE_MODES[modeWord] ~= nil then
+        return true, EncounterScript.CONSEQUENCE_MODES[modeWord]
+    end
+    return false, nil
+end
+
 --Returns { kind = "consequence", consequence = "retreat"|"death"|"lost" } or
 --nil. Looks for the word anywhere, so "they retreat" and "Death!" work.
 function EncounterScript.ParseConsequenceInstruction(text)
@@ -1713,19 +1732,27 @@ function EncounterScript.ParseConsequenceInstruction(text)
     return { kind = "consequence", consequence = found }
 end
 
---The consequence a parsed script's "# Encounter" beat sets: its
---"Consequence:" line, else DEFAULT_CONSEQUENCE.
-function EncounterScript.FindConsequence(parse)
+--The consequence a parsed script's "# Encounter" beat sets for `mode`
+--("normal", "challenge", "deadly" or nil): that mode's own line ("Consequence
+--in Deadly Mode: Lost"), else the plain "Consequence:" line, else
+--DEFAULT_CONSEQUENCE. The second result is true when a mode line decided it.
+--- @return string, boolean
+function EncounterScript.FindConsequence(parse, mode)
+    local plain = nil
     for _, beat in ipairs((parse and parse.beats) or {}) do
         if beat.kind == "encounter" then
             for _, ins in ipairs(beat.setup or {}) do
                 if ins.kind == "consequence" then
-                    return ins.consequence
+                    if mode ~= nil and ins.mode == mode then
+                        return ins.consequence, true
+                    elseif ins.mode == nil and plain == nil then
+                        plain = ins.consequence
+                    end
                 end
             end
         end
     end
-    return EncounterScript.DEFAULT_CONSEQUENCE
+    return plain or EncounterScript.DEFAULT_CONSEQUENCE, false
 end
 
 --The player-facing line for a clear-the-map victory.
@@ -4043,8 +4070,18 @@ local OUTCOME_WORDS = {
 --  { op = "part", part = n|"previous", what = "notrecorded"|"outcome"|"score"|"rounds"|"retreats", outcome, comparison }
 --  { op = "this", what = "outcome"|"score"|"rounds"|"retreats", outcome, comparison }  ("# Results" only)
 --  { op = "track", name, key, comparison }
+--  { op = "consequence", consequence = "retreat"|"death"|"lost" }
 function EncounterScript.ParseStoryAtom(s)
     s = trim(s or "")
+    --"the consequence is Lost": the rule this game uses for a hero who dies, so a
+    --Defeat or Conclusion can say something different for each.
+    local consequenceText = string.match(s, "^the consequence is (.+)$") or string.match(s, "^consequence is (.+)$")
+    if consequenceText ~= nil then
+        local instruction = EncounterScript.ParseConsequenceInstruction(consequenceText)
+        if instruction ~= nil then
+            return { op = "consequence", consequence = instruction.consequence }
+        end
+    end
     local part, rest = string.match(s, "^part (%d+)(.*)$")
     if part ~= nil then
         part = tonumber(part)
@@ -4110,20 +4147,24 @@ end
 
 --Is this condition atom about the story (rather than the hero or the roll)?
 function EncounterScript.IsStoryAtom(node)
-    return node ~= nil and (node.op == "part" or node.op == "this" or node.op == "track")
+    return node ~= nil and (node.op == "part" or node.op == "this" or node.op == "track" or node.op == "consequence")
 end
 
 --Answer a story atom. `story` = {
 --  part = this part's number,
 --  parts = { [k] = { outcome, score, rounds, retreats } | anything else = not recorded },
 --  tracks = { [track key] = value },
---  this = nil | { outcome, score, rounds, retreats }   (only while "# Results" runs) }.
+--  this = nil | { outcome, score, rounds, retreats }   (only while "# Results" runs),
+--  consequence = nil | "retreat"|"death"|"lost" (this game's, for a hero who dies) }.
 --Returns nil for an atom that is not about the story.
 function EncounterScript.EvalStoryAtom(node, story)
     if not EncounterScript.IsStoryAtom(node) then
         return nil
     end
     story = story or {}
+    if node.op == "consequence" then
+        return story.consequence == node.consequence
+    end
     if node.op == "track" then
         local value = (story.tracks or {})[node.key] or 0
         return EncounterScript.Compare(value, node.comparison)
@@ -5447,8 +5488,12 @@ function EncounterScript.Parse(text)
                                 instruction = { kind = "unknown" }
                             end
                         end
-                    elseif EncounterScript.CONSEQUENCE_LABELS[lower(trim(label))] then
+                    elseif EncounterScript.ConsequenceLabel(label) then
                         instruction = EncounterScript.ParseConsequenceInstruction(rest)
+                        if instruction ~= nil then
+                            local _, consequenceMode = EncounterScript.ConsequenceLabel(label)
+                            instruction.mode = consequenceMode
+                        end
                         if instruction == nil then
                             Warn(lineIndex, "%s", T("author.script.encounter.consequence_not_understood", { consequence = rest }))
                             instruction = { kind = "unknown" }
@@ -7384,7 +7429,7 @@ function EncounterScript.Describe(parse)
                 elseif ins.kind == "herolevel" then
                     line("  %s: balanced for Level %d heroes", ins.label, ins.level)
                 elseif ins.kind == "consequence" then
-                    line("  %s: a hero who dies: %s", ins.label, ins.consequence)
+                    line("  %s: a hero who dies%s: %s", ins.label, ins.mode ~= nil and (" in " .. ins.mode .. " mode") or "", ins.consequence)
                 else
                     line("  setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
                 end

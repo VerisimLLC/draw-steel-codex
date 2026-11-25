@@ -8632,8 +8632,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         m_rerolling = false
                         resultPanel:SetClass('hidden', true)
                         RelinquishPanel()
-                        if g_activeRoll == activeRoll then
-                            g_activeRoll = nil
+                        if m_activeRoll == activeRoll then
+                            m_activeRoll = nil
                         end
                         if m_options ~= nil and m_options.interrupted ~= nil then
                             m_options.interrupted(rollInfo)

@@ -32,6 +32,20 @@ local function ModeName(modeid)
             return m.name
         end
     end
+    --a narrative section start: its name, from the script now playing.
+    if EncounterOfTheWeekGame.ParseSectionTestMode(modeid) ~= nil then
+        local name = nil
+        pcall(function()
+            for _, option in ipairs(EncounterOfTheWeekGame.NarrativeSectionTestModes(EncounterMontage.FindMapScript())) do
+                if option.id == modeid then
+                    name = option.text
+                end
+            end
+        end)
+        if name ~= nil then
+            return name
+        end
+    end
     return tostring(modeid)
 end
 
@@ -78,20 +92,29 @@ local function TestableParts(modeid)
     return result, reason
 end
 
---The "Start at" choices for one part: the test modes whose beat its script has.
---The story tracks a series part declares ({name, key, hidden}), from its own
---script; empty for a plain map or a part that declares none.
-local function PartTracks(part)
-    local tracks = {}
+--The script one part plays: that part's own on a series map, else the map's.
+local function PartScript(part)
+    local result = nil
     pcall(function()
         local found = EncounterMontage.ScriptForMap(game.currentMapId)
         for _, script in ipairs(found.parts or {}) do
             if script.parse.part ~= nil and script.parse.part.number == part then
-                tracks = script.parse.tracks or {}
+                result = script
             end
         end
+        if result == nil then
+            result = EncounterMontage.FindMapScript()
+        end
     end)
-    return tracks
+    return result
+end
+
+--The "Start at" choices for one part: the test modes whose beat its script has.
+--The story tracks a part's script declares ({name, key, hidden}); empty when
+--it declares none.
+local function PartTracks(part)
+    local script = PartScript(part)
+    return (script ~= nil and script.parse ~= nil and script.parse.tracks) or {}
 end
 
 local STORY_OUTCOMES = {
@@ -101,6 +124,8 @@ local STORY_OUTCOMES = {
     { id = "failure", text = "Failure" },
 }
 
+--The fixed modes the part's script can start at, then one choice per
+--narrative section, so the author can test any section without playing up to it.
 --- @param part integer
 --- @return {id: string, text: string}[]
 local function ModeOptionsForPart(part)
@@ -110,13 +135,20 @@ local function ModeOptionsForPart(part)
             options[#options + 1] = { id = m.id, text = m.name }
         end
     end
+    --no fixed mode means this part can't be tested at all (no script, not the Director),
+    --so its sections can't either.
+    if #options > 0 then
+        for _, option in ipairs(EncounterOfTheWeekGame.NarrativeSectionTestModes(PartScript(part))) do
+            options[#options + 1] = option
+        end
+    end
     return options
 end
 
 --- the hero picker ---------------------------------------------------------
 
 --Open the picker for a test of this mode ("start", "montage" or "combat").
---The mode can still be changed in the dialog.
+--The mode can still be changed in the dialog, including to a narrative section.
 function EncounterTest.ShowDialog(modeid)
     local testable, reason = TestableParts(modeid)
     if #testable == 0 then

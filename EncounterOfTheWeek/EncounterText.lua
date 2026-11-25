@@ -152,6 +152,8 @@ text("encounter.series_next.host_fallback", [[The host]])
 text("encounter.test.mode_start", [[From the Start]])
 text("encounter.test.mode_montage", [[Montage]])
 text("encounter.test.mode_combat", [[Combat]])
+--A test that starts at one narrative section ("Narrative: The Crossroads").
+text("encounter.test.mode_section", [[Narrative: {section}]])
 
 --Why a test cannot start. Shown in the test dialog after "Part 2 cannot be
 --tested:", so they start lower-case.
@@ -159,6 +161,7 @@ text("encounter.test.unknown_mode", [[unknown test mode]])
 text("encounter.test.no_script", [[this map has no Encounter of the Week script]])
 text("encounter.test.no_montage_beat", [[this map's script has no # Montage beat]])
 text("encounter.test.no_encounter_beat", [[this map's script has no # Encounter beat]])
+text("encounter.test.no_section", [[this map's script no longer has that narrative section]])
 text("encounter.test.director_only", [[only the Director can test an encounter]])
 text("encounter.test.in_eotw_game", [[this is an Encounter of the Week game]])
 text("encounter.test.already_running", [[a test is already running]])

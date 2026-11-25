@@ -1358,10 +1358,14 @@ local function SideViewButton(row, mapid)
             local path
             shown, path = ShowMoves(live)
             local mover = live[1]
-            local collision = mover.moved.collision or 0
-            --hitting an object (a wall counts) deals 2 more, as the preview and the Why text say.
-            if collision > 0 and (mover.moved.collidedobject or mover.moved.collidedwith == nil) then
-                collision = collision + 2
+            --the damage the collision dealt it. Moves saved before History kept that show the
+            --squares left, plus 2 for an object (a wall counts).
+            local collision = mover.moved.collisiondamage
+            if collision == nil then
+                collision = mover.moved.collision or 0
+                if collision > 0 and (mover.moved.collidedobject or mover.moved.collidedwith == nil) then
+                    collision = collision + 2
+                end
             end
             --the damage the fall did, as the live preview's badge shows it.
             local fall = mover.moved.falldamage or 0
@@ -3548,17 +3552,27 @@ function History.Why(entry, kids)
             if left > 0 and (moved.collidedobject or moved.collidedwith ~= nil) then
                 local kind = string.lower(string.gsub(moved.kind or "push", "_", " "))
                 local squares = UIText.Plural("history.story.squares", left, {count = Int(left)})
+                --what the pushed creature's damage reduction took off, on moves saved since History kept it.
+                local reduction = moved.collisionreduction or 0
+                local reduced = reduction > 0 and (" " .. T("history.why.collision_reduced", {amount = Int(reduction)})) or ""
                 Add("collision|" .. who.id, function()
                     if moved.collidedobject or moved.collidedwith == nil then
+                        local text
+                        if (moved.pushbonus or 0) > 0 and moved.pusher ~= nil then
+                            text = T("history.why.hit_object_bonus", {name = name, squares = squares, kind = kind, amount = Int(left),
+                                bonus = Int(moved.pushbonus), pusher = History.ShownName(moved.pusher)})
+                        else
+                            text = T("history.why.hit_object", {name = name, squares = squares, kind = kind, amount = Int(left)})
+                        end
                         return {
                             lead = T("history.why.lead.hit_object"),
-                            text = T("history.why.hit_object", {name = name, squares = squares, kind = kind, amount = Int(left)}),
+                            text = text .. reduced,
                         }
                     end
                     local other = History.ShownName(moved.collidedwith)
                     return {
                         lead = T("history.why.lead.hit_creature", {other = other}),
-                        text = T("history.why.hit_creature", {name = name, squares = squares, kind = kind, other = other, amount = Int(left)}),
+                        text = T("history.why.hit_creature", {name = name, squares = squares, kind = kind, other = other, amount = Int(left)}) .. reduced,
                     }
                 end, who)
             end

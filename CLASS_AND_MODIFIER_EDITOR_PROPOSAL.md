@@ -1590,28 +1590,51 @@ compendium: Open, then "Core classes (from the compendium)". The records are rea
   growing table block, with each record placed in the row whose condition it has, including rows
   that replace an earlier row.
 
-**Results.**
+**Results** (after the follow-up below).
 
 | | Records as blocks | Grey (advanced) | Choices read | Text-only features |
 |---|---|---|---|---|
-| Fury | 22 of 31 | 9 | 15 of 16 | 10 |
+| Fury | 30 of 31 | 1 (the aura) | 15 of 16 | 10 |
 | Berserker | 26 of 33 | 7 | 3 of 3 | 0 |
 | Reaver | 23 of 31 | 8 | 2 of 3 | 0 |
 | Stormwight | 7 of 8 | 1 | 3 of 3 | 3 |
 
+Gaining Ferocity is read into the gain blocks: the start-of-turn 1d3 (+1 from 7th level), Victories
+when combat starts, 1d3 when first winded or dying, and 1/2/3 (by level) when first taking damage.
+
 - **Saved unchanged:** the class and all three subclasses come back identical, record for record.
-- **One value edited:** only that value changes (tested on "Might increases to 5" -> 6).
+- **One value edited:** only that value changes (tested on "Might increases to 5" -> 6, and on the
+  take-damage gain: only its trigger amount, prompt and checklist line change).
+- **Gains added or removed:** adding one adds its trigger and checklist line; removing the
+  start-of-turn gain removes its trigger, its die-size modifier and its line; undo restores exactly.
 - **Every block forced to rebuild from its fields:** the records come back with the same meaning.
   The only differences are formatting: defaults written out, "10" saved as 10, outer brackets on a
-  condition, "always" saved as `true` (decided), and the growing table's hover text regenerated
-  from its blocks.
+  condition, "always" saved as `true` (decided), and the growing table's hover text regenerated.
+
+**Follow-up (same day): fewer grey records.**
+- **Gains:** each checklist line is paired with its trigger (by the Replenish step's checklist id)
+  and opened as a gain block. The records stay in the Ferocity feature as placeholders ("Edit it
+  under How you gain Ferocity"); an edited gain updates its own records in place, keeping core
+  content's settings such as "once per encounter".
+- **Mighty Leaps:** the roll blocks gained tests by characteristic ("[Might] [tests] using [Jump]",
+  the modifier's `attribute`), and "Change the outcome" can apply to tests. The word "tests" /
+  "ability rolls" is itself the switch.
+- **Primordial Strike's element options:** a new "Surge damage type" block ("When your ability
+  rolls have surges, their extra damage can be [acid] damage"; `rollRequirement: "surges"`,
+  `surgeDamageType`).
+
+**Still grey, and why:** the Fury's aura; the heroic-ability choices of the Fury (9 Ferocity) and the
+Reaver, whose options aren't single abilities; Elemental Form's resistance (several damage types in
+one record); "replace the roll" (Strongest There Is, A Step Ahead, Menagerie); forced movement
+adjustments (Growing Ferocity's Knockback rows); a "modify an ability" and a forced movement record;
+and the two power roll triggers with their displays (Lines of Force, Unearthly Reflexes), which
+the ability editor's triggered-ability support could open next.
 
 **What the Fury taught us (design findings).**
 1. **Subclasses use the slow start too.** Each Fury subclass grants four features in Encounter 1. Subclass pages now follow the class's slow-start setting; they showed levels only before.
 2. **Kits and Recoveries live in features, often in subclasses.** The Fury's kits come from each subclass's Kit feature, and its 10 Recoveries from a feature at Encounter 1. The Basics rows now say where the value comes from, rather than offering an empty field or "doesn't use kits".
-3. **The heroic resource checklist is kept as saved** (including the start-of-turn 1d3 that becomes 1d3+1 at 7th level). It shows read-only, "Make changes in the advanced editor". Reading it back into gain blocks is a follow-up.
+3. **The heroic resource gains read back into gain blocks** (see the follow-up above). If a class's checklist can't be paired with its triggers, it falls back to read-only lines.
 4. **What stays grey, and the block that would cover it:**
-   - Primordial Strike's seven element versions (surge damage type): the planned "Change the damage" block (Q3).
    - Two Growing Ferocity rows are written as ability conditions rather than row conditions, so they show as text rows plus a grey record.
    - Aura, forced movement, power roll trigger, "modify an ability" and a resistance with extra settings remain advanced, as planned.
 5. **Content gaps found:** a Fury skill choice at level 10 has no name; the Berserker's Growing Ferocity contains a record named "Vuken Growing Ferocity" (copied from another subclass); 10 Fury features are book text with no automation.

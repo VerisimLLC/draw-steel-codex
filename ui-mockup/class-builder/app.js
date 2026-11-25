@@ -347,17 +347,15 @@ const SENT = {
   edge: { desc: "An edge or bane on tests (by skill) or on ability rolls (by keyword).", label: "Edge or bane on rolls", group: "rolls", uses: 620, make: () => ({ mod: "edge", on: "tests", skills: [], keywords: [], applies: "always" }),
     render: (f, add) => {
       add(lbl("You have")); add(pickTok(f, "mod", [["edge", "an edge"], ["double_edge", "a double edge"], ["bane", "a bane"], ["double_bane", "a double bane"]]));
-      add(lbl("on")); add(pickTok(f, "on", [["tests", "tests"], ["abilities", "ability rolls"]]));
-      if (f.on === "tests") { add(lbl("using")); add(multiTok(f, "skills", T.skills.map(s => [s[0], s[1]]), "any skill")); }
-      else { add(lbl("with")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "any keyword", "and")); }
+      add(lbl("on")); rollsPhrase(f, add);
       appliesPhrase(f, add);
     },
     prose: f => "You have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] + " on " +
-      (f.on === "tests" ? "tests" + (f.skills.length ? " using " + listWords(f.skills.map(i => lookupName(T.skills, i))) : "") : (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls") +
+      (f.on === "tests" ? testsProse(f) : (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls") +
       appliesProse(f) + ".",
     compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
       keywords: f.on === "abilities" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [],
-      skills: f.on === "tests" && f.skills.length ? f.skills.slice() : undefined, displayCondition: "" }, appliesFields(f))),
+      displayCondition: "" }, rollFields(f), appliesFields(f))),
     combo: { modtype: f => f.mod, fields: () => ({}),
       render: (f, add) => { add(lbl("have")); add(pickTok(f, "mod", [["edge", "an edge"], ["double_edge", "a double edge"], ["bane", "a bane"], ["double_bane", "a double bane"]])); },
       prose: f => "have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] } },
@@ -377,11 +375,11 @@ const SENT = {
       render: (f, add) => { add(lbl("deal")); add(fxTok(f, "amount", "amount")); add(lbl("extra")); add(pickTok(f, "dtype", [["", "(untyped)"]].concat(T.damageTypes.map(d => [d, d])))); add(lbl("damage")); },
       prose: f => "deal " + fxText(f, "amount") + " extra " + (f.dtype ? f.dtype + " " : "") + "damage" } },
   outcome: { desc: "Change a roll's outcome: always tier 3, never tier 1, one tier better or worse. Optionally for a cost.", label: "Change the outcome", group: "rolls", uses: 12,
-    make: () => ({ out: "tier3", keywords: [], applies: "cost", costN: "1", costRes: "cost" }),
-    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls"));
-      add(pickTok(f, "out", OUTCOMES)); appliesPhrase(f, add); },
-    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls " + (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] + appliesProse(f) + ".",
-    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.out, rollType: "ability_power_roll", keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))),
+    make: () => ({ out: "tier3", on: "abilities", attr: "", skills: [], keywords: [], applies: "cost", costN: "1", costRes: "cost" }),
+    render: (f, add) => { add(lbl("Your")); rollsPhrase(f, add); add(pickTok(f, "out", OUTCOMES)); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.on === "tests" ? testsProse(f) : (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls") + " " + (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.out, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
+      keywords: f.on !== "tests" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, rollFields(f), appliesFields(f))),
     combo: { modtype: f => f.out, fields: () => ({}), render: (f, add) => add(pickTok(f, "out", OUTCOMES)), prose: f => (OUTCOMES.find(o => o[0] === f.out) || ["", ""])[1] } },
   potency: { desc: "Raise or lower the potency of your abilities (or of ones used against you). Optionally for a cost.", label: "Change potency", group: "rolls", uses: 30,
     make: () => ({ dir: "up", n: "1", keywords: [], applies: "always" }),
@@ -392,6 +390,15 @@ const SENT = {
     combo: { fields: f => ({ potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1) }),
       render: (f, add) => { add(lbl("have their potency")); add(pickTok(f, "dir", [["up", "increased by"], ["down", "decreased by"]])); add(textTok(f, "n", "1")); },
       prose: f => "have their potency " + (f.dir === "up" ? "increased" : "decreased") + " by " + f.n } },
+  /* Primordial Strike style: an option, offered only once the roll has surges, that changes the surges'
+     damage type (the modifier's rollRequirement "surges" and surgeDamageType). */
+  surgeType: { desc: "When the roll has surges, the player can make the surge damage a type you pick (acid, fire...).", label: "Surge damage type", group: "rolls", uses: 7,
+    make: () => ({ dtype: "fire", keywords: [], applies: "choose" }),
+    render: (f, add) => { add(lbl("When your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls have surges, their extra damage can be"));
+      add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]))); add(lbl("damage")); appliesPhrase(f, add); },
+    prose: f => "When your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "ability rolls have surges, the extra damage can be " + f.dtype + " damage" + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", rollRequirement: "surges", surgeDamageType: f.dtype,
+      keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
   surges: { desc: "Your ability rolls gain surges. Optionally only with some keywords, or for a cost.", label: "Extra surges", group: "rolls", uses: 0,
     make: () => ({ n: "1", keep: "roll", keywords: [], applies: "always" }),
     render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("ability rolls gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); add(surgeKeepTok(f)); appliesPhrase(f, add); },
@@ -743,6 +750,20 @@ function migrateOnlyIf(f) {
   return { cond };
 }
 // Outcome changes (power modifier modtypes as content uses them).
+/* Which tests a roll block applies to: a characteristic ("Might tests", saved as the modifier's
+   attribute; "all" when blank) and skills. Used by the edge and outcome blocks. */
+const TEST_CHARS = [["", "any"]].concat(CHARS.map(c => [c[0], c[1]]));
+/* "[Might] [tests] using [Jump]" or "[Strike] [ability rolls]": the word "tests" / "ability rolls" is itself
+   the switch between the two. */
+const ROLL_ON = [["tests", "tests"], ["abilities", "ability rolls"]];
+function rollsPhrase(f, add) {
+  if (f.on === "tests") { add(pickTok(f, "attr", TEST_CHARS, "any")); add(pickTok(f, "on", ROLL_ON)); add(lbl("using")); add(multiTok(f, "skills", T.skills.map(s => [s[0], s[1]]), "any skill")); }
+  else { add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "any", "and")); add(pickTok(f, "on", ROLL_ON)); }
+}
+const testsProse = f => (f.attr ? lookupName(CHARS, f.attr) + " " : "") + "tests" + (f.skills.length ? " using " + listWords(f.skills.map(i => lookupName(T.skills, i))) : "");
+const testsFields = f => Object.assign({ skills: f.skills.length ? f.skills.slice() : undefined }, f.attr ? { attribute: f.attr } : {});
+// Some saved ability-roll records also carry a characteristic; the engine ignores it there, but it is kept.
+const rollFields = f => f.on === "tests" ? testsFields(f) : (f.attr ? { attribute: f.attr } : {});
 const OUTCOMES = [["tier3", "have a tier 3 outcome"], ["nottierone", "can't have a tier 1 outcome"], ["tierup", "are improved by one tier"], ["tierdown", "are worsened by one tier"], ["nottierthree", "can't have a tier 3 outcome"], ["tier1", "have a tier 1 outcome"]];
 /* Usage limits: "Usable [1] time [per round]" (the modifier's resourceRefreshType and numCharges).
    "respite" is the engine's long rest; "victory" refreshes when you earn a Victory. */
@@ -1066,7 +1087,7 @@ let compileSrcMods = null;   // the saved feature's modifiers, while compiling a
 const srcHash = o => { const t = JSON.stringify(o); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h; };
 const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
 function keptRecords(s, filter) {
-  if (s.srcIdx == null || !compileSrcMods || srcHash(s.f) !== s.snap || filter !== s.srcFilter) return null;
+  if (s.srcIdx == null || !compileSrcMods || SENT[s.type].noKeep || srcHash(s.f) !== s.snap || filter !== s.srcFilter) return null;
   return [s.srcIdx].concat(s.srcExtra != null ? [s.srcExtra] : []).map(i => clone(compileSrcMods[i]));
 }
 function mergeSrc(s, r) {
@@ -1115,7 +1136,7 @@ function compileSentences(list, feat, filter) {
 let compileOwner = null;   // a subclass's features carry the subclass's id as their classid
 function compileFeature(f) {
   // An imported feature nobody has changed is written back exactly as it was saved.
-  if (f.src && srcHash({ n: f.name, t: f.text, s: f.sentences }) === f.snap) return clone(f.src);
+  if (f.src && srcHash({ n: f.name, t: f.text, s: f.sentences }) === f.snap && !(typeof featureGainsChanged === "function" && featureGainsChanged(f))) return clone(f.src);
   compileSrcMods = f.src && f.src.modifiers || null;
   try { return mergeFeatureSrc(f.src, compileFeatureBlocks(f), f); } finally { compileSrcMods = null; }
 }
@@ -1133,6 +1154,7 @@ function mergeFeatureSrc(src, r, f) {
 function compileFeatureBlocks(f) {
   const name = featName(f), description = featText(f), base = { name, description, classid: compileOwner || cls.id };
   const mods = compileSentences(f.sentences, { name, text: description });
+  if (cls.gainsImported && f.id === cls.gainFeatId) mods.push(...newGainRecords());   // gains added after opening
   const parts = f.sentences.filter(x => SENT[x.type].compileChoice).map(x => SENT[x.type].compileChoice(x.f, f, base)).filter(Boolean);
   if (!parts.length) return Object.assign({ __typeName: "CharacterFeature" }, base, { modifiers: mods });
   if (parts.length === 1 && !mods.length) return parts[0];
@@ -1182,7 +1204,7 @@ function compileGains() {
   if (sg) { checklist.push(sg.check); triggers.push(sg.trigger); mods.push(...sg.mods); }
   cls.gains.forEach(g => {
     const ev = GAIN_EVENTS.find(e => e[0] === g.event) || GAIN_EVENTS[0];
-    const details = ev[1] + ", you gain " + gainAmountText(g, res.toLowerCase()) + ".";
+    const details = ev[1] + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
     checklist.push({ name: ev[1], details, guid: g.guid, mode: ev[2], quantity: fxTable(g, "qty") });
     triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name: ev[1], description: details,
       triggeredAbility: { __typeName: "TriggeredAbility", name: ev[1], description: details, trigger: ev[0], targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: ev[1] + ": gain " + res + ".",
@@ -1215,6 +1237,7 @@ function compileClass() {
   rec.levels[first].features.unshift(...basics);
   // An imported class keeps its saved checklist; its resource feature is one of its imported features.
   if (cls.hrRaw) rec.heroicResourceChecklist = clone(cls.hrRaw);
+  else if (cls.gainsImported) rec.heroicResourceChecklist = gainChecklist();
   else rec.levels[first].features.unshift({ __typeName: "CharacterFeature", name: cls.resourceName || "Heroic Resource", classid: cls.id,
     description: g.checklist.map(c => c.details).join(" "), tags: { Hidden: true }, modifiers: g.mods.concat(g.triggers) });
   Object.keys(rec).forEach(k => rec[k] === undefined && delete rec[k]);

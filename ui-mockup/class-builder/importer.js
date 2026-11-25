@@ -9,7 +9,7 @@
    read beside it. */
 
 const POWER_CLAIMS = ["modtype", "rollType", "keywords", "damageModifier", "damageModifierType", "potencymod", "surges", "surgesCanBeKept",
-  "displayCondition", "activationCondition", "resourceCostType", "resourceCostAmount", "skills", "filterCondition"];
+  "displayCondition", "activationCondition", "resourceCostType", "resourceCostAmount", "skills", "attribute", "rollRequirement", "surgeDamageType", "filterCondition"];
 const kwList = k => Array.isArray(k) ? k.slice() : k && typeof k === "object" ? Object.keys(k).filter(x => k[x]) : [];
 const scalar = v => v != null && (typeof v === "string" || typeof v === "number");
 const make = (type, extra) => Object.assign(SENT[type].make(), extra);
@@ -31,11 +31,20 @@ const EDGE_MODS = ["edge", "double_edge", "bane", "double_bane"];
 function readPower(m) {
   const kw = kwList(m.keywords);
   if (m.rollType === "enemy_ability_power_roll") return EDGE_MODS.includes(m.modtype) ? { type: "enemy", f: make("enemy", { mod: m.modtype, keywords: kw }) } : null;
-  if (m.rollType === "test_power_roll") return EDGE_MODS.includes(m.modtype) ? { type: "edge", f: readApplies(m, make("edge", { mod: m.modtype, on: "tests", skills: kwList(m.skills), keywords: [] })) } : null;
+  if (m.rollType === "test_power_roll") {
+    const tests = { on: "tests", attr: m.attribute && m.attribute !== "all" ? m.attribute : "", skills: kwList(m.skills), keywords: [] };
+    if (EDGE_MODS.includes(m.modtype)) return { type: "edge", f: readApplies(m, make("edge", Object.assign({ mod: m.modtype }, tests))) };
+    if (OUTCOMES.some(o => o[0] === m.modtype)) return { type: "outcome", f: readApplies(m, make("outcome", Object.assign({ out: m.modtype }, tests))) };
+    return null;
+  }
   if (m.rollType !== "ability_power_roll") return null;
+  // A surge damage type option stands alone (it is offered only when the roll already has surges).
+  if (m.surgeDamageType) return m.modtype && m.modtype !== "none" || m.damageModifier || m.surges || m.potencymod ? null
+    : { type: "surgeType", f: readApplies(m, make("surgeType", { dtype: m.surgeDamageType, keywords: kw })) };
   const parts = [];
-  if (EDGE_MODS.includes(m.modtype)) parts.push({ type: "edge", f: make("edge", { mod: m.modtype, on: "abilities", keywords: kw }) });
-  else if (OUTCOMES.some(o => o[0] === m.modtype)) parts.push({ type: "outcome", f: make("outcome", { out: m.modtype, keywords: kw }) });
+  const attr = m.attribute && m.attribute !== "all" ? m.attribute : "";
+  if (EDGE_MODS.includes(m.modtype)) parts.push({ type: "edge", f: make("edge", { mod: m.modtype, on: "abilities", attr, keywords: kw }) });
+  else if (OUTCOMES.some(o => o[0] === m.modtype)) parts.push({ type: "outcome", f: make("outcome", { out: m.modtype, on: "abilities", attr, keywords: kw }) });
   else if (m.modtype && m.modtype !== "none") return null;
   const dm = m.damageModifier;
   if (dm != null && dm !== "") { if (!scalar(dm)) return null; parts.push({ type: "damage", f: make("damage", { amount: String(dm), dtype: m.damageModifierType && m.damageModifierType !== "none" ? m.damageModifierType : "", keywords: kw }) }); }
@@ -80,7 +89,7 @@ const CLAIMS = {
   immunity: ["resistances", "filterCondition"], condImm: ["conditions", "filterCondition"], language: ["subtype", "proficiency", "equate", "skills", "filterCondition"],
   skills: ["subtype", "proficiency", "equate", "skills", "filterCondition"], resource: ["resourceType", "num", "filterCondition"], kit: ["kitType", "filterCondition"],
   ability: ["activatedAbility", "resourceRefreshType", "numCharges", "filterCondition"], reminder: ["text", "color", "filterCondition"],
-  trigger: ["resourceRefreshType", "numCharges", "filterCondition"], edge: POWER_CLAIMS, enemy: POWER_CLAIMS, damage: POWER_CLAIMS, outcome: POWER_CLAIMS, potency: POWER_CLAIMS, surges: POWER_CLAIMS, rollCombo: POWER_CLAIMS,
+  trigger: ["resourceRefreshType", "numCharges", "filterCondition"], surgeType: POWER_CLAIMS, edge: POWER_CLAIMS, enemy: POWER_CLAIMS, damage: POWER_CLAIMS, outcome: POWER_CLAIMS, potency: POWER_CLAIMS, surges: POWER_CLAIMS, rollCombo: POWER_CLAIMS,
 };
 CLAIMS.growing = ["progression"];
 Object.keys(CLAIMS).forEach(t => { if (SENT[t]) SENT[t].claims = CLAIMS[t]; });
@@ -232,6 +241,7 @@ function importClassRecord(rec, subs) {
   const std = STD_ARRAYS[n.length] || STD_ARRAYS[1], arr = (rec.baseCharacteristics || {}).arrays;
   if (arr && JSON.stringify(arr) !== JSON.stringify(std)) { c.arrays = "custom"; c.arraysCustom = clone(arr); } else c.arrays = "auto";
   if (!hp) { c.stamStart = rec.hitpointsCalculation || ""; c.stamPer = ""; }
+  readGains(c);   // falls back to the read-only checklist if the gains can't be paired up
   c.subclasses = (subs || []).map(s => { const st = newStats(); const sc = { id: s.id, name: s.name, details: s.details || "", lanes: importLanes(s.levels, st), showLevels: 10, src: s }; sc.stats = st; return sc; });
   c.importStats = stats;
   return c;
@@ -247,3 +257,91 @@ function openCoreClass(id) {
   const st = cls.importStats, sub = cls.subclasses.reduce((a, x) => ({ b: a.b + x.stats.blocks, a: a.a + x.stats.advanced }), { b: 0, a: 0 });
   toast("Opened " + rec.name + ": " + (st.blocks + sub.b) + " records as blocks, " + (st.advanced + sub.a) + " in the advanced editor.");
 }
+
+/* Gaining the heroic resource. Core classes store each way as a checklist line on the class plus a
+   trigger (with a Replenish step pointing at the line) in one of the class's features; the
+   start-of-turn die size is an attribute modifier. Reading pairs them into the gain blocks, and the
+   feature keeps a "gainRef" placeholder where each record sits, so an unchanged gain saves back
+   exactly and an edited one updates its own records in place. */
+const gainModel = g => g === cls.startGain || g.kind ? { k: g.kind, n: g.n, st: g.steps } : { e: g.event, q: g.qty, l: g.qtyLv || [] };
+const gainChanged = g => !g.src || srcHash(gainModel(g)) !== g.snap;
+const findGain = guid => cls.startGain && cls.startGain.guid === guid ? cls.startGain : (cls.gains || []).find(x => x.guid === guid) || null;
+const HR_START_RE = "\\(?\\s*Heroic Resource Gain at Start\\s*\\)?";
+function readGains(c) {
+  if (!c.hrRaw || !c.hrRaw.length) return false;
+  const trig = {}; let startAttr = null;
+  Object.keys(c.lanes).forEach(k => c.lanes[k].forEach(f => (f.src.modifiers || []).forEach((m, idx) => {
+    const b = m.behavior === "trigger" && ((m.triggeredAbility || {}).behaviors || []).find(x => x.__typeName === "ActivatedAbilityReplenishBehavior" && x.checklistid);
+    if (b) trig[b.checklistid] = { f, idx, m, b };
+    if (m.behavior === "attribute" && m.attribute === HR_START && !m.filterCondition) startAttr = { f, idx, m };
+  })));
+  let start = null; const gains = [];
+  for (const [order, ck] of c.hrRaw.entries()) {
+    const t = trig[ck.guid]; if (!t) return false;
+    const ev = t.m.triggeredAbility.trigger, q = t.b.quantity;
+    const src = { check: ck, order };
+    if (ev === "beginturn") {
+      if (!startAttr || start) return false;
+      const entries = q && q.__typeName === "GoblinScriptTable" ? q.entries.slice().sort((a, b) => a.threshold - b.threshold) : [{ threshold: 1, script: String(q) }];
+      const die = new RegExp("^1d\\s*" + HR_START_RE + "$", "i").test(String(entries[0].script).trim());
+      if (!die && !new RegExp("^" + HR_START_RE + "$", "i").test(String(entries[0].script).trim())) return false;
+      let prev = 0; const steps = [];
+      for (const e of entries.slice(1)) { const mm = /\+\s*(\d+)\s*$/.exec(String(e.script)); if (!die || !mm) return false; steps.push({ from: String(e.threshold), add: String(+mm[1] - prev) }); prev = +mm[1]; }
+      start = { kind: die ? "die" : "flat", n: String(startAttr.m.value), steps, guid: ck.guid, src, refs: [t, startAttr] };
+    } else {
+      if (!GAIN_EVENTS.some(e => e[0] === ev)) return false;
+      const g = { id: newId("g"), event: ev, guid: ck.guid, src, refs: [t] };
+      if (q && q.__typeName === "GoblinScriptTable") { const es = q.entries.slice().sort((a, b) => a.threshold - b.threshold); g.qty = String(es[0].script); g.qtyLv = es.slice(1).map(e => ({ from: String(e.threshold), value: String(e.script) })); }
+      else g.qty = String(q);
+      gains.push(g);
+    }
+  }
+  // Swap the records' blocks in their features for placeholders that point at the gain.
+  const toRef = (ref, guid, kind) => (function walk(l) { l.forEach((s, i) => { if (s.srcIdx === ref.idx && s.type !== "onlyIf") l[i] = { id: s.id, type: "gainRef", f: { guid, kind, idx: ref.idx }, srcIdx: ref.idx, srcFilter: s.srcFilter, snap: 0 }; else if (s.children) walk(s.children); }); })(ref.f.sentences);
+  if (start) { toRef(start.refs[0], start.guid, "trigger"); toRef(start.refs[1], start.guid, "startAttr"); }
+  gains.forEach(g => toRef(g.refs[0], g.guid, "trigger"));
+  [start].concat(gains).filter(Boolean).forEach(g => { delete g.refs; g.snap = srcHash(gainModel(g)); });
+  // Placeholders changed the features' blocks, so their "unchanged" marks are taken again.
+  Object.values(c.lanes).flat().forEach(f => { f.snap = srcHash({ n: f.name, t: f.text, s: f.sentences }); });
+  c.gainFeatId = (trig[c.hrRaw[0].guid] || {}).f.id;
+  c.startGain = start; c.gains = gains; c.hrRaw = null; c.gainsImported = true;
+  return true;
+}
+/* The record a placeholder writes: the saved one while its gain is unchanged, else that record
+   updated from the gain (event, amount, prompt, how often), keeping everything else. */
+function gainRefRecord(f) {
+  const src = compileSrcMods && compileSrcMods[f.idx], g = findGain(f.guid);
+  if (!g || !src) return null;
+  if (!gainChanged(g)) return clone(src);
+  const r = clone(src);
+  if (f.kind === "startAttr") { r.value = numOr(cls.startGain.n); return r; }
+  const all = compileGains(), c2 = all.checklist.find(c => c.guid === g.guid), t2 = all.triggers.find(t => t.triggeredAbility.behaviors[0].checklistid === g.guid);
+  const ta = r.triggeredAbility, rb = ta.behaviors.find(b => b.checklistid === g.guid);
+  ta.trigger = t2.triggeredAbility.trigger; ta.triggerPrompt = t2.triggeredAbility.triggerPrompt; rb.quantity = clone(c2.quantity);
+  if (c2.mode === "round" || c2.mode === "encounter") r.resourceRefreshType = c2.mode; else delete r.resourceRefreshType;
+  return r;
+}
+/* The class's checklist: each gain's saved line while unchanged, else updated; new gains are added. */
+function gainChecklist() {
+  const all = compileGains();
+  return [cls.startGain].concat(cls.gains).filter(Boolean).sort((a, b) => (a.src ? a.src.order : 1e9) - (b.src ? b.src.order : 1e9)).map(g => {
+    const c2 = all.checklist.find(c => c.guid === g.guid);
+    if (!g.src) return c2;
+    if (!gainChanged(g)) return clone(g.src.check);
+    return Object.assign(clone(g.src.check), { details: c2.details, quantity: clone(c2.quantity) }, c2.mode ? { mode: c2.mode } : {});
+  });
+}
+/* Records for gains added after opening (no saved records yet): written into the feature that holds the others. */
+function newGainRecords() {
+  const all = compileGains(), fresh = [cls.startGain].concat(cls.gains).filter(g => g && !g.src);
+  const out = [];
+  fresh.forEach(g => { if (g === cls.startGain) out.push(...all.mods); out.push(all.triggers.find(t => t.triggeredAbility.behaviors[0].checklistid === g.guid)); });
+  return out.filter(Boolean);
+}
+const featureGainsChanged = f => (cls.gainsImported && f.id === cls.gainFeatId && newGainRecords().length) ||
+  (function walk(l) { return l.some(s => (s.type === "gainRef" && (!findGain(s.f.guid) || gainChanged(findGain(s.f.guid)))) || (s.children && walk(s.children))); })(f.sentences);
+SENT.gainRef = { shelf: false, group: "res", label: "Resource gain", noKeep: true, claims: [], make: () => ({ guid: "", kind: "trigger", idx: 0 }),
+  render: (f, add) => { const g = findGain(f.guid);
+    add(E("span", "tag", resWord())); add(lbl(!g ? "(removed)" : f.kind === "startAttr" ? "start-of-turn die size" : g === cls.startGain ? "start-of-turn gain" : ((GAIN_EVENTS.find(e => e[0] === g.event) || [0, g.event])[1])));
+    add(E("span", "aside", "Edit it under “How you gain " + resWord() + "”")); },
+  prose: () => "", compile: f => gainRefRecord(f) };

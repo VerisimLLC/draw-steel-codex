@@ -2240,9 +2240,237 @@ local function ClassResourceLines(tok)
     return Lines(lines)
 end
 
+--- A small word that lights on hover and does something on click, instead of
+--- turning the card.
+--- @param args {text: string, tip: string|nil, click: fun()}
+--- @return Panel
+local function LinkButton(args)
+    return gui.Panel{
+        classes = {"heroCardLink"},
+        styles = {
+            { selectors = {"heroCardLink"}, bgcolor = "#00000000" },
+            { selectors = {"heroCardLink", "hover"}, bgcolor = "#ffffff14" },
+            { selectors = {"heroCardLinkLabel"}, color = COLOR_BLUE },
+            { selectors = {"heroCardLinkLabel", "parent:hover"}, color = COLOR_TEXT },
+        },
+        width = "auto",
+        height = "auto",
+        hpad = 4,
+        vpad = 1,
+        lmargin = 4,
+        valign = "center",
+        bgimage = "panels/square.png",
+        hover = function(element)
+            if args.tip ~= nil then
+                element.tooltip = TipFrame(args.tip)
+            end
+        end,
+        click = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            args.click()
+        end,
+        gui.Label{
+            classes = {"heroCardLinkLabel"},
+            text = args.text,
+            width = "auto",
+            height = "auto",
+            fontSize = 11,
+            bold = true,
+            textWrap = false,
+            interactable = false,
+        },
+    }
+end
+
+--- One squad: its name, how many minions are up and its Stamina, their
+--- portraits, and a thin bar in the squad's colour.
+local function SquadRow(name, total, liveTokens, sq)
+    local maxhp = tonumber(sq.maximum_health) or 0
+    local hp = math.max(0, maxhp - (tonumber(sq.damage_taken) or 0))
+    local pct = 0
+    if maxhp > 0 then
+        pct = math.max(0, math.min(1, hp / maxhp))
+    end
+    local portraits = {}
+    for _, minion in ipairs(liveTokens) do
+        local ok, image = pcall(gui.CreateTokenImage, minion, { width = 22, height = 22, rmargin = 3, bmargin = 2, interactable = false })
+        if ok and image ~= nil then
+            portraits[#portraits+1] = image
+        end
+    end
+    local barWidth = CONTENT_WIDTH - 20
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 4,
+        interactable = false,
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            interactable = false,
+            Text{ text = name, width = "55%", fontSize = 12, bold = true, color = COLOR_TEXT, textWrap = false },
+            Text{
+                text = T("herocard.back.summoner.count", {
+                    live = string.format("%d", tonumber(sq.liveMinions) or #liveTokens),
+                    total = string.format("%d", total),
+                    stamina = string.format("<b><color=%s>%d</color></b>/%d", COLOR_TEXT, hp, maxhp),
+                }),
+                width = "45%",
+                fontSize = 11,
+                color = COLOR_MUTED,
+                textAlignment = "right",
+                textWrap = false,
+            },
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            wrap = true,
+            tmargin = 3,
+            interactable = false,
+            children = portraits,
+        },
+        gui.Panel{
+            width = barWidth,
+            height = 6,
+            tmargin = 2,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000080",
+            interactable = false,
+            gui.Panel{
+                floating = true,
+                halign = "left",
+                width = math.floor(barWidth * pct),
+                height = "100%",
+                bgimage = "panels/square.png",
+                bgcolor = sq.color or COLOR_STAMINA,
+                interactable = false,
+            },
+        },
+    }
+end
+
+--- A Summoner's minion squads in the card's style, on a plate like the
+--- stamina strip. Sacrifice and Edit for whoever controls the hero; the
+--- squads' rules on the label's hover. Nil for a hero who isn't a summoner.
+local function MinionSquads(tok, c)
+    local range = tonumber(Try(function() return c:CalculateNamedCustomAttribute("SummonerRange") end, 0)) or 0
+    if range <= 0 then
+        return nil
+    end
+    local control = Try(function() return tok.canControlAsUser end, false) == true
+
+    local title = SectionLabel(T("herocard.back.summoner.title"))
+    title.selfStyle.width = "auto"
+    title.selfStyle.valign = "center"
+    local header = {
+        --hover: what a squad does on its turn.
+        WithHover(title, function()
+            return TipFrame(T("herocard.back.summoner.rules"), true)
+        end),
+    }
+    if control then
+        local buttons = {}
+        buttons[#buttons+1] = LinkButton{
+            text = T("herocard.back.summoner.sacrifice"),
+            tip = T("herocard.back.summoner.sacrifice_tip"),
+            click = function()
+                if not tok.valid or not tok.canControlAsUser then
+                    return
+                end
+                local utils = rawget(_G, "MCDMUtils")
+                local ability = utils ~= nil and utils.GetStandardAbility("Summoner Sacrifice Minions") or nil
+                local hud = rawget(_G, "gamehud")
+                if ability == nil or hud == nil or hud.actionBarPanel == nil then
+                    return
+                end
+                hud.actionBarPanel:FireEventTree("invokeAbility", tok, ability:MakeTemporaryClone(), {})
+            end,
+        }
+        buttons[#buttons+1] = LinkButton{
+            text = T("herocard.back.summoner.edit"),
+            tip = T("herocard.back.summoner.edit_tip"),
+            click = function()
+                if not tok.valid or not tok.canControlAsUser then
+                    return
+                end
+                local minion = rawget(_G, "DrawSteelMinion")
+                if minion ~= nil then
+                    minion.ShowSquadManager(tok)
+                end
+            end,
+        }
+        header[#header+1] = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            flow = "horizontal",
+            interactable = false,
+            children = buttons,
+        }
+    end
+
+    local children = {
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            interactable = false,
+            children = header,
+        },
+    }
+
+    local squads = Try(function() return c:GetSummonedSquadsByType(nil) end, {})
+    local list = {}
+    for squadName, info in pairs(squads) do
+        local live = {}
+        for _, charid in ipairs(info.charids or {}) do
+            local minion = dmhub.GetTokenById(charid)
+            if minion ~= nil and minion.valid and minion.properties ~= nil and not Try(function() return minion.properties:IsDeadOrDying() end, false) then
+                live[#live+1] = minion
+            end
+        end
+        if #live > 0 then
+            table.sort(live, function(a, b) return a.charid < b.charid end)
+            list[#list+1] = { name = squadName, total = #(info.charids or {}), live = live }
+        end
+    end
+    table.sort(list, function(a, b) return a.name < b.name end)
+    for _, entry in ipairs(list) do
+        local leader = entry.live[1]
+        pcall(function() leader.properties:RefreshSquadInfo(leader) end)
+        local sq = Try(function() return leader.properties:try_get("_tmp_minionSquad") end)
+        if sq ~= nil then
+            local ok, row = pcall(SquadRow, entry.name, entry.total, entry.live, sq)
+            if ok and row ~= nil then
+                children[#children+1] = row
+            end
+        end
+    end
+    if #list == 0 then
+        children[#children+1] = Text{ text = "<i>" .. T("herocard.back.summoner.none") .. "</i>", fontSize = 12, color = COLOR_MUTED }
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        hpad = 10,
+        vpad = 6,
+        borderBox = true,
+        bgimage = "panels/square.png",
+        bgcolor = COLOR_PLATE,
+        interactable = false,
+        children = children,
+    }
+end
+
 --- The class's own pieces of the tac panel that have no card form yet, in the
---- tac panel's styles: boxes a class registers without entry.card, and the
---- Summoner's minion squads. Each hides itself on a hero it doesn't fit.
+--- tac panel's styles: boxes a class registers without entry.card. Each hides
+--- itself on a hero it doesn't fit.
 --- TacPanel is game-side: in town there is none. Kept on the card's state and
 --- refreshed, so the boxes keep their state.
 local function ClassPanel(tok, c, state)
@@ -2271,9 +2499,6 @@ local function ClassPanel(tok, c, state)
                     children = boxes,
                 }
             end
-        end
-        if tac.Summoner ~= nil then
-            children[#children+1] = tac.Summoner()
         end
         if #children == 0 then
             return nil
@@ -2481,6 +2706,7 @@ local function BuildHeroScroll(tok, charid, state)
         function() return EpicResource(tok) end,
         function() return ClassResourceLines(tok) end,
         function() return ClassPanel(tok, c, state) end,
+        function() return MinionSquads(tok, c) end,
         function() return Characteristics(c, tok) end,
         function() return MovementLine(c, tok) end,
         function() return Effects(c, tok) end,
@@ -2850,15 +3076,19 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         if target == nil then
             return
         end
+        --panel reads raise rather than return nil, so each is guarded.
         local offset, total = 0, 0
         for i, section in ipairs(sections) do
-            if section.valid and not section:HasClass("collapsed") then
-                local h = Try(function() return section.renderedHeight end, 0) + (tonumber(section.selfStyle.bmargin) or 0)
-                if i < target then
-                    offset = offset + h
-                end
-                total = total + h
+            local shown = Try(function() return section.valid and not section:HasClass("collapsed") end, false)
+            local h = 0
+            if shown then
+                h = (tonumber(Try(function() return section.renderedHeight end, 0)) or 0)
+                    + (tonumber(Try(function() return section.selfStyle.bmargin end, 0)) or 0)
             end
+            if i < target then
+                offset = offset + h
+            end
+            total = total + h
         end
         local range = total - Try(function() return scroller.renderedHeight end, 0)
         if range <= 0 then

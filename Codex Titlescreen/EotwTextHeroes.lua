@@ -546,6 +546,22 @@ text("herocard.back.triggers.ready", [[Triggered action ready this round]])
 text("herocard.back.triggers.used", [[Triggered action used this round]])
 text("herocard.back.trigger.when", [[<b>When:</b> {trigger}]])
 
+--A Summoner's minion squads, in Stats. {live} and {total} count a squad's
+--minions (up, and in the squad); {stamina} is its Stamina, already formatted.
+text("herocard.back.summoner.title", [[Minion squads]])
+text("herocard.back.summoner.count", [[{live}/{total} up - {stamina}]])
+text("herocard.back.summoner.none", [[No minions summoned]])
+text("herocard.back.summoner.sacrifice", [[Sacrifice]])
+text("herocard.back.summoner.sacrifice_tip", [[Sacrifice one or more of your minions to reduce the cost of a heroic ability by 1 or more.]])
+text("herocard.back.summoner.edit", [[Edit squads]])
+text("herocard.back.summoner.edit_tip", [[Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.]])
+--Markdown: the hover on the Minion squads label.
+text("herocard.back.summoner.rules", [[**Your minion squads**
+* Move action
+* Maneuver or main action
+* If a minion has a signature ability, apply one instance of its effects to each target.
+* Each additional minion that strikes the target adds its free strike value to the action.]])
+
 --The heroic resource. {resource} is the resource's name; {count} is a number.
 text("herocard.back.resource.epic", [[{resource} (epic)]])
 text("herocard.back.growth.needs", [[Needs {count} more.]])

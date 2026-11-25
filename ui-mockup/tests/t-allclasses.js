@@ -39,7 +39,7 @@ const { chromium } = require('playwright'); const fs = require('fs');
     });
     return out;
   });
-  fs.writeFileSync('allcls.json', JSON.stringify(r, null, 1));
+  fs.writeFileSync(require('path').join(require('os').tmpdir(), 'allcls.json'), JSON.stringify(r, null, 1));
   const tot = r.classes.reduce((a, c) => [a[0] + c[1], a[1] + c[2], a[2] + c[3], a[3] + c[4], a[4] + c[5]], [0, 0, 0, 0, 0]);
   console.log('records as blocks', tot[0], 'grey', tot[1], 'choices', tot[2], 'grey choices', tot[3], 'text-only features', tot[4]);
   console.log('gains not paired (read-only):', r.hrRaw.join(', ') || 'none');

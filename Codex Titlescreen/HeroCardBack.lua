@@ -2967,6 +2967,52 @@ local function NotesLine(c)
     return LabelledLine(T("herocard.back.label.notes"), string.format("<i>%s</i>", notes))
 end
 
+--- The hero's complications: each one's name (its overview on hover), then
+--- its benefit and drawback. nil for a hero with none.
+local function Complications(c)
+    local list = Try(function() return c:Complications() end, {})
+    if #list == 0 then
+        return nil
+    end
+    table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
+    local children = { SectionLabel(T("herocard.back.label.complication")) }
+    for _, complication in ipairs(list) do
+        local overview = Try(function() return complication.description end, "")
+        children[#children+1] = WithHover(Text{
+            text = complication.name or "",
+            fontSize = 12.5,
+            bold = true,
+            color = COLOR_TEXT,
+            bmargin = 2,
+        }, function()
+            if type(overview) ~= "string" or overview == "" then
+                return nil
+            end
+            return TipFrame(overview, true)
+        end)
+        for _, part in ipairs({
+            { T("herocard.back.complication.benefit"), Try(function() return complication.benefit end, "") },
+            { T("herocard.back.complication.drawback"), Try(function() return complication.drawback end, "") },
+        }) do
+            if type(part[2]) == "string" and part[2] ~= "" then
+                children[#children+1] = gui.Label{
+                    text = string.format("**%s** %s", part[1], part[2]),
+                    markdown = true,
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 12,
+                    color = COLOR_SOFT,
+                    textAlignment = "left",
+                    textWrap = true,
+                    bmargin = 3,
+                    interactable = false,
+                }
+            end
+        end
+    end
+    return Lines(children)
+end
+
 local function LanguagesLine(c)
     local languages = LanguagesText(c)
     if languages == "" then
@@ -3076,6 +3122,7 @@ local function BuildHeroScroll(tok, charid, state)
     AppendSection(result, info, "features", {
         function() return ResourceGains(c) end,
         function() return GrowthTables(c) end,
+        function() return Complications(c) end,
         function()
             return Lines{ SectionLabel(T("herocard.back.label.skills")), SkillsByGroup(c, tok) }
         end,

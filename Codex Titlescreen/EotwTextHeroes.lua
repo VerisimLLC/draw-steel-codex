@@ -575,6 +575,12 @@ text("herocard.back.kit.ranged_damage", [[Ranged damage]])
 text("herocard.back.kit.supernatural_damage", [[Supernatural damage]])
 text("herocard.back.kit.armor", [[Armor]])
 
+--The hero's complication in Features: a heading, then each one's name and
+--these two labels before its rules text.
+text("herocard.back.label.complication", [[Complication]])
+text("herocard.back.complication.benefit", [[Benefit:]])
+text("herocard.back.complication.drawback", [[Drawback:]])
+
 --Under the condition chips while something ends on a save. {threshold} is the
 --number to reach (already formatted, with its +); {roll} is the dice, e.g.
 --1d10 or 1d10 + 1.

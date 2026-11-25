@@ -431,25 +431,10 @@ local function ArrowLoc(moverToken, forcedMovement, loc)
     return loc
 end
 
---Damage one creature takes from one collision, per the Collision global rule:
---1 per square of movement left, +2 against an object (plus the pusher's bonus on
---a push), less its Forced Movement Damage Reduction.
+--Damage one creature takes from one collision, per the Collision global rule.
 local function ForcedCollisionDamage(invokerToken, token, speed, withobject, isPush)
-    local props = token.properties
-    if props:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
-        return 0
-    end
-    if withobject and props:CalculateNamedCustomAttribute("NoDamageFromForcedMovementWithObjects") >= 1 then
-        return 0
-    end
-    local damage = speed
-    if withobject then
-        damage = damage + 2
-        if isPush and invokerToken ~= nil and invokerToken.properties ~= nil then
-            damage = damage + invokerToken.properties:CalculateNamedCustomAttribute("BonusPushDamageIntoObjects")
-        end
-    end
-    return damage - props:CalculateNamedCustomAttribute("Forced Movement Damage Reduction")
+    local pusher = invokerToken ~= nil and invokerToken.properties or nil
+    return token.properties:PredictedCollisionDamage(speed, withobject, pusher, isPush and "push" or nil)
 end
 
 --True when everything in collideWith is an object that runs its own collision

@@ -4375,12 +4375,6 @@ function HeroBuilder.Create(args)
         return nil
     end
 
-    --The Builder names a Hero from their ancestry's name table, and names them
-    --again when an ancestry change (or a Revenant's former life) brings a new
-    --table, until the player types a name of their own. The Hero keeps the
-    --name it gave and the table it came from, {name, table}, under this field.
-    local AUTO_NAME_FIELD = "builderAutoName"
-
     --- The Hero's name table, or nil when their ancestry has none.
     --- @param hero character
     --- @return nil|table
@@ -4402,7 +4396,7 @@ function HeroBuilder.Create(args)
         local function Wrapped(hero)
             change(hero)
             name = nil
-            local auto = hero:try_get(AUTO_NAME_FIELD)
+            local auto = hero:try_get(Engine().AUTO_NAME_FIELD)
             local autoName = type(auto) == "table" and auto.name or nil
             if typed ~= "" and typed ~= autoName then
                 return
@@ -4413,7 +4407,7 @@ function HeroBuilder.Create(args)
             end
             name = Engine().GenerateName(hero)
             if name ~= nil then
-                hero[AUTO_NAME_FIELD] = {name = name, table = generator.id}
+                hero[Engine().AUTO_NAME_FIELD] = {name = name, table = generator.id}
             end
         end
         local function Rename()
@@ -7421,7 +7415,7 @@ function HeroBuilder.Create(args)
                 --ancestry change may replace it.
                 local generator = NameTableOf(hero)
                 if namedAs ~= nil and generator ~= nil then
-                    hero[AUTO_NAME_FIELD] = {name = namedAs, table = generator.id}
+                    hero[Engine().AUTO_NAME_FIELD] = {name = namedAs, table = generator.id}
                 end
             end)
         end

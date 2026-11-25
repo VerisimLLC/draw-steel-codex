@@ -200,7 +200,7 @@ local function NameTable(token)
         --Race() falls back to a default ancestry; an unpicked one reads "".
         if hero:try_get("raceid") ~= nil then
             ancestry = HeroBuild.SaidName(hero:Race().name)
-            formerLife = hero:Race():IsInherited() ~= false and hero:InheritedAncestry() == nil
+            formerLife = hero:Race():IsInherited() and hero:InheritedAncestry() == nil
         end
     end)
     return hasTable, ancestry, formerLife

@@ -546,6 +546,23 @@ function character:GetHeroicOrMaliceResources()
     return g_baseCharacterGetHeroicOrMaliceResources(self)
 end
 
+--Any ancestry without names of its own uses human names. A Revenant still
+--waiting on a former life gets none, so the sheet asks for one first.
+local g_baseCharacterGetNameGeneratorTable = character.GetNameGeneratorTable
+function character:GetNameGeneratorTable()
+    local result = g_baseCharacterGetNameGeneratorTable(self)
+    if result ~= nil or self:Race():IsInherited() then
+        return result
+    end
+    for _, race in unhidden_pairs(GetTableCached(Race.tableName) or {}) do
+        if race.name == "Human" then
+            local key = race:try_get("nameGenerator")
+            return key ~= nil and GetTableCached("nameGenerators")[key] or nil
+        end
+    end
+    return nil
+end
+
 --A summon that shares its summoner's heroic resource surfaces the summoner's
 --heroic/epic quantities in GetResources, so ability costs paid in those
 --resources pass affordability checks (see ActivatedAbility:GetCost). Spends

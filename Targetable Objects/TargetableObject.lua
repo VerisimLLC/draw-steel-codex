@@ -782,8 +782,8 @@ TriggeredAbility.RegisterTrigger{
 local g_baseEndTurn = creature.EndTurn
 function creature:EndTurn(token)
     g_baseEndTurn(self, token)
-    --If only this file is reloaded, the old copy of this function is still wrapped inside
-    --the new one. It stops here so objects hear each turn end once, not twice.
+    --If this mod reloads on its own, creature.EndTurn is still the old wrapper, so the
+    --new one wraps it. The old copy stops here so objects hear each turn end once.
     if mod.unloaded then
         return
     end

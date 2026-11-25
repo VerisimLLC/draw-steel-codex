@@ -456,6 +456,7 @@ local function GearStyles()
         { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
         --the window's own surface: the scheme's plate, the prototype's near-black.
         { selectors = { "cgWindow" }, bgcolor = palette.plate },
+        { selectors = { "cgTab" }, borderColor = palette.tileBorder },
         --the main action: solid gold (the scheme's info colour) with dark bold words.
         { selectors = { "heroSheetButton", "cgGold" }, bgcolor = palette.rawInfo, borderColor = palette.rawInfo, priority = 10 },
         { selectors = { "heroSheetButton", "cgGold", "hover" }, brightness = 1.12, priority = 11 },
@@ -2342,6 +2343,100 @@ dmhub.RegisterRemoteEvent(OPEN_EVENT, function(info)
     end
     CondemnedGear.ShowWindow()
 end)
+
+--The players' way back: a small "Experimental Gear [Open]" tab, bottom left of the screen,
+--while the window is open for the table but closed on this screen. It sits above the
+--action bar's strip (about 58 high) so a wide bar on a narrow screen never covers it.
+local TAB_BOTTOM = 76
+local g_tab = nil
+
+--- @return boolean
+local function TabWanted()
+    if dmhub.isDM or not CondemnedGear.IsOpen() or CondemnedGear.IsWindowShowing() then
+        return false
+    end
+    return #CondemnedGear.MyHeroes() > 0
+end
+
+--- @return Panel
+local function CreateTab()
+    local open = HeroSheetTheme.WindowButton(T("condemned.gear.reopen_button"), function()
+        CondemnedGear.ShowWindow()
+    end, false)
+    open:SetClass("cgGold", true)
+    open.children[1]:SetClass("cgGold", true)
+    local box = gui.Panel{
+        classes = { "cgWindow", "cgTab" },
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 8,
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        lpad = 14,
+        rpad = 6,
+        vpad = 6,
+        borderBox = true,
+        gui.Label{
+            classes = { "heroSheetCardStrong" },
+            text = T("condemned.gear.reopen_label"),
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+            valign = "center",
+        },
+        open,
+    }
+    box.styles = GearStyles()
+    --think polls a cheap signature: closing the window changes nothing the document sees.
+    local shown = nil
+    local tab = gui.Panel{
+        classes = { "collapsed" },
+        styles = HeroSheetTheme.RootStyles(),
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "bottom",
+        lmargin = 16,
+        bmargin = TAB_BOTTOM,
+        thinkTime = 0.25,
+        think = function(element)
+            local want = TabWanted()
+            if want ~= shown then
+                shown = want
+                element:SetClass("collapsed", not want)
+            end
+        end,
+        box,
+    }
+    HeroSheetTheme.Track(tab, function(panel)
+        panel.styles = HeroSheetTheme.RootStyles()
+        box.styles = GearStyles()
+    end)
+    return tab
+end
+
+--The HUD is built after this file loads and is rebuilt with the game, so keep checking.
+local function KeepTab()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(2, KeepTab)
+    if g_tab ~= nil and g_tab.valid then
+        return
+    end
+    --while the game loads, the old HUD's layer is still referenced but already torn down.
+    local hud = GameHud.instance
+    local layer = hud ~= nil and hud.mainDialogPanel or nil
+    local loading = dmhub.gameLoadingProgress
+    if layer == nil or not layer.valid or (loading ~= nil and loading < 1) then
+        return
+    end
+    g_tab = CreateTab()
+    gui.ShowDialog(mod, g_tab)
+end
+dmhub.Schedule(2, KeepTab)
 
 --A player who closed the window gets it back from the Campaign Tracker while it is open.
 local function CreateReopenSection()

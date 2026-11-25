@@ -306,7 +306,8 @@ const SENT = {
     render: (f, add, s, feat) => {
       add(lbl("Choose")); add(textTok(f, "num", "1")); add(pickTok(f, "cat", [["signature", "signature"], ["heroic", "heroic"]])); add(lbl(+f.num === 1 ? "ability from these" : "abilities from these"));
       if (f.cat === "heroic") { add(lbl(", each costing")); add(textTok(f, "cost", "3")); add(lbl((cls.resourceName || "resource").toLowerCase())); }
-      add(abilityCards(f.options.map(o => ({ rec: o.rec, problems: o.problems })), feat, (i, rec, d, problems) => { f.options[i].rec = rec; f.options[i].problems = problems; }, i => f.options.splice(i, 1), s, () => abilitySeed(f.cat, f.cost)));
+      add(abilityCards(f.options.map(o => ({ rec: o.rec, display: o.display, trig: o.trig, problems: o.problems })), feat,
+        (i, rec, d, problems) => { f.options[i].rec = rec; if (d !== undefined) f.options[i].display = d; f.options[i].problems = problems; }, i => f.options.splice(i, 1), s, () => abilitySeed(f.cat, f.cost)));
       const b = E("button", "addsent inblock", "+ new ability to choose from"); b.type = "button"; fk(b, "newopt:" + s.id);
       // The option is only added when the editor's Done is pressed; Cancel leaves nothing behind.
       b.addEventListener("click", ev => { ev.stopPropagation(); newOption(f, feat); });
@@ -315,9 +316,7 @@ const SENT = {
     prose: f => f.cat === "signature" ? "Choose " + word(f.num) + " signature ability from the following options. Signature abilities can be used at will."
       : "Choose " + word(f.num) + " heroic ability from the following options, each of which costs " + f.cost + " " + (cls.resourceName || "heroic resource").toLowerCase() + " to use.",
     compileChoice: (f, feat, base) => Object.assign({ __typeName: "CharacterFeatureChoice" }, base, { numChoices: +f.num || 1, allowDuplicateChoices: false,
-      options: f.options.filter(o => o.rec).map(o => o.src && JSON.stringify(o.rec) === JSON.stringify(o.src.modifiers[0].activatedAbility) ? clone(o.src)
-        : { __typeName: "CharacterFeature", name: o.rec.name, description: "", tags: { Ability: true },
-          modifiers: [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }] }) }) },
+      options: f.options.filter(o => o.rec).map(abilityOption) }) },
   subclassChoice: { featName: "Subclass", desc: "The player chooses their subclass (College, Circle, Domain...).", label: "Choose your subclass", group: "res", uses: 12, choice: true, make: () => ({}),
     // What subclasses are called (College, Circle, Domain...) is the feature's own name.
     // The subclasses to choose from: each built here opens on click; compendium ones that name this class show dashed.
@@ -355,7 +354,7 @@ const SENT = {
       appliesProse(f) + ".",
     compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: f.mod, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
       keywords: f.on === "abilities" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [],
-      displayCondition: "" }, rollFields(f), appliesFields(f))),
+      }, rollFields(f), appliesFields(f))),
     combo: { modtype: f => f.mod, fields: () => ({}),
       render: (f, add) => { add(lbl("have")); add(pickTok(f, "mod", [["edge", "an edge"], ["double_edge", "a double edge"], ["bane", "a bane"], ["double_bane", "a double bane"]])); },
       prose: f => "have " + { edge: "an edge", double_edge: "a double edge", bane: "a bane", double_bane: "a double bane" }[f.mod] } },
@@ -390,6 +389,28 @@ const SENT = {
     combo: { fields: f => ({ potencymod: (f.dir === "up" ? "" : "-") + (f.n || 1) }),
       render: (f, add) => { add(lbl("have their potency")); add(pickTok(f, "dir", [["up", "increased by"], ["down", "decreased by"]])); add(textTok(f, "n", "1")); },
       prose: f => "have their potency " + (f.dir === "up" ? "increased" : "decreased") + " by " + f.n } },
+  /* Forced movement distance bonus (Knockback: "push, pull or slide + your Might"): the power
+     modifier's adjustments list, one entry per kind of movement. */
+  moveBonus: { desc: "Your abilities' forced movement (push, pull, slide) goes further, by a number or formula.", label: "Forced movement bonus", group: "rolls", uses: 6,
+    make: () => ({ kinds: ["push"], amount: "1", keywords: [], applies: "always" }),
+    render: (f, add) => { add(lbl("Your")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "", "and")); add(lbl("abilities'")); add(multiTok(f, "kinds", FM_KINDS, "choose", "and"));
+      add(lbl("distance gains a bonus of")); add(fxTok(f, "amount", "amount", true)); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.keywords.length ? listWords(f.keywords, "and") + " " : "") + "abilities' " + listWords(f.kinds, "and") + " distance gains a bonus of " + fxWords(f, "amount") + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "none", rollType: "ability_power_roll", adjustments: f.kinds.map(k => ({ type: k, value: fxFormula(f, "amount") })),
+      keywords: f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, appliesFields(f))) },
+  /* Roll other dice instead (Strongest There Is: "3d10k2", roll three keep two): modtype replaceroll. */
+  replaceRoll: { desc: "Tests (or ability rolls) roll different dice, such as 3d10, keep the highest 2.", label: "Roll differently", group: "rolls", uses: 3,
+    make: () => ({ formula: "3d10k2", on: "tests", attr: "", skills: [], keywords: [], applies: "choose" }),
+    render: (f, add) => { add(lbl("Your")); rollsPhrase(f, add); add(lbl("can roll")); add(textTok(f, "formula", "3d10k2", 16)); add(lbl("instead")); appliesPhrase(f, add); },
+    prose: f => "Your " + (f.on === "tests" ? testsProse(f) : "ability rolls") + " can roll " + f.formula + " instead" + appliesProse(f) + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "power", modtype: "replaceroll", replaceText: f.formula, rollType: f.on === "tests" ? "test_power_roll" : "ability_power_roll",
+      keywords: f.on !== "tests" && f.keywords.length ? Object.fromEntries(f.keywords.map(k => [k, true])) : [] }, rollFields(f), appliesFields(f))) },
+  /* "When you push a creature, you can slide it instead" (the forcedmovement modifier's movementTypes). */
+  moveSwap: { desc: "Forced movement of one kind can be done as another (push as slide...).", label: "Change forced movement", group: "rolls", uses: 4,
+    make: () => ({ pairs: [{ from: "push", to: "slide" }] }),
+    render: (f, add) => { f.pairs.forEach((x, i) => { add(lbl(i ? "and when you" : "When you")); add(pickTok(x, "from", [["any", "force move"]].concat(FM_KINDS))); add(lbl("a creature, you can")); add(pickTok(x, "to", FM_KINDS)); add(lbl("it instead")); }); },
+    prose: f => f.pairs.map((x, i) => (i ? "when" : "When") + " you " + (x.from === "any" ? "force move" : x.from) + " a creature, you can " + x.to + " it instead").join(", and ") + ".",
+    compile: (f, feat) => modBase(feat, { behavior: "forcedmovement", movementTypes: f.pairs.map(x => ({ from: x.from, to: x.to })) }) },
   /* Primordial Strike style: an option, offered only once the roll has surges, that changes the surges'
      damage type (the modifier's rollRequirement "surges" and surgeDamageType). */
   surgeType: { desc: "When the roll has surges, the player can make the surge damage a type you pick (acid, fire...).", label: "Surge damage type", group: "rolls", uses: 7,
@@ -407,10 +428,13 @@ const SENT = {
     combo: { fields: f => Object.assign({ surges: fxFormula(f, "n") }, f.keep === "keep" ? { surgesCanBeKept: true } : {}),
       render: (f, add) => { add(lbl("gain")); add(fxTok(f, "n", "1")); add(lbl(String(f.n).trim() === "1" ? "surge" : "surges")); add(surgeKeepTok(f)); },
       prose: f => "gain " + fxText(f, "n") + (String(f.n).trim() === "1" ? " surge" : " surges") + surgeKeepProse(f) } },
-  immunity: { desc: "Damage immunity or weakness of a type.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtype: "fire", kind: "immunity", amount: "5" }),
-    render: (f, add) => { add(lbl("You have")); add(pickTok(f, "dtype", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]))); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); add(fxTok(f, "amount", "amount")); },
+  // One or more damage types share the amount (Elemental Form: acid, cold, fire... immunity equal to your Might).
+  immunity: { desc: "Damage immunity or weakness to one or more types.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtypes: ["fire"], kind: "immunity", amount: "5" }),
+    render: (f, add) => { if (!f.dtypes) f.dtypes = [f.dtype || "fire"];
+      add(lbl("You have")); add(multiTok(f, "dtypes", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]), "choose damage types", "and")); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); if (!fxIsCount(f, "amount")) add(lbl("equal to")); add(fxTok(f, "amount", "amount", true)); },
+    prose: f => "You have " + listWords(f.dtypes || [f.dtype], "and") + " " + f.kind + " " + (fxIsCount(f, "amount") ? "" : "equal to ") + fxWords(f, "amount") + ".",
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
-    compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: [{ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: f.dtype, dr: f.kind === "weakness" ? "-(" + fxFormula(f, "amount") + ")" : fxFormula(f, "amount") }] }) },
+    compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: (f.dtypes || [f.dtype]).map(d => ({ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: d, dr: f.kind === "weakness" ? "-(" + fxFormula(f, "amount") + ")" : fxFormula(f, "amount") })) }) },
   condImm: { desc: "You can't gain the conditions you pick.", label: "Can't be (condition)", group: "def", uses: 65, make: () => ({ conds: [] }),
     render: (f, add) => { add(lbl("You can't be")); add(multiTok(f, "conds", T.conditions.map(c => [c[0], c[1].toLowerCase()]), "choose conditions")); },
     compile: (f, feat) => modBase(feat, { behavior: "conditionimmunity", conditions: f.conds.slice() }) },
@@ -764,6 +788,7 @@ const testsProse = f => (f.attr ? lookupName(CHARS, f.attr) + " " : "") + "tests
 const testsFields = f => Object.assign({ skills: f.skills.length ? f.skills.slice() : undefined }, f.attr ? { attribute: f.attr } : {});
 // Some saved ability-roll records also carry a characteristic; the engine ignores it there, but it is kept.
 const rollFields = f => f.on === "tests" ? testsFields(f) : (f.attr ? { attribute: f.attr } : {});
+const FM_KINDS = [["push", "push"], ["pull", "pull"], ["slide", "slide"]];
 const OUTCOMES = [["tier3", "have a tier 3 outcome"], ["nottierone", "can't have a tier 1 outcome"], ["tierup", "are improved by one tier"], ["tierdown", "are worsened by one tier"], ["nottierthree", "can't have a tier 3 outcome"], ["tier1", "have a tier 1 outcome"]];
 /* Usage limits: "Usable [1] time [per round]" (the modifier's resourceRefreshType and numCharges).
    "respite" is the engine's long rest; "victory" refreshes when you earn a Victory. */
@@ -794,7 +819,8 @@ function appliesPhrase(f, add) {
 }
 function appliesFields(f) {
   // "1" is always selected: the offer test already decides when it shows, so the test isn't repeated.
-  const shown = { displayCondition: f.offer ? testGs(f.offer) : "" };
+  // displayCondition defaults to "" (every matching roll) on the type, so it is written only when set.
+  const shown = f.offer ? { displayCondition: testGs(f.offer) } : {};
   // "Always" is stored as true and "never" as false, as the engine stores them (MCDModifyPowerRolls.lua).
   if (f.applies === "cost" || f.applies === "choosecost") return Object.assign(shown, { activationCondition: f.applies === "cost", resourceCostType: f.costRes || "cost", resourceCostAmount: String(f.costN || "1") });
   if (f.applies === "when") return Object.assign(shown, { activationCondition: testGs(f.tick) });
@@ -802,6 +828,17 @@ function appliesFields(f) {
 }
 const appliesProse = f => (f.offer ? " when " + testProse(f.offer) : "") + (f.applies === "when" ? " (it applies automatically when " + testProse(f.tick) + ")" : "") + appliesProseCost(f);
 const appliesProseCost = f => f.applies === "choose" ? " (you choose when to use this)" : f.applies === "choosecost" ? " (you can choose to spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll)" : f.applies === "cost" ? " if you spend " + (f.costN || 1) + " " + (f.costRes === "surges" ? (+f.costN === 1 ? "surge" : "surges") : f.costRes === "epic" ? (cls.epicName || "epic resource").toLowerCase() : resWord()) + " when you roll" : "";
+/* One option of an ability choice: an ability, or a triggered ability (with its card). An option
+   opened from a saved class is written back as saved while unchanged; once edited it keeps the
+   saved option's other fields and records (e.g. a second trigger). */
+const optionSnap = o => srcHash({ r: o.rec, d: o.display || null });
+function abilityOption(o) {
+  if (o.src && o.snap === optionSnap(o)) return clone(o.src);
+  const mods = o.trig ? [clone(o.rec)].concat(o.display ? [clone(o.display)] : [], clone(o.extra || []))
+    : [{ __typeName: "CharacterModifier", behavior: "activated", name: "Ability", description: "", activatedAbility: o.rec }];
+  const base = { __typeName: "CharacterFeature", name: recName(o.rec), description: "", tags: { Ability: true }, modifiers: mods };
+  return o.src ? Object.assign(clone(o.src), { name: base.name, modifiers: mods }) : base;
+}
 /* Combining roll changes. A block can join a combined block when it changes ability rolls: same
    keywords, and at most one edge/bane/outcome change between them (one power modifier holds one). */
 const ROLL_OPT_KEYS = ["offer", "applies", "tick", "costN", "costRes"];

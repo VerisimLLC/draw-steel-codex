@@ -9,7 +9,7 @@
    read beside it. */
 
 const POWER_CLAIMS = ["modtype", "rollType", "keywords", "damageModifier", "damageModifierType", "potencymod", "surges", "surgesCanBeKept",
-  "displayCondition", "activationCondition", "resourceCostType", "resourceCostAmount", "skills", "attribute", "rollRequirement", "surgeDamageType", "filterCondition"];
+  "displayCondition", "activationCondition", "resourceCostType", "resourceCostAmount", "skills", "attribute", "rollRequirement", "surgeDamageType", "replaceText", "adjustments", "filterCondition"];
 const kwList = k => Array.isArray(k) ? k.slice() : k && typeof k === "object" ? Object.keys(k).filter(x => k[x]) : [];
 const scalar = v => v != null && (typeof v === "string" || typeof v === "number");
 const make = (type, extra) => Object.assign(SENT[type].make(), extra);
@@ -31,6 +31,10 @@ const EDGE_MODS = ["edge", "double_edge", "bane", "double_bane"];
 function readPower(m) {
   const kw = kwList(m.keywords);
   if (m.rollType === "enemy_ability_power_roll") return EDGE_MODS.includes(m.modtype) ? { type: "enemy", f: make("enemy", { mod: m.modtype, keywords: kw }) } : null;
+  // Roll other dice instead: stands alone, for tests or ability rolls.
+  if (m.modtype === "replaceroll") { if (m.damageModifier || m.surges || m.potencymod || (m.adjustments || []).length) return null;
+    const on = m.rollType === "test_power_roll" ? "tests" : m.rollType === "ability_power_roll" ? "abilities" : null; if (!on) return null;
+    return { type: "replaceRoll", f: readApplies(m, make("replaceRoll", { formula: String(m.replaceText || ""), on, attr: m.attribute && m.attribute !== "all" ? m.attribute : "", skills: kwList(m.skills), keywords: kw })) }; }
   if (m.rollType === "test_power_roll") {
     const tests = { on: "tests", attr: m.attribute && m.attribute !== "all" ? m.attribute : "", skills: kwList(m.skills), keywords: [] };
     if (EDGE_MODS.includes(m.modtype)) return { type: "edge", f: readApplies(m, make("edge", Object.assign({ mod: m.modtype }, tests))) };
@@ -38,6 +42,11 @@ function readPower(m) {
     return null;
   }
   if (m.rollType !== "ability_power_roll") return null;
+  // A forced movement bonus stands alone.
+  const adj = m.adjustments || [];
+  if (adj.length) { if (m.rollType !== "ability_power_roll" || (m.modtype && m.modtype !== "none") || m.damageModifier || m.surges || m.potencymod || m.surgeDamageType) return null;
+    if (adj.some(a => String(a.value) !== String(adj[0].value) || !FM_KINDS.some(k => k[0] === a.type))) return null;
+    return { type: "moveBonus", f: readApplies(m, make("moveBonus", { kinds: adj.map(a => a.type), amount: String(adj[0].value), keywords: kw })) }; }
   // A surge damage type option stands alone (it is offered only when the roll already has surges).
   if (m.surgeDamageType) return m.modtype && m.modtype !== "none" || m.damageModifier || m.surges || m.potencymod ? null
     : { type: "surgeType", f: readApplies(m, make("surgeType", { dtype: m.surgeDamageType, keywords: kw })) };
@@ -69,10 +78,11 @@ const READERS = {
     return { type: "stat", f: make("stat", { attr: m.attribute, op: neg ? "sub" : op, value: neg ? neg[1] : v }) };
   },
   resistance: m => {
-    const r = m.resistances; if (!Array.isArray(r) || r.length !== 1 || r[0].apply !== "Damage Reduction" || !scalar(r[0].dr)) return null;
+    const r = m.resistances; if (!Array.isArray(r) || !r.length || r.some(e => e.apply !== "Damage Reduction" || !scalar(e.dr) || String(e.dr) !== String(r[0].dr))) return null;
     const w = /^-\((.*)\)$/.exec(String(r[0].dr));
-    return { type: "immunity", f: make("immunity", { dtype: r[0].damageType, kind: w ? "weakness" : "immunity", amount: w ? w[1] : String(r[0].dr) }) };
+    return { type: "immunity", f: make("immunity", { dtypes: r.map(e => e.damageType), kind: w ? "weakness" : "immunity", amount: w ? w[1] : String(r[0].dr) }) };
   },
+  forcedmovement: m => Array.isArray(m.movementTypes) && m.movementTypes.length ? { type: "moveSwap", f: make("moveSwap", { pairs: m.movementTypes.map(x => ({ from: x.from, to: x.to })) }) } : null,
   conditionimmunity: m => ({ type: "condImm", f: make("condImm", { conds: kwList(m.conditions) }) }),
   proficiency: m => m.subtype === "language" ? { type: "language", f: make("language", { ids: kwList(m.skills) }) }
     : m.subtype === "skill" ? { type: "skills", f: make("skills", { granted: kwList(m.skills), num: "0", groups: [], named: [] }) } : null,
@@ -91,7 +101,7 @@ const CLAIMS = {
   immunity: ["resistances", "filterCondition"], condImm: ["conditions", "filterCondition"], language: ["subtype", "proficiency", "equate", "skills", "filterCondition"],
   skills: ["subtype", "proficiency", "equate", "skills", "filterCondition"], resource: ["resourceType", "num", "filterCondition"], kit: ["kitType", "filterCondition"],
   ability: ["activatedAbility", "resourceRefreshType", "numCharges", "filterCondition"], reminder: ["text", "color", "filterCondition"],
-  trigger: ["resourceRefreshType", "numCharges", "filterCondition"], surgeType: POWER_CLAIMS, edge: POWER_CLAIMS, enemy: POWER_CLAIMS, damage: POWER_CLAIMS, outcome: POWER_CLAIMS, potency: POWER_CLAIMS, surges: POWER_CLAIMS, rollCombo: POWER_CLAIMS,
+  trigger: ["resourceRefreshType", "numCharges", "filterCondition"], surgeType: POWER_CLAIMS, moveBonus: POWER_CLAIMS, replaceRoll: POWER_CLAIMS, moveSwap: ["movementTypes", "filterCondition"], edge: POWER_CLAIMS, enemy: POWER_CLAIMS, damage: POWER_CLAIMS, outcome: POWER_CLAIMS, potency: POWER_CLAIMS, surges: POWER_CLAIMS, rollCombo: POWER_CLAIMS,
 };
 CLAIMS.growing = ["progression"];
 Object.keys(CLAIMS).forEach(t => { if (SENT[t]) SENT[t].claims = CLAIMS[t]; });
@@ -118,7 +128,7 @@ const norm = v => {
 const blank = v => v == null || (Array.isArray(v) && !v.length) || (v && typeof v === "object" && !Object.keys(v).length) || v === false || v === "";
 const same = (a, b) => JSON.stringify(norm(blank(a) ? null : a)) === JSON.stringify(norm(blank(b) ? null : b));
 // A saved record may leave a field out and rely on the engine's default (MCDModifyPowerRolls.lua).
-const FIELD_DEFAULTS = { resourceCostAmount: "1", damageModifierType: "none" };
+const FIELD_DEFAULTS = { resourceCostAmount: "1", damageModifierType: "none", attribute: "all" };
 /* Two conditions are the same when they have the same "and" parts, ignoring letter case, spaces
    and order: GoblinScript names aren't case sensitive, and core content writes "level" or "Level". */
 function condParts(c) {
@@ -204,11 +214,17 @@ const CHOICE_READERS = {
     const all = !named.length && SKILL_GROUPS.every(g => cats.includes(g)) && cats.length === SKILL_GROUPS.length;
     return { type: "skills", f: make("skills", { granted: [], num: String(c.numChoices || 1), groups: all ? [] : cats, named }) }; },
   CharacterFeatureChoice: c => {
-    const opts = c.options || [];
-    if (opts.length && opts.every(o => (o.modifiers || []).length === 1 && o.modifiers[0].behavior === "activated"))
-      return { type: "abilityChoice", f: make("abilityChoice", { num: String(c.numChoices || 1), cat: /signature/i.test(c.name || "") ? "signature" : "heroic",
-        cost: (/(\d+)-/.exec(c.name || "") || [0, "3"])[1], options: opts.map(o => ({ rec: clone(o.modifiers[0].activatedAbility), src: clone(o) })) }) };
-    return null;
+    // Each option is one ability, or a triggered ability (its card, and any further records, kept).
+    const option = o => { const ms = o.modifiers || [];
+      if (ms.length === 1 && ms[0].behavior === "activated") return { rec: clone(ms[0].activatedAbility) };
+      if (ms[0] && (ms[0].behavior === "trigger" || ms[0].behavior === "powertabletrigger")) { const d = ms.find(m => m.behavior === "triggerdisplay");
+        return { rec: clone(ms[0]), display: d ? clone(d) : null, trig: true, extra: clone(ms.slice(1).filter(m => m !== d)) }; }
+      return null; };
+    const opts = (c.options || []).map(o => { const r = option(o); if (r) { r.src = clone(o); r.snap = optionSnap(r); } return r; });
+    if (!opts.length || opts.some(o => !o)) return null;
+    return { type: "abilityChoice", f: make("abilityChoice", { num: String(c.numChoices || 1), cat: /signature/i.test(c.name || "") ? "signature" : "heroic",
+      // The cost comes from the options' own abilities (5 Ferocity...), else from a name like "9-Ferocity".
+      cost: String((opts.find(o => o.rec && o.rec.resourceNumber != null) || { rec: {} }).rec.resourceNumber || (/(\d+)-/.exec(c.name || "") || [0, "3"])[1]), options: opts }) };
   },
 };
 function importFeature(rec, stats) {

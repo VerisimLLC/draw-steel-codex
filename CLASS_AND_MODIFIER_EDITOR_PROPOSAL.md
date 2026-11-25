@@ -1594,10 +1594,10 @@ compendium: Open, then "Core classes (from the compendium)". The records are rea
 
 | | Records as blocks | Grey (advanced) | Choices read | Text-only features |
 |---|---|---|---|---|
-| Fury | 30 of 31 | 1 (the aura) | 15 of 16 | 10 |
-| Berserker | 26 of 33 | 7 | 3 of 3 | 0 |
-| Reaver | 23 of 31 | 8 | 2 of 3 | 0 |
-| Stormwight | 7 of 8 | 1 | 3 of 3 | 3 |
+| Fury | 30 of 31 | 1 (the aura) | 16 of 16 | 10 |
+| Berserker | 32 of 32 | 0 | 3 of 3 | 0 |
+| Reaver | 29 of 30 | 1 (a "modify an ability") | 3 of 3 | 0 |
+| Stormwight | 8 of 8 | 0 | 3 of 3 | 3 |
 
 Gaining Ferocity is read into the gain blocks: the start-of-turn 1d3 (+1 from 7th level), Victories
 when combat starts, 1d3 when first winded or dying, and 1/2/3 (by level) when first taking damage.
@@ -1623,12 +1623,23 @@ when combat starts, 1d3 when first winded or dying, and 1/2/3 (by level) when fi
   rolls have surges, their extra damage can be [acid] damage"; `rollRequirement: "surges"`,
   `surgeDamageType`).
 
-**Still grey, and why:** the Fury's aura; the heroic-ability choices of the Fury (9 Ferocity) and the
-Reaver, whose options aren't single abilities; Elemental Form's resistance (several damage types in
-one record); "replace the roll" (Strongest There Is, A Step Ahead, Menagerie); forced movement
-adjustments (Growing Ferocity's Knockback rows); a "modify an ability" and a forced movement record;
-and the two power roll triggers with their displays (Lines of Force, Unearthly Reflexes), which
-the ability editor's triggered-ability support could open next.
+**Second follow-up: the rest of the list.**
+- **Power roll triggers** (Lines of Force, Unearthly Reflexes) open as the "triggered ability"
+  block with their cards; the ability editor already saves either kind. Opening each in the
+  ability editor and pressing Done without changes saves it back identical.
+- **Several damage types in one record** (Elemental Form): the immunity block takes a list of types
+  ("acid, cold, ... immunity equal to your Might").
+- **New blocks:** "Forced movement bonus" (Knockback: push, pull and slide gain + your Might; the
+  power modifier's `adjustments`), "Roll differently" ("Your Might tests can roll 3d10k2
+  instead"; `modtype: "replaceroll"`), and "Change forced movement" ("When you push a creature,
+  you can slide it instead"; the `forcedmovement` modifier).
+- **Ability choices with triggered options** (My Turn!, Death Strike): an option can be a
+  triggered ability, with its card and any further records kept. Its cost is read from the
+  options' abilities.
+- Blocks no longer write an empty "Offered when" (the engine's default is ""), and "all" counts as
+  the default characteristic.
+
+**Still grey:** the Fury's aura (planned to stay advanced) and A Step Ahead's "modify an ability".
 
 **What the Fury taught us (design findings).**
 1. **Subclasses use the slow start too.** Each Fury subclass grants four features in Encounter 1. Subclass pages now follow the class's slow-start setting; they showed levels only before.

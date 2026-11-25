@@ -343,13 +343,13 @@ function openCoreClass(id) {
    start-of-turn die size is an attribute modifier. Reading pairs them into the gain blocks, and the
    feature keeps a "gainRef" placeholder where each record sits, so an unchanged gain saves back
    exactly and an edited one updates its own records in place. */
-const gainModel = g => g === cls.startGain || g.kind ? { k: g.kind, n: g.n, st: g.steps } : { e: g.event, q: g.qty, l: g.qtyLv || [] };
+const gainModel = g => g === cls.startGain || g.kind ? { k: g.kind, n: g.n, st: g.steps } : { e: g.event, q: g.qty, l: g.qtyLv || [], f: g.freq, w: g.who || "self", c: g.cond || null };
 // (a "manual" line has no trigger, so it never counts as changed)
 const gainChanged = g => g.event !== "manual" && (!g.src || srcHash(gainModel(g)) !== g.snap);
 /* What changed in an opened gain since it was opened: its event, and/or its amount. */
 function gainChanges(g) {
   const now = gainModel(g), was = (g.src && g.src.model0) || {};
-  return { event: now.e !== was.e, amount: JSON.stringify(now.e !== undefined ? [now.q, now.l] : [now.k, now.n, now.st]) !== JSON.stringify(was.e !== undefined ? [was.q, was.l] : [was.k, was.n, was.st]) };
+  return { event: now.e !== was.e, freq: now.f !== was.f, who: now.w !== was.w, cond: JSON.stringify(now.c) !== JSON.stringify(was.c), amount: JSON.stringify(now.e !== undefined ? [now.q, now.l] : [now.k, now.n, now.st]) !== JSON.stringify(was.e !== undefined ? [was.q, was.l] : [was.k, was.n, was.st]) };
 }
 const findGain = guid => cls.startGain && cls.startGain.guid === guid ? cls.startGain : (cls.gains || []).find(x => x.guid === guid) || null;
 const HR_START_RE = "\\(?\\s*Heroic Resource Gain at Start\\s*\\)?";
@@ -387,7 +387,10 @@ function readGains(c) {
     if (!t) { gains.push({ id: newId("g"), event: "manual", guid: ck.guid, src, refs: [] }); continue; }
     const ev = t.m.triggeredAbility.trigger, q = t.b.quantity !== undefined ? t.b.quantity : (ck.quantity !== undefined ? ck.quantity : "1");
     if (ev === "beginturn" && !start) { const st = readStart(ck, t, src); if (st) { start = st; continue; } }
-    const g = { id: newId("g"), event: ev, guid: ck.guid, src, refs: [[t, "trigger"]] };
+    // How often (the line's mode), who sets it off (the trigger's subject) and its condition.
+    const ta = t.m.triggeredAbility, fixed = (GAIN_TRIGGERS.find(x => x.id === ev) || {}).fixed;
+    const g = { id: newId("g"), event: ev, guid: ck.guid, src, refs: [[t, "trigger"]], freq: ck.mode || (fixed ? "encounter" : "recurring"), who: ta.subject || "self",
+      cond: String(ta.conditionFormula || "").trim() ? { t: "raw", src: String(ta.conditionFormula).trim() } : null };
     if (q && q.__typeName === "GoblinScriptTable") { const es = q.entries.slice().sort((a, b) => a.threshold - b.threshold); g.qty = String(es[0].script); g.qtyLv = es.slice(1).map(e => ({ from: String(e.threshold), value: String(e.script) })); }
     else g.qty = String(q);
     gains.push(g);
@@ -415,6 +418,9 @@ function gainRefRecord(f) {
   if (f.kind === "startStep") return null;   // an edited start gain writes its level steps afresh (newGainRecords)
   const all = compileGains(), c2 = all.checklist.find(c => c.guid === g.guid), t2 = all.triggers.find(t => t.triggeredAbility.behaviors[0].checklistid === g.guid);
   const ta = r.triggeredAbility, rb = ta.behaviors.find(b => b.checklistid === g.guid), ch = gainChanges(g);
+  if (ch.who) { if (g.who && g.who !== "self") ta.subject = g.who; else delete ta.subject; }
+  if (ch.cond) { if (g.cond) ta.conditionFormula = testGs(g.cond); else ta.conditionFormula = ""; }
+  if (ch.event || ch.who || ch.freq) ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
   if (ch.event) { ta.trigger = t2.triggeredAbility.trigger; ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
     if ("resourceRefreshType" in src) { if (c2.mode === "round" || c2.mode === "encounter") r.resourceRefreshType = c2.mode; else delete r.resourceRefreshType; } }
   if (ch.amount && rb) rb.quantity = g === cls.startGain ? clone(t2.triggeredAbility.behaviors[0].quantity) : clone(c2.quantity);
@@ -430,7 +436,8 @@ function gainChecklist() {
     // Only what changed: a new amount rewrites the amount and wording; a new event its wording and how often.
     const ch = gainChanges(g), out = clone(g.src.check);
     if (ch.amount) Object.assign(out, { details: c2.details, quantity: clone(c2.quantity) });
-    if (ch.event) Object.assign(out, { details: c2.details }, c2.mode ? { mode: c2.mode } : {});
+    if (ch.event || ch.who || ch.cond) Object.assign(out, { details: c2.details });
+    if (ch.freq) Object.assign(out, { details: c2.details, mode: c2.mode });
     return out;
   });
 }

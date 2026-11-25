@@ -675,7 +675,8 @@ function testProse(x, neg) {
     case "not": return testProse(x.a, !neg);
     case "all": case "any": { const parts = x.items.map(y => testProse(y)); const j = listWords(parts, x.t === "all" ? "and" : "or");
       return neg ? (x.t === "all" ? "not all of these are true: " : "none of these are true: ") + j : j; }
-    case "raw": return neg ? "a condition is not met" : "a condition is met";
+    // A quick pick's own wording, while its formula hasn't been edited by hand.
+    case "raw": return x.words && x.wordsFor === x.src ? (neg ? "not (" + x.words + ")" : x.words) : neg ? "a condition is not met" : "a condition is met";
     default: return fact(x.t) ? fact(x.t)[neg ? 4 : 3] : "";
   }
 }
@@ -714,7 +715,11 @@ function renderTest(parent, key, required, ctx) {
       if (y && y.t === "cond") { add(lbl("You are not")); add(pickTok(y, "c", T.conditions.map(c => [c[1], c[1].toLowerCase()]))); break; }
       add(lbl("Not")); add(renderTest(x, "a", false, ctx)); break;
     }
-    case "raw": add(lbl("Formula")); add(textTok(x, "src", "GoblinScript test", 30)); break;
+    case "raw":
+      // A quick pick shows its words (the formula on hover); clicking them opens the formula to edit.
+      if (x.words && x.wordsFor === x.src) { const w = tok(x.words, () => change(() => { delete x.words; }), false); w.title = x.src + " (click to edit the formula)"; add(w); }
+      else { add(lbl("Formula")); add(textTok(x, "src", "GoblinScript test", 30)); }
+      break;
     case "all": case "any": {
       const head = E("div", "listhead", x.t === "all" ? "All of these are true" : "Any of these is true"); head.appendChild(clear()); add(head);
       x.items.forEach((y, i) => { const it = E("div", "item"); it.appendChild(E("span", "bullet", x.t === "all" ? "and" : "or")); it.appendChild(renderTest(x.items, i, false, ctx)); e.appendChild(it); });
@@ -780,13 +785,20 @@ function openTestPicker(anchor, parent, key, ctx) {
       ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["The combat round is at least [ ]", cmp("Combat Round", "2")],
       ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")], ["Your size is at most [ ]", () => ({ t: "cmp", a: "Size", op: "<=", n: "1" })]]],
   ]);
+  // A gain line: what the event reports (how many surges, which resource...) comes first.
+  const gt = /^gain:/.test(ctx || "") ? GAIN_TRIGGERS.find(x => x.id === ctx.slice(5)) : null;
+  const words = (src, w) => ({ t: "raw", src, words: w, wordsFor: src });
+  const picks = !gt ? [] : (gt.picks || []).map(([label, src, w]) => [label, () => words(src, w)]).concat((gt.symbols || []).map(([nm, ty, d]) =>
+    [ty === "number" ? nm + " is at least [ ]" : nm + " is [ ]", () => ({ t: "raw", src: ty === "number" ? nm + " >= 2" : nm + ' = ""' }), d]));
+  if (picks.length) groups.unshift(["About this event", "What the event reports.", picks]);
   // Combining tests leads; the rest go by how often compendium formulas use them (2026-11-23 count).
-  const BY_USE = ["Combine tests", "The ability", "The target", "Compare a number", "Check health", "Check a condition", "Check effects", "Check what's nearby", "Check the moment", "The roll", "Strained (Talent)"];
+  const BY_USE = ["About this event", "Combine tests", "The ability", "The target", "Compare a number", "Check health", "Check a condition", "Check effects", "Check what's nearby", "Check the moment", "The roll", "Strained (Talent)"];
   groups.sort((x, y) => BY_USE.indexOf(x[0]) - BY_USE.indexOf(y[0]));
   menuAt(anchor, m => {
     m.classList.add("picker");
     const head = ctx === "offer" ? ["Offered when", "The option shows on a roll only while this is true."]
       : ctx === "tick" ? ["Automatically selected when", "The option starts selected when this is true. The player can always change it."]
+      : /^gain:/.test(ctx || "") ? ["Only if", "The gain happens only when this is also true."]
       : ["Only if", "The blocks inside apply only while this is true for the hero with this feature."];
     const ph = E("div", "ph"); ph.appendChild(E("div", "t", head[0]));
     ph.appendChild(E("p", null, head[1]));
@@ -1141,6 +1153,38 @@ const featText = f => f.text || autoText(f);
 
 // ---------------------------------------------------------------------------------------------
 // The class model and its levels.
+/* What a gain line responds to: an engine trigger (TriggeredAbility ids) in its "you" and "someone
+   else" forms, with the values the trigger reports (for the line's "only if" test). "spendsurges"
+   is not an engine event yet: the game doesn't report surges spent (FOLLOW_UP_ITEMS F14). */
+const GAIN_TRIGGERS = [
+  { id: "rollinitiative", fixed: "When combat starts" },
+  { id: "dealdamage", you: "deal damage", other: "deals damage" }, { id: "losehitpoints", you: "take damage", other: "takes damage" },
+  { id: "winded", you: "become winded", other: "becomes winded" }, { id: "dying", you: "become dying", other: "becomes dying" },
+  { id: "forcemove", you: "force move a creature", other: "force moves a creature" }, { id: "useability", you: "use an ability", other: "uses an ability" },
+  { id: "castsignature", you: "use a signature ability", other: "uses a signature ability" },
+  { id: "usetriggeredaction", you: "use a triggered action", other: "uses a triggered action" },
+  { id: "rollpower", you: "make a power roll", other: "makes a power roll" },
+  { id: "useresource", you: "spend a resource", other: "spends a resource", symbols: [["Resource", "text", "The resource spent, such as \"surges\""], ["Quantity", "number", "How many were spent"]] },
+  { id: "gainresource", you: "gain a resource", other: "gains a resource", symbols: [["Resource", "text", "The resource gained"], ["Quantity", "number", "How many were gained"]] },
+  { id: "spendsurges", you: "spend surges on an ability", other: "spends surges on an ability", engine: false,
+    symbols: [["Quantity", "number", "How many surges were spent on the ability"], ["Purpose", "text", "What they bought: \"damage\" or \"potency\""]],
+    picks: [["At least 3 of them increase the damage", 'Quantity >= 3 and Purpose = "damage"', "at least 3 of them increase the damage"],
+      ["At least 2 of them increase the potency", 'Quantity >= 2 and Purpose = "potency"', "at least 2 of them increase the potency"]] },
+  { id: "inflictcondition", you: "gain a condition", other: "gains a condition" }, { id: "creaturedeath", you: "die", other: "dies" },
+  { id: "kill", you: "kill a creature", other: "kills a creature" }, { id: "earnvictory", you: "earn a Victory", other: "earns a Victory" },
+  { id: "endturn", you: "end your turn", other: "ends their turn" }, { id: "beginround", fixed: "When a round starts" },
+];
+const GAIN_WHO = [["self", "you"], ["selfandallies", "you or an ally"], ["allies", "an ally"], ["selfandheroes", "you or another hero"], ["otherheroes", "another hero"], ["enemy", "an enemy"], ["any", "any creature"]];
+const GAIN_FREQ = [["round", "The first time each round"], ["encounter", "The first time in an encounter"], ["recurring", "Whenever"]];
+const gainTrigger = g => GAIN_TRIGGERS.find(t => t.id === g.event) || { id: g.event, you: (g.src && g.src.check.name) || g.event, other: (g.src && g.src.check.name) || g.event };
+/* A gain line's own words: "The first time each round you or an ally spends surges on an ability". */
+function gainPhrase(g) {
+  const t = gainTrigger(g); if (t.fixed) return t.fixed;
+  const who = g.who || "self";
+  return lookupName(GAIN_FREQ, g.freq || "recurring") + " " + lookupName(GAIN_WHO, who) + " " + (who === "self" ? t.you : t.other);
+}
+/* Gains made before how often / who / conditions were separate keep their meaning. */
+const migrateGain = g => { if (g.freq === undefined) { const old = GAIN_EVENTS.find(e => e[0] === g.event); g.freq = old ? old[2] : "recurring"; } if (g.who === undefined) g.who = "self"; if (g.cond === undefined) g.cond = null; return g; };
 const GAIN_EVENTS = [["rollinitiative", "When combat starts", "encounter"],
   ["dealdamage", "The first time each round you deal damage", "round"], ["losehitpoints", "The first time each round you take damage", "round"],
   ["winded", "The first time you become winded in an encounter", "encounter"], ["dying", "The first time you become dying in an encounter", "encounter"],
@@ -1390,12 +1434,15 @@ function compileGains() {
   const sg = compileStartGain(res);
   if (sg) { checklist.push(sg.check); triggers.push(sg.trigger); mods.push(...sg.mods); }
   cls.gains.filter(g => g.event !== "manual").forEach(g => {
-    const ev = gainEvents(g).find(e => e[0] === g.event) || GAIN_EVENTS[0];
-    const details = ev[1] + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
-    checklist.push({ name: ev[1], details, guid: g.guid, mode: ev[2], quantity: fxTable(g, "qty") });
-    triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name: ev[1], description: details,
-      triggeredAbility: { __typeName: "TriggeredAbility", name: ev[1], description: details, trigger: ev[0], targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: ev[1] + ": gain " + res + ".",
-        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] } });
+    migrateGain(g);
+    const name = gainPhrase(g), cond = g.cond ? ", if " + testProse(g.cond) : "";
+    const details = name + cond + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
+    checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
+    // Who sets it off is the trigger's subject (default: you); the line's test is its condition.
+    triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
+      triggeredAbility: Object.assign({ __typeName: "TriggeredAbility", name, description: details, trigger: g.event, targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: name + ": gain " + res + ".",
+        behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] },
+        g.who && g.who !== "self" ? { subject: g.who } : {}, g.cond ? { conditionFormula: testGs(g.cond) } : {}) });
   });
   return { checklist, triggers, mods };
 }
@@ -1712,7 +1759,14 @@ function renderBoard() {
     const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
     // A line the class keeps with no trigger of its own (applied by another feature) is shown as saved.
     if (g.event === "manual") { el.appendChild(E("span", null, g.src.check.details || g.src.check.name)); el.appendChild(E("span", "grow")); el.appendChild(E("span", "aside", "Applied by another feature")); gs.appendChild(el); return; }
-    el.appendChild(pickTok(g, "event", gainEvents(g).map(e => [e[0], e[1]]))); const rw = (cls.resourceName || "resource").toLowerCase();
+    migrateGain(g); const rw = (cls.resourceName || "resource").toLowerCase(), t = gainTrigger(g);
+    // "[The first time each round] [you or an ally] [spends surges on an ability], only if [test],"
+    const evOpts = GAIN_TRIGGERS.concat(GAIN_TRIGGERS.some(x => x.id === g.event) ? [] : [t]).map(x => [x.id, x.fixed || ((g.who || "self") === "self" ? x.you : x.other) + (x.engine === false ? " (not in the game yet)" : "")]);
+    if (t.fixed) el.appendChild(pickTok(g, "event", evOpts));
+    else { el.appendChild(pickTok(g, "freq", GAIN_FREQ)); el.appendChild(pickTok(g, "who", GAIN_WHO)); el.appendChild(pickTok(g, "event", evOpts)); }
+    if (g.cond) { el.appendChild(lbl(", only if")); el.appendChild(renderTest(g, "cond", false, "gain:" + g.event)); }
+    else { const oi = fk(E("button", "addsent inblock gainif", "+ only if"), "gainif:" + g.id); oi.type = "button"; oi.title = "Add a condition (e.g. 3 or more surges spent)";
+      oi.addEventListener("click", ev => { ev.stopPropagation(); openTestPicker(oi, g, "cond", "gain:" + g.event); }); el.appendChild(oi); }
     // "you gain 2 resolve", or "you gain a number of resolve equal to your Victories" for a formula.
     // The comma sits right against the event word: the row spaces its pieces out, so pull it back.
     const comma = E("span", null, ","); comma.style.marginLeft = "-4px"; el.appendChild(comma);
@@ -1722,7 +1776,7 @@ function renderBoard() {
     const mb = fk(E("button", "mb", "\u22ef"), "gainmb:" + g.id); mb.type = "button"; mb.setAttribute("aria-label", "Options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => cls.gains.splice(i, 1)); toast("Deleted that way to gain " + (cls.resourceName || "it").toLowerCase() + ".", { label: "Undo", run: undo }); }); m.appendChild(x); }); });
     el.appendChild(mb);
-    if (showGs) { const ev = gainEvents(g).find(e => e[0] === g.event) || GAIN_EVENTS[0]; el.appendChild(E("div", "saves", "saves as checklist line (once per " + ({ round: "round", encounter: "encounter", recurring: "time" })[ev[2]] + ") + trigger " + ev[0] + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked")); }
+    if (showGs) el.appendChild(E("div", "saves", "saves as checklist line (" + g.freq + ") + trigger " + g.event + (g.who !== "self" ? " (subject " + g.who + ")" : "") + (g.cond ? " if " + testGs(g.cond) : "") + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked"));
     gs.appendChild(el);
   });
   const ag = fk(E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()), "addgain"); ag.type = "button";
@@ -2197,6 +2251,7 @@ function classIssues() {
   if (ed() !== cls) return subclassIssues(ed());
   const out = [];
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
+  cls.gains.forEach(g => { if (gainTrigger(g).engine === false) out.push({ msg: "\u201c" + gainTrigger(g).you + "\u201d isn't a game event yet, so that gain won't happen in play until the game reports surges spent.", soft: true }); });
   if (!cls.gains.length && !cls.hrRaw) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
   if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });

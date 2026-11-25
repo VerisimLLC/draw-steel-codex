@@ -33,3 +33,8 @@ Content fixes, not editor work. Details in
 | F11 | **Null:** the 12-Discipline row of Discipline Mastery is display text only; nothing applies it. |
 | F12 | **Elementalist:** the 7th-level mantles for Fire, Green and Void lack `suppressOthers` (Earth has it), so a hero may see two; Green's mantle is named "Burning Ground" (copied from Fire). |
 | F13 | **Fury:** a 10th-level skill choice has no name; the Berserker's Growing Ferocity holds a record named "Vuken Growing Ferocity". **Conduit:** "Burgeoning Saint" holds a power modifier that changes nothing. |
+
+## Engine events the editors need
+| # | Item | Where | Note |
+|---|---|---|---|
+| F14 | **No event when surges are spent, and no record of what they bought.** The Magewright (third party) gains Wonder when "you or an ally spends 3 or more surges on a single ability to increase the damage" or "2 surges ... to increase the potency". Spending surges calls `ConsumeSurges` -> `AddUnboundedResource`, which fires no trigger (`useresource` fires only from `ConsumeResource`); and the roll dialog only spends surges on damage ("Surges only buy extra damage", `Timeline/EmbeddedRollDialog.lua:1591`). | `Draw Steel Core Rules/MCDMCreature.lua:436` (`ConsumeSurges`), `Timeline/EmbeddedRollDialog.lua` ~8122, `Draw Steel UI/DSRollDialog.lua` ~3930 | Register a `spendsurges` trigger (`TriggeredAbility.RegisterTrigger`) with symbols Quantity and Purpose ("damage" / "potency"), dispatched where a roll spends surges; add spending surges on potency to the roll dialog. The class builder already offers the event (marked "not in the game yet"). |

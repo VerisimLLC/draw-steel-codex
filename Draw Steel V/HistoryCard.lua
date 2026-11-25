@@ -486,7 +486,10 @@ local function AddKid(rows, kid)
     end
     for _, who in ipairs(kid.targets or {}) do
         local name = History.ShownName(who)
-        if OnlyDamage(who) and (who.types == nil or SingleType(who) ~= nil) then
+        --"then hit" is for a trigger that hits someone else: one that hurts its own owner (the
+        --Collision rule) reads "Orc's Collision: Orc took 3 damage", as when it is killed.
+        local hitsOwner = kid.actor ~= nil and who.id == kid.actor.id
+        if OnlyDamage(who) and not hitsOwner and (who.types == nil or SingleType(who) ~= nil) then
             local damagetype = SingleType(who)
             rows[#rows + 1] = {
                 who = {who},

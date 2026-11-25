@@ -684,7 +684,9 @@ function EncounterGauntlet.Open(m, doc, beat, heroes)
     --ever making one.
     m.removed = {}
     m.removedForPartySize = #heroes
-    EnterSection(m, doc, beat, EncounterScript.GauntletFirst(beat, #heroes), heroes)
+    --a Test Encounter started at one section opens there instead of the first.
+    local startSection = m.startSection ~= nil and EncounterScript.FindGauntletSection(beat, m.startSection) or nil
+    EnterSection(m, doc, beat, startSection or EncounterScript.GauntletFirst(beat, #heroes), heroes)
 end
 
 --A vote option's rules, aimed at the whole party (the narrative's rule for

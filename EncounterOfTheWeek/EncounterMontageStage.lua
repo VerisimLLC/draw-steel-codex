@@ -1836,6 +1836,23 @@ end
 local RULES_COLOR = "#8ee08e"
 local RULES_COLOR_DIM = "#5d7a5d"
 
+--Opening prose (a montage or narrative intro) with each line the author began
+--"Warning:" drawn red, for a danger players must not miss ("Warning: heroes
+--who fall here rise as undead."). Players see only the red text, not the word Warning.
+--A field, not a local: this file is near Lua's 200-local ceiling.
+EncounterMontageStage.WARNING_COLOR = "#ff5a4a"
+function EncounterMontageStage.IntroMarkup(text)
+    local lines = {}
+    for line in string.gmatch((text or "") .. "\n", "(.-)\n") do
+        local warningText = string.match(line, "^%s*[Ww][Aa][Rr][Nn][Ii][Nn][Gg]:%s*(.-)%s*$")
+        if warningText ~= nil then
+            line = "<color=" .. EncounterMontageStage.WARNING_COLOR .. ">" .. warningText .. "</color>"
+        end
+        lines[#lines + 1] = line
+    end
+    return table.concat(lines, "\n")
+end
+
 --What one tier row reads. A tier with a "teaser => full text" line shows
 --only its teaser until it is the landed tier
 --(EncounterScript.TierDisplayText); tiers not achieved keep their teaser.
@@ -6249,7 +6266,7 @@ local function CreateStage(args)
             m_builtBeat = m.beatIndex
             m_entryRound = nil
             m_entryPhase = nil
-            introLabel:FireEvent("setProse", string.format("intro:%s", tostring(m.beatIndex)), beat.intro or "")
+            introLabel:FireEvent("setProse", string.format("intro:%s", tostring(m.beatIndex)), EncounterMontageStage.IntroMarkup(beat.intro))
             introLabel:SetClass("collapsed", (beat.intro or "") == "")
             m_turnSignature = nil
         end
@@ -6957,7 +6974,7 @@ local function CreateNarrativeStage(args)
             textLabel.text = sectionText
             textLabel:SetClass("collapsed", sectionText == "")
             local intro = cond(index == 1, beat.intro or "", "")
-            introLabel.text = intro
+            introLabel.text = EncounterMontageStage.IntroMarkup(intro)
             introLabel:SetClass("collapsed", intro == "")
             local cards = {}
             for i, option in ipairs(section.options) do
@@ -8437,7 +8454,7 @@ local function CreateGauntletStage(args)
         local introKey = cond(intro ~= "", string.format("intro:%s", tostring(m.beatIndex)), nil)
         if introKey ~= m_introKey then
             m_introKey = introKey
-            introLabel:FireEvent("setProse", introKey, intro)
+            introLabel:FireEvent("setProse", introKey, EncounterMontageStage.IntroMarkup(intro))
         end
         introLabel:SetClass("collapsed", intro == "")
         if not embedded then

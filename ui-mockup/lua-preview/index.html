@@ -176,6 +176,10 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 @media (max-width: 700px) { .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); } }
 @media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .detail { padding: 4px 10px 20px; max-height: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.pager { display: flex; gap: 2px; margin-bottom: 10px; }
+.pager a { font: 600 14px var(--f-label); color: var(--fgMuted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--borderSolid); border-radius: 5px; }
+.pager a:hover { color: var(--fg); }
+.pager a[aria-current] { color: var(--fgInverse); background: var(--bgInverse); border-color: var(--bgInverse); }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -190,6 +194,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 <div class="page">
   <div class="intro">
     <div>
+      <nav class="pager" aria-label="Mockups"><a href="index.html" aria-current="page">Class builder</a><a href="ability.html">Ability editor</a></nav>
       <h1>The class builder, drawn with the codex's Lua UI</h1>
       <p>The Fury, laid out like THC's character builder and built only from what <code>gui</code> and the default theme provide. Hover any part to see the call that would draw it. Drag a block from the shelf to see the drop targets.</p>
     </div>

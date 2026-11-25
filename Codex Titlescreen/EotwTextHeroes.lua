@@ -538,7 +538,12 @@ text("herocard.back.bucket.main", [[Main actions]])
 text("herocard.back.bucket.maneuver", [[Maneuvers]])
 text("herocard.back.bucket.other", [[Other]])
 text("herocard.back.bucket.freestrike", [[Free strikes]])
-text("herocard.back.bucket.standard", [[Standard actions]])
+--every hero's standard actions, by when they are taken.
+text("herocard.back.bucket.standard", [[On your turn]])
+text("herocard.back.turn.move", [[Move]])
+text("herocard.back.turn.main", [[Main]])
+text("herocard.back.turn.maneuvers", [[Maneuvers]])
+text("herocard.back.turn.other", [[Other]])
 text("herocard.back.abilities.none", [[No abilities]])
 
 --The Triggered group. {trigger} is what sets the triggered action off.

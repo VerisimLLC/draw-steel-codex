@@ -2246,6 +2246,98 @@ local function PotencyRow(c)
     }, function() return T("herocard.back.potency.tip") end)
 end
 
+--- "move", "main", "maneuver" or "other": the kind of action an ability takes,
+--- from its action resource's (untranslated) name, as the hero sheet sorts
+--- them (EotwHeroSheetData AbilityGroup).
+local function ActionKind(ability)
+    local name = Try(function()
+        local rid = ability:ActionResource()
+        local resource = dmhub.GetTable(CharacterResource.tableName)[rid]
+        return string.lower(resource.name)
+    end, "")
+    if string.find(name, "main", 1, true) then
+        return "main"
+    elseif string.find(name, "maneuver", 1, true) then
+        return "maneuver"
+    elseif string.find(name, "move", 1, true) then
+        return "move"
+    end
+    return "other"
+end
+
+--- One action in an "On your turn" line: its name, its card on hover, and a
+--- click uses it (as an ability row's does).
+local function ActionPiece(item, tok, last)
+    local charid = tok.charid
+    return gui.Panel{
+        classes = {"heroCardAction"},
+        width = "auto",
+        height = "auto",
+        rmargin = 4,
+        bgimage = "panels/square.png",
+        styles = {
+            { selectors = {"heroCardAction"}, bgcolor = "#00000000" },
+            { selectors = {"heroCardAction", "hover"}, bgcolor = COLOR_PLATE },
+        },
+        hover = function(element)
+            ShowHover(element, function()
+                if item.ability == nil then
+                    return nil
+                end
+                return item.ability:Render({ width = 420 }, { token = tok })
+            end)
+        end,
+        click = function(element)
+            if item.ability ~= nil then
+                UseAbility(charid, item.ability)
+            end
+        end,
+        Text{ text = (item.name or "") .. cond(last, "", ","), width = "auto", fontSize = 12, color = COLOR_SOFT, textWrap = false },
+    }
+end
+
+--- Every hero's standard actions, by when they are taken: Move, Main,
+--- Maneuvers (and anything else), one wrapping line each. Replaces a row per
+--- action: these are a reference more than a list to read through.
+local function OnYourTurn(items, tok)
+    local kinds = {
+        { id = "move", label = T("herocard.back.turn.move") },
+        { id = "main", label = T("herocard.back.turn.main") },
+        { id = "maneuver", label = T("herocard.back.turn.maneuvers") },
+        { id = "other", label = T("herocard.back.turn.other") },
+    }
+    local byKind = {}
+    for _, item in ipairs(items) do
+        local kind = item.ability ~= nil and ActionKind(item.ability) or "other"
+        byKind[kind] = byKind[kind] or {}
+        local list = byKind[kind]
+        list[#list+1] = item
+    end
+    local lines = {}
+    for _, kind in ipairs(kinds) do
+        local list = byKind[kind.id]
+        if list ~= nil and #list > 0 then
+            table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
+            local pieces = {
+                Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(kind.label)), width = "auto", fontSize = 11, rmargin = 8, textWrap = false, valign = "center" },
+            }
+            for i, item in ipairs(list) do
+                pieces[#pieces+1] = ActionPiece(item, tok, i == #list)
+            end
+            lines[#lines+1] = gui.Panel{
+                width = CONTENT_WIDTH,
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                bmargin = 3,
+                interactable = false,
+                children = pieces,
+            }
+        end
+    end
+    return Lines(lines)
+end
+
 --- Abilities: every ability in folding buckets in the sheet's order, the
 --- triggered actions in their own bucket with what sets each off.
 --- Appended to result/info.
@@ -2262,7 +2354,13 @@ local function AppendAbilities(result, info, tok, c, state)
                 rows[#rows+1] = ready
             end
         end
-        for _, item in ipairs(buckets[id] or {}) do
+        if id == "standard" and #(buckets[id] or {}) > 0 then
+            local ok, turn = pcall(OnYourTurn, buckets[id], tok)
+            if ok and turn ~= nil then
+                rows[#rows+1] = turn
+            end
+        end
+        for _, item in ipairs(id == "standard" and {} or buckets[id] or {}) do
             local ok, row
             if id == "triggered" then
                 ok, row = pcall(TriggerEntry, item, tok, c)

@@ -223,16 +223,16 @@ only the items in 10.1 change because of the toolkit. Each later row names where
 |---|---|
 | Card: "+ Add paragraph", move paragraphs up/down, remove; reworded lines marked, flagged when the rules change ("Use new wording" / "Reset"); rename an effect label | ABILITY_BLOCKS_DESIGN.md 4j, 4q |
 | Hover a dotted formula to see its GoblinScript (`hoverLink` + tooltip) | 4i |
-| "Show GoblinScript" switch and the "Saved data" view | 4g |
-| Open an existing ability; Paste text dialog with a sample; "Try to turn this into blocks"; "Keep as card text" | 4l, 4u, 4v |
+| "Show GoblinScript" switch and the "Saved data" view | 4c, 4g |
+| Open an existing ability; Paste text dialog with a sample; "Try to turn this into blocks"; "Keep as card text" | 4l, 4n, 4u, 4v |
 | Scope line: "Open in full editor" / "Keep editing here", and "Edit in full editor" on grey blocks | 4s |
-| Triggered ability: the trigger card, "+ when...", trigger conditions, Test Trigger | 4h, 4q, 4r |
+| Triggered ability: the trigger card, "+ when...", trigger conditions; Test Trigger | 4h, 4q, 4r; Test Trigger from TRIGGERED_ABILITY_EDITOR_DESIGN.md |
 | Choose one when used (options), each option its own steps | 4n |
-| Requirements ("Can only be used when") with tests | 4n |
+| Requirements ("Can only be used when") with tests | 4y |
 | Formula builder (fx) with the GoblinScript reference; the test picker with combining first | 4aa, 4ab, 4z |
 | Remember a value; hand-offs to a follow-up; potency checks | 4w, 4ad, 4e, 4f |
-| Quick fixes ("Fix: use your ...", "Fix: target's ...") | 4y |
-| Shelf: click to add at the insertion cursor ("Drag, or click to add at When it's used"), "/" to search, the all-categories grid, faded blocks that don't fit here, hover text for every block | 4x |
+| Quick fixes ("Fix: use your ...", "Fix: target's ...") | Prototype only (`ability-blocks-stack.html`); not yet written up |
+| Shelf: click to add at the insertion cursor ("Drag, or click to add at When it's used"), "/" to search, the all-categories grid, faded blocks that don't fit here, hover text for every block | 4i (insertion cursor), 4x |
 | Undo | Decision 9.3 |
 
 ### 10.3 Class builder: designed, not drawn in the mockup

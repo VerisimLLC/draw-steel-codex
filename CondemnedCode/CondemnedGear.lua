@@ -206,12 +206,15 @@ function CondemnedGear.Delivered(token)
     return token.properties:try_get(MARKER)
 end
 
---- The heroes choosing gear: the Campaign panel's roster, less anyone blown up.
+--- The heroes choosing gear: the Campaign panel's roster, less anyone blown up, and only
+--- heroes in a player party or owned by a player. The roster also lists any hero token on
+--- the Director's map, and a Director-controlled one (a test token, an NPC) has no gear to choose.
 --- @return CondemnedGearHero[]
 function CondemnedGear.Heroes()
     local result = {}
     for _, entry in ipairs(CondemnedCampaign.Roster()) do
-        if CondemnedCampaign.CollarStatus(entry.charid, entry.token) ~= "detonated" then
+        --ownerId is "PARTY" for a party's hero, a player's userid for theirs, nil for the Director's.
+        if entry.token.ownerId ~= nil and CondemnedCampaign.CollarStatus(entry.charid, entry.token) ~= "detonated" then
             result[#result + 1] = entry
         end
     end

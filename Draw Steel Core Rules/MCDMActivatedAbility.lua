@@ -200,6 +200,47 @@ function ActivatedAbility:GetTargetingMode()
     return mode, false
 end
 
+--- Why the player can't pick targetToken with this ability because it is an
+--- object, or nil. Only objects a strike could hit count (attackable objects and
+--- creatures treated as objects), so the action bar can show them as invalid with
+--- this reason instead of leaving them unlit and the player guessing.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbility:ObjectTargetingReason(casterToken, targetToken, symbols)
+    local treatAsObject = (not targetToken.isObject) and targetToken.properties ~= nil
+        and targetToken.properties:try_get("treatAsObject", false)
+    local attackableObject = targetToken.isObject and targetToken.isAttackableObject
+    if not (treatAsObject or attackableObject) then
+        return nil
+    end
+
+    --abilities set to "conditional" already list every object and decide with their own filter.
+    if self.objectTarget == "conditional" then
+        return nil
+    end
+
+    if self.objectTarget ~= true then
+        --some objects let any strike target them (a setting on the object); those are fine.
+        if attackableObject and self:ObjectGrantsTargeting(casterToken, targetToken, symbols or {}) then
+            return nil
+        end
+        return "Ability cannot target objects. Select an Ability with Object Targeting"
+    end
+
+    --an object-only ability has no slider, so nothing can be switched off.
+    if self.targetAllegiance == "none" then
+        return nil
+    end
+
+    local objectMode = self:GetTargetingMode()
+    if objectMode == false then
+        return "Object Targeting is Off. Select correct Targeting in Roll Dialog."
+    end
+    return nil
+end
+
 -- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
 -- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
 -- which iterates each rule with pairs() to resolve @tokens. All colors use

@@ -1649,3 +1649,39 @@ when combat starts, 1d3 when first winded or dying, and 1/2/3 (by level) when fi
    - Two Growing Ferocity rows are written as ability conditions rather than row conditions, so they show as text rows plus a grey record.
    - Aura, forced movement, power roll trigger, "modify an ability" and a resistance with extra settings remain advanced, as planned.
 5. **Content gaps found:** a Fury skill choice at level 10 has no name; the Berserker's Growing Ferocity contains a record named "Vuken Growing Ferocity" (copied from another subclass); 10 Fury features are book text with no automation.
+
+## 31. Every core class opened as blocks (2026-11-25)
+
+All 11 core classes and 45 subclasses open in the class builder (Open > Core classes).
+
+| | Before this pass | Now |
+|---|---|---|
+| Records shown as blocks | 601 | 1,153 |
+| Grey (advanced) records | 135 | 69 |
+| Grey choices | 81 | 1 |
+| Classes whose gains were read-only | 5 | 0 |
+
+- **Round trip:** every class and subclass saves back identical when unchanged, and forcing every
+  block to rebuild from its own fields reproduces every record (0 differences).
+- **Readers added for existing blocks:** "Change an ability" (stat changes, card text, keyword
+  filters), Aura, feature lists, more roll types (opposed tests, all rolls), remove/ignore edges and
+  banes, +1/-1 bonuses, and the shared "only on rolls with surges / an edge / no bane" line.
+- **New blocks:** Your companion / Your summons (wrappers), Choose from options (each option a
+  small feature of blocks), Add to an ability (steps built in the ability editor, plus card text),
+  Change damage type, and an engine-choice block (deity, companion).
+- **Gains:** a line with no trigger shows as "Applied by another feature"; any trigger event is
+  allowed; set-amount start gains read their level steps. An edited gain writes only what changed
+  (amount, or event and frequency).
+- **Fixed on the way:** a missing or empty "Automatically selected" means never (the engine's
+  rule), not always; a wrapper with edited children no longer counts as unchanged; subclasses keep
+  their own gain lines (Conduit domains).
+- **Still grey, no block yet (69):** Troubadour routines (11), Psi Boost "ability improvement"
+  (10), trigger changes (7), unusual roll modifiers (7: custom potency, cost override, Add to
+  Table text, forced movement swap), suppressing abilities (3), and six singles. Plus one choice:
+  the Censor's list of 12 domain lists.
+
+**Text-only features** (97; audit in `ui-mockup/class-builder-data/TEXT_ONLY_FEATURES_AUDIT.md`):
+50 are already applied by another record (20 Summoner circle headings, 20 level steps of an
+earlier feature such as Damaging Ferocity, 6 inside an ability, 2 elsewhere), 14 could be built
+with existing blocks, 7 need a new block, 25 are narrative, 1 unsure. Content bugs found are in
+`FOLLOW_UP_ITEMS.md` (F9-F13).

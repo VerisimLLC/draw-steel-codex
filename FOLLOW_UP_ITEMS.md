@@ -21,3 +21,15 @@ does not offer "Only if" around that type (`supportsFilter = false`).
 |---|---|---|---|
 | F7 | The roll-option tooltip's automatic line lists only the edge/bane/tier change and extra damage; potency, surges and added text appear only if the modifier's Description says so. | `Draw Steel Core Rules/MCDModifyPowerRolls.lua` ~982-1046 (`renderOnRoll`) | Either list them automatically, or have the block editor write each block's sentence into the modifier's Description (framework D3). |
 | F8 | "Change a tier's text" block (sets "Add to Table", `addText`) and an "Arm effect" block. | Planned under Q3 in `BLOCK_EDITOR_FRAMEWORK.md` | Editor work, but deferred until the core editors are built. |
+
+## Core content data problems (found by opening every class, 2026-11-25)
+Content fixes, not editor work. Details in
+[`ui-mockup/class-builder-data/TEXT_ONLY_FEATURES_AUDIT.md`](ui-mockup/class-builder-data/TEXT_ONLY_FEATURES_AUDIT.md).
+
+| # | Item |
+|---|---|
+| F9 | **Berserker:** the 8-Ferocity push-surge trigger reads `"2 When Level >= 4 else 1"` and never checks for 8 Ferocity, so from 4th level it gives 2 surges at 4 Ferocity. The Reaver's reads `"... and Heroic Resources This Turn >= 8"`. |
+| F10 | **Talent:** the checklist has a 10th-level start-of-turn row (1d3 + 2) that the Clarity trigger's table lacks. **Beastheart:** the reverse (the trigger has a 10th-level row the checklist lacks). |
+| F11 | **Null:** the 12-Discipline row of Discipline Mastery is display text only; nothing applies it. |
+| F12 | **Elementalist:** the 7th-level mantles for Fire, Green and Void lack `suppressOthers` (Earth has it), so a hero may see two; Green's mantle is named "Burning Ground" (copied from Fire). |
+| F13 | **Fury:** a 10th-level skill choice has no name; the Berserker's Growing Ferocity holds a record named "Vuken Growing Ferocity". **Conduit:** "Burgeoning Saint" holds a power modifier that changes nothing. |

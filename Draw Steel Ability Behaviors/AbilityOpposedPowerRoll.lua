@@ -155,7 +155,9 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		coroutine.yield(0.1)
 	end
 
+	--The roll was called off, so the ability was not used and costs nothing.
 	if dcresult.result == false then
+		options.abort = true
 		return
 	end
 
@@ -164,8 +166,13 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 	local attackerRoll = dcaction.info.tokens[casterToken.charid].result
 
 	if attackerRoll == nil then
+		options.abort = true
 		return
 	end
+
+	--Having rolled, the ability pays its own cost when the cast ends. Paying there rather
+	--than here keeps "ability used" triggers after the result is applied.
+	options.payIfNotAborted = true
 
 	for _,target in ipairs(targets) do
 		if target.token ~= nil then

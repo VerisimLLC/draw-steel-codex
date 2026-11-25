@@ -129,3 +129,25 @@ text("movemode.reason.in_air", [[You are in the air]])
 text("movemode.reason.in_deep_water", [[You are in deep water]])
 text("movemode.reason.underwater", [[You are underwater]])
 text("movemode.reason.underground", [[You are underground]])
+
+----------------------------------------------------------------------------
+-- THE PERSISTENT MAGIC DIALOG: start of the turn of a hero with persistent abilities
+-- (Draw Steel Ability Behaviors/AbilityPersistentCast.lua)
+----------------------------------------------------------------------------
+
+--Under the dialog's title.
+text("persistence.instruction", [[Select abilities to persist.]])
+
+--What an ability costs to keep up, next to its name. {resource} is e.g. "Essence".
+text("persistence.cost", [[{cost} {resource}]])
+
+--At the right of each ability's row: whether it will be kept up or end.
+text("persistence.persisting", [[Persisting]])
+text("persistence.ending", [[Ending]])
+
+--Shown under strict resource rules while the kept abilities cost more than the hero
+--gains; the dialog can't be confirmed until enough are ended.
+text("persistence.must_end", [[You must end some abilities so you do not lose essence]])
+
+--The dialog's button.
+text("persistence.confirm", [[Confirm]])

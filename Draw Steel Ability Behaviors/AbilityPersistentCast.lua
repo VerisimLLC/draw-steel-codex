@@ -1,8 +1,11 @@
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+
 --- @class Persistence: GameType
 --- @field new fun(o?: table): Persistence
 --- @field guid string Unique id of this persistence entry.
+--- @field abilityName string Name of the ability being kept up.
 Persistence = RegisterGameType("Persistence")
 Persistence.name = ""
 
@@ -68,6 +71,52 @@ function ActivatedAbilityPersistenceControlBehavior:EditorItems(parentPanel)
 	return result
 end
 
+--- What maintaining a persistent ability does, for the persistence dialog: the
+--- "**Persistent N:**" line of its rules text, or failing that its prompt text or
+--- the name of its persistence mode. nil when none of these say anything.
+--- @param entry Persistence
+--- @param caster creature
+--- @return string|nil
+local function DescribePersistence(entry, caster)
+    local ability = entry:try_get("ability")
+    if type(ability) ~= "table" or getmetatable(ability) == nil then
+        --the stored copy did not survive; use the caster's own ability instead.
+        ability = nil
+        for _, candidate in ipairs(caster:GetActivatedAbilities{excludeGlobal = true}) do
+            if candidate.name == entry.abilityName then
+                ability = candidate
+                break
+            end
+        end
+        if ability == nil then
+            return nil
+        end
+    end
+    ---@cast ability ActivatedAbility
+
+    --The colon may be inside or outside the bold.
+    local text = string.match(ability.description or "", "%*%*Persistent%s+%d+%s*:?%s*%*%*:?%s*([^\r\n]+)")
+    if text ~= nil then
+        return StringInterpolateGoblinScript((string.gsub(trim(text), "%*%*", "")), caster)
+    end
+
+    local persistence = ability:Persistence()
+    if type(persistence.promptText) == "string" and trim(persistence.promptText) ~= "" then
+        return trim(persistence.promptText)
+    end
+
+    local mode = persistence.mode or "recast"
+    if mode ~= "none" then
+        for _, modeInfo in ipairs(ActivatedAbility.PersistenceModes) do
+            if modeInfo.id == mode then
+                return modeInfo.text
+            end
+        end
+    end
+
+    return nil
+end
+
 function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, targets, options)
 
     local finished = false
@@ -116,53 +165,77 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         keepAbilities[ab.guid] = true
     end
 
-    -- Reference to the cost label so chips can trigger a refresh.
+    -- References so rows can trigger a refresh.
     local costLabelElement = nil
+    local mustEndElement = nil
+    local confirmElement = nil
 
-    local function refreshCostLabel()
-        if costLabelElement == nil then
-            return
-        end
-        local expectedCost = 0
+    local function essenceGained()
+        local result = startOfTurnHeroicResource
         for _, ab in pairs(persistenceAbilities) do
             if keepAbilities[ab.guid] then
-                expectedCost = expectedCost + (ab.cost or 0)
+                result = result - (ab.cost or 0)
             end
         end
+        return result
+    end
 
-        costLabelElement.text = string.format("Essence Gained: %d", startOfTurnHeroicResource - expectedCost)
+    --A hero may not lose essence to persistent abilities. Under strict resource
+    --rules a player cannot confirm until they end enough of them; otherwise the
+    --red gain is only a warning. Ending them all always leaves a gain of 0 or more.
+    local function confirmBlocked()
+        return StrictActionEconomyEnforced() and essenceGained() < 0
+    end
 
-        if expectedCost > startOfTurnHeroicResource then
-            costLabelElement:SetClass("persist-cannot-afford", true)
-        else
-            costLabelElement:SetClass("persist-cannot-afford", false)
+    local function refreshCostLabel()
+        if costLabelElement ~= nil then
+            local gained = essenceGained()
+            costLabelElement.text = string.format("Essence Gained: %d", gained)
+            costLabelElement:SetClass("danger", gained < 0)
+        end
+        if mustEndElement ~= nil then
+            mustEndElement:SetClass("collapsed", not confirmBlocked())
+        end
+        if confirmElement ~= nil then
+            confirmElement:SetClass("disabled", confirmBlocked())
         end
     end
 
-    -- Build chip panels for each persistent ability.
-    local chipPanels = {}
+    -- Build one row for each persistent ability.
+    local resourceName = caster:GetHeroicResourceName()
+    local rowPanels = {}
     for _, persistAbility in pairs(persistenceAbilities) do
         local capturedAbility = persistAbility
+        local description = DescribePersistence(capturedAbility, caster)
 
-        chipPanels[#chipPanels+1] = gui.Panel{
-            classes = {"persist-chip"},
+        rowPanels[#rowPanels+1] = gui.Panel{
+            classes = {"bordered", "hoverable"},
+            width = "100%",
+            height = "auto",
             flow = "horizontal",
+            hpad = 12,
+            vpad = 8,
+            vmargin = 4,
+            borderBox = true,
 
             press = function(element)
                 if keepAbilities[capturedAbility.guid] then
                     keepAbilities[capturedAbility.guid] = nil
-                    element:SetClass("persist-chip-selected", false)
                 else
                     keepAbilities[capturedAbility.guid] = true
-                    element:SetClass("persist-chip-selected", true)
                 end
+                element:FireEventTree("refreshPersisting")
                 refreshCostLabel()
             end,
 
             create = function(element)
-                if keepAbilities[capturedAbility.guid] then
-                    element:SetClass("persist-chip-selected", true)
-                end
+                element:FireEventTree("refreshPersisting")
+            end,
+
+            refreshPersisting = function(element)
+                local keep = keepAbilities[capturedAbility.guid] == true
+                element:SetClass("bgAlt", keep)
+                element:SetClass("borderAccent", keep)
             end,
 
             hover = function(element)
@@ -179,9 +252,53 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
                 end
             end,
 
+            gui.Panel{
+                width = "100%-100",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    gui.Label{
+                        classes = {"sizeM", "bold"},
+                        halign = "left",
+                        valign = "center",
+                        text = capturedAbility.abilityName,
+                    },
+                    gui.Label{
+                        classes = {"sizeS", "fgMuted"},
+                        halign = "left",
+                        valign = "center",
+                        lmargin = 8,
+                        text = T("persistence.cost", {cost = capturedAbility.cost or 0, resource = resourceName}),
+                    },
+                },
+                description ~= nil and gui.Label{
+                    classes = {"sizeS", "fg"},
+                    width = "100%",
+                    halign = "left",
+                    textAlignment = "left",
+                    tmargin = 2,
+                    text = description,
+                } or nil,
+            },
             gui.Label{
-                classes = {"persist-chip-label"},
-                text = capturedAbility.abilityName,
+                classes = {"sizeM", "bold"},
+                width = 100,
+                halign = "right",
+                valign = "center",
+                textAlignment = "right",
+                refreshPersisting = function(element)
+                    local keep = keepAbilities[capturedAbility.guid] == true
+                    if keep then
+                        element.text = T("persistence.persisting")
+                    else
+                        element.text = T("persistence.ending")
+                    end
+                    element:SetClass("danger", not keep)
+                end,
             },
         }
     end
@@ -190,17 +307,22 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
     local mainChildren = {}
 
     mainChildren[#mainChildren+1] = gui.Label{
-        classes = {"persist-title"},
+        classes = {"dialogTitle"},
         text = ability.name or "Persistence Control",
     }
 
     mainChildren[#mainChildren+1] = gui.Label{
-        classes = {"persist-instruction"},
-        text = "Select abilities to end.",
+        classes = {"sizeS"},
+        width = "100%",
+        textAlignment = "center",
+        tmargin = 8,
+        text = T("persistence.instruction"),
     }
 
     mainChildren[#mainChildren+1] = gui.Label{
-        classes = {"persist-cost-label"},
+        classes = {"sizeM", "bold"},
+        halign = "center",
+        vmargin = 8,
 
         create = function(element)
             costLabelElement = element
@@ -208,242 +330,117 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         end,
     }
 
-    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"persist-divider"} }
-
     mainChildren[#mainChildren+1] = gui.Panel{
-        classes = {"persist-chips-wrap"},
-        children = chipPanels,
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        children = rowPanels,
     }
 
-    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"persist-divider"} }
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"sizeS", "danger", "collapsed"},
+        width = "100%",
+        textAlignment = "center",
+        tmargin = 8,
+        text = T("persistence.must_end"),
 
-    mainChildren[#mainChildren+1] = gui.Panel{
-        classes = {"persist-button-row"},
-        gui.Panel{
-            classes = {"persist-submit"},
-            press = function(element)
-                -- End any persistent abilities that were NOT selected to keep.
-                for _, ab in pairs(persistenceAbilities) do
-                    if not keepAbilities[ab.guid] then
-                        casterToken.properties:EndPersistentAbilityById(ab.guid, "chose")
-                    end
+        create = function(element)
+            mustEndElement = element
+            refreshCostLabel()
+        end,
+    }
+
+    mainChildren[#mainChildren+1] = gui.Button{
+        classes = {"sizeM"},
+        halign = "center",
+        tmargin = 10,
+        text = T("persistence.confirm"),
+
+        create = function(element)
+            confirmElement = element
+            refreshCostLabel()
+        end,
+
+        click = function(element)
+            if confirmBlocked() then
+                return
+            end
+
+            -- End any persistent abilities that were NOT selected to keep. Ending one
+            -- removes it from persistenceAbilities, so gather the ids first.
+            local endGuids = {}
+            for _, ab in pairs(persistenceAbilities) do
+                if not keepAbilities[ab.guid] then
+                    endGuids[#endGuids+1] = ab.guid
                 end
+            end
+            for _, guid in ipairs(endGuids) do
+                casterToken.properties:EndPersistentAbilityById(guid, "chose")
+            end
 
-                -- Calculate essence from kept abilities.
-                local selectedCost = 0
-                for _, ab in pairs(persistenceAbilities) do
-                    if keepAbilities[ab.guid] then
-                        selectedCost = selectedCost + (ab.cost or 0)
-                    end
+            local earnedEssence = essenceGained()
+
+            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+            for id, effect in pairs(ongoingEffectsTable) do
+                if string.lower(effect.name) == "essence at start" then
+                    casterToken:ModifyProperties{
+                        description = "Set Start of Turn Essence",
+                        execute = function()
+                            casterToken.properties:ApplyOngoingEffect(id, nil, {tokenid = casterToken.charid}, {stacks = earnedEssence + 1})
+                            --The effect lowers the start-of-turn gain by the cost just
+                            --paid; record the full gain so the persistent abilities panel
+                            --can still compare costs against it this turn.
+                            casterToken.properties.persistenceGainAtStart = startOfTurnHeroicResource
+                        end,
+                    }
+                    break
                 end
-                local earnedEssence = startOfTurnHeroicResource - selectedCost
+            end
 
-                local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-                for id, effect in pairs(ongoingEffectsTable) do
-                    if string.lower(effect.name) == "essence at start" then
-                        casterToken:ModifyProperties{
-                            description = "Set Start of Turn Essence",
-                            execute = function()
-                                casterToken.properties:ApplyOngoingEffect(id, nil, {tokenid = casterToken.charid}, {stacks = earnedEssence + 1})
-                                --The effect lowers the start-of-turn gain by the cost just
-                                --paid; record the full gain so the persistent abilities panel
-                                --can still compare costs against it this turn.
-                                casterToken.properties.persistenceGainAtStart = startOfTurnHeroicResource
-                            end,
-                        }
-                        break
-                    end
-                end
-
-                finished = true
-                gui.CloseModal()
-            end,
-            gui.Label{
-                classes = {"persist-button-label"},
-                text = "Submit",
-            },
-        },
-        gui.Panel{
-            classes = {"persist-cancel"},
-            escapeActivates = true,
-            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-            press = function(element)
-                finished = true
-                canceled = true
-                gui.CloseModal()
-            end,
-            gui.Label{
-                classes = {"persist-button-label"},
-                text = "Cancel",
-            },
-        },
+            finished = true
+            gui.CloseModal()
+        end,
     }
 
     local resultPanel = gui.Panel{
+        classes = {"framedPanel"},
+        --Modals sit outside the HUD's style cascade, so pull the theme in here.
+        styles = ThemeEngine.GetStyles(),
         flow = "vertical",
         draggable = true,
         drag = function(element)
             element.x = element.xdrag
             element.y = element.ydrag
         end,
-        bgimage = "panels/square.png",
-        bgcolor = "#040807",
-        border = 1,
-        borderColor = "#5C3D10",
-        cornerRadius = 6,
-        width = 480,
+        width = 600,
         height = "auto",
-        pad = 12,
+        pad = 16,
+        borderBox = true,
 
-        styles = {
-            {
-                selectors = {"label", "persist-title"},
-                fontFace = "Berling",
-                fontSize = 18,
-                color = "#5C6860",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                bmargin = 2,
-            },
-            {
-                selectors = {"label", "persist-instruction"},
-                fontFace = "Berling",
-                fontSize = 12,
-                color = "#C49A5A",
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                bmargin = 2,
-            },
-            {
-                selectors = {"label", "persist-cost-label"},
-                fontFace = "Berling",
-                fontSize = 14,
-                color = "#FFFEF8",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                bmargin = 2,
-                bold = true,
-            },
-            {
-                selectors = {"label", "persist-cost-label", "persist-cannot-afford"},
-                color = "#D53031",
-            },
-            {
-                selectors = {"panel", "persist-divider"},
-                width = "100%",
-                height = 1,
-                bgimage = "panels/square.png",
-                bgcolor = "#5C3D10",
-                vmargin = 8,
-            },
-            {
-                selectors = {"panel", "persist-chips-wrap"},
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                wrap = true,
-                bmargin = 2,
-            },
-            {
-                selectors = {"panel", "persist-chip"},
-                height = "auto",
-                minHeight = 22,
-                width = "auto",
-                halign = "left",
-                valign = "top",
-                hpad = 8,
-                vpad = 4,
-                margin = 3,
-                flow = "horizontal",
-                bgimage = "panels/square.png",
-                border = 1,
-                borderColor = "#5C6860",
-                bgcolor = "clear",
-                cornerRadius = 4,
-            },
-            {
-                selectors = {"panel", "persist-chip", "hover"},
-                brightness = 1.3,
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"panel", "persist-chip", "persist-chip-selected"},
-                borderColor = "#966D4B",
-                bgcolor = "#5C3D10",
-            },
-            {
-                selectors = {"label", "persist-chip-label"},
-                fontFace = "Berling",
-                fontSize = 13,
-                color = "#FFFEF8",
-                width = "auto",
-                height = "auto",
-                valign = "center",
-            },
-            {
-                selectors = {"panel", "persist-button-row"},
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                halign = "right",
-                tmargin = 4,
-            },
-            {
-                selectors = {"panel", "persist-submit"},
-                width = 130,
-                height = 30,
-                halign = "right",
-                rmargin = 8,
-                bgimage = "panels/square.png",
-                bgcolor = "#040807",
-                border = 1,
-                borderColor = "#966D4B",
-                cornerRadius = 4,
-            },
-            {
-                selectors = {"panel", "persist-submit", "hover"},
-                brightness = 1.25,
-                transitionTime = 0.1,
-            },
-            {
-                selectors = {"panel", "persist-cancel"},
-                width = 130,
-                height = 30,
-                halign = "right",
-                bgimage = "panels/square.png",
-                bgcolor = "#040807",
-                border = 1,
-                borderColor = "#5C6860",
-                cornerRadius = 4,
-            },
-            {
-                selectors = {"panel", "persist-cancel", "hover"},
-                brightness = 1.25,
-                transitionTime = 0.1,
-            },
-            {
-                selectors = {"label", "persist-button-label"},
-                fontFace = "Berling",
-                fontSize = 13,
-                color = "#FFFEF8",
-                width = "auto",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-            },
-        },
+        --Closed some other way than Confirm: leave everything as it was.
+        destroy = function(element)
+            if not finished then
+                finished = true
+                canceled = true
+            end
+        end,
 
         children = mainChildren,
     }
+
+    local themeHandler = ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel.valid then
+            resultPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     gui.ShowModal(resultPanel)
 
     while not finished do
         coroutine.yield(0.1)
     end
+
+    themeHandler:Deregister()
 
     if canceled then
         return

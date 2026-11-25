@@ -6349,6 +6349,13 @@ local function PlaceRailButton()
     if not RailModeActive() then
         return
     end
+    --a folder is its owner's window, so one owned by the log this user doesn't see goes to
+    --the one they do.
+    if History.UsingOldLog() then
+        PanelDocument.RailSwapFolder("history", "action log")
+    else
+        PanelDocument.RailSwapFolder("action log", "history")
+    end
     --either log filed in a folder already has its place there (a View from before History
     --keeps the old log in one); a button below Chat as well would leave a gap.
     if PanelDocument.WindowOwner("history") ~= "history" or PanelDocument.WindowOwner("action log") ~= "action log" then

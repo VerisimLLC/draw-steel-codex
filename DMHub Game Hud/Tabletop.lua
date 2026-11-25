@@ -2986,6 +2986,28 @@ function g_card.Button(rec, ops, scale)
     return card
 end
 
+--Moves a minimized window's button or card in among the windows, where the
+--Director's Screen can lie over it (DirectorScreen KeepOnTop), or back onto
+--the button layer over them.
+--- @param under boolean
+function g_card.LayUnder(rec, under)
+    local button = rec.button
+    if button == nil or not button.valid then
+        return
+    end
+    local layer = g_buttonLayer
+    if under then
+        layer = DocumentsLayer()
+    end
+    if layer == nil or not layer.valid or button.parent == layer then
+        return
+    end
+    --the button layer's styles do not reach the documents layer.
+    button.styles = cond(under, MapButtons.Styles(), {})
+    button:Unparent()
+    layer:AddChild(button)
+end
+
 --Builds (or rebuilds) a minimized window's floating button on the table.
 --A docked window has no floating button: the rail draws it.
 --What the button shows and does comes from rec.buttonOps (a scene window
@@ -4950,7 +4972,9 @@ g_sharing.ScreenWindowItem = function(rec, store, share, apply, minimize, restor
         isMap = rec.sceneid == nil,
         maximized = rec.maximized == true and not rec.minimized,
         card = rec.minimized == true and rec.card == true,
-        onButtonLayer = rec.minimized == true,
+        layUnder = function(under)
+            g_card.LayUnder(rec, under)
+        end,
         --into a card at (x, y), on the screen: a window collapses into it, a
         --plain button becomes one.
         shrink = function(x, y)
@@ -13621,6 +13645,13 @@ ThemeEngine.OnThemeChanged(mod, function()
     if g_buttonLayer ~= nil and g_buttonLayer.valid then
         g_buttonLayer.styles = MapButtons.Styles()
         g_buttonLayer:UpdateStyle()
+        --buttons under the Director's Screen carry their own: the screen's
+        --next look puts them back under it with the new ones.
+        for _, item in ipairs(Tabletop.ScreenItems()) do
+            if item.layUnder ~= nil then
+                item.layUnder(false)
+            end
+        end
     end
 end)
 

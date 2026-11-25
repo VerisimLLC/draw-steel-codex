@@ -8605,11 +8605,11 @@ local g_panelDocuments = {}
 --8px-per-character as the estimate until a name has been measured once.
 local g_chipLabelWidthCache = {}
 
---Get (or create) the session-cached PanelDocument for a registered
---dockable panel name. Returns nil when no such panel is registered or
---it is not available to this user (dmonly/devonly, or its available() says no,
---as History does while the old Action Log is in use).
-function PanelDocument.Get(panelName)
+--The registration of a dockable panel this user can have a window for, or
+--nil when no such panel is registered or it is not available to this user
+--(dmonly/devonly, or its available() says no, as History does while the old
+--Action Log is in use).
+function PanelDocument.AvailableRegistration(panelName)
     local reg = DockablePanel.GetRegistration(panelName)
     if reg == nil then
         return nil
@@ -8621,6 +8621,17 @@ function PanelDocument.Get(panelName)
         return nil
     end
     if reg.available ~= nil and not reg.available() then
+        return nil
+    end
+    return reg
+end
+
+--Get (or create) the session-cached PanelDocument for a registered
+--dockable panel name; nil when this user can't have its window
+--(AvailableRegistration).
+function PanelDocument.Get(panelName)
+    local reg = PanelDocument.AvailableRegistration(panelName)
+    if reg == nil then
         return nil
     end
 
@@ -8930,12 +8941,25 @@ end
 --("iconrailtabs", a name kept for compatibility with saved layouts)
 --is purely the folder membership -- windows are always single-panel.
 
---{ [memberKey] = ownerKey } across every stored group. Owners never
---appear as members (SetStoredTabs enforces it), so this cannot chain.
+--Whether a folder's owner can host it here. A folder is its owner's window,
+--so a panel this user can't have a window for (the old Action Log while
+--History is in use, an absent mod's panel) owns nothing: its members host
+--themselves until it is back. Otherwise they could not be opened at all
+--(RE4KHZ5Q).
+function PanelDocument.FolderOwnerShows(owner)
+    --map folders are already filtered (LiveFolders); a script button is no
+    --panel, so it has no registration to check.
+    return MapRail.IsMapPanel(owner) or string.match(owner, "^button:") ~= nil
+        or PanelDocument.AvailableRegistration(owner) ~= nil
+end
+
+--{ [memberKey] = ownerKey } across every stored group whose owner shows.
+--Owners never appear as members (SetStoredTabs enforces it), so this
+--cannot chain.
 function PanelDocument.GroupOwners()
     local result = {}
     for owner, tabs in pairs(MapRail.EffectiveTabs()) do
-        if type(tabs) == "table" and #tabs > 1 then
+        if type(tabs) == "table" and #tabs > 1 and PanelDocument.FolderOwnerShows(owner) then
             for _, k in ipairs(tabs) do
                 if k ~= owner then
                     result[k] = owner
@@ -9002,7 +9026,18 @@ function PanelDocument.WindowOwner(key)
         return nil
     end
     key = string.lower(key)
-    return PanelDocument.GroupOwners()[key] or key
+    --not through GroupOwners: the rails ask this per button several times a
+    --second, so only the one folder holding the key has its owner checked.
+    for owner, tabs in pairs(MapRail.EffectiveTabs()) do
+        if owner ~= key and #tabs > 1 then
+            for _, k in ipairs(tabs) do
+                if k == key and PanelDocument.FolderOwnerShows(owner) then
+                    return owner
+                end
+            end
+        end
+    end
+    return key
 end
 
 --Open this panel's standalone window, or raise the existing one.
@@ -13527,6 +13562,23 @@ local function SyncDockHandles()
     end
 end
 
+--Whether a side dock holds no panels. False while the docks are not up, or
+--while the saved layout still has panels for it (the dock is mid-rebuild, or
+--its last panel is being dragged out).
+function PanelDocument.SideDockEmpty(side)
+    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        return false
+    end
+    local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+    if dock == nil or (not dock.valid) or #dock:GetChildrenWithClasses({"dockablePanelContainer"}) > 0 then
+        return false
+    end
+    --docks are saved in GameHud:Docks() order: left, right, floating.
+    local saved = dmhub.GetSettingValue(GetDockablePanelsSetting()) or {}
+    local savedDock = (saved.docks or {})[cond(side == "right", 2, 1)]
+    return savedDock == nil or savedDock.panels == nil or #savedDock.panels == 0
+end
+
 --Toggling the rail moves the docks with it: rail ON slides both docks
 --off screen (the rail replaces them); rail OFF slides both back in.
 --Called ONLY from the iconrail setting's onchange -- EnsureIconRail
@@ -16927,6 +16979,33 @@ function PanelDocument.RailSwapPanel(fromKey, toKey)
     dmhub.SetSettingValue("iconraillayout", layout)
     RebuildIconRails()
     return true
+end
+
+--- Hands one panel's folder to another panel that takes its place (History and the old
+--- Action Log): the second becomes the folder's owner, the first leaves it. Does nothing
+--- when the first owns no folder or the second is already in one. Keys are lowercase.
+--- @param fromKey string
+--- @param toKey string
+function PanelDocument.RailSwapFolder(fromKey, toKey)
+    local tabs = PanelDocument.StoredTabs(fromKey)
+    if tabs == nil then
+        return
+    end
+    --the stored folders, not GroupOwners: it leaves out folders whose owner can't show.
+    for _, list in pairs(MapRail.EffectiveTabs()) do
+        for _, k in ipairs(list) do
+            if string.lower(k) == toKey then
+                return
+            end
+        end
+    end
+    local list = {}
+    for _, k in ipairs(tabs) do
+        k = string.lower(k)
+        list[#list + 1] = cond(k == fromKey, toKey, k)
+    end
+    --the members leave fromKey's folder with this, which ends it.
+    PanelDocument.SetStoredTabs(toKey, list)
 end
 
 --- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
@@ -25701,6 +25780,12 @@ local function CreateIconRail(side, entries, opts)
                 return
             end
             local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
+            --an empty dock on screen shows nothing but still hides this rail, and
+            --rail mode has no menu row to put it away: slide it back off.
+            if dockVisible and RailModeActive() and PanelDocument.SideDockEmpty(side) then
+                dmhub.SetSettingValue(side .. "dockoffscreen", true)
+                dockVisible = false
+            end
             if element.data.lastDockVisible ~= dockVisible then
                 element.data.lastDockVisible = dockVisible
                 --mirror the dock's slide class here too: its own

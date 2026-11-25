@@ -1621,6 +1621,7 @@ function CreateTokenHud(token)
 					local itemInfo = gearTable[itemid]
 					local icon = itemInfo:GetIcon()
 					local panel = gui.Panel{
+						interactable = false,
 						classes = {"animatedItem", "fadein"},
 						bgimage = icon,
 
@@ -1663,6 +1664,7 @@ function CreateTokenHud(token)
 					local itemInfo = gearTable[itemid]
 					if itemInfo ~= nil then
 						local panel = gui.Panel{
+							interactable = false,
 							classes = {"animatedItemLose"},
 							bgimage = itemInfo:GetIcon(),
 
@@ -1878,6 +1880,7 @@ function CreateTokenHud(token)
                 local strikeThrough = nil
                 if icon.clear then
                     strikeThrough = gui.Panel{
+                        interactable = false,
                         styles = {
                             {
                                 bgcolor = "white",
@@ -1923,6 +1926,7 @@ function CreateTokenHud(token)
 
 				local children = element.children
 				children[#children+1] = gui.Panel{
+                    interactable = false, --per panel, not inherited, so each child sets it too.
                     flow = "horizontal",
                     width = "auto",
                     height = "auto",
@@ -1948,6 +1952,7 @@ function CreateTokenHud(token)
 					},
 
                     gui.Panel{
+                        interactable = false,
                         width = 32,
                         height = 32,
                         bgimage = icon.icon,
@@ -1966,6 +1971,7 @@ function CreateTokenHud(token)
                         }
                     },
                     gui.Label{
+                        interactable = false,
                         styles = {
                             {
                                 color = "white",
@@ -2023,6 +2029,7 @@ function CreateTokenHud(token)
 
 				local children = element.children
 				children[#children+1] = gui.Label{
+					interactable = false,
 					text = text,
 					floating = true,
                     markdown = true,
@@ -2068,6 +2075,7 @@ function CreateTokenHud(token)
 			floateffect = function(element, effect)
 				element:AddChild(
 					gui.Panel{
+						interactable = false,
 						styles = {
 							{
 								width = 64,
@@ -2200,6 +2208,7 @@ function CreateTokenHud(token)
                 local ndelay = 0
 
                 local speechBalloon = gui.Label{
+                    interactable = false,
                     styles = {
                         {
                             opacity = 0,

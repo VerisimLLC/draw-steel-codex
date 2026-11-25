@@ -920,6 +920,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,
                         cast = options.symbols.cast,
+                        --who made the move, for the collision damage it adds pushing into an object.
+                        pusher = options.symbols.invoker,
                         --what stability took off, saved on this clone by the ability that set the move up.
                         stability = ability:try_get("_tmp_forcedMoveStability"),
                     })
@@ -948,6 +950,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
 								forcedmovementcastid = forcedMovementCastId,
+								--the creature being moved, sent on both sides of the collision, so a trigger
+								--can tell its own collision from being hit by a moved creature.
+								moverid = casterToken.charid,
 								speed = 1,
 								withobject = false,
 								withcreature = true,
@@ -962,6 +967,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 							casterToken.properties:TriggerEvent("collide", {
 								forcedmovementcastid = forcedMovementCastId,
+								moverid = casterToken.charid,
 								speed = 1,
 								withobject = false,
 								withcreature = true,
@@ -1037,6 +1043,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
                     casterToken.properties:TriggerEvent("collide", {
                         forcedmovementcastid = forcedMovementCastId,
+                        moverid = casterToken.charid,
                         speed = collisionInfo.speed,
                         withobject = withobject,
                         withcreature = not withobject,
@@ -1065,6 +1072,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     tok.properties._tmp_forcedMovementCast = options.symbols.cast
 					tok.properties:TriggerEvent("collide", {
 						forcedmovementcastid = forcedMovementCastId,
+						moverid = casterToken.charid,
 						speed = collisionInfo.speed,
                         withobject = casterToken.isObject,
                         withcreature = not casterToken.isObject,
@@ -1124,6 +1132,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 					casterToken.properties:TriggerEvent("collide", {
 						forcedmovementcastid = forcedMovementCastId,
+						moverid = casterToken.charid,
 						speed = collision.speed,
 						withobject = withobject,
 						withcreature = not withobject,
@@ -1140,6 +1149,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						tok.properties._tmp_forcedMovementCast = options.symbols.cast
 						tok.properties:TriggerEvent("collide", {
 							forcedmovementcastid = forcedMovementCastId,
+							moverid = casterToken.charid,
 							speed = collision.speed,
 							withobject = withobject,
 							withcreature = not withobject,

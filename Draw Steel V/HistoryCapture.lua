@@ -50,7 +50,7 @@ local Int = History.Int
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
---- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, path: table|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, collisiondamage: number|nil, collisionreduction: number|nil, pushbonus: number|nil, pusher: HistoryCreature|nil, path: table|nil, near: table[]|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view, and near (the creatures around it then, see NearMove in HistoryCapture) too. On a collision: collisiondamage is the damage the Collision rule dealt it, collisionreduction its forced movement damage reduction, and pushbonus what the pusher added for pushing it into an object. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
 --- @field landedon? boolean On a target: a creature fell on it.
 --- @field landeddamage? number On a target a creature fell on: the damage that did, before immunity or weakness.
 --- @field opposed? {attacker: number, defender: number} On a target: the totals of an opposed power roll against it. The ability's user wins only on a higher total.
@@ -251,12 +251,21 @@ end
 local g_falling = {}
 local FALL_WINDOW_MS = 10000
 
-local function Falling(token)
-    local falling = g_falling[token.charid]
-    if falling ~= nil and dmhub.serverTimeMilliseconds - falling.t < FALL_WINDOW_MS then
-        return falling
+--Pushed creatures that hit something, by charid. The Collision rule deals its damage from a
+--trigger of its own a moment after the push, so the push leaves here where to add it up.
+local g_colliding = {}
+
+--A push recorded in byCharid (g_falling or g_colliding) for this token, if it is recent.
+local function RecentMove(byCharid, token)
+    local recent = byCharid[token.charid]
+    if recent ~= nil and dmhub.serverTimeMilliseconds - recent.t < FALL_WINDOW_MS then
+        return recent
     end
     return nil
+end
+
+local function Falling(token)
+    return RecentMove(g_falling, token)
 end
 
 --The creature whose fall set off this trigger, if one did. The engine fires "fallenon" only
@@ -375,6 +384,9 @@ local function CastBegan(ability, casterToken, targets, options)
         }, targets, options)
         state.automatic = true
         state.actorToken = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
+        --the Collision rule: its damage to a pushed creature is also kept with the push. A
+        --creature hit by another pushed creature gets the trigger too; that is not its own push.
+        state.collide = (ability.trigger == "collide" and symbols ~= nil and symbols.moverid == casterToken.charid) or nil
         return
     end
 
@@ -1085,6 +1097,15 @@ local function OnDamage(creature, info)
         return
     end
 
+    --the damage a pushed creature took for hitting something, kept with the push for its side view.
+    local colliding = state.collide and info.landed > 0 and RecentMove(g_colliding, token) or nil
+    if colliding ~= nil then
+        colliding.moved.collisiondamage = colliding.moved.collisiondamage + info.landed
+        if colliding.row == nil or colliding.row.finished then
+            History.RewriteCaptured(colliding.entry)
+        end
+    end
+
     local target = RowTarget(state, token)
     if target == nil then
         return
@@ -1219,6 +1240,39 @@ local function OnThreshold(creature, thresholdState, info)
     end
 end
 
+--How far around a forced move to look for creatures to save: the square past either end, the
+--mover's own size, and room for a big creature whose corner is off to one side.
+local NEAR_MOVE_MARGIN = 4
+
+--- The creatures around a forced move, where they stand as it is recorded, so the side view
+--- can draw them there later instead of where they stand by then. Each is {charid, x, y,
+--- floor, altitude, unseen}: unseen is 1 when players could not see that creature then.
+--- @param mover CharacterToken
+--- @param path table[]|nil The move's squares as saved, {x, y, floor, altitude} each.
+--- @return table[]|nil near Empty when nobody was near; nil when there is no path.
+local function NearMove(mover, path)
+    if type(path) ~= "table" or #path == 0 then
+        return nil
+    end
+    local floors = {}
+    local x1, y1, x2, y2 = math.huge, math.huge, -math.huge, -math.huge
+    for _, step in ipairs(path) do
+        floors[step[3]] = true
+        x1, y1 = math.min(x1, step[1]), math.min(y1, step[2])
+        x2, y2 = math.max(x2, step[1]), math.max(y2, step[2])
+    end
+    local near = {}
+    for _, other in ipairs(dmhub.allTokens) do
+        local loc = other.loc
+        if other.charid ~= mover.charid and floors[loc.floor]
+            and loc.x >= x1 - NEAR_MOVE_MARGIN and loc.x <= x2 + NEAR_MOVE_MARGIN
+            and loc.y >= y1 - NEAR_MOVE_MARGIN and loc.y <= y2 + NEAR_MOVE_MARGIN then
+            near[#near + 1] = {other.charid, loc.x, loc.y, loc.floor, loc.altitude, UnseenByPlayers(other) ~= nil and 1 or nil}
+        end
+    end
+    return near
+end
+
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
     --a push that went nowhere is still worth a line when stability stopped it, it was
@@ -1228,6 +1282,11 @@ local function OnForcedMove(creature, info)
     if not History.Enabled() or token == nil or wentNowhere then
         return
     end
+    --it has moved again: damage from here on is not an earlier push's collision, even when this
+    --move records none of its own (it only bounced, or passed through creatures).
+    if not info.stopped then
+        g_colliding[token.charid] = nil
+    end
     local moved = {
         kind = info.kind,
         distance = info.distance,
@@ -1235,6 +1294,7 @@ local function OnForcedMove(creature, info)
         collision = info.collision,
         walls = info.walls,
         path = info.path,
+        near = NearMove(token, info.path),
     }
     --what a collision hit: an object, or the first creature it ran into.
     if (info.collision or 0) > 0 then
@@ -1242,6 +1302,19 @@ local function OnForcedMove(creature, info)
         local other = info.collidedwith ~= nil and info.collidedwith[1] or nil
         if other ~= nil and other.valid and not info.collidewithobject then
             moved.collidedwith = History.Creature(other)
+        end
+        --what the Collision rule adds and takes off, so the Why can explain the damage, which is
+        --added up as it lands (collisiondamage).
+        moved.collisiondamage = 0
+        moved.collisionreduction = token.properties:CalculateNamedCustomAttribute("Forced Movement Damage Reduction")
+        local pusher = info.pusher ~= nil and Utils.ResolveGoblinScriptObject(info.pusher) or nil
+        local pusherToken = pusher ~= nil and dmhub.LookupToken(pusher) or nil
+        if pusher ~= nil and pusherToken ~= nil and info.collidewithobject and info.kind == "push" then
+            local bonus = pusher:CalculateNamedCustomAttribute("BonusPushDamageIntoObjects")
+            if bonus > 0 then
+                moved.pushbonus = bonus
+                moved.pusher = History.Creature(pusherToken)
+            end
         end
     end
     --what stability did: stopped comes straight from the setup, the rest with the move.
@@ -1262,6 +1335,9 @@ local function OnForcedMove(creature, info)
         if info.falling then
             g_falling[token.charid] = {moved = moved, entry = entry, t = dmhub.serverTimeMilliseconds}
         end
+        if moved.collisiondamage ~= nil then
+            g_colliding[token.charid] = {moved = moved, entry = entry, t = dmhub.serverTimeMilliseconds}
+        end
         return
     end
     local target = RowTarget(state, token)
@@ -1269,6 +1345,9 @@ local function OnForcedMove(creature, info)
         target.moved = moved
         if info.falling then
             g_falling[token.charid] = {moved = moved, entry = state.entry, row = state, t = dmhub.serverTimeMilliseconds}
+        end
+        if moved.collisiondamage ~= nil then
+            g_colliding[token.charid] = {moved = moved, entry = state.entry, row = state, t = dmhub.serverTimeMilliseconds}
         end
     end
 end

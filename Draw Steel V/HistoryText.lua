@@ -660,8 +660,12 @@ text("history.why.lead.fell.other", [[Fell {count} squares]])
 --A collision. {squares} is "2 squares"; {kind} is push, pull or slide.
 text("history.why.lead.hit_object", [[Hit an object]])
 text("history.why.hit_object", [[{name} had {squares} of the {kind} left: {amount} damage, plus 2 for hitting an object.]])
+--The same, when whoever pushed it adds damage for pushing into objects. {pusher} is their name.
+text("history.why.hit_object_bonus", [[{name} had {squares} of the {kind} left: {amount} damage, plus 2 for hitting an object and {bonus} from {pusher}'s bonus for pushing into objects.]])
 text("history.why.lead.hit_creature", [[Hit {other}]])
 text("history.why.hit_creature", [[{name} had {squares} of the {kind} left, so it and {other} each took {amount} damage.]])
+--Added after either collision line when the creature's forced movement damage reduction took some off.
+text("history.why.collision_reduced", [[Its forced movement damage reduction took off {amount}.]])
 --How many minions the damage killed. {count} and {number} are the minion numbers above ("two").
 text("history.why.lead.minions", [[Minions]])
 text("history.why.minions_known", [[Each minion in this squad has {stamina} Stamina, so {amount} damage killed {count}.]])

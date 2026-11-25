@@ -384,8 +384,9 @@ local function CastBegan(ability, casterToken, targets, options)
         }, targets, options)
         state.automatic = true
         state.actorToken = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
-        --the Collision rule: its damage to a pushed creature is also kept with the push.
-        state.collide = ability.trigger == "collide" or nil
+        --the Collision rule: its damage to a pushed creature is also kept with the push. A
+        --creature hit by another pushed creature gets the trigger too; that is not its own push.
+        state.collide = (ability.trigger == "collide" and symbols ~= nil and symbols.moverid == casterToken.charid) or nil
         return
     end
 

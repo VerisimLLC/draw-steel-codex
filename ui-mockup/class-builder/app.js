@@ -1570,7 +1570,6 @@ function renderBoard() {
       const b = E("button", null, "When something happens (combat starts, you deal damage...)"); b.type = "button"; b.addEventListener("click", () => { closeMenu(); change(() => cls.gains.push({ id: newId("g"), event: "dealdamage", qty: "1", guid: guid() })); });
       m.appendChild(a); m.appendChild(b); }); });
   if (!cls.hrRaw) gs.appendChild(ag); board.appendChild(gs);
-  board.appendChild(E("p", "hint", "Each of these is listed on the hero's sheet, and the game adds the " + res + " for them when it happens."));
 
   }
   // Levels
@@ -1595,7 +1594,7 @@ function renderBoard() {
   st.appendChild(cb); st.appendChild(document.createTextNode("Uses the slow start rules (Encounters 1–4)")); lh.appendChild(st);
   }
   board.appendChild(lh);
-  if (!sc && cls.slowStart) board.appendChild(E("p", "hint", "With the slow start, a new hero plays their first encounter with only Encounter 1's features, then adds Encounter 2's, and so on. \u201cLevel 1, after the slow start\u201d is what they gain once all four are done."));
+  if (!sc) board.appendChild(E("p", "hint", "Create slow start rules used by Pregen Characters."));
   const keys = laneKeys(); let shown = 0;
   keys.forEach(k => {
     const isLevel = k.startsWith("level-"); const n = isLevel ? +k.slice(6) : 0;

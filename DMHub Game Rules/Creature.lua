@@ -9468,10 +9468,10 @@ end
 Allegiance(viewerToken, otherToken) says how viewerToken regards otherToken: "ally",
 "enemy" or "neither". Every rules check that asks "is that my ally / my enemy?" should
 go through it (or the wrappers below), so an effect that changes allegiance works the
-same for targeting, triggers, free strikes and flanking. Auras are the exception: the
-engine picks who an aura reaches by plain IsFriend. The aura filter can take a
-creature out of an Enemies aura (e.g. one under Guise), but nothing can put an ally
-into one.
+same for targeting, triggers and free strikes. Auras and flanking are the exceptions:
+both start from plain IsFriend (same side), so an effect can take a creature out of
+an Enemies aura or stop it flanking (e.g. Guise), but can never put an ally into an
+Enemies aura or make an ally a flanker.
 
 It starts from the engine's IsFriend (same side), then applies these custom attributes:
 
@@ -11567,14 +11567,9 @@ creature.AuraTokenOnlyAdjacent = AuraTokenOnlyAdjacent
 --An "Enemies" aura passes over a creature its caster doesn't regard as an enemy (see
 --ALLEGIANCE; e.g. Guise). Returns the auras that still apply, or nil when none do.
 local function WithoutEnemyAurasForNonEnemies(token, auras)
-    --The engine only puts creatures on the caster's other side in an Enemies aura, and
-    --only these two attributes can stop such a creature counting as an enemy.
-    if AllegianceAttribute(token, "Not Treated As Enemy") <= 0
-            and AllegianceAttribute(token, "Count As Ally To Enemies") <= 0 then
-        return auras
-    end
-    local kept = {}
-    for _,aura in ipairs(auras) do
+    --Stays nil until an aura is dropped, so the usual case hands back the same list.
+    local kept = nil
+    for index,aura in ipairs(auras) do
         local instance = aura.auraInstance
         local casterToken = nil
         if instance ~= nil and instance:GetApplyTo() == "enemies" then
@@ -11585,8 +11580,18 @@ local function WithoutEnemyAurasForNonEnemies(token, auras)
             end
         end
         if casterToken == nil or IsEnemyOf(casterToken, token) then
-            kept[#kept+1] = aura
+            if kept ~= nil then
+                kept[#kept+1] = aura
+            end
+        elseif kept == nil then
+            kept = {}
+            for earlier = 1, index - 1 do
+                kept[earlier] = auras[earlier]
+            end
         end
+    end
+    if kept == nil then
+        return auras
     end
     if #kept == 0 then
         return nil

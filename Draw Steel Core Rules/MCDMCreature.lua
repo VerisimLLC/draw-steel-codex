@@ -2507,8 +2507,9 @@ local function GetEnemyCreaturesAtLoc(token, loc, result)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
             --GetLineOfSight returns nil when a token stands on a floor whose data has not loaded (RD3WUFCR).
-            --Only creatures that regard this one as an enemy can flank it, so a creature under Guise can't be flanked.
-            if token.charid ~= otherTok.charid and IsEnemyOf(otherTok, token) and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
+            --A flanker is on the other side and regards this creature as an enemy. Allegiance effects
+            --can only remove a flanker (Guise), never turn an ally into one (Poison Haze).
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and IsEnemyOf(otherTok, token) and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
                 AddTokenOnce(result, otherTok)
             end
         end

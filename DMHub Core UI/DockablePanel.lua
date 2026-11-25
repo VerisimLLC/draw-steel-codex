@@ -2728,11 +2728,14 @@ DockablePanel = {
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			if dock ~= nil then
+			--Docks and their children can be destroyed (data reads nil) while the HUD is torn down.
+			if dock ~= nil and dock.valid and dock.data ~= nil then
 				for _,child in ipairs(dock.data.GetChildren()) do
-					for _,instance in ipairs(child.data.GetPanelInstances()) do
-						if instance.data.identifier == identifier then
-							return instance
+					if child.valid and child.data ~= nil then
+						for _,instance in ipairs(child.data.GetPanelInstances()) do
+							if instance.data.identifier == identifier then
+								return instance
+							end
 						end
 					end
 				end

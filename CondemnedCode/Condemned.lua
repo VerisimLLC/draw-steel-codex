@@ -2245,38 +2245,52 @@ local WINDOW = {
     event = "condemnedWindow",
 }
 
+--What FindWindow found on the current map. Looking through every object is too slow to repeat
+--four times a second, so it is done once per map and kept while the objects exist; a map with
+--no window is looked at again every few seconds, in case its objects were still loading.
+local g_window = { mapid = nil, checkedAt = 0 }
+local WINDOW_RECHECK_SECONDS = 5
+
 --The window's floor and its 1-Stamina window object (what attacks on the window target),
---or nil when the current map has no window.
+--or nil when the current map has no window. Also notes the art objects for SetWindowArt.
+--rescan looks again even if the map was looked through already.
+---@param rescan boolean|nil
 ---@return MapFloorLua|nil, LuaObjectInstance|nil
-local function FindWindow()
+local function FindWindow(rescan)
     local map = game.currentMap
     if map == nil then
         return nil, nil
     end
+    if not rescan and g_window.mapid == map.id then
+        local glass = g_window.glass
+        if glass ~= nil and glass.valid and g_window.floor.valid then
+            return g_window.floor, glass
+        end
+        if glass == nil and dmhub.Time() - g_window.checkedAt < WINDOW_RECHECK_SECONDS then
+            return nil, nil
+        end
+    end
+
+    g_window = { mapid = map.id, checkedAt = dmhub.Time() }
     for _, floor in ipairs(map.floors) do
         if floor.description == WINDOW.floorName and floor.valid then
             for _, obj in pairs(floor.objects) do
                 --some map objects have no keyword list at all.
                 local keywords = obj.keywords
                 if keywords ~= nil and keywords[WINDOW.keyword] == true then
-                    return floor, obj
+                    g_window.floor, g_window.glass = floor, obj
+                elseif obj.name == WINDOW.artName then
+                    g_window.art = obj
+                elseif obj.name == WINDOW.brokenArtName then
+                    g_window.brokenArt = obj
                 end
+            end
+            if g_window.glass ~= nil then
+                return floor, g_window.glass
             end
         end
     end
     return nil, nil
-end
-
----@param floor MapFloorLua
----@param name string
----@return LuaObjectInstance|nil
-local function WindowObjectNamed(floor, name)
-    for _, obj in pairs(floor.objects) do
-        if obj.name == name then
-            return obj
-        end
-    end
-    return nil
 end
 
 --Erases every wall along the line under the glass, using a thin box around that line.
@@ -2294,17 +2308,15 @@ local function EraseWindowWall(floor)
 end
 
 --Shows the intact art, or once broken hides it (an inactive object isn't drawn) and shows
---the broken copy if the map has one.
----@param floor MapFloorLua
+--the broken copy if the map has one. Uses the art FindWindow found, so call that first.
 ---@param broken boolean
-local function SetWindowArt(floor, broken)
-    local intact = WindowObjectNamed(floor, WINDOW.artName)
-    local brokenArt = WindowObjectNamed(floor, WINDOW.brokenArtName)
-    if intact ~= nil and intact.inactive ~= broken then
+local function SetWindowArt(broken)
+    local intact, brokenArt = g_window.art, g_window.brokenArt
+    if intact ~= nil and intact.valid and intact.inactive ~= broken then
         intact.inactive = broken
         intact:Upload()
     end
-    if brokenArt ~= nil and brokenArt.inactive == broken then
+    if brokenArt ~= nil and brokenArt.valid and brokenArt.inactive == broken then
         brokenArt.inactive = not broken
         brokenArt:Upload()
     end
@@ -2323,7 +2335,7 @@ local function ShatterWindow(charid)
 
     --the push broke only the edges it went through; open the whole window.
     EraseWindowWall(floor)
-    SetWindowArt(floor, true)
+    SetWindowArt(true)
 
     local token = charid ~= nil and dmhub.GetTokenById(charid) or nil
     if token ~= nil and token.valid then
@@ -2393,11 +2405,9 @@ GameSystem.RegisterPlayObserver("condemnedwindow", {
 --Once the glass is gone from the wall, the window object and art are kept hidden in case
 --another client writes an old copy of the object back.
 local function WatchWindow()
-    if not IsMapHost() then
-        return
-    end
+    --the remembered window comes first: maps without one stop here, before the host check.
     local floor, glass = FindWindow()
-    if floor == nil then
+    if floor == nil or not IsMapHost() then
         return
     end
     local wallLeft = floor:GetNearestWallSegment{ x = (WINDOW.minX + WINDOW.maxX) / 2, y = WINDOW.wallY, maxDistance = 0.2 }
@@ -2406,7 +2416,7 @@ local function WatchWindow()
             glass.inactive = true
             glass:Upload()
         end
-        SetWindowArt(floor, true)
+        SetWindowArt(true)
         return
     end
     if glass == nil or glass.inactive then
@@ -2427,7 +2437,8 @@ CondemnedWindow = {
     --- condemned/scripts/abbey-window-apply.lua; safe to run again.
     ---@return string
     Install = function()
-        local floor, glass = FindWindow()
+        --look again, so art added to the map since the last look is found.
+        local floor, glass = FindWindow(true)
         if floor == nil then
             return "this map has no " .. WINDOW.floorName .. " floor with the window object"
         end
@@ -2475,7 +2486,7 @@ CondemnedWindow = {
             glass.inactive = false
             glass:Upload()
         end
-        SetWindowArt(floor, false)
+        SetWindowArt(false)
         return "window installed"
     end,
 }

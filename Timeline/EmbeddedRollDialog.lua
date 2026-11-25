@@ -975,6 +975,27 @@ function DiceSlots.RollLoadout(creatureArg, rollProps)
     return nil
 end
 
+--- Runs fn with the dice it seeds or rolls skinned with this loadout, then puts
+--- back the one an open roll dialog set (DiceSlots.dialogLoadout).
+--- @param loadout {model: string, model2: string, modelD6: string}
+--- @param fn fun()
+function DiceSlots.WithRollLoadout(loadout, fn)
+    --a shop try-dice set would beat the loadout; the shop sets its own again
+    --each time it seeds its dice.
+    dice.SetRollPreviewModel("")
+    dice.SetRollLoadout(loadout.model, loadout.model2, loadout.modelD6)
+    local ok, err = pcall(fn)
+    local previous = DiceSlots.dialogLoadout
+    if previous ~= nil then
+        dice.SetRollLoadout(previous.model, previous.model2, previous.modelD6)
+    else
+        dice.SetRollLoadout(nil, nil, nil)
+    end
+    if not ok then
+        error(err, 0)
+    end
+end
+
 --- The class slot a Hero's dice live in for the local player: the subclass key
 --- when that slot is activated, else the class key. nil for a creature with no
 --- class (a monster, or a Hero before the Class step).
@@ -1349,6 +1370,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --general form -- SetRollSlotDice is just a loadout with one set for every die) is
     --the newer of the two, so fall back to it on an older engine.
     local SetRollDiceOverride = function(loadout)
+        DiceSlots.dialogLoadout = loadout
         if loadout == nil then
             pcall(function() dice.SetRollLoadout(nil, nil, nil) end)
             pcall(function() dice.SetRollSlotDice(nil) end)

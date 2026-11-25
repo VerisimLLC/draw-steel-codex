@@ -8531,6 +8531,226 @@ local function DiceLayout(args)
     return panel, api
 end
 
+--- A cage of real dice, like the shop's "try dice": they rest in the panel,
+--- grow and wobble when the pointer is on them, and a click or a drag throws
+--- them across the screen. The throw is for show: nothing networked, no chat.
+--- @param args {width: number, height: number, numDice: number, numFaces: number, restScale: number, spacing: nil|number}
+--- @return Panel panel
+--- @return {set: fun(sets: {model: string, model2: string, modelD6: string}), show: fun(on: boolean)}
+function HeroSheetAppearance.DiceCage(args)
+    --thrown: the dice left the cage, so a new set waits for the next seed.
+    local state = {shown = false, thrown = false, reseedPending = false, key = ""}
+    --- @type nil|{model: string, model2: string, modelD6: string}
+    local loadout = nil
+
+    --the cage anchors and draws the resting dice, so it takes no mouse: the
+    --hit panel over it does.
+    local cage = gui.DicePreview{
+        --room for the glow some sets have.
+        width = args.width + 48,
+        height = args.height + 48,
+        floating = true,
+        halign = "center",
+        valign = "center",
+        interactable = false,
+        bgimage = true,
+        bgcolor = "white",
+        styles = {gui.Style{opacity = 0}},
+        create = function(element)
+            ---@cast element DicePreview
+            element:SetAsDicePreviewPanel(true)
+            --resting dice draw inside the sheet, so a window over it covers them.
+            element.dicePreviewVirtual = true
+            element.dicePreviewHoverFx = true
+            element.dicePreviewScreenBounds = true
+            element.dicePreviewLiftDrop = true
+            element.dicePreviewRestScale = args.restScale
+            element.dicePreviewSpacing = args.spacing or 1
+            element:FireEvent("seedDice")
+        end,
+        destroy = function(element)
+            ---@cast element DicePreview
+            element:CancelDicePreviewRoll()
+            element:SetAsDicePreviewPanel(false)
+        end,
+        seedDice = function(element)
+            ---@cast element DicePreview
+            state.reseedPending = false
+            state.thrown = false
+            element:CancelDicePreviewRoll()
+            local seeded = loadout
+            if not state.shown or seeded == nil then
+                return
+            end
+            DiceSlots.WithRollLoadout(seeded, function()
+                dmhub.Roll{
+                    preview = true, ["local"] = true, silent = true,
+                    previewPanel = element,
+                    numDice = args.numDice, numFaces = args.numFaces, numKeep = 0,
+                    description = "Try Dice",
+                    complete = function()
+                        if element.valid then
+                            element:FireEvent("requestReseed")
+                        end
+                    end,
+                    --too weak a drag: the dice were put back.
+                    cancel = function()
+                        if element.valid then
+                            element:FireEvent("requestReseed")
+                        end
+                    end,
+                }
+            end)
+        end,
+        requestReseed = function(element)
+            if state.reseedPending then
+                return
+            end
+            state.reseedPending = true
+            element:ScheduleEvent("seedDice", 0.6)
+        end,
+    }
+    ---@cast cage DicePreview
+
+    local panel = gui.Panel{
+        width = args.width,
+        height = args.height,
+        halign = "center",
+        cage,
+        gui.Panel{
+            width = "100%",
+            height = "100%",
+            floating = true,
+            halign = "center",
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            draggable = true,
+            dragMove = false,
+            hover = function()
+                cage:DicePreviewMouseEnter()
+            end,
+            dehover = function()
+                cage:DicePreviewMouseLeave()
+            end,
+            dragging = function()
+                state.thrown = true
+                cage:DicePreviewDragThink()
+            end,
+            drag = function()
+                cage:DicePreviewDragEnd()
+            end,
+            click = function()
+                state.thrown = true
+                cage:DicePreviewClick()
+            end,
+        },
+    }
+
+    local api = {}
+    --- The sets the dice rest and roll in.
+    --- @param sets {model: string, model2: string, modelD6: string}
+    api.set = function(sets)
+        local key = string.format("%s|%s|%s", sets.model, sets.model2, sets.modelD6)
+        if key == state.key then
+            return
+        end
+        state.key = key
+        loadout = sets
+        --thrown dice keep their set; the next ones rest in the new one.
+        if cage.valid and not state.thrown then
+            cage:FireEvent("seedDice")
+        end
+    end
+    --- The dice exist only while the cage is on screen: they are real 3D dice,
+    --- which hiding the panel would not remove.
+    --- @param on boolean
+    api.show = function(on)
+        if on == state.shown then
+            return
+        end
+        state.shown = on
+        if cage.valid then
+            cage:FireEvent("seedDice")
+        end
+    end
+    return panel, api
+end
+
+--- The Effects tab's dice: the power roll pair over a rule, then the d6, each
+--- a cage to throw from. A sheet popped out into its own OS window shows them
+--- still instead: the real dice are drawn only in the app's window.
+--- @return Panel panel
+--- @return {paint: fun(sets: table<string, string>), show: fun(on: boolean)}
+function HeroSheetAppearance.ThrowDice()
+    --wider than the dice, so they are easy to grab.
+    local pair, pairApi = HeroSheetAppearance.DiceCage{width = 200, height = DICE_PAIR_DIE, numDice = 2, numFaces = 10,
+        restScale = 1, spacing = 0.85}
+    local small, smallApi = HeroSheetAppearance.DiceCage{width = 84, height = DICE_SMALL_DIE, numDice = 1, numFaces = 6,
+        restScale = 0.9}
+    local throw = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        pair,
+        gui.Panel{
+            classes = {"heroSheetDialogRule"},
+            bgimage = "panels/square.png",
+            width = math.floor((2 * DICE_PAIR_DIE + 12) * 1.4),
+            height = 1,
+            halign = "center",
+            vmargin = 8,
+        },
+        small,
+    }
+    local still, stillApi = DiceLayout{scale = 1, seq = "herosheettab"}
+    still:SetClass("collapsed", true)
+    local shown = false
+    local poppedOut = false
+    local function Sync()
+        throw:SetClass("collapsed", poppedOut)
+        still:SetClass("collapsed", not poppedOut)
+        pairApi.show(shown and not poppedOut)
+        smallApi.show(shown and not poppedOut)
+        if not shown then
+            --a hidden tab gets no dehover: stop any spinning die by hand.
+            stillApi.stop()
+        end
+    end
+    local panel = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        heroSheetWindowMode = function(element, data)
+            poppedOut = data.poppedOut == true
+            Sync()
+        end,
+        throw,
+        still,
+    }
+    local api = {}
+    --- @param sets table<string, string> a set for each die id
+    api.paint = function(sets)
+        local loadout = {model = sets.p1, model2 = sets.p2, modelD6 = sets.d6}
+        pairApi.set(loadout)
+        smallApi.set(loadout)
+        stillApi.paint(sets)
+    end
+    --- @param on boolean
+    api.show = function(on)
+        shown = on
+        if on then
+            --a tab first opened in a popped-out window heard no heroSheetWindowMode.
+            local root = panel.root
+            poppedOut = root ~= nil and root.valid and root.data ~= nil and root.data.nativeWindowRoot == true
+        end
+        Sync()
+    end
+    return panel, api
+end
+
 --- A Hero's dice for the person viewing the sheet. The sheet's Dice is the
 --- shop's class dice slot: the same account setting, set from another place.
 ---   key: the viewer's class dice slot ("class:<id>" or "class:<id>:<subclassid>"),
@@ -8988,9 +9208,9 @@ local function BuildEffects(bus, Row, Half)
     local bloodBlock
     bloodBlock, bloodHint = Block("Blood", "", bloodPills, {panel = bloodNote, width = 190})
 
-    --the Hero's dice as the Dice panel shows them: a preview only; Change
-    --dice opens the window where they are picked.
-    local diceLayout, diceApi = DiceLayout{scale = 1, seq = "herosheettab"}
+    --the Hero's dice, to pick up and throw; Change dice opens the window
+    --where they are picked.
+    local diceLayout, diceApi = HeroSheetAppearance.ThrowDice()
     local changeDice = SmallButton{
         text = "Change dice",
         click = function()
@@ -9128,10 +9348,7 @@ local function BuildEffects(bus, Row, Half)
 
     bus.EffectsShown = function(shown)
         preview.setShown(shown)
-        --a hidden tab gets no dehover: stop any spinning die by hand.
-        if not shown then
-            diceApi.stop()
-        end
+        diceApi.show(shown)
         local token = Token()
         if shown and token ~= nil then
             Paint(token)
